@@ -254,6 +254,11 @@ class API:
         # Doctor check callback handler (runtime)
         self._doctor_check_handler: Callable | None = None
 
+        # Accumulated pipe alias declarations for Stage 1
+        self._pipes: list[dict[str, str]] = []
+        # Execute-command callback handler (runtime)
+        self._execute_command_handler: Callable | None = None
+
         # Accumulated enricher declarations for Stage 1
         self._enrichers: list[dict[str, str]] = []
         # Enrich-show callback handler (runtime)
@@ -582,6 +587,14 @@ class API:
                 self._respond_result(req_id, {"data": data or {}})
             else:
                 self._respond_result(req_id, {"data": {}})
+        elif method == "ze-plugin-callback:execute-command":
+            if self._execute_command_handler and params:
+                result = self._execute_command_handler(
+                    params.get("command", ""), params.get("args", []) or []
+                )
+                self._respond_result(req_id, result)
+            else:
+                self._respond_ok(req_id)
         elif method == "ze-plugin-callback:post-startup":
             self._post_startup_received = True
             self._respond_ok(req_id)
@@ -731,6 +744,30 @@ class API:
         """
         self._doctor_check_handler = handler
 
+    def declare_pipe(
+        self, command: str, name: str, expansion: str, description: str = ""
+    ) -> None:
+        """Declare a pipe alias for one of this plugin's commands (Stage 1).
+
+        An alias is the word an operator types after the pipe character. It
+        stands for the operator chain in `expansion`, takes no argument, and
+        names no other alias.
+
+        Args:
+            command: Command path the alias sits on (one this plugin declares)
+            name: The word typed after the pipe character (kebab-case)
+            expansion: The operator chain the name stands for
+            description: The line completion and help show beside the name
+        """
+        pipe: dict[str, str] = {
+            "command": command,
+            "name": name,
+            "expansion": expansion,
+        }
+        if description:
+            pipe["description"] = description
+        self._pipes.append(pipe)
+
     def declare_enricher(self, command: str, key: str) -> None:
         """Declare a show enricher (Stage 1).
 
@@ -739,6 +776,19 @@ class API:
             key: Unique enricher key within command (kebab-case)
         """
         self._enrichers.append({"command": command, "key": key})
+
+    def on_execute_command(self, handler: Callable) -> None:
+        """Register a handler for execute-command callbacks (runtime).
+
+        The handler receives (command, args) and must return a dict with
+        'status' ('done' or 'error') and optional 'data' carrying the answer.
+        The answer is what the pipe chain runs over, so it is structured data
+        rather than text a renderer already formatted.
+
+        Args:
+            handler: Callback function(command, args) -> response_dict
+        """
+        self._execute_command_handler = handler
 
     def on_enrich_show(self, handler: Callable) -> None:
         """Register a handler for enrich-show callbacks (runtime).
@@ -809,6 +859,8 @@ class API:
             params["doctor-checks"] = self._doctor_checks
         if self._enrichers:
             params["enrichers"] = self._enrichers
+        if self._pipes:
+            params["pipes"] = self._pipes
 
         self._call_engine("ze-plugin-engine:declare-registration", params)
         self._declared = True
@@ -1369,6 +1421,10 @@ class API:
                 continue
 
             if method == "ze-plugin-callback:enrich-show":
+                self._handle_callback(req_id, method, params)
+                continue
+
+            if method == "ze-plugin-callback:execute-command":
                 self._handle_callback(req_id, method, params)
                 continue
 
@@ -2435,6 +2491,13 @@ def declare_filter(
 def on_filter_update(handler: Callable[[dict], dict]) -> None:
     """Register a handler for filter-update callbacks."""
     _get_api().on_filter_update(handler)
+
+
+def declare_pipe(
+    command: str, name: str, expansion: str, description: str = ""
+) -> None:
+    """Declare a pipe alias for one of this plugin's commands (Stage 1)."""
+    _get_api().declare_pipe(command, name, expansion, description)
 
 
 def declare_done() -> None:

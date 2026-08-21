@@ -122,6 +122,29 @@ module ze-plugin-engine {
                     description "Default filters this filter replaces (e.g., rfc:no-self-as)";
                 }
             }
+            list pipe {
+                key "command name";
+                description
+                    "Pipe aliases this plugin offers for its own commands.
+                     An alias is a word an operator types after the pipe
+                     character, and it stands for an operator chain.";
+                leaf command {
+                    type string;
+                    description "Command path the alias sits on (one of this plugin's own declared commands)";
+                }
+                leaf name {
+                    type string;
+                    description "The word an operator types after the pipe character (kebab-case)";
+                }
+                leaf description {
+                    type string;
+                    description "The line completion and help show beside the name";
+                }
+                leaf expansion {
+                    type string;
+                    description "The operator chain the name stands for, for example: display kind vrp-count";
+                }
+            }
         }
     }
 

@@ -1,0 +1,188 @@
+# Test: an external plugin declares a pipe alias for its own command, and an
+# operator typing that name after a pipe character gets the expansion's answer.
+#
+# VALIDATES: the Wiring Test row "an operator types `show ... | <alias>` over the
+#            SSH exec channel" -> expandAliases splices the plugin's chain and
+#            ApplyPipes runs it over the plugin's payload.
+# PREVENTS:  the `pipes` list travelling Stage 1 with nothing registering it, so
+#            the name reaches the parser as an unknown pipe operator.
+#
+# Method: a Python plugin declares one command and one alias over it in its
+# Stage 1 message, then serves the command with a payload whose aggregate keys
+# and whose rows are siblings. A second process, `ze cli`, types the command over
+# the SSH exec channel: once whole, and once with the alias. The alias is a
+# selection, so the rows must survive the first and not the second.
+#
+# The timeout is DECLARED because this file starts a daemon, waits for an
+# external plugin to reach Stage 5, and launches `ze` several times.
+option=timeout:value=60s
+
+# The plugin under test: it declares the command, declares the alias over it,
+# and answers the command with structured data.
+tmpfs=pipe-alias-plugin.run:mode=755:terminator=EOF_PLUGIN
+#!/usr/bin/env python3
+"""Declare a command and a pipe alias over it, then serve the command."""
+
+from ze_api import API
+
+COMMAND = 'show pipealias counters'
+
+# The aggregate keys and the rows are siblings at the same level, which is what
+# makes a selection able to answer either half. A payload whose aggregate half is
+# absent has nothing for an alias to select.
+ANSWER = {
+    'kind': 'pipe-alias-probe',
+    'vrp-count': 7,
+    'servers': [
+        {'address': '192.0.2.101', 'state': 'established'},
+        {'address': '192.0.2.102', 'state': 'connecting'},
+    ],
+}
+
+
+def handle_command(command, args):
+    if command == COMMAND:
+        return {'status': 'done', 'data': ANSWER}
+    return {'status': 'error', 'data': {'error': 'unknown: ' + command}}
+
+
+def main():
+    api = API()
+    api.declare_command(COMMAND)
+    api.declare_pipe(
+        command=COMMAND,
+        name='totals',
+        expansion='display kind vrp-count',
+        description='The counters alone',
+    )
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.on_execute_command(handle_command)
+    api.ready()
+    api.wait_for_shutdown(timeout=45.0)
+
+
+if __name__ == '__main__':
+    main()
+EOF_PLUGIN
+
+tmpfs=run.py:terminator=EOF_PY
+"""Start ze with the plugin attached, then type the alias over SSH exec."""
+
+import os
+import subprocess
+
+from ze_api import wait_until
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+
+def run(argv, env):
+    result = subprocess.run(
+        argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, check=False
+    )
+    return result.returncode, result.stdout, result.stderr
+
+
+password_hash = subprocess.check_output(['ze', 'passwd'], input='secret\n', text=True).strip()
+with open('pipe-alias.conf', 'w', encoding='utf-8') as fh:
+    fh.write('''plugin {
+    external pipe-alias-provider {
+        run ./pipe-alias-plugin.run
+        encoder json
+    }
+}
+
+system {
+    authentication {
+        user ci {
+            password "''' + password_hash + '''"
+            profile [ admin ]
+        }
+    }
+}
+''')
+
+daemon_env = os.environ.copy()
+daemon_env['ZE_SSH_EPHEMERAL'] = os.path.abspath('ssh.addr')
+daemon_env['ZE_READY_FILE'] = os.path.abspath('ready')
+daemon_env['ZE_CONFIG_DIR'] = os.getcwd()
+# Leave port 179 alone: this suite runs unprivileged and a bind failure there
+# takes the daemon down before it writes `ready`.
+daemon_env['ze_test_bgp_port'] = str(12000 + os.getpid() % 40000)
+daemon = subprocess.Popen(
+    ['ze', '-f', 'pipe-alias.conf'],
+    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=daemon_env,
+)
+
+
+def daemon_ready():
+    if daemon.poll() is not None:
+        out, err = daemon.communicate()
+        raise SystemExit('daemon exited early\nstdout:\n' + out + '\nstderr:\n' + err)
+    return os.path.exists('ssh.addr') and os.path.exists('ready')
+
+
+try:
+    if not wait_until(daemon_ready, attempts=300, delay=0.1):
+        raise SystemExit('daemon did not become ready')
+
+    host, port = open('ssh.addr', encoding='utf-8').read().strip().rsplit(':', 1)
+    cli_env = os.environ.copy()
+    cli_env.update({
+        'ZE_SSH_HOST': host,
+        'ZE_SSH_PORT': port,
+        'ZE_SSH_USERNAME': 'ci',
+        'ZE_SSH_PASSWORD': 'secret',
+        'ZE_CONFIG_DIR': os.getcwd(),
+    })
+
+    def cli(command):
+        code, out, err = run(['ze', 'cli', '-c', command], cli_env)
+        require(code == 0, '%s exit=%d: %s%s' % (command, code, out, err))
+        return out
+
+    # The plugin's command answers at all. Without this the assertions below
+    # measure an empty answer rather than a selection over a full one.
+    if not wait_until(
+        lambda: 'vrp-count' in cli('show pipealias counters | json'), attempts=100, delay=0.1
+    ):
+        raise SystemExit('the plugin command never answered')
+    whole = cli('show pipealias counters | json')
+    require('192.0.2.101' in whole, 'the rows are missing from the whole answer: %r' % whole)
+
+    # The alias is the assertion. It is a selection over the sibling keys, so the
+    # aggregates survive and the rows do not.
+    only = cli('show pipealias counters | totals | json')
+    require('vrp-count' in only, 'the aggregate vrp-count is missing: %r' % only)
+    require('pipe-alias-probe' in only, 'the aggregate kind is missing: %r' % only)
+    require('192.0.2.101' not in only, 'a row survived `| totals`: %r' % only)
+    require('192.0.2.102' not in only, 'a row survived `| totals`: %r' % only)
+
+    # The name is the plugin's own, so a command outside its path must not
+    # answer to it. `system command list` sits on no path the plugin declared,
+    # and an alias that reached the global table would answer here.
+    code, out, err = run(['ze', 'cli', '-c', 'system command list | totals | json'], cli_env)
+    require(
+        'unknown pipe operator: totals' in (out + err),
+        '`| totals` reached a command the plugin never declared: exit=%d %r %r' % (code, out, err),
+    )
+finally:
+    daemon.terminate()
+    try:
+        daemon.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        daemon.kill()
+        daemon.wait(timeout=5)
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

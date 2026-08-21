@@ -216,6 +216,7 @@ type DeclareRegistrationInput struct {
 	Filters                []FilterDecl          `json:"filters,omitempty"`
 	DoctorChecks           []DoctorCheckDecl     `json:"doctor-checks,omitempty"`
 	Enrichers              []EnricherDecl        `json:"enrichers,omitempty"`
+	Pipes                  []PipeDecl            `json:"pipes,omitempty"`
 	// Claims are exclusive runtime roles this plugin takes over from another
 	// plugin's default behavior (e.g. "bgp-peer-up-replay"). The engine unions
 	// the claims of every plugin in the startup set and delivers the result to
@@ -224,6 +225,21 @@ type DeclareRegistrationInput struct {
 	// opaque to the engine: the claiming plugin and the standing-down plugin
 	// agree on the spelling. Same shape as EventTypes/SendTypes.
 	Claims []string `json:"claims,omitempty"`
+}
+
+// PipeDecl declares a pipe alias for one of the plugin's own commands. An alias
+// is the word an operator types after the pipe character, and the operator
+// chain it stands for. It is declared during Stage 1 registration. The daemon
+// resolves it, because the daemon runs the chain.
+//
+// A pipe alias reshapes an answer. It selects and re-sequences what the command
+// already returned, so the command owes a payload the selection can cut. It
+// takes no argument and it names no other alias.
+type PipeDecl struct {
+	Command     string `json:"command"`               // Command path the alias sits on (one of this plugin's own declared commands)
+	Name        string `json:"name"`                  // The word an operator types after the pipe character (kebab-case)
+	Description string `json:"description,omitempty"` // The line completion and help show beside the name
+	Expansion   string `json:"expansion"`             // The operator chain the name stands for, as an operator would type it
 }
 
 // EnricherDecl declares a show enricher the plugin provides.

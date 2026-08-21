@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
@@ -564,6 +565,12 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 	if err := validateEnricherDecls(input.Enrichers); err != nil {
 		return fmt.Errorf("invalid enricher: %w", err)
 	}
+	// Validate pipe alias declarations before conversion. The pipe resolver
+	// reads the alias registry in this process. A declaration that reaches that
+	// registry is live for every operator, so a refusal happens before it.
+	if err := validatePipeDecls(input.Pipes); err != nil {
+		return fmt.Errorf("invalid pipe alias: %w", err)
+	}
 
 	// Convert RPC input to engine registration type.
 	reg := registrationFromRPC(input)
@@ -601,6 +608,13 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 		return fmt.Errorf("family registration conflict: %w", err)
 	}
 	s.rememberPluginFamilies(reg.Name, addedFamilies)
+	if err := registerPluginPipes(input.Pipes); err != nil {
+		s.removePluginFamilies(reg.Name)
+		s.registry.Unregister(reg.Name)
+		startupRegistrationMu.Unlock()
+		logger().Error("plugin pipe alias refused", "plugin", reg.Name, "error", err)
+		return fmt.Errorf("pipe alias refused: %s: %w", reg.Name, err)
+	}
 	startupRegistrationMu.Unlock()
 
 	// Register proxy enrichers for declared show enrichers.
@@ -1022,6 +1036,54 @@ func validateDoctorCheckDecls(checks []rpc.DoctorCheckDecl) error {
 		}
 	}
 	return nil
+}
+
+// validatePipeDecls validates pipe alias declarations from Stage 1 registration.
+// It reads the shape of each declaration. Whether a name is already taken is
+// decided by the alias registry, which is the only holder of that answer.
+func validatePipeDecls(pipes []rpc.PipeDecl) error {
+	const maxPipes = 32
+	const maxNameLen = 64
+
+	if len(pipes) > maxPipes {
+		return fmt.Errorf("too many pipe aliases: %d (max %d)", len(pipes), maxPipes)
+	}
+	for _, p := range pipes {
+		if strings.TrimSpace(p.Command) == "" {
+			return fmt.Errorf("pipe alias %q declares no command path", p.Name)
+		}
+		if p.Name == "" || len(p.Name) > maxNameLen {
+			return fmt.Errorf("invalid pipe alias name %q (must be 1-%d chars)", p.Name, maxNameLen)
+		}
+		if !isLowerKebab(p.Name) {
+			return fmt.Errorf("invalid pipe alias name %q (must be kebab-case)", p.Name)
+		}
+		if strings.TrimSpace(p.Expansion) == "" {
+			return fmt.Errorf("pipe alias %q on %q expands to nothing", p.Name, p.Command)
+		}
+	}
+	return nil
+}
+
+// registerPluginPipes writes the declared pipe aliases into the alias registry
+// the pipe resolver reads. The whole declaration is handed over in one call,
+// because the registry refuses the batch rather than half of it.
+func registerPluginPipes(pipes []rpc.PipeDecl) error {
+	if len(pipes) == 0 {
+		return nil
+	}
+	declared := make([]command.PluginAlias, 0, len(pipes))
+	for _, p := range pipes {
+		declared = append(declared, command.PluginAlias{
+			Command: p.Command,
+			Alias: command.Alias{
+				Name:        p.Name,
+				Description: p.Description,
+				Expansion:   p.Expansion,
+			},
+		})
+	}
+	return command.RegisterPluginAliases(declared)
 }
 
 // isLowerKebab reports whether s is a valid lower-kebab-case identifier.

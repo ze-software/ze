@@ -6,6 +6,8 @@
 package command
 
 import (
+	"errors"
+	"fmt"
 	"maps"
 	"sort"
 	"strings"
@@ -97,30 +99,100 @@ func RegisterAliases(commands []string, aliases ...Alias) {
 	aliasRegistry.register(commands, set)
 }
 
+// PluginAlias is one alias and the command path it sits on, as a caller outside
+// this repository declares it.
+//
+// The command path travels with the alias. One declaration message can carry
+// aliases for several of the caller's commands, and the registry stores one set
+// for each path.
+type PluginAlias struct {
+	// Command is the command path the alias sits on.
+	Command string
+	// Alias is the name, the description and the expansion.
+	Alias Alias
+}
+
+// errAliasNoName is the refusal both entry points report for an alias with no
+// name. It is the one refusal that names nothing else, because there is nothing
+// to name.
+var errAliasNoName = errors.New("pipe alias registered with no name")
+
+// RegisterPluginAliases declares pipe aliases for a caller outside this
+// repository. It reports a bad declaration rather than panicking on it.
+//
+// It refuses what RegisterAliases refuses, through the same checks. Only the
+// answer differs. RegisterAliases states that no operator input reaches it, so
+// a bad registration there is a Ze defect and a panic is the right report. The
+// strings read here arrived over a socket. A bad one is an operating error, and
+// the caller is told which declaration is wrong and why.
+//
+// Nothing is registered when any one declaration is refused. Every declaration
+// is checked before the first is stored. A caller therefore never has to undo a
+// partial registration it did not ask for.
+//
+// A declaration MUST name a command path. A caller outside this repository
+// reaches no global alias. A global name reaches every command in the daemon,
+// including commands whose answer cannot carry it.
+func RegisterPluginAliases(declared []PluginAlias) error {
+	byCommand := make(map[string]aliasSet, len(declared))
+	paths := make([]string, 0, len(declared))
+
+	for _, declaration := range declared {
+		command := normalizeCommand(declaration.Command)
+		if command == "" {
+			return fmt.Errorf("pipe alias %s names no command path", declaration.Alias.Name)
+		}
+
+		entry, err := checkAlias([]string{command}, declaration.Alias)
+		if err != nil {
+			return fmt.Errorf("%s: %w", command, err)
+		}
+
+		set, seen := byCommand[command]
+		if !seen {
+			set = aliasSet{byName: make(map[string]aliasEntry)}
+			byCommand[command] = set
+			paths = append(paths, command)
+		}
+		set.byName[entry.alias.Name] = entry
+	}
+
+	for _, path := range paths {
+		aliasRegistry.register([]string{path}, byCommand[path])
+	}
+	return nil
+}
+
 // checkedAlias returns the entry to store for one alias. It panics when the
 // registration is one of the four RegisterAliases refuses.
 func checkedAlias(commands []string, alias Alias) aliasEntry {
+	entry, err := checkAlias(commands, alias)
+	if err != nil {
+		panic("BUG: " +
+			err.Error())
+	}
+	return entry
+}
+
+// checkAlias returns the entry to store for one alias, or the reason the
+// registration is refused. It is the one reading of the four refusals. The
+// in-tree path and the plugin-facing path can therefore never disagree about
+// which declarations are sound.
+func checkAlias(commands []string, alias Alias) (aliasEntry, error) {
 	name := strings.ToLower(strings.TrimSpace(alias.Name))
 	if name == "" {
-		panic("BUG: pipe alias registered with no name")
+		return aliasEntry{}, errAliasNoName
 	}
 	if _, taken := knownPipeOps[name]; taken {
-		panic("BUG: pipe alias " +
-			name +
-			" is the name of a pipe operator")
+		return aliasEntry{}, fmt.Errorf("pipe alias %s is the name of a pipe operator", name)
 	}
 	if path, shadowed := filterShadowing(commands, name); shadowed {
-		panic("BUG: pipe alias " +
-			name +
-			" is the name of a pipe filter of " +
-			path)
+		return aliasEntry{}, fmt.Errorf("pipe alias %s is the name of a pipe filter of %s", name, path)
 	}
 
 	ops := parsePipeOps(alias.Expansion)
 	if len(ops) == 0 {
-		panic("BUG: pipe alias " +
-			name +
-			" expands to nothing")
+		return aliasEntry{}, fmt.Errorf("pipe alias %s expands to nothing", name)
 	}
 	for _, op := range ops {
 		if op.kind != pipeUnknown {
@@ -130,21 +202,14 @@ func checkedAlias(commands []string, alias Alias) aliasEntry {
 		// first field is the word the expansion named.
 		named := strings.Fields(op.arg)[0]
 		if aliasRegistered(named) {
-			panic("BUG: pipe alias " +
-				name +
-				" expands to the alias " +
-				named +
-				", and an alias may not name another alias")
+			return aliasEntry{}, fmt.Errorf(
+				"pipe alias %s expands to the alias %s, and an alias may not name another alias", name, named)
 		}
-		panic("BUG: pipe alias " +
-			name +
-			" expands to " +
-			named +
-			", which is not a pipe operator")
+		return aliasEntry{}, fmt.Errorf("pipe alias %s expands to %s, which is not a pipe operator", name, named)
 	}
 
 	alias.Name = name
-	return aliasEntry{alias: alias, ops: ops}
+	return aliasEntry{alias: alias, ops: ops}, nil
 }
 
 // filterShadowing returns the command path of a registered pipe filter that

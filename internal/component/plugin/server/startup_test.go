@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -266,4 +267,96 @@ func TestRunPluginPhaseAllowsMissingOptionalDependency(t *testing.T) {
 
 	proc.Stop()
 	require.Eventually(t, func() bool { return !proc.Running() }, time.Second, 10*time.Millisecond)
+}
+
+// TestOnRegistrationRegistersPluginPipes verifies a pipe alias a plugin declares
+// in its Stage 1 message reaches the alias registry the pipe resolver reads.
+// TestOnRegistrationRefusesMalformedPluginPipe, below, is the refusal half.
+//
+// VALIDATES: the Wiring Test row "a plugin sends a pipes list in
+// declare-registration" -> "onRegistration validates it and writes it to
+// aliasRegistry".
+// PREVENTS: the declaration type traveling the wire with nothing reading it,
+// and a bad declaration reaching the registry.
+func TestOnRegistrationRegistersPluginPipes(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const pluginName = "lifecycle-pipe-alias"
+	const commandName = "show lifecycle pipes"
+	const aliasName = "totals"
+	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
+		p := sdk.NewWithConn(pluginName, conn)
+		err := p.Run(context.Background(), sdk.Registration{
+			Commands: []sdk.CommandDecl{{Name: commandName}},
+			Pipes: []sdk.PipeDecl{{
+				Command:     commandName,
+				Name:        aliasName,
+				Description: "The counters alone",
+				Expansion:   "display kind vrp-count",
+			}},
+		})
+		if err != nil {
+			return 1
+		}
+		return 0
+	})
+
+	s, _ := newLifecycleStartupServer(t)
+	require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{
+		{Name: pluginName, Internal: true, Encoder: plugin.EncodingJSON},
+	}))
+
+	aliases := command.AliasesForCommand(commandName)
+	found := false
+	for _, alias := range aliases {
+		if alias.Name != aliasName {
+			continue
+		}
+		found = true
+		assert.Equal(t, "The counters alone", alias.Description)
+		assert.Equal(t, "display kind vrp-count", alias.Expansion)
+	}
+	assert.True(t, found, "declared pipe alias missing from the registry: %v", aliases)
+}
+
+// TestOnRegistrationRefusesMalformedPluginPipe verifies the pipe declarations are
+// validated in the position the doctor checks and enrichers are validated, which
+// is before onRegistration converts anything. The plugin fails to start and its
+// command never reaches the registry.
+//
+// VALIDATES: the same Wiring Test row, its refusal half.
+// PREVENTS: a malformed declaration being converted and registered.
+func TestOnRegistrationRefusesMalformedPluginPipe(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const pluginName = "lifecycle-pipe-alias-malformed"
+	const commandName = "show lifecycle badpipe"
+	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
+		p := sdk.NewWithConn(pluginName, conn)
+		err := p.Run(context.Background(), sdk.Registration{
+			Commands: []sdk.CommandDecl{{Name: commandName}},
+			Pipes: []sdk.PipeDecl{{
+				Command:   commandName,
+				Name:      "",
+				Expansion: "display kind",
+			}},
+		})
+		if err != nil {
+			return 1
+		}
+		return 0
+	})
+
+	s, _ := newLifecycleStartupServer(t)
+	err := s.runPluginPhase([]plugin.PluginConfig{
+		{Name: pluginName, Internal: true, Encoder: plugin.EncodingJSON},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), pluginName)
+	assert.Empty(t, s.registry.LookupCommand(commandName))
+	assert.Empty(t, command.AliasesForCommand(commandName))
 }

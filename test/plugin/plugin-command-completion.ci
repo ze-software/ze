@@ -23,10 +23,8 @@ def dispatch(api, command):
         return {'status': 'error', 'data': 'engine call returned None'}
     return resp.get('result', {})
 
-def handle_command(api, message):
+def handle_command(command, args):
     """Handle execute-command callback from the engine."""
-    params = message.get('params', {})
-    command = params.get('command', '')
     if command == 'show test-completion visible':
         return {'status': 'done', 'data': json.dumps({'result': 'visible-ok'})}
     if command == 'show test-completion hidden':
@@ -45,7 +43,7 @@ def main():
     api.wait_for_config()
     api.capability_done()
     api.wait_for_registry()
-    api._execute_command_handler = handle_command  # stored for reference; default handler responds OK
+    api.on_execute_command(handle_command)
     api.ready()
     print('DEBUG: ready done, waiting for post_startup', file=sys.stderr)
     api.wait_for_post_startup(timeout=5.0)
