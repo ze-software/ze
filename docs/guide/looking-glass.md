@@ -93,7 +93,7 @@ The looking glass exposes a birdwatcher-compatible JSON API for integration with
 All API responses use `Content-Type: application/json` with birdwatcher-convention `snake_case` field names (not Ze's standard `kebab-case`).
 
 The per-peer route counts on `/protocols/bgp` come from the `bgp-rib` plugin's
-Adj-RIB-In and Adj-RIB-Out sizes, merged into `show bgp summary`:
+Adj-RIB-In and Adj-RIB-Out sizes, merged into `show bgp`:
 `routes_received` and `routes_imported` are both the Adj-RIB-In size (Ze retains
 only accepted routes, so there is no distinct pre-policy received count here),
 and `routes_exported` is the Adj-RIB-Out size. `routes_filtered` is always `0`:

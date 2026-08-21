@@ -45,7 +45,7 @@ Hide
 Type "clear"
 Enter
 Show
-Type "sshpass -e ssh ze-demo show bgp summary"
+Type "sshpass -e ssh ze-demo show bgp"
 Enter
 Wait+Screen /router-id/
 Sleep 7s
@@ -72,36 +72,36 @@ Enter
 Sleep 3s
 Type "clear"
 Enter
-Type "ze cli -c 'show bgp summary'"
+Type "ze cli -c 'show bgp'"
 Enter
 Wait+Screen /router-id/
 Sleep 7s
-Type "ze cli -c 'show bgp summary | text'"
+Type "ze cli -c 'show bgp | text'"
 Enter
 Wait+Screen /router-id/
 Sleep 7s
 Type "clear"
 Enter
 # The operator names the fields they want, in the order they want them.
-Type "ze cli -c 'show bgp summary | display router-id local-as peers-established'"
+Type "ze cli -c 'show bgp | display router-id local-as peers-established'"
 Enter
 Wait+Screen /router-id/
 Sleep 7s
 # fill brings the fields display did not name back, in field-name order.
-Type "ze cli -c 'show bgp summary | display router-id | fill alpha'"
+Type "ze cli -c 'show bgp | display router-id | fill alpha'"
 Enter
 Wait+Screen /router-id/
 Sleep 7s
 Type "clear"
 Enter
 # peers is an alias: a name for a pipe expression, so the rows come back alone.
-Type "ze cli -c 'show bgp summary | peers'"
+Type "ze cli -c 'show bgp | peers'"
 Enter
 Wait+Screen /address/
 Sleep 7s
 Type "clear"
 Enter
-Type "ze cli -c 'show bgp summary | raw' | head -14"
+Type "ze cli -c 'show bgp | raw' | head -14"
 Enter
 # head truncates above router-id, and the typed line carries only single
 # quotes, so a double quote appears exactly when JSON output does.
@@ -109,7 +109,7 @@ Wait+Screen /"/
 Sleep 8s
 Type "clear"
 Enter
-Type "ze cli -c 'show bgp summary | raw' | ze pipe text"
+Type "ze cli -c 'show bgp | raw' | ze pipe text"
 Enter
 Wait+Screen /router-id/
 Sleep 7s

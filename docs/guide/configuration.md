@@ -774,8 +774,8 @@ distinct prefixes a peer may advertise to you at once, which is the number that
 stops moving when the peer only churns attributes.
 
 Neither value is the size of the RIB, and neither is the number
-`show bgp summary` reports. Both counts are taken before import policy runs.
-`show bgp summary` reports `routes-received` and `routes-accepted`, and both are
+`show bgp` reports. Both counts are taken before import policy runs.
+`show bgp` reports `routes-received` and `routes-accepted`, and both are
 the Adj-RIB-In size AFTER that policy, because Ze stores no route the policy
 rejected. A peer whose prefixes the policy rejects therefore reads lower there
 than in either count. Neither value changes enforcement, either: both drop the
@@ -2282,7 +2282,7 @@ The web config editor checks the user's profile before `set`, `add`,
 they mutate a draft.
 
 REST and gRPC without a token or per-user authenticator use the `api`
-identity as read-only. Reads such as `show version` and `show bgp summary` work;
+identity as read-only. Reads such as `show version` and `show bgp` work;
 write commands and config sessions return 403. Configure
 `environment.api-server.token` or per-user credentials when API clients need
 write access.

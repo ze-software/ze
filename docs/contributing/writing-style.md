@@ -423,7 +423,7 @@ The word limits count some groups as a single word:
 | An abbreviation or an initialism | `NLRI`, `RIB` |
 | An alphanumeric identifier | `AS65001`, `ze_core` |
 | Quoted text | `"no such peer"` |
-| A title, a heading, a label | `show bgp summary` |
+| A title, a heading, a label | `show bgp peer list` |
 | A proper noun of a person, a group, an organization, or a geopolitical entity | `Thomas Mangin`, `Internet Engineering Task Force`. The category is closed, so a product name is not in it. `IETF` counts, but as an abbreviation |
 | A hyphenated word | `route-server` |
 | Text inside parentheses | `(see the note above)` |

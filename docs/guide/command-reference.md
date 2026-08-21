@@ -1258,15 +1258,14 @@ rollback, `.prev` no longer exists and the new version is gone from disk.
 
 <!-- source: internal/plugins/update-cmd/cmd/firmware.go -- firmware CLI handlers -->
 
-### show bgp summary
+### show bgp
 
 ```
-ze show bgp                          # The same data, object typed with no verb
-ze show bgp summary                  # Every configured peer
-ze show bgp summary ipv4             # Expanded to ipv4/unicast
-ze show bgp summary ipv6             # Expanded to ipv6/unicast
-ze show bgp summary l2vpn            # Expanded to l2vpn/evpn
-ze show bgp summary <afi>/<safi>     # Full AFI/SAFI form (e.g. ipv4/vpn)
+ze show bgp                          # Every configured peer
+ze show bgp ipv4                     # Expanded to ipv4/unicast
+ze show bgp ipv6                     # Expanded to ipv6/unicast
+ze show bgp l2vpn                    # Expanded to l2vpn/evpn
+ze show bgp <afi>/<safi>             # Full AFI/SAFI form (e.g. ipv4/vpn)
 ```
 
 The family argument is validated against the families any peer has
@@ -1286,19 +1285,26 @@ A family argument adds `family` and `peers-in-family` beside them. Two aliases
 name the halves, so an operator asks for one half and names no field:
 
 ```
-ze show bgp summary | peers      # the peer rows alone, as a table
-ze show bgp summary | summary    # the aggregate fields alone
+ze show bgp | peers      # the peer rows alone, as a table
+ze show bgp | summary    # the aggregate fields alone
 ```
 
-`show bgp` typed with no subcommand gives the same data, as `show ospf` and
-`show vrrp` do for their objects. It takes the same optional family argument. A
-token that names no family and no subcommand comes back as an unknown command,
-so a mistyped subcommand is not reported as an invalid family.
+`show bgp` takes an optional family argument and carries no subcommand of its
+own. A token that names no family and no subcommand comes back as an unknown
+command, so a mistyped subcommand is not reported as an invalid family.
 
-The two aliases and the column order are declared on `show bgp summary`, and a
-command inherits a declaration from its own path or an ancestor of it. `show bgp`
-is neither, so it renders its columns alphabetically and refuses `| peers`. Type
-`show bgp summary` for the ordered table and the two aliases.
+The two aliases and the column order are declared on `show bgp`, and a command
+inherits a declaration from its own path or an ancestor of it. Every child path
+under `show bgp` declares no alias, so none of them offers `| summary` or
+`| peers`. Each declares no column order either, with `show bgp peer list` the
+one exception, which declares its own. So `show bgp rib` renders its columns
+alphabetically.
+
+`show bgp summary` was a second spelling of this command until 2026-08. It is
+removed, not aliased, so it answers an unknown-command error. `show bgp` gives
+the ordered table, and `show bgp | summary` gives the aggregate fields that
+`show bgp summary | summary` gave. An authorization entry keyed on the literal
+`show bgp summary` matches nothing after the removal; key it on `show bgp`.
 
 <!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd; internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary, handleBgpOverview -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerAliases, registerColumns -->
@@ -1969,8 +1975,8 @@ Many commands take a `peer <selector>` argument:
 | `show bgp peer <sel> capabilities` | read-only | Negotiated capabilities |
 | `show bgp peer <sel> statistics` | read-only | Per-peer update statistics with rates |
 | `show bgp peer <sel> history` | read-only | FSM transition history |
-| `show bgp summary` | read-only | BGP summary table (all peers) |
-| `show bgp summary <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count |
+| `show bgp` | read-only | BGP summary table (all peers) |
+| `show bgp <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count |
 | `request peer <sel> pause` | write | Pause read loop (flow control) |
 | `request peer <sel> resume` | write | Resume read loop |
 | `request peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |

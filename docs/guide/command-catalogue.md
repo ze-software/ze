@@ -73,7 +73,7 @@ doing to it."
 | `<domain> <verb>` | `request bgp rib inject`, `request commit start`, `request log level`, `show bgp rpki status` | State that belongs to a specific subsystem |
 | `<domain> <selector> <verb>` | `peer <sel> teardown`, `peer <sel> pause` | Operations targeting one or more instances within a subsystem |
 | `<domain> <verb> <object>` | `config rollback <n>` | Domain operations that produce or consume a named object |
-| `show <what>` | `show bgp summary`, `show bgp peer list`, `show warnings`, `show errors`, `show interface`, `show version`, `show system memory` | Cross-domain read-only introspection |
+| `show <what>` | `show bgp`, `show bgp peer list`, `show warnings`, `show errors`, `show interface`, `show version`, `show system memory` | Cross-domain read-only introspection |
 | `generate <what>` | `generate wireguard keypair`, `generate tech-support archive` (planned) | Produce a new artifact from local state (keys, certs, bundles) |
 | `<bare verb>` | `ping`, `traceroute`, `help` | Universal diagnostics / reserved verbs |
 
@@ -137,8 +137,8 @@ close to fully shipped.
 
 | Command (generic) | VyOS | Junos | Nokia | Arista | FRR | Ze command | Ze status | Backend | Notes |
 |-------------------|------|-------|-------|--------|-----|---------|-----------|---------|-------|
-| BGP summary | `show ip bgp summary` | `show bgp summary` | `show router bgp summary` | `show ip bgp summary` | `show ip bgp summary` | `show summary` | shipped | bgp | |
-| BGP summary per-family | `show ip bgp ipv4/ipv6 summary` | `show bgp summary family inet` | `show router bgp summary family ...` | `show bgp ipv4/ipv6 summary` | `show bgp ipv4/ipv6 summary` | `show summary <afi/safi>` | shipped | bgp | One handler (`ze-bgp:summary`) branches on argv; shorthands `ipv4`, `ipv6`, `l2vpn` expand to `/unicast` (or `/evpn`); unknown families rejected with the list actually negotiated on this daemon; length+charset guard on the argument |
+| BGP summary | `show ip bgp summary` | `show bgp summary` | `show router bgp summary` | `show ip bgp summary` | `show ip bgp summary` | `show bgp` | shipped | bgp | |
+| BGP summary per-family | `show ip bgp ipv4/ipv6 summary` | `show bgp summary family inet` | `show router bgp summary family ...` | `show bgp ipv4/ipv6 summary` | `show bgp ipv4/ipv6 summary` | `show bgp <afi/safi>` | shipped | bgp | One handler (`ze-bgp:overview`) branches on argv; shorthands `ipv4`, `ipv6`, `l2vpn` expand to `/unicast` (or `/evpn`); unknown families rejected with the list actually negotiated on this daemon; length+charset guard on the argument |
 | Peer list brief | `show ip bgp neighbors` | `show bgp neighbor brief` | `show router bgp neighbor` | `show ip bgp neighbors` | `show bgp neighbors` | `show bgp peer list` | shipped | bgp | |
 | Peer detail | `show ip bgp neighbors <addr>` | `show bgp neighbor <addr> extensive` | `show router bgp neighbor <addr> detail` | `show ip bgp neighbors <addr>` | `show bgp neighbors <addr>` | `show bgp peer <sel> detail` | shipped | bgp | |
 | Peer negotiated capabilities | `show ip bgp neighbors <addr> received-capabilities` | included in detail | included in detail | `show ip bgp neighbors <addr> capabilities` | `show bgp neighbors <addr>` | `show bgp peer <sel> capabilities` | shipped | bgp | |

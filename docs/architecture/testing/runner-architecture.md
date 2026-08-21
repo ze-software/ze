@@ -134,7 +134,7 @@ of them has to start that one.
 | `lg-no-engine` | `ze-test lg`, the real looking glass with a dispatcher that always fails | `http` | 1 |
 | `chaos` | `ze-chaos --in-process --web :<port>` | `http` | 1 |
 
-The looking glass gets a peer because its pages read `show bgp summary`: without
+The looking glass gets a peer because its pages read `show bgp`: without
 one, every assertion would run against an empty table. `ze-chaos` is a second
 compile of `cmd/ze` under different tags, so it is built only when a selected
 test asks for it, beside the `ze` binary the run is using.

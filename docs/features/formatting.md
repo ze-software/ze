@@ -132,7 +132,7 @@ comparison.
 declares, and every column it does not name after those, alphabetically. A
 command that declares nothing renders every column alphabetically, as before.
 
-`show bgp summary` declares the order an operator reads a peer in:
+`show bgp` declares the order an operator reads a peer in:
 
 ```
 address  name  description  remote-as  peer-type
@@ -156,7 +156,7 @@ A column is never hidden. Ordering decides where a key renders, never whether
 it renders. A field you do not see in the order the command declared is still
 in the table, after the declared ones.
 
-Only `show bgp summary` and `show bgp peer list` declare an order today. Each
+Only `show bgp` and `show bgp peer list` declare an order today. Each
 declaration is an operator judgment about what leads, so commands take one as
 somebody makes that judgment.
 
@@ -219,12 +219,12 @@ show bgp peer list | display state name | json     # two fields per peer
 
 ### A name for a chain: pipe aliases
 
-Some selections are worth a name. `show bgp summary` answers its aggregate
+Some selections are worth a name. `show bgp` answers its aggregate
 fields and its peer rows side by side, and an operator usually wants one half:
 
 ```
-show bgp summary | peers      # the peer rows, as a table
-show bgp summary | summary    # router-id, local AS, uptime and the peer counts
+show bgp | peers      # the peer rows, as a table
+show bgp | summary    # router-id, local AS, uptime and the peer counts
 ```
 
 Each is a name for a `| display` you would otherwise type in full. `| peers` is

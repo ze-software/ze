@@ -139,7 +139,7 @@ The exact policy is an IXP decision. Keep policy objects named and reviewable ra
 After applying the configuration:
 
 ```console
-ze cli -c "show bgp summary"
+ze cli -c "show bgp"
 ze cli -c "show bgp peer member-a capabilities"
 ze cli -c "show bgp rib status"
 ze cli -c "show bgp rib peer member-a"

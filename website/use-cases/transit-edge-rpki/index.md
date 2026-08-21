@@ -127,7 +127,7 @@ A transit failure and an RPKI cache failure are different events. Monitor them s
 ## Verification
 
 ```console
-ze cli -c "show bgp summary"
+ze cli -c "show bgp"
 ze cli -c "show bgp peer transit-a capabilities"
 ze cli -c "show bgp rpki status"
 ze cli -c "show bgp rpki cache"

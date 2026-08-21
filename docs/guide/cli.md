@@ -34,7 +34,7 @@ ze cli -c "request peer upstream1 teardown 2" # One-shot command (full access)
 | `request peer <sel> pause` | Pause reading from peer (flow control) |
 | `request peer <sel> resume` | Resume reading from peer |
 | `show bgp peer <sel> capabilities` | Show negotiated capabilities |
-| `show bgp summary` | BGP summary table |
+| `show bgp` | BGP summary table |
 
 **Peer selector:** `*` (all), exact IP, glob patterns (`192.168.*.*`), exclusion (`!addr`), or peer name.
 <!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd -->

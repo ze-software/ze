@@ -40,7 +40,7 @@ Query the API:
 curl http://localhost:8081/api/v1/commands
 curl -X POST http://localhost:8081/api/v1/execute \
     -H "Content-Type: application/json" \
-    -d '{"command":"show bgp summary"}'
+    -d '{"command":"show bgp"}'
 ```
 <!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd -->
 
@@ -159,7 +159,7 @@ refresh row gives the required generic Execute command instead.
 
 | Method | Path | Maps to |
 |--------|------|---------|
-| `GET` | `/api/v1/peers` | `show bgp summary` |
+| `GET` | `/api/v1/peers` | `show bgp` |
 | `GET` | `/api/v1/peers/{name}` | `show bgp peer {name} detail` |
 | `DELETE` | `/api/v1/peers/{name}` | `request peer {name} teardown` |
 | `POST` | `/api/v1/peers/{name}/refresh` | Use `/api/v1/execute` with `request peer {name} refresh {family}` |
@@ -259,7 +259,7 @@ the `authorization` metadata key:
 
 ```python
 metadata = [('authorization', 'Bearer alice:password123')]
-stub.Execute(CommandRequest(command='show bgp summary'), metadata=metadata)
+stub.Execute(CommandRequest(command='show bgp'), metadata=metadata)
 ```
 
 ### gRPC reflection
@@ -270,7 +270,7 @@ plaintext loopback listener:
 ```
 grpcurl -plaintext localhost:50051 list
 grpcurl -plaintext localhost:50051 describe ze.api.v1.ZeService
-grpcurl -plaintext -d '{"command":"show bgp summary"}' \
+grpcurl -plaintext -d '{"command":"show bgp"}' \
     -H "authorization: Bearer alice:password123" \
     localhost:50051 ze.api.v1.ZeService/Execute
 ```

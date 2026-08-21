@@ -198,7 +198,7 @@ as sufficient proof:
 
 ```console
 ze start ze.conf
-ze cli -c "show bgp summary"
+ze cli -c "show bgp"
 ze cli -c "show bgp peer transit-a detail"
 ze cli -c "show bgp rib status"
 ze cli -c "show warnings"

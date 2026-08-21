@@ -108,7 +108,7 @@ address family.
 registered command. It asks all three registries the dispatcher resolves from: the
 builtin keys, the plugin registry, and the subsystem handlers. The test is a
 registered PATH, never the presence of leftover tokens, because leftovers are how
-every argument-taking command works: `show bgp summary ipv4` still reaches its
+every argument-taking command works: `show bgp ipv4` still reaches its
 handler with the family.
 
 The client-side lookup carries the same rule, and the two are separate because they
@@ -1395,7 +1395,7 @@ built, from the command string the wrapper already holds, and it reaches
 alphabetical keys, because a program reads those three and key order carries no
 meaning for a program.
 
-A command declares one order per record shape. `show bgp summary` renders an
+A command declares one order per record shape. `show bgp` renders an
 outer record and a list of peer rows. Both carry an `uptime` key in a different
 position. So the renderer applies the declaration that names the most of the
 keys in the record it has in hand.
@@ -1455,15 +1455,15 @@ filters of its own, and nothing reported the loss.
 ### Pipe aliases: a name for an operator chain
 
 An alias is a name an operator types in the operator slot, standing for a chain
-they would otherwise retype. `show bgp summary | peers` says what
-`show bgp summary | display peers` says.
+they would otherwise retype. `show bgp | peers` says what
+`show bgp | display peers` says.
 
 `RegisterAliases` declares them. It writes to two tables, and which one it
 writes to is what the command list says:
 
 | Registration | Table | Resolved |
 |--------------|-------|----------|
-| `RegisterAliases([]string{"show bgp summary"}, ...)` | `aliasRegistry`, the same `commandRegistry[T]` the two registries above use | by the longest command path that is a prefix of the command |
+| `RegisterAliases([]string{"show bgp"}, ...)` | `aliasRegistry`, the same `commandRegistry[T]` the two registries above use | by the longest command path that is a prefix of the command |
 | `RegisterAliases(nil, ...)` | `globalAliases`, a table of its own | for every command, when the per-command lookup carries no alias of that name |
 
 The global table is separate rather than a registration on the empty command
@@ -1491,7 +1491,7 @@ a `panic("BUG:")` naming both sides:
 An alias never enters the payload. It is expanded in the client, so a command
 handler cannot tell an alias from the chain it stands for.
 
-`show bgp summary` registers the two that exist. Both are a selection among
+`show bgp` registers the two that exist. Both are a selection among
 sibling keys, because that answer carries its aggregates and its `peers` array
 at the same level:
 

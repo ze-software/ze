@@ -13,7 +13,7 @@ Commands sent through `ze cli`, `ze cli -c`, `ze show`, or process stdin.
 | `request peer <addr> pause` | Pause reading from peer (flow control) |
 | `request peer <addr> resume` | Resume reading from peer |
 | `show bgp peer <addr> capabilities` | Show negotiated capabilities |
-| `show bgp summary` | BGP summary table with statistics |
+| `show bgp` | BGP summary table with statistics |
 
 Peer selector supports: `*` (all), exact IP, peer name, ASN (`as65001`), glob patterns (`192.168.*.*`), exclusion (`!addr`, `!as65001`). Tab completion for peer selectors in `ze show` and `ze cli` when daemon is running.
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer management RPC handlers -->
