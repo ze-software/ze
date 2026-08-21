@@ -306,7 +306,7 @@ func TestBGPSummaryWithLiveData(t *testing.T) {
 }
 
 // PREVENTS: fetchBGPSummaryPeers silently returning empty map when the path it
-// reads does not match the actual "show bgp summary" output shape.
+// reads does not match the actual "show bgp" output shape.
 func TestFetchBGPSummaryPeersJSON(t *testing.T) {
 	// Matches the actual JSON shape from handleBgpSummary:
 	// resp.Data = {"router-id": ..., "peers": [...]}, aggregates and rows as

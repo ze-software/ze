@@ -232,7 +232,7 @@ def main():
     # than another 100x0.1s -- a degraded run must still have room to reach the
     # runtime_fail below, which names the cause, instead of dying on the runner
     # timeout, which does not.
-    if not _eor_sent(api.dispatch_until('show bgp summary', _eor_sent)):
+    if not _eor_sent(api.dispatch_until('show bgp', _eor_sent)):
         runtime_fail('ze never sent its BGP End-of-RIB before shutdown')
 
     dispatch(api, 'request shutdown')

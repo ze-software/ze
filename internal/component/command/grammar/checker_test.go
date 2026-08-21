@@ -24,7 +24,7 @@ func hasRule(findings []Finding, rule string) bool {
 }
 
 func TestCheckNameVerbFirst(t *testing.T) { // R1
-	if f := CheckName("show bgp summary"); len(f) != 0 {
+	if f := CheckName("show bgp"); len(f) != 0 {
 		t.Errorf("valid verb-first command flagged: %v", f)
 	}
 	if f := CheckName("metrics pool"); !hasRule(f, "R1") {

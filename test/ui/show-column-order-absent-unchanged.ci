@@ -7,7 +7,7 @@
 #            declares an order, so the prefix lookup is proven not to leak an
 #            order down to a command that did not ask for one.
 #
-# The same run asserts that `show bgp summary` IS ordered. Without that half, an
+# The same run asserts that `show bgp` IS ordered. Without that half, an
 # alphabetical answer would prove nothing: a build where the whole feature was
 # inert would pass this file too.
 #
@@ -118,8 +118,8 @@ try:
 
     # The other half: the feature is live in this binary, so the alphabetical
     # answer above is opt-out, not a feature that never ran.
-    code, out, err = run(['ze', 'cli', '-c', 'show bgp summary | text'], cli_env)
-    require(code == 0, 'show bgp summary exit=%d: %s%s' % (code, out, err))
+    code, out, err = run(['ze', 'cli', '-c', 'show bgp | text'], cli_env)
+    require(code == 0, 'show bgp exit=%d: %s%s' % (code, out, err))
     keys = record_keys(out)
     require(len(keys) > 3, 'the summary record is too small to say anything: %r' % out)
     require(keys != sorted(keys), 'the declaring command rendered alphabetically, so this file proves nothing: %r' % keys)

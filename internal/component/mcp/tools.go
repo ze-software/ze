@@ -934,7 +934,7 @@ var handcraftedTools = []map[string]any{
 			"properties": map[string]any{
 				elicitFieldCommand: map[string]any{
 					"type":        "string",
-					"description": "The ze command to execute (e.g., 'show bgp peer list', 'show bgp summary').",
+					"description": "The ze command to execute (e.g., 'show bgp peer list', 'show bgp').",
 				},
 			},
 		},

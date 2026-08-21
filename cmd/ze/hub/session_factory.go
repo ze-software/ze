@@ -203,7 +203,7 @@ func injectViewFactories(m *cli.Model, executor zessh.CommandExecutor) {
 func dashboardFactoryFromExecutor(cmdExec zessh.CommandExecutor) cli.DashboardFactory {
 	return func() (func() (string, error), error) {
 		return func() (string, error) {
-			rendered, err := cmdExec("show bgp summary")
+			rendered, err := cmdExec("show bgp")
 			if rendered != nil {
 				defer rendered.TransportComplete()
 				return rendered.Output, err

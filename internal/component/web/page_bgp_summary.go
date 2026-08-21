@@ -14,7 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// bgpSummaryPeer holds per-peer operational data from "show bgp summary".
+// bgpSummaryPeer holds per-peer operational data from "show bgp".
 type bgpSummaryPeer struct {
 	State  string
 	Uptime string
@@ -22,14 +22,14 @@ type bgpSummaryPeer struct {
 	MsgOut string
 }
 
-// fetchBGPSummaryPeers dispatches "show bgp summary" and returns a map
+// fetchBGPSummaryPeers dispatches "show bgp" and returns a map
 // keyed by peer name. Returns nil when dispatch is unavailable or errors.
 func fetchBGPSummaryPeers(r *http.Request, dispatch CommandDispatcher) map[string]bgpSummaryPeer {
 	if dispatch == nil {
 		return nil
 	}
 	username := GetUsernameFromRequest(r)
-	rendered, err := dispatch.JSON(r.Context(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, "show bgp summary")
+	rendered, err := dispatch.JSON(r.Context(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, "show bgp")
 	defer rendered.TransportComplete()
 	output := rendered.Output
 	if err != nil || output == "" {

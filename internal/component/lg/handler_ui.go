@@ -26,7 +26,7 @@ const maxFormBytes = 4096
 
 // handleUIPeers renders the peer dashboard page.
 func (s *LGServer) handleUIPeers(w http.ResponseWriter, r *http.Request) {
-	result := s.query("show bgp summary")
+	result := s.query("show bgp")
 	zeData := parseJSON(result)
 
 	bmpResult := s.query("show bmp peers")
@@ -199,7 +199,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get peer info first to confirm the peer exists.
-	peerResult := s.query("show bgp summary")
+	peerResult := s.query("show bgp")
 	peerData := parseJSON(peerResult)
 	peerInfo := findPeer(peerData, address)
 
@@ -605,7 +605,7 @@ func (s *LGServer) handleUIEvents(w http.ResponseWriter, r *http.Request) {
 // Until this, only a nil response was reported, it was reported as a named
 // event nothing consumed, and a dispatch error pushed an empty table instead.
 func (s *LGServer) peerStreamBody() (string, error) {
-	zeData := parseJSON(s.query("show bgp summary"))
+	zeData := parseJSON(s.query("show bgp"))
 
 	if message := engineError(zeData); message != "" {
 		return renderToString(peersStreamError(message))

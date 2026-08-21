@@ -24,7 +24,7 @@ var errLGEngineUnavailable = errors.New("bgp engine unavailable")
 // cmdLG serves the REAL looking glass with an engine that always fails.
 //
 // It exists because a daemon cannot be asked for this state. The looking glass
-// dispatches in process, so `show bgp summary` answers an empty peer list when
+// dispatches in process, so `show bgp` answers an empty peer list when
 // no BGP is configured; the engine-unavailable path needs a dispatcher that
 // returns an error, and only a test binary can inject one. Everything else here
 // is production code: lg.NewLGServer, the real routes, the real templates and

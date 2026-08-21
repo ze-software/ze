@@ -37,7 +37,7 @@ const maxRequestBody = 1 << 20
 // convenience routes. Used by parity tests to detect drift from the
 // live command registry.
 var ConvenienceCommands = []string{
-	"show bgp summary",
+	"show bgp",
 	"show version",
 	"show status",
 	"request reload",
@@ -375,7 +375,7 @@ func (s *RESTServer) registerRoutes(mux *http.ServeMux) {
 
 	// Convenience routes (map to Execute).
 	// Commands listed in ConvenienceCommands for parity testing.
-	mux.HandleFunc("GET /api/v1/peers", s.withAuth(s.handleConvenience("show bgp summary")))
+	mux.HandleFunc("GET /api/v1/peers", s.withAuth(s.handleConvenience("show bgp")))
 	mux.HandleFunc("GET /api/v1/peers/", s.withAuth(s.handlePeerByName))
 	mux.HandleFunc("DELETE /api/v1/peers/", s.withAuth(s.handlePeerAction("teardown")))
 	mux.HandleFunc("POST /api/v1/peers/", s.withAuth(s.handlePeerRefresh))

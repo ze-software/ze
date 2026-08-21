@@ -3,7 +3,7 @@
 # Flow:
 # 1. Mock accepts noc:nocpass at priv-lvl 1
 # 2. Daemon maps priv-lvl 1 -> [ read-only ]; profile read-only allows run, denies edit
-# 3. ze cli -c "show bgp summary" succeeds (run section, default allow)
+# 3. ze cli -c "show bgp" succeeds (run section, default allow)
 # 4. ze cli -c "request quiesce" is refused (edit section, default deny)
 #
 # VALIDATES: AC-7 -- TACACS+ priv-lvl 1 mapped to read-only profile.
@@ -106,8 +106,8 @@ NOC_DIR=$(mktemp -d)
 trap 'rm -rf "$NOC_DIR"; kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true; kill $MOCK_PID 2>/dev/null || true; wait $MOCK_PID 2>/dev/null || true' EXIT
 printf 'noc\nnocpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$NOC_DIR" ze init >/dev/null
 
-# noc should be allowed to run "show bgp summary" (read-only profile, run defaults allow)
-OUTPUT=$(ZE_CONFIG_DIR="$NOC_DIR" ZE_SSH_PASSWORD="nocpass" ze cli -c "show bgp summary" 2>&1) || {
+# noc should be allowed to run "show bgp" (read-only profile, run defaults allow)
+OUTPUT=$(ZE_CONFIG_DIR="$NOC_DIR" ZE_SSH_PASSWORD="nocpass" ze cli -c "show bgp" 2>&1) || {
 	echo "FAIL: noc should be allowed to run 'show summary'" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	echo "--- daemon log ---" >&2

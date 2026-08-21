@@ -100,8 +100,8 @@ def main():
             runtime_fail('empty command list')
 
         names = [c.get('Name', '') for c in commands]
-        if 'show bgp summary' not in names:
-            runtime_fail(f'command list does not advertise "show bgp summary" ({len(names)} commands)')
+        if 'show bgp' not in names:
+            runtime_fail(f'command list does not advertise "show bgp" ({len(names)} commands)')
         print(f'OK: REST /api/v1/commands returned {len(commands)} commands', file=sys.stderr)
 
         # Also test execute endpoint. Assert on the PAYLOAD, not just the
@@ -115,7 +115,7 @@ def main():
         # runner and the test passed on a command the daemon rejects. Line count
         # drops because the boilerplate is now shared; every runtime_fail below is
         # kept and three assertions were added.
-        result = post_execute(exec_url, {'command': 'show bgp summary'})
+        result = post_execute(exec_url, {'command': 'show bgp'})
         if result.get('status') != 'done':
             runtime_fail(f'execute status={result.get("status")} error={result.get("error")} data={result.get("data")}')
 

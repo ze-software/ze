@@ -70,7 +70,7 @@ type WBServer string
 const (
 	// WBServerWeb is the config and monitoring UI, and the default.
 	WBServerWeb WBServer = "web"
-	// WBServerLG is the looking glass. Its pages read `show bgp summary`, so
+	// WBServerLG is the looking glass. Its pages read `show bgp`, so
 	// the harness gives it a daemon with a peer rather than a bare listener.
 	WBServerLG WBServer = "lg"
 	// WBServerChaos is the chaos dashboard, served by ze-chaos.

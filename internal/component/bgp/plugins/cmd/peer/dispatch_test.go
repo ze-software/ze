@@ -51,7 +51,7 @@ func TestDispatchBGPPeerDetail(t *testing.T) {
 
 // TestDispatchShowSummary verifies the show-convention summary command.
 //
-// VALIDATES: show summary reaches the BGP summary handler.
+// VALIDATES: `show bgp` reaches the BGP summary handler.
 // PREVENTS: summary remaining only as a noun-first command.
 func TestDispatchShowSummary(t *testing.T) {
 	reactor := &mockReactor{
@@ -61,7 +61,7 @@ func TestDispatchShowSummary(t *testing.T) {
 	}
 	ctx := newDispatchContext(reactor)
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show bgp summary")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show bgp")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 

@@ -811,15 +811,15 @@ func TestModelExecutorAsksForTheDispatcherJSON(t *testing.T) {
 	const answer = `{"router-id":"192.0.2.1"}`
 
 	client, sent := rawOnlyJSONClient(answer)
-	output, err := client.modelExecutor()("show bgp summary")
+	output, err := client.modelExecutor()("show bgp")
 	if err != nil {
 		t.Fatalf("modelExecutor: %v", err)
 	}
 	if output.Text != answer {
 		t.Errorf("modelExecutor answered %q, want the dispatcher's JSON %q", output.Text, answer)
 	}
-	if len(*sent) != 1 || (*sent)[0] != "show bgp summary | raw" {
-		t.Errorf("modelExecutor sent %q, want [\"show bgp summary | raw\"]", *sent)
+	if len(*sent) != 1 || (*sent)[0] != "show bgp | raw" {
+		t.Errorf("modelExecutor sent %q, want [\"show bgp | raw\"]", *sent)
 	}
 
 	client, sent = rawOnlyJSONClient(answer)
@@ -834,8 +834,8 @@ func TestModelExecutorAsksForTheDispatcherJSON(t *testing.T) {
 	if got != answer {
 		t.Errorf("dashboard poll answered %q, want the dispatcher's JSON %q", got, answer)
 	}
-	if len(*sent) != 1 || (*sent)[0] != "show bgp summary | raw" {
-		t.Errorf("dashboardPoller sent %q, want [\"show bgp summary | raw\"]", *sent)
+	if len(*sent) != 1 || (*sent)[0] != "show bgp | raw" {
+		t.Errorf("dashboardPoller sent %q, want [\"show bgp | raw\"]", *sent)
 	}
 }
 

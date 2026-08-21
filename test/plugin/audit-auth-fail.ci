@@ -51,7 +51,7 @@ ADMIN_DIR=$(mktemp -d)
 trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true' EXIT
 printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
 
-if ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="wrongpass" ze cli -c "show bgp summary" >/dev/null 2>&1; then
+if ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="wrongpass" ze cli -c "show bgp" >/dev/null 2>&1; then
 	echo "FAIL: wrong SSH password succeeded" >&2
 	exit 1
 fi

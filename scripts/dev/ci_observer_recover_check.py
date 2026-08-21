@@ -16,7 +16,7 @@ set for the WHOLE body of an `except` handler, including one that goes on to
 recover -- so the first observer to write
 
     try:
-        api.dispatch('show bgp summary')
+        api.dispatch('show bgp')
     except RuntimeError:
         api.dispatch('show bgp peer list')   # <-- sentinel fires here
         continue                             # ... and the test fails anyway

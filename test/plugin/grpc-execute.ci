@@ -57,14 +57,14 @@ def main():
         # Execute a command that returns structured JSON. Assert on the PAYLOAD,
         # not just the status: an unknown command reports status=error here, and
         # a handler that answered "done" with nothing would still be a defect.
-        result = dispatch(api, 'show bgp summary')
+        result = dispatch(api, 'show bgp')
         if result.get('status') != 'done':
-            runtime_fail(f'show bgp summary status={result.get("status")} data={result.get("data")}')
+            runtime_fail(f'show bgp status={result.get("status")} data={result.get("data")}')
         summary = result_json_data(result, {})
         if 'peers-configured' not in summary:
-            runtime_fail(f'show bgp summary has no peers-configured: {summary}')
+            runtime_fail(f'show bgp has no peers-configured: {summary}')
         if not any(p.get('address') == '127.0.0.1' for p in summary.get('peers', [])):
-            runtime_fail(f'show bgp summary does not list peer 127.0.0.1: {summary}')
+            runtime_fail(f'show bgp does not list peer 127.0.0.1: {summary}')
         print('OK: gRPC-path summary returned peer data', file=sys.stderr)
     finally:
         dispatch(api, 'request shutdown')

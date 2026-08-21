@@ -5,7 +5,7 @@
 #    returns Filter-Id=admin in the Access-Accept.
 # 2. Daemon starts with ONLY RADIUS configured (no local admin user).
 # 3. ze init writes admin/testpass client creds.
-# 4. ze cli -c "show bgp summary" authenticates admin via RADIUS.
+# 4. ze cli -c "show bgp" authenticates admin via RADIUS.
 # 5. Daemon logs "SSH auth success ... source=radius" -- proves the chain
 #    dispatched to the RADIUS admin backend and mapped Filter-Id=admin -> profile.
 #
@@ -107,7 +107,7 @@ ADMIN_DIR=$(mktemp -d)
 trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true; kill $MOCK_PID 2>/dev/null || true; wait $MOCK_PID 2>/dev/null || true' EXIT
 printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
 
-OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show bgp summary" 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show bgp" 2>&1) || {
 	echo "FAIL: 'show summary' via RADIUS auth" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	echo "--- daemon log ---" >&2

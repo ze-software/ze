@@ -34,7 +34,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        result = dispatch(api, 'show bgp summary')
+        result = dispatch(api, 'show bgp')
         if result.get('status') != 'done':
             print(f'FAIL: summary status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

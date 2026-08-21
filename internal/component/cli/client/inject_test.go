@@ -16,11 +16,11 @@ import (
 func TestInjectPluginCommands(t *testing.T) {
 	// Build a tree with one existing YANG-backed command
 	tree := cmd.BuildTree([]cmd.RPCInfo{
-		{CLICommand: "show bgp summary"},
+		{CLICommand: "show bgp health"},
 	}, false)
 
 	commands := []commandEntry{
-		{Value: "show bgp summary", Help: "BGP summary"},      // already in tree
+		{Value: "show bgp health", Help: "BGP health"},       // already in tree
 		{Value: "show bgp irr", Help: "Show IRR filter data"}, // new plugin command
 		{Value: "update bgp irr", Help: "Update IRR data"},    // new plugin command
 	}
@@ -30,7 +30,7 @@ func TestInjectPluginCommands(t *testing.T) {
 	// Existing command still present
 	assert.NotNil(t, tree.Children["show"])
 	assert.NotNil(t, tree.Children["show"].Children["bgp"])
-	assert.NotNil(t, tree.Children["show"].Children["bgp"].Children["summary"])
+	assert.NotNil(t, tree.Children["show"].Children["bgp"].Children["health"])
 
 	// Plugin commands injected
 	assert.NotNil(t, tree.Children["show"].Children["bgp"].Children["irr"],
@@ -78,20 +78,20 @@ func TestInjectPluginCommandsSkipsHidden(t *testing.T) {
 // PREVENTS: Plugin injection overwriting YANG descriptions or tree structure.
 func TestInjectPluginCommandsPreservesExisting(t *testing.T) {
 	tree := cmd.BuildTree([]cmd.RPCInfo{
-		{CLICommand: "show bgp summary"},
+		{CLICommand: "show bgp health"},
 	}, false)
 	// Set a YANG-sourced description
-	tree.Children["show"].Children["bgp"].Children["summary"].Description = "YANG description"
+	tree.Children["show"].Children["bgp"].Children["health"].Description = "YANG description"
 
 	commands := []commandEntry{
-		{Value: "show bgp summary", Help: "Plugin description"},
+		{Value: "show bgp health", Help: "Plugin description"},
 	}
 
 	injectPluginCommands(tree, commands, nil)
 
 	// YANG description preserved (not overwritten)
 	assert.Equal(t, "YANG description",
-		tree.Children["show"].Children["bgp"].Children["summary"].Description)
+		tree.Children["show"].Children["bgp"].Children["health"].Description)
 }
 
 // TestInjectPluginCommandsNilTree verifies that injection handles a nil tree

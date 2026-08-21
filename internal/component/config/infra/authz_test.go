@@ -262,7 +262,7 @@ system {
 	store := infra.ExtractAuthzStore(tree)
 	require.NotNil(t, store)
 	assert.True(t, store.HasProfiles())
-	assert.Equal(t, authz.Allow, store.Authorize("operator", "show bgp summary", true), "noc assignment should be extracted")
+	assert.Equal(t, authz.Allow, store.Authorize("operator", "show bgp", true), "noc assignment should be extracted")
 }
 
 // TestExtractAuthzConfig_DeniesRestrictedCommand verifies the extracted store

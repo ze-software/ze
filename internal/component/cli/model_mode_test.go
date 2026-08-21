@@ -221,18 +221,18 @@ func TestCommandModeDispatch(t *testing.T) {
 
 // VALIDATES: operational-mode "show ..." uses the command executor even when an
 // editor is available.
-// PREVENTS: "show bgp summary" switching to config mode and rendering config
+// PREVENTS: "show bgp" switching to config mode and rendering config
 // instead of daemon output.
 func TestOperationalShowDispatchesToCommandExecutorWithEditor(t *testing.T) {
 	m := newTestModel(t)
 	m.SetCommandExecutor(func(input string) (CommandOutput, error) {
-		if input != "show bgp summary" {
+		if input != "show bgp" {
 			return CommandOutput{}, fmt.Errorf("unexpected command: %s", input)
 		}
 		return CommandOutput{Text: "operational summary"}, nil
 	})
 	m.switchMode(ModeOperational)
-	m.textInput.SetValue("show bgp summary")
+	m.textInput.SetValue("show bgp")
 
 	next, cmd := m.handleEnter()
 	updated, ok := next.(Model)

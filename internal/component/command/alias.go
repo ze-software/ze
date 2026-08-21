@@ -14,7 +14,7 @@ import (
 
 // Alias is a name an operator types in place of an operator chain.
 //
-// `show bgp summary | peers` says what `show bgp summary | display peers`
+// `show bgp | peers` says what `show bgp | display peers`
 // says. An alias takes no argument and names no other alias, so what it stands
 // for is fixed at registration and readable in one place.
 type Alias struct {

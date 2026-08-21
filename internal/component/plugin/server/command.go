@@ -590,7 +590,7 @@ func (d *Dispatcher) updateSortedKeys() {
 // applies the same rule to the client-side lookup, and this is its daemon twin.
 //
 // A command still keeps every trailing token that names no registered command,
-// which is how `show bgp summary ipv4` reaches its handler with the family. The
+// which is how `show bgp ipv4` reaches its handler with the family. The
 // test is a registered PATH, never the presence of leftover tokens: leftovers
 // are how every argument-taking command works.
 func (d *Dispatcher) matchBuiltinTokens(tokens []string) (*Command, []string, map[string]string, bool) {

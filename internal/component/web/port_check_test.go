@@ -10,6 +10,15 @@ import (
 	"github.com/ze-software/ze/internal/test/golden"
 )
 
+// portToolOverlayCommand is why the four tool-overlay fixtures moved, and it is
+// the one reason below that the templ port did not produce.
+//
+// The overlay renders the command it ran, and webToolOverlay (golden_test.go)
+// names one. spec-cli-show-bgp-is-the-command retires `show bgp summary`, so
+// the fixture names `show bgp`, the command that answers that payload today.
+// The markup is unchanged: the four fixtures differ in the command text alone.
+const portToolOverlayCommand = "the overlay names `show bgp`, the command that answers the peer summary now"
+
 // webPortTemplates explains each template fixture that does not match its
 // pre-port bytes. Every other difference is a finding.
 //
@@ -107,6 +116,11 @@ var webPortTemplates = map[string]string{
 	"input/field_wrapper_start--annotated.html": webPortWrapperPair,
 	"input/field_wrapper_end.html":              webPortWrapperPair,
 
+	"component/tool_overlay--confirm.html":  portToolOverlayCommand,
+	"component/tool_overlay--error.html":    portToolOverlayCommand,
+	"component/tool_overlay--overflow.html": portToolOverlayCommand,
+	"component/tool_overlay--result.html":   portToolOverlayCommand,
+
 	"component/detail--fields.html":        portNumberEditor + ", " + portEditorFocusID + ", " + portEnterTriggerCSP,
 	"component/detail--list-table.html":    portListRowClass + ", " + portEditorFocusID + ", " + portEnterTriggerCSP,
 	"component/error_panel.html":           portErrorToggle,
@@ -152,12 +166,27 @@ var webPortTemplates = map[string]string{
 // went with the script, because neither value is JavaScript any more.
 const portSnapshotScript = "the snapshot page's live view is an external script, which script-src 'self' allows"
 
+// portCLITerminalKnowsShowBgp is why the web terminal's response moved, and it
+// is the one entry below that the templ port did not produce.
+//
+// fetchBGPSummaryPeers (page_bgp_summary.go) asks for `show bgp`, where it
+// asked for `show bgp summary` before spec-cli-show-bgp-is-the-command moved
+// every caller onto the shorter spelling. webGoldenDispatch
+// (handler_golden_input_test.go) answers whatever the pages ask for, so it
+// answers `show bgp` now. post-cli-terminal.txt posts that same command,
+// because an operator types it, so the fixture stopped falling through to the
+// mock's generic answer and started reading the peer table. The daemon has
+// always answered that command with the peer table; only the mock was blind
+// to it.
+const portCLITerminalKnowsShowBgp = "the terminal running `show bgp` reads the peer table, where the mock knew only the longer spelling"
+
 // webPortHandlers explains each response whose content changed on purpose.
 // Every other difference is a finding.
 //
-// Nine responses moved, and each one moved to make a page work. Eight are the
-// snapshot views above. The ninth is AC-5, recorded against A-2 in
-// spec-web-templ-migration.
+// Ten responses moved. Nine moved to make a page work: eight are the snapshot
+// views above, and the ninth is AC-5, recorded against A-2 in
+// spec-web-templ-migration. The tenth is the web terminal above, which is a
+// command rename rather than a port artifact.
 //
 // handleDashboardEventsPage (page_dashboard.go) ran each cell through
 // template.HTMLEscapeString and handed the result to markup that escapes
@@ -235,6 +264,8 @@ var webPortHandlers = map[string]string{
 	"nav-show-web.txt":                  portErrorToggle,
 	"nav-show.txt":                      portErrorToggle,
 	"post-login-ok.txt":                 portSecurityHeaders,
+
+	"post-cli-terminal.txt": portCLITerminalKnowsShowBgp,
 }
 
 // TestWebTemplPortFidelity compares every captured unit against the bytes it

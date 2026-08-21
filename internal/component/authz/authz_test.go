@@ -851,7 +851,7 @@ func TestStoreAuthorizeUsesLoginResolvedProfiles(t *testing.T) {
 		Edit: Section{Default: Deny},
 	})
 
-	if got := s.AuthorizeWithProfiles("tacacs-noc", []string{"read-only"}, "show bgp summary", true); got != Allow {
+	if got := s.AuthorizeWithProfiles("tacacs-noc", []string{"read-only"}, "show bgp", true); got != Allow {
 		t.Errorf("run section defaults to allow: expected Allow, got %v", got)
 	}
 	if got := s.AuthorizeWithProfiles("tacacs-noc", []string{"read-only"}, "request quiesce", false); got != Deny {
@@ -888,7 +888,7 @@ func TestStoreAuthorizeProfilesDoNotLeakAcrossUsers(t *testing.T) {
 
 	// "other" has no assignment and no login-bound profiles. A non-nil store
 	// means authorization is in use, so it fails closed.
-	if got := s.Authorize("other", "show bgp summary", true); got != Deny {
+	if got := s.Authorize("other", "show bgp", true); got != Deny {
 		t.Errorf("unassigned user with no resolved profile must fail closed: got %v", got)
 	}
 }
@@ -917,7 +917,7 @@ func TestStoreAuthorizeIgnoresUnresolvableLoginProfiles(t *testing.T) {
 	if got := s.AuthorizeWithProfiles("tacacs-typo", []string{"does-not-exist"}, "request quiesce", false); got != Deny {
 		t.Errorf("unresolvable profile name must not authorize as admin: got %v", got)
 	}
-	if got := s.AuthorizeWithProfiles("tacacs-typo", []string{"does-not-exist"}, "show bgp summary", true); got != Deny {
+	if got := s.AuthorizeWithProfiles("tacacs-typo", []string{"does-not-exist"}, "show bgp", true); got != Deny {
 		t.Errorf("unresolvable profile name must not authorize as admin: got %v", got)
 	}
 }
@@ -931,7 +931,7 @@ func TestStoreAuthorizeKeepsResolvableLoginProfiles(t *testing.T) {
 	s := NewStore()
 	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
 
-	if got := s.AuthorizeWithProfiles("mixed", []string{"does-not-exist", "read-only"}, "show bgp summary", true); got != Allow {
+	if got := s.AuthorizeWithProfiles("mixed", []string{"does-not-exist", "read-only"}, "show bgp", true); got != Allow {
 		t.Errorf("resolvable name must still apply: got %v", got)
 	}
 	if got := s.AuthorizeWithProfiles("mixed", []string{"does-not-exist", "read-only"}, "request quiesce", false); got != Deny {

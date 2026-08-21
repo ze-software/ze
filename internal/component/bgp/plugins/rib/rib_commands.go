@@ -670,7 +670,7 @@ func (r *RIBManager) status(famFilter string) any {
 	defer r.peerMu.RUnlock()
 
 	// Per-peer Adj-RIB-In / Adj-RIB-Out sizes, keyed by peer address. summary.go
-	// merges these into `show bgp summary` (routes-received/accepted from "in",
+	// merges these into `show bgp` (routes-received/accepted from "in",
 	// routes-sent from "out") via ForwardToPlugin, so the birdwatcher LG can show
 	// per-peer route counts without cmd/peer importing this plugin. Only BGP
 	// peers (bgpPeers/ribOut, keyed by netip.Addr) are per-peer; ribInPool holds
@@ -679,7 +679,7 @@ func (r *RIBManager) status(famFilter string) any {
 	// Adj-RIB-Out holds routes advertised to a peer.
 	//
 	// famFilter scopes the per-peer counts to one family (so a family-filtered
-	// `show bgp summary <afi/safi>` reports family-scoped, not all-family,
+	// `show bgp <afi/safi>` reports family-scoped, not all-family,
 	// counts). Empty famFilter, or an unrecognized one, reports all-family
 	// totals. The global routes-in/routes-out stay all-family totals regardless,
 	// since other consumers depend on them.
@@ -689,7 +689,7 @@ func (r *RIBManager) status(famFilter string) any {
 	}
 	// A peer with routes only in other families gets a {in:0,out:0} entry under
 	// a family filter. That is intentional, not spurious: a peer that appears in
-	// a family-filtered `show bgp summary <fam>` (it negotiated <fam>) but holds
+	// a family-filtered `show bgp <fam>` (it negotiated <fam>) but holds
 	// no <fam> routes should report 0, a real count, not an omitted key. Entries
 	// for peers absent from the summary are simply never merged. Bounded by peer
 	// count either way.

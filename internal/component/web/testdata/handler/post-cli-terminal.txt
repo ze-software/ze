@@ -7,4 +7,4 @@ header: X-Content-Type-Options: nosniff
 header: X-Frame-Options: DENY
 header: X-Ze-Version: <VERSION>
 
-{"output":"result  golden\n","feedback":"","path":"","prompt":"ze\u003e ","mode":"operational"}
+{"output":"name   remote-as  state        routes-received  routes-accepted  routes-sent  peer-address\nalpha  65002      established  100              95               50           127.0.0.1\n","feedback":"","path":"","prompt":"ze\u003e ","mode":"operational"}

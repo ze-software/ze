@@ -452,7 +452,7 @@ func TestRenderListNoDeclarationUnchanged(t *testing.T) {
 }
 
 // VALIDATES: the key-value record form honors the declared order too.
-// PREVENTS: `show bgp summary`'s outer record staying alphabetical while its
+// PREVENTS: `show bgp`'s outer record staying alphabetical while its
 // peer rows are ordered.
 func TestRenderRecordDeclaredOrder(t *testing.T) {
 	ResetColumnsForTest()
@@ -513,7 +513,7 @@ func TestRenderMapOfMapsDeclaredOrder(t *testing.T) {
 
 // VALIDATES: a command that declares one order per record shape gets each shape
 // ordered by the declaration that names it.
-// PREVENTS: `show bgp summary`'s two shapes fighting over "uptime", which one
+// PREVENTS: `show bgp`'s two shapes fighting over "uptime", which one
 // flat list cannot resolve because the key sits sixth in the outer record and
 // seventh in a peer row.
 func TestRenderPicksOrderMatchingTheRecordShape(t *testing.T) {
@@ -552,8 +552,8 @@ func TestRenderPicksOrderMatchingTheRecordShape(t *testing.T) {
 func TestPeersAliasRendersRows(t *testing.T) {
 	resetAliasTables(t)
 
-	RegisterAliases([]string{"show bgp summary"}, Alias{Name: "peers", Expansion: "display peers"})
-	RegisterColumns([]string{"show bgp summary"},
+	RegisterAliases([]string{"show bgp"}, Alias{Name: "peers", Expansion: "display peers"})
+	RegisterColumns([]string{"show bgp"},
 		ColumnOrder{"address", "state", "uptime"},
 		ColumnOrder{"router-id", "local-as", "peers"},
 	)
@@ -562,7 +562,7 @@ func TestPeersAliasRendersRows(t *testing.T) {
 		`"peers":[{"address":"192.0.2.1","state":"established","uptime":"1h0m0s"},` +
 		`{"address":"192.0.2.2","state":"idle","uptime":"0s"}]}`
 
-	rendered := renderThroughPipes(t, "show bgp summary | peers | text", payload)
+	rendered := renderThroughPipes(t, "show bgp | peers | text", payload)
 
 	header := headerFields(t, rendered)
 	if len(header) > 0 && header[0] == "peers" {
@@ -591,7 +591,7 @@ func TestPeersAliasRendersRows(t *testing.T) {
 func TestSummaryAliasDropsRows(t *testing.T) {
 	resetAliasTables(t)
 
-	RegisterAliases([]string{"show bgp summary"}, Alias{
+	RegisterAliases([]string{"show bgp"}, Alias{
 		Name:      "summary",
 		Expansion: "display router-id local-as uptime peers-configured peers-established",
 	})
@@ -600,7 +600,7 @@ func TestSummaryAliasDropsRows(t *testing.T) {
 		`"peers-configured":2,"peers-established":1,` +
 		`"peers":[{"address":"192.0.2.1","state":"established"}]}`
 
-	rendered := renderThroughPipes(t, "show bgp summary | summary | text", payload)
+	rendered := renderThroughPipes(t, "show bgp | summary | text", payload)
 
 	for _, kept := range []string{"192.0.2.254", "65000", "2h0m0s"} {
 		if !strings.Contains(rendered, kept) {

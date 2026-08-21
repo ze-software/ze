@@ -100,7 +100,7 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*plugin.Response, error)
 			"request halt - Dump goroutine stacks and terminate",
 			"show status - Show process status",
 			"show bgp peer list - List peers (brief)",
-			"show bgp summary - BGP summary table",
+			"show bgp - BGP summary table",
 			"system help - Show available commands",
 			"system version software - Show ze version",
 			"system version api - Show IPC protocol version",

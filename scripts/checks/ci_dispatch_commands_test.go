@@ -69,7 +69,7 @@ func TestCIDispatchCommandsSelftest(t *testing.T) {
 // featureTags derives the build tags the gate needs from feature-gates.txt, the
 // single source of truth for compile-out-able features. The gate ENUMERATES the
 // live command registry, so it must see the same feature set the shipped binary
-// has -- with ze_bgp off, `show bgp summary` is simply not registered and every
+// has -- with ze_bgp off, `show bgp` is simply not registered and every
 // legitimate use of it would report as dead. This mirrors the Makefile's
 // GO_TEST_TAGS derivation rather than restating the list
 // (ai/rules/plugins.md: no consumer is hand-maintained).

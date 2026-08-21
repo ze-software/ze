@@ -1099,7 +1099,7 @@ func webToolOverlay(state ToolOverlayState, overflow bool) toolOverlayData {
 		ID:            "tool-overlay-1",
 		State:         state,
 		Title:         "Peer summary",
-		Command:       "show bgp summary",
+		Command:       "show bgp",
 		ToolID:        "bgp-summary",
 		ContextPath:   "bgp/peer/london",
 		OutputInline:  template.HTML("peer 192.0.2.1 established"), //nolint:gosec // fixed test fixture

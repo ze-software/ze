@@ -675,7 +675,7 @@ func TestTmpfsRequestsDaemonShutdown(t *testing.T) {
 		},
 		{
 			"observer never stops the daemon",
-			map[string][]byte{"obs.run": []byte("dispatch(api, 'show bgp summary')\n")},
+			map[string][]byte{"obs.run": []byte("dispatch(api, 'show bgp')\n")},
 			false,
 		},
 	}

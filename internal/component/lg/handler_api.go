@@ -38,7 +38,7 @@ func (s *LGServer) handleAPIStatus(w http.ResponseWriter, _ *http.Request) {
 
 // handleAPIProtocols returns the peer list in birdwatcher format (GET /api/looking-glass/protocols/bgp).
 func (s *LGServer) handleAPIProtocols(w http.ResponseWriter, _ *http.Request) {
-	result := s.query("show bgp summary")
+	result := s.query("show bgp")
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -52,7 +52,7 @@ func (s *LGServer) handleAPIProtocols(w http.ResponseWriter, _ *http.Request) {
 
 // handleAPIProtocolsShort returns short protocol status in birdwatcher format.
 func (s *LGServer) handleAPIProtocolsShort(w http.ResponseWriter, _ *http.Request) {
-	result := s.query("show bgp summary")
+	result := s.query("show bgp")
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -782,7 +782,7 @@ func getStr(m map[string]any, key string) string {
 	}
 }
 
-// summaryPeers extracts the peer rows from a "show bgp summary" response.
+// summaryPeers extracts the peer rows from a "show bgp" response.
 //
 // handleBgpSummary (internal/component/bgp/plugins/cmd/peer/summary.go) answers
 // the aggregates and the rows as siblings, so the rows live at ze["peers"].

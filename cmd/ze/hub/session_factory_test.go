@@ -110,6 +110,6 @@ func TestDashboardFactoryUsesPublicSummaryCommand(t *testing.T) {
 	output, err := poller()
 	require.NoError(t, err)
 
-	assert.Equal(t, "show bgp summary", command)
+	assert.Equal(t, "show bgp", command)
 	assert.JSONEq(t, `{"peers-configured":3}`, output)
 }

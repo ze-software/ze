@@ -490,7 +490,7 @@ func (s tableStyle) orderKeys(keys []string) []string {
 //
 // A command declares one order per record shape, so the order applied here is
 // the one that names the most of these keys. That is what tells the peer rows
-// of `show bgp summary` from the record that carries them. Both hold "uptime",
+// of `show bgp` from the record that carries them. Both hold "uptime",
 // and only the key set says which record is being rendered.
 func (s tableStyle) declaredKeys(keys []string) []string {
 	order := bestColumnOrder(s.orders, keys)

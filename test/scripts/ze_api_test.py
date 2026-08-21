@@ -367,7 +367,7 @@ class TestShutdownIsAnsweredByTheClose(SentinelTestCase):
         vanished has not drained anything, and answering it "done" would make
         the barrier vacuous exactly when it matters.
         """
-        for command in ("request quiesce", "show bgp summary", "request shutdown now"):
+        for command in ("request quiesce", "show bgp", "request shutdown now"):
             with self.subTest(command=command):
                 api = self._api_whose_engine_closed()
                 with self.assertRaises(RuntimeError):
@@ -416,7 +416,7 @@ class TestGuardedDispatchNeverRaises(SentinelTestCase):
         api = _bare_api()
         api._call_engine = lambda _method, _params=None: None
 
-        result = ze_api.dispatch(api, "show bgp summary")
+        result = ze_api.dispatch(api, "show bgp")
         self.assertEqual(result["status"], "error")
 
 
@@ -471,7 +471,7 @@ class TestDispatchUntilShortCircuit(SentinelTestCase):
 
         result = ze_api.dispatch_until(
             api,
-            "show bgp summary",
+            "show bgp",
             lambda r: r.get("status") == "done",
             attempts=20,
             delay=0.01,

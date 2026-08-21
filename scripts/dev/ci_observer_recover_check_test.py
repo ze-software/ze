@@ -122,7 +122,7 @@ for cmd in commands:
     try:
         api.send(cmd)
     except RuntimeError:
-        dispatch(api, 'show bgp summary')
+        dispatch(api, 'show bgp')
         continue
 """
         findings = chk.scan_block(source, ENGINE_NAMES)
@@ -174,7 +174,7 @@ except RuntimeError:
 
     def test_ignores_engine_calls_outside_any_handler(self):
         source = """
-dispatch(api, 'show bgp summary')
+dispatch(api, 'show bgp')
 try:
     api.send('x')
 except RuntimeError:

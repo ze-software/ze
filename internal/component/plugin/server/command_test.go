@@ -1465,7 +1465,7 @@ func TestTakesInlineSelector(t *testing.T) {
 	}{
 		{"interior selector slot", &Command{Name: "show bgp peer detail", ArgDefs: selectorDef}, true},
 		{"two-token key with selector", &Command{Name: "peer update", ArgDefs: selectorDef}, true},
-		{"no mandatory string arg", &Command{Name: "show bgp summary"}, false},
+		{"no mandatory string arg", &Command{Name: "show bgp health"}, false},
 		{"single token has no interior slot", &Command{Name: "announce", ArgDefs: selectorDef}, false},
 		{"selector name is itself a key token", &Command{Name: "show vpn ipsec peer selector", ArgDefs: selectorDef}, false},
 		{"ambiguous: two mandatory string args", &Command{
@@ -1884,7 +1884,7 @@ func TestMatchBuiltinServesWhenNoLongerPathMatches(t *testing.T) {
 //
 // PREVENTS: the naive rule the spec rejects, refusing any match that leaves
 // tokens over. Leftovers are how every argument-taking command works, so that
-// rule would break `show bgp summary ipv4`.
+// rule would break `show bgp ipv4`.
 func TestMatchBuiltinKeepsArgumentsForLeftoverValues(t *testing.T) {
 	d := NewDispatcher()
 	d.Register("show demo summary", noopHandler, "Demo summary")
@@ -2166,13 +2166,22 @@ type gatedAnswerWriter struct {
 
 // Write puts one framed answer line on the wire, after the gate for every line
 // but the first.
+//
+// The count is taken AFTER the gate and BEFORE the write, and both halves of
+// that order are load-bearing. writer is a net.Pipe, so Write returns only once
+// the reader has taken the bytes: counting after the write lets the reader
+// observe the head, return from routeToProcess and read this counter while the
+// head's increment is still pending, which reports zero lines for a line the
+// reader is already holding. Counting before the gate has the opposite fault,
+// because the second line would raise the count to two while it waits, and the
+// reader would see two lines for one written. Only one goroutine writes, so the
+// load and the add need no atomicity between them.
 func (g *gatedAnswerWriter) Write(line []byte) (int, error) {
 	if g.written.Load() > 0 {
 		<-g.release
 	}
-	n, err := g.writer.Write(line)
 	g.written.Add(1)
-	return n, err
+	return g.writer.Write(line)
 }
 
 // recordAnsweringPlugin is a plugin process that answers one execute-command

@@ -194,7 +194,7 @@ func TestResolveCommandFromInputResponses(t *testing.T) {
 		{"nil map re-asks", nil, "", inputMissing},
 		{"empty map re-asks", map[string]any{}, "", inputMissing},
 		{"other keys only re-asks", map[string]any{"unrelated": accept("show version")}, "", inputMissing},
-		{"accept yields the value", map[string]any{inputKeyExecuteCommand: accept("show bgp summary")}, "show bgp summary", inputAccepted},
+		{"accept yields the value", map[string]any{inputKeyExecuteCommand: accept("show bgp")}, "show bgp", inputAccepted},
 		{"accept with extras still yields", map[string]any{
 			inputKeyExecuteCommand: accept("show version"),
 			"bogus":                map[string]any{elicitKeyAction: elicitActionAccept},
@@ -409,13 +409,13 @@ func TestZeExecuteRetryOutcomes(t *testing.T) {
 		runner := newRunner(map[string]any{
 			inputKeyExecuteCommand: map[string]any{
 				elicitKeyAction:  elicitActionAccept,
-				elicitKeyContent: map[string]any{elicitFieldCommand: "show bgp summary"},
+				elicitKeyContent: map[string]any{elicitFieldCommand: "show bgp"},
 			},
 			"unrecognized": map[string]any{elicitKeyAction: elicitActionAccept},
 		})
 		result := toolHandlers["ze_execute"](runner, json.RawMessage(`{}`))
-		if dispatched != "show bgp summary" {
-			t.Fatalf("dispatched %q, want %q", dispatched, "show bgp summary")
+		if dispatched != "show bgp" {
+			t.Fatalf("dispatched %q, want %q", dispatched, "show bgp")
 		}
 		if result[resultTypeKey] == resultTypeInputRequired {
 			t.Fatalf("re-asked after an accepted answer: %#v", result)

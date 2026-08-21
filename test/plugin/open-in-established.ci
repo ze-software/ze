@@ -114,7 +114,7 @@ def main():
     attempts = 60
     delay = 0.25
     dropped = api.dispatch_until(
-        'show bgp summary',
+        'show bgp',
         lambda _r: any(
             int(row.get('session-drops', 0) or 0) > 0
             for row in api.peer_fields().values()

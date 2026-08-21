@@ -1538,7 +1538,7 @@ func TestExtractPeerAddress(t *testing.T) {
 	}{
 		{"ipv4", "peer 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24", "10.0.0.1"},
 		{"ipv6", "peer 2001:db8::1 update text nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8::/32", "2001:db8::1"},
-		{"not_peer", "show bgp summary", ""},
+		{"not_peer", "show bgp", ""},
 		{"peer_only", "peer ", ""},
 	}
 
@@ -1555,7 +1555,7 @@ func TestExtractPeerAddress(t *testing.T) {
 // PREVENTS: Flush injected for non-route commands.
 func TestIsRouteCommand(t *testing.T) {
 	assert.True(t, IsRouteCommand("peer 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24"))
-	assert.False(t, IsRouteCommand("peer 10.0.0.1 show bgp summary"))
+	assert.False(t, IsRouteCommand("peer 10.0.0.1 show bgp"))
 	assert.False(t, IsRouteCommand(""))
 }
 

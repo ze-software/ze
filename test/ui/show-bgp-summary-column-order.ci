@@ -1,4 +1,4 @@
-# Test: `show bgp summary` puts its columns in the order an operator reads them.
+# Test: `show bgp` puts its columns in the order an operator reads them.
 #
 # VALIDATES: spec-cli-column-order AC-8. The per-peer row leads with the peer's
 #            identity, then session state, then what the session carries, and
@@ -133,8 +133,8 @@ try:
         'ZE_CONFIG_DIR': os.getcwd(),
     })
 
-    code, out, err = run(['ze', 'cli', '-c', 'show bgp summary | text'], cli_env)
-    require(code == 0, 'show bgp summary | text exit=%d: %s%s' % (code, out, err))
+    code, out, err = run(['ze', 'cli', '-c', 'show bgp | text'], cli_env)
+    require(code == 0, 'show bgp | text exit=%d: %s%s' % (code, out, err))
 
     # The peer table is the value of the outer record's `peers` key, so its
     # header row shares a line with that key. connections-dropped names the
@@ -169,8 +169,8 @@ try:
     # A program reads | json, so the order must not have reached it. The keys of
     # a JSON object have no order to a parser; what is asserted here is that the
     # rendering stayed JSON rather than becoming a table.
-    code, out, err = run(['ze', 'cli', '-c', 'show bgp summary | json'], cli_env)
-    require(code == 0, 'show bgp summary | json exit=%d: %s%s' % (code, out, err))
+    code, out, err = run(['ze', 'cli', '-c', 'show bgp | json'], cli_env)
+    require(code == 0, 'show bgp | json exit=%d: %s%s' % (code, out, err))
     require('┌' not in out and '│' not in out, '| json answered a table: %r' % out)
     require(out.lstrip().startswith('{'), '| json did not answer JSON: %r' % out)
 finally:

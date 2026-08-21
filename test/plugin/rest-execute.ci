@@ -110,9 +110,9 @@ def main():
         # Test execute with params map. Assert on the PAYLOAD, not just the
         # status: a command that resolves nowhere returns status=error here, and
         # a handler answering "done" with nothing would still be a defect.
-        result = post_execute(exec_url, {'command': 'show bgp summary', 'params': {}})
+        result = post_execute(exec_url, {'command': 'show bgp', 'params': {}})
         if result.get('status') != 'done':
-            runtime_fail(f'show bgp summary status={result.get("status")} error={result.get("error")} data={result.get("data")}')
+            runtime_fail(f'show bgp status={result.get("status")} error={result.get("error")} data={result.get("data")}')
 
         payload = result.get('data')
         if isinstance(payload, str):

@@ -28,24 +28,24 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        result = dispatch(api, 'show bgp summary')
+        result = dispatch(api, 'show bgp')
         if result.get('status') != 'done':
-            runtime_fail(f'show bgp summary: status={result.get("status")} data={result.get("data")}')
+            runtime_fail(f'show bgp: status={result.get("status")} data={result.get("data")}')
 
         data = result.get('data', {})
         if isinstance(data, str):
             data = json.loads(data)
 
         if 'router-id' not in data:
-            runtime_fail(f'show bgp summary: missing router-id: {json.dumps(data)}')
+            runtime_fail(f'show bgp: missing router-id: {json.dumps(data)}')
         if 'peers' not in data:
-            runtime_fail(f'show bgp summary: missing peers: {json.dumps(data)}')
+            runtime_fail(f'show bgp: missing peers: {json.dumps(data)}')
         if 'local-as' not in data:
-            runtime_fail(f'show bgp summary: missing local-as: {json.dumps(data)}')
+            runtime_fail(f'show bgp: missing local-as: {json.dumps(data)}')
 
         peers = data.get('peers', [])
         if not isinstance(peers, list):
-            runtime_fail(f'show bgp summary: peers is not a list: {type(peers).__name__}')
+            runtime_fail(f'show bgp: peers is not a list: {type(peers).__name__}')
 
         print(f'OK: summary has router-id={data["router-id"]} local-as={data["local-as"]} peers={len(peers)}', file=sys.stderr)
     finally:

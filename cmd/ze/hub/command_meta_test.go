@@ -92,7 +92,7 @@ func TestBuildCommandMeta_PluginHelpFillsEmptyDispatcherHelp(t *testing.T) {
 // would silently shrink the tool surface.
 func TestBuildCommandMeta_KeepsPluginOnlyCommand(t *testing.T) {
 	got := buildCommandMeta(
-		[]*pluginserver.Command{{Name: "show bgp summary"}},
+		[]*pluginserver.Command{{Name: "show bgp"}},
 		[]*pluginserver.RegisteredCommand{{Name: "show widget status", Description: "widget"}},
 		nil, nil, nil)
 
@@ -116,14 +116,14 @@ func TestBuildCommandMeta_KeepsPluginOnlyCommand(t *testing.T) {
 // different orders is what a map's randomized iteration does in practice.
 func TestBuildCommandMeta_OrderIsDeterministic(t *testing.T) {
 	forward := []*pluginserver.Command{
-		{Name: "show bgp summary"},
+		{Name: "show bgp"},
 		{Name: "clear isis counters"},
 		{Name: "show isis neighbor"},
 	}
 	reversed := []*pluginserver.Command{
 		{Name: "show isis neighbor"},
 		{Name: "clear isis counters"},
-		{Name: "show bgp summary"},
+		{Name: "show bgp"},
 	}
 
 	a := buildCommandMeta(forward, nil, nil, nil, nil)
@@ -137,7 +137,7 @@ func TestBuildCommandMeta_OrderIsDeterministic(t *testing.T) {
 			t.Fatalf("order differs at %d: %q vs %q", i, a[i].Name, b[i].Name)
 		}
 	}
-	want := []string{"clear isis counters", "show bgp summary", "show isis neighbor"}
+	want := []string{"clear isis counters", "show bgp", "show isis neighbor"}
 	for i, w := range want {
 		if a[i].Name != w {
 			t.Errorf("position %d = %q, want %q", i, a[i].Name, w)
@@ -156,7 +156,7 @@ func TestBuildCommandMeta_OrderIsDeterministic(t *testing.T) {
 // MCP client still saw it.
 func TestBuildCommandMeta_SkipsHiddenPluginCommand(t *testing.T) {
 	got := buildCommandMeta(
-		[]*pluginserver.Command{{Name: "show bgp summary"}},
+		[]*pluginserver.Command{{Name: "show bgp"}},
 		[]*pluginserver.RegisteredCommand{
 			{Name: "show widget status", Description: "visible one"},
 			{Name: "show widget secret", Description: "hidden one", Hidden: true},

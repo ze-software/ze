@@ -277,7 +277,7 @@ func TestRibStatusEmitsPerPeerRouteCounts(t *testing.T) {
 // totals.
 //
 // VALIDATES: status(fam) counts only `fam`; status("") counts every family.
-// PREVENTS: a family-filtered `show bgp summary <afi/safi>` reporting all-family
+// PREVENTS: a family-filtered `show bgp <afi/safi>` reporting all-family
 // route counts (the /ze-review NOTE this fixes) — the counts would include IPv6
 // routes for an `ipv4/unicast` filter.
 func TestRibStatusFamilyScopedRouteCounts(t *testing.T) {

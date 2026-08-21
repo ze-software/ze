@@ -614,12 +614,12 @@ func TestMergeRibRouteCounts(t *testing.T) {
 }
 
 // TestBgpSummaryWithoutRibOmitsRouteCounts verifies the end-to-end degradation:
-// with no RIB plugin registered, `show bgp summary` still renders and the peer
-// rows carry no route-count keys.
+// with no RIB plugin registered, `show bgp` still renders and the peer rows
+// carry no route-count keys.
 //
 // VALIDATES: AC-5 — best-effort dispatch; ForwardToPlugin returns
 // ErrUnknownCommand, so the counts are omitted, not faked.
-// PREVENTS: a hard dependency on the RIB plugin breaking `show bgp summary` on a
+// PREVENTS: a hard dependency on the RIB plugin breaking `show bgp` on a
 // minimal build.
 func TestBgpSummaryWithoutRibOmitsRouteCounts(t *testing.T) {
 	reactor := &mockReactor{
@@ -683,7 +683,7 @@ func declaredColumnNames(t *testing.T, cmd string) map[string]bool {
 	return names
 }
 
-// VALIDATES: every name `show bgp summary` declares is a key its handler
+// VALIDATES: every name `show bgp` declares is a key its handler
 // builds, and every key its handler builds is declared (R-2, A-4).
 // PREVENTS: a renamed key silently returning to the alphabetical tail, and a
 // declaration covering only part of the row, which reads as an arbitrary break
@@ -719,7 +719,7 @@ func TestBgpSummaryColumnsMatchPayload(t *testing.T) {
 	row := peers[0]
 	mergeRibRouteCounts(row, "192.0.2.1", map[string]ribRouteCount{"192.0.2.1": {in: 7, out: 3}})
 
-	declared := declaredColumnNames(t, "show bgp summary")
+	declared := declaredColumnNames(t, "show bgp")
 	for key := range row {
 		assert.True(t, declared[key], "peer row key %q is not declared, so it renders after the ordered columns", key)
 	}

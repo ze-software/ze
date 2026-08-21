@@ -22,7 +22,7 @@ func mockDispatch() CommandDispatcher {
 		switch {
 		case cmd == "bgp status":
 			out = `{"router-id":"1.2.3.4","version":"test","start-time":"2026-01-01T00:00:00Z"}`
-		case cmd == "show bgp summary":
+		case cmd == "show bgp":
 			out = `[{"name":"peer1","peer-address":"10.0.0.1","remote-as":"65001","state":"established","state-changed":"2026-01-15T10:00:00Z","routes-received":"100","routes-accepted":"95","routes-sent":"50","routes-filtered":"5"}]`
 		case strings.Contains(cmd, "show bgp rib") && strings.Contains(cmd, "count"):
 			out = `{"count":100}`

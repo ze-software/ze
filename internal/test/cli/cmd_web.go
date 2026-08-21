@@ -244,7 +244,7 @@ func zeTestRunWebTest(ctx context.Context, test *zeTestWebTest, bins zeTestWebBi
 	tc := zeTestWebCase(test.Path)
 	kind := tc.ServerKind()
 
-	// The looking glass needs a second port: its pages read `show bgp summary`,
+	// The looking glass needs a second port: its pages read `show bgp`,
 	// so the harness gives the daemon a peer to report on.
 	ports := 1
 	if kind == webtesting.WBServerLG {
@@ -456,7 +456,7 @@ func zeTestEnv(vars []webtesting.WBEnvVar, extra ...string) []string {
 // It states three things the pages need and nothing else. The looking glass
 // listens on its own port with TLS off, because these tests read CONTENT over
 // a plain URL. One peer dials the sink on the second reserved port, so the
-// session reaches Established and `show bgp summary` reports a real row rather
+// session reaches Established and `show bgp` reports a real row rather
 // than an empty table. `accept false` keeps the daemon off port 179, which a
 // test host does not grant an unprivileged process.
 //

@@ -12,9 +12,9 @@ func TestRegisterColumnsRoundTrip(t *testing.T) {
 	ResetColumnsForTest()
 	t.Cleanup(ResetColumnsForTest)
 
-	RegisterColumns([]string{"show bgp summary"}, ColumnOrder{"address", "state", "uptime"})
+	RegisterColumns([]string{"show bgp"}, ColumnOrder{"address", "state", "uptime"})
 
-	orders := ColumnsForCommand("show bgp summary")
+	orders := ColumnsForCommand("show bgp")
 	if len(orders) != 1 {
 		t.Fatalf("orders = %v, want one order", orders)
 	}
@@ -34,9 +34,9 @@ func TestRegisterColumnsNormalizes(t *testing.T) {
 	ResetColumnsForTest()
 	t.Cleanup(ResetColumnsForTest)
 
-	RegisterColumns([]string{"  Show   BGP  Summary "}, ColumnOrder{" Address ", "", "STATE"})
+	RegisterColumns([]string{"  Show   BGP  Health "}, ColumnOrder{" Address ", "", "STATE"})
 
-	orders := ColumnsForCommand("show bgp summary")
+	orders := ColumnsForCommand("show bgp health")
 	if len(orders) != 1 {
 		t.Fatalf("orders = %v, want one order", orders)
 	}
@@ -62,7 +62,7 @@ func TestColumnsForCommandLongestPrefix(t *testing.T) {
 		want    []string
 	}{
 		{command: "show bgp", want: []string{"parent"}},
-		{command: "show bgp summary", want: []string{"parent"}},
+		{command: "show bgp health", want: []string{"parent"}},
 		{command: "show bgp peer list", want: []string{"child"}},
 		{command: "show bgp peer list detail", want: []string{"child"}},
 		{command: "show bgp peer listing", want: []string{"parent"}},
@@ -98,25 +98,25 @@ func TestColumnsForCommandEmptyBlocksInheritance(t *testing.T) {
 	if orders := ColumnsForCommand("show bgp statistics family"); len(orders) != 0 {
 		t.Errorf("orders = %v, want none: the block must reach the child's own children", orders)
 	}
-	if orders := ColumnsForCommand("show bgp summary"); len(orders) != 1 {
+	if orders := ColumnsForCommand("show bgp health"); len(orders) != 1 {
 		t.Errorf("orders = %v, want the parent's order for a sibling that declares nothing", orders)
 	}
 }
 
 // VALIDATES: a command declares one order per record shape.
-// PREVENTS: the outer record and the peer rows of `show bgp summary` having to
+// PREVENTS: the outer record and the peer rows of `show bgp` having to
 // share one flat list, which no single list can express because both carry
 // "uptime" in a different position.
 func TestRegisterColumnsMultipleShapes(t *testing.T) {
 	ResetColumnsForTest()
 	t.Cleanup(ResetColumnsForTest)
 
-	RegisterColumns([]string{"show bgp summary"},
+	RegisterColumns([]string{"show bgp"},
 		ColumnOrder{"address", "state", "uptime"},
 		ColumnOrder{"router-id", "uptime", "peers"},
 	)
 
-	orders := ColumnsForCommand("show bgp summary")
+	orders := ColumnsForCommand("show bgp")
 	if len(orders) != 2 {
 		t.Fatalf("orders = %v, want two orders", orders)
 	}

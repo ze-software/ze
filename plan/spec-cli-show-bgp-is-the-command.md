@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | cli |
 | Depends | - |
-| Phase | 1/5 |
+| Phase | 2/5 |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-08-21 |

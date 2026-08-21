@@ -25,7 +25,7 @@ EOF_SOURCE
 # StateTimeout). See bgp-rs-fastpath-ebgp-shared.ci for the rationale.
 tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-# // the observer's synchronous `show bgp summary` eor-sent poll +
+# // the observer's synchronous `show bgp` eor-sent poll +
 # `request shutdown` is replaced by ze_api.run_rs_observer -- event-driven readiness
 # (subscribe + wait_for_event on the async channel) plus a fire-and-forget shutdown.
 # A more robust rewrite, not a relaxation: same "wait until the RS replayed to every

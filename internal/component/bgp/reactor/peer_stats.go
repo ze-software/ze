@@ -185,7 +185,7 @@ func (p *Peer) IncrEORReceived() {
 // CONTRACT: call this ONLY after the EOR send returned nil. eorSent counts
 // End-of-RIB markers that reached the socket, never sends that were attempted:
 // operators read it as "the peer has been told the initial RIB is complete"
-// (`show bgp peer <sel> detail`, `show bgp summary`, the CLI dashboard,
+// (`show bgp peer <sel> detail`, `show bgp`, the CLI dashboard,
 // ze_peer_msg_sent{type="eor"}), and the functional suite reads it as the
 // "end-of-RIB is on the wire" barrier before asserting the frame
 // (test/scripts/ze_api.py wait_peer_eor_sent). Incrementing on a discarded

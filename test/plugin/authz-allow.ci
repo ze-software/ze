@@ -69,7 +69,7 @@ system {
 				}
 				entry 20 {
 					action allow
-					match "show bgp summary"
+					match "show bgp"
 				}
 			}
 			edit {
@@ -144,13 +144,13 @@ OUTPUT=$(ZE_CONFIG_DIR="$OP_DIR" ZE_SSH_PASSWORD="oppass" ze cli -c "show bgp pe
 }
 echo "OK: operator allowed show bgp peer list (entry match)" >&2
 
-# ... "show bgp summary")
-OUTPUT=$(ZE_CONFIG_DIR="$OP_DIR" ZE_SSH_PASSWORD="oppass" ze cli -c "show bgp summary" 2>&1) || {
-	echo "FAIL: operator should be allowed to run 'show bgp summary' (entry 20)" >&2
+# ... "show bgp")
+OUTPUT=$(ZE_CONFIG_DIR="$OP_DIR" ZE_SSH_PASSWORD="oppass" ze cli -c "show bgp" 2>&1) || {
+	echo "FAIL: operator should be allowed to run 'show bgp' (entry 20)" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1
 }
-echo "OK: operator allowed show bgp summary (entry match)" >&2
+echo "OK: operator allowed show bgp (entry match)" >&2
 
 echo "OK: all allow tests passed" >&2
 exit 0

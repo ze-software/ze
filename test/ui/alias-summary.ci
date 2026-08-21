@@ -1,4 +1,4 @@
-# Test: `show bgp summary | summary` answers the aggregate fields alone.
+# Test: `show bgp | summary` answers the aggregate fields alone.
 #
 # VALIDATES: spec-cli-pipe-aliases AC-6. The alias expands to a `display` over
 #            the five aggregate keys, and the peer rows are a sibling key that
@@ -121,11 +121,11 @@ try:
 
     # The whole answer first, so the assertions below measure a CHANGE rather
     # than an answer that was always narrow.
-    whole = cli('show bgp summary | text')
+    whole = cli('show bgp | text')
     require('192.0.2.1' in whole, 'the peer rows are missing from the whole answer: %r' % whole)
     require('router-id' in whole, 'the summary does not carry router-id: %r' % whole)
 
-    only = cli('show bgp summary | summary | text')
+    only = cli('show bgp | summary | text')
     for key in ('router-id', 'local-as', 'peers-configured', 'peers-established'):
         require(key in only, 'the aggregate %s is missing: %r' % (key, only))
     require('10.255.255.254' in only, 'the router-id value is missing: %r' % only)
@@ -139,7 +139,7 @@ try:
         require(not fields or fields[0] != 'peers', 'the peers array survived `| summary`: %r' % only)
 
     # The alias is a selection, so `| json` carries it too.
-    as_json = cli('show bgp summary | summary | json')
+    as_json = cli('show bgp | summary | json')
     require('router-id' in as_json, '`| summary | json` dropped the aggregates: %r' % as_json)
     require('192.0.2.1' not in as_json, '`| summary | json` kept the peer rows: %r' % as_json)
 finally:

@@ -909,7 +909,7 @@ func TestLoginWarningsPanicRecovery(t *testing.T) {
 // a large hex payload) in the operational log while leaving short commands intact.
 // PREVENTS: dumping a full BGP UPDATE hex blob into the SSH exec log (security review).
 func TestTruncateForLog(t *testing.T) {
-	short := "show bgp summary"
+	short := "show bgp"
 	if got := truncateForLog(short); got != short {
 		t.Errorf("short command altered: got %q, want %q", got, short)
 	}
@@ -964,7 +964,7 @@ func TestExecLogRedactsPasswordToken(t *testing.T) {
 	}
 
 	// non-credential command is logged unchanged.
-	benign := "show bgp summary"
+	benign := "show bgp"
 	if got := loggedCommand(benign); got != benign {
 		t.Errorf("benign command altered: got %q want %q", got, benign)
 	}

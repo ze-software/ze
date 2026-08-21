@@ -184,7 +184,7 @@ http=get:seq=2:url=http://127.0.0.1:$PORT2/lg/search:status=200:contains=Route S
 http=post:seq=3:url=http://127.0.0.1:$PORT2/lg/search:status=200:contains=Route Search:sendfile=lg-search.body:content-type=application/x-www-form-urlencoded
 
 # --- handleUIPeerRoutes: per-peer routes page (127.0.0.1 is the configured peer,
-#     so findPeer resolves it from `show bgp summary`); Title = "Routes from 127.0.0.1" ---
+#     so findPeer resolves it from `show bgp`); Title = "Routes from 127.0.0.1" ---
 http=get:seq=4:url=http://127.0.0.1:$PORT2/lg/peer/127.0.0.1:status=200:contains=Routes from 127.0.0.1
 
 # --- handleUIRouteDetail: expanded route detail for an injected prefix ---

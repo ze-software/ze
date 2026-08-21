@@ -166,7 +166,7 @@ def main():
         # the bytes are on the socket before shutdown closes it. Deterministic: no
         # sleep, no assumption about how long the sync takes.
         eor = api.dispatch_until(
-            'show bgp summary',
+            'show bgp',
             lambda r: r.get('status') == 'done' and any(
                 p.get('eor-sent', 0) >= 1
                 for p in result_json_data(r, {}).get('peers', [])

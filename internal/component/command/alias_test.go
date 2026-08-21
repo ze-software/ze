@@ -157,9 +157,9 @@ func TestAliasRegistrationRefusesFilterCollision(t *testing.T) {
 		resetAliasTables(t)
 
 		RegisterPipeFilters([]string{"show bgp rib"}, PipeFilter{Name: "histogram", Description: "Count routes by prefix length"})
-		RegisterAliases([]string{"show bgp summary"}, Alias{Name: "histogram", Expansion: "display peers"})
+		RegisterAliases([]string{"show bgp health"}, Alias{Name: "histogram", Expansion: "display peers"})
 
-		if aliases := AliasesForCommand("show bgp summary"); len(aliases) != 1 {
+		if aliases := AliasesForCommand("show bgp health"); len(aliases) != 1 {
 			t.Errorf("AliasesForCommand = %v, want the alias on the unrelated path", aliases)
 		}
 	})

@@ -112,7 +112,7 @@ func webGoldenDispatch() CommandDispatcher {
 		var out string
 
 		switch {
-		case strings.HasPrefix(cmd, "show bgp summary"):
+		case cmd == "show bgp":
 			out = `[{"name":"alpha","peer-address":"127.0.0.1","remote-as":"65002","state":"established",` +
 				`"routes-received":"100","routes-accepted":"95","routes-sent":"50"}]`
 		case strings.HasPrefix(cmd, "show ospf"), strings.HasPrefix(cmd, "show isis"):

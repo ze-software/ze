@@ -19,7 +19,7 @@
 # Two eBGP peers: source (65001, rs-fast-path enabled) sends one UPDATE; receiver
 # (65002, rs-fast-path disabled) must still receive the forwarded UPDATE.
 #
-# // the observer's synchronous `show bgp summary` poll is replaced by
+# // the observer's synchronous `show bgp` poll is replaced by
 # event-driven readiness (subscribe + wait_for_event) plus a fire-and-forget
 # shutdown -- a more robust rewrite, not a relaxation. No expect/action/reject
 # assertion was removed; the conn=2 route assertion was STRENGTHENED from
@@ -65,7 +65,7 @@ EOF_PEER
 
 # Observer: shut down cleanly once the forwarded route is on the wire.
 #
-# This is event-driven, NOT a `show bgp summary` poll. The old poll drove a tight
+# This is event-driven, NOT a `show bgp` poll. The old poll drove a tight
 # loop of synchronous ze-plugin-engine:dispatch-command RPCs; under load one of
 # those occasionally got no response for its 30s TLS timeout while the engine was
 # forwarding fine, so the gate never fired and ze was killed at the outer timeout.

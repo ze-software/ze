@@ -65,7 +65,7 @@ stop_daemon() {
 }
 
 start_daemon daemon1.log
-if ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="wrongpass" ze cli -c "show bgp summary" >/dev/null 2>&1; then
+if ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="wrongpass" ze cli -c "show bgp" >/dev/null 2>&1; then
 	echo "FAIL: wrong SSH password succeeded" >&2
 	exit 1
 fi

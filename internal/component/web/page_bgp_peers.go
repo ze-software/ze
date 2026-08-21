@@ -145,7 +145,7 @@ func peerFlagFromState(pe peerEntry, state string) (string, string) {
 
 // buildBGPPeersTableData constructs a WorkbenchTableData from a list
 // of peer entries. filterGroup restricts the table to peers in that group.
-// live provides operational state from "show bgp summary" (nil when unavailable).
+// live provides operational state from "show bgp" (nil when unavailable).
 func buildBGPPeersTableData(peers []peerEntry, filterGroup string, live map[string]bgpSummaryPeer) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "name", Label: "Name", Sortable: true},

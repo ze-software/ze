@@ -52,7 +52,7 @@ system {
 				}
 				entry 20 {
 					action allow
-					match "show bgp summary"
+					match "show bgp"
 				}
 			}
 			edit {

@@ -3586,8 +3586,8 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
     # Under the line counter this was refused; refusing it is what taught agents to
     # write a token reflexively.
     r = edit(
-        "import time\ntime.sleep(2.0)\nresp = dispatch(api, 'show bgp summary')\n",
-        "api.wait_until(lambda: 'established' in dispatch(api, 'show bgp summary'))\n",
+        "import time\ntime.sleep(2.0)\nresp = dispatch(api, 'show bgp')\n",
+        "api.wait_until(lambda: 'established' in dispatch(api, 'show bgp'))\n",
         relax_ci,
     )
     results.check("relax-ci-sleep-to-barrier-allowed", r is None, repr(r))

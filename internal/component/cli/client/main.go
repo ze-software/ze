@@ -128,7 +128,7 @@ func runInteractiveWithDispatch(dispatch CommandFunc) int {
 
 	injectViewFactories(&m, func() (func() (string, error), error) {
 		return func() (string, error) {
-			output, err := dispatch("show bgp summary")
+			output, err := dispatch("show bgp")
 			if output.TransportComplete != nil {
 				defer output.TransportComplete()
 			}
@@ -460,7 +460,7 @@ func (c *cliClient) modelExecutor() unicli.CommandExecutor {
 // unmarshals what it returns, so it asks for the dispatcher's JSON.
 func (c *cliClient) dashboardPoller() (func() (string, error), error) {
 	return func() (string, error) {
-		return c.SendCommandRaw("show bgp summary")
+		return c.SendCommandRaw("show bgp")
 	}, nil
 }
 

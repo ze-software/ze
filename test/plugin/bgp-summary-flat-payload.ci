@@ -1,4 +1,4 @@
-# Test: `show bgp summary` answers its aggregates and its peer rows as siblings.
+# Test: `show bgp` answers its aggregates and its peer rows as siblings.
 # VALIDATES: AC-1, AC-2 — no "summary" envelope; router-id, local-as, uptime,
 #            peers-configured, peers-established and peers are top-level keys,
 #            and a family filter adds family and peers-in-family beside them.
@@ -13,7 +13,7 @@ option=tcp_connections:value=1
 option=timeout:value=20s
 # The family-filtered half reads NegotiatedFamilies, which peer_run.go clears on
 # teardown (p.negotiated.Store(nil)). Without linger the peer exits the instant
-# it receives ze's End-of-RIB, so `show bgp summary ipv4/unicast` rejects with
+# it receives ze's End-of-RIB, so `show bgp ipv4/unicast` rejects with
 # "un-negotiated family" and the assertion becomes a race. linger holds the
 # session open past the expectation.
 option=linger:value=true
@@ -67,7 +67,7 @@ def main():
     try:
         # // dispatch_until poll, not a blind sleep -- reaching
         # established is an async engine state with no barrier to wait on.
-        settled = api.dispatch_until('show bgp summary', established, attempts=40)
+        settled = api.dispatch_until('show bgp', established, attempts=40)
         if not established(settled):
             runtime_fail(f'the peer never reached established: {settled!r}')
         data = result_json_data(settled, {})
@@ -91,7 +91,7 @@ def main():
                 runtime_fail(f'{key} appeared without a family filter: {sorted(data)}')
 
         # A family filter adds both keys as siblings, not under an envelope.
-        filtered = summary(api, 'show bgp summary ipv4/unicast')
+        filtered = summary(api, 'show bgp ipv4/unicast')
         if 'summary' in filtered:
             runtime_fail(f'the summary envelope is back under a filter: {sorted(filtered)}')
         if filtered.get('family') != 'ipv4/unicast':

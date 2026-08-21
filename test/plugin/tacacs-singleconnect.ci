@@ -5,7 +5,7 @@
 #    (Our mock supports this unconditionally.)
 # 2. Daemon enables TACACS+ accounting so every dispatched command fires an
 #    ACCT exchange against the mock -- multiple exchanges in quick succession.
-# 3. ze init + ze cli -c "show bgp summary" + ze cli -c "show bgp peer list" produce several
+# 3. ze init + ze cli -c "show bgp" + ze cli -c "show bgp peer list" produce several
 #    AUTHEN + ACCT exchanges.
 # 4. Mock logs "connection #N" on every accepted TCP. With single-connect
 #    the count stays at 1 (one TCP, reused); without it the count would
@@ -102,7 +102,7 @@ trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PI
 printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
 
 # Run several commands so the client performs multiple AUTHEN + ACCT exchanges.
-for cmd in "show bgp summary" "show bgp peer list" "show bgp summary" "show bgp peer list"; do
+for cmd in "show bgp" "show bgp peer list" "show bgp" "show bgp peer list"; do
 	ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "$cmd" >/dev/null 2>&1 || {
 		echo "FAIL: $cmd failed" >&2
 		exit 1

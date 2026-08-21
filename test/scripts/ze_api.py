@@ -1903,7 +1903,7 @@ class API:
         distinct peers AND, when `forward_prefix` is given, a route carrying that
         prefix sent to some peer.
 
-        Event-driven replacement for the `show bgp summary` `eor-sent` poll that
+        Event-driven replacement for the `show bgp` `eor-sent` poll that
         route-server observers used to gate a clean shutdown. That poll drove a
         tight loop of synchronous ze-plugin-engine:dispatch-command RPCs; under
         load one occasionally got no response for its 30s TLS read timeout while
@@ -2007,7 +2007,7 @@ class API:
         the relayed route reached the receiver), then shut ze down cleanly.
 
         This is the load-robust successor to the copy-pasted `all_peers_eor_sent`
-        `show bgp summary` poll + synchronous `request shutdown` that stalled
+        `show bgp` poll + synchronous `request shutdown` that stalled
         under load (see `wait_rs_replayed` and `shutdown_fire_and_forget`). A whole
         observer collapses to:
 

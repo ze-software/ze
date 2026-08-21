@@ -12,7 +12,7 @@ import (
 )
 
 // execBody is the smallest request the execute route accepts.
-const execBody = `{"command":"show bgp summary"}`
+const execBody = `{"command":"show bgp"}`
 
 func authTestServer(t *testing.T, cfg RESTConfig) *RESTServer {
 	t.Helper()

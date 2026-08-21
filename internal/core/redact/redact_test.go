@@ -54,7 +54,7 @@ func TestCommandRedactsPasswordKeyValue(t *testing.T) {
 // VALIDATES: non-credential commands pass through unchanged (no false positives).
 func TestCommandPreservesNonCredential(t *testing.T) {
 	cases := []string{
-		"show bgp summary",
+		"show bgp",
 		"show config system",
 		"commit",
 		"",

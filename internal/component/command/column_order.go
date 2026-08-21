@@ -15,7 +15,7 @@ import (
 // record, in the order a person reads them.
 //
 // A command that renders more than one record shape declares one ColumnOrder
-// per shape. `show bgp summary` renders an outer record and a list of peer
+// per shape. `show bgp` renders an outer record and a list of peer
 // rows. Both carry an "uptime" key in a different position, so one flat list
 // cannot state both orders.
 type ColumnOrder []string

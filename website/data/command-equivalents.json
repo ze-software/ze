@@ -84,7 +84,7 @@
       "category": "BGP",
       "intent": "BGP session summary",
       "ze": [
-        "show bgp summary"
+        "show bgp"
       ],
       "vendors": {
         "junos-mx": [

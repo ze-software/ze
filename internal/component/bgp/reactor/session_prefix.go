@@ -497,7 +497,7 @@ type prefixSetChange struct {
 // None of that is true of an event tally. What this counts is the cardinality of
 // the prefixes the peer currently advertises, maintained as they enter and
 // leave. It is not the size of any RIB: it is taken before import policy runs,
-// so it is above what `show bgp summary` reports for a peer whose prefixes that
+// so it is above what `show bgp` reports for a peer whose prefixes that
 // policy rejects (mergeRibRouteCounts, plugins/cmd/peer/summary.go).
 //
 // A message REFUSED anywhere never moves any set, exactly as it never reaches

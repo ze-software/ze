@@ -715,7 +715,7 @@ func runSelftest() error {
 	}
 
 	for _, live := range []string{
-		"show bgp summary", "show bgp peer list", "show bgp peer 10.0.0.1 detail",
+		"show bgp", "show bgp peer list", "show bgp peer 10.0.0.1 detail",
 		"request peer 10.0.0.1 flush", "request reload", "show status", "request halt",
 		"monitor bgp", "show bgp health", "show runtime memory",
 		"peer * update text nlri ipv4/unicast add 10.0.0.0/24",
@@ -739,7 +739,7 @@ func runSelftest() error {
 		// A removed spelling, verbatim: the defect this gate exists for.
 		"    resp = dispatch(api, 'bgp health')",
 		// A live command: must not be flagged.
-		"    resp = dispatch(api, 'show bgp summary')",
+		"    resp = dispatch(api, 'show bgp')",
 		// A pass-through variable: no fixed command, counted not failed.
 		"    resp = dispatch(api, cmd_from_a_variable)",
 		// Computed but with a checkable static prefix that is live.

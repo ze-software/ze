@@ -72,7 +72,7 @@ const inputKeyExecuteCommand = "ze_execute_command"
 const elicitFieldCommand = "command"
 
 // elicitPromptCommand is the message shown to the user.
-const elicitPromptCommand = "Which ze command should be run? For example: show bgp summary"
+const elicitPromptCommand = "Which ze command should be run? For example: show bgp"
 
 // inputOutcome is what one `inputResponses` lookup decided.
 //

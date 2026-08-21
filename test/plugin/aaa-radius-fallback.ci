@@ -4,7 +4,7 @@
 # 1. Daemon is configured with a RADIUS server at 127.0.0.1:1 (no listener; the
 #    probe times out).
 # 2. Local admin user has bcrypt("testpass") and profile [ admin ].
-# 3. ze cli -c "show bgp summary" succeeds via local bcrypt because RADIUS is
+# 3. ze cli -c "show bgp" succeeds via local bcrypt because RADIUS is
 #    unreachable (infra error, chain continues) rather than a rejection.
 # 4. SSH auth log shows source=local (NOT source=radius).
 #
@@ -83,7 +83,7 @@ ADMIN_DIR=$(mktemp -d)
 trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true' EXIT
 printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
 
-OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show bgp summary" 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show bgp" 2>&1) || {
 	echo "FAIL: 'show summary' via local fallback after RADIUS unreachable" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	echo "--- daemon log ---" >&2

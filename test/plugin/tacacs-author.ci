@@ -4,7 +4,7 @@
 # 1. Mock accepts admin:testpass:15 and denies any AUTHOR REQUEST whose cmd
 #    contains "clear"
 # 2. Daemon enables TACACS+ authorization (`authorization true`)
-# 3. ze cli -c "show bgp summary" succeeds (mock replies PASS_ADD)
+# 3. ze cli -c "show bgp" succeeds (mock replies PASS_ADD)
 # 4. ze cli -c "clear interface counters" fails (mock replies FAIL; daemon emits
 #    "command restricted by access control")
 #
@@ -113,7 +113,7 @@ trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PI
 printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
 
 # AC-9: show summary is NOT in the deny list -- mock replies PASS_ADD, command runs.
-OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show bgp summary" 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show bgp" 2>&1) || {
 	echo "FAIL: 'show summary' should have been authorized by TACACS+" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	echo "--- daemon log ---" >&2
@@ -155,7 +155,7 @@ EOF_SH
 cmd=foreground:seq=1:exec=./test-tacacs-author.sh:timeout=20s
 expect=exit:code=0
 # AC-9: AUTHOR REQUEST issued for 'show summary' AND mock replied PASS_ADD.
-expect=stderr:pattern=tacacs-mock: AUTHOR cmd="show bgp summary" reply=PASS_ADD
+expect=stderr:pattern=tacacs-mock: AUTHOR cmd="show bgp" reply=PASS_ADD
 # AC-10: AUTHOR REQUEST issued for 'clear interface counters' AND mock replied FAIL.
 expect=stderr:pattern=tacacs-mock: AUTHOR cmd="clear interface counters" reply=FAIL
 # Script-side proof that the daemon actually blocked the command (exits 1 inside

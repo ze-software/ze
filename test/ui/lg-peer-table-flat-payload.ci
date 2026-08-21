@@ -1,6 +1,6 @@
 # Test: the looking glass peer table renders from the flat summary payload.
 #
-# VALIDATES: spec-cli-pipe-aliases AC-3 and user story 2. `show bgp summary`
+# VALIDATES: spec-cli-pipe-aliases AC-3 and user story 2. `show bgp`
 #            answers the aggregates and the peer rows as siblings, and
 #            summaryPeers (internal/component/lg/handler_api.go) reads the rows
 #            at ze["peers"]. transformProtocols builds the birdwatcher

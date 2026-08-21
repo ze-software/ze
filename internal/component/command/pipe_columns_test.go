@@ -19,9 +19,9 @@ const columnsPayload = `{"peers":[{"address":"192.0.2.1","description":"transit"
 // which is the precedent `| match <pattern>` set.
 // PREVENTS: a parse that keeps the first field name and drops the rest.
 func TestParsePipeDisplayJoinsFields(t *testing.T) {
-	command, ops := ParsePipe("show bgp summary | display address state uptime")
-	if command != "show bgp summary" {
-		t.Fatalf("command = %q, want %q", command, "show bgp summary")
+	command, ops := ParsePipe("show bgp | display address state uptime")
+	if command != "show bgp" {
+		t.Fatalf("command = %q, want %q", command, "show bgp")
 	}
 	if len(ops) != 1 || ops[0].kind != pipeDisplay {
 		t.Fatalf("ops = %+v, want one display op", ops)
