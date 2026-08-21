@@ -628,22 +628,47 @@ ze-docker-lab-build:
 # plan/spec-fixit-lint-blind-to-integration-tag.md.
 ZE_LINT_PKGS := ./cmd/ze/... ./internal/... ./pkg/... ./test/...
 
-# Memory half of the linter ceiling; the worker half is `concurrency` in
-# .golangci.yml. golangci-lint v2.10.1 accepts no memory setting of its own, so
-# the Go runtime env var is the only place this can go: `golangci-lint config
-# verify` rejects memory, memory-limit, mem-limit, gomemlimit, max-memory and
+# Memory half of the linter ceiling; the worker half is ZE_LINT_RUN's `-j`
+# below. golangci-lint v2.10.1 accepts no memory setting of its own, so the Go
+# runtime env var is the only place this can go: `golangci-lint config verify`
+# rejects memory, memory-limit, mem-limit, gomemlimit, max-memory and
 # memory-ceiling as unknown keys, and `golangci-lint run -h` lists no memory
 # flag. The binary honors GOMEMLIMIT, which its runtime reads at startup.
 #
-# GOMEMLIMIT is a soft limit: the GC works harder as the heap approaches it,
-# and a run whose live heap exceeds it gets slow rather than killed. 4 GiB sits
-# above the measured working set at 8 workers and below the level that starves
-# the box. Raise it for one run with `make ze-lint ZE_LINT_MEMLIMIT=8GiB`.
-# Every golangci-lint invocation in this repository goes through $(ZE_LINT):
-# a raw call reaches the linter with no ceiling.
+# GOMEMLIMIT is a soft limit: the GC works harder as the heap approaches it, and
+# a run whose live heap exceeds it gets slow rather than killed. That is the
+# failure this sizing exists to avoid, and a fixed number walked into it.
+#
+# An EIGHTH of the machine's RAM, floored at 4 GiB, DERIVED for the same reason
+# the worker count is: Ze is developed on machines of different sizes. It was a
+# flat 4 GiB until 2026-08-21, measured on a 31 GiB box where it was about an
+# eighth. On the 64 GiB machine it is 6%, and the linter ran pinned at 3.97 GiB
+# against it -- GC-thrashing to save 0.55 GiB, since
+# plan/spec-shared-machine-job-admission.md measured the uncapped peak RSS at
+# 4.55 GiB. The floor keeps the measured 4 GiB on the box it was measured on.
+#
+# ZE_RUN_SLOTS jobs run at once, so the worst case is a slots-many multiple of
+# this. At four slots that is half the RAM on the 64 GiB box and 16 GiB on the
+# 31 GiB one, which is the headroom the admission spec asked for.
+#
+# Raise it for one run with `make ze-lint ZE_LINT_MEMLIMIT=16GiB`.
 # See plan/spec-shared-machine-job-admission.md, AC-1.
-ZE_LINT_MEMLIMIT := 4GiB
+ZE_LINT_MEMLIMIT ?= $(shell g=$$(awk '/MemTotal/{printf "%d", $$2/1048576}' /proc/meminfo 2>/dev/null); [ -z "$$g" ] && g=$$(( $$(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1073741824 )); m=$$(( g / 8 )); [ $$m -lt 4 ] && m=4; echo $${m}GiB)
 ZE_LINT := GOMEMLIMIT=$(ZE_LINT_MEMLIMIT) golangci-lint
+
+# The worker half of the ceiling, DERIVED from the core count exactly as
+# GO_TEST_PROCS is, because Ze is developed on machines of different sizes and a
+# hardcoded number is a quarter of the box on one of them and a half on another.
+# It lived in .golangci.yml as `concurrency: 8` until 2026-08-21; that file
+# cannot divide, so the number could not follow the machine. See the comment
+# there, and "Job admission" above: ZE_RUN_SLOTS divides the box by this same
+# share to decide how many jobs run at once, so a linter taking more than its
+# declared share breaks that arithmetic rather than just running hot.
+#
+# Every `golangci-lint run` in this repository goes through ZE_LINT_RUN. A raw
+# call reaches the linter with neither ceiling; `check_raw_test_invocation` in
+# .claude/hooks/pretool-bash.py refuses one from an agent.
+ZE_LINT_RUN := $(ZE_LINT) run -j $(GO_TEST_PROCS)
 
 # Two full golangci-lint passes over the tree, each sized for the whole box.
 # Measured 2026-08-17, this is about 18 minutes of a 20-minute full verify, so
@@ -657,9 +682,9 @@ ze-lint:
 
 _ze-lint-impl:
 	@echo "Running ze linter..."
-	@$(ZE_LINT) run $(ZE_LINT_PKGS)
+	@$(ZE_LINT_RUN) $(ZE_LINT_PKGS)
 	@echo "Running ze linter (GOOS=linux, integration tag)..."
-	@GOOS=linux $(ZE_LINT) run --build-tags integration $(ZE_LINT_PKGS)
+	@GOOS=linux $(ZE_LINT_RUN) --build-tags integration $(ZE_LINT_PKGS)
 
 ze-evidence-vet:
 	@echo "Vetting evidence scripts (GOOS=linux)..."
@@ -751,9 +776,9 @@ _ze-lint-changed-impl:
 	@pkgs=$$(scripts/dev/changed-pkgs.sh); \
 	if [ -z "$$pkgs" ]; then echo "No changed Go packages to lint"; exit 0; fi; \
 	echo "Linting changed packages: $$pkgs"; \
-	$(ZE_LINT) run $$pkgs && \
+	$(ZE_LINT_RUN) $$pkgs && \
 	echo "Linting changed packages (GOOS=linux, integration tag): $$pkgs" && \
-	GOOS=linux $(ZE_LINT) run --build-tags integration $$pkgs
+	GOOS=linux $(ZE_LINT_RUN) --build-tags integration $$pkgs
 
 ze-unit-test-changed:
 	@scripts/dev/ze-run.sh ze-unit-test-changed $(MAKE) --no-print-directory _ze-unit-test-changed-impl

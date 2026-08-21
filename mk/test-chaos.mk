@@ -24,7 +24,7 @@ ze-chaos-lint:
 
 _ze-chaos-lint-impl:
 	@echo "Running chaos linter..."
-	@$(ZE_LINT) run $(CHAOS_PACKAGES)
+	@$(ZE_LINT_RUN) $(CHAOS_PACKAGES)
 
 ze-chaos-unit-test:
 	@scripts/dev/ze-run.sh ze-chaos-unit-test $(MAKE) --no-print-directory _ze-chaos-unit-test-impl
