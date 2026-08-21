@@ -123,6 +123,73 @@ func TestInitialSyncEORReachesTheSilentFamilyToo(t *testing.T) {
 	assert.Equal(t, uint32(2), peer.Stats().EORSent, "one counted EOR per negotiated family")
 }
 
+// TestInitialSyncEORAlsoCountsAsAnUpdateSent pins the counter ARITHMETIC that every
+// "did a route reach this peer" gate in the functional suite is built on.
+//
+// RFC 4724 Section 2 makes the End-of-RIB an UPDATE message with no reachable NLRI
+// and no withdrawn routes, so it travels the ordinary UPDATE write path and
+// notifyMessageReceiver (reactor_notify.go) counts it in updates-sent exactly like a
+// route: the sent branch switches on the message TYPE and nothing there separates
+// the marker from a route. eor-sent is the second counter that names the subset, so
+// updates-sent MINUS eor-sent is the count of frames that were not the marker, and
+// that difference is the only reading that witnesses a route.
+//
+// VALIDATES: updates-sent includes the initial-sync End-of-RIB, and the difference
+// against eor-sent is zero for a peer that was sent nothing else.
+// PREVENTS: an observer gating on `updates-sent >= 1` and reading establishment as
+// delivery. test/plugin/remove-private-as-replace-peer.ci did exactly that and then
+// dispatched `request shutdown`, so under load the daemon was torn down before it
+// forwarded and the peer got a Cease NOTIFICATION where the UPDATE was due.
+func TestInitialSyncEORAlsoCountsAsAnUpdateSent(t *testing.T) {
+	r := New(&Config{ListenAddr: "127.0.0.1:0"})
+	addr := netip.MustParseAddr("10.0.0.2")
+	require.NoError(t, r.AddPeer(NewPeerSettings(addr, 65000, 65001, 0x01020301)))
+
+	r.mu.RLock()
+	peer, found := r.findPeerByAddr(addr)
+	r.mu.RUnlock()
+	require.True(t, found, "the peer just added must resolve, or the counters below belong to nobody")
+
+	peer.state.Store(int32(PeerStateEstablished))
+	nc := &NegotiatedCapabilities{families: map[family.Family]bool{family.IPv4Unicast: true}}
+	peer.negotiated.Store(nc)
+
+	session := NewSession(peer.Settings())
+	require.NoError(t, session.fsm.Event(fsm.EventManualStart))
+	require.NoError(t, session.fsm.Event(fsm.EventTCPConnectionConfirmed))
+	require.NoError(t, session.fsm.Event(fsm.EventBGPOpen))
+	require.NoError(t, session.fsm.Event(fsm.EventKeepaliveMsg))
+	require.Equal(t, fsm.StateEstablished, session.fsm.State())
+
+	// The peer's own callback, the one AddPeer installed, so the counters move
+	// through the production path rather than through a stub the test wrote.
+	session.SetMessageCallback(peer.messageCallback)
+	conn := &recordingConn{}
+	session.mu.Lock()
+	session.conn = conn
+	session.bufWriter = bufio.NewWriterSize(conn, 4096)
+	session.mu.Unlock()
+
+	peer.mu.Lock()
+	peer.session = session
+	peer.mu.Unlock()
+	peer.sendingInitialRoutes.Store(1)
+
+	peer.sendInitialRoutes()
+
+	require.Equal(t, eorWire(family.IPv4Unicast), conn.written(),
+		"the initial sync must have put the End-of-RIB and nothing else on the wire, or the "+
+			"arithmetic below is measuring a route as well as the marker")
+
+	stats := peer.Stats()
+	assert.Equal(t, uint32(1), stats.EORSent, "the marker is counted as an End-of-RIB")
+	assert.Equal(t, uint32(1), stats.UpdatesSent,
+		"the marker is ALSO counted as an UPDATE, so `updates-sent >= 1` is already true "+
+			"with no route sent")
+	assert.Equal(t, uint32(0), stats.UpdatesSent-stats.EORSent,
+		"updates-sent minus eor-sent is the count of frames that were not the marker")
+}
+
 // TestNoTestBuildsItsOwnFamiliesSentMap refuses the return of the three tests the
 // two above replaced: a test that re-implements the End-of-RIB family tracking in a
 // local map and then asserts on its own copy.

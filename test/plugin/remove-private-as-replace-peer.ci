@@ -71,10 +71,29 @@ def dispatch(api, command):
         return {'status': 'error', 'data': 'engine call returned None'}
     return resp.get('result', {})
 
-def updates_sent(api, peer):
+def updates_beyond_eor(api, peer):
+    """UPDATEs written to `peer` that were NOT its End-of-RIB.
+
+    updates-sent counts EVERY UPDATE frame, the initial-sync End-of-RIB
+    included: RFC 4724 Section 2 makes the marker an UPDATE, so it takes the
+    ordinary write path and notifyMessageReceiver
+    (internal/component/bgp/reactor/reactor_notify.go) counts it on message TYPE
+    with nothing separating it from a route. eor-sent names that subset, so the
+    difference is the frames that were not the marker, and it is the only
+    reading that witnesses a forward. Pinned by
+    TestInitialSyncEORAlsoCountsAsAnUpdateSent
+    (internal/component/bgp/reactor/peer_initial_sync_test.go).
+
+    `updates-sent >= 1` is satisfied by establishment ALONE. The shutdown below
+    then raced the forward this test asserts, and under load the shutdown won:
+    the peer received a Cease/Administrative Shutdown NOTIFICATION where the
+    conn=2 UPDATE was due (plan/journal/gate-verdict-depends-on-the-machine.md,
+    2026-08-19). The same subtraction is what ~20 other files in this suite use,
+    ze_api.assert_peer_received_only_eor among them.
+    """
     r = dispatch(api, f'show bgp peer {peer} detail')
     for info in r.get('data', {}).get('peers', {}).values():
-        return info.get('updates-sent', 0)
+        return int(info.get('updates-sent', 0) or 0) - int(info.get('eor-sent', 0) or 0)
     return 0
 
 def main():
@@ -85,10 +104,12 @@ def main():
     api.wait_for_registry()
     api.ready()
     # Deterministic replacement for sleep(4.0): wait until ze has forwarded the
-    # policy-rewritten route to the receiver peer (updates-sent increments when the
-    # UPDATE is emitted), then shut down. The runner-side conn=2 expect verifies the
-    # replaced/prepended AS_PATH on the wire.
-    if not api.wait_until(lambda: updates_sent(api, 'receiver-peer') >= 1,
+    # policy-rewritten route to the receiver peer, then shut down. The predicate is
+    # an ORDERING FACT -- a frame that was not the End-of-RIB has been written -- so
+    # a shutdown dispatched after it cannot preempt the forward. The attempt budget
+    # is a liveness bound whose expiry FAILS loudly; it is not the assertion. The
+    # runner-side conn=2 expect verifies the replaced/prepended AS_PATH on the wire.
+    if not api.wait_until(lambda: updates_beyond_eor(api, 'receiver-peer') >= 1,
                           attempts=150, delay=0.1):
         print('FAIL: ze never forwarded the rewritten route to receiver-peer',
               file=sys.stderr)
