@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | cli |
 | Depends | - |
-| Phase | - |
+| Phase | 1/5 |
 | Deferral shard | - |
 | Handoff | - |
-| Updated | 2026-08-19 |
+| Updated | 2026-08-21 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -141,7 +141,12 @@ match two paths for one answer.
 | How is it reverted? | Single commit revert. The payload is unchanged, so a revert restores the command without touching data |
 | Who else touches this path? | `main-c2` owns `internal/component/command/` for the streaming work; this spec does not need those files. `spec-cli-dispatch-child-guard` **has CLOSED** (`b62c52fef close: remove spec-cli-dispatch-child-guard`, after `647f33121` landed the guard), so this spec has no open dependency. `longerCommandPath` and `isCommandPath` are in the tree |
 
-**Audit note, 2026-08-21: the child population is 16, not 4.** `make ze-command-list` reports these builtin paths under `show bgp`, every one of which would inherit the `summary` and `peers` aliases from a `show bgp` registration: `health`, `irr`, `irr check`, `irr prefix`, `peer capabilities`, `peer detail`, `peer history`, `peer list`, `peer rib`, `peer statistics`, `rib`, `rib best`, `rib best status`, `rib rpf`, `rib status`. The four plugin subtrees (`rpki`, `rs`, `adj-rib-in`, `healthcheck`) are reached by fallback and are not builtins. AC-7 already says "every other child path"; the Implementation Steps and R-2 drove only four, and now drive all of them.
+**Audit note, 2026-08-21: the child population is 15 to block, out of 16 under `show bgp`.**
+Corrected during phase 1: the note below said 16 and then listed 15. The
+sixteenth is `show bgp summary` ITSELF, and it must NOT be blocked. It has to
+keep inheriting the orders and the aliases until phase 3 removes it, which is
+what makes phase 1 safe to land on its own. The 15 named below are the ones that
+take an empty registration. `make ze-command-list` reports these builtin paths under `show bgp`, every one of which would inherit the `summary` and `peers` aliases from a `show bgp` registration: `health`, `irr`, `irr check`, `irr prefix`, `peer capabilities`, `peer detail`, `peer history`, `peer list`, `peer rib`, `peer statistics`, `rib`, `rib best`, `rib best status`, `rib rpf`, `rib status`. The four plugin subtrees (`rpki`, `rs`, `adj-rib-in`, `healthcheck`) are reached by fallback and are not builtins. AC-7 already says "every other child path"; the Implementation Steps and R-2 drove only four, and now drive all of them.
 
 **The empties are not one uniform loop.** `show bgp peer list` already carries its own `ColumnOrder` (`internal/component/bgp/plugins/cmd/peer/peer.go:registerColumns:99-102`), so an empty COLUMN registration there would destroy a declared order. It carries no alias registration, so it does need an empty ALIAS registration. Column empties and alias empties are two different lists.
 
@@ -180,8 +185,8 @@ match two paths for one answer.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestShowBgpCarriesTheSummaryOrder` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-1, the orders resolve against `show bgp` | |
-| `TestChildCommandsDoNotInheritTheSummaryOrder` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-7, A-1, driven per child path | |
+| `TestShowBgpCarriesTheSummaryOrder` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-1, the orders resolve against `show bgp` | pass |
+| `TestChildCommandsDoNotInheritTheSummaryOrder` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-7, A-1, driven per child path | pass |
 | `TestShowBgpSummaryIsNotRegistered` | `internal/component/plugin/server/command_test.go` | AC-4 and AC-10, no dispatcher key and no wire method | |
 | `TestShowBgpFamilyArgumentStillFilters` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-5 | |
 | `TestAliasesResolveAgainstShowBgp` | `internal/component/command/alias_test.go` | AC-2 and AC-3 | |

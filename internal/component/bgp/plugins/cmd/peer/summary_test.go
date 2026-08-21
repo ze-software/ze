@@ -918,3 +918,104 @@ func TestBgpOverviewAnswersTheSummary(t *testing.T) {
 		assert.NotContains(t, resp.Error, "invalid family", "an unregistered subcommand is not a family typo")
 	})
 }
+
+// aliasNames returns the name of every pipe alias a command answers to.
+func aliasNames(t *testing.T, cmd string) map[string]bool {
+	t.Helper()
+
+	names := make(map[string]bool)
+	for _, alias := range command.AliasesForCommand(cmd) {
+		names[alias.Name] = true
+	}
+	return names
+}
+
+// TestShowBgpCarriesTheSummaryOrder verifies AC-1.
+//
+// VALIDATES: the two column orders and the two pipe aliases resolve against
+// `show bgp`, the command that answers the summary.
+// PREVENTS: `show bgp` rendering alphabetically and refusing `| peers`. Both
+// registrations named the longer path `show bgp summary`, and
+// commandMatchesPrefix (internal/component/command/column_order.go) refuses a
+// command shorter than the registered prefix, so the shorter spelling of the
+// same answer reached neither.
+func TestShowBgpCarriesTheSummaryOrder(t *testing.T) {
+	// The path an operator types, spelled out rather than read from cmdBgp. A
+	// lookup through the constant the registration uses moves with it, so it
+	// stays green when the registration goes back onto a longer path.
+	const showBgp = "show bgp"
+
+	orders := command.ColumnsForCommand(showBgp)
+	require.Len(t, orders, 2, "`show bgp` renders two record shapes, so it declares one order for each")
+	assert.Equal(t, "address", orders[0][0], "a peer row opens with the peer")
+	assert.Contains(t, orders[0], "connections-dropped", "the peer-row order carries the counters last")
+	assert.Equal(t, "router-id", orders[1][0], "the record holding the rows opens with the router id")
+	assert.Contains(t, orders[1], "peers-established", "the aggregate order carries the peer counts")
+
+	names := aliasNames(t, showBgp)
+	assert.True(t, names["summary"], "`show bgp | summary` gives the aggregate fields")
+	assert.True(t, names["peers"], "`show bgp | peers` gives the peer rows")
+}
+
+// TestChildCommandsDoNotInheritTheSummaryOrder verifies AC-7 and A-1, driven
+// per child path rather than for one example.
+//
+// VALIDATES: no command path under `show bgp` takes the column orders or the
+// pipe aliases registered on it, and `show bgp peer list` keeps the order it
+// declares itself.
+// PREVENTS: `show bgp rib` rendering peer columns and offering `| peers` over
+// route output. commandRegistry.lookup resolves by the longest matching prefix
+// (internal/component/command/column_order.go), so `show bgp` reaches every one
+// of these paths unless the path declares its own emptiness.
+func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
+	// Every builtin command path under `show bgp`, as `make ze-command-list`
+	// reports them. `show bgp summary` is absent because it answers the same
+	// payload as `show bgp` and inherits both registrations on purpose.
+	children := []struct {
+		command string
+		// columns is the order this path declares for itself. An empty one
+		// means it declares none, and none may resolve for it.
+		columns command.ColumnOrder
+	}{
+		{command: "show bgp health"},
+		{command: "show bgp irr"},
+		{command: "show bgp irr check"},
+		{command: "show bgp irr prefix"},
+		{command: "show bgp peer capabilities"},
+		{command: "show bgp peer detail"},
+		{command: "show bgp peer history"},
+		{command: "show bgp peer list", columns: command.ColumnOrder{"name", "group", "remote-as", "state", "uptime"}},
+		{command: "show bgp peer rib"},
+		{command: "show bgp peer statistics"},
+		{command: "show bgp rib"},
+		{command: "show bgp rib best"},
+		{command: "show bgp rib best status"},
+		{command: "show bgp rib rpf"},
+		{command: "show bgp rib status"},
+	}
+
+	for _, child := range children {
+		t.Run(child.command, func(t *testing.T) {
+			orders := command.ColumnsForCommand(child.command)
+			if len(child.columns) == 0 {
+				assert.Empty(t, orders, "declares no column order, so it must resolve none rather than inherit `show bgp`")
+			} else {
+				require.Len(t, orders, 1, "declares one column order of its own")
+				assert.Equal(t, child.columns, orders[0], "an empty registration here would replace the declared order")
+			}
+
+			names := aliasNames(t, child.command)
+			assert.False(t, names["summary"], "`| summary` names aggregate fields this answer does not carry")
+			assert.False(t, names["peers"], "`| peers` names peer rows this answer does not carry")
+		})
+	}
+
+	// The table is the population, so it MUST name every path the registrations
+	// block. A path added to cmdBgpChildren and not here would go untested, and
+	// one dropped from cmdBgpChildren would start inheriting.
+	tabled := make([]string, 0, len(children))
+	for _, child := range children {
+		tabled = append(tabled, child.command)
+	}
+	assert.ElementsMatch(t, cmdBgpChildren, tabled, "every blocked child path is driven by this table")
+}

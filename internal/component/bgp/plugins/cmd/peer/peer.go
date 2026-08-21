@@ -22,9 +22,39 @@ import (
 
 // The command paths these handlers answer, as an operator types them.
 const (
-	cmdBgpSummary  = "show bgp summary"
+	cmdBgp         = "show bgp"
 	cmdBgpPeerList = "show bgp peer list"
 )
+
+// cmdBgpChildren is every builtin command path under `show bgp`, as
+// `make ze-command-list` reports them.
+//
+// A column order and an alias resolve by the longest registered command path
+// that is a prefix of the command (commandRegistry.lookup in
+// internal/component/command/column_order.go), so what registerColumns and
+// registerAliases put on `show bgp` reaches all of these. Each one declares its
+// own emptiness to stop that, which is the mechanism registerPipeFilters uses
+// for the scalar rib commands (internal/component/bgp/plugins/cmd/rib/rib.go).
+//
+// `show bgp summary` is deliberately absent: it answers the same payload as
+// `show bgp`, so it MUST inherit both registrations.
+var cmdBgpChildren = []string{
+	"show bgp health",
+	"show bgp irr",
+	"show bgp irr check",
+	"show bgp irr prefix",
+	"show bgp peer capabilities",
+	"show bgp peer detail",
+	"show bgp peer history",
+	cmdBgpPeerList,
+	"show bgp peer rib",
+	"show bgp peer statistics",
+	"show bgp rib",
+	"show bgp rib best",
+	"show bgp rib best status",
+	"show bgp rib rpf",
+	"show bgp rib status",
+}
 
 var (
 	errReactorNotAvailable = errors.New("reactor not available")
@@ -70,9 +100,9 @@ func init() {
 // It is not alphabetical, which put connections-dropped second and state
 // fifteenth.
 func registerColumns() {
-	// Two orders, because `show bgp summary` renders two record shapes and both
-	// carry an "uptime" key: the peer rows, and the record that holds them.
-	command.RegisterColumns([]string{cmdBgpSummary},
+	// Two orders, because `show bgp` renders two record shapes and both carry
+	// an "uptime" key: the peer rows, and the record that holds them.
+	command.RegisterColumns([]string{cmdBgp},
 		command.ColumnOrder{
 			"address", "name", "description", "remote-as", "peer-type",
 			"state", "uptime", "state-changed", "last-error",
@@ -93,17 +123,41 @@ func registerColumns() {
 	command.RegisterColumns([]string{cmdBgpPeerList},
 		command.ColumnOrder{"name", "group", "remote-as", "state", "uptime"},
 	)
+	// Every other child of `show bgp` declares NO order of its own, which is
+	// what stops it inheriting the two above and rendering peer columns over an
+	// answer that carries no peer rows.
+	//
+	// `show bgp peer list` is the one child left out of this loop, because it
+	// declares an order of its own above: an empty registration there would
+	// REPLACE that order rather than block an inherited one. It still takes the
+	// empty ALIAS registration in registerAliases, where it declares nothing.
+	for _, child := range cmdBgpChildren {
+		if child == cmdBgpPeerList {
+			continue
+		}
+		command.RegisterColumns([]string{child})
+	}
 }
 
-// registerAliases names the two halves of `show bgp summary`, so an operator
+// registerAliases names the two halves of the `show bgp` answer, so an operator
 // who wants one of them types its name rather than the fields it holds.
 //
 // The answer carries the aggregate keys and the peer rows as siblings, so each
 // half is a selection among them and `| display` states both. The aliases sit
-// on this command alone: the names mean nothing over an answer with no peer
-// rows in it.
+// on `show bgp` alone: the names mean nothing over an answer with no peer rows
+// in it, so every child path declares no alias and inherits neither.
+//
+// An alias and a pipe filter that share a name on OVERLAPPING command paths are
+// refused at init, and the refusal is a panic: checkedAlias reports it one way
+// and RegisterPipeFilters the other, whichever registers second
+// (internal/component/command/alias.go). pathsOverlap makes every `show bgp *`
+// path overlap `show bgp`, so a pipe filter named `summary` or `peers`
+// registered anywhere under `show bgp` -- on `show bgp rib`, for one -- stops
+// the daemon from starting. Registering these two names here rather than on one
+// leaf widens that collision surface to the whole subtree. No filter carries
+// either name today.
 func registerAliases() {
-	command.RegisterAliases([]string{cmdBgpSummary},
+	command.RegisterAliases([]string{cmdBgp},
 		command.Alias{
 			Name:        "summary",
 			Description: "The aggregate fields, without the peer rows",
@@ -115,6 +169,12 @@ func registerAliases() {
 			Expansion:   "display peers",
 		},
 	)
+	// Every child of `show bgp` declares NO alias, which is what stops it
+	// inheriting the two above and offering `| summary` and `| peers` over an
+	// answer that carries no peer rows. `show bgp peer list` belongs in this
+	// list, unlike in registerColumns: it declares no alias of its own, so the
+	// empty registration replaces nothing.
+	command.RegisterAliases(cmdBgpChildren)
 }
 
 func filterPeersByArgs(ctx *pluginserver.CommandContext, args []string) ([]plugin.PeerInfo, *plugin.Response, error) {
