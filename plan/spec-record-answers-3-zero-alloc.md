@@ -80,6 +80,60 @@ from a pool, holds no lock across a socket write, and can answer positionally.
 - [ ] `pkg/plugin/rpc/message.go` - `AppendAnswerHead`, `AppendAnswerItem`, `AppendAnswerFault`, `AppendAnswerTerminator` append into a caller buffer with no `fmt`; `AnswerRecordLineSize` measures a line before it is built; `ParseAnswerTail` refuses an unknown key
 - [ ] `pkg/plugin/rpc/types.go` - `Record` is two `json.RawMessage` fields, which forces one allocation per row
 - [ ] `internal/component/plugin/dispatch.go` - `answerLineCapacity` is a fresh 512-byte allocation per answer; `WriteAnswer`, `writeRecordAnswer`, `writeRecordLine`, `boundedRecord`, `checkRowArity`; `ResponseJSON` copies marshaled bytes into a string
+
+**CHILD 1 MOVED MOST OF THIS SPEC'S TARGETS, 2026-08-21. Read before planning.**
+`pkg/plugin/sdk` cannot import `internal/`, so making the SDK speak this
+protocol moved the protocol's code into `pkg/plugin/rpc`. The line encoding is
+there; the engine's `*Response` adapter stayed behind.
+
+| This spec names | It is now at |
+|-----------------|--------------|
+| `answerLineCapacity`, the fresh 512-byte per-answer allocation (phase 2's target) | `pkg/plugin/rpc/answer_write.go` |
+| `writeRecordAnswer`, `writeRecordLine`, `boundedRecord` (phase 3's targets) | `pkg/plugin/rpc/answer_write.go` as `WriteRecordAnswer`, `writeRecordLine`, `boundedRecord` |
+| `internal/component/plugin/answer_row.go`, `zipRow`, `quoteFields` (phase 4's target) | `pkg/plugin/rpc/answer_row.go`. **The old file no longer exists** | <!-- doc-links: ignore (the left column names the path this machinery MOVED OUT OF; the row states that it no longer exists) -->
+| `ResponseJSON`, `WriteAnswer`, `AnswerFor` | unmoved, `internal/component/plugin/dispatch.go` |
+
+Two consequences for this spec's own goal, and neither is cosmetic:
+
+- **The per-row allocation now has a NAMED producer to delete.** `Records.wire()`
+  (`pkg/plugin/records.go:147`) appends each `Row` into a fresh slice, because
+  `rpc.Record`'s two `json.RawMessage` fields force it and `rpc.Record`'s own doc
+  forbids a reused scratch. Child 1 put the SDK's `Row` interface at
+  `AppendTo(buf []byte) []byte` precisely so this spec can remove that hop. A-1
+  is therefore already half-proven: the appender shape exists and has a producer.
+- **~~The pool now serves two packages, and `pkg/plugin/rpc` cannot import
+  `internal/core/bufpool`.~~ THAT WAS WRONG (corrected 2026-08-21, audit).**
+  `pkg/` already imports `internal/` in this module and compiles:
+  `pkg/plugin/rpc/bridge.go:15` takes `internal/core/selector`, and
+  `pkg/plugin/sdk/sdk.go:40-41` takes `internal/component/plugin/ipc` and
+  `internal/core/env`. Go's internal rule is rooted at the module, so the import
+  is legal, and no gate forbids the pair: `ze-tier-check` (`Makefile:864`) judges
+  `internal/component` against `internal/plugins` placement only, and
+  `.golangci.yml` carries no depguard for it.
+
+  **The real question is narrower, and it is about SIZING, not location.**
+  `internal/core/bufpool.Pool` is fixed-size and its `Put` SILENTLY DROPS any
+  buffer whose `cap != size`. The answer line grows by append, so a pool of that
+  shape drains under exactly the wide rows this spec exists to make cheap.
+
+  **The precedent is already in the same file as the writers.**
+  `pkg/plugin/rpc/framing.go` runs `framePool` (`:36`, with `getFrameBuf:43` /
+  `putFrameBuf:57`) for every request, response and event line: a `sync.Pool` of
+  `*[]byte`, 4 KiB initial (`frameBufInitial:23`), dropped above 64 KiB
+  (`frameBufMax:24`). `batch.go:batchBufPool:22` and
+  `bridge.go:structuredEventPool:20` are two more in the same package. Grow and
+  cap is the shape this repository already uses for a line that grows, and it is
+  the one `ai/rules/performance.md`'s "one maximum size per pool" is satisfied by
+  here, because the CAP is that size and `MaxMessageSize` (16 MiB,
+  `framing.go:66`) is not a pool size anyone can seed for.
+
+  What still has to be decided in phase 2, and it is one line of design rather
+  than a blocker: reuse `framePool` for the answer line, or add a fourth pool
+  beside it. Reuse shares one population with every other RPC line; a new pool
+  keeps the answer's sizing independent. `internal/component/ssh/answer.go`
+  keeps its own 256-byte frame either way (`newAnswerFrame:63`,
+  `answerFrameCapacity:44`), so AC-2 spans two packages that must agree on one
+  answer.
 - [ ] `internal/component/plugin/types.go` - `Records` carries `Key`, `Fields` and `Rows iter.Seq[rpc.Record]`; `Fields` has no producer; `CollapseRecords` is the one collapse for buffered surfaces; the `errors` envelope is reserved
 - [ ] `internal/component/plugin/server/system.go` - `commandRows` and `yieldCompletion` marshal each row, and marshal a fresh map for each fault
 - [ ] `internal/component/ssh/answer.go` - `answerFrame` reuses one 256-byte line buffer per answer (`answerFrameCapacity`); `writeExecRecords` renders through `command.RenderRecords` and frames what the walk turned out to be
@@ -229,7 +283,7 @@ from a pool, holds no lock across a socket write, and can answer positionally.
 | `TestPooledLineCarriesNoResidue` | `internal/component/plugin/dispatch_test.go` | a short line after a long one leaks nothing (AC-13, R-8) | |
 | `TestStreamAnswerDeclaresFields` | `internal/component/plugin/dispatch_test.go` | `Fields` reaches the head and rows are positional (AC-6) | |
 | `TestStreamRowArityMismatchIsFault` | `internal/component/plugin/dispatch_test.go` | a short positional row is a fault, not a silent shift | |
-| `TestZipRowRoundTrip` | `internal/component/plugin/answer_row_test.go` | names and values survive the positional round trip (R-6) | |
+| `TestZipRowRoundTrip` | `pkg/plugin/rpc/answer_row_test.go` | names and values survive the positional round trip (R-6) | |
 | `TestShowPipelineStreams` | `internal/component/bgp/plugins/rib/rib_pipeline_test.go` | the RIB walk answers with a generator | |
 | `TestShowPipelineNoLockAcrossWrite` | `internal/component/bgp/plugins/rib/rib_pipeline_test.go` | no write happens under `peerMu` (AC-5) | |
 | `TestBestPipelineHandleSafeOutsideLock` | `internal/component/bgp/plugins/rib/rib_pipeline_best_test.go` | the pool-handle dereference is safe (AC-12, R-3) | |
@@ -247,10 +301,10 @@ from a pool, holds no lock across a socket write, and can answer positionally.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-show-rib-streams` | `test/plugin/show-rib-streams.ci` | an operator dumps a large RIB | |
-| `test-show-rib-first-stops-walk` | `test/plugin/show-rib-first-stops-walk.ci` | `first 10` bounds a million-row walk | |
-| `test-show-rib-under-load` | `test/plugin/show-rib-under-load.ci` | a dump runs while UPDATEs arrive | |
-| `test-stream-answer-renders-table` | `test/plugin/stream-answer-renders-table.ci` | a positional answer renders as a table | |
+| `test-show-rib-streams` | `test/plugin/show-rib-streams.ci` | an operator dumps a large RIB | | <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
+| `test-show-rib-first-stops-walk` | `test/plugin/show-rib-first-stops-walk.ci` | `first 10` bounds a million-row walk | | <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
+| `test-show-rib-under-load` | `test/plugin/show-rib-under-load.ci` | a dump runs while UPDATEs arrive | | <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
+| `test-stream-answer-renders-table` | `test/plugin/stream-answer-renders-table.ci` | a positional answer renders as a table | | <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -262,7 +316,7 @@ from a pool, holds no lock across a socket write, and can answer positionally.
 - `pkg/plugin/rpc/message.go` - the width measurement works against an appended row
 - `internal/component/plugin/dispatch.go` - pooled line buffer, row append contract, and `ResponseJSON` stops copying into a string where a caller can take bytes
 - `internal/component/plugin/types.go` - `Records` carries a schema its producers set, and rows that append
-- `internal/component/plugin/answer_row.go` - `zipRow` and `quoteFields` against a produced schema
+- `pkg/plugin/rpc/answer_row.go` - `zipRow` and `quoteFields` against a produced schema
 - `internal/component/ssh/answer.go` - `answerFrame` takes its buffer from the pool
 - `internal/component/plugin/server/system.go` - `commandRows` converts to the append contract, and its fault path stops marshaling a fresh map
 - `internal/component/bgp/plugins/rib/rib_pipeline.go` - `showPipeline` answers with a generator, `serializeRouteItem` appends instead of building a map, and the lock stops spanning the drain
@@ -277,11 +331,11 @@ from a pool, holds no lock across a socket write, and can answer positionally.
 - `docs/architecture/core-design.md` - the RIB read path no longer holds `peerMu` across a write
 
 ## Files to Create
-- `test/plugin/show-rib-streams.ci` - a large RIB dump
-- `test/plugin/show-rib-first-stops-walk.ci` - the pipe bounds the walk
-- `test/plugin/show-rib-under-load.ci` - a dump under concurrent UPDATEs
-- `test/plugin/stream-answer-renders-table.ci` - positional rows render as a table
-- `test/interop/scenarios/show-rib-under-frr-load/check.py` - the interop check named above
+- `test/plugin/show-rib-streams.ci` - a large RIB dump <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
+- `test/plugin/show-rib-first-stops-walk.ci` - the pipe bounds the walk <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
+- `test/plugin/show-rib-under-load.ci` - a dump under concurrent UPDATEs <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
+- `test/plugin/stream-answer-renders-table.ci` - positional rows render as a table <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
+- `test/interop/scenarios/show-rib-under-frr-load/check.py` - the interop check named above <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -336,7 +390,7 @@ from a pool, holds no lock across a socket write, and can answer positionally.
    - Verify: the alloc gate goes green at zero, and AC-9 costs no second build of the row
 4. **Phase: `tab` item-type producer** -- the schema that was never declared
    - Tests: `TestStreamAnswerDeclaresFields`, `TestZipRowRoundTrip`, `test-stream-answer-renders-table`
-   - Files: `internal/component/plugin/types.go`, `internal/component/plugin/answer_row.go`, `internal/component/command/render_records.go`
+   - Files: `internal/component/plugin/types.go`, `pkg/plugin/rpc/answer_row.go`, `internal/component/command/render_records.go`
    - Verify: a schema-declaring command streams positionally and a schema-less one stays self-describing (AC-6, AC-7)
 5. **Phase: RIB walk conversion** -- the walk that makes this matter
    - Tests: `TestShowPipelineStreams`, `TestShowPipelineNoLockAcrossWrite`, `TestBestPipelineHandleSafeOutsideLock`, `test-show-rib-streams`, `test-show-rib-first-stops-walk`

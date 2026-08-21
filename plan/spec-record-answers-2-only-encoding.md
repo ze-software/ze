@@ -90,6 +90,24 @@ fact another line can contradict.
 - [ ] `pkg/plugin/rpc/types.go` - `ProtocolRecordAnswers`, `DeclareCapabilitiesInput.Understands`, `StatusOK`, `StatusDone`, `StatusError`
 - [ ] `pkg/plugin/rpc/mux.go` - `MuxConn.readLoop` and `interpretResponse` split the line on the first space and take the rest as the payload
 - [ ] `internal/component/plugin/dispatch.go` - `WriteAnswer`, `writeRecordAnswer`, `writeDocumentAnswer`, `writeRecordLine`, `answerStreamType`, `answerLineCapacity`
+
+**CHILD 1 MOVED THESE, 2026-08-21. Read this before you plan any edit.** Child 1
+made the Go SDK a first-class speaker of this protocol, and `pkg/plugin/sdk`
+cannot import `internal/`. So the protocol's own code followed the protocol
+package, in two forced moves, and the boundary that came out of it is clean: the
+LINE ENCODING lives in `pkg/plugin/rpc`, and the engine's `*Response`-shaped
+adapter stays in `internal/component/plugin`.
+
+| Was | Is now |
+|-----|--------|
+| `internal/component/plugin/dispatch.go`: `writeRecordAnswer`, `writeDocumentAnswer`, `writeRecordLine`, `boundedRecord`, `answerStreamType`, `answerLineCapacity` | `pkg/plugin/rpc/answer_write.go`: `WriteRecordAnswer`, `WriteDocumentAnswer`, `writeDocumentLines`, `writeRecordLine`, `boundedRecord`, `answerRecordTooLargeFault`, `writeAnswerLine`, `marshalAnswerFields`, `AnswerStreamType` |
+| `internal/component/plugin.CollapseRecords`, `internal/component/plugin/answer_row.go` | `pkg/plugin/rpc/collapse.go` (`CollapseRecords`, `AnswerErrorsKey`, `ErrEmptyAnswerRecord`, `ErrReservedEnvelopeKey`), `pkg/plugin/rpc/answer_row.go` | <!-- doc-links: ignore (the left column names the path this symbol MOVED OUT OF; it no longer exists, which is the row's point) -->
+| still in `internal/component/plugin/dispatch.go` | `WriteAnswer`, `AnswerFor`, `ResponseJSON`, `RecordRows`, `answerRecords`, `answerStatus`, `answerMessage`, `documentAnswer`, `heldRecords`, `builtDocument` |
+
+Two rows of this spec are affected in substance, not just in path. R-7's
+"`writeDocumentAnswer` measures nothing" is now `WriteDocumentAnswer`
+(`pkg/plugin/rpc/answer_write.go:149`), and the head's `status=` that phase 5
+deletes is produced by `answerStatus`, which did NOT move.
 - [ ] `internal/component/plugin/server/dispatch_registry.go` - `answerResult` is the branch between the record sequence and the single-line result; `opDispatchCommand` and `opDispatchCommandArgs` are its callers
 - [ ] `internal/component/plugin/server/dispatch.go` - `responseToDispatchOutput` is the other encoding of a command answer
 - [ ] `internal/component/plugin/process/process.go` - `RecordAnswers` and `SetRecordAnswers`
@@ -128,8 +146,8 @@ fact another line can contradict.
 1. `WriteAnswer` decides the answer type from the record count, unchanged.
 2. Each line is built by the append helpers into the reused line buffer, now writing a length-prefixed id and a three-byte kind token instead of `#<decimal> ok`.
 3. A record line writes kind, id, and the row payload, with no key between them.
-4. The head writes kind, id, item type, then the length-prefixed envelope key, then the column names running to the end of the line. It states no status.
-5. The terminator writes kind, id, then the length-prefixed counts, then the message running to the end of the line.
+4. The head writes kind, id, item type, then the length-prefixed envelope key, then the length-prefixed column names. It states no status.
+5. The terminator writes kind, id, then the length-prefixed counts, then the length-prefixed message.
 6. On the mux channel the reader takes the kind from the id's length byte with one addition; on the exec channel the id is absent and the kind sits at offset zero.
 7. `RenderRecords` and `readAnswerFrame` read the kind directly rather than deriving it from the tail, and `awaitAnswerHead` validates the head by its kind rather than by its status.
 
@@ -138,23 +156,84 @@ fact another line can contradict.
 Field order per kind, on the mux channel. The exec channel is identical with the
 `#<len>:<id>` field absent, because one answer owns that channel.
 
+**Owner directive, 2026-08-21: every field is counted, including the payload.**
+The payload no longer runs to the end of the line. It states its byte count
+first, in the same `<len>:<value>` shape every other variable field uses, and the
+newline stays as the line terminator.
+
 | Kind | Fields, in order | Example |
 |------|------------------|---------|
-| `top` | id, item type, envelope key, column names | `#2:42 top map 5:peers` |
-| `row` | id, the row payload | `#2:42 row {"peer":"10.0.0.1"}` |
-| `bad` | id, the fault payload | `#2:42 bad {"message":"...","record":12}` |
-| `end` | id, count, faults, message | `#2:42 end 3:417 1:3` |
-| `nay` | id, error code, message | `#2:42 nay 0: no such command` |
+| `top` | id, item type, envelope key, column names | `#2:42 top map 5:peers 0:` |
+| `row` | id, the row payload | `#2:42 row 2:42 {"peer":"10.0.0.1","state":"up"}` |
+| `bad` | id, the fault payload | `#2:42 bad 2:38 {"message":"...","record":12}` |
+| `end` | id, count, faults, message | `#2:42 end 3:417 1:3 0:` |
+| `nay` | id, error code, message | `#2:42 nay 1:5 15:no such command` |
 
 | Field shape | Written as | Used by |
 |-------------|-----------|---------|
 | word | three bytes, no length | kind, item type |
-| counted | `<len>:<value>`, `<len>` one base-36 character | id, envelope key, count, faults, error code |
-| trailing | the rest of the line, empty when absent | row payload, fault payload, column names, message |
+| counted | `<len>:<value>`, `<len>` one base-36 character | EVERY other field: id, envelope key, column names, count, faults, error code, message, row payload, fault payload |
 
 A `counted` field of length zero is present and empty, never omitted, so the
-field count of a kind never varies. Only one `trailing` field can exist per
-kind, and it is always last.
+field count of a kind never varies. **There is no third shape.** Two shapes, and
+a reader reaches every field of every kind by arithmetic with no scan anywhere.
+
+Why the payload is counted rather than trailing, and what it costs:
+
+- **The length is already computed.** `AnswerRecordLineSize`
+  (`pkg/plugin/rpc/message.go:310-317`) measures `len(value)` before the line is
+  built, so a producer can refuse an over-wide record. Writing that number costs
+  one `strconv.AppendUint` and no measurement.
+- **`replaceNewlines` is DELETED** (`pkg/plugin/rpc/message.go:399-406`). It walks
+  every payload byte and rewrites `\n` and `\r` to a space, which is a full pass
+  over the hot path AND a silent corruption: the payload reaches the operator
+  altered, and nothing records that it happened. A counted payload MAY contain a
+  raw newline, so nothing has to be rewritten.
+- **The reader stops scanning for the end of the line.** That was the last scan
+  left on the record line, and removing the `item=` key without it would have
+  traded one scan for another.
+- **A stated length is a free integrity check.** A line whose payload length
+  disagrees with the bytes before its newline is corrupt, and the reader can say
+  so. The trailing form admits no such check.
+- **The cost is about five bytes for a typical row**, `2:60 ` against a 60-byte
+  payload, near 7 percent of the line. That is the trade: 7 percent of the wire
+  for the removal of one write-side pass and one read-side scan per row.
+- **It lifts this spec's own Known Limitation.** With one trailing field per kind,
+  a later field could only be appended at the end. With every field counted, that
+  constraint is gone.
+
+The count is the PAYLOAD's length, never the whole line's. The prefix width
+differs per channel, because the mux channel carries `#<len>:<id>` and the exec
+channel carries none, so a whole-line count would force per-channel arithmetic on
+the reader. A payload count is the same number on both channels.
+
+The newline stays. It costs one byte, it keeps a captured session readable by
+eye, and it is what the integrity check compares against.
+
+**A line MUST end with exactly one `\n`, and MUST NOT end with `\r\n` (owner
+directive, 2026-08-21).** The byte after a counted payload is the line
+terminator, and it is `\n`. Nothing else terminates a line, on either channel, in
+either direction.
+
+**This is not a style rule, and it breaks the current readers.** With
+`replaceNewlines` deleted, `\r` becomes an ordinary payload byte that a producer
+MAY write. Both readers use `bufio.Scanner` with the default split function, and
+`pkg/plugin/rpc/framing.go:81` states what that does in its own comment:
+"Default split func is bufio.ScanLines (splits on \n, strips \r\n)". So a payload
+whose last byte is `\r` is silently truncated by the reader, and the stated
+length then disagrees with the bytes that arrived.
+
+Two sites carry it, and both change in this spec:
+
+| Site | Today | Owed |
+|------|-------|------|
+| `pkg/plugin/rpc/framing.go:78` | `bufio.NewScanner(r)`, default `ScanLines` | a split function that splits on `\n` and strips NOTHING |
+| `internal/core/ssh/client/answer.go:122` | `bufio.NewScanner(stderr)`, default `ScanLines` | the same split function |
+
+A writer MUST NOT emit `\r\n`, and a reader MUST NOT strip a trailing `\r`. The
+two obligations are a pair and neither is safe alone: a stripping reader
+corrupts a payload a conforming writer sent, and a `\r\n` writer produces a
+payload length no reader can verify.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -189,7 +268,7 @@ kind, and it is always last.
 | A-2 | One base-36 length character covers every id Ze can produce | `Conn.idSeq` is a per-connection uint64, which is at most 20 decimal digits; base 36 expresses a length up to 35 in one byte | A longer length field is needed, and every reader's offset arithmetic changes | Unit test writing and reading the maximum uint64 id | unvalidated |
 | A-3 | The mux read loop can tell an answer line from a plain response line by its fixed-offset kind token | `MuxConn.readLoop` splits on the first space today and `interpretResponse` reads the verb | A separate discriminator is needed, most likely a distinct first byte for answer lines | Unit test feeding both line families through one reader | unvalidated |
 | A-4 | Three bytes is enough for every line kind now and later | Five kinds exist: head, result record, rejected record, terminator, not understood | A sixth kind would need a longer token or a second alphabet | Owner directive: three bytes confirmed 2026-08-20 | unvalidated |
-| A-5 | The head's `status=` carries nothing the terminator does not | `answerStatus` reads the response, never the walk, so it is blind to a partial and to a late failure; `Verdict` derives the outcome from the terminator alone and states that as its reason | A consumer loses a distinction it needs, and the status must return as a positional token | A test asserting a failed command, an aborted walk and a partial are told apart from the terminator alone | unvalidated |
+| A-5 | The head's `status=` carries nothing the terminator does not | `answerStatus` reads the response, never the walk, so it is blind to a partial and to a late failure; `Verdict` derives the outcome from the terminator alone and states that as its reason | A consumer loses a distinction it needs, and the status must return as a positional token | A test asserting a failed command, an aborted walk and a partial are told apart from the terminator alone | **broken** |
 | A-6 | Positional fields are readable enough without their key names | Each kind has a fixed field order, and the tokens are words rather than bytes | A capture becomes hard to read by eye, and the key names must return | Review of the published line table against a real captured answer | unvalidated |
 
 ### Risks
@@ -198,7 +277,42 @@ kind, and it is always last.
 | R-1 | The deletion lands before child 1, so no plugin can answer | Plugin functional tests fail at Stage 3 or on the first command | `Depends` is enforced by review: this spec does not start until child 1 is closed |
 | R-2 | The length character and the id disagree, so a reader slices at the wrong offset and takes the kind from inside the id | A reader reporting an unknown kind on a well-formed line | One writer produces both halves and a test asserts they agree for every digit count from 1 to 20; a reader checks the byte after the id is the expected separator before it trusts the length |
 | R-3 | The two channels get different offsets and a shared reader assumes one | A test passing over the plugin connection and failing over SSH exec | One reader takes the prefix length from its channel, set once at construction, never inferred per line |
-| R-4 | Deleting the head's status loses a distinction some consumer relied on | A consumer that rendered a failure from the head now waits for the terminator | `CallAnswer` has no non-test caller and `Answer.Status` no production reader, so the surface is provably unused today. AC-11 pins the three outcomes to the terminator before the field is removed |
+| R-4 | Deleting the head's status loses a distinction some consumer relied on | A consumer that rendered a failure from the head now waits for the terminator | **The mitigation as written is now FALSE and the risk has landed.** `CallAnswer` has three non-test callers and `Answer.Status` has three production readers, all added by child 1 on 2026-08-21 and none present at HEAD: `answerValue` (`pkg/plugin/sdk/sdk_engine.go`), `ExecuteCommandValue` (`internal/component/plugin/ipc/rpc.go`) and `streamedPluginResponse` (`internal/component/plugin/server/command.go`, `if answer.Status == rpc.StatusError`). The surface is no longer provably unused. AC-11 still governs, and it now has to be MADE true rather than merely pinned |
+
+**A-5 is BROKEN, and phase 5 does not start until this is answered (audit, 2026-08-21).**
+
+The head's `status=` carries exactly one fact the terminator does not, and the tree
+proves the state is live rather than theoretical. `answerStatus`
+(`internal/component/plugin/dispatch.go:379-390`) returns `StatusError` whenever
+`resp.Status` is `StatusError`, INCLUDING when `resp.Error` is empty.
+`answerMessage` then returns `""`, `WriteRecordAnswer` puts that empty message on
+the terminator, and `Verdict` (`pkg/plugin/rpc/message.go:637-651`) reads an empty
+message with zero faults as `VerdictDone`. So a command that failed with no
+message reaches a consumer as a SUCCESS once the head is gone.
+
+The state is not hypothetical: `responseFailure`
+(`internal/component/plugin/dispatch.go`) carries `errStatusErrorNoMessage` for
+precisely it, which is a branch somebody wrote because the path is reachable.
+
+**OWNER DIRECTIVE, 2026-08-21: fix the producer.** The decision below was put to
+Thomas with its alternative and he chose it. It is settled: phase 5 repairs the
+producer and does NOT keep the head's status as a positional token.
+
+The reading, now owner-confirmed: **fix the producer, not the
+frame.** A failure with no reason is a zero value wearing a valid answer's
+clothes, which `ai/rules/evidence.md` refuses of any guard: fail closed or say
+something. So a `StatusError` response MUST carry a message before the head's
+status is deleted, and `errStatusErrorNoMessage` becomes unreachable rather than
+handled. That keeps this spec's goal intact, because the terminator then carries
+the whole outcome and nothing contradicts it.
+
+The rejected alternative is keeping the status as a positional token on the head.
+It costs three bytes on one line per answer, not per row, so the cost is not the
+argument. The argument is that two lines would again state one outcome and could
+disagree, which is the defect this spec exists to remove.
+
+This changes phase 5's shape: it repairs `answerStatus`'s producer and proves
+AC-11 against the terminator FIRST, and only then deletes the field.
 | R-5 | Removing `item=` makes a record line indistinguishable from a malformed one | A truncated payload read as a valid empty row | The kind is checked before the payload is taken, and an unknown kind refuses the line rather than guessing |
 | R-6 | Fixture churn hides a real behavior change | A `.ci` diff touching both the frame and the payload | Change the frame in one commit and assert payloads are byte-identical, so a payload diff is visible |
 | R-7 | `writeDocumentAnswer` measures nothing, so a fat bounded answer still overflows one message | A bounded answer read as truncated; already recorded in `plan/journal/gate-excludes-part-of-its-population.md` | Bound the document line here, where the line writers are being rewritten anyway |
@@ -228,7 +342,7 @@ kind, and it is always last.
 | AC-2 | An SSH exec client connects without setting `ZE_ANSWER_PROTOCOL` | It receives head, records and terminator, and the env var no longer exists in the tree |
 | AC-3 | Any answer line is written on the mux channel | Its kind token is reached from the id's length byte with one addition, identically for all five kinds, and never by searching for a space |
 | AC-4 | Any answer line is written on the exec channel | Its kind token starts at offset zero |
-| AC-5 | A result record line is written | Its payload starts immediately after the kind token, with no key and no separator to scan for |
+| AC-5 | A result record line is written | Its payload's byte count follows the kind token, and the payload follows the count. No key, and no separator scanned for at either end: the reader slices the payload by arithmetic and never looks for the newline to find where it stops |
 | AC-6 | Ids of one digit, ten digits and the maximum uint64 are written | Each line states its id length in one base-36 byte, each reads back to the value written, and a reader reaches the kind token by arithmetic rather than by searching for a separator |
 | AC-7 | A reader meets an unknown three-byte kind | It refuses the line with a named error rather than guessing the kind from the tail |
 | AC-8 | A command answers with a bounded payload | The payload bytes are identical to those the same command produced before this spec |
@@ -236,12 +350,14 @@ kind, and it is always last.
 | AC-10 | The tree is searched for the deleted symbols | `ProtocolRecordAnswers`, `AnswerProtocolEnv`, `declaresRecordAnswers`, `RecordAnswers`, `SetRecordAnswers` and `FormatResult` are absent |
 | AC-11 | A command fails outright, a walk is aborted part way, and a walk rejects some rows | A consumer tells the three apart from the terminator alone, and no line states an outcome that another line can contradict |
 | AC-12 | A walk of one million rows is written and read | No line is scanned for a separator before its payload is taken |
-| AC-13 | Any answer line is parsed | It carries no `key=value` pair at all: every field is a three-byte word, a `<len>:<value>`, or a value running to the end of the line |
+| AC-13 | Any answer line is parsed | It carries no `key=value` pair at all, and only TWO field shapes exist: a three-byte word, or a `<len>:<value>`. No field runs to the end of the line |
 | AC-14 | The tree is searched for the answer tail key names | `answerKeyStatus` through `answerKeyCode` are absent, and `ParseAnswerTail` no longer dispatches on a key name |
 | AC-15 | A head is written | It states no status, and a reader that meets a line whose kind is not `top` where a head belongs refuses the answer |
 | AC-16 | Each token is checked against a dictionary | Every one is a whole word, not a truncation: `top`, `row`, `bad`, `end`, `nay`, `doc`, `map`, `tab` |
 | AC-17 | A head names an envelope | The name is length-prefixed like the id, and an absent name writes length zero rather than omitting the field |
 | AC-18 | A handler names an envelope longer than 35 bytes, or an error code longer than 35 bytes | It is refused where the name is registered, with a message naming the limit, rather than producing a line no reader can parse |
+| AC-19 | A row payload whose LAST byte is `\r`, and one containing a raw `\n`, are written and read | Both round-trip byte for byte. Neither is rewritten, neither is truncated, and no reader strips anything after the counted payload. This fails today: `bufio.ScanLines` strips a trailing `\r` at `pkg/plugin/rpc/framing.go:78` and `internal/core/ssh/client/answer.go:122` |
+| AC-20 | A line arrives terminated with `\r\n`, and a line arrives whose stated payload length disagrees with the bytes before its `\n` | Each is refused with a named error rather than parsed. A line ends with exactly one `\n`, and the length is checked against what arrived |
 
 ## End-to-End User Stories
 
@@ -291,10 +407,10 @@ kind, and it is always last.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-exec-answer-unconditional` | `test/plugin/exec-answer-unconditional.ci` | an operator runs a command over SSH with nothing configured | |
-| `test-plugin-answer-unconditional` | `test/plugin/answer-unconditional.ci` | a plugin that declares nothing still gets records; replaces `answer-not-negotiated.ci` | |
-| `test-answer-first-bounds-long-walk` | `test/plugin/answer-first-bounds-long-walk.ci` | `first 10` over a long walk still bounds the read | |
-| `test-answer-payload-unchanged` | `test/plugin/answer-payload-unchanged.ci` | the payload of an existing command is byte-identical after the reframe | |
+| `test-exec-answer-unconditional` | `test/plugin/exec-answer-unconditional.ci` | an operator runs a command over SSH with nothing configured | | <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
+| `test-plugin-answer-unconditional` | `test/plugin/answer-unconditional.ci` | a plugin that declares nothing still gets records; replaces `answer-not-negotiated.ci` | | <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
+| `test-answer-first-bounds-long-walk` | `test/plugin/answer-first-bounds-long-walk.ci` | `first 10` over a long walk still bounds the read | | <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
+| `test-answer-payload-unchanged` | `test/plugin/answer-payload-unchanged.ci` | the payload of an existing command is byte-identical after the reframe | | <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -320,10 +436,10 @@ kind, and it is always last.
 - `test/plugin/answer-single-record.ci`, `test/plugin/answer-many-records.ci`, `test/plugin/answer-truncation-detected.ci`, `test/plugin/answer-unknown-command.ci` - reframed fixtures
 
 ## Files to Create
-- `test/plugin/exec-answer-unconditional.ci` - SSH exec with nothing configured
-- `test/plugin/answer-unconditional.ci` - replaces `answer-not-negotiated.ci`
-- `test/plugin/answer-first-bounds-long-walk.ci` - the pipe still bounds the walk
-- `test/plugin/answer-payload-unchanged.ci` - payload bytes survive the reframe
+- `test/plugin/exec-answer-unconditional.ci` - SSH exec with nothing configured <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
+- `test/plugin/answer-unconditional.ci` - replaces `answer-not-negotiated.ci` <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
+- `test/plugin/answer-first-bounds-long-walk.ci` - the pipe still bounds the walk <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
+- `test/plugin/answer-payload-unchanged.ci` - payload bytes survive the reframe <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
 
 ## Files to Delete
 - `test/plugin/answer-not-negotiated.ci` - its premise is the branch this spec removes
@@ -430,7 +546,7 @@ kind, and it is always last.
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | A fixed-offset reader must check the line is long enough BEFORE it slices, or a short line panics. Every kind read is bounds-checked |
-| Injection | A payload runs to the end of the line, so a newline inside one would split it. `replaceNewlines` must still cover every open-ended field after the reframe |
+| Injection | ANSWERED by the counted payload. A payload states its length, so a newline inside one cannot split the line and nothing has to be rewritten. `replaceNewlines` is DELETED rather than extended, which also ends the silent corruption it performed: it turned a `\n` or `\r` in operator data into a space and recorded nothing. The reader MUST compare the stated length against the bytes before the newline and refuse a line where they disagree, because that comparison is what replaces the delimiter's guarantee |
 | Resource exhaustion | The document line gains the bound the record line already had, so no single answer can exceed one wire message |
 | Error leakage | An unknown-kind error names the kind it saw; it must truncate that value rather than echoing an arbitrary-length line |
 
@@ -463,7 +579,7 @@ kind, and it is always last.
 
 ## Known Limitations
 - A line stops being self-describing to a person. `top map 5:peers` needs the published field order to read, where `status=done type=ndjson key=peers` did not. The tokens being whole words rather than bytes is what keeps that price payable, and A-6 tracks whether it was paid.
-- A new field can only be appended at the end of a line's field list. That is what positional fields cost, and it matches what the protocol already required: a later shape earns a new name rather than a new key.
+- ~~A new field can only be appended at the end of a line's field list.~~ REMOVED by the counted payload (owner directive, 2026-08-21). With no trailing field, every field states its own width, so a later field can sit anywhere a new protocol name agrees on.
 - Record-level streaming for REST, gRPC, web, MCP and the looking glass stays out of scope; those surfaces collapse through `CollapseRecords`. Recorded in `plan/deferrals/streaming-answer-protocol.md`.
 - `table` and `text` rendering still buffers, because a column width needs every row. Recorded as a permanent limit in the same shard.
 - The per-row allocations behind the frame are untouched here. They belong to child 3.

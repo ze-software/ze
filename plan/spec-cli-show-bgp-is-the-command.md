@@ -112,16 +112,24 @@ match two paths for one answer.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Empty registrations on the child paths stop the orders and aliases leaking | `registerPipeFilters` uses exactly this for the scalar rib commands, with a comment stating the mechanism | `show bgp rib` renders with the summary's column order and offers `\| peers` | `TestChildCommandsDoNotInheritTheSummaryOrder` | unvalidated |
-| A-2 | 131 files reference the string, and every one is in this tree | `grep -rl 'show bgp summary'` over `internal/ cmd/ test/ docs/ demos/ ai/` | An out-of-tree consumer breaks with no warning | Re-grep at implementation time, including `.templ`, `.json` and `.py` | unvalidated |
-| A-3 | Removing the `show bgp summary` dispatcher key cannot expose the plugin subtrees | `matchBuiltinTokens` refuses a match when a longer registered path also matches, and the four subtrees are plugin names reached by fallback | `show bgp rpki status` regresses | `test/plugin/show-bgp-child-not-swallowed.ci`, unchanged | unvalidated |
-| A-4 | No RFC or external contract names `show bgp summary` | It is a CLI path, not a protocol element | An interop or birdwatcher-compatibility surface breaks | Grep `rfc/`, and check `internal/component/lg/handler_api.go` for birdwatcher route names | unvalidated |
+| A-1 | Empty registrations on the child paths stop the orders and aliases leaking | `registerPipeFilters` uses exactly this for the scalar rib commands, with a comment stating the mechanism | `show bgp rib` renders with the summary's column order and offers `\| peers` | `TestChildCommandsDoNotInheritTheSummaryOrder` | confirmed |
+| A-2 | 131 files reference the string, and every one is in this tree | `grep -rl 'show bgp summary'` over `internal/ cmd/ test/ docs/ demos/ ai/` | An out-of-tree consumer breaks with no warning | Re-grep at implementation time, including `.templ`, `.json` and `.py` | broken |
+| A-3 | Removing the `show bgp summary` dispatcher key cannot expose the plugin subtrees | `matchBuiltinTokens` refuses a match when a longer registered path also matches, and the four subtrees are plugin names reached by fallback | `show bgp rpki status` regresses | `test/plugin/show-bgp-child-not-swallowed.ci`, unchanged | confirmed |
+| A-4 | No RFC or external contract names `show bgp summary` | It is a CLI path, not a protocol element | An interop or birdwatcher-compatibility surface breaks | Grep `rfc/`, and check `internal/component/lg/handler_api.go` for birdwatcher route names | confirmed |
+
+**Audit findings, 2026-08-21** (each read against the producing symbol, then re-verified by the main thread):
+
+- A-1 `confirmed`. The mechanism is stated twice in the tree: `RegisterColumns` (`internal/component/command/column_order.go:41-61`) says "Passing no order registers the command as declaring none, which stops a shorter registered command path from ordering it", and `registerPipeFilters` (`internal/component/bgp/plugins/cmd/rib/rib.go:52-88`) uses it with a comment naming the longest-prefix inheritance it blocks. `commandRegistry.register:93-104` skips an empty PATH, never an empty VALUE, so the empty registration is stored and `lookup:106-132` returns it.
+- **A-2 `broken`. The real count is 151 files, 382 occurrences**, excluding `.git/` and another agent's checkout under `.claude/worktrees/`. The spec's grep covered `internal/ cmd/ test/ docs/ demos/ ai/` and missed `website/` (4), `scripts/` (6) and `plan/` (10). By directory: `internal/` 56, `test/` 42, `docs/` 23, `plan/` 10, `scripts/` 6, `website/` 4, `demos/` 4, `cmd/` 3, `ai/` 3. By extension: `.go` 53 (24 production, 29 test), `.ci` 40, `.md` 39, `.py` 6, `.yang` 4, `.html` 4, `.sh` 2, `.txt` 1, `.tape` 1, `.json` 1. **`.templ` is 0**: 69 `.templ` files exist and none names the string, because the web surface goes through `page_bgp_summary.go` and `page_bgp_peers.go`. `ze-bgp:summary` is a separate sweep of 13 files, one of which is the generated snapshot `internal/component/plugin/all/testdata/wire-methods.snapshot`.
+- A-3 `confirmed`, and it delivers AC-4 as a bonus. `matchBuiltinTokens` (`internal/component/plugin/server/command.go:574-604`) calls `longerCommandPath` after every key match; `isCommandPath:633-651` reads `d.commands`, `d.registry.hasCommandPath` and `d.subsystems.hasCommandPath`, which is where the four plugin subtrees live. Removing the `summary` key deletes one entry from `d.commands` and touches neither the guard nor those registries. With the key gone, `show bgp summary` matches `show bgp`, `longerCommandPath` finds nothing longer, and `handleBgpOverview:174-190` answers the unknown-command error AC-4 asks for.
+- A-4 `confirmed`. `rfc/` has zero hits. The birdwatcher contract in `internal/component/lg/handler_api.go` is keyed on route names such as `/api/looking-glass/protocols/bgp`; the ze command string is an argument to `s.query`, never a wire field.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | A consumer is missed and answers "unknown command" | A page, a dashboard or an agent surface errors rather than rendering | This failure is LOUD, unlike the payload flatten whose misses rendered empty. Re-grep rather than trust the list, and run the web, lg and plugin suites |
-| R-2 | The orders and aliases leak onto `show bgp rib`, `rpki`, `rs`, `healthcheck` | `show bgp rib` renders with peer columns, or accepts `\| peers` | A-1's test, driven per child path rather than for one example |
+| R-2 | The orders and aliases leak onto every child path, not the four this row first named | `show bgp rib` renders with peer columns, or accepts `\| peers` | A-1's test, driven per child path rather than for one example. **The child population is 16 builtin paths, not 4** (see the audit note below) |
+| R-5 | An alias name later collides with a pipe filter on an overlapping path, and the daemon panics at init | `panic("BUG: pipe alias ...")` from `aliasShadowing` on startup | `filterShadowing` (`internal/component/command/alias.go:151-171`) and `aliasShadowing:177-212` panic when an alias and a filter share a name on overlapping paths, and `pathsOverlap:216-233` makes every `show bgp *` path overlap `show bgp`. No filter is named `summary` or `peers` today, so the move is safe now. Registering the aliases one level up widens what a future filter registration can collide with, so the registration site carries a comment saying so |
 | R-3 | An operator's muscle memory breaks with no hint | `show bgp summary` answers "unknown command" | Keeping the command is what this spec exists to undo, so the mitigation is the message rather than the command. It must be the clear unknown-command error and never a family-validation error. `handleBgpOverview` already answers that way for `show bgp nonsense` |
 | R-4 | The demo and the quickstart still show the old command | The website serves a recording of a command that no longer exists | The demo's three files and the guides move in this change; a re-render is owed |
 
@@ -129,9 +137,13 @@ match two paths for one answer.
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | Every surface that asks for a BGP summary: the public looking glass, the web UI, the CLI dashboard, MCP, REST, and 34 functional tests. No protocol behaviour and no wire format |
+| What breaks if this is wrong? | Every surface that asks for a BGP summary: the public looking glass, the web UI, the CLI dashboard, MCP, REST, and 40 functional tests. No protocol behaviour and no wire format |
 | How is it reverted? | Single commit revert. The payload is unchanged, so a revert restores the command without touching data |
-| Who else touches this path? | `main-c2` owns `internal/component/command/` for the streaming work; this spec does not need those files. `spec-cli-dispatch-child-guard` is open and owns the guard that makes `show bgp` safe |
+| Who else touches this path? | `main-c2` owns `internal/component/command/` for the streaming work; this spec does not need those files. `spec-cli-dispatch-child-guard` **has CLOSED** (`b62c52fef close: remove spec-cli-dispatch-child-guard`, after `647f33121` landed the guard), so this spec has no open dependency. `longerCommandPath` and `isCommandPath` are in the tree |
+
+**Audit note, 2026-08-21: the child population is 16, not 4.** `make ze-command-list` reports these builtin paths under `show bgp`, every one of which would inherit the `summary` and `peers` aliases from a `show bgp` registration: `health`, `irr`, `irr check`, `irr prefix`, `peer capabilities`, `peer detail`, `peer history`, `peer list`, `peer rib`, `peer statistics`, `rib`, `rib best`, `rib best status`, `rib rpf`, `rib status`. The four plugin subtrees (`rpki`, `rs`, `adj-rib-in`, `healthcheck`) are reached by fallback and are not builtins. AC-7 already says "every other child path"; the Implementation Steps and R-2 drove only four, and now drive all of them.
+
+**The empties are not one uniform loop.** `show bgp peer list` already carries its own `ColumnOrder` (`internal/component/bgp/plugins/cmd/peer/peer.go:registerColumns:99-102`), so an empty COLUMN registration there would destroy a declared order. It carries no alias registration, so it does need an empty ALIAS registration. Column empties and alias empties are two different lists.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -191,12 +203,14 @@ Not applicable. Scope is `cli`; no wire-visible protocol behaviour changes.
 
 ## Files to Modify
 - `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` - `container summary` is deleted; the parent description stops naming `show bgp summary`
+- `internal/component/bgp/cli/yang/ze-bgp-tools-cmd.yang`, `internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang`, `internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang` - each carries a BYTE-IDENTICAL `container bgp` description naming `show bgp summary`. They are container-merge duplicates and a gate requires them to agree, so all four move together or none does
 - `internal/component/bgp/plugins/cmd/peer/summary.go` - the `ze-bgp:summary` RPC registration goes; `handleBgpSummary` stays as the implementation behind `handleBgpOverview`
 - `internal/component/bgp/plugins/cmd/peer/peer.go` - `registerColumns` and `registerAliases` move to `show bgp`; empty registrations block the child paths
 - `internal/component/lg/handler_api.go`, `internal/component/lg/handler_ui.go` - the query strings move
 - `internal/component/web/`, `internal/component/cli/`, `internal/component/mcp/`, `internal/component/api/rest/`, `cmd/ze/hub/` - each caller moves
-- `test/plugin/*.ci`, `test/ui/*.ci` - 39 files carrying the command string
-- `docs/guide/`, `docs/features/`, `docs/architecture/api/commands.md` - 16 files
+- `test/plugin/*.ci`, `test/ui/*.ci`, `test/parse/*.ci` - 40 files carrying the command string (34 under `test/plugin/`, 5 under `test/ui/`, 1 under `test/parse/`)
+- `docs/guide/`, `docs/features/`, `docs/architecture/api/commands.md` - 23 files under `docs/`, plus 4 under `website/`, 3 under `ai/` and 10 under `plan/`: 39 `.md` in total
+- `scripts/dev/` (4 `.py`), `test/scripts/ze_api*.py` (2), `website/data/command-equivalents.json`, and 4 golden files `internal/component/web/testdata/golden/component/tool_overlay--*.html`
 - `docs/architecture/web-interface.md` - the design doc the changed `internal/component/web/` files name in their `// Design:` headers; the summary page moves to the new command
 - `demos/terminal/zefs-config/{demo.tape,transcript.txt,validate.sh}` - the demonstration and its narration
 
@@ -248,9 +262,10 @@ Not applicable. Scope is `cli`; no wire-visible protocol behaviour changes.
    - Tests: `TestShowBgpCarriesTheSummaryOrder`, `TestChildCommandsDoNotInheritTheSummaryOrder`
    - Files: `internal/component/bgp/plugins/cmd/peer/peer.go`
    - Verify: `show bgp` renders in the declared order and accepts the aliases while `show bgp summary` still exists. Nothing is removed yet, so nothing can regress
+   - The blocking empties cover ALL 16 builtin child paths listed in Blast Radius, not the four R-2 first named, and the column list and the alias list differ: `show bgp peer list` takes an empty ALIAS registration only, because it already declares its own `ColumnOrder`
 2. **Phase: The consumer sweep** -- every caller moves while the old command still answers
    - Tests: the web, lg, cli and plugin suites
-   - Files: `lg`, `web`, `cli`, `mcp`, `api/rest`, `cmd/ze/hub`, and the 39 `.ci` files <!-- doc-links: ignore (a REST route prefix, not a path in the tree) -->
+   - Files: **151 files, 382 occurrences** (A-2 is broken; the counts are in the audit note under Assumptions). 24 production `.go`, 29 test `.go`, 40 `.ci`, 39 `.md`, 6 `.py`, 4 `.yang`, 4 `.html` golden files, 2 `.sh`, 1 each of `.txt`, `.tape`, `.json`. `handler_ui.go` carries 3 query sites and `handler_api.go` 2, so the looking glass alone is 5 <!-- doc-links: ignore (a REST route prefix, not a path in the tree) -->
    - Verify: re-grep rather than trust the spec's list. Every consumer works against `show bgp` with the old command still present, so a miss is visible before the removal makes it fatal
 3. **Phase: The removal**
    - Tests: `TestShowBgpSummaryIsNotRegistered`, `test/plugin/show-bgp-summary-is-gone.ci` <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
@@ -287,7 +302,7 @@ Not applicable. Scope is `cli`; no wire-visible protocol behaviour changes.
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | `handleBgpOverview` bounds the token it echoes for an unknown subcommand. Confirm that bound survives, since the token is operator input reaching the response envelope |
-| Authorization | The command path changes, and authorization is keyed on the path. Confirm `show bgp` carries the same authorization class `show bgp summary` had, so a read-only profile is neither widened nor blocked |
+| Authorization | ANSWERED, 2026-08-21. Both keyings agree. `IsReadOnlyPath` (`internal/component/plugin/server/command.go:123-137`) cuts at the first space and switches on the verb alone, so both paths give `show` and the class cannot change. `Entry.matches` (`internal/component/authz/authz.go:78-100`) is prefix-with-word-boundary, so a rule keyed on `show` or `show bgp` matches the new path exactly as it matched the old one. One asymmetry survives and is a RELEASE-NOTE item, not a code change: an operator-written DENY rule keyed on the literal `show bgp summary` stops matching, because `show bgp` is shorter than the match string, which widens that operator's read surface by the summary payload. No shipped default profile keys on the literal; in-tree it appears only in `internal/component/authz/authz_test.go:854,891,920,934` |
 | Information leakage | The payload is unchanged, so no field becomes newly visible |
 
 ### Failure Routing
