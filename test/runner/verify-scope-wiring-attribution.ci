@@ -88,7 +88,8 @@ cd scratch
 # Every declared group names theirs.go, and this commit carries mine.go only.
 if ! out=$(python3 "$ZE_REPO_ROOT/scripts/dev/commit_helper.py" --repo . create \
 	--session aaaa1111 --subject "fixture change" --file mine.go \
-	--unverified "another session edited the tree" 2>&1); then
+	--unverified "another session edited the tree" \
+	--no-test "mine.go is a scratch-repo fixture for gate attribution, not product code" 2>&1); then
 	echo "the wiring red of another session must not refuse this commit:" >&2
 	echo "$out" >&2
 	exit 1
@@ -131,7 +132,8 @@ cd scratch
 
 if out=$(python3 "$ZE_REPO_ROOT/scripts/dev/commit_helper.py" --repo . create \
 	--session bbbb2222 --subject "fixture change" --file mine.go \
-	--unverified "another session edited the tree" 2>&1); then
+	--unverified "another session edited the tree" \
+	--no-test "mine.go is a scratch-repo fixture for gate attribution, not product code" 2>&1); then
 	echo "a wiring red naming this commit's own file must refuse. got:" >&2
 	echo "$out" >&2
 	exit 1
@@ -167,7 +169,8 @@ cd scratch
 
 if out=$(python3 "$ZE_REPO_ROOT/scripts/dev/commit_helper.py" --repo . create \
 	--session cccc3333 --subject "fixture change" --file mine.go \
-	--unverified "another session edited the tree" 2>&1); then
+	--unverified "another session edited the tree" \
+	--no-test "mine.go is a scratch-repo fixture for gate attribution, not product code" 2>&1); then
 	echo "a red nobody can attribute must be charged, not dropped. got:" >&2
 	echo "$out" >&2
 	exit 1

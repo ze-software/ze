@@ -145,7 +145,19 @@ try:
     require(code == 0, 'ze show host (daemon up) exit=%d, want 0: %s' % (code, out))
     require('unknown command' not in out, 'ze show host (daemon up) answered unknown command: ' + out)
     require('subcommands' not in out, 'ze show host (daemon up) printed a subcommand list: ' + out)
-    require('platform' in out, 'ze show host (daemon up) returned no inventory: ' + out)
+    # Assert a FIELD the inventory carries on every OS, never a section label.
+    # `platform` is a section KEY, and it only reaches the rendering when two or
+    # more sections survive detection. On darwin every other section is
+    # Linux-only (host.DetectPlatform, platform_other.go), so the inventory
+    # collapses to one key and command.renderValue unwraps a single-key map
+    # (pipe_table.go), which removes the word from the output. The test then
+    # reported "no inventory" while printing a full one, and the verdict
+    # depended on the machine rather than on the daemon.
+    #
+    # fd-limit-hard-max is set by probeFDLimits on linux (platform_linux.go) and
+    # by DetectPlatform's own Getrlimit on every other Unix, so it proves
+    # inventory content arrived whatever survived detection.
+    require('fd-limit-hard-max' in out, 'ze show host (daemon up) returned no inventory: ' + out)
 
     # 6. The alias must not cost `show host all` its own path.
     #
@@ -162,7 +174,8 @@ try:
     #    say `show host` instead.
     code, out = run(['ze', 'show', 'host', 'all'], cli_env)
     require(code == 0, 'ze show host all (daemon up) exit=%d, want 0: %s' % (code, out))
-    require('platform' in out, out)
+    # A FIELD, not the `platform` section label, for the reason step 5 states.
+    require('fd-limit-hard-max' in out, 'ze show host all (daemon up) returned no inventory: ' + out)
 
     # 7. A command whose grammar ends in a positional VALUE. `show log recent`
     #    is a leaf with three optional arguments, so `count 5` is a value tail
@@ -324,7 +337,10 @@ offline_env.update({
 code, out = run(['ze', 'show', 'host'], offline_env)
 require(code == 0, 'ze show host (daemon down) exit=%d, want 0: %s' % (code, out))
 require('subcommands' not in out, 'ze show host printed a subcommand list instead of the inventory: ' + out)
-require('platform' in out, out)
+# A FIELD, not the `platform` section label, for the reason step 5 states. The
+# offline fallback renders the same inventory through the same formatter, so it
+# collapses the same way on a host whose only surviving section is the platform.
+require('fd-limit-hard-max' in out, 'ze show host (daemon down) returned no inventory: ' + out)
 
 print('OK')
 EOF_PY

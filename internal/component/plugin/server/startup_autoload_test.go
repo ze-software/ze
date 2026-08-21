@@ -3,7 +3,9 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -680,9 +682,21 @@ func TestBridgeRollbackWaitsForDirectDispatch(t *testing.T) {
 	proc.Conn().SetBridge(bridge)
 	entered := make(chan struct{})
 	release := make(chan struct{})
+
+	// finished orders two events instead of timing them: the admitted dispatch
+	// leaving its handler, and rollbackStartupProcess returning. A drain that
+	// works gives the handler 1 and the rollback 2, whatever the scheduler does.
+	//
+	// The assertion this replaces was a non-blocking poll of rollbackDone, and
+	// it could not tell "rollback waited" from "rollback had not been scheduled
+	// yet". It read an expired grace as success and failed once every few runs
+	// (plan/journal/grace-bound-hides-a-missing-signal.md, three rows).
+	var finished atomic.Int32
+	var handlerOrder, rollbackOrder int32
 	bridge.SetDispatchRPC(func(string, json.RawMessage) (json.RawMessage, error) {
 		close(entered)
 		<-release
+		handlerOrder = finished.Add(1)
 		return json.RawMessage(`{"status":"done"}`), nil
 	})
 	bridge.SetReady()
@@ -709,6 +723,7 @@ func TestBridgeRollbackWaitsForDirectDispatch(t *testing.T) {
 	rollbackDone := make(chan struct{})
 	go func() {
 		s.rollbackStartupProcess(proc)
+		rollbackOrder = finished.Add(1)
 		close(rollbackDone)
 	}()
 	select {
@@ -716,13 +731,20 @@ func TestBridgeRollbackWaitsForDirectDispatch(t *testing.T) {
 	case <-waitCtx.Done():
 		t.Fatal("rollback did not stop the bridge process")
 	}
-	_, err := bridge.DispatchRPC("rejected", nil)
-	require.ErrorIs(t, err, rpc.ErrBridgeClosed)
-	select {
-	case <-rollbackDone:
-		t.Fatal("bridge rollback completed before direct dispatch drained")
-	default:
-	}
+	// proc.Done() fires when Stop cancels the context, and StopDispatch runs
+	// LATER, inside the runtime cleanup rollbackStartupProcess waits for. So the
+	// bridge is not refusing yet at this point, and asserting once here failed
+	// intermittently with "An error is expected but got nil".
+	//
+	// A bounded wait is the right tool for THIS property and the wrong one for
+	// the ordering below. "The bridge eventually refuses" is liveness with no
+	// observable intermediate signal: nothing publishes "StopDispatch has run"
+	// except the refusal itself. The safety property, that rollback drains
+	// before it returns, stays on the counters, which cannot pass by luck.
+	require.Eventually(t, func() bool {
+		_, err := bridge.DispatchRPC("rejected", nil)
+		return errors.Is(err, rpc.ErrBridgeClosed)
+	}, 2*time.Second, time.Millisecond, "the bridge must refuse a new call once rollback has stopped it")
 
 	replacement := process.NewProcess(plugin.PluginConfig{Name: replacementName})
 	replacement.SetRegistration(&plugin.PluginRegistration{Name: replacementName, Commands: []string{commandName}})
@@ -740,6 +762,11 @@ func TestBridgeRollbackWaitsForDirectDispatch(t *testing.T) {
 	case <-waitCtx.Done():
 		t.Fatal("bridge rollback did not complete after dispatch drained")
 	}
+	// Both goroutines have returned, so both counters are written and the
+	// happens-before edges are the channel receives above. Rollback MUST be
+	// second: it drains the admitted dispatch before it removes startup claims.
+	require.Equal(t, int32(1), handlerOrder, "the admitted dispatch must finish first")
+	require.Equal(t, int32(2), rollbackOrder, "bridge rollback completed before direct dispatch drained")
 	select {
 	case <-handlerDone:
 	case <-waitCtx.Done():

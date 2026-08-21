@@ -265,7 +265,12 @@ def expanded_run_suite() -> str:
         raise AssertionError(
             f"make --dry-run exited {proc.returncode}\n{proc.stdout}\n{proc.stderr}"
         )
-    lines = proc.stdout.splitlines()
+    # make echoes a recipe's CONTINUATION lines with their leading tab intact,
+    # and only the first line of a recipe without one. run_suite is defined deep
+    # inside one backslash-continued recipe, so every line of it arrives
+    # tab-prefixed. Matching the bare text found nothing and reported "found 0",
+    # which reads as "the definition is gone" rather than "the marker is wrong".
+    lines = [line.lstrip("\t") for line in proc.stdout.splitlines()]
     opens = [i for i, line in enumerate(lines) if line == "run_suite() { \\"]
     if len(opens) != 1:
         raise AssertionError(
