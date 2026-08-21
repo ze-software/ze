@@ -672,3 +672,30 @@ func TestTableBuffersAndSaysSo(t *testing.T) {
 		}
 	}
 }
+
+// TestApplyTableNullIsEmptyNotGoNil checks that a command answering with a JSON
+// null renders as the empty marker on a human-facing surface, and that no Go
+// zero value reaches an operator. The method: render the three spellings of an
+// answer that carries nothing and require one marker for all three.
+//
+// VALIDATES: a JSON null renders as "(empty)" through table and text.
+// PREVENTS: renderValue falling through to fmt.Sprint and printing "<nil>" for
+// every request-style command that succeeds with no payload (owner directive,
+// 2026-08-21: returning nil is fine, printing it is not).
+func TestApplyTableNullIsEmptyNotGoNil(t *testing.T) {
+	for _, input := range []string{"null", "{}", "[]"} {
+		t.Run(input, func(t *testing.T) {
+			styled := applyTableStyled(input, tableStyle{})
+			plain := applyTableStyled(input, tableStyle{plain: true})
+
+			for name, got := range map[string]string{"table": styled, "text": plain} {
+				if got != emptyMarker {
+					t.Errorf("%s of %s: got %q, want %q", name, input, got, emptyMarker)
+				}
+				if strings.Contains(got, "<nil>") {
+					t.Errorf("%s of %s leaked a Go zero value to an operator: %q", name, input, got)
+				}
+			}
+		})
+	}
+}

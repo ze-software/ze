@@ -52,6 +52,18 @@ func applyTableStyled(input string, style tableStyle) string {
 // renderValue dispatches to the appropriate table renderer based on type.
 func (s tableStyle) renderValue(v any) string {
 	switch val := v.(type) {
+	case nil:
+		// A JSON null is an answer that carries nothing, which is what
+		// emptyMarker states for an empty map and an empty list already. Without
+		// this case it reaches the fmt.Sprint below and an operator reads
+		// "<nil>", a Go spelling of a Go zero value, for a command that
+		// succeeded and had nothing to report.
+		//
+		// The value stays null on every machine-facing rendering: | json, | yaml
+		// and | raw answer a program, and null is what a program parses. This is
+		// the human rendering alone (owner directive, 2026-08-21: returning nil
+		// is fine, printing it is not).
+		return emptyMarker
 	case map[string]any:
 		if _, hasPipe := val[pipeMetaKey]; hasPipe && len(val) == 2 {
 			for k, inner := range val {
