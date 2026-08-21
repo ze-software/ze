@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -117,6 +118,36 @@ type PluginAlias struct {
 // to name.
 var errAliasNoName = errors.New("pipe alias registered with no name")
 
+// pluginAliasPath is what one owner put on one command path: the names it added
+// there, and whether the path carried no declaration at all before it
+// registered.
+//
+// Created is what makes removal exact. A path the owner found undeclared is the
+// owner's own, and it leaves when the owner leaves. A path that already carried
+// a declaration keeps that declaration, because it belongs to somebody else:
+// `show bgp rpki` carries the empty declaration the in-tree BGP command plugin
+// puts on every child of `show bgp`, and removing the path would remove that
+// barrier with it.
+type pluginAliasPath struct {
+	names   []string
+	created bool
+}
+
+// pluginAliases records what each owner put into the alias registry.
+//
+// The registry stores one set for each command path, and one path holds the
+// aliases of more than one owner, so what an owner registered cannot be read
+// back out of the registry alone. This record is what removal reverses.
+//
+// The mutex also orders the read-modify-write that registration and removal
+// both run: each one reads what a path holds, changes it, and writes it back.
+//
+// Safe for concurrent use.
+var pluginAliases = struct {
+	mu      sync.Mutex
+	byOwner map[string]map[string]pluginAliasPath
+}{byOwner: make(map[string]map[string]pluginAliasPath)}
+
 // RegisterPluginAliases declares pipe aliases for a caller outside this
 // repository. It reports a bad declaration rather than panicking on it.
 //
@@ -144,7 +175,18 @@ var errAliasNoName = errors.New("pipe alias registered with no name")
 // A declaration MUST name a command path. A caller outside this repository
 // reaches no global alias. A global name reaches every command in the daemon,
 // including commands whose answer cannot carry it.
-func RegisterPluginAliases(declared []PluginAlias) error {
+//
+// The owner is the name UnregisterPluginAliases takes back what this call
+// registered under. It is opaque: nothing else in this package reads it.
+//
+// The commands are every command path the owner declares, and aliasBarriers
+// reads them to stop a declared alias reaching a command below the one it sits
+// on. They are not an authorization check. Whether an owner may name a path is
+// decided before the declaration arrives here.
+func RegisterPluginAliases(owner string, commands []string, declared []PluginAlias) error {
+	pluginAliases.mu.Lock()
+	defer pluginAliases.mu.Unlock()
+
 	byCommand := make(map[string]aliasSet, len(declared))
 	paths := make([]string, 0, len(declared))
 
@@ -174,10 +216,111 @@ func RegisterPluginAliases(declared []PluginAlias) error {
 		set.byName[entry.alias.Name] = entry
 	}
 
-	for _, path := range paths {
-		aliasRegistry.register([]string{path}, mergedAliases(path, byCommand[path]))
+	put := pluginAliases.byOwner[owner]
+	if put == nil {
+		put = make(map[string]pluginAliasPath, len(paths))
 	}
+	for _, path := range paths {
+		_, occupied := aliasRegistry.get(path)
+		aliasRegistry.register([]string{path}, mergedAliases(path, byCommand[path]))
+
+		record := put[path]
+		record.created = record.created || !occupied
+		for name := range byCommand[path].byName {
+			record.names = append(record.names, name)
+		}
+		put[path] = record
+	}
+	for _, path := range aliasBarriers(commands, paths) {
+		aliasRegistry.register([]string{path}, aliasSet{byName: make(map[string]aliasEntry)})
+
+		record := put[path]
+		record.created = true
+		put[path] = record
+	}
+	pluginAliases.byOwner[owner] = put
 	return nil
+}
+
+// UnregisterPluginAliases removes every alias the owner declared, and every
+// barrier that declaration derived. It removes nothing else.
+//
+// Removal is by ENTRY. One command path holds the aliases of more than one
+// owner, and a path a caller declares on carries the in-tree declarations
+// beside them, so removing the PATH would take another owner's names with it. A
+// path this owner registered from nothing is the one exception: it goes once
+// the last of its entries is gone, because the barrier it also became is the
+// owner's.
+//
+// It reports nothing. A caller tears an owner down without knowing whether that
+// owner ever reached this registry, so an owner that declared no alias is not
+// an error.
+func UnregisterPluginAliases(owner string) {
+	pluginAliases.mu.Lock()
+	defer pluginAliases.mu.Unlock()
+
+	put, registered := pluginAliases.byOwner[owner]
+	if !registered {
+		return
+	}
+	delete(pluginAliases.byOwner, owner)
+
+	for path, record := range put {
+		set, declared := aliasRegistry.get(path)
+		if !declared {
+			continue
+		}
+
+		kept := aliasSet{byName: make(map[string]aliasEntry, len(set.byName))}
+		for name, entry := range set.byName {
+			if slices.Contains(record.names, name) {
+				continue
+			}
+			kept.byName[name] = entry
+		}
+
+		if record.created && len(kept.byName) == 0 {
+			aliasRegistry.remove(path)
+			continue
+		}
+		aliasRegistry.register([]string{path}, kept)
+	}
+}
+
+// aliasBarriers returns the command paths that MUST carry an empty declaration,
+// so a declared alias stops at the command it was declared for.
+//
+// lookupAlias resolves the LONGEST registered command path that is a prefix of
+// the command, and never falls back to a shorter one. A command that declares
+// nothing therefore answers the nearest declared ancestor's aliases. An owner
+// declaring `show x` and `show x rows`, with an alias on `show x`, would have
+// `show x rows` answer that alias over a payload that cannot carry it.
+//
+// The barrier is the empty declaration that stops the inheritance, and it is
+// derived from the owner's own command list. Knowing the resolution rule is not
+// a thing a declaring author owes.
+//
+// A path that already carries a declaration needs no barrier and gets none. It
+// stops the inheritance already, and the declaration is somebody's to keep.
+func aliasBarriers(commands, aliasPaths []string) []string {
+	barriers := make([]string, 0, len(commands))
+	for _, command := range commands {
+		path := normalizeCommand(command)
+		if path == "" {
+			continue
+		}
+		if _, declared := aliasRegistry.get(path); declared {
+			continue
+		}
+		for _, aliasPath := range aliasPaths {
+			if path == aliasPath || !commandMatchesPrefix(path, aliasPath) {
+				continue
+			}
+			barriers = append(barriers, path)
+			break
+		}
+	}
+	return barriers
 }
 
 // aliasOnPath reports whether the EXACT command path already carries this alias
@@ -445,9 +588,15 @@ func aliasSuggestions(command string) []Suggestion {
 	return suggestions
 }
 
-// ResetAliasesForTest clears every registered alias, the global table included.
+// ResetAliasesForTest clears every registered alias, the global table and the
+// record of what each owner declared included. A record that survived the
+// registry it describes would remove another test's entries.
 func ResetAliasesForTest() {
 	aliasRegistry.reset()
+
+	pluginAliases.mu.Lock()
+	pluginAliases.byOwner = make(map[string]map[string]pluginAliasPath)
+	pluginAliases.mu.Unlock()
 
 	globalAliases.mu.Lock()
 	defer globalAliases.mu.Unlock()

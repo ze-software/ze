@@ -466,6 +466,12 @@ func (s *Server) rollbackStartupProcess(proc *process.Process) {
 		s.capInjector.RemovePluginCapabilities(proc.Name())
 	}
 	s.removePluginFamilies(proc.Name())
+	// The pipe aliases leave with the plugin, on both paths that reach here: a
+	// startup that failed at any stage, and a running plugin the operator
+	// removed from the config. A name that outlived its plugin answers a
+	// command nobody serves, and it refuses that plugin its own name when it
+	// starts again.
+	command.UnregisterPluginAliases(proc.Name())
 	if pm := s.procManager.Load(); pm != nil {
 		pm.RemoveProcess(proc.Name())
 	}
@@ -593,30 +599,32 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 		}
 	}
 
-	// Register with registry, then register declared runtime families. If
-	// family registration fails, roll back the plugin registry rows so the
-	// failed declaration is invisible to later startup phases.
+	// Register the registry rows, then the pipe aliases, then the declared
+	// runtime families. Each failure below unwinds what the ones above it
+	// wrote, in the reverse order, so a refused declaration is invisible to
+	// later startup phases. A failure in a LATER STAGE unwinds the same three
+	// through rollbackStartupProcess.
 	startupRegistrationMu.Lock()
 	if err := s.registry.Register(reg); err != nil {
 		startupRegistrationMu.Unlock()
 		logger().Error("plugin registration conflict", "plugin", reg.Name, "error", err)
 		return fmt.Errorf("registration conflict: %w", err)
 	}
+	if err := registerPluginPipes(reg.Name, input.Pipes, input.Commands); err != nil {
+		s.registry.Unregister(reg.Name)
+		startupRegistrationMu.Unlock()
+		logger().Error("plugin pipe alias refused", "plugin", reg.Name, "error", err)
+		return fmt.Errorf("pipe alias refused: %s: %w", reg.Name, err)
+	}
 	addedFamilies, err := registerPluginFamilies(input.Families)
 	if err != nil {
+		command.UnregisterPluginAliases(reg.Name)
 		s.registry.Unregister(reg.Name)
 		startupRegistrationMu.Unlock()
 		logger().Error("plugin family registration conflict", "plugin", reg.Name, "error", err)
 		return fmt.Errorf("family registration conflict: %w", err)
 	}
 	s.rememberPluginFamilies(reg.Name, addedFamilies)
-	if err := registerPluginPipes(input.Pipes); err != nil {
-		s.removePluginFamilies(reg.Name)
-		s.registry.Unregister(reg.Name)
-		startupRegistrationMu.Unlock()
-		logger().Error("plugin pipe alias refused", "plugin", reg.Name, "error", err)
-		return fmt.Errorf("pipe alias refused: %s: %w", reg.Name, err)
-	}
 	startupRegistrationMu.Unlock()
 
 	// Register proxy enrichers for declared show enrichers.
@@ -1095,9 +1103,19 @@ func commandPathKey(command string) string {
 }
 
 // registerPluginPipes writes the declared pipe aliases into the alias registry
-// the pipe resolver reads. The whole declaration is handed over in one call,
-// because the registry refuses the batch rather than half of it.
-func registerPluginPipes(pipes []rpc.PipeDecl) error {
+// the pipe resolver reads, under the plugin's name. The whole declaration is
+// handed over in one call, because the registry refuses the batch rather than
+// half of it.
+//
+// The plugin's own command names travel with it. The registry derives from them
+// the empty declaration that stops an alias reaching a command below the one it
+// sits on, so a declaring author never has to know how a command resolves an
+// alias. The names are the same list validatePipeDecls read to decide the
+// plugin owns the paths it named.
+//
+// The plugin name is what UnregisterPluginAliases takes the declaration back
+// under, on the rollback path and when the plugin stops.
+func registerPluginPipes(owner string, pipes []rpc.PipeDecl, commands []rpc.CommandDecl) error {
 	if len(pipes) == 0 {
 		return nil
 	}
@@ -1112,7 +1130,11 @@ func registerPluginPipes(pipes []rpc.PipeDecl) error {
 			},
 		})
 	}
-	return command.RegisterPluginAliases(declared)
+	declaredCommands := make([]string, 0, len(commands))
+	for _, c := range commands {
+		declaredCommands = append(declaredCommands, c.Name)
+	}
+	return command.RegisterPluginAliases(owner, declaredCommands, declared)
 }
 
 // isLowerKebab reports whether s is a valid lower-kebab-case identifier.

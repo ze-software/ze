@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -403,4 +404,121 @@ func TestOnRegistrationRefusesPipeOnUndeclaredCommand(t *testing.T) {
 	assert.Empty(t, s.registry.LookupCommand(declaredCommand))
 	assert.Empty(t, command.AliasesForCommand(claimedCommand))
 	assert.Empty(t, command.AliasesForCommand(declaredCommand))
+}
+
+// TestOnRegistrationRollsBackPipesOnLaterFailure verifies a Stage 1 that fails
+// AFTER the pipe aliases are written leaves none of them in the registry. The
+// family conflict is the failure, because it is the one that runs after the
+// write and under the same lock.
+//
+// onRegistration is called directly, without the startup driver around it,
+// because the driver's own rollback removes the aliases a moment later and
+// would answer for this unwind. The two unwinds are not the same: the driver's
+// runs once the whole tier has finished its handshake, and the plugins of one
+// tier register concurrently, so a name this plugin no longer wants must be
+// free for its neighbor before the tier ends.
+//
+// VALIDATES: A-5. A refused Stage 1 leaves no partial registration behind.
+// PREVENTS: a plugin unable to start ever again. The alias registry refuses a
+// name the exact command path already carries, so an alias that outlives the
+// registration that wrote it refuses that same plugin its own name, and the
+// operator reads a collision between a plugin and itself.
+func TestOnRegistrationRollsBackPipesOnLaterFailure(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const pluginName = "lifecycle-pipe-alias-rollback"
+	const commandName = "show lifecycle rollback pipes"
+	t.Cleanup(func() { command.UnregisterPluginAliases(pluginName) })
+
+	s, _ := newLifecycleStartupServer(t)
+	proc := process.NewProcess(plugin.PluginConfig{Name: pluginName, Internal: true})
+	sink := &engineStartupSink{s: s, proc: proc}
+
+	err := sink.onRegistration(&rpc.DeclareRegistrationInput{
+		Commands: []rpc.CommandDecl{{Name: commandName}},
+		Pipes: []rpc.PipeDecl{{
+			Command:     commandName,
+			Name:        "totals",
+			Description: "The counters alone",
+			Expansion:   "display kind",
+		}},
+		// The conflict: the AFI number is IPv4's and the name is not.
+		Families: []rpc.FamilyDecl{
+			{Name: "not-ipv4/pipes", Mode: "both", AFI: uint16(family.AFIIPv4), SAFI: 203},
+		},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "family")
+	assert.Empty(t, s.registry.LookupCommand(commandName))
+	assert.Empty(t, command.AliasesForCommand(commandName),
+		"a Stage 1 that failed after the pipe write left its alias behind")
+}
+
+// TestPluginPipesRemovedOnPluginStop verifies the aliases a plugin declared
+// leave the registry when the plugin stops, and that the same plugin then
+// starts again and declares them again. rollbackStartupProcess is the function
+// under test: it is what a config reload calls to stop a plugin whose config
+// the operator removed, and what a failed startup calls.
+//
+// VALIDATES: AC-9. The name stops resolving when the plugin stops, and the same
+// plugin can start again and register it.
+// PREVENTS: a plugin that can start exactly once. Nothing removed an alias when
+// a plugin stopped, and the exact-path refusal then made the second start
+// collide with the first start's registration.
+func TestPluginPipesRemovedOnPluginStop(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const pluginName = "lifecycle-pipe-alias-restart"
+	const commandName = "show lifecycle restart pipes"
+	const aliasName = "totals"
+	t.Cleanup(func() { command.UnregisterPluginAliases(pluginName) })
+
+	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
+		p := sdk.NewWithConn(pluginName, conn)
+		err := p.Run(context.Background(), sdk.Registration{
+			Commands: []sdk.CommandDecl{{Name: commandName}},
+			Pipes: []sdk.PipeDecl{{
+				Command:     commandName,
+				Name:        aliasName,
+				Description: "The counters alone",
+				Expansion:   "display kind",
+			}},
+		})
+		if err != nil {
+			return 1
+		}
+		return 0
+	})
+
+	carriesAlias := func(t *testing.T) bool {
+		t.Helper()
+		for _, alias := range command.AliasesForCommand(commandName) {
+			if alias.Name == aliasName {
+				return true
+			}
+		}
+		return false
+	}
+
+	s, spawner := newLifecycleStartupServer(t)
+	configs := []plugin.PluginConfig{{Name: pluginName, Internal: true, Encoder: plugin.EncodingJSON}}
+
+	require.NoError(t, s.runPluginPhase(configs))
+	require.True(t, carriesAlias(t), "the first start did not register the declared alias")
+
+	require.NotNil(t, spawner.pm)
+	proc := spawner.pm.GetProcess(pluginName)
+	require.NotNil(t, proc)
+	s.rollbackStartupProcess(proc)
+
+	assert.False(t, carriesAlias(t), "the alias outlived the plugin that declared it")
+	assert.Empty(t, command.AliasesForCommand(commandName),
+		"the command path still carries a declaration nobody serves")
+
+	require.NoError(t, s.runPluginPhase(configs), "the plugin cannot start a second time")
+	assert.True(t, carriesAlias(t), "the second start did not register the declared alias")
 }

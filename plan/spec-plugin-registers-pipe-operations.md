@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | plugin |
 | Depends | - |
-| Phase | 1/6 |
+| Phase | 3/6 |
 | Deferral shard | `plan/deferrals/plugin-registers-pipe-operations.md` |
 | Handoff | - |
 | Updated | 2026-08-21 |
@@ -939,3 +939,38 @@ Removal by owner, the rollback that calls it, and the derived empty barrier stay
 with phase 3, exactly as the Phase 1 Record records them. The exact-path refusal
 makes the missing removal reachable: a plugin that registers an alias, stops and
 starts again is now refused its own name.
+
+## Phase 3 Record: Scope and lifecycle (2026-08-21)
+
+An alias reaches the command it was declared for and no command of the plugin
+below it, and it leaves the registry when the plugin leaves. A plugin that
+registers an alias, stops and starts again now starts.
+
+| What | Where |
+|------|-------|
+| Ownership, and the removal that takes back what one owner registered | `internal/component/command/alias.go` `RegisterPluginAliases`, `UnregisterPluginAliases` |
+| What one owner put on one command path, which removal reverses | `internal/component/command/alias.go` `pluginAliasPath`, over `pluginAliases` |
+| The derived empty declaration that stops an alias below the command it sits on | `internal/component/command/alias.go` `aliasBarriers` |
+| A command path stops being declared, so a command under it inherits again | `internal/component/command/column_order.go` `commandRegistry.remove` |
+| The owner and the command list travelling from Stage 1 | `internal/component/plugin/server/startup.go` `registerPluginPipes` |
+| The unwind of a Stage 1 that fails after the pipe write | `internal/component/plugin/server/startup.go` `engineStartupSink.onRegistration` |
+| The removal a failed startup and a stopped plugin both run | `internal/component/plugin/server/startup.go` `rollbackStartupProcess` |
+| The scope boundary an operator meets | `test/plugin/plugin-pipe-alias-namespaced.ci` |
+
+### What phase 3 measured that the plan did not say
+
+| Finding | Consequence |
+|---------|-------------|
+| The rollback call site and the stop call site are ONE function. `rollbackStartupProcess` is what the tier loop calls for a plugin that failed any stage, and what a config reload calls to stop a running plugin whose config section the operator removed (`stopCollectedProcesses`, `autoStopPluginNames`, `stopOrphanedDependencies`) | The Deliverables row expecting two call sites is answered by that function and by the family-conflict unwind inside `onRegistration` |
+| With the pipe aliases written LAST, no failure inside `onRegistration` follows the write, so the rollback Data Flow step 4 asks for would have been unreachable code | The pipe registration now sits between the registry row and the families. Each failure branch unwinds what the branches above it wrote, in the reverse order |
+| `TestOnRegistrationRollsBackPipesOnLaterFailure` cannot be driven through `runPluginPhase`. The driver's own rollback removes the aliases a moment later, so the test passes with the in-function unwind deleted | It calls `onRegistration` directly. The two unwinds answer different questions: the driver's runs once the whole tier has finished its handshake, and the plugins of one tier register concurrently, so a name a failed plugin no longer wants must be free for its neighbour before the tier ends |
+| Removing the owner's NAMES is not enough on its own. A derived barrier carries no name at all, so a removal keyed by name can never take one back | The record carries the paths the owner registered from nothing beside the names it added. Such a path is removed once its last entry is gone, and a path that already carried a declaration keeps it |
+| A crash and a respawn reach neither call site. `cleanupProcess` is the runtime exit path, and it unregisters the dispatcher's commands while leaving the `PluginRegistry` row and the runtime families in place | The alias is removed where the registry row and the families are removed, and nowhere else. Removing it on the runtime exit path alone would make the alias the one registration that left |
+| `ResetAliasesForTest` had to clear the ownership record beside the registry. A record that survived the registry it describes removes another test's entries | The reset clears both, under the registry's own mutex |
+
+### What phase 3 deliberately does not do
+
+| Left | Consequence today | Owner |
+|------|-------------------|-------|
+| Discovery. `command help` reports a command's pipe filters and no alias, for an in-tree alias and a declared one alike | A declared alias is discoverable by tab completion alone | Phase 4 |
+| AC-14 for a plugin-registered name, and its test `TestPipeAliasArgumentRefused` | `expandAliases` refuses a word after any alias name and reads no owner, so `TestAliasTakesNoArgument` proves the mechanism for both. What no test makes is the assertion over a DECLARED name | Phase 4, which is the phase whose subject is what an operator types at a plugin alias |

@@ -103,6 +103,24 @@ func (r *commandRegistry[T]) register(commands []string, value T) {
 	}
 }
 
+// remove drops what one command path declares, so the path is undeclared again
+// and a command under it inherits from the nearest declared ancestor.
+//
+// It is not the reverse of register for a path that held a declaration before:
+// register stores one value for each path, so what the path held is already
+// gone. The one caller reads what the path holds, decides that nothing of it
+// survives, and removes the path in place of writing an empty declaration.
+// Empty and absent are different answers, and only absent restores the
+// inheritance the declaration stopped.
+func (r *commandRegistry[T]) remove(command string) {
+	command = normalizeCommand(command)
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	delete(r.byCommand, command)
+}
+
 // get returns what one command path declares itself, and nothing an ancestor
 // declares. It answers a different question from lookup: lookup resolves a
 // COMMAND to the nearest registered ancestor's declaration, and this reports

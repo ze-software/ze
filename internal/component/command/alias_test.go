@@ -5,6 +5,10 @@ import (
 	"testing"
 )
 
+// testOwner names the declaring caller of a test that has only one. Removal is
+// by owner, so a test that declares under two names spells both.
+const testOwner = "declaring-plugin"
+
 // resetAliasTables clears the three registries an alias test writes to, before
 // the test and again after it. A registry that survived a test would decide the
 // next one. An in-tree refusal in this file is a panic and a plugin-facing one
@@ -285,7 +289,7 @@ func pluginRefusal(t *testing.T, declared ...PluginAlias) string {
 				t.Fatalf("the plugin-facing entry point panicked on a declaration it must report: %v", recovered)
 			}
 		}()
-		err = RegisterPluginAliases(declared)
+		err = RegisterPluginAliases(testOwner, nil, declared)
 	}()
 
 	if err == nil {
@@ -417,7 +421,7 @@ func TestRegisterPluginAliasesRefusesFilterNameOnOverlappingPath(t *testing.T) {
 
 		RegisterPipeFilters([]string{"show bgp rib"}, PipeFilter{Name: "histogram", Description: "Count routes by prefix length"})
 
-		if err := RegisterPluginAliases([]PluginAlias{{
+		if err := RegisterPluginAliases(testOwner, nil, []PluginAlias{{
 			Command: "show bgp health",
 			Alias:   Alias{Name: "histogram", Expansion: "display peers"},
 		}}); err != nil {
@@ -443,7 +447,7 @@ func TestRegisterPluginAliasesAllowsSameNameOnLongerPath(t *testing.T) {
 		Expansion:   "display router-id",
 	})
 
-	if err := RegisterPluginAliases([]PluginAlias{{
+	if err := RegisterPluginAliases(testOwner, nil, []PluginAlias{{
 		Command: "show bgp rpki",
 		Alias:   Alias{Name: "summary", Description: "The RPKI counters", Expansion: "display vrp-count"},
 	}}); err != nil {
@@ -586,7 +590,7 @@ func TestRegisterPluginAliasesRefusesDuplicateNameInOneBatch(t *testing.T) {
 	t.Run("the same name on two paths", func(t *testing.T) {
 		resetAliasTables(t)
 
-		if err := RegisterPluginAliases([]PluginAlias{
+		if err := RegisterPluginAliases(testOwner, nil, []PluginAlias{
 			{Command: "show test summary", Alias: Alias{Name: "totals", Expansion: "display kind"}},
 			{Command: "show test detail", Alias: Alias{Name: "totals", Expansion: "display vrp-count"}},
 		}); err != nil {
@@ -608,7 +612,7 @@ func TestRegisterPluginAliasesRefusesDuplicateNameInOneBatch(t *testing.T) {
 func TestRegisterPluginAliasesIsAllOrNothing(t *testing.T) {
 	resetAliasTables(t)
 
-	err := RegisterPluginAliases([]PluginAlias{
+	err := RegisterPluginAliases(testOwner, nil, []PluginAlias{
 		{Command: "show test summary", Alias: Alias{Name: "totals", Expansion: "display kind"}},
 		{Command: "show test detail", Alias: Alias{Name: "wide", Expansion: "sideways"}},
 		{Command: "show test other", Alias: Alias{Name: "rows", Expansion: "display peers"}},
@@ -642,7 +646,7 @@ func TestRegisterPluginAliasesKeepsWhatThePathAlreadyCarries(t *testing.T) {
 			Alias{Name: "peers", Description: "In tree", Expansion: "display peers"},
 		)
 
-		if err := RegisterPluginAliases([]PluginAlias{{
+		if err := RegisterPluginAliases(testOwner, nil, []PluginAlias{{
 			Command: "show bgp",
 			Alias:   Alias{Name: "wide", Description: "Plugin", Expansion: "display vrp-count"},
 		}}); err != nil {
@@ -667,7 +671,7 @@ func TestRegisterPluginAliasesKeepsWhatThePathAlreadyCarries(t *testing.T) {
 		RegisterAliases([]string{"show bgp"}, Alias{Name: "summary", Description: "In tree", Expansion: "display router-id"})
 		RegisterAliases([]string{"show bgp rpki"})
 
-		if err := RegisterPluginAliases([]PluginAlias{{
+		if err := RegisterPluginAliases(testOwner, nil, []PluginAlias{{
 			Command: "show bgp rpki",
 			Alias:   Alias{Name: "cache", Description: "Plugin", Expansion: "display servers"},
 		}}); err != nil {
@@ -679,4 +683,170 @@ func TestRegisterPluginAliasesKeepsWhatThePathAlreadyCarries(t *testing.T) {
 			t.Errorf("AliasesForCommand = %v, want the declared alias alone", aliases)
 		}
 	})
+}
+
+// otherOwner is the second declaring caller of the removal tests. One command
+// path holds the aliases of both owners, and removal takes back one owner's.
+const otherOwner = "second-declaring-plugin"
+
+// declareForRemoval registers the in-tree table and the two owners the removal
+// tests share: `show bgp` carries two in-tree aliases, and each owner adds one
+// name of its own to the same command path.
+func declareForRemoval(t *testing.T) {
+	t.Helper()
+	resetAliasTables(t)
+
+	RegisterAliases([]string{"show bgp"},
+		Alias{Name: "summary", Description: "In tree", Expansion: "display router-id"},
+		Alias{Name: "peers", Description: "In tree", Expansion: "display peers"},
+	)
+	if err := RegisterPluginAliases(testOwner, nil, []PluginAlias{{
+		Command: "show bgp",
+		Alias:   Alias{Name: "wide", Description: "Declared", Expansion: "display vrp-count"},
+	}}); err != nil {
+		t.Fatalf("the first owner was refused a name the path does not carry: %v", err)
+	}
+	if err := RegisterPluginAliases(otherOwner, nil, []PluginAlias{{
+		Command: "show bgp",
+		Alias:   Alias{Name: "rows", Description: "Declared", Expansion: "display peers"},
+	}}); err != nil {
+		t.Fatalf("the second owner was refused a name the path does not carry: %v", err)
+	}
+}
+
+// VALIDATES: AC-9. The name an owner declared stops resolving when that owner
+// leaves, the in-tree aliases on the same command path keep answering, another
+// owner's name on that path keeps answering, and the owner can declare its name
+// again.
+// PREVENTS: removal by command PATH. commandRegistry stores one set for each
+// path and mergedAliases adds to it, so one path holds the aliases of two
+// owners and the in-tree declaration beside them. Removing the path takes all
+// three, and the in-tree half never comes back.
+func TestUnregisterPluginAliasesRemovesOnlyThatOwner(t *testing.T) {
+	const payload = `{"router-id":"192.0.2.254","vrp-count":7,"peers":[{"address":"192.0.2.1"}]}`
+
+	t.Run("the name the owner declared stops resolving", func(t *testing.T) {
+		declareForRemoval(t)
+		UnregisterPluginAliases(testOwner)
+
+		_, _, errMsg := ProcessPipesChecked("show bgp | wide")
+		if errMsg == "" {
+			t.Fatal("`| wide` still resolves, so the name outlived the owner that declared it")
+		}
+		requireMentions(t, errMsg, "wide")
+
+		for _, alias := range AliasesForCommand("show bgp") {
+			if alias.Name == "wide" {
+				t.Errorf("the removed name is still offered: %v", AliasesForCommand("show bgp"))
+			}
+		}
+	})
+
+	t.Run("the in-tree aliases on the same path are untouched", func(t *testing.T) {
+		declareForRemoval(t)
+		UnregisterPluginAliases(testOwner)
+
+		got := renderThroughPipes(t, "show bgp | summary | json", payload)
+		if !strings.Contains(got, "192.0.2.254") {
+			t.Errorf("`show bgp | summary` stopped answering what it answered: %s", got)
+		}
+		got = renderThroughPipes(t, "show bgp | peers | json", payload)
+		if !strings.Contains(got, "192.0.2.1") {
+			t.Errorf("`show bgp | peers` stopped answering what it answered: %s", got)
+		}
+	})
+
+	t.Run("the other owner keeps the name it declared", func(t *testing.T) {
+		declareForRemoval(t)
+		UnregisterPluginAliases(testOwner)
+
+		got := renderThroughPipes(t, "show bgp | rows | json", payload)
+		if !strings.Contains(got, "192.0.2.1") {
+			t.Errorf("the other owner's alias stopped answering: %s", got)
+		}
+	})
+
+	t.Run("the owner declares the same name again", func(t *testing.T) {
+		declareForRemoval(t)
+		UnregisterPluginAliases(testOwner)
+
+		if err := RegisterPluginAliases(testOwner, nil, []PluginAlias{{
+			Command: "show bgp",
+			Alias:   Alias{Name: "wide", Description: "Declared again", Expansion: "display vrp-count"},
+		}}); err != nil {
+			t.Fatalf("the owner was refused its own name after it left: %v", err)
+		}
+
+		got := renderThroughPipes(t, "show bgp | wide | json", payload)
+		if !strings.Contains(got, "vrp-count") {
+			t.Errorf("the redeclared alias does not answer: %s", got)
+		}
+	})
+}
+
+// VALIDATES: AC-8 and A-2. An alias declared on a command path is offered on
+// that command and on none of the owner's commands below it, and it leaves the
+// commands beside it resolving as they did.
+// PREVENTS: an alias offered over an answer that cannot carry it. lookupAlias
+// reads the LONGEST declared prefix, so a leaf that declares nothing answers its
+// nearest declared ancestor, and `| totals` over a row list would leave the row
+// whole with nothing reporting why.
+func TestPluginAliasDoesNotLeakToSiblingLeaf(t *testing.T) {
+	const parent = "show probe counters"
+	const leaf = "show probe counters rows"
+	const sibling = "show probe other"
+	const payload = `{"kind":"probe","vrp-count":7,"rows":[{"address":"192.0.2.1"}]}`
+
+	resetAliasTables(t)
+
+	// The in-tree declaration every command under `show` inherits. It is what
+	// makes the barrier observable: a command that inherits it answers `|
+	// inherited`, and a command that carries the barrier answers nothing.
+	RegisterAliases([]string{"show"}, Alias{Name: "inherited", Description: "In tree", Expansion: "display kind"})
+
+	if err := RegisterPluginAliases(testOwner, []string{parent, leaf, sibling}, []PluginAlias{{
+		Command: parent,
+		Alias:   Alias{Name: "totals", Description: "The counters alone", Expansion: "display vrp-count"},
+	}}); err != nil {
+		t.Fatalf("the declaration was refused: %v", err)
+	}
+
+	aliases := AliasesForCommand(parent)
+	if len(aliases) != 1 || aliases[0].Name != "totals" {
+		t.Fatalf("AliasesForCommand(%s) = %v, want the declared alias", parent, aliases)
+	}
+	got := renderThroughPipes(t, parent+" | totals | json", payload)
+	if !strings.Contains(got, "vrp-count") || strings.Contains(got, "192.0.2.1") {
+		t.Errorf("the declaring command does not answer its own alias: %s", got)
+	}
+
+	// The leaf the owner declared below it answers neither the alias nor the
+	// in-tree name it would have inherited.
+	if aliases := AliasesForCommand(leaf); len(aliases) != 0 {
+		t.Errorf("AliasesForCommand(%s) = %v, want none: the leaf declares no alias of its own", leaf, aliases)
+	}
+	_, _, errMsg := ProcessPipesChecked(leaf + " | totals")
+	if errMsg == "" {
+		t.Fatal("the alias reached a command below the one it was declared for")
+	}
+	requireMentions(t, errMsg, "totals")
+
+	// The barrier covers the commands below the alias and nothing else. The
+	// sibling declares no alias, sits below no alias of the owner's, and keeps
+	// inheriting.
+	aliases = AliasesForCommand(sibling)
+	if len(aliases) != 1 || aliases[0].Name != "inherited" {
+		t.Errorf("AliasesForCommand(%s) = %v, want the in-tree alias it inherits", sibling, aliases)
+	}
+
+	// The barrier is the owner's, so it leaves with the owner and the leaf
+	// inherits again.
+	UnregisterPluginAliases(testOwner)
+
+	for _, command := range []string{parent, leaf, sibling} {
+		aliases := AliasesForCommand(command)
+		if len(aliases) != 1 || aliases[0].Name != "inherited" {
+			t.Errorf("AliasesForCommand(%s) = %v after removal, want the in-tree alias it inherits", command, aliases)
+		}
+	}
 }
