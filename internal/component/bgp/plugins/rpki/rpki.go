@@ -263,6 +263,7 @@ func runRPKIPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
+			{Name: "show bgp rpki", Description: "Show RPKI validation counters with one row for each cache server"},
 			{Name: "show bgp rpki status", Description: "Show RPKI validation status and cache server overview"},
 			{Name: "show bgp rpki cache", Description: "Show RTR cache server sessions with protocol details"},
 			{Name: "show bgp rpki roa", Description: "Show ROA table entries or lookup covering VRPs for a prefix"},
@@ -270,6 +271,16 @@ func runRPKIPlugin(conn net.Conn) int {
 			{Name: "request bgp rpki validate", Description: "Validate a prefix against the ROA cache", Args: []string{"<prefix>", "<origin-asn>"}},
 			{Name: "show bgp rpki aspa", Description: "Show ASPA cache or lookup providers for a customer AS"},
 		},
+		// The alias is a selection over the sibling keys the bare command
+		// writes. `show bgp rpki summary` keeps answering, and the engine
+		// derives from the command list above the empty declaration that stops
+		// this name reaching a command below the one it sits on.
+		Pipes: []sdk.PipeDecl{{
+			Command:     "show bgp rpki",
+			Name:        "summary",
+			Description: "The validation counters, without the cache server rows",
+			Expansion:   summaryAliasExpansion,
+		}},
 		WantsConfig: []string{"bgp"},
 	})
 	if err != nil {
@@ -1028,6 +1039,8 @@ func rpkiOriginASFromASPath(asp *attribute.ASPath) uint32 {
 // handleCommand processes RPKI CLI commands.
 func (rp *rPKIPlugin) handleCommand(command string, args []string) (string, any, error) {
 	switch command {
+	case "show bgp rpki":
+		return rp.overviewCommand()
 	case "show bgp rpki status":
 		return rp.statusCommand()
 	case "show bgp rpki cache":
@@ -1092,19 +1105,8 @@ func (rp *rPKIPlugin) statusCommand() (string, any, error) {
 	b.Str(`,"aspa-records":`).Int(int64(aspaCount))
 
 	if len(snaps) > 0 {
-		b.Str(`,"cache-servers":[`)
-		for i, snap := range snaps {
-			if i > 0 {
-				b.Byte(',')
-			}
-			b.Str(`{"address":"`).Str(snap.Address).Byte('"')
-			b.Str(`,"port":`).Uint16(snap.Port)
-			b.Str(`,"state":"`).Str(snap.State).Byte('"')
-			b.Str(`,"synced":`).Bool(snap.Synced)
-			b.Str(`,"version":`).Uint8(snap.Version)
-			b.Byte('}')
-		}
-		b.Byte(']')
+		b.Byte(',')
+		appendCacheServers(b, snaps)
 	}
 
 	// Effective global actions and the per-peer resolved overrides, read from the same atomic
@@ -1215,12 +1217,48 @@ func (rp *rPKIPlugin) roaLookupCommand(prefix string) (string, any, error) {
 	return statusDone, json.RawMessage(b.String()), nil
 }
 
-func (rp *rPKIPlugin) summaryCommand() (string, any, error) {
-	v4, v6 := rp.cache.Count()
-	aspaCount := rp.aspaCache.count()
-	aspaEnabled := rp.aspaEnabled.Load()
+// summaryFieldNames are the keys of the RPKI aggregate half, in the order both
+// answers write them. It is the one authored list: appendSummaryFields writes
+// these keys, and summaryAliasExpansion selects them.
+//
+// Four of the seven are computed. vrp-count is the sum of the two family
+// counts, sessions-established counts the sessions in one state,
+// sessions-total spells what `show bgp rpki status` calls sessions, and
+// validation-enabled is a constant. A pipe operator can do none of those, which
+// is why the command computes them and the alias only selects them.
+var summaryFieldNames = []string{
+	"vrp-count",
+	"validation-enabled",
+	"sessions-total",
+	"sessions-established",
+	"sessions-synced",
+	"aspa-enabled",
+	"aspa-records",
+}
 
-	snaps := rp.snapshots()
+// summaryAliasExpansion is the operator chain `show bgp rpki | summary` stands
+// for. It is built from summaryFieldNames rather than repeating them, so a
+// counter added to the aggregate half reaches the alias with it.
+var summaryAliasExpansion = buildSummaryAliasExpansion()
+
+// buildSummaryAliasExpansion writes the expansion once, at package
+// initialization. Selection is the whole of what a pipe alias may do, so the
+// chain is the display operator and the aggregate field names.
+func buildSummaryAliasExpansion() string {
+	var tb textbuf.Buffer
+	return tb.Str("display ").Join(summaryFieldNames, " ").String()
+}
+
+// appendSummaryFields writes the aggregate half of the RPKI answer: how much
+// data the cache holds, how many sessions carry it, and whether ASPA is on.
+//
+// It writes no leading or trailing brace and no leading comma, so a caller
+// places it. Both `show bgp rpki summary` and the bare `show bgp rpki` write it,
+// which is what lets `show bgp rpki | summary` reproduce the subcommand instead
+// of approximating it.
+func (rp *rPKIPlugin) appendSummaryFields(b *textbuf.Buffer, snaps []SessionSnapshot) {
+	v4, v6 := rp.cache.Count()
+
 	established := 0
 	for _, snap := range snaps {
 		if snap.State == sessionEstablish {
@@ -1228,15 +1266,62 @@ func (rp *rPKIPlugin) summaryCommand() (string, any, error) {
 		}
 	}
 
-	b := textbuf.Get()
-	defer b.Release()
-	b.Str(`{"vrp-count":`).Int(int64(v4 + v6))
+	b.Str(`"vrp-count":`).Int(int64(v4 + v6))
 	b.Str(`,"validation-enabled":true`)
 	b.Str(`,"sessions-total":`).Int(int64(len(snaps)))
 	b.Str(`,"sessions-established":`).Int(int64(established))
 	b.Str(`,"sessions-synced":`).Int(int64(syncedSessions(snaps)))
-	b.Str(`,"aspa-enabled":`).Bool(aspaEnabled)
-	b.Str(`,"aspa-records":`).Int(int64(aspaCount))
+	b.Str(`,"aspa-enabled":`).Bool(rp.aspaEnabled.Load())
+	b.Str(`,"aspa-records":`).Int(int64(rp.aspaCache.count()))
+}
+
+// appendCacheServers writes one row for each configured cache server, carrying
+// what an operator reads at a glance: where the session points, what state it
+// is in, and whether it has delivered data. The protocol detail of a session,
+// the serial and the three intervals, is what `show bgp rpki cache` adds.
+//
+// It writes the key and its array and nothing around them, so a caller places
+// the comma that separates it from the fields before it.
+func appendCacheServers(b *textbuf.Buffer, snaps []SessionSnapshot) {
+	b.Str(`"cache-servers":[`)
+	for i, snap := range snaps {
+		if i > 0 {
+			b.Byte(',')
+		}
+		b.Str(`{"address":"`).Str(snap.Address).Byte('"')
+		b.Str(`,"port":`).Uint16(snap.Port)
+		b.Str(`,"state":"`).Str(snap.State).Byte('"')
+		b.Str(`,"synced":`).Bool(snap.Synced)
+		b.Str(`,"version":`).Uint8(snap.Version)
+		b.Byte('}')
+	}
+	b.Byte(']')
+}
+
+// overviewCommand answers the bare `show bgp rpki`: the aggregate counters and
+// one row for each cache server, as siblings at one level.
+//
+// The shape is what `show bgp` uses, and it is what a pipe alias needs. An
+// alias selects among sibling keys and computes nothing, so `| summary` answers
+// the aggregate half only because the aggregate half is written here.
+func (rp *rPKIPlugin) overviewCommand() (string, any, error) {
+	snaps := rp.snapshots()
+
+	b := textbuf.Get()
+	defer b.Release()
+	b.Byte('{')
+	rp.appendSummaryFields(b, snaps)
+	b.Byte(',')
+	appendCacheServers(b, snaps)
+	b.Byte('}')
+	return statusDone, json.RawMessage(b.String()), nil
+}
+
+func (rp *rPKIPlugin) summaryCommand() (string, any, error) {
+	b := textbuf.Get()
+	defer b.Release()
+	b.Byte('{')
+	rp.appendSummaryFields(b, rp.snapshots())
 	b.Byte('}')
 	return statusDone, json.RawMessage(b.String()), nil
 }

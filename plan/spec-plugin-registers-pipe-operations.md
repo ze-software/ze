@@ -5,10 +5,10 @@
 | Status | in-progress |
 | Scope | plugin |
 | Depends | - |
-| Phase | 4/6 |
+| Phase | 5/6 |
 | Deferral shard | `plan/deferrals/plugin-registers-pipe-operations.md` |
 | Handoff | - |
-| Updated | 2026-08-21 |
+| Updated | 2026-08-22 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -330,7 +330,7 @@ end.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Runs `show bgp rpki \| summary` and reads the aggregate counters | SSH exec, ProcessPipes, expandAliases, dispatcher, RPKI plugin answer, ApplyPipes | `test/plugin/rpki-pipe-summary.ci` | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+| 1 | Runs `show bgp rpki \| summary` and reads the aggregate counters | SSH exec, ProcessPipes, expandAliases, dispatcher, RPKI plugin answer, ApplyPipes | `test/plugin/rpki-pipe-summary.ci` |
 | 2 | Types `show bgp rpki \| ` and reads the names on offer | Interactive CLI completer, `pipeExtras`, `AliasesForCommand` | `test/ui/plugin-pipe-alias-completion.ci` | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 | 3 | Runs `command help "show bgp rpki"` and reads which pipe names the command answers to | Meta command plugin, `AliasesForCommand` | `test/plugin/plugin-pipe-alias-help.ci` | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 | 4 | Starts a plugin whose alias name is already taken and reads why it refused | Stage 1 validation, relayed error, daemon log | `test/plugin/plugin-pipe-alias-collision.ci` | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
@@ -377,7 +377,7 @@ end.
 | `plugin-pipe-alias-namespaced` | `test/plugin/plugin-pipe-alias-namespaced.ci` | The alias is offered on the declaring plugin's command and refused on an unrelated command | | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 | `plugin-pipe-alias-help` | `test/plugin/plugin-pipe-alias-help.ci` | `command help` lists the alias with its description | done, phase 4. It asserts the in-tree half beside the declared one |
 | `plugin-pipe-alias-completion` | `test/ui/plugin-pipe-alias-completion.ci` | The interactive CLI offers the plugin's alias name in the operator slot | BLOCKED, phase 4. `ze cli` runs its model in the CLIENT process, so no declared alias is offered or resolvable there. See the Phase 4 Record | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
-| `rpki-pipe-summary` | `test/plugin/rpki-pipe-summary.ci` | `show bgp rpki \| summary` answers the aggregate half, and `show bgp rpki summary` is unchanged | | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+| `rpki-pipe-summary` | `test/plugin/rpki-pipe-summary.ci` | `show bgp rpki \| summary` answers the aggregate half, and `show bgp rpki summary` is unchanged | done, phase 5 |
 
 ### Interop Tests (Scope: protocol)
 
@@ -427,7 +427,7 @@ CLI pipe alias.
 - `test/plugin/plugin-pipe-alias-collision.ci` - the refusal and its message <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 - `test/plugin/plugin-pipe-alias-namespaced.ci` - the scope boundary <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 - `test/plugin/plugin-pipe-alias-help.ci` - the help listing <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
-- `test/plugin/rpki-pipe-summary.ci` - the converted consumer <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+- `test/plugin/rpki-pipe-summary.ci` - the converted consumer
 - `test/ui/plugin-pipe-alias-completion.ci` - the completion offer <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 
 ### Integration Checklist
@@ -510,7 +510,7 @@ CLI pipe alias.
      written anyway because that is the assertion nothing else makes
 
 5. **Phase: The converted consumer** - RPKI
-   - Tests: `test/plugin/rpki-pipe-summary.ci`, plus the existing RPKI coverage <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+   - Tests: `test/plugin/rpki-pipe-summary.ci`, plus the existing RPKI coverage
    - Files: `internal/component/bgp/plugins/rpki/rpki.go`
    - Verify: AC-12 and AC-13 pass. The bare `show bgp rpki` payload carries the
      aggregate fields and the cache server rows as siblings, and the alias is
@@ -1016,3 +1016,39 @@ interactive clients cannot see the registry the alias lives in.
 |------|-------------------|-------|
 | The channel that carries the daemon's alias table to a CLI client | A declared alias is offered and resolves over the SSH exec channel and in the daemon-hosted TUI, and neither works in `ze cli` interactive | Owner decision. It is a wire surface, a client-side registration whose collision rule differs from the plugin-facing one, and an answer for a plugin that stops mid-session |
 | `system command help` reports neither filters nor aliases | It reported neither before this phase, so the two help surfaces are exactly as far apart as they were | Whoever decides whether the two surfaces merge |
+
+## Phase 5 Record: The converted consumer, RPKI (2026-08-22)
+
+`show bgp rpki` is a command, its payload carries the aggregate counters and the
+cache server rows as siblings, and `show bgp rpki | summary` answers the same
+record `show bgp rpki summary` answers. AC-12 and AC-13 are met.
+
+| What | Where |
+|------|-------|
+| The bare command an operator types | `internal/component/bgp/plugins/rpki/rpki.go` `overviewCommand`, declared in the Stage 1 `Commands` list and reached from `handleCommand` |
+| The aggregate half, written once and read by both answers | `internal/component/bgp/plugins/rpki/rpki.go` `appendSummaryFields` |
+| The rows, written once and read by the bare command and by `show bgp rpki status` | `internal/component/bgp/plugins/rpki/rpki.go` `appendCacheServers` |
+| The one authored list of aggregate field names | `internal/component/bgp/plugins/rpki/rpki.go` `summaryFieldNames` |
+| The expansion, built from that list rather than repeating it | `internal/component/bgp/plugins/rpki/rpki.go` `summaryAliasExpansion`, declared in the Stage 1 `Pipes` list |
+| The payload obligation, held by a test | `internal/component/bgp/plugins/rpki/rpki_overview_test.go` `TestOverviewAggregatesMatchSummaryCommand` |
+| The expansion and the payload held together | `internal/component/bgp/plugins/rpki/rpki_overview_test.go` `TestSummaryAliasExpansionNamesEverySummaryField`, `TestSummaryFieldNamesMatchTheWrittenPayload` |
+| The operator's three answers | `test/plugin/rpki-pipe-summary.ci` |
+
+### What phase 5 measured that the plan did not say
+
+| Finding | Consequence |
+|---------|-------------|
+| Behavior to change names `cache` as a second alias over the bare command. It cannot be one. `cacheCommand` reports `preference`, `session-id`, `serial`, `refresh-interval`, `retry-interval` and `expire-interval`, and a bare payload carrying those six turns the at-a-glance command into the detail command. A `cache` alias over the shorter row would answer a DIFFERENT record from the `cache` subcommand, under one word | only `summary` is declared. `show bgp rpki cache` stays the one answer to that word, and `show bgp rpki cache \| summary` is refused by the derived barrier |
+| The expansion is a second copy of the field list, and nothing holds the two together. A counter added to `summaryCommand` and not to the expansion is dropped by `\| summary` in silence, because `display` names keys and reports no miss | `summaryAliasExpansion` is built from `summaryFieldNames`, and two tests hold the authored list against the bytes the writer produces. This is the payload obligation's other half: R-5 covers a payload that cannot answer the alias, and this covers a payload that grows past it |
+| The dispatcher needed no change. `longerCommandPath` (`internal/component/plugin/server/command.go`) refuses the `show bgp` builtin match once `show bgp rpki` is a registered plugin path, and `matchPluginCommand` takes the longest plugin key, so `show bgp rpki status` keeps reaching its own handler | the four-branch guard `test/plugin/show-bgp-child-not-swallowed.ci` covers was written for exactly this, and the new command is the first one to sit ON a branch root rather than below it |
+| The three answers do not render in the same ORDER. `registerColumns(cmdBgpChildren)` puts an empty column order on `show bgp rpki`, and a plugin cannot declare one, so `\| table` sorts the keys alphabetically for the bare command and for the subcommand. `\| summary` renders in the expansion's order, because `display` puts the named keys first in the order named | the pipe form is the most readable of the three, and the JSON records are identical. The column-order channel is already a Known Limitation of this spec |
+| `validation-enabled` and `running` are literals in a payload whose subject is conditional. `startSessions` clears `active` when no cache server is configured, and the `OnAllPluginsReady` handler then skips the validation gate, while both fields keep reporting true | recorded in `plan/journal/constant-reported-as-measured-state.md`. NOT fixed here: reading them from `active` changes what `show bgp rpki summary` answers, which AC-13 holds unchanged |
+| `docs/guide/command-reference.md` used `show bgp rpki` as its example of a branch root that declares nothing, and stated that no command under `show bgp` offers `\| summary` | corrected in this phase rather than left for phase 6, because this phase is what makes the sentence false. The rest of the documentation checklist stays with phase 6 |
+
+### What phase 5 deliberately does not do
+
+| Left | Consequence today | Owner |
+|------|-------------------|-------|
+| Retiring `show bgp rpki summary` | Two commands answer the same record, and a third spelling, `show bgp rpki \| summary`, answers it too | `plan/audit-command-pipe-vs-subcommand.md`, which owns the consumer list. Behavior to preserve holds the subcommand working |
+| A column order for `show bgp rpki` | The bare command and the subcommand render alphabetically | The column-order declaration channel, a separate spec |
+| The documentation checklist | The channel and the new command are described in the spec and in one corrected sentence of the command reference | Phase 6 |

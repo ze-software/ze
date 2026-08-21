@@ -331,6 +331,7 @@ func TestHandleCommandDispatch(t *testing.T) {
 		args []string
 		ok   bool
 	}{
+		{"show bgp rpki", nil, true},
 		{"show bgp rpki status", nil, true},
 		{"show bgp rpki cache", nil, true},
 		{"show bgp rpki roa", nil, true},
