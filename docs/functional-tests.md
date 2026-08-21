@@ -1847,6 +1847,44 @@ reads today's single line, which is what every other `.ci` does.
 <!-- source: test/scripts/ze_api.py -- capability_done, dispatch_wire_lines -->
 <!-- source: pkg/plugin/rpc/types.go -- ProtocolRecordAnswers -->
 
+#### Writing a record answer: the Go SDK test plugin
+
+`ze-test record-plugin` is a Go SDK plugin whose command handlers answer with a
+walk. A `.ci` spawns it the way it spawns the engine-step executor:
+
+```
+plugin {
+	external record-plugin {
+		run "ze-test record-plugin"
+		encoder json
+	}
+}
+```
+
+It registers three commands, and each one is one property of the record path.
+
+| Command | What it produces |
+|---------|------------------|
+| `show test records walk` | 300 rows of 60000 bytes, so the walk streams AND the collection is wider than one 16 MB wire message |
+| `show test records fault` | 12 rows, one of them wider than any line can carry, so the answer reports 11 applied and 1 rejected |
+| `show test engine answer` | what the plugin read from the engine's own streamed answer to `system command list` |
+<!-- source: internal/test/cli/cmd_record_plugin.go -- cmdRecordPlugin, recordRows, engineAnswerReader -->
+
+Three `.ci` files drive it from the operator's seat over `ze cli`.
+
+| Test | Proves |
+|------|--------|
+| `test/plugin/plugin-owned-command-streams.ci` | every row of a plugin-owned command's walk reaches the operator, one line each |
+| `test/plugin/plugin-reads-engine-answer.ci` | a plugin reads a streamed engine answer through `Plugin.DispatchCommandAnswer` and acts on it |
+| `test/plugin/plugin-command-partial-fault.ci` | applied rows and rejected rows reach the operator together |
+
+The row sizes are load-bearing, and each test states its own preconditions. The
+two readings of a walk are the same document by design, so a fixture of ordinary
+rows would pass with the record path removed. A collection wider than one wire
+message, and a row wider than one line, are the two payloads whose readings
+differ.
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, boundedRecord -->
+
 ### Tmpfs (Virtual File System)
 
 Tmpfs allows embedding config files directly in `.ci` files:

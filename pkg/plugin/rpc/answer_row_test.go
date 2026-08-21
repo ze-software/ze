@@ -1,4 +1,4 @@
-package plugin
+package rpc
 
 import (
 	"encoding/json"
@@ -77,8 +77,8 @@ func TestJSONArrayLengthCountsTopLevelElements(t *testing.T) {
 		t.Run("refuses "+array, func(t *testing.T) {
 			t.Parallel()
 
-			if _, err := jsonArrayLength([]byte(array)); !errors.Is(err, errRowNotPositional) {
-				t.Errorf("jsonArrayLength(%s) returned %v, want %v", array, err, errRowNotPositional)
+			if _, err := jsonArrayLength([]byte(array)); !errors.Is(err, ErrRowNotPositional) {
+				t.Errorf("jsonArrayLength(%s) returned %v, want %v", array, err, ErrRowNotPositional)
 			}
 		})
 	}
@@ -113,8 +113,8 @@ func TestZipRowKeepsTheColumnOrder(t *testing.T) {
 		t.Errorf("zipRow rendered %s, want %s", object, want)
 	}
 
-	if _, err = zipRow(names, row[:2]); !errors.Is(err, errRowArity) {
-		t.Errorf("zipRow of a short row returned %v, want %v", err, errRowArity)
+	if _, err = zipRow(names, row[:2]); !errors.Is(err, ErrRowArity) {
+		t.Errorf("zipRow of a short row returned %v, want %v", err, ErrRowArity)
 	}
 }
 

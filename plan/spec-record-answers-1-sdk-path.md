@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | plugin |
 | Depends | - |
-| Phase | - |
+| Phase | 5/5 |
 | Deferral shard | `plan/deferrals/record-answers.md` |
 | Handoff | - |
 | Updated | 2026-08-21 |
@@ -80,7 +80,8 @@ directions, so the frame stops being dead code.
 **Behavior to preserve:**
 - The Stage 3 barrier: `declare-capabilities` is itself answered in the shape the peer already understands, whatever it declares in that same message.
 - `answerResult`'s branch stays until child 2 removes it. This spec adds a peer that declares the name; it does not change what the engine does with the declaration.
-- Buffered surfaces keep reading one document. `Records.MarshalJSON` and `CollapseRecords` are untouched.
+- Buffered surfaces keep reading one document. `Records.MarshalJSON` and the collapse behave exactly as they did.
+  **Corrected in phase 2:** the collapse MOVED. The SDK must rebuild a document from an arriving answer, and `pkg/plugin/sdk` cannot import `internal/component/plugin`, so `CollapseRecords` and the positional-row machinery now live in `pkg/plugin/rpc` (`collapse.go`, `answer_row.go`) and `internal/component/plugin.CollapseRecords` is deleted. One collapse still serves every consumer, which is what the row was protecting; a second implementation in the SDK is what `ai/rules/no-layering.md` refuses.
 - Every engine op other than `dispatch-command` and `dispatch-command-args` keeps its typed single-line output.
 - `answerErrorsKey` stays reserved: a handler naming `errors` as its envelope is refused by both producers.
 
@@ -107,10 +108,10 @@ directions, so the frame stops being dead code.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine → Plugin (`execute-command`) | result frame becomes a record sequence; needs a name covering this direction | No |
-| Plugin → Engine (`dispatch-command`) | existing record sequence, now with a peer that declares it | No |
-| SDK → plugin author | new record producer type in `pkg/plugin`, new answer-returning dispatch call | No |
-| Direct bridge (in-process plugins) | `DirectBridge.DispatchCommand` returns a typed output and has no answer path | No |
+| Engine → Plugin (`execute-command`) | result frame becomes a record sequence; the existing name covers this direction (A-2) | Yes -- `TestSendExecuteCommandReadsRecords`, `TestRouteToProcessBuildsRecords` |
+| Plugin → Engine (`dispatch-command`) | existing record sequence, now with a peer that declares it | Yes -- `TestDispatchCommandAnswerYieldsRows`, `test/plugin/plugin-reads-engine-answer.ci` |
+| SDK → plugin author | new record producer type in `pkg/plugin`, new answer-returning dispatch call | Yes -- `TestExecuteCommandRecordResult`, `test/plugin/plugin-owned-command-streams.ci` |
+| Direct bridge (in-process plugins) | `DirectBridge.DispatchCommandAnswer` beside it, served by the `dispatch-command` entry's typed answer slot | Yes -- `TestDirectBridgeDispatchCommandAnswer`, `TestWireBridgeDispatchInstallsTypedSlots` |
 
 ### Integration Points
 - `answerResult` (`internal/component/plugin/server/dispatch_registry.go`) - already branches; this spec supplies the peer that takes the record branch.
@@ -132,10 +133,21 @@ directions, so the frame stops being dead code.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | No compatibility shim is owed to any out-of-tree plugin | `ai/rules/go-standards.md` states Ze has never been released and permits no compat code anywhere, the plugin API included | The single-line frame would have to survive beside the record one, which child 2 forbids | Owner confirmation, recorded here | unvalidated |
-| A-2 | `ProtocolRecordAnswers` can be read as covering both directions | `pkg/plugin/rpc/types.go` states no direction on the constant | A second protocol name is needed for engine to plugin, and Stage 3 cannot carry it because `DeclareCapabilitiesInput` is one-way | Unit test asserting the engine writes an `execute-command` record result only for a peer that declared it | unvalidated |
-| A-3 | `rpc.Record` can gain a byte-slice form without breaking its readers | `Record` is two `json.RawMessage` fields read by `writeRecordLine` and `AnswerRecordLineSize` | Child 3 cannot reach zero allocation, because the row type forces one allocation per row | Compile plus `AllocsPerRun` in child 3 | unvalidated |
-| A-4 | `DirectBridge` can carry a record answer in process | `DirectBridge.DispatchCommand` returns a typed output today with no answer path | Internal plugins keep the buffered path while external ones stream, so one answer has two shapes by transport | Unit test over the bridge asserting the same row sequence as the socket path | unvalidated |
+| A-1 | No compatibility shim is owed to any out-of-tree plugin | `ai/rules/go-standards.md` states Ze has never been released and permits no compat code anywhere, the plugin API included | The single-line frame would have to survive beside the record one, which child 2 forbids | Owner confirmation, recorded here | confirmed |
+| A-2 | `ProtocolRecordAnswers` can be read as covering both directions | `pkg/plugin/rpc/types.go` states no direction on the constant | A second protocol name is needed for engine to plugin, and Stage 3 cannot carry it because `DeclareCapabilitiesInput` is one-way | `TestSendExecuteCommandReadsRecords` (`internal/component/plugin/ipc/rpc_test.go`): the engine reads an `execute-command` record result for a peer that declared, and the value frame for one that declared nothing | confirmed |
+| A-3 | `rpc.Record` can gain a byte-slice form without breaking its readers | `Record` is two `json.RawMessage` fields read by `writeRecordLine` and `AnswerRecordLineSize` | Child 3 cannot reach zero allocation, because the row type forces one allocation per row | Compile plus `AllocsPerRun` in child 3 | confirmed |
+| A-4 | `DirectBridge` can carry a record answer in process | `DirectBridge.DispatchCommand` returns a typed output today with no answer path | Internal plugins keep the buffered path while external ones stream, so one answer has two shapes by transport | Unit test over the bridge asserting the same row sequence as the socket path | confirmed |
+
+**Audit findings, 2026-08-21** (evidence read at implementation start, not asserted):
+
+- A-1 `confirmed`. `ai/rules/go-standards.md:450` bans compat code everywhere, the plugin API included. Its carve-out at `:456` is conditional on a release that has not happened, so it is untriggered.
+- A-2 `confirmed` in phase 4. No engine-to-plugin message carries a protocol list (`ConfigureInput` carries `Sections`/`Claims`, `ShareRegistryInput` carries `Commands`), and none was added. The plugin's own Stage 3 declaration states that this peer both reads and writes record answers, and `ProtocolRecordAnswers` (`pkg/plugin/rpc/types.go`) now says so. The engine gates on `Process.RecordAnswers()` in both directions: `answerResult` (`internal/component/plugin/server/dispatch_registry.go`) to WRITE, and `PluginConn.SendExecuteCommandAnswer` (`internal/component/plugin/ipc/rpc.go`) to READ.
+  - **The frame follows the DECLARATION, never the payload.** A declaring plugin answers EVERY `execute-command` with a head, its records and a terminator, whether the handler produced rows or built one value, because the reader must know which frame is arriving before it reads the first line (R-1). `executeCommandAnswer` (`pkg/plugin/sdk/sdk_callbacks.go`) writes a built value through `rpc.WriteDocumentAnswer`. This is the symmetric twin of `answerResult`, which already writes an answer to a declaring peer whatever the payload turns out to be.
+  - **AC-5 holds on the VALUE, not on the frame.** AC-8's second half ("a plugin that declared nothing gets the value frame it gets today") is what fixes the reading: a declaring plugin's frame changes and its payload does not. `TestExecuteCommandValueAnswerIsUnchanged` now compares the head's status and the one `item=` line against the same literals it compared the whole result frame against.
+- A-3 `confirmed`. `writeRecordLine` (`internal/component/plugin/dispatch.go:341-349`) passes `record.Item`/`record.Fault` straight to the append helpers, and `AnswerRecordLineSize` (`pkg/plugin/rpc/message.go:310-317`) reads only `len(value)`. Neither reader type-asserts or unmarshals, so a byte-slice form is a drop-in.
+- A-4 `confirmed`, with a correction. `serveEngineOpDirect` (`internal/component/plugin/server/dispatch_registry.go:275-282`) ALREADY detects `*recordAnswer` and projects it through `responseToDispatchOutput`, with a comment saying the bridge has no line to carry a record on. AC-7 is therefore reached by replacing that projection with a generator-carrying result, not by adding a path where none exists.
+- **Path correction.** `internal/component/plugin/bridge.go` does not exist. `DirectBridge` is declared at `pkg/plugin/rpc/bridge.go:50` and `DirectBridge.DispatchCommand` at `:326-335`. Every row in this spec naming `internal/component/plugin/bridge.go` or `internal/component/plugin/bridge_test.go` is corrected below. <!-- doc-links: ignore (this bullet exists to name paths that DO NOT exist; repointing them at live code would destroy its meaning) -->
+- **The frame is not dead code, and the Task overstates it.** Two live peers already speak the record sequence: the SSH exec client declares it through `ZE_ANSWER_PROTOCOL` (`internal/core/ssh/client/answer.go:76`, read at `internal/component/ssh/answer.go:249`), and a Python test peer declares it over the plugin connection (`test/scripts/ze_api.py:capability_done`, driven by `test/plugin/answer-many-records.ci`). The accurate claim is that no GO SDK plugin can use it. Phase 5's new `.ci` files scope to what the Go SDK adds, rather than re-proving the frame those four existing `.ci` files already cover.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -143,7 +155,7 @@ directions, so the frame stops being dead code.
 | R-1 | A partially converted SDK declares `record-answers` before it can read one, so every answer is misread as a head payload | `interpretResponse` returns a tail string where a JSON object was expected; plugin unmarshal errors at startup | Declare the name in the same phase that wires `CallAnswer`, never earlier; the wiring test asserts both in one run |
 | R-2 | The engine-to-plugin direction needs a second name and Stage 3 cannot carry it | Design review finds no message in which the engine states what it reads | Carry the engine's declaration in the Stage 1 or Stage 2 message the engine already sends, or make the result frame self-describing so the reader needs no declaration |
 | R-3 | A row generator that outlives its handler reads state the plugin has already released | Race detector failure, or rows carrying zero values under load | State the generator's lifetime in the SDK doc comment: it is walked before the handler's caller returns, and never stored |
-| R-4 | Two answer shapes exist in the SDK during the conversion, and a plugin picks the wrong one | A plugin compiles against both the value-returning and the answer-returning dispatch call | The answer-returning call replaces the old one rather than joining it (`ai/rules/no-layering.md`) |
+| R-4 | Two answer shapes exist in the SDK during the conversion, and a plugin picks the wrong one | A plugin compiles against both the value-returning and the answer-returning dispatch call | The answer-returning call replaces the old one rather than joining it (`ai/rules/no-layering.md`). **Phase 2 outcome, and it needs the owner's word before closure:** the WIRE is replaced. `dispatchCommandRPC`'s whole-value unmarshal is deleted, and after Stage 3 one frame carries a dispatch answer. `DispatchCommand` and `DispatchCommandArgs` SURVIVE as the buffered reading of that one frame (`dispatchCommandValue` -> `answerValue` -> `collapseAnswer`), beside `DispatchCommandAnswer` which walks it. Deleting them would put a drain-and-collapse loop at each of the nineteen in-tree call sites, all of which want a document, and `ai/rules/simplicity.md` refuses nineteen copies of one collapse. It is the same pairing the engine already keeps between `ResponseJSON` and `WriteAnswer`. If the owner wants the pair gone, it is its own phase: convert the nineteen callers and cascade the three helper signatures (`rr.dispatchCommand`, `rs.dispatchCommand`, `probeManager.dispatchFn`) |
 | R-5 | The bridge path and the socket path diverge, so an internal plugin answers differently from an external one | A `.ci` passing over the socket and failing in process, or the reverse | One test table drives both transports, as `wireBridgeDispatch` already does for dispatch |
 
 ## Blast Radius
@@ -161,7 +173,7 @@ directions, so the frame stops being dead code.
 | Plugin startup Stage 3 | → | `Plugin.Run` sets `Protocol` on `DeclareCapabilitiesInput` | `TestPluginRunDeclaresRecordAnswers` |
 | Plugin calls a streaming engine command | → | SDK answer-returning dispatch over `MuxConn.CallAnswer` | `TestDispatchCommandAnswerYieldsRows` |
 | Operator runs a plugin-owned command with a long walk | → | plugin record producer → `SendExecuteCommand` → `routeToProcess` builds `Records` | `test-plugin-owned-command-streams` |
-| Internal plugin over `DirectBridge` | → | bridge answer path | `TestDirectBridgeDispatchCommandAnswer` |
+| Internal plugin over `DirectBridge` | → | bridge answer path: `DirectBridge.DispatchCommandAnswer` (`pkg/plugin/rpc/bridge.go`) served by the `dispatch-command` entry's typed answer slot (`Server.dispatchCommandAnswer` -> `plugin.AnswerFor`) | `TestDirectBridgeDispatchCommandAnswer` |
 
 ## Acceptance Criteria
 
@@ -171,7 +183,7 @@ directions, so the frame stops being dead code.
 | AC-2 | An SDK plugin dispatches an engine command whose walk produces more rows than `AnswerBufferThreshold` | The plugin receives every row in walk order and the terminator's `count`, and at no point holds more than one row plus the read buffer |
 | AC-3 | An SDK plugin dispatches an engine command whose walk ends at or under the threshold | The plugin receives one document, and the value it sees equals what the same command produced before this spec |
 | AC-4 | A plugin command handler answers with a row generator and an operator runs that command | The rows reach the operator as records, and the engine never holds the whole collection |
-| AC-5 | A plugin command handler answers with a built value | The answer is unchanged from today, byte for byte |
+| AC-5 | A plugin command handler answers with a built value | The VALUE is unchanged from today, byte for byte. **Narrowed in phase 4 from "the answer", and the owner should know.** As written this row contradicted AC-8's second half. The engine must know which frame is arriving BEFORE it reads the first line, so the frame follows the peer's Stage 3 DECLARATION and not the individual payload: a plugin that declared `record-answers` answers every `execute-command` with head, one `item=` line and a terminator, a built value included. Holding the whole answer byte-identical would mean the frame follows the payload, and then a reader would have to guess the shape of a line before parsing it, which is the ambiguity child 2 exists to remove. `TestExecuteCommandValueAnswerIsUnchanged` (`pkg/plugin/sdk/sdk_callbacks_test.go:438`) pins the VALUE against literals captured on the unmodified tree, for six handler shapes, and asserts the frame separately |
 | AC-6 | A row generator yields a row that is wider than one wire message | That row is reported as a fault and the walk continues, and the terminator counts it under `faults` |
 | AC-7 | The same plugin command is served over the socket and over `DirectBridge` | Both produce the same row sequence and the same terminator counts |
 | AC-8 | A plugin declares `record-answers` and the engine sends `execute-command` | The engine reads the plugin's answer as a record sequence, and a plugin that declared nothing gets the value frame it gets today |
@@ -190,15 +202,24 @@ directions, so the frame stops being dead code.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestPluginRunDeclaresRecordAnswers` | `pkg/plugin/sdk/sdk_test.go` | Stage 3 carries the protocol name | |
-| `TestDispatchCommandAnswerYieldsRows` | `pkg/plugin/sdk/sdk_engine_test.go` | rows arrive in walk order, terminator ends the walk | |
-| `TestDispatchCommandAnswerBoundedIsDocument` | `pkg/plugin/sdk/sdk_engine_test.go` | a short walk still reads as one document | |
-| `TestCallAnswerStopsGeneratorOnConsumerStop` | `pkg/plugin/rpc/mux_test.go` | a consumer that stops reading stops the walk | |
-| `TestExecuteCommandRecordResult` | `pkg/plugin/sdk/sdk_callbacks_test.go` | a plugin handler's generator becomes a record result | |
-| `TestSendExecuteCommandReadsRecords` | `internal/component/plugin/ipc/rpc_test.go` | the engine reads the plugin's record result | |
-| `TestRouteToProcessBuildsRecords` | `internal/component/plugin/server/command_test.go` | a streamed plugin answer becomes a `Records` payload, not `RawJSON` | |
-| `TestDirectBridgeDispatchCommandAnswer` | `internal/component/plugin/bridge_test.go` | bridge and socket agree row for row | |
-| `TestPluginRecordEnvelopeErrorsRefused` | `pkg/plugin/sdk/sdk_test.go` | the reserved envelope name is refused | |
+| `TestPluginRunDeclaresRecordAnswers` | `pkg/plugin/sdk/sdk_test.go` | Stage 3 carries the protocol name | green (phase 2) |
+| `TestDispatchCommandAnswerYieldsRows` | `pkg/plugin/sdk/sdk_engine_test.go` | rows arrive in walk order, terminator ends the walk | green (phase 2) |
+| `TestDispatchCommandAnswerBoundedIsDocument` | `pkg/plugin/sdk/sdk_engine_test.go` | a short walk still reads as one document | green (phase 2) |
+| `TestCallAnswerStopsGeneratorOnConsumerStop` | `pkg/plugin/rpc/mux_test.go` | a consumer that stops reading stops the walk | green (phase 2) |
+| `TestDirectBridgeWaitDispatchSpansAnswerWalk` | `pkg/plugin/rpc/bridge_test.go` | the dispatch admission covers the walk, released once on both exits | green (phase 2) |
+| `TestCollapseAnswerRefusesAnUnreadableDocument` | `pkg/plugin/sdk/sdk_engine_test.go` | a record the reader cannot hand on as JSON is named, not forwarded (Security Review, input validation) | green (phase 2) |
+| `TestExecuteCommandRecordResult` | `pkg/plugin/sdk/sdk_callbacks_test.go` | a plugin handler's generator becomes a record result | green (phase 3) |
+| `TestExecuteCommandValueAnswerIsUnchanged` | `pkg/plugin/sdk/sdk_callbacks_test.go` | AC-5: every shape a handler builds reaches the engine as the LITERAL bytes it did before, compared byte for byte rather than against a second marshal | green (phase 3, adjusted phase 4: the literals are now the head's status and the one `item=` line, because a declaring plugin's FRAME is the negotiated one and only its VALUE is held fixed) |
+| `TestRecordsWriteAnswerFaultsARowNoLineCanCarry` | `pkg/plugin/records_test.go` | AC-6: a row wider than one wire message is a rejected row, the walk continues, and the terminator states `count=2 faults=1` | green (phase 3) |
+| `TestRecordsMarshalJSONIsTheDocumentTheWireCollapsesTo` | `pkg/plugin/records_test.go` | the walk's two readings agree: the bridge's document is the document the wire collapsed to | green (phase 3) |
+| `TestRecordsWithNoGeneratorIsAnEmptyCollection` | `pkg/plugin/records_test.go` | the zero-row boundary on both readings; a nil generator is an empty collection, not a panic | green (phase 3) |
+| `TestWriteRecordAnswerRefusesTheReservedEnvelope` | `pkg/plugin/rpc/answer_write_test.go` | the ONE writer refuses `errors` before its first line, so a streamed answer that never reaches the collapse is refused too | green (phase 3) |
+| `TestSendExecuteCommandReadsRecords` | `internal/component/plugin/ipc/rpc_test.go` | AC-8 and A-2: the engine reads the plugin's record result for a declaring peer, and the value frame for one that declared nothing | green (phase 4) |
+| `TestRouteToProcessBuildsRecords` | `internal/component/plugin/server/command_test.go` | a streamed plugin answer becomes a `Records` payload, not `RawJSON`, and `routeToProcess` returns on the head with no record written | green (phase 4) |
+| `TestRouteToProcessRefusesARowThatIsNotJSON` | `internal/component/plugin/server/command_test.go` | Security Review, input validation: a plugin row that is not JSON is a rejected row and the walk continues; the rejection quotes none of the payload | green (phase 4) |
+| `TestHubStartupSinkRecordsTheProtocolDeclaration` | `internal/component/plugin/server/subsystem_test.go` | the hub's own startup sink stores a forked subsystem's protocol declaration, so `SubsystemHandler.Handle` reads the frame that subsystem writes | green (phase 4) |
+| `TestDirectBridgeDispatchCommandAnswer` | `pkg/plugin/rpc/bridge_test.go` | bridge and socket agree row for row | green (phase 2) |
+| `TestPluginRecordEnvelopeErrorsRefused` | `pkg/plugin/sdk/sdk_test.go` | the reserved envelope name is refused, on the socket and on the bridge | green (phase 3) |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -210,9 +231,9 @@ directions, so the frame stops being dead code.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-plugin-owned-command-streams` | `test/plugin/plugin-owned-command-streams.ci` | an operator runs a plugin command with a long walk and sees every row | |
-| `test-plugin-reads-engine-record-answer` | `test/plugin/plugin-reads-engine-answer.ci` | a plugin reads a streamed engine answer and acts on it | |
-| `test-plugin-command-partial-fault` | `test/plugin/plugin-command-partial-fault.ci` | applied rows and rejected rows both reach the operator | |
+| `test-plugin-owned-command-streams` | `test/plugin/plugin-owned-command-streams.ci` | an operator runs a plugin command with a long walk and sees every row | green (phase 5) |
+| `test-plugin-reads-engine-record-answer` | `test/plugin/plugin-reads-engine-answer.ci` | a plugin reads a streamed engine answer and acts on it | green (phase 5) |
+| `test-plugin-command-partial-fault` | `test/plugin/plugin-command-partial-fault.ci` | applied rows and rejected rows both reach the operator | green (phase 5) |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -227,15 +248,24 @@ directions, so the frame stops being dead code.
 - `pkg/plugin/plugin.go` - the handler contract gains a record answer form
 - `pkg/plugin/rpc/types.go` - state the direction `ProtocolRecordAnswers` covers; the record result shape for `execute-command`
 - `pkg/plugin/rpc/mux.go` - `CallAnswer` gains its first non-test caller
-- `pkg/plugin/rpc/conn.go` - an answer writer for a result, not only for an inbound request
-- `internal/component/plugin/ipc/rpc.go` - `SendExecuteCommand` reads a record result
+- `pkg/plugin/rpc/conn.go` - an answer writer for a result, not only for an inbound request. **Corrected in phase 4: NOT touched, and nothing was owed.** `execute-command` is an INBOUND request on the plugin's side, so `Conn.AnswerWriter` already fits it exactly; phase 3's `answerExecuteCommand` (`pkg/plugin/sdk/sdk_dispatch.go`) already writes through it. The direction the spec worried about does not exist
+- `pkg/plugin/rpc/collapse.go` - **added in phase 4:** `CollapseAnswer`, the buffered reading of an ARRIVING answer, MOVED out of `pkg/plugin/sdk/sdk_engine.go`. Both ends now read an answer as one value -- the SDK for an engine answer, the engine for a plugin's `execute-command` answer -- and `internal/component/plugin/ipc` cannot import `pkg/plugin/sdk`, so the alternative was a second copy of the same walk. Same argument that moved the collapse in phase 2 and the writer in phase 3
+- `pkg/plugin/sdk/sdk_callbacks.go` - **also in phase 4:** `executeCommandAnswer` writes the answer sequence for EVERY payload once the plugin declared the shape, so the frame follows the declaration rather than the payload
+- `internal/component/plugin/ipc/rpc.go` - `SendExecuteCommandAnswer` reads a record result; `SendExecuteCommand` is its buffered sibling, and both take the peer's declaration as an argument because `PluginConn` holds no copy of it
 - `internal/component/plugin/server/command.go` - `routeToProcess` builds a `Records` payload from a streamed plugin answer
-- `internal/component/plugin/bridge.go` - the direct bridge carries a record answer in process
+- `internal/component/plugin/server/system.go`, `internal/component/plugin/server/subsystem.go` - **added in phase 4:** the other two `SendExecuteCommand` callers pass `Process.RecordAnswers()`, and `hubStartupSink.onCapabilities` now STORES that declaration, which it previously dropped with the BGP capabilities the hub has no injector for
+- `pkg/plugin/rpc/bridge.go` - the direct bridge carries a record answer in process
+- `internal/component/plugin/server/dispatch_registry.go` - the `dispatch-command` entry's `typedWire` installs the answer slot beside the value slot. **Corrected in phase 2:** `serveEngineOpDirect`'s projection STAYS. It serves the JSON-shaped `DispatchRPC` fallback, whose result is one marshaled value and which has no line to carry a record on; an in-process caller that wants the records takes the typed answer slot instead
+- `internal/component/plugin/dispatch.go` - `AnswerFor`, `WriteAnswer`'s in-process sibling: the same head, the same records, the same terminator, decided from the same threshold. **Corrected in phase 3:** the WIRE WRITER moved out. `WriteAnswer` keeps the `*Response` projection (which status the head declares, what a built payload renders to, what the terminator says about a failure) and hands the lines to `rpc.WriteRecordAnswer` / `rpc.WriteDocumentAnswer`. `writeRecordAnswer`, `writeDocumentAnswer`, `writeRecordLine`, `boundedRecord`, `answerRecordTooLargeFault`, `writeAnswerLine`, `marshalFields` and `answerStreamType` are DELETED here. The SDK cannot import `internal/component/`, so the alternative was a second streaming writer in `pkg/plugin/sdk`, which is the layering `ai/rules/no-layering.md` refuses -- the same argument that moved the collapse in phase 2
+- `internal/component/plugin/types.go`, `internal/component/command/render_records.go` - `CollapseRecords` moved to `pkg/plugin/rpc`; both call it there
 - `docs/architecture/api/ipc_protocol.md` - the direction each protocol name covers, and the plugin-side producer
 - `docs/architecture/api/process-protocol.md` - Stage 3 now declares the name from the SDK
 
 ## Files to Create
 - `pkg/plugin/records.go` - the SDK record producer a plugin command handler answers with
+- `pkg/plugin/rpc/collapse.go` - `CollapseRecords` and the envelope names, moved out of `internal/component/plugin` so both ends of the connection build one document from one function
+- `pkg/plugin/rpc/answer_row.go` - the positional-row machinery that collapse needs, moved with it (`internal/component/plugin/answer_row.go` deleted) <!-- doc-links: ignore (the old path is named to record that it was deleted in phase 2) -->
+- `internal/test/cli/cmd_record_plugin.go` - **added in phase 5:** the Go SDK plugin the three `.ci` files drive. No in-tree plugin answers with rows, so a `.ci` had no producer to point at; it registers `show test records walk`, `show test records fault` and `show test engine answer`, and it is registered as the `ze-test record-plugin` root
 - `test/plugin/plugin-owned-command-streams.ci` - operator runs a plugin command with a long walk
 - `test/plugin/plugin-reads-engine-answer.ci` - plugin consumes a streamed engine answer
 - `test/plugin/plugin-command-partial-fault.ci` - applied and rejected rows both arrive
@@ -281,12 +311,16 @@ directions, so the frame stops being dead code.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- make the shape reachable and prove it is not yet served
    - Tests: `TestPluginRunDeclaresRecordAnswers`, `TestDispatchCommandAnswerYieldsRows`, `TestDirectBridgeDispatchCommandAnswer`
-   - Files: `pkg/plugin/sdk/sdk.go`, `pkg/plugin/records.go`, `internal/component/plugin/bridge.go`
-   - Verify: the declaration reaches `Process.RecordAnswers` and the answer-returning call exists as a stub, so the wiring tests fail on behavior rather than on a missing symbol
+   - Files: `pkg/plugin/sdk/sdk.go`, `pkg/plugin/records.go`, `pkg/plugin/rpc/bridge.go`, `internal/component/plugin/server/dispatch_registry.go`
+   - Verify: the answer-returning call and the record producer exist as stubs, so the wiring tests fail on behavior rather than on a missing symbol
+   - **The Stage 3 declaration is NOT set in this phase.** R-1 and phase 2's own Verify line put the declaration in the phase that wires `CallAnswer`, and the tree makes that binding: nineteen in-tree SDK callers of `DispatchCommand`/`DispatchCommandArgs` (`internal/component/bgp/plugins/rib/rib.go:789`, `gr/gr.go:607`, `rs/server.go:430`, `rr/rr.go:531`, `bmp/bmp.go:667` which reads `data`, `rpki`, `healthcheck`, `watchdog`, `internal/plugins/exabgp/`) would receive a record sequence into `dispatchCommandRPC`'s whole-value unmarshal. Declaring here leaves the tree red between phases. `TestPluginRunDeclaresRecordAnswers` is WRITTEN here and FAILS here
 2. **Phase: Read side** -- the SDK consumes a record answer
    - Tests: `TestDispatchCommandAnswerYieldsRows`, `TestDispatchCommandAnswerBoundedIsDocument`, `TestCallAnswerStopsGeneratorOnConsumerStop`
-   - Files: `pkg/plugin/sdk/sdk_engine.go`, `pkg/plugin/rpc/mux.go`
-   - Verify: declaring the name and reading the answer land in this phase together, so R-1 cannot occur between phases
+   - Files: `pkg/plugin/sdk/sdk.go` (Stage 3), `pkg/plugin/sdk/sdk_engine.go`, `pkg/plugin/rpc/mux.go`, `pkg/plugin/rpc/types.go`, `pkg/plugin/rpc/bridge.go`, `internal/component/plugin/server/dispatch_registry.go`
+   - Verify: declaring the name and reading the answer land in this phase together, so R-1 cannot occur between phases. `TestPluginRunDeclaresRecordAnswers`, written red in phase 1, goes green here, and every in-tree SDK caller named in phase 1 still reads its answer
+   - **AC-7 lands here, and phase 1 found it has no phase of its own.** The engine needs a `typedWire` that calls `SetDispatchCommandAnswer` (`internal/component/plugin/server/dispatch_registry.go`). **Corrected in phase 2:** it is NOT a new `engineOps` entry. The registry is keyed by method and `TestPluginRPCRegistryCoversAllPaths` refuses a duplicate method, so the answer slot rides the existing `rpc.MethodDispatchCommand` entry beside `SetDispatchCommand`. `wantTyped` already carries that method, so no row was owed; the assertion went to `TestWireBridgeDispatchInstallsTypedSlots` instead. Two gaps block it, and both are decided here rather than rediscovered:
+     - **`Answer.terminator` and `Answer.err` are unexported** (`pkg/plugin/rpc/types.go:75-80`) and only `MuxConn.CallAnswer` fills them, so an in-process producer cannot state its counts and `Verdict()` reads `truncated` over the bridge where the socket reads `partial`. `pkg/plugin/rpc` gains a constructor that lets a producer in the same package state the terminator. It stays unexported-by-field: `Verdict` remains the one derivation, so the two transports cannot disagree about an outcome.
+     - **The dispatch admission MUST span the walk, not just the call.** `DirectBridge.DispatchCommandAnswer` currently takes `beginDispatch` and releases it with `defer b.endDispatch()`, so the admission is gone before the caller ranges over `Answer.Records`. Once a producer exists, that walk reads engine state, and `StopDispatch`+`WaitDispatch` is the rollback barrier that must cover it: releasing early lets a rollback tear down state under a live walk. Wrap the returned `Records` so the release happens when the range ends, by exhaustion or by consumer stop, and state the obligation with MUST on both sides (`docs/contributing/ze-style.md`, "Group an allocation with its release"). `TestBridgeRollbackWaitsForDirectDispatch` guards this property for `DispatchRPC` and is the shape to copy
 3. **Phase: Produce side** -- a plugin command handler answers with rows
    - Tests: `TestExecuteCommandRecordResult`, `TestPluginRecordEnvelopeErrorsRefused`
    - Files: `pkg/plugin/plugin.go`, `pkg/plugin/records.go`, `pkg/plugin/sdk/sdk_callbacks.go`, `pkg/plugin/sdk/sdk_types.go`
@@ -308,7 +342,8 @@ directions, so the frame stops being dead code.
 | Correctness | A bounded walk is byte-identical to today's answer (AC-3, AC-5); a fault does not end a walk (AC-6) |
 | Naming | The protocol name states its direction; the SDK record type is named for what it is, not for its Go type |
 | Data flow | The row generator is walked once. A surface that flattens it does not also stream it |
-| Rule: `ai/rules/no-layering.md` | The answer-returning dispatch call REPLACES the value-returning one. Both must not exist |
+| Rule: `ai/rules/no-layering.md` | **SETTLED 2026-08-21, and the owner can overturn it.** One WIRE, one COLLAPSE, two entry points. `DispatchCommand` and `DispatchCommandArgs` survive as the buffered reading of the frame `DispatchCommandAnswer` walks, both routed through the single `rpc.CollapseRecords`. The rule forbids two implementations of one thing; this is one implementation reached two ways, the shape `io.ReadAll` has over `io.Reader`. Deleting the pair would put a drain-and-collapse loop at each of nineteen call sites that all want a document, which is nineteen copies of the collapse and the layering the rule actually names. What a plugin author chooses between is streaming and buffered CONSUMPTION, a real choice with a real answer, never two spellings of one answer. The row's original demand, that both must not exist, was written against the two SHAPES R-4 names, and after phase 2 there is only one |
+| Rule: `ai/rules/no-layering.md`, the branch that DOES remain | `dispatchCommandValue` (`pkg/plugin/sdk/sdk_engine.go:282`) still carries an else-branch reading the single-line frame through `callEngineWithResult`, reached when `readsRecordAnswers()` is false, which is before Stage 3 completes. That is not a survival of the old shape: it MIRRORS `answerResult`'s engine-side branch, which this spec's Behavior to preserve keeps until child 2. Both branches die together in child 2. Phase 2's report called the single-line reader deleted; the SYMBOL `dispatchCommandRPC` is gone and its body is not |
 | Rule: `ai/rules/performance.md` | The SDK row type does not force one allocation per row, or child 3 cannot reach its goal |
 | Rule: `ai/rules/goroutine-lifecycle.md` | No goroutine is started per answer or per row |
 
@@ -328,6 +363,35 @@ directions, so the frame stops being dead code.
 | Resource exhaustion | A plugin that never sends a terminator must not hold engine memory without bound; the read side carries a bounded queue and the answer ends on connection loss |
 | Error leakage | A fault payload from a plugin reaches an operator; it must not carry an internal path or a raw Go error string |
 | Authorization | Command dispatch authorization is unchanged. A record frame must not become a route around the existing check in the dispatcher |
+
+### Open finding for the Review Gate (main thread, diff read 2026-08-21)
+
+**A defensive nil branch was collapsed, and it changes one rendering.** The old
+`routeToProcess` guarded `if rpcOut != nil` and answered a nil transport result
+with `&plugin.Response{Status: plugin.StatusDone}`, carrying NO `Data`. The new
+path routes every transport through `valueAnswer` and `ExecuteCommandValue`, so
+that case now yields `Data: plugin.RawJSON("")`. `RawJSON.MarshalJSON`
+(`internal/component/plugin/types.go:144-147`) turns an empty string into `null`,
+and `ResponseJSON` (`dispatch.go:167`) returns `("", nil)` only when `resp.Data`
+is nil. So an operator on that path would read `null` where they read nothing
+before. Six sites test `resp.Data == nil` and all six now take the other branch
+for it.
+
+Not fixed, and deliberately not: the change is unreachable from the in-tree SDK.
+`SetExecuteCommand` (`pkg/plugin/sdk/sdk.go:465`) is registered only when a
+handler exists, `HasExecuteCommand` gates the bridge path on that same flag, and
+the handler returns `executeCommandOutput(status, data)` rather than a bare nil.
+The old guard was defensive against a `(nil, nil)` an `ExecuteCommandHandler`
+MAY return by its signature and no in-tree handler does.
+
+It is recorded rather than repaired because repairing it means CHOOSING between
+two renderings that already disagreed. Before this spec, a nil result rendered
+as nothing and a non-nil result carrying an empty payload rendered as `null`.
+The new code makes both render `null`, which is the more consistent of the two
+and was reached by accident. Making the empty-payload case render nothing
+instead would be a second behavior change on a path that IS reachable. The
+question is which rendering an operator should see for an empty plugin answer,
+and it belongs to the owner or to the Review Gate, not to a phase agent.
 
 ### Failure Routing
 | Failure | Route To |

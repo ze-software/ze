@@ -49,13 +49,18 @@ type Record struct {
 //
 // Records yields each record in arrival order and ends at the terminator. A
 // consumer that stops the range stops the walk producing the records, which is
-// what bounds `| first 10` over a table nobody wants whole. The sequence is
-// single-use: it is the arriving answer, not a collection, so a second range
-// over it yields nothing.
+// what bounds `| first 10` over a table nobody wants whole. A consumer MUST
+// range it once: an answer read off the socket is the arriving answer rather
+// than a collection, so a second range over it yields nothing.
 //
-// Verdict and Err state how the answer ended. Both MUST be read after the range
-// over Records has returned, and on the goroutine that ranged: the range is
-// what fills them, so before it ends every answer reads as truncated.
+// Verdict, Err and Message state how the answer ended. All three MUST be read
+// after the range over Records has returned, and on the goroutine that ranged:
+// the range is what fills them, so before it ends every answer reads as
+// truncated.
+//
+// An answer arrives from the socket through MuxConn.CallAnswer and from an
+// in-process producer through NewAnswer. Both fill the same terminator, so a
+// consumer reads one shape whichever transport carried it.
 type Answer struct {
 	// Status is the head's status= value: StatusDone or StatusError.
 	Status string
@@ -91,6 +96,85 @@ func (a *Answer) Verdict() string { return Verdict(a.terminator) }
 // the consumer stopped the range itself, which Verdict still reports as
 // truncated. MUST be read after the range over Records has returned.
 func (a *Answer) Err() error { return a.err }
+
+// Message reports the terminator's message=, the operational text stating why a
+// walk produced fewer records than it set out to, or none at all. It is empty
+// for a walk that ran to its end with nothing to say, and empty when no
+// terminator arrived. MUST be read after the range over Records has returned.
+//
+// It is the text a command's own failure travels in: an engine command that
+// failed before its first row opens the answer with status=error and states the
+// reason here, so a consumer rebuilding the command's outcome reads one string
+// rather than inferring it from a count.
+func (a *Answer) Message() string {
+	if a.terminator == nil {
+		return ""
+	}
+	return a.terminator.Message
+}
+
+// NewAnswer returns the answer an in-process producer hands its consumer, in
+// the shape the same answer has when it arrives over the socket.
+//
+// head is the line a peer would write to OPEN the answer, and only its Status,
+// Type, Key and Fields are read. terminator is the line that would END it, and
+// only its Count, Faults and Message are read: the counts are the WALK's, which
+// the producer knows because it has run the walk, and they are not a count of
+// the records that follow. The two disagree for an answer whose short walk was
+// collapsed into one document, exactly as they disagree on the wire
+// (writeDocumentAnswer, internal/component/plugin/dispatch.go).
+//
+// rows is the walk itself, and it MUST NOT start a goroutine: the consumer's
+// own range pulls each row (ai/rules/goroutine-lifecycle.md).
+//
+// The returned answer attaches that terminator when the consumer's range ends
+// by exhaustion, so Verdict derives from the counts here exactly as it derives
+// from the peer's terminator on the socket. A consumer that stops the range
+// early leaves no terminator, and Verdict then reads truncated, which is what
+// the socket reports for the same stop. Verdict stays the ONE derivation, so
+// the two transports cannot disagree about an outcome.
+//
+// The consumer's obligations are Answer's: it MUST range over Records to the
+// end or stop that range deliberately, and it MUST read Verdict, Err and
+// Message after the range has returned.
+func NewAnswer(head, terminator AnswerTail, rows iter.Seq[Record]) *Answer {
+	answer := &Answer{Status: head.Status, Type: head.Type, Key: head.Key, Fields: head.Fields}
+	answer.Records = terminatedRecords(answer, terminator, rows)
+	return answer
+}
+
+// terminatedRecords yields each row of an in-process walk and attaches the
+// answer's terminator when that walk runs out, which Verdict and Message report
+// once the range has returned.
+//
+// It is bounded by the walk: each pass takes one row or leaves, and it holds
+// one row at a time, so a consumer that stops early costs the rows it kept
+// rather than the rows the walk could have produced.
+//
+// A row carrying neither an item nor a fault ends the answer with
+// ErrEmptyAnswerRecord and no terminator, which is the refusal the wire
+// producer makes for the same row (WriteAnswer,
+// internal/component/plugin/dispatch.go). The consumer reads it as a truncated
+// answer naming its producer, rather than as a row that carries nothing.
+func terminatedRecords(answer *Answer, terminator AnswerTail, rows iter.Seq[Record]) iter.Seq[Record] {
+	return func(yield func(Record) bool) {
+		if rows != nil {
+			for record := range rows {
+				if len(record.Fault) == 0 && len(record.Item) == 0 {
+					answer.err = ErrEmptyAnswerRecord
+					return
+				}
+				if !yield(record) {
+					return
+				}
+			}
+		}
+		// hasCount is what makes the line a terminator, and it is set here
+		// rather than by the producer so no caller can hand back a head.
+		terminator.hasCount = true
+		answer.terminator = &terminator
+	}
+}
 
 // Plugin->engine runtime RPC method strings. Single source of truth: the
 // engine's method registry (internal/component/plugin/server) and the plugin
@@ -312,9 +396,26 @@ type ConfigureInput struct {
 }
 
 // ProtocolRecordAnswers is the wire-shape name a peer declares to say it reads
-// an answer as a head carrying status=, one line for each record, and a
-// terminator carrying count= (AppendAnswerHead and its siblings in message.go).
-// A peer that does not declare it receives `#<id> ok [<json>]`, unchanged.
+// AND writes an answer as a head carrying status=, one line for each record,
+// and a terminator carrying count= (AppendAnswerHead and its siblings in
+// message.go). A peer that does not declare it reads and writes
+// `#<id> ok [<json>]`, unchanged.
+//
+// The name covers BOTH directions, and one declaration is what states them.
+// The engine writes this shape for an answer the peer asked for
+// (answerResult, internal/component/plugin/server/dispatch_registry.go), and it
+// reads this shape for the answer the peer gives to a command the engine asked
+// it to run (PluginConn.SendExecuteCommand,
+// internal/component/plugin/ipc/rpc.go). No message travels engine to plugin
+// carrying a protocol list, and none is needed: the peer's own Stage 3
+// declaration is the whole negotiation, and a peer that names the shape must
+// speak it in the direction it writes as well as the one it reads (A-2 of
+// spec-record-answers-1-sdk-path).
+//
+// The shape is decided by the DECLARATION and never by what a payload turns out
+// to be. A declaring peer's answer is a head, its records and a terminator
+// whether the payload was a walk or one value the handler built, because the
+// reader must know which frame is arriving before it reads its first line.
 //
 // A later shape earns a NEW name here rather than a new key on this one.
 // ParseAnswerTail refuses a key it does not know, so a key added under an

@@ -7,9 +7,11 @@ package ipc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
+	"slices"
 
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -76,7 +78,7 @@ func (pc *PluginConn) HasBridge() bool {
 
 // CallRPC sends an RPC and waits for the response.
 // Routes through: bridge (if set) -> MuxConn (if set) -> direct Conn.
-// Most typed methods call this; SendExecuteCommand has a typed bridge fast path.
+// Most typed methods call this; SendExecuteCommandAnswer has a typed bridge fast path.
 func (pc *PluginConn) CallRPC(ctx context.Context, method string, params any) (json.RawMessage, error) {
 	if pc.bridge != nil {
 		paramsRaw, err := json.Marshal(params)
@@ -283,13 +285,131 @@ func (pc *PluginConn) sendDecodeCapability(ctx context.Context, code uint8, hex 
 	return decoded.JSON, nil
 }
 
-// SendExecuteCommand requests command execution from the plugin.
-func (pc *PluginConn) SendExecuteCommand(ctx context.Context, serial, command string, args []string, peer string) (*rpc.ExecuteCommandOutput, error) {
+// methodExecuteCommand is the engine-to-plugin RPC that runs one command the
+// plugin registered. Spelled once because two readings of its answer send it.
+const methodExecuteCommand = "ze-plugin-callback:execute-command"
+
+// errRecordAnswerNeedsMux refuses a record answer on a connection with no
+// multiplexer. An answer is many lines routed by id, and only MuxConn routes
+// them; a direct Conn reads one frame for one call and would take the head line
+// for the whole result. Production wires every plugin through NewMuxPluginConn
+// (Process.attachConn), so this names a test wiring rather than a peer.
+var errRecordAnswerNeedsMux = errors.New(
+	"execute-command answer: this connection has no multiplexer to route an answer's lines")
+
+// SendExecuteCommandAnswer asks the plugin to run one command and returns its
+// answer: the head that states how each record is read, the records the walk
+// produced, and the terminator carrying the counts.
+//
+// recordAnswers is what this peer declared at Stage 3
+// (Process.RecordAnswers). It, and not the payload, decides which frame the
+// answer arrives in: a declaring peer writes a head, its records and a
+// terminator for EVERY answer, and every other peer writes the single-line
+// result it always wrote (rpc.ProtocolRecordAnswers). A reader that guessed
+// from what arrived would take a head line's tail for its result (R-1 of
+// spec-record-answers-1-sdk-path).
+//
+// A transport whose result is one marshaled value -- the direct bridge, and the
+// socket before a peer declares -- answers the same shape through rpc.NewAnswer,
+// so one caller reads one shape whichever transport carried it.
+//
+// What the engine holds for an answer is bounded by the reader and never by the
+// plugin: MuxConn queues at most answerQueueDepth lines for one answer and ends
+// it with rpc.ErrAnswerQueueFull when a consumer falls that far behind, each
+// line is at most rpc.MaxMessageSize, and the connection ending ends every
+// answer still open (endPendingAnswers, pkg/plugin/rpc/mux.go). A plugin that
+// never writes a terminator therefore costs the queue and the caller's deadline,
+// not the engine's memory.
+//
+// The caller MUST range over Answer.Records to its end, or stop that range
+// deliberately, and MUST read Answer.Verdict, Answer.Err and Answer.Message
+// after the range has returned (rpc.Answer).
+func (pc *PluginConn) SendExecuteCommandAnswer(ctx context.Context, input *rpc.ExecuteCommandInput, recordAnswers bool) (*rpc.Answer, error) {
 	if pc.bridge != nil && pc.bridge.HasExecuteCommand() {
-		return pc.bridge.ExecuteCommand(ctx, serial, command, args, peer)
+		out, err := pc.bridge.ExecuteCommand(ctx, input.Serial, input.Command, input.Args, input.Peer)
+		if err != nil {
+			return nil, err
+		}
+		return valueAnswer(out), nil
 	}
-	input := &rpc.ExecuteCommandInput{Serial: serial, Command: command, Args: args, Peer: peer}
-	result, err := pc.CallRPC(ctx, "ze-plugin-callback:execute-command", input)
+	if pc.readsRecordAnswers(recordAnswers) {
+		if pc.mux == nil {
+			return nil, errRecordAnswerNeedsMux
+		}
+		return pc.mux.CallAnswer(ctx, methodExecuteCommand, input)
+	}
+	out, err := pc.executeCommandValue(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	return valueAnswer(out), nil
+}
+
+// SendExecuteCommand asks the plugin to run one command and returns the whole
+// answer as one value: the status the answer opened with and the document its
+// records carry.
+//
+// It is the buffered reading of the frame SendExecuteCommandAnswer walks. One
+// wire carries the answer and this one holds it, so a caller that must bound its
+// memory takes the other (routeToProcess,
+// internal/component/plugin/server/command.go).
+func (pc *PluginConn) SendExecuteCommand(ctx context.Context, input *rpc.ExecuteCommandInput, recordAnswers bool) (*rpc.ExecuteCommandOutput, error) {
+	answer, err := pc.SendExecuteCommandAnswer(ctx, input, recordAnswers)
+	if err != nil {
+		return nil, err
+	}
+	return ExecuteCommandValue(answer)
+}
+
+// ExecuteCommandValue walks answer to its end and rebuilds the value the command
+// produced: the status its head declared and the one document its records
+// collapse to. answer MUST NOT be nil; SendExecuteCommandAnswer returns one for
+// every transport.
+//
+// A walk that ended within rpc.AnswerBufferThreshold records arrives as one
+// document already, and that document is taken as it stands, so the value is
+// byte for byte the value the same command produced before the record frame
+// existed (AC-5 of spec-record-answers-1-sdk-path). A longer walk collapses
+// through rpc.CollapseRecords, the one collapse both ends of the connection use.
+func ExecuteCommandValue(answer *rpc.Answer) (*rpc.ExecuteCommandOutput, error) {
+	document, collapseErr := rpc.CollapseAnswer(answer)
+
+	// Read after the range, never before: the range is what fills them.
+	if err := answer.Err(); err != nil {
+		return nil, fmt.Errorf("execute-command answer: %w", err)
+	}
+	if collapseErr != nil {
+		return nil, fmt.Errorf("execute-command answer: %w", collapseErr)
+	}
+	// The terminator's message is the command's own failure text. A caller reads
+	// it as a Go error, which is how the same failure reaches it when the call
+	// itself fails.
+	if message := answer.Message(); message != "" {
+		return nil, fmt.Errorf("execute-command answer: %s", message)
+	}
+	return &rpc.ExecuteCommandOutput{Status: answer.Status, Data: document}, nil
+}
+
+// readsRecordAnswers reports whether this peer's next execute-command answer
+// arrives as a record sequence.
+//
+// Two facts decide it, and they are the two the plugin's own read side consults
+// (readsRecordAnswers, pkg/plugin/sdk/sdk_engine.go). The peer must have named
+// the shape at Stage 3, which declared is. And the answer must come over the
+// wire: a bridge replaced the pipe with an in-process call, which has no line to
+// carry a record on and answers one marshaled value whatever the peer declared.
+func (pc *PluginConn) readsRecordAnswers(declared bool) bool {
+	if !declared {
+		return false
+	}
+	return pc.bridge == nil
+}
+
+// executeCommandValue sends one execute-command and reads the single-line result
+// a peer that declared no answer shape writes. It is the frame this RPC has
+// always carried, unmarshaled whole.
+func (pc *PluginConn) executeCommandValue(ctx context.Context, input *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
+	result, err := pc.CallRPC(ctx, methodExecuteCommand, input)
 	if err != nil {
 		return nil, err
 	}
@@ -298,6 +418,30 @@ func (pc *PluginConn) SendExecuteCommand(ctx context.Context, serial, command st
 		return nil, fmt.Errorf("unmarshal execute-command result: %w", err)
 	}
 	return &out, nil
+}
+
+// valueAnswer is the answer a transport carrying one marshaled value gives its
+// caller: the head that value would have opened with, the value itself as the
+// one record, and a terminator counting it.
+//
+// A value the plugin built is one row, and a plugin that answered with no data
+// at all is none, which is what the wire producer states for the same answer
+// (WriteDocumentAnswer, pkg/plugin/rpc/answer_write.go). The status passes
+// through unread, so a value frame's status reaches its caller as the plugin
+// wrote it.
+//
+// A nil output is a transport that ran the command and reported nothing, which is
+// the empty answer rather than no answer: every path out of
+// SendExecuteCommandAnswer gives its caller one answer to read.
+func valueAnswer(out *rpc.ExecuteCommandOutput) *rpc.Answer {
+	if out == nil {
+		return rpc.NewAnswer(rpc.AnswerTail{Status: rpc.StatusDone, Type: rpc.AnswerTypeJSON}, rpc.AnswerTail{}, nil)
+	}
+	head := rpc.AnswerTail{Status: out.Status, Type: rpc.AnswerTypeJSON}
+	if len(out.Data) == 0 {
+		return rpc.NewAnswer(head, rpc.AnswerTail{}, nil)
+	}
+	return rpc.NewAnswer(head, rpc.AnswerTail{Count: 1}, slices.Values([]rpc.Record{{Item: out.Data}}))
 }
 
 // SendFilterUpdate sends a filter-update request to the plugin.

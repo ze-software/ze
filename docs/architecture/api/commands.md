@@ -1054,8 +1054,8 @@ renders, instead of collapsing into one error string.
 | rows and rejected rows | `{"peers":[...],"errors":[...]}` |
 | rejected rows, no envelope key | `{"data":[...],"errors":[...]}` |
 | the handler names its envelope `errors` | refused, on this path and on the record path |
-<!-- source: internal/component/plugin/types.go -- CollapseRecords, Records.MarshalJSON, answerErrorsKey, answerDefaultKey -->
-<!-- source: internal/component/plugin/dispatch.go -- errReservedEnvelopeKey -->
+<!-- source: internal/component/plugin/types.go -- Records.MarshalJSON -->
+<!-- source: pkg/plugin/rpc/collapse.go -- CollapseRecords, AnswerErrorsKey, AnswerDefaultKey, ErrReservedEnvelopeKey -->
 
 `errors` appears only when a row was rejected. An ordinary answer keeps the shape
 it had, and no consumer meets a key it has not seen. `data` is where the rows go
@@ -1066,8 +1066,45 @@ nowhere to carry a sibling.
 the two collections stay separately countable. A commit that applied 97 leaves
 and rejected 3 renders both, rather than the 97 being lost with the error.
 
-Only `system command list` answers with a generator today. Every other command
-returns a built payload, and none of these keys appears for it.
+Two kinds of handler answer with a generator. `system command list` is the
+engine's, and a plugin command handler is the SDK's. Every other command returns
+a built payload, and none of these keys appears for it.
+<!-- source: internal/component/plugin/server/system.go -- commandRows -->
+<!-- source: pkg/plugin/records.go -- Records -->
+
+### A plugin command answers with records
+
+`execute-command` is the callback the engine sends for a command a plugin
+registered. Its result gained a record form. A plugin that named
+`record-answers` at Stage 3 answers with a head, its records and a terminator
+rather than one `ExecuteCommandOutput` line. Every plugin built on the Go SDK
+names it.
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- Plugin.answerExecuteCommand -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.SendExecuteCommandAnswer -->
+
+The handler decides what it produces, and the wire decides how it travels.
+
+| The handler returns | On the wire | What `routeToProcess` builds |
+|---------------------|-------------|------------------------------|
+| a built value | `type=json` and one `item=` carrying that value | `plugin.RawJSON`, unchanged |
+| a `plugin.Records` walk of 256 rows or fewer | `type=json` and one `item=` carrying the collapsed document | `plugin.RawJSON` over that document |
+| a `plugin.Records` walk of more than 256 rows | `type=ndjson` and one `item=` for each row | `plugin.Records` over the arriving rows |
+
+The dispatcher branches on the head's `type=` and never on what the handler
+returned. A bounded walk is therefore the document it has always been, and only a
+walk that streams reaches an operator as records.
+<!-- source: pkg/plugin/records.go -- Records.WriteAnswer -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, WriteDocumentAnswer -->
+<!-- source: internal/component/plugin/server/command.go -- routeToProcess, pluginAnswerRows -->
+
+The value a built payload carries is unchanged, byte for byte. Only the frame
+around it changed. It changed for every answer of a declaring plugin, because a
+reader must know the frame before it reads the first line.
+
+The rows are pulled as the operator's rendering writes them, so the engine never
+holds the whole collection for a walk that streams. A row wider than one wire
+message is rejected and the walk continues. That row reaches the operator under
+`errors`, beside the rows that were applied.
 <!-- source: internal/component/plugin/server/system.go -- handleSystemCommandList, commandRows -->
 
 ### Show Neighbor

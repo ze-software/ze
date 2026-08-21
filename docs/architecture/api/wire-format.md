@@ -84,10 +84,11 @@ declaration can set a different wire method for command dispatch.
 
 ## Record Answer
 
-`dispatch-command` and `dispatch-command-args` have a second success form, for a
-peer that named `record-answers` at Stage 3. The answer is a head, zero or more
-records, and a terminator, and each line carries a bare `key=value` tail instead
-of JSON:
+Three methods have a second success form, for a plugin that named
+`record-answers` at Stage 3. The engine writes it for `dispatch-command` and
+`dispatch-command-args`, and the plugin writes it for `execute-command`: one
+declaration covers both directions. The answer is a head, zero or more records,
+and a terminator, and each line carries a bare `key=value` tail instead of JSON:
 
 ```
 #42 ok status=done type=ndjson key=peers
@@ -97,10 +98,13 @@ of JSON:
 
 The head's `type=` says how to take each `item=`. The terminator states no
 status: the verdict is derived from `count=` and `faults=`, and a missing
-terminator means the answer was truncated. The grammar is in
+terminator means the answer was truncated. The frame follows the Stage 3
+declaration and never the payload, so a handler that built one value answers
+with the same three lines and `type=json`. The grammar is in
 [ipc_protocol.md](ipc_protocol.md), "Answer Protocol".
 <!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerItem, AppendAnswerTerminator, ParseAnswerTail, Verdict -->
 <!-- source: pkg/plugin/rpc/types.go -- ProtocolRecordAnswers -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, WriteDocumentAnswer -->
 
 ## Error Response
 

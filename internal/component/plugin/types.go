@@ -162,6 +162,11 @@ func (r RawJSON) MarshalJSON() ([]byte, error) {
 // `| yaml` and `| table` stay three renderings of one payload).
 //
 // Key names the envelope the rows belong under, and the head line carries it.
+// A handler MUST NOT name it rpc.AnswerErrorsKey, which every producer refuses
+// (rpc.ErrReservedEnvelopeKey): the rejected rows travel under that name beside
+// the rows the command produced, so an envelope of the same name would put the
+// two collections under one key and lose one of them.
+//
 // Rows is pulled one row at a time; a consumer that stops ranging stops the
 // walk, which is how `| first 10` bounds a read of a table with a million rows.
 //
@@ -178,27 +183,6 @@ type Records struct {
 	Rows   iter.Seq[rpc.Record]
 }
 
-// The two envelope names a buffered answer uses beside the handler's own.
-//
-// answerErrorsKey holds the rejected rows, as a sibling of the rows the command
-// produced rather than a member of them: the terminator counts the two
-// separately, so mixing them would make `| count` answer one number on the
-// record path and another on the buffered one. It is written only when a row
-// was rejected, so an answer that rejected none has the shape it always had and
-// no consumer sees a new key.
-//
-// answerDefaultKey is where the rows go when the handler names no envelope AND
-// a row was rejected. A bare array has nowhere to carry a sibling, so the rows
-// move under a key rather than the rejected ones being dropped.
-//
-// A handler MUST NOT name its envelope answerErrorsKey. Both producers refuse
-// it (errReservedEnvelopeKey), because the two collections would otherwise land
-// under one key and one would overwrite the other.
-const (
-	answerErrorsKey  = "errors"
-	answerDefaultKey = "data"
-)
-
 func (Records) responseData() {}
 
 // rows is Rows with the empty sequence standing in for a nil one. A Records
@@ -214,9 +198,9 @@ func (r Records) rows() iter.Seq[rpc.Record] {
 
 // MarshalJSON collapses the answer into the object a consumer of the record
 // path holds once the terminator arrives: the rows the command produced, in
-// walk order, under Key, and the rows it rejected under answerErrorsKey beside
-// them. With no rejected row it is Key over the items, or a bare array when Key
-// is empty, which is the shape a buffered surface has always seen.
+// walk order, under Key, and the rows it rejected under rpc.AnswerErrorsKey
+// beside them. With no rejected row it is Key over the items, or a bare array
+// when Key is empty, which is the shape a buffered surface has always seen.
 //
 // It is the buffered half of AC-10 in spec-streaming-answer-protocol,
 // so a surface that takes the whole answer as one string (REST, gRPC, web, MCP,
@@ -225,74 +209,16 @@ func (r Records) rows() iter.Seq[rpc.Record] {
 // therefore renders both on a web page, rather than the 97 being lost with the
 // error.
 //
-// The two collections stay separate, which is what keeps `| count` honest:
-// count= counts the rows produced and faults= counts the rows rejected, and
-// nothing lands in the item array that the terminator did not count.
+// The collapse itself is rpc.CollapseRecords, so the document a plugin rebuilds
+// from an arriving answer is the document this renders from the same rows
+// (pkg/plugin/rpc/collapse.go).
 //
 // This walks the whole answer into memory, which is what a buffered rendering
 // is. A caller that must bound the memory takes the record path.
 //
 // Rows is walked once here, so one Records value takes one path, never both.
 func (r Records) MarshalJSON() ([]byte, error) {
-	return CollapseRecords(r.Key, r.Fields, r.rows())
-}
-
-// CollapseRecords is the collapse itself, over rows a caller supplies. The
-// encoder holds the rows of a short answer and collapses those (WriteAnswer,
-// dispatch.go), and the SSH exec channel collapses the records of an answer
-// whose rendering needs a document (RenderRecords,
-// internal/component/command/render_records.go), so every document a consumer
-// meets is produced by this one function rather than by three that agree today.
-func CollapseRecords(key string, fields []string, rows iter.Seq[rpc.Record]) ([]byte, error) {
-	if key == answerErrorsKey {
-		return nil, errReservedEnvelopeKey
-	}
-	names, err := quoteFields(fields)
-	if err != nil {
-		return nil, err
-	}
-
-	// A nil slice marshals to null, and a command that produced no rows
-	// produced an empty collection. The record path says the same thing with
-	// count=0, so the two must not disagree here. faults stays nil until a row
-	// is rejected, because nil is what states that the sibling key is absent.
-	items := []json.RawMessage{}
-	var faults []json.RawMessage
-
-	// row is the scratch the positional rows decode into. It is reused for
-	// every row, so a walk of a million rows decodes into one slice.
-	var row []json.RawMessage
-	for record := range rows {
-		switch {
-		case len(record.Fault) > 0:
-			faults = append(faults, record.Fault)
-		case len(record.Item) > 0:
-			item := record.Item
-			if names != nil {
-				if err = json.Unmarshal(item, &row); err != nil {
-					return nil, fmt.Errorf("%w: %w", errRowNotPositional, err)
-				}
-				if item, err = zipRow(names, row); err != nil {
-					return nil, err
-				}
-			}
-			items = append(items, item)
-		default:
-			return nil, errEmptyAnswerRecord
-		}
-	}
-
-	if faults == nil {
-		if key == "" {
-			return json.Marshal(items)
-		}
-		return json.Marshal(map[string][]json.RawMessage{key: items})
-	}
-
-	if key == "" {
-		key = answerDefaultKey
-	}
-	return json.Marshal(map[string][]json.RawMessage{key: items, answerErrorsKey: faults})
+	return rpc.CollapseRecords(r.Key, r.Fields, r.rows())
 }
 
 // UnauthorizedMessage is the canonical operator-facing text for a command

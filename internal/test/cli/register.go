@@ -48,6 +48,12 @@ func init() {
 	// to drive .ci command=/stream=/expect=output|event|stream directives.
 	registerRoot("engine-steps", cmdEngineSteps, "Execute .ci engine-step directives as an external plugin (spawned by test daemons, not run directly)")
 
+	// Record-answer executor: spawned BY test daemons as an external plugin
+	// (plugin { external record-plugin { run "ze-test record-plugin" } })
+	// to drive test/plugin/plugin-owned-command-streams.ci,
+	// plugin-reads-engine-answer.ci and plugin-command-partial-fault.ci.
+	registerRoot("record-plugin", cmdRecordPlugin, "Answer commands with a record walk and read one back (spawned by test daemons, not run directly)")
+
 	// Big test runners
 	registerRoot("bgp", cmdBgp, "Run BGP functional tests (encoding, plugin, decoding, parsing)")
 	registerRoot("editor", cmdEditor, "Run editor functional tests (.et files)")

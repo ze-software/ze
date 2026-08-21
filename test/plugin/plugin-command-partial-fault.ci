@@ -1,0 +1,223 @@
+# Test: a plugin walk faults one row and the operator sees both collections
+#
+# Flow:
+# 1. A shell script writes a config declaring one external Go SDK plugin
+# 2. The daemon starts, spawns `ze-test record-plugin`, and opens SSH
+# 3. `ze cli -c "show test records fault | raw"` runs a walk of twelve rows
+# 4. Row seven is wider than one wire message, so it has no line at all
+# 5. The answer carries the eleven rows it applied and the one it refused
+#
+# A row wider than rpc.MaxMessageSize is rejected and the walk goes on
+# (boundedRecord, pkg/plugin/rpc/answer_write.go), so refusing one row does not
+# cost the operator the rows around it. The terminator states the two counts
+# separately, count= for the rows applied and faults= for the rows refused, and
+# a buffered reading of that answer is the two collections side by side: the
+# handler's own envelope holds the applied rows and "errors" holds the refused
+# one (CollapseRecords, pkg/plugin/rpc/collapse.go). Nothing lands in the
+# applied collection that the terminator did not count, which is what keeps
+# `| count` honest.
+#
+# This is the one payload whose two readings DIFFER, and that is what makes the
+# test discriminate. A buffered rendering writes no line and rejects nothing, so
+# a producer that built the whole answer would put the wide row in the document
+# and lose the whole answer to the wire message ceiling.
+#
+# The rejected row names the record and states the two sizes. It quotes none of
+# the row, because a fault carrying the row it rejected would be rejected for
+# the same reason, and because a plugin's payload is not text an operator should
+# meet inside an error.
+#
+# VALIDATES: AC-6 -- a row wider than one wire message is reported as a fault,
+# the walk continues, and the terminator counts it under faults.
+# VALIDATES: user story 3 -- an operator runs a plugin command that fails half
+# way through its walk and sees the applied rows beside the rejected one.
+# PREVENTS: one unwritable row costing the operator every row around it.
+
+tmpfs=test-plugin-command-partial-fault.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+# Signal test runner readiness
+touch daemon.ready
+
+cat > plugin-command-partial-fault.conf << 'ZECONF'
+plugin {
+	external record-plugin {
+		run "ze-test record-plugin"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			profile [ admin ]
+		}
+	}
+	authorization {
+		profile admin {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action allow
+			}
+		}
+	}
+}
+
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port 0;
+		}
+	}
+}
+ZECONF
+
+# Use a PID-derived high port for BGP to avoid needing root for port 179
+export ze_test_bgp_port=$((10000 + ($$ % 50000)))
+
+ze start plugin-command-partial-fault.conf 2>daemon.log &
+DAEMON_PID=$!
+trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+
+# Wait for the SSH server to report its listening address
+SSH_PORT=""
+for i in $(seq 1 50); do
+	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
+	if [ -n "$SSH_PORT" ]; then
+		break
+	fi
+	sleep 0.2
+done
+
+if [ -z "$SSH_PORT" ]; then
+	echo "FAIL: SSH server did not start (no address in daemon.log)" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+echo "SSH port: $SSH_PORT" >&2
+
+# Brief delay for postStartFunc to wire the authorizer
+sleep 0.5
+
+ADMIN_DIR=$(mktemp -d)
+trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
+
+# The plugin registers its commands at Stage 1, and the engine freezes the
+# registry after every plugin is ready. Wait for the name to be there rather
+# than for a duration.
+for i in $(seq 1 50); do
+	if ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" \
+		ze cli -c "system command list | raw" 2>/dev/null | grep -q 'show test records fault'; then
+		break
+	fi
+	sleep 0.2
+done
+
+# The walk answers, and it answers with a status the operator reads as success:
+# one refused row is not a failed command.
+if ! ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" \
+	ze cli -c "show test records fault | raw" > fault.json 2> fault-err.log; then
+	echo "FAIL: the walk with a refused row lost the whole answer" >&2
+	cat fault-err.log >&2
+	cat daemon.log >&2
+	exit 1
+fi
+
+python3 - fault.json << 'PYEOF'
+import json
+import sys
+
+# The walk the plugin produces: recordFaultRows rows, the row at
+# recordFaultIndex wider than one wire message
+# (internal/test/cli/cmd_record_plugin.go).
+WALK_ROWS = 12
+FAULT_INDEX = 6
+LIMIT_BYTES = 16777216
+
+with open(sys.argv[1]) as handle:
+    document = json.load(handle)
+
+if sorted(document) != ["errors", "rows"]:
+    print(f"FAIL: the answer carries {sorted(document)}, want errors and rows", file=sys.stderr)
+    sys.exit(1)
+
+rows = document["rows"]
+errors = document["errors"]
+
+# The rows the walk applied, and only those: the refused row is counted apart
+# from them and never lands among them.
+want_indexes = [i for i in range(WALK_ROWS) if i != FAULT_INDEX]
+if [row["index"] for row in rows] != want_indexes:
+    print(f"FAIL: the applied rows are {[row['index'] for row in rows]}, want {want_indexes}", file=sys.stderr)
+    sys.exit(1)
+
+# An applied row carries its filler, so the absence of that filler from the
+# rejected row below is a contrast rather than an empty assertion.
+if not all(row["fill"] for row in rows):
+    print("FAIL: an applied row lost its payload", file=sys.stderr)
+    sys.exit(1)
+
+if len(errors) != 1:
+    print(f"FAIL: the answer rejected {len(errors)} rows, want one", file=sys.stderr)
+    sys.exit(1)
+
+fault = errors[0]
+if sorted(fault) != ["encoded-bytes", "limit-bytes", "message", "record"]:
+    print(f"FAIL: the rejected row carries {sorted(fault)}", file=sys.stderr)
+    sys.exit(1)
+
+if fault["message"] != "answer record does not fit one wire message":
+    print(f"FAIL: the rejected row says {fault['message']!r}", file=sys.stderr)
+    sys.exit(1)
+
+# The record is named by its position in the walk, counted from one.
+if fault["record"] != FAULT_INDEX + 1:
+    print(f"FAIL: the rejected row names record {fault['record']}, want {FAULT_INDEX + 1}", file=sys.stderr)
+    sys.exit(1)
+
+if fault["limit-bytes"] != LIMIT_BYTES:
+    print(f"FAIL: the rejected row states limit {fault['limit-bytes']}, want {LIMIT_BYTES}", file=sys.stderr)
+    sys.exit(1)
+
+if fault["encoded-bytes"] <= LIMIT_BYTES:
+    print(f"FAIL: fixture problem -- the row is {fault['encoded-bytes']} bytes, inside the limit", file=sys.stderr)
+    sys.exit(1)
+
+print(f"OK: {len(rows)} rows applied and 1 rejected reached the operator together", file=sys.stderr)
+PYEOF
+
+exit 0
+EOF_SH
+
+# Process orchestration
+cmd=foreground:seq=1:exec=./test-plugin-command-partial-fault.sh:timeout=60s
+expect=exit:code=0
+expect=stderr:pattern=OK: [0-9]+ rows applied and 1 rejected reached the operator together
+reject=stderr:pattern=panic recovered

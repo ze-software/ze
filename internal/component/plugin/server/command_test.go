@@ -2,10 +2,15 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
+	"iter"
 	"net"
 	"net/netip"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -21,6 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestDispatcherRegister verifies command registration.
@@ -2147,4 +2153,227 @@ func BenchmarkMatchBuiltinTokens(b *testing.B) {
 			}
 		})
 	}
+}
+
+// gatedAnswerWriter writes an answer's first line straight away and holds every
+// line after it until release is closed. The head is that first line, so a test
+// can prove routeToProcess returned on the head, before one record existed.
+type gatedAnswerWriter struct {
+	writer  io.Writer
+	release <-chan struct{}
+	written atomic.Int64
+}
+
+// Write puts one framed answer line on the wire, after the gate for every line
+// but the first.
+func (g *gatedAnswerWriter) Write(line []byte) (int, error) {
+	if g.written.Load() > 0 {
+		<-g.release
+	}
+	n, err := g.writer.Write(line)
+	g.written.Add(1)
+	return n, err
+}
+
+// recordAnsweringPlugin is a plugin process that answers one execute-command
+// with the record sequence rows produces, under the envelope key names. Every
+// line after the head waits on the gate.
+type recordAnsweringPlugin struct {
+	proc    *process.Process
+	gate    *gatedAnswerWriter
+	release chan struct{}
+	served  chan error
+}
+
+// startRecordAnsweringPlugin wires a plugin process the way production wires one
+// -- a MuxConn, which is what routes an answer's lines by id -- and serves one
+// execute-command on the far end.
+func startRecordAnsweringPlugin(t *testing.T, ctx context.Context, key string, rows iter.Seq[rpc.Record]) *recordAnsweringPlugin {
+	t.Helper()
+
+	engineSide, pluginSide := net.Pipe()
+	t.Cleanup(func() { _ = engineSide.Close() })
+	t.Cleanup(func() { _ = pluginSide.Close() })
+
+	mux := rpc.NewMuxConn(rpc.NewConn(engineSide, engineSide))
+	t.Cleanup(func() { _ = mux.Close() })
+
+	proc := process.NewProcess(plugin.PluginConfig{Name: "record-plugin"})
+	proc.SetConn(ipc.NewMuxPluginConn(mux))
+	markProcessRunning(t, proc)
+	proc.SetRecordAnswers(true)
+
+	peer := &recordAnsweringPlugin{
+		proc:    proc,
+		release: make(chan struct{}),
+		served:  make(chan error, 1),
+	}
+	peer.gate = &gatedAnswerWriter{release: peer.release}
+
+	go func() {
+		conn := rpc.NewConn(pluginSide, pluginSide)
+		req, readErr := conn.ReadRequest(ctx)
+		if readErr != nil {
+			peer.served <- readErr
+			return
+		}
+		if req.Method != "ze-plugin-callback:execute-command" {
+			peer.served <- errors.New("unexpected method: " + req.Method)
+			return
+		}
+		peer.gate.writer = conn.AnswerWriter(ctx)
+		peer.served <- rpc.WriteRecordAnswer(peer.gate, req.ID,
+			rpc.AnswerTail{Status: rpc.StatusDone, Key: key}, rows)
+	}()
+	return peer
+}
+
+// command is the registered command a test routes to this plugin.
+func (p *recordAnsweringPlugin) command() *RegisteredCommand {
+	return &RegisteredCommand{
+		Name:      "show plugin peers",
+		LowerName: "show plugin peers",
+		Timeout:   10 * time.Second,
+		Process:   p.proc,
+	}
+}
+
+// walk opens the gate and returns every record the answer carried. The walker
+// starts BEFORE the gate opens, so the producer never runs ahead of the reader:
+// one answer in flight is bounded by the read queue, and this keeps the test on
+// the same lock step the protocol assumes.
+func (p *recordAnsweringPlugin) walk(t *testing.T, ctx context.Context, rows iter.Seq[rpc.Record]) []rpc.Record {
+	t.Helper()
+
+	walked := make(chan []rpc.Record, 1)
+	go func() {
+		var got []rpc.Record
+		for record := range rows {
+			got = append(got, record)
+		}
+		walked <- got
+	}()
+	close(p.release)
+
+	select {
+	case got := <-walked:
+		require.NoError(t, <-p.served)
+		return got
+	case <-ctx.Done():
+		t.Fatal("the walk did not finish")
+		return nil
+	}
+}
+
+// peerRows is the walk a test plugin answers with: one self-describing row for
+// each of count peers, produced one at a time.
+func peerRows(count int) iter.Seq[rpc.Record] {
+	return func(yield func(rpc.Record) bool) {
+		for i := range count {
+			row := json.RawMessage(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)
+			if !yield(rpc.Record{Item: row}) {
+				return
+			}
+		}
+	}
+}
+
+// TestRouteToProcessBuildsRecords checks that a plugin answer the peer streamed
+// reaches the dispatcher as a row generator rather than as one flattened
+// payload. The method: the plugin end declares the record shape and writes a
+// walk past the buffer threshold, holding every record behind a gate until the
+// test releases it, so what routeToProcess returned with can be read before a
+// single record exists.
+//
+// VALIDATES: AC-8 of spec-record-answers-1-sdk-path -- a declaring plugin's
+// execute-command answer is read as a record sequence.
+// VALIDATES: AC-4's other half -- the engine never holds the whole collection
+// for a streamed plugin answer: routeToProcess returns on the head, and the
+// payload it returns is the walk.
+// PREVENTS: routeToProcess wrapping a streamed answer as plugin.RawJSON, which
+// would collapse the walk the plugin exists to stream.
+func TestRouteToProcessBuildsRecords(t *testing.T) {
+	t.Parallel()
+
+	// Past the buffer threshold, so the answer is streamed rather than
+	// collapsed into one document.
+	const rows = rpc.AnswerBufferThreshold + 3
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	peer := startRecordAnsweringPlugin(t, ctx, "peers", peerRows(rows))
+
+	resp, err := NewDispatcher().routeToProcess(&CommandContext{RequestContext: ctx}, peer.command(), nil, "*")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+	assert.Equal(t, int64(1), peer.gate.written.Load(),
+		"routeToProcess must return on the head, with no record written yet")
+
+	_, flattened := resp.Data.(plugin.RawJSON)
+	assert.False(t, flattened, "a streamed answer must not be flattened into one payload")
+	records, generated := plugin.RecordRows(resp)
+	require.True(t, generated, "a streamed answer is a plugin.Records payload")
+	assert.Equal(t, "peers", records.Key)
+
+	got := peer.walk(t, ctx, records.Rows)
+	require.Len(t, got, rows)
+	assert.Equal(t, `{"peer":"10.0.0.0"}`, string(got[0].Item), "the records arrive in walk order")
+	assert.Equal(t, `{"peer":"10.0.0.`+strconv.Itoa(rows-1)+`"}`, string(got[rows-1].Item))
+}
+
+// TestRouteToProcessRefusesARowThatIsNotJSON checks that a record whose payload
+// a plugin sent as something other than JSON is rejected rather than forwarded
+// to an operator. The method: a streamed answer whose second row is not JSON,
+// walked to its end.
+//
+// A record line's item= is the plugin's bytes and the answer parser forwards
+// them unread, so the engine is the boundary that has to check them. Rejecting
+// the one row keeps the rows around it, which is what a wide row already does.
+//
+// VALIDATES: the Security Review of spec-record-answers-1-sdk-path -- a record
+// line from a plugin is untrusted, and a row that is not valid JSON is refused
+// rather than forwarded. The rejected row quotes none of the payload.
+// PREVENTS: `| json` and `| table` being handed bytes no format can render,
+// which is the failure plugin.RawJSON.MarshalJSON refuses on the buffered path.
+func TestRouteToProcessRefusesARowThatIsNotJSON(t *testing.T) {
+	t.Parallel()
+
+	const rows = rpc.AnswerBufferThreshold + 3
+	const poison = `<not json at all>`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	walk := func(yield func(rpc.Record) bool) {
+		for i := range rows {
+			row := json.RawMessage(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)
+			if i == 1 {
+				row = json.RawMessage(poison)
+			}
+			if !yield(rpc.Record{Item: row}) {
+				return
+			}
+		}
+	}
+
+	peer := startRecordAnsweringPlugin(t, ctx, "peers", walk)
+
+	resp, err := NewDispatcher().routeToProcess(&CommandContext{RequestContext: ctx}, peer.command(), nil, "*")
+	require.NoError(t, err)
+	records, generated := plugin.RecordRows(resp)
+	require.True(t, generated)
+
+	got := peer.walk(t, ctx, records.Rows)
+	require.Len(t, got, rows, "rejecting one row must not cost the rows around it")
+
+	assert.Equal(t, `{"peer":"10.0.0.0"}`, string(got[0].Item))
+	assert.Empty(t, got[1].Item, "the row that is not JSON is not forwarded as an item")
+	require.NotEmpty(t, got[1].Fault, "it is forwarded as a rejected row instead")
+	assert.JSONEq(t, `{"message":"plugin answer row is not JSON","record":2,"bytes":17}`,
+		string(got[1].Fault))
+	assert.NotContains(t, string(got[1].Fault), poison,
+		"the rejection must not put the payload in front of the operator")
+	assert.Equal(t, `{"peer":"10.0.0.2"}`, string(got[2].Item), "the walk continues")
 }

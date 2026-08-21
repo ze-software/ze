@@ -358,8 +358,8 @@ func (c *Conn) writeFrame(ctx context.Context, buf []byte) error {
 // AnswerWriter returns the writer one answer sequence is written to. Each Write
 // takes ONE framed line, its newline included, and puts it on the wire under
 // the connection's write lock, so no other writer interleaves a line into the
-// middle of an answer. The producer is WriteAnswer
-// (internal/component/plugin/dispatch.go), which frames every line it writes.
+// middle of an answer. The producer is WriteRecordAnswer or WriteDocumentAnswer
+// (answer_write.go), which frame every line they write.
 //
 // The returned writer is for the one answer it is created for, and it MUST NOT
 // outlive the call that created it. Safe for concurrent use in the sense that

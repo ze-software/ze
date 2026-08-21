@@ -30,7 +30,6 @@ import (
 	"iter"
 	"slices"
 
-	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -173,7 +172,7 @@ func writeDocument(w io.Writer, held []rpc.Record, key string, fields []string, 
 //
 // A chain that filtered, shaped or decorated the command's rows still answers
 // rows, so they collapse under the answer's envelope. That collapse is
-// plugin.CollapseRecords, which is what a surface reading the whole answer as
+// rpc.CollapseRecords, which is what a surface reading the whole answer as
 // one string gets from the same records (Records.MarshalJSON,
 // internal/component/plugin/types.go), and one collapse for both is what keeps
 // `| raw` answering the dispatcher's JSON byte for byte.
@@ -192,7 +191,7 @@ func answerDocument(held []rpc.Record, key string, fields []string, answered boo
 	if answered && len(held) == 1 && len(held[0].Item) > 0 {
 		return held[0].Item, nil
 	}
-	return plugin.CollapseRecords(key, fields, slices.Values(held))
+	return rpc.CollapseRecords(key, fields, slices.Values(held))
 }
 
 // writeRecordJSON writes one record as one line of newline-delimited JSON.
@@ -288,7 +287,7 @@ func renderOps(ops []pipeOp, sessionFormat string) []pipeOp {
 
 // errEmptyRenderedRecord is what a record carrying neither a result nor a
 // rejection earns. rpc.Record sets exactly one of the two, and the encoder
-// refuses the same shape (errEmptyAnswerRecord, internal/component/plugin);
+// refuses the same shape (rpc.ErrEmptyAnswerRecord);
 // rendering it would put an empty line in front of the operator and count a row
 // that carries nothing.
 var errEmptyRenderedRecord = errors.New("answer record carries neither an item nor a fault")

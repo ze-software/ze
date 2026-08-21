@@ -810,6 +810,50 @@ See [plugin-development/protocol.md](../plugin-development/protocol.md) for the 
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv, Run -->
 <!-- source: test/scripts/ze_api.py -- API YANG RPC client -->
 
+### Answering a command with rows
+
+A command handler returns `(status string, data any, error)`. When `data` is a
+built value, the operator gets that value. When the command walks a large
+collection, return an `sdk.Records` instead. The SDK then writes one line for
+each row past the first 256, and neither the plugin nor the engine holds the
+whole answer. A walk that ends inside those 256 rows collapses to the one
+document the command answered with before it produced rows at all.
+
+```go
+p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+	return "done", sdk.Records{
+		Key:  "sessions",
+		Rows: sessionRows(),
+	}, nil
+})
+```
+
+`Key` names the envelope the rows belong under. `Rows` is an
+`iter.Seq[sdk.Record]`, and each record carries one `Item` the command produced
+or one `Fault` it rejected. A `Row` appends its own JSON, so a producer can hand
+back one row value for every row of the walk.
+<!-- source: pkg/plugin/records.go -- Row, Record, Records -->
+
+Three rules bind a handler that answers this way.
+
+| Rule | Why |
+|------|-----|
+| The walk is read before the handler's call returns. Do not store the sequence | It is the answer being written, not a collection that can be read again |
+| Keep whatever the walk reads alive until that call returns | The SDK pulls a row at a time, so a released buffer reaches the operator as zeros |
+| Do not name the envelope `errors` | That name holds the rejected rows, and both producers refuse the collision |
+
+A row that no wire message can carry is reported as a rejected row and the walk
+continues. The operator then reads the rows that were applied under `Key`, and
+the row that was refused under `errors` beside them.
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, boundedRecord -->
+<!-- source: pkg/plugin/rpc/collapse.go -- CollapseRecords, AnswerErrorsKey -->
+
+A plugin also READS a record answer. `Plugin.DispatchCommandAnswer` runs an
+engine command and yields each row as it arrives, which is what bounds the memory
+of a walk over a large table. `Plugin.DispatchCommand` reads the same answer as
+one document for a caller that wants the whole payload.
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.DispatchCommandAnswer, Plugin.DispatchCommand -->
+
 ## Dependencies
 
 Plugins can declare dependencies on other plugins. The engine starts plugins in dependency order and delivers state/EOR events to dependents first.

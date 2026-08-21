@@ -21,19 +21,39 @@ Every message is a single newline-terminated line:
 
 <!-- source: pkg/plugin/rpc/message.go -- FormatRequest, FormatResult, FormatError -->
 
-The record answer applies to `dispatch-command` and `dispatch-command-args`
-alone, and only for a plugin that asked for it at Stage 3. It replaces the single
-success line with a head, zero or more records, and a terminator. A plugin that
-asks for nothing keeps the three forms above. The grammar is in
+The record answer applies to three methods, and only for a plugin that asked for
+it at Stage 3. It replaces the single success line with a head, zero or more
+records, and a terminator. A plugin that asks for nothing keeps the three forms
+above. The grammar is in
 [ipc_protocol.md](../architecture/api/ipc_protocol.md), "Answer Protocol".
 <!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerTerminator -->
 
-The Go SDK cannot ask for it, and must not be made to until it can read it.
-`dispatchCommandRPC` unmarshals the response payload into a
-`DispatchCommandOutput`, and a head such as `status=done type=json` is not JSON.
-Declare the shape only from a client that reads the sequence, such as the Python
-helper `test/scripts/ze_api.py`.
-<!-- source: pkg/plugin/sdk/sdk_engine.go -- dispatchCommandRPC, Plugin.DispatchCommand -->
+| Method | The plugin | The engine |
+|--------|-----------|-----------|
+| `dispatch-command` | reads the answer | writes it |
+| `dispatch-command-args` | reads the answer | writes it |
+| `execute-command` | writes the answer | reads it |
+
+One declaration covers both columns, because no engine-to-plugin message carries
+a protocol list. The Go SDK sends it at Stage 3 for every plugin built on the
+SDK, and a plugin author sets no field to get it.
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, Stage 3 declare-capabilities -->
+<!-- source: pkg/plugin/rpc/types.go -- ProtocolRecordAnswers -->
+
+A plugin READS an engine answer in one of two ways, and both read the same
+frame. `Plugin.DispatchCommandAnswer` yields each row as it arrives, which is
+what bounds the memory of a walk over a large table. `Plugin.DispatchCommand`
+and `Plugin.DispatchCommandArgs` collapse the same answer into the one document
+a caller that wants the whole payload reads.
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.DispatchCommandAnswer, Plugin.DispatchCommand, dispatchCommandValue -->
+
+A plugin WRITES its own answer to `execute-command`, and the frame follows the
+declaration rather than the payload. A handler that returns a `plugin.Records`
+writes one line for each row of the walk. A handler that returns a built value
+writes that value as the one record of a `type=json` answer. The value is
+unchanged, byte for byte, and only the frame around it is new.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
+<!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->
 
 - `<id>` is a monotonically increasing uint64 correlation ID
 - `<method>` uses YANG-style `<module>:<rpc-name>` naming (e.g., `ze-plugin-engine:declare-registration`)
@@ -151,8 +171,9 @@ Plugin sends `ze-plugin-engine:declare-capabilities` with a `DeclareCapabilities
 | Field | Type | Description |
 |-------|------|-------------|
 | `capabilities` | `[]CapabilityDecl` | BGP capabilities for OPEN injection |
-| `protocol` | `[]string` | Wire shapes this plugin understands. `record-answers` is the only name. Omit it to keep the single-line answer |
+| `protocol` | `[]string` | Wire shapes this plugin speaks. `record-answers` is the only name, and the SDK sends it for every plugin. A peer that speaks the protocol by hand omits it to keep the single-line answer |
 <!-- source: pkg/plugin/rpc/types.go -- DeclareCapabilitiesInput.Understands, ProtocolRecordAnswers -->
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, Stage 3 declare-capabilities -->
 
 Each `CapabilityDecl` has:
 <!-- source: pkg/plugin/rpc/types.go -- CapabilityDecl -->
@@ -238,7 +259,7 @@ each wire method to its registered handler.
 |--------|-------------|-------|--------|---------|
 | `ze-plugin-callback:deliver-event` | `OnEvent` | `DeliverEventInput` | None | Deliver one event |
 | `ze-plugin-callback:deliver-batch` | `OnEvent` | `{"events":[]}` | None | Deliver an event batch |
-| `ze-plugin-callback:execute-command` | `OnExecuteCommand` | `ExecuteCommandInput` | `ExecuteCommandOutput` | Run a command |
+| `ze-plugin-callback:execute-command` | `OnExecuteCommand` | `ExecuteCommandInput` | a record answer, or `ExecuteCommandOutput` for a plugin that declared nothing | Run a command |
 | `ze-plugin-callback:encode-nlri` | `OnEncodeNLRI` | `EncodeNLRIInput` | `EncodeNLRIOutput` | Encode NLRI |
 | `ze-plugin-callback:decode-nlri` | `OnDecodeNLRI` | `DecodeNLRIInput` | `DecodeNLRIOutput` | Decode NLRI |
 | `ze-plugin-callback:decode-capability` | `OnDecodeCapability` | `DecodeCapabilityInput` | `{"json":...}` | Decode a capability |

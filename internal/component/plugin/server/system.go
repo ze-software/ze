@@ -380,7 +380,7 @@ func handleSystemSubsystemList(ctx *CommandContext, _ []string) (*plugin.Respons
 // every plugin registered, each with its help text. A consumer that reads it
 // through `| first 10` or `| match bgp` pays for the rows it keeps, and one that
 // wants the whole list still receives the document it always received
-// (CollapseRecords, internal/component/plugin/types.go).
+// (rpc.CollapseRecords, pkg/plugin/rpc/collapse.go).
 func handleSystemCommandList(ctx *CommandContext, args []string) (*plugin.Response, error) {
 	verbose := len(args) > 0 && args[0] == argVerbose
 	dispatcher := ctx.Dispatcher()
@@ -593,7 +593,8 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 	if conn != nil {
 		rpcCtx, cancel := context.WithTimeout(context.Background(), CompletionTimeout)
 		defer cancel()
-		rpcOut, rpcErr := conn.SendExecuteCommand(rpcCtx, serial, cmd.Name, completedArgs, partial)
+		input := &rpc.ExecuteCommandInput{Serial: serial, Command: cmd.Name, Args: completedArgs, Peer: partial}
+		rpcOut, rpcErr := conn.SendExecuteCommand(rpcCtx, input, proc.RecordAnswers())
 		switch {
 		case rpcErr != nil: // The empty result is the answer to a failed call.
 		case rpcOut != nil && rpcOut.Status == plugin.StatusError:

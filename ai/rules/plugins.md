@@ -176,6 +176,19 @@ in function names, variable names, or type names.
 
 After Stage 5: SDK wraps Socket A in `MuxConn` for concurrent RPCs. Engine dispatches Socket A requests in goroutines. Wire format: `#<id> <verb> [<json>]\n` (see `docs/architecture/api/wire-format.md`).
 
+### The SDK declares `record-answers` at Stage 3 (BLOCKING)
+
+`Plugin.Run` sets `Protocol: []string{rpc.ProtocolRecordAnswers}` on the Stage 3 `declare-capabilities` for every plugin. There is no field to set and no way to opt out, so a plugin MUST NOT be written to assume the single-line command frame.
+
+**The name is symmetric, and it MUST be read that way in both directions.** One declaration says that this plugin READS a record answer and WRITES one. No engine-to-plugin message carries a protocol list, and none MUST be added: the engine reads that one line to write the answer to `dispatch-command` and `dispatch-command-args`, and to read the answer to `execute-command`.
+
+**The frame follows the DECLARATION, never the payload.** A declaring plugin answers every `execute-command` with a head, its records and a terminator, a built value included. The VALUE is unchanged, byte for byte. The frame around it is not. A test peer written by hand MUST read the frame the peer declared, or it takes a head line's tail for its result.
+
+A command handler MAY answer with a `plugin.Records` rather than a built value. `Records.Rows` is walked once, before the handler's call returns, and MUST NOT be stored.
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, Stage 3 declare-capabilities -->
+<!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.SendExecuteCommandAnswer -->
+
 ## OnStarted vs OnAllPluginsReady (BLOCKING)
 
 Stages 1-5 run per-phase. The engine loads plugins across up to five phases

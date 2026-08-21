@@ -6,7 +6,9 @@ package sdk
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -38,6 +40,16 @@ type DecodeCapabilityHandler func(code uint8, hex string) (any, error)
 
 // ExecuteCommandHandler handles command execution requests.
 // Returns status, data (JSON-marshaled by the SDK), and error.
+//
+// A command that walks a large collection returns a Records as its data: the
+// walk itself rather than the collection it would build. The SDK then writes
+// the answer one row at a time and holds no more than one row, and the handler
+// MUST keep whatever those rows read alive until it returns, because the walk
+// runs before the call it was returned from is answered
+// (Records, pkg/plugin/records.go).
+//
+// Every other data value keeps the answer it has always had: one marshaled
+// value in ExecuteCommandOutput.Data, byte for byte.
 type ExecuteCommandHandler func(serial, command string, args []string, peer string) (string, any, error)
 
 // ConfigVerifyHandler handles config verification in the reload pipeline.
@@ -269,42 +281,121 @@ func (p *Plugin) OnDecodeCapability(fn DecodeCapabilityHandler) {
 // The handler receives serial, command, args, peer and returns (status, data, error).
 // The SDK marshals the data value into ExecuteCommandOutput.Data as json.RawMessage,
 // producing a single marshal instead of double-encoding.
+//
+// A handler MAY answer with a Records instead, which is a walk rather than a
+// built value. The callback registered here is the transport whose result is
+// one marshaled value: the direct bridge, where a walk collapses to the
+// document the record path would have carried (Records.MarshalJSON). The socket
+// event loop reaches the same code with an answer writer, and once this plugin
+// has declared rpc.ProtocolRecordAnswers every answer it writes there is a
+// head, its records and a terminator (Plugin.answerExecuteCommand,
+// sdk_dispatch.go).
 func (p *Plugin) OnExecuteCommand(fn ExecuteCommandHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.onExecuteCommand = fn
 	p.callbacks[callbackExecuteCommand] = func(params json.RawMessage) (json.RawMessage, error) {
-		var input rpc.ExecuteCommandInput
-		if err := json.Unmarshal(params, &input); err != nil {
-			return nil, fmt.Errorf("unmarshal execute-command: %w", err)
-		}
-		out, err := executeCommandOutput(fn, input.Serial, input.Command, input.Args, input.Peer)
-		if err != nil {
-			return nil, err
-		}
-		return json.Marshal(out)
+		return executeCommandAnswer(fn, params, nil, 0)
 	}
 }
 
-func executeCommandOutput(
+// executeCommandAnswer answers one execute-command callback and reports the
+// result the caller must send.
+//
+// answer is non-nil for a transport that carries a line for each record, and it
+// is offered only once this plugin has declared rpc.ProtocolRecordAnswers. On
+// that transport EVERY answer is the SEQUENCE: a walk writes its rows, and a
+// value the handler built writes as the one document a bounded walk collapses
+// to. The returned result is then nil, because the answer is already on the wire
+// and nothing may follow it, and that is the only case where both the result and
+// the error are nil.
+//
+// The frame follows the DECLARATION and never the payload, because the engine
+// must know which frame is arriving before it reads the first line
+// (rpc.ProtocolRecordAnswers). A frame chosen from the payload would leave the
+// reader guessing, and a reader that guesses wrong takes a head line's tail for
+// its result (R-1 of spec-record-answers-1-sdk-path).
+//
+// answer is nil for a transport whose result is one marshaled value, which is
+// the direct bridge, and id is then unread. That result is the answer this
+// callback has always carried, byte for byte, and so is the document the
+// sequence's one item= line carries (AC-5). A walk reaching the value transport
+// collapses through the one collapse rather than through a second rendering
+// (Records.MarshalJSON).
+//
+// The walk runs to its end before this returns, which is what lets a handler
+// hold the state its rows read for exactly the length of its own call (Records,
+// pkg/plugin/records.go).
+func executeCommandAnswer(
 	fn ExecuteCommandHandler,
-	serial string,
-	command string,
-	args []string,
-	peer string,
-) (*rpc.ExecuteCommandOutput, error) {
-	status, data, err := fn(serial, command, args, peer)
+	params json.RawMessage,
+	answer io.Writer,
+	id uint64,
+) (json.RawMessage, error) {
+	if fn == nil {
+		return nil, errors.New("execute-command handler not set")
+	}
+	var input rpc.ExecuteCommandInput
+	if err := json.Unmarshal(params, &input); err != nil {
+		return nil, fmt.Errorf("unmarshal execute-command: %w", err)
+	}
+	status, data, err := fn(input.Serial, input.Command, input.Args, input.Peer)
 	if err != nil {
 		return nil, err
 	}
+	if answer == nil {
+		out, outErr := executeCommandOutput(status, data)
+		if outErr != nil {
+			return nil, outErr
+		}
+		return json.Marshal(out)
+	}
+
+	headStatus := answerHeadStatus(status)
+	if records, walk := data.(Records); walk {
+		return nil, records.WriteAnswer(answer, id, headStatus)
+	}
+	// The value the handler built is the document a bounded walk collapses to,
+	// so it takes the same three lines: the head states the status, the one
+	// item= line carries the value's bytes unchanged, and the terminator counts
+	// it (AC-5).
+	out, err := executeCommandOutput(status, data)
+	if err != nil {
+		return nil, err
+	}
+	return nil, rpc.WriteDocumentAnswer(answer, id, rpc.AnswerTail{Status: headStatus}, out.Data)
+}
+
+// executeCommandOutput is the value form of a handler's answer: the status it
+// reported and its payload marshaled whole. It is the one place that marshal
+// happens, so the bridge and the socket carry the same bytes for the same
+// value.
+func executeCommandOutput(status string, data any) (*rpc.ExecuteCommandOutput, error) {
 	var raw json.RawMessage
 	if data != nil {
+		var err error
 		raw, err = json.Marshal(data)
 		if err != nil {
 			return nil, fmt.Errorf("marshal execute-command data: %w", err)
 		}
 	}
 	return &rpc.ExecuteCommandOutput{Status: status, Data: raw}, nil
+}
+
+// answerHeadStatus is what an answer head declares for the status a handler
+// reported: rpc.StatusError when the handler said the command failed, and
+// rpc.StatusDone otherwise.
+//
+// The head carries one of two words, and the value form carries the handler's
+// own string. Normalizing here rather than passing the string through is what
+// keeps a status with a space or a newline in it from breaking the line the
+// head is written on, and it is the same normalization the engine makes for its
+// own answers (answerStatus, internal/component/plugin/dispatch.go).
+func answerHeadStatus(status string) string {
+	if status == rpc.StatusError {
+		return rpc.StatusError
+	}
+	return rpc.StatusDone
 }
 
 // OnConfigVerify sets the handler for config verification requests (reload pipeline).

@@ -480,3 +480,31 @@ func TestSubsystemManagerConcurrentGet(t *testing.T) {
 		<-done
 	}
 }
+
+// TestHubStartupSinkRecordsTheProtocolDeclaration checks that a forked
+// subsystem's Stage 3 protocol declaration is stored where the hub reads it. The
+// method: drive the hub's own startup sink with each declaration and read back
+// what the process holds.
+//
+// The hub drops the BGP capability declarations, having no injector for them,
+// and dropping the protocol declaration with them would leave the hub reading a
+// subsystem's record answer as a single-line result.
+//
+// VALIDATES: AC-8 of spec-record-answers-1-sdk-path at the hub's own startup
+// path -- the frame the engine reads follows the peer's declaration.
+// PREVENTS: SubsystemHandler.Handle taking a head line's tail for a command
+// result because the declaration was never recorded.
+func TestHubStartupSinkRecordsTheProtocolDeclaration(t *testing.T) {
+	t.Parallel()
+
+	proc := process.NewProcess(plugin.PluginConfig{Name: "subsystem-cache"})
+	sink := &hubStartupSink{h: &SubsystemHandler{proc: proc}}
+
+	require.NoError(t, sink.onCapabilities(&rpc.DeclareCapabilitiesInput{
+		Protocol: []string{rpc.ProtocolRecordAnswers},
+	}))
+	assert.True(t, proc.RecordAnswers(), "a subsystem that named the shape reads and writes it")
+
+	require.NoError(t, sink.onCapabilities(&rpc.DeclareCapabilitiesInput{}))
+	assert.False(t, proc.RecordAnswers(), "a subsystem that named nothing keeps the value frame")
+}

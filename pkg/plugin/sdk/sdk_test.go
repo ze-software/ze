@@ -608,23 +608,11 @@ func TestSDKExecuteCommand(t *testing.T) {
 
 	completeStartup(t, ctx, engine)
 
-	// Send execute-command request
-	execInput := struct {
-		Serial  string   `json:"serial"`
-		Command string   `json:"command"`
-		Args    []string `json:"args,omitempty"`
-		Peer    string   `json:"peer,omitempty"`
-	}{Serial: "abc123", Command: "show-routes", Args: []string{"ipv4"}, Peer: "10.0.0.1"}
-
-	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:execute-command", execInput)
-	require.NoError(t, err)
-
-	// CallRPC returns the result payload directly
-	var result struct {
-		Status string          `json:"status"`
-		Data   json.RawMessage `json:"data"`
-	}
-	require.NoError(t, json.Unmarshal(raw, &result))
+	// Send execute-command request. The plugin declared the record shape at
+	// Stage 3, so its answer is a head, its records and a terminator.
+	result := executeCommand(t, ctx, engine.mux, rpc.ExecuteCommandInput{
+		Serial: "abc123", Command: "show-routes", Args: []string{"ipv4"}, Peer: "10.0.0.1",
+	})
 	assert.Equal(t, "done", result.Status)
 	assert.JSONEq(t, `{"routes":[]}`, string(result.Data))
 
@@ -1161,12 +1149,10 @@ func TestSDKDispatchCommand(t *testing.T) {
 	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:dispatch-command", req.Method)
 
-	// Respond with result
-	dispatchResult := rpc.DispatchCommandOutput{
-		Status: rpc.StatusDone,
-		Data:   json.RawMessage(`{"last-index":42}`),
-	}
-	require.NoError(t, engine.mux.SendResult(ctx, req.ID, dispatchResult))
+	// Answer it as the engine answers a peer that named record-answers at
+	// stage 3: a head, the one document this bounded walk collapsed to, and the
+	// terminator. The plugin still sees the value byte for byte.
+	require.NoError(t, writeAnswerLines(ctx, engine.mux, documentAnswerLines(req.ID, `{"last-index":42}`, 1, 0)))
 
 	require.NoError(t, <-dispatchDone)
 
@@ -1237,11 +1223,7 @@ func TestSDKDispatchCommandArgs(t *testing.T) {
 	assert.Equal(t, args, input.Args)
 	assert.Equal(t, "peer selector", input.Peer)
 
-	dispatchResult := rpc.DispatchCommandOutput{
-		Status: rpc.StatusDone,
-		Data:   json.RawMessage(`{"accepted":3}`),
-	}
-	require.NoError(t, engine.mux.SendResult(ctx, req.ID, dispatchResult))
+	require.NoError(t, writeAnswerLines(ctx, engine.mux, documentAnswerLines(req.ID, `{"accepted":3}`, 1, 0)))
 
 	require.NoError(t, <-dispatchDone)
 
@@ -2689,3 +2671,153 @@ func TestSDKOnAllPluginsReadyNoHandlerIsNoop(t *testing.T) {
 
 	shutdownPlugin(t, ctx, engine, errCh)
 }
+
+// TestPluginRunDeclaresRecordAnswers checks that an SDK plugin tells the engine
+// it can read a record answer. The method: drive the five-stage startup against
+// a fake engine and read the protocol list off the Stage 3 message the plugin
+// sent.
+//
+// VALIDATES: AC-1 -- declare-capabilities names record-answers in protocol,
+// which is the single input Process.RecordAnswers reads for this peer
+// (onCapabilities, internal/component/plugin/server/startup.go).
+// PREVENTS: every SDK plugin taking the single-line branch of answerResult
+// forever, which is what keeps the record sequence a frame no Go plugin speaks.
+func TestPluginRunDeclaresRecordAnswers(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	// Stage 1: declare-registration.
+	req := readEngineRequest(t, ctx, engine.mux)
+	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+
+	// Stage 2: configure.
+	configInput := struct {
+		Sections []ConfigSection `json:"sections"`
+	}{}
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:configure", configInput))
+
+	// Stage 3: the declaration under test.
+	req = readEngineRequest(t, ctx, engine.mux)
+	require.Equal(t, "ze-plugin-engine:declare-capabilities", req.Method)
+
+	var caps DeclareCapabilitiesInput
+	require.NoError(t, json.Unmarshal(req.Params, &caps))
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+
+	assert.True(t, caps.Understands(rpc.ProtocolRecordAnswers),
+		"stage 3 must name %q in protocol, or the engine writes every answer as one line",
+		rpc.ProtocolRecordAnswers)
+
+	// Stage 4: share-registry.
+	registryInput := struct {
+		Commands []RegistryCommand `json:"commands"`
+	}{}
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:share-registry", registryInput))
+
+	// Stage 5: ready.
+	req = readEngineRequest(t, ctx, engine.mux)
+	assert.Equal(t, "ze-plugin-engine:ready", req.Method)
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+
+	shutdownPlugin(t, ctx, engine, errCh)
+}
+
+// TestPluginRecordEnvelopeErrorsRefused checks that a command handler naming
+// the envelope the rejected rows travel under is refused on BOTH transports.
+// The method: one plugin over the socket and one over the direct bridge answer
+// with a walk whose Key is rpc.AnswerErrorsKey, and each engine call is
+// expected to come back with the reserved-envelope refusal.
+//
+// The two transports carry the answer differently -- the socket writes a record
+// for each row, the bridge marshals one value -- so a refusal in one producer
+// only would let the same handler be accepted in process and refused over the
+// wire. Both reach the one refusal in pkg/plugin/rpc.
+//
+// VALIDATES: AC-9 of spec-record-answers-1-sdk-path -- a handler naming "errors"
+// as its record envelope is refused, on the socket and on the bridge.
+// PREVENTS: the rows a command produced and the rows it rejected landing under
+// one key, where one collection overwrites the other and the terminator's two
+// counts stop describing the document.
+func TestPluginRecordEnvelopeErrorsRefused(t *testing.T) {
+	t.Parallel()
+
+	answerWithReservedEnvelope := func(serial, command string, args []string, peer string) (string, any, error) {
+		rows := func(yield func(Record) bool) {
+			yield(Record{Item: reservedEnvelopeRow(`{"peer":"10.0.0.1"}`)})
+		}
+		return rpc.StatusDone, Records{Key: rpc.AnswerErrorsKey, Rows: rows}, nil
+	}
+
+	t.Run("over the socket", func(t *testing.T) {
+		t.Parallel()
+		p, engine := newTestPair(t)
+		p.OnExecuteCommand(answerWithReservedEnvelope)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		errCh := make(chan error, 1)
+		go func() { errCh <- p.Run(ctx, Registration{}) }()
+		completeStartup(t, ctx, engine)
+
+		_, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:execute-command",
+			rpc.ExecuteCommandInput{Command: "show peers"})
+		require.Error(t, err, "a handler naming the reserved envelope must be refused")
+		assert.ErrorContains(t, err, rpc.ErrReservedEnvelopeKey.Error())
+
+		cancel()
+		<-errCh
+	})
+
+	t.Run("over the direct bridge", func(t *testing.T) {
+		t.Parallel()
+		p, engine, bridge := newBridgedTestPair(t)
+		p.OnExecuteCommand(answerWithReservedEnvelope)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		errCh := make(chan error, 1)
+		go func() { errCh <- p.Run(ctx, Registration{}) }()
+		completeStartup(t, ctx, engine)
+		require.Eventually(t, func() bool { return bridge.HasExecuteCommand() }, 2*time.Second, 10*time.Millisecond,
+			"the bridge's execute-command handler is set after startup")
+
+		_, err := bridge.ExecuteCommand(ctx, "serial-1", "show peers", nil, "")
+		require.Error(t, err, "a handler naming the reserved envelope must be refused")
+		assert.ErrorIs(t, err, rpc.ErrReservedEnvelopeKey,
+			"the in-process refusal is the same error the wire producer returns")
+
+		byeParams, marshalErr := json.Marshal(struct {
+			Reason string `json:"reason"`
+		}{Reason: "done"})
+		require.NoError(t, marshalErr)
+		_, sendErr := bridge.SendCallback(ctx, callbackBye, byeParams)
+		require.NoError(t, sendErr)
+
+		select {
+		case err := <-errCh:
+			require.NoError(t, err)
+		case <-time.After(2 * time.Second):
+			t.Fatal("plugin did not exit")
+		}
+	})
+}
+
+// reservedEnvelopeRow is one row of the answer above, appended into whatever
+// buffer the SDK offers it. No row of that answer ever reaches the wire: the
+// envelope is refused before the first line.
+type reservedEnvelopeRow string
+
+// AppendTo appends the row's JSON to buf and returns the extended slice.
+func (r reservedEnvelopeRow) AppendTo(buf []byte) []byte { return append(buf, r...) }

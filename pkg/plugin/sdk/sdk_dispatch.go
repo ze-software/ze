@@ -242,6 +242,19 @@ func (p *Plugin) eventLoop(ctx context.Context) error {
 			return nil
 		}
 
+		// Execute-command: the one callback whose answer can be a walk. A walk
+		// is written as the answer sequence and nothing may follow it on the
+		// wire, so this callback is answered where the connection is rather
+		// than through the single result line below. The map entry serves the
+		// transport that carries no line for a record (OnExecuteCommand,
+		// sdk_callbacks.go), and both reach one implementation.
+		if req.Method == callbackExecuteCommand {
+			if sendErr := p.answerExecuteCommand(ctx, req); sendErr != nil {
+				return sendErr
+			}
+			continue
+		}
+
 		result, err := handler(req.Params)
 		if err != nil {
 			if sendErr := p.sendCallbackError(ctx, req.ID, err.Error()); sendErr != nil {
@@ -259,6 +272,44 @@ func (p *Plugin) eventLoop(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+// answerExecuteCommand answers one execute-command request from the socket
+// event loop: the answer sequence once this plugin has declared the record
+// shape, one result line while it has not, and one error line when the handler
+// failed.
+//
+// The answer writer is offered only once this plugin has told the engine it
+// speaks the record shape, which is the SAME declaration the read side consults
+// before it expects one (readsRecordAnswers, sdk_engine.go). One declaration
+// governs both directions, so a plugin cannot write a frame it has not said it
+// speaks (R-1 of spec-record-answers-1-sdk-path), and the engine reads the
+// frame that declaration names rather than guessing from what arrives
+// (PluginConn.SendExecuteCommand, internal/component/plugin/ipc/rpc.go).
+//
+// An error AFTER the answer opened still travels as an error line: a mid-walk
+// refusal, a row that disagrees with the declared columns among them, ends the
+// answer at the consumer with the producer named, where a silent stop would
+// read as a lost connection.
+func (p *Plugin) answerExecuteCommand(ctx context.Context, req *rpc.Request) error {
+	p.mu.Lock()
+	fn := p.onExecuteCommand
+	p.mu.Unlock()
+
+	var answer io.Writer
+	if p.recordAnswers.Load() {
+		answer = p.engineMux.AnswerWriter(ctx)
+	}
+
+	result, err := executeCommandAnswer(fn, req.Params, answer, req.ID)
+	if err != nil {
+		return p.sendCallbackError(ctx, req.ID, err.Error())
+	}
+	if result == nil {
+		// The answer sequence is on the wire and it ended at its terminator.
+		return nil
+	}
+	return p.sendCallbackResult(ctx, req.ID, result)
 }
 
 // Startup-stage handlers (not in the callback map -- these run during

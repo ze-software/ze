@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"iter"
 	"net"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -651,7 +654,8 @@ func TestEngineExecuteCommand(t *testing.T) {
 		err    error
 	}, 1)
 	go func() {
-		out, err := engineConn.SendExecuteCommand(context.Background(), "abc123", "show-routes", []string{"ipv4"}, "10.0.0.1")
+		input := &rpc.ExecuteCommandInput{Serial: "abc123", Command: "show-routes", Args: []string{"ipv4"}, Peer: "10.0.0.1"}
+		out, err := engineConn.SendExecuteCommand(context.Background(), input, false)
 		done <- struct {
 			output *rpc.ExecuteCommandOutput
 			err    error
@@ -711,7 +715,8 @@ func TestEngineExecuteCommandDirectBridge(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	out, err := engineConn.SendExecuteCommand(ctx, "abc123", "show-routes", args, "peer selector")
+	input := &rpc.ExecuteCommandInput{Serial: "abc123", Command: "show-routes", Args: args, Peer: "peer selector"}
+	out, err := engineConn.SendExecuteCommand(ctx, input, false)
 	require.NoError(t, err)
 	require.NotNil(t, out)
 	assert.Equal(t, rpc.StatusDone, out.Status)
@@ -1166,4 +1171,131 @@ func TestRPCDeliverBatchTimeout(t *testing.T) {
 	isCtxTimeout := errors.Is(err, context.DeadlineExceeded)
 	isIOTimeout := errors.Is(err, os.ErrDeadlineExceeded)
 	assert.True(t, isCtxTimeout || isIOTimeout, "expected timeout error, got: %v", err)
+}
+
+// newMuxEnginePluginConn returns the engine end of a plugin connection wired the
+// way production wires one -- through a MuxConn, which is what routes an
+// answer's lines by id -- and the plugin end of the same socket.
+func newMuxEnginePluginConn(t *testing.T) (engineConn *PluginConn, pluginEnd *rpc.Conn) {
+	t.Helper()
+
+	engineSide, pluginSide := net.Pipe()
+	t.Cleanup(func() {
+		engineSide.Close() //nolint:errcheck // test cleanup
+		pluginSide.Close() //nolint:errcheck // test cleanup
+	})
+
+	mux := rpc.NewMuxConn(rpc.NewConn(engineSide, engineSide))
+	t.Cleanup(func() { mux.Close() }) //nolint:errcheck // test cleanup
+	return NewMuxPluginConn(mux), rpc.NewConn(pluginSide, pluginSide)
+}
+
+// answerPeerRows is the walk a test plugin answers with: one self-describing row
+// for each of count peers, produced one at a time.
+func answerPeerRows(count int) iter.Seq[rpc.Record] {
+	return func(yield func(rpc.Record) bool) {
+		for i := range count {
+			row := json.RawMessage(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)
+			if !yield(rpc.Record{Item: row}) {
+				return
+			}
+		}
+	}
+}
+
+// TestSendExecuteCommandReadsRecords checks that the frame the engine reads for
+// one execute-command is the frame this peer's Stage 3 declaration named, and
+// never a frame guessed from what arrives. The method: one plugin end declares
+// the record shape and writes the answer sequence, and a second declares nothing
+// and writes the single-line result; the engine reads each with the declaration
+// that peer made.
+//
+// VALIDATES: AC-8 of spec-record-answers-1-sdk-path -- a plugin that declared
+// record-answers has its execute-command answer read as a record sequence, and a
+// plugin that declared nothing gets the value frame it gets today.
+// VALIDATES: A-2 -- one protocol name covers both directions, so the peer's own
+// declaration is the whole negotiation and the engine reads a record result ONLY
+// for a peer that made it.
+// PREVENTS: the engine taking a head line's key=value tail for an
+// execute-command result, which is what a single-frame read does to an answer
+// sequence (R-1).
+func TestSendExecuteCommandReadsRecords(t *testing.T) {
+	t.Parallel()
+
+	input := &rpc.ExecuteCommandInput{Serial: "s-1", Command: "show peers", Peer: "10.0.0.1"}
+
+	t.Run("a peer that declared reads a record sequence", func(t *testing.T) {
+		t.Parallel()
+
+		// Past the buffer threshold, so the answer is streamed rather than
+		// collapsed into one document.
+		const rows = rpc.AnswerBufferThreshold + 3
+
+		engineConn, pluginConn := newMuxEnginePluginConn(t)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		served := make(chan error, 1)
+		go func() {
+			req, readErr := pluginConn.ReadRequest(ctx)
+			if readErr != nil {
+				served <- readErr
+				return
+			}
+			if req.Method != "ze-plugin-callback:execute-command" {
+				served <- fmt.Errorf("unexpected method %q", req.Method)
+				return
+			}
+			head := rpc.AnswerTail{Status: rpc.StatusDone, Key: "peers"}
+			served <- rpc.WriteRecordAnswer(pluginConn.AnswerWriter(ctx), req.ID, head, answerPeerRows(rows))
+		}()
+
+		answer, err := engineConn.SendExecuteCommandAnswer(ctx, input, true)
+		require.NoError(t, err)
+		require.NotNil(t, answer)
+		assert.Equal(t, rpc.StatusDone, answer.Status)
+		assert.Equal(t, rpc.AnswerTypeNDJSON, answer.Type, "a walk past the threshold is streamed")
+		assert.Equal(t, "peers", answer.Key)
+
+		got := make([]string, 0, rows)
+		for record := range answer.Records {
+			require.Empty(t, record.Fault, "this walk rejects no row")
+			got = append(got, string(record.Item))
+		}
+		require.NoError(t, answer.Err())
+		assert.Equal(t, rpc.VerdictDone, answer.Verdict())
+		require.Len(t, got, rows)
+		assert.Equal(t, `{"peer":"10.0.0.0"}`, got[0], "the records arrive in walk order")
+		assert.Equal(t, `{"peer":"10.0.0.`+strconv.Itoa(rows-1)+`"}`, got[rows-1])
+
+		require.NoError(t, <-served)
+	})
+
+	t.Run("a peer that declared nothing reads the value frame", func(t *testing.T) {
+		t.Parallel()
+
+		engineConn, pluginConn := newMuxEnginePluginConn(t)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		served := make(chan error, 1)
+		go func() {
+			req, readErr := pluginConn.ReadRequest(ctx)
+			if readErr != nil {
+				served <- readErr
+				return
+			}
+			out := &rpc.ExecuteCommandOutput{Status: rpc.StatusDone, Data: json.RawMessage(`{"peers":[]}`)}
+			served <- pluginConn.SendResult(ctx, req.ID, out)
+		}()
+
+		out, err := engineConn.SendExecuteCommand(ctx, input, false)
+		require.NoError(t, err)
+		require.NotNil(t, out)
+		assert.Equal(t, rpc.StatusDone, out.Status)
+		assert.Equal(t, `{"peers":[]}`, string(out.Data),
+			"an undeclared peer's result reaches the engine as the bytes it always did")
+
+		require.NoError(t, <-served)
+	})
 }

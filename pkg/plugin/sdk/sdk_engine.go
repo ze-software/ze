@@ -199,20 +199,23 @@ func (p *Plugin) BatchValidate(ctx context.Context, decisions []rpc.ValidationDe
 	return &out, nil
 }
 
-// DispatchCommand dispatches a command through the engine's command dispatcher.
-// Returns the status and raw JSON data from the target handler's response. This
-// enables inter-plugin communication: the engine routes the command to the target
-// plugin via longest-match registry lookup and returns the full structured response.
-// Error text from the handler is returned as a Go error (not in data).
+// DispatchCommand dispatches a command through the engine's command dispatcher
+// and returns the whole answer as one value: the status the answer opens with
+// and the document its records carry. This enables inter-plugin communication:
+// the engine routes the command to the target plugin via longest-match registry
+// lookup and returns the full structured response. Error text from the handler
+// is returned as a Go error (not in data).
+//
+// It is the buffered sibling of DispatchCommandAnswer, which yields the same
+// answer one row at a time. Both read one wire shape; this one holds the
+// answer, so a caller that must bound its memory takes the other.
 func (p *Plugin) DispatchCommand(ctx context.Context, command string) (status string, data json.RawMessage, err error) {
 	if p.bridge != nil && p.bridge.HasDispatchCommand() {
 		out, dispatchErr := p.bridge.DispatchCommand(command)
 		return dispatchDirectCommandResult(out, dispatchErr)
 	}
-
 	input := &rpc.DispatchCommandInput{Command: command}
-	out, dispatchErr := p.dispatchCommandRPC(ctx, rpc.MethodDispatchCommand, input, "dispatch-command")
-	return dispatchCommandResult(out, dispatchErr)
+	return p.dispatchCommandValue(ctx, rpc.MethodDispatchCommand, input, "dispatch-command")
 }
 
 // DispatchCommandArgs dispatches an exact registered command with pre-tokenized
@@ -223,22 +226,121 @@ func (p *Plugin) DispatchCommandArgs(ctx context.Context, command string, args [
 		out, dispatchErr := p.bridge.DispatchCommandArgs(command, args, peer)
 		return dispatchDirectCommandResult(out, dispatchErr)
 	}
-
 	input := &rpc.DispatchCommandArgsInput{Command: command, Args: args, Peer: peer}
-	out, dispatchErr := p.dispatchCommandRPC(ctx, rpc.MethodDispatchCommandArgs, input, "dispatch-command-args")
-	return dispatchCommandResult(out, dispatchErr)
+	return p.dispatchCommandValue(ctx, rpc.MethodDispatchCommandArgs, input, "dispatch-command-args")
 }
 
-func (p *Plugin) dispatchCommandRPC(ctx context.Context, method string, input any, label string) (*rpc.DispatchCommandOutput, error) {
+// errRecordAnswersNotDeclared is what an answer-returning call returns before
+// its plugin has told the engine it can read one. The engine writes the record
+// sequence only to a peer that named rpc.ProtocolRecordAnswers at Stage 3
+// (answerResult, internal/component/plugin/server/dispatch_registry.go), so a
+// call made without that declaration would read a single-line result as an
+// answer head and take its tail for the result.
+var errRecordAnswersNotDeclared = errors.New(
+	"dispatch-command answer: this plugin declared no record-answers protocol at stage 3")
+
+// DispatchCommandAnswer dispatches a command through the engine's command
+// dispatcher and returns the answer as the engine writes it: a head stating how
+// each record is read, the records the walk produced, and a terminator carrying
+// the counts. The plugin sees each row as it arrives and never holds the
+// collection, which is what bounds the memory of a walk over a large table.
+//
+// The caller MUST range over Answer.Records to its end, or stop that range
+// deliberately, and MUST read Answer.Verdict, Answer.Err and Answer.Message
+// after the range has returned (Answer, pkg/plugin/rpc/types.go).
+//
+// It replaces the single-line dispatch RESULT rather than joining it: after
+// Stage 3 the engine writes one shape for this plugin, and DispatchCommand
+// reads that same shape and holds it (dispatchCommandValue). The two are one
+// answer with one wire and two readings, not two answers
+// (ai/rules/no-layering.md).
+func (p *Plugin) DispatchCommandAnswer(ctx context.Context, command string) (*rpc.Answer, error) {
+	if !p.recordAnswers.Load() {
+		return nil, errRecordAnswersNotDeclared
+	}
+	// The bridge replaced the pipe at Stage 5, so once it is ready it is the
+	// only transport this plugin has. Ask it even when its answer slot is
+	// empty: its own refusal names the missing slot, where the closed mux would
+	// answer with a read error that says nothing about why.
+	if p.bridge != nil && p.bridge.Ready() {
+		return p.bridge.DispatchCommandAnswer(command)
+	}
+	return p.engineMux.CallAnswer(ctx, rpc.MethodDispatchCommand, &rpc.DispatchCommandInput{Command: command})
+}
+
+// dispatchCommandValue sends one dispatch RPC and returns the value the command
+// answered with. label names the RPC in an error.
+//
+// Which frame carries that value is the engine's decision, and this reads the
+// one the engine writes. On the socket the engine writes the record sequence to
+// a peer that named rpc.ProtocolRecordAnswers at Stage 3 and the single-line
+// result to one that has not yet (answerResult,
+// internal/component/plugin/server/dispatch_registry.go), so the branch here is
+// the same branch: a peer reading the wrong frame takes a head line's tail for
+// its result (R-1 of spec-record-answers-1-sdk-path). The single-line arm goes
+// when child 2 of that family deletes the frame it reads.
+func (p *Plugin) dispatchCommandValue(ctx context.Context, method string, input any, label string) (string, json.RawMessage, error) {
+	if p.readsRecordAnswers() {
+		answer, err := p.engineMux.CallAnswer(ctx, method, input)
+		if err != nil {
+			return "", nil, err
+		}
+		return answerValue(answer, label)
+	}
+
 	result, err := p.callEngineWithResult(ctx, method, input)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 	out := new(rpc.DispatchCommandOutput)
-	if err := json.Unmarshal(result, out); err != nil {
-		return nil, fmt.Errorf("unmarshal %s result: %w", label, err)
+	if unmarshalErr := json.Unmarshal(result, out); unmarshalErr != nil {
+		return "", nil, fmt.Errorf("unmarshal %s result: %w", label, unmarshalErr)
 	}
-	return out, nil
+	return dispatchCommandResult(out, nil)
+}
+
+// readsRecordAnswers reports whether the engine's next dispatch answer arrives
+// as a record sequence.
+//
+// Two facts decide it. The plugin must have named the shape at Stage 3, which
+// is what the engine reads before it chooses a frame. And the answer must come
+// over the wire: a ready DirectBridge is an in-process call with no line to
+// carry a record on, so serveEngineOpDirect hands back the built
+// {status, data, error} projection whatever the peer declared
+// (internal/component/plugin/server/dispatch_registry.go).
+func (p *Plugin) readsRecordAnswers() bool {
+	if !p.recordAnswers.Load() {
+		return false
+	}
+	if p.bridge == nil {
+		return true
+	}
+	return !p.bridge.Ready()
+}
+
+// answerValue walks answer to its end and rebuilds the value its command
+// produced: the status the head declared, the document its records carry, and
+// the command's own failure as a Go error. label names the RPC in that error.
+//
+// It is the buffered reading of an answer, so it holds what the walk produced.
+// A caller that must bound its memory reads Answer.Records itself.
+func answerValue(answer *rpc.Answer, label string) (string, json.RawMessage, error) {
+	document, collapseErr := rpc.CollapseAnswer(answer)
+
+	// Read after the range, never before: the range is what fills them.
+	if err := answer.Err(); err != nil {
+		return "", nil, fmt.Errorf("%s answer: %w", label, err)
+	}
+	if collapseErr != nil {
+		return "", nil, fmt.Errorf("%s answer: %w", label, collapseErr)
+	}
+	// The terminator's message is the command's own failure text, which the
+	// single-line frame carried in error=. A caller reads it as a Go error, so
+	// the two frames fail a caller the same way.
+	if message := answer.Message(); message != "" {
+		return answer.Status, nil, errors.New(message)
+	}
+	return answer.Status, document, nil
 }
 
 // dispatchDirectCommandResult projects an in-process result before it completes

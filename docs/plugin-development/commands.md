@@ -61,9 +61,26 @@ Commands are delivered to the plugin as `execute-command` RPCs over the MuxConn 
 
 ### Success Response (plugin to engine)
 
+The SDK names `record-answers` at Stage 3 for every plugin, so the answer is a
+head, its records and a terminator. The frame follows that declaration and never
+the payload. A handler that built one value therefore takes the same three lines
+as a handler that walked a table.
+
+```
+#17 ok status=done type=json
+#17 ok item={"status":"running","uptime":3600}
+#17 ok count=1
+```
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer -->
+
+A peer that speaks the protocol by hand and declares nothing gets the single
+line instead:
+
 ```
 #17 ok {"status":"done","data":{"status":"running","uptime":3600}}
 ```
+<!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
 
 ### Error Response (plugin to engine)
 
@@ -85,11 +102,13 @@ return "done", map[string]any{
 }, nil
 ```
 
-The SDK marshals this value into `ExecuteCommandOutput.Data` and sends:
+The SDK marshals this value once and sends it as the one record of the answer:
 ```
-#17 ok {"status":"done","data":{"count":42,"items":["a","b"]}}
+#17 ok status=done type=json
+#17 ok item={"count":42,"items":["a","b"]}
+#17 ok count=1
 ```
-<!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandOutput, executeCommandAnswer -->
 
 ### Success without Data
 
@@ -97,11 +116,43 @@ The SDK marshals this value into `ExecuteCommandOutput.Data` and sends:
 return "done", nil, nil
 ```
 
-Response:
+Response. A command that reported nothing writes no record, and the terminator
+says so. Nothing is not the same answer as an empty collection:
 ```
-#17 ok {"status":"done"}
+#17 ok status=done type=json
+#17 ok count=0
 ```
-<!-- source: pkg/plugin/rpc/message.go -- FormatResult, FormatOK -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer, writeDocumentLines -->
+
+### Success with Rows
+
+A command that walks a large collection returns an `sdk.Records` rather than a
+built value. The SDK writes one line for each row, so neither the plugin nor the
+engine holds the whole answer:
+
+```go
+return "done", sdk.Records{Key: "sessions", Rows: sessionRows()}, nil
+```
+
+```
+#17 ok status=done type=ndjson key=sessions
+#17 ok item={"id":1,"peer":"10.0.0.1"}
+#17 ok item={"id":2,"peer":"10.0.0.2"}
+#17 ok count=2
+```
+
+`Key` names the envelope the rows belong under. A handler MUST NOT name it
+`errors`, because that name holds the rows the walk rejected. `Rows` is walked
+once, before the handler's call returns. A handler MUST NOT store the sequence,
+and MUST keep whatever it reads alive until then. A row that no wire message can
+carry is reported as a rejected row, and the walk continues.
+
+A walk of 256 rows or fewer collapses to one `type=json` document, which is the
+JSON the command answered with before it produced rows at all. The encoder
+decides that from the walk, and the handler states nothing about the wire.
+<!-- source: pkg/plugin/records.go -- Row, Record, Records, Records.WriteAnswer -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, boundedRecord -->
+<!-- source: pkg/plugin/rpc/collapse.go -- CollapseRecords, AnswerErrorsKey -->
 
 ### Handler Error
 

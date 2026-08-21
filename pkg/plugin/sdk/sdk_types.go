@@ -1,17 +1,33 @@
 // Design: docs/architecture/api/process-protocol.md — re-exported RPC type aliases
 // Overview: sdk.go — plugin SDK core
 //
-// These type aliases re-export canonical types from pkg/plugin/rpc so that
-// external plugin authors only need to import the sdk package. This decouples
-// the public SDK surface from the internal RPC wire types — rpc can be
-// restructured without breaking plugin code.
+// These type aliases re-export canonical types from pkg/plugin/rpc and
+// pkg/plugin so that external plugin authors only need to import the sdk
+// package. This decouples the public SDK surface from the internal RPC wire
+// types — rpc can be restructured without breaking plugin code.
 //
 // For the canonical type definitions and field documentation, see:
 //   pkg/plugin/rpc/types.go
+//   pkg/plugin/records.go
 
 package sdk
 
-import "github.com/ze-software/ze/pkg/plugin/rpc"
+import (
+	"github.com/ze-software/ze/pkg/plugin"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+)
+
+// Row is one row of a record answer, as the bytes it appends to a buffer the
+// caller owns rather than the bytes it allocates.
+type Row = plugin.Row
+
+// Record is one line of a record answer: a row the command produced, or a row
+// it rejected while the walk continued.
+type Record = plugin.Record
+
+// Records is the walk a command handler answers with instead of the collection,
+// so one row at a time reaches the wire.
+type Records = plugin.Records
 
 // Registration is the SDK name for the declare-registration input (Stage 1).
 type Registration = rpc.DeclareRegistrationInput

@@ -1031,3 +1031,106 @@ func TestNotUnderstoodAnswerReachesTheCaller(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown command: shwo bgp peers")
 }
+
+// TestCallAnswerStopsGeneratorOnConsumerStop checks that a consumer which stops
+// reading stops the walk behind it, on both transports. The method: one row
+// table drives a peer on a pipe and an in-process producer, the consumer takes
+// one record and leaves the range, and the test reads how far each producer got.
+//
+// Over the socket the walk runs in the peer, so what stopping buys is detaching
+// from the answer: the pending entry goes, the lines the peer still writes are
+// discarded rather than counted as junk, and the connection carries the next
+// call. In process the walk runs under the consumer's own range, so stopping it
+// stops the generator on the row it stopped at.
+//
+// VALIDATES: `| first 10` over a table nobody wants whole costs ten rows, and a
+// stop leaves no terminator, so Verdict reads truncated on both transports.
+// PREVENTS: a consumer stop that lets the producer run to the end of a million
+// rows, and a stop that leaves the connection unusable for the next call.
+func TestCallAnswerStopsGeneratorOnConsumerStop(t *testing.T) {
+	t.Parallel()
+
+	items := []string{`{"peer":"10.0.0.1"}`, `{"peer":"10.0.0.2"}`, `{"peer":"10.0.0.3"}`}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "pluginEnd", pluginEnd)
+	defer closePipe(t, "engineEnd", engineEnd)
+
+	// The peer writes the whole answer and then serves one more call, which is
+	// what proves the discarded lines left the connection usable.
+	go func() {
+		engineConn := NewConn(engineEnd, engineEnd)
+		request, err := engineConn.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		lines := [][]byte{AppendAnswerHead(nil, request.ID, StatusDone, AnswerTypeNDJSON, "peers", nil)}
+		for _, item := range items {
+			lines = append(lines, AppendAnswerItem(nil, request.ID, json.RawMessage(item)))
+		}
+		lines = append(lines, AppendAnswerTerminator(nil, request.ID, uint64(len(items)), 0, ""))
+		for _, line := range lines {
+			if _, writeErr := engineEnd.Write(append(line, '\n')); writeErr != nil {
+				return
+			}
+		}
+		next, err := engineConn.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		if sendErr := engineConn.SendResult(ctx, next.ID, json.RawMessage(`{"awake":true}`)); sendErr != nil {
+			return
+		}
+	}()
+
+	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
+	defer func() {
+		if err := mux.Close(); err != nil {
+			t.Logf("mux close: %v", err)
+		}
+	}()
+
+	overSocket, err := mux.CallAnswer(ctx, MethodDispatchCommand, &DispatchCommandInput{Command: "show bgp neighbor summary"})
+	require.NoError(t, err)
+
+	socketRead := 0
+	for range overSocket.Records {
+		socketRead++
+		break
+	}
+	assert.Equal(t, 1, socketRead, "the consumer took one record and left")
+	assert.Equal(t, VerdictTruncated, overSocket.Verdict(), "a stopped range reaches no terminator")
+	assert.NoError(t, overSocket.Err(), "a consumer that stopped the range itself reports no fault")
+
+	result, err := mux.CallRPC(ctx, "ze-bgp:awake", nil)
+	require.NoError(t, err, "the lines the stopped answer left behind must not close the connection")
+	assert.JSONEq(t, `{"awake":true}`, string(result))
+
+	// In process the same stop reaches the generator, because the consumer's
+	// range is what pulls each row.
+	produced := 0
+	rows := func(yield func(Record) bool) {
+		for _, item := range items {
+			produced++
+			if !yield(Record{Item: json.RawMessage(item)}) {
+				return
+			}
+		}
+	}
+	head := AnswerTail{Status: StatusDone, Type: AnswerTypeNDJSON, Key: "peers"}
+	terminator := AnswerTail{Count: uint64(len(items))}
+	inProcess := NewAnswer(head, terminator, rows)
+
+	processRead := 0
+	for range inProcess.Records {
+		processRead++
+		break
+	}
+	assert.Equal(t, 1, processRead, "the consumer took one record and left")
+	assert.Equal(t, 1, produced, "the generator stopped on the row the consumer stopped at")
+	assert.Equal(t, VerdictTruncated, inProcess.Verdict(), "a stopped range reaches no terminator")
+	assert.NoError(t, inProcess.Err(), "a consumer that stopped the range itself reports no fault")
+}

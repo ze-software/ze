@@ -5,19 +5,25 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"net/netip"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/command"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
+	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 var errReactorNotAvailable = errors.New("reactor not available")
@@ -1279,6 +1285,14 @@ func (d *Dispatcher) dispatchPlugin(ctx *CommandContext, input, lowerInput, peer
 }
 
 // routeToProcess sends a command request to a plugin process via synchronous RPC.
+//
+// The plugin's answer arrives as a sequence when the peer declared
+// rpc.ProtocolRecordAnswers and as the single-line result otherwise, and one
+// call reads both (PluginConn.SendExecuteCommandAnswer). A streamed answer
+// becomes a plugin.Records payload, so the engine forwards the rows a consumer
+// reads and never holds the collection (AC-4 and AC-8 of
+// spec-record-answers-1-sdk-path). Every other answer is one document and
+// becomes the plugin.RawJSON payload it has always been.
 func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredCommand, args []string, peerSelector string) (*plugin.Response, error) {
 	proc := cmd.Process
 	if proc == nil || !proc.Running() {
@@ -1295,21 +1309,169 @@ func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredComma
 		parentCtx = cmdCtx.Context()
 	}
 
+	// The deadline bounds the ANSWER and not only the call, because a streamed
+	// answer is read after this returns. So cancel travels with the walk rather
+	// than being deferred here, and every path that does not hand the walk on
+	// releases it before it returns.
 	rpcCtx, cancel := context.WithTimeout(parentCtx, cmd.Timeout)
-	defer cancel()
 
-	rpcOut, err := conn.SendExecuteCommand(rpcCtx, "", cmd.Name, args, peerSelector)
+	input := &rpc.ExecuteCommandInput{Command: cmd.Name, Args: args, Peer: peerSelector}
+	answer, err := conn.SendExecuteCommandAnswer(rpcCtx, input, proc.RecordAnswers())
 	if err != nil {
+		cancel()
 		var tb textbuf.Buffer
 		return &plugin.Response{Status: plugin.StatusError, Error: tb.Str("failed to send request: ").Err(err).String()}, nil
 	}
-	if rpcOut != nil {
-		if rpcOut.Status == plugin.StatusError {
-			return &plugin.Response{Status: plugin.StatusError, Error: string(rpcOut.Data)}, nil
-		}
-		return &plugin.Response{Status: rpcOut.Status, Data: plugin.RawJSON(rpcOut.Data)}, nil
+	if answer.Type != rpc.AnswerTypeJSON {
+		return streamedPluginResponse(cmd.Name, answer, sync.OnceFunc(cancel)), nil
 	}
-	return &plugin.Response{Status: plugin.StatusDone}, nil
+
+	defer cancel()
+	rpcOut, valueErr := pluginipc.ExecuteCommandValue(answer)
+	if valueErr != nil {
+		var tb textbuf.Buffer
+		return &plugin.Response{Status: plugin.StatusError, Error: tb.Str("failed to read answer: ").Err(valueErr).String()}, nil
+	}
+	if rpcOut.Status == plugin.StatusError {
+		return &plugin.Response{Status: plugin.StatusError, Error: string(rpcOut.Data)}, nil
+	}
+	return &plugin.Response{Status: rpcOut.Status, Data: plugin.RawJSON(rpcOut.Data)}, nil
+}
+
+// streamedPluginResponse is the response a plugin's streamed answer becomes: the
+// rows as they arrive, under the envelope and the column schema the head
+// declared.
+//
+// The status is the head's, normalized to the two words a response envelope
+// carries. A head that opened with a failure keeps its rows, exactly as the
+// engine's own answer does for a failing command (WriteAnswer,
+// internal/component/plugin/dispatch.go); which of the two a surface renders is
+// that surface's decision, not this one's.
+func streamedPluginResponse(command string, answer *rpc.Answer, release func()) *plugin.Response {
+	status := plugin.StatusDone
+	if answer.Status == rpc.StatusError {
+		status = plugin.StatusError
+	}
+	return &plugin.Response{
+		Status: status,
+		Data: plugin.Records{
+			Key:    answer.Key,
+			Fields: answer.Fields,
+			Rows:   pluginAnswerRows(command, answer, release),
+		},
+	}
+}
+
+// pluginAnswerRows yields the rows of a plugin's streamed answer and releases
+// the call that carried it when the walk ends.
+//
+// The walk is the ONE reading of this answer, so the engine forwards each row
+// and never holds the collection: a command that walks a million rows costs the
+// rows the consumer keeps, which is what bounds `| first 10` over a plugin's
+// table. Nothing here starts a goroutine, for the answer or for a row
+// (ai/rules/goroutine-lifecycle.md).
+//
+// release runs exactly once, when the range ends by exhaustion or by the
+// consumer stopping it, and it is where the call's deadline is given back. A
+// consumer that never ranges at all leaves it to that deadline, which is the
+// second reason the call carries one.
+//
+// Every row is checked before it is forwarded, because a plugin's record is
+// untrusted and the parser hands its bytes on unread (rpc.Record). A row that is
+// not JSON is rejected rather than forwarded (checkedRecord).
+//
+// An answer that stopped before its terminator is reported as ONE rejected row
+// rather than handed on as complete, so an operator sees that the walk ended
+// early instead of reading a short answer as the whole. That row carries a fixed
+// sentence and the count: the cause is a Go error and goes to the daemon log,
+// because a fault payload reaches an operator (Security Review of
+// spec-record-answers-1-sdk-path).
+func pluginAnswerRows(command string, answer *rpc.Answer, release func()) iter.Seq[rpc.Record] {
+	return func(yield func(rpc.Record) bool) {
+		defer release()
+
+		var produced uint64
+		for record := range answer.Records {
+			produced++
+			if !yield(checkedRecord(produced, record)) {
+				return
+			}
+		}
+		// Read after the range, never before: the range is what fills it.
+		err := answer.Err()
+		if err == nil {
+			return
+		}
+		logger().Warn("plugin answer ended before its terminator",
+			"command", command, "records", produced, "error", err)
+		yield(rpc.Record{Fault: answerTruncatedFault(produced)})
+	}
+}
+
+// checkedRecord is record when its payload is JSON, and the rejected row that
+// stands in for it when it is not.
+//
+// A record line's item= and fault= are the plugin's own bytes and the parser
+// forwards them unread (rpc.Record), so this is the boundary where an untrusted
+// payload is checked before an operator's rendering treats it as JSON. The
+// buffered reading of the same answer checks it too, by re-encoding each row
+// (rpc.CollapseRecords), so both readings refuse the same row.
+//
+// Rejecting the row rather than ending the walk is what keeps the rest of the
+// answer, exactly as a row too wide for one line does (boundedRecord,
+// pkg/plugin/rpc/answer_write.go): refusing one row must not cost the operator
+// the rows around it. A record carrying neither an item nor a fault is rejected
+// here as well, because nothing is not a row either.
+//
+// ordinal is the record's position in the walk, counted from one.
+func checkedRecord(ordinal uint64, record rpc.Record) rpc.Record {
+	payload := record.Item
+	if len(record.Fault) > 0 {
+		payload = record.Fault
+	}
+	if json.Valid(payload) {
+		return record
+	}
+	return rpc.Record{Fault: answerRowNotJSONFault(ordinal, len(payload))}
+}
+
+// answerRowNotJSONFaultCapacity is the capacity answerRowNotJSONFault builds
+// into: 62 bytes of fixed text and two decimal numbers of at most 20 digits
+// each, so 128 holds every fault it can write without growing the slice.
+const answerRowNotJSONFaultCapacity = 128
+
+// answerRowNotJSONFault is the rejected row that stands in for a plugin record
+// whose payload is not JSON. It names the record by its position in the walk and
+// states its size, so an operator can find the row that was rejected.
+//
+// It quotes nothing of the payload. Those bytes are whatever the plugin sent,
+// and a fault carrying them would put them in front of the operator through the
+// rejection meant to keep them away.
+func answerRowNotJSONFault(ordinal uint64, size int) json.RawMessage {
+	fault := make([]byte, 0, answerRowNotJSONFaultCapacity)
+	fault = append(fault, `{"message":"plugin answer row is not JSON","record":`...)
+	fault = strconv.AppendUint(fault, ordinal, 10)
+	fault = append(fault, `,"bytes":`...)
+	fault = strconv.AppendInt(fault, int64(size), 10)
+	return append(fault, '}')
+}
+
+// answerTruncatedFaultCapacity is the capacity answerTruncatedFault builds into:
+// 66 bytes of fixed text and one decimal number of at most 20 digits, so 96
+// holds every fault it can write without growing the slice.
+const answerTruncatedFaultCapacity = 96
+
+// answerTruncatedFault is the rejected row that states a plugin answer which
+// stopped before its terminator. It names how many records did arrive, so an
+// operator can tell an empty answer from a short one.
+//
+// It quotes no Go error and no path. The text an operator reads must not carry
+// either, and the cause is logged beside it for whoever reads the daemon log.
+func answerTruncatedFault(produced uint64) json.RawMessage {
+	fault := make([]byte, 0, answerTruncatedFaultCapacity)
+	fault = append(fault, `{"message":"plugin answer ended before its terminator","records":`...)
+	fault = strconv.AppendUint(fault, produced, 10)
+	return append(fault, '}')
 }
 
 var errBackslashInCommand = errors.New("backslash is not allowed in commands")

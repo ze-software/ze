@@ -82,16 +82,29 @@ runtime request, see the gotcha below.
 **B. IPC transport underneath a plugin-routed command**
 
 9. **Wire call.** `routeToProcess` (`internal/component/plugin/server/command.go`) gets the target plugin's
-   `PluginConn` (`proc.Conn()`, `internal/component/plugin/server/command.go`) and calls `conn.SendExecuteCommand(rpcCtx,
-   "", cmd.Name, args, peerSelector)` (`internal/component/plugin/server/command.go`).
-10. **SendExecuteCommand** (`internal/component/plugin/ipc/rpc.go`): for an in-process
-    plugin with an active `DirectBridge` and `HasExecuteCommand()`, calls
-    `bridge.ExecuteCommand` directly (`internal/component/plugin/ipc/rpc.go`, no serialization, no wire I/O, see
-    `plugin-transport.md`); otherwise builds `rpc.ExecuteCommandInput{Serial, Command, Args,
-    Peer}` and calls `pc.CallRPC(ctx, "ze-plugin-callback:execute-command", input)`
-    (`internal/component/plugin/ipc/rpc.go`).
+   `PluginConn` (`proc.Conn()`, `internal/component/plugin/server/command.go`) and calls
+   `conn.SendExecuteCommandAnswer(rpcCtx, input, proc.RecordAnswers())`
+   (`internal/component/plugin/server/command.go`). The declaration is a PARAMETER because
+   `Process` is the one store of it (`Process.RecordAnswers`, `internal/component/plugin/process/process.go`).
+10. **SendExecuteCommandAnswer** (`internal/component/plugin/ipc/rpc.go`): an in-process
+    plugin with an active `DirectBridge` and `HasExecuteCommand()` takes
+    `bridge.ExecuteCommand` directly (`internal/component/plugin/ipc/rpc.go`, no serialization,
+    no wire I/O, see `plugin-transport.md`). The one value it returns is wrapped as a
+    one-record answer (`valueAnswer`, `internal/component/plugin/ipc/rpc.go`).
+    Every other plugin is sent `ze-plugin-callback:execute-command`.
+    A plugin that declared `record-answers` at Stage 3
+    has its answer read as a SEQUENCE through `MuxConn.CallAnswer` (`pkg/plugin/rpc/mux.go`).
+    A plugin that declared nothing has its single `#<id> ok {...}` result read as the
+    value it always was (`executeCommandValue`, `internal/component/plugin/ipc/rpc.go`).
+    `SendExecuteCommand` is the buffered sibling: the same call, collapsed to one
+    `rpc.ExecuteCommandOutput` through `ExecuteCommandValue`.
 11. **CallRPC routing.** `PluginConn.CallRPC` (`internal/component/plugin/ipc/rpc.go`) tries bridge, then `MuxConn`, then
-    a direct `Conn`. External (subprocess) plugins always take the `MuxConn` branch:
+    a direct `Conn`. Every typed method except `execute-command` uses it. A record
+    answer needs `MuxConn.CallAnswer` instead, which writes the same request line and
+    registers an answer queue rather than a one-shot response channel.
+    A direct `PluginConn` therefore refuses one
+    (`errRecordAnswerNeedsMux`, `internal/component/plugin/ipc/rpc.go`).
+    External (subprocess) plugins always take the `MuxConn` branch:
     `MuxConn.CallRPC` (`pkg/plugin/rpc/mux.go`) takes the next correlation ID
     (`Conn.NextID`, `pkg/plugin/rpc/conn.go`), registers a buffered response channel keyed
     by that id (`pkg/plugin/rpc/mux.go`), and writes the request line via `conn.writeAppended`
@@ -104,16 +117,27 @@ runtime request, see the gotcha below.
     `Conn.readFrame` (`pkg/plugin/rpc/conn.go`), splits the `#<id>` prefix from `<verb> [<payload>]`
     (`pkg/plugin/rpc/mux.go`); since the verb is a method name (not `ok`/`error`) it is an inbound
     request, pushed non-blocking onto `Requests()` (`pkg/plugin/rpc/mux.go`, channel defined `:44`). The
-    plugin SDK's event loop reads it, runs the plugin's registered command handler, and
-    replies with `Conn.SendResult`/`SendError` (`pkg/plugin/rpc/conn.go`, `:315`), `#<id> ok {...}` or
-    `#<id> error {...}`.
+    plugin SDK's event loop reads it and runs the plugin's registered command handler
+    (`Plugin.answerExecuteCommand`, `pkg/plugin/sdk/sdk_dispatch.go`). The SDK declared
+    `record-answers` at Stage 3, so the reply is an ANSWER SEQUENCE written through
+    `Conn.AnswerWriter` (`pkg/plugin/rpc/conn.go`). A `plugin.Records` payload becomes one line
+    for each row (`Records.WriteAnswer`, `pkg/plugin/records.go`). A built value becomes the
+    one record of a `type=json` answer (`rpc.WriteDocumentAnswer`, `pkg/plugin/rpc/answer_write.go`).
+    A handler error still replies `#<id> error {...}` through `Conn.SendError`
+    (`pkg/plugin/rpc/conn.go`).
 13. **Response routing back.** The engine-side `readLoop` sees verb `ok`/`error`, looks up the
     pending channel by id and delivers the raw body (`pkg/plugin/rpc/mux.go`); `interpretResponse`
     (`pkg/plugin/rpc/mux.go`) splits verb from payload and returns `json.RawMessage` (success) or an
-    `*RPCCallError` (`pkg/plugin/rpc/message.go`) built by `parseRPCError`. `SendExecuteCommand` unmarshals
-    the payload into `rpc.ExecuteCommandOutput` (`internal/component/plugin/ipc/rpc.go`). `routeToProcess` wraps the
-    result into `plugin.Response{Status, Data: plugin.RawJSON(...)}` (`internal/component/plugin/server/command.go`),
-    which is what `Dispatch` returns to the executor (`serverDispatcher`).
+    `*RPCCallError` (`pkg/plugin/rpc/message.go`) built by `parseRPCError`. That path serves a plugin that
+    declared nothing. For a declaring plugin the lines are the answer sequence.
+    `MuxConn.CallAnswer` (`pkg/plugin/rpc/mux.go`) then hands `routeToProcess` an `*rpc.Answer`
+    whose `Records` are pulled as the consumer reads them.
+    `routeToProcess` wraps a streamed answer into
+    `plugin.Response{Status, Data: plugin.Records{...}}` (`streamedPluginResponse`,
+    `internal/component/plugin/server/command.go`). It wraps a bounded one into
+    `plugin.RawJSON` as before. Either is what `Dispatch` returns to the executor
+    (`serverDispatcher`). The rpc context is released when the walk ends rather than by a
+    `defer cancel()`, because the rows are pulled after `routeToProcess` returns.
 14. **Back up to the client.** `serverDispatcher` returns the typed `*plugin.Response` unchanged;
     `APIEngine.Execute` returns it directly (`engine.go`) with NO marshal-to-string then
     re-parse (finding 3), so the REST/gRPC envelope carries the typed `Data` to its edge and
@@ -183,7 +207,7 @@ runtime request, see the gotcha below.
 | `internal/component/plugin/server/command.go` | `Dispatcher`: the real token-based command router used by every transport |
 | `internal/component/plugin/server/server.go` | `Server`: builds `Dispatcher` + `rpcDispatcher`, `wrapHandler` |
 | `internal/component/plugin/server/handler.go` | `StreamingHandler`/`GetStreamingHandlerForCommand`: monitor-style command registry |
-| `internal/component/plugin/ipc/rpc.go` | `PluginConn`: `CallRPC`/`SendExecuteCommand`, bridge/mux/direct routing |
+| `internal/component/plugin/ipc/rpc.go` | `PluginConn`: `CallRPC`, `SendExecuteCommandAnswer` and its buffered sibling `SendExecuteCommand`, bridge/mux/direct routing |
 | `pkg/plugin/rpc/mux.go` | `MuxConn`: correlation-ID multiplexing, `readLoop`, `interpretResponse` |
 | `pkg/plugin/rpc/message.go` | `Request`, `ParseLine`, `AppendRequest`/`AppendResult`/`AppendError` (wire line codec) |
 | `pkg/plugin/rpc/framing.go` | `FrameReader`/`FrameWriter`: newline-delimited framing, 16 MB message cap |

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"iter"
-	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -585,9 +584,9 @@ func reassembleAnswer(t *testing.T, wire []byte) string {
 		reassembled, err = json.Marshal(map[string][]json.RawMessage{key: items})
 	default:
 		if key == "" {
-			key = answerDefaultKey
+			key = rpc.AnswerDefaultKey
 		}
-		reassembled, err = json.Marshal(map[string][]json.RawMessage{key: items, answerErrorsKey: faults})
+		reassembled, err = json.Marshal(map[string][]json.RawMessage{key: items, rpc.AnswerErrorsKey: faults})
 	}
 	if err != nil {
 		t.Fatalf("marshal the reassembled answer: %v", err)
@@ -762,11 +761,11 @@ func TestBufferedAnswerCarriesRejectedRowsBesideTheRows(t *testing.T) {
 // PREVENTS: an answer's rows silently replacing its rejected rows, or the
 // reverse, in a map with one key.
 func TestReservedEnvelopeKeyIsRefusedOnBothPaths(t *testing.T) {
-	if err := WriteAnswer(&bytes.Buffer{}, 8, NewResponse(StatusDone, Records{Key: answerErrorsKey, Rows: peerRows(2)})); !errors.Is(err, errReservedEnvelopeKey) {
-		t.Errorf("WriteAnswer returned %v, want %v", err, errReservedEnvelopeKey)
+	if err := WriteAnswer(&bytes.Buffer{}, 8, NewResponse(StatusDone, Records{Key: rpc.AnswerErrorsKey, Rows: peerRows(2)})); !errors.Is(err, rpc.ErrReservedEnvelopeKey) {
+		t.Errorf("WriteAnswer returned %v, want %v", err, rpc.ErrReservedEnvelopeKey)
 	}
-	if _, err := ResponseJSON(NewResponse(StatusDone, Records{Key: answerErrorsKey, Rows: peerRows(2)}), nil); !errors.Is(err, errReservedEnvelopeKey) {
-		t.Errorf("ResponseJSON returned %v, want %v", err, errReservedEnvelopeKey)
+	if _, err := ResponseJSON(NewResponse(StatusDone, Records{Key: rpc.AnswerErrorsKey, Rows: peerRows(2)}), nil); !errors.Is(err, rpc.ErrReservedEnvelopeKey) {
+		t.Errorf("ResponseJSON returned %v, want %v", err, rpc.ErrReservedEnvelopeKey)
 	}
 }
 
@@ -780,11 +779,11 @@ func TestReservedEnvelopeKeyIsRefusedOnBothPaths(t *testing.T) {
 func TestEmptyRecordIsRefusedOnBothPaths(t *testing.T) {
 	empty := func(yield func(rpc.Record) bool) { yield(rpc.Record{}) }
 
-	if err := WriteAnswer(&bytes.Buffer{}, 5, NewResponse(StatusDone, Records{Rows: empty})); !errors.Is(err, errEmptyAnswerRecord) {
-		t.Errorf("WriteAnswer returned %v, want %v", err, errEmptyAnswerRecord)
+	if err := WriteAnswer(&bytes.Buffer{}, 5, NewResponse(StatusDone, Records{Rows: empty})); !errors.Is(err, rpc.ErrEmptyAnswerRecord) {
+		t.Errorf("WriteAnswer returned %v, want %v", err, rpc.ErrEmptyAnswerRecord)
 	}
-	if _, err := ResponseJSON(NewResponse(StatusDone, Records{Rows: empty}), nil); !errors.Is(err, errEmptyAnswerRecord) {
-		t.Errorf("ResponseJSON returned %v, want %v", err, errEmptyAnswerRecord)
+	if _, err := ResponseJSON(NewResponse(StatusDone, Records{Rows: empty}), nil); !errors.Is(err, rpc.ErrEmptyAnswerRecord) {
+		t.Errorf("ResponseJSON returned %v, want %v", err, rpc.ErrEmptyAnswerRecord)
 	}
 }
 
@@ -1019,12 +1018,12 @@ func TestRowArityIsRefusedOnBothPaths(t *testing.T) {
 		item string
 		want error
 	}{
-		{name: "a short row in the document", rows: oneRow, item: `["10.0.0.1",65001]`, want: errRowArity},
-		{name: "a long row in the document", rows: oneRow, item: `["10.0.0.1",65001,"established","extra"]`, want: errRowArity},
-		{name: "a row that is no array", rows: oneRow, item: `{"peer":"10.0.0.1"}`, want: errRowNotPositional},
-		{name: "a short row in the stream", rows: pastThreshold, item: `["10.0.0.1",65001]`, want: errRowArity},
-		{name: "a long row in the stream", rows: pastThreshold, item: `["10.0.0.1",65001,"established","extra"]`, want: errRowArity},
-		{name: "a row that is no array in the stream", rows: pastThreshold, item: `{"peer":"10.0.0.1"}`, want: errRowNotPositional},
+		{name: "a short row in the document", rows: oneRow, item: `["10.0.0.1",65001]`, want: rpc.ErrRowArity},
+		{name: "a long row in the document", rows: oneRow, item: `["10.0.0.1",65001,"established","extra"]`, want: rpc.ErrRowArity},
+		{name: "a row that is no array", rows: oneRow, item: `{"peer":"10.0.0.1"}`, want: rpc.ErrRowNotPositional},
+		{name: "a short row in the stream", rows: pastThreshold, item: `["10.0.0.1",65001]`, want: rpc.ErrRowArity},
+		{name: "a long row in the stream", rows: pastThreshold, item: `["10.0.0.1",65001,"established","extra"]`, want: rpc.ErrRowArity},
+		{name: "a row that is no array in the stream", rows: pastThreshold, item: `{"peer":"10.0.0.1"}`, want: rpc.ErrRowNotPositional},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1170,70 +1169,5 @@ func TestRecordOverMaxMessageSizeFaults(t *testing.T) {
 				t.Error("the rejected row states no message, so an operator reads two numbers and no reason")
 			}
 		})
-	}
-}
-
-// TestRecordSizeBoundaryIsTheEncodedLine checks the off-by-one of the refusal.
-// The method: one item is built one byte over the limit and sliced to exactly
-// the limit, and boundedRecord is asked about both. The at-limit record must
-// come back untouched, because refusing a record the transport accepts loses a
-// row for nothing.
-//
-// VALIDATES: AC-15 boundary -- a record line of exactly rpc.MaxMessageSize is
-// written, and one byte more is rejected.
-// PREVENTS: a limit compared against the item rather than the line, which
-// refuses every record within the last few bytes of the range.
-func TestRecordSizeBoundaryIsTheEncodedLine(t *testing.T) {
-	const id = 7
-
-	prefix := rpc.AnswerRecordLineSize(id, rpc.Record{})
-	overLimit := bytes.Repeat([]byte{'x'}, rpc.MaxMessageSize+1-prefix)
-	atLimit := overLimit[:len(overLimit)-1]
-
-	kept := boundedRecord(id, 1, rpc.Record{Item: atLimit})
-	if len(kept.Fault) > 0 {
-		t.Errorf("a record line of exactly %d bytes was rejected: %s", rpc.MaxMessageSize, kept.Fault)
-	}
-	if len(kept.Item) != len(atLimit) {
-		t.Errorf("the kept record carries %d bytes, want the %d it was given", len(kept.Item), len(atLimit))
-	}
-
-	rejected := boundedRecord(id, 1, rpc.Record{Item: overLimit})
-	if len(rejected.Item) > 0 {
-		t.Fatalf("a record line of %d bytes was written, want it rejected", rpc.MaxMessageSize+1)
-	}
-	var row rejectedRow
-	if err := json.Unmarshal(rejected.Fault, &row); err != nil {
-		t.Fatalf("read the rejected row %s: %v", rejected.Fault, err)
-	}
-	if row.EncodedBytes != rpc.MaxMessageSize+1 {
-		t.Errorf("the rejected row states %d encoded bytes, want %d", row.EncodedBytes, rpc.MaxMessageSize+1)
-	}
-}
-
-// TestTheRejectedRowFitsTheLineTheRecordDidNot checks the trap the refusal
-// carries: a fault quoting the record it rejected would be rejected for the
-// same reason, and the answer would then have no way to report anything. The
-// method: the widest fault the builder can write, for the largest id, is
-// measured against the limit and against its own capacity.
-//
-// VALIDATES: AC-15 -- the fault that replaces a wide record always reaches the
-// wire.
-// PREVENTS: a fault built from the record, which is the shape that turns one
-// wide row into a failed answer.
-func TestTheRejectedRowFitsTheLineTheRecordDidNot(t *testing.T) {
-	fault := answerRecordTooLargeFault(math.MaxUint64, math.MaxInt)
-	if len(fault) > answerFaultCapacity {
-		t.Errorf("the widest rejected row is %d bytes and the builder reserves %d, so it grows its slice", len(fault), answerFaultCapacity)
-	}
-	if size := rpc.AnswerRecordLineSize(math.MaxUint64, rpc.Record{Fault: fault}); size > rpc.MaxMessageSize {
-		t.Errorf("the rejected row's line is %d bytes, over the %d limit it exists to report", size, rpc.MaxMessageSize)
-	}
-	var row rejectedRow
-	if err := json.Unmarshal(fault, &row); err != nil {
-		t.Fatalf("the rejected row %s is not readable: %v", fault, err)
-	}
-	if row.Record != math.MaxUint64 {
-		t.Errorf("the rejected row names record %d, want %d", row.Record, uint64(math.MaxUint64))
 	}
 }

@@ -305,8 +305,8 @@ const answerRecordPrefixMax = 32
 // length), so this size is the line's size rather than an estimate of it.
 //
 // A record carrying neither an item nor a fault measures as an empty item. Its
-// producer refuses it on its own account (errEmptyAnswerRecord,
-// internal/component/plugin/dispatch.go), and an empty record fits every line.
+// producer refuses it on its own account (ErrEmptyAnswerRecord, collapse.go),
+// and an empty record fits every line.
 func AnswerRecordLineSize(id uint64, record Record) int {
 	key, value := answerKeyItem, record.Item
 	if len(record.Fault) > 0 {

@@ -32,6 +32,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Plugin name length limits.
@@ -73,7 +75,16 @@ type VerifyHandler func(ctx *VerifyContext) error
 // ApplyHandler handles config application requests.
 type ApplyHandler func(ctx *ApplyContext) error
 
-// CommandHandler handles command requests.
+// CommandHandler handles command requests. It answers with the value the
+// command produced, which the SDK marshals whole.
+//
+// A command that walks a large collection answers with a Records instead: the
+// walk itself, so one row at a time reaches the wire and neither the plugin nor
+// the engine holds the collection. Records states what the two sides of that
+// walk owe each other, and a handler that returns one MUST keep whatever its
+// rows read alive until the call that carried it returns.
+//
+// Every other value keeps the answer it has always had, byte for byte.
 type CommandHandler func(ctx *CommandContext) (any, error)
 
 // VerifyContext provides context for verify handlers.
@@ -335,7 +346,21 @@ func (p *Plugin) handleCommand(serial, command string) string {
 		}
 
 		if result != nil {
-			data, _ := json.Marshal(result)
+			// This line protocol carries one answer on one line, so a Records
+			// result reaches it as the document it collapses to
+			// (Records.MarshalJSON). The collapse can refuse -- a reserved
+			// envelope name, a row that disagrees with the declared columns --
+			// and a refusal the handler never hears about would read as a
+			// command that answered with nothing.
+			data, err := json.Marshal(result)
+			if err != nil {
+				// textbuf rather than fmt, which ai/rules/performance.md
+				// requires of a new line. The siblings below predate the rule
+				// and are left for a pass that converts them together, because
+				// one converted line among seven reads worse than none.
+				var tb textbuf.Buffer
+				return tb.Byte('@').Str(serial).Str(" error ").Err(err).String()
+			}
 			return fmt.Sprintf("@%s ok %s", serial, data)
 		}
 		return fmt.Sprintf("@%s ok", serial)

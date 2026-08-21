@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"iter"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -48,42 +49,44 @@ type BridgeCallbackResult struct {
 }
 
 type DirectBridge struct {
-	deliverEvents       func(events []string) error
-	deliverStructured   func(events []any) error
-	hasStructured       atomic.Bool // set atomically when deliverStructured is written
-	dispatchRPC         func(method string, params json.RawMessage) (json.RawMessage, error)
-	dispatchCommand     DispatchCommandHandler     // Typed fast path (no JSON)
-	hasDispatchCmd      atomic.Bool                // set atomically when dispatchCommand is written
-	dispatchCommandArgs DispatchCommandArgsHandler // Typed fast path with pre-tokenized args (no JSON)
-	hasDispatchCmdArgs  atomic.Bool                // set atomically when dispatchCommandArgs is written
-	executeCommand      ExecuteCommandHandler      // Typed engine->plugin command handler (no JSON input)
-	hasExecuteCommand   atomic.Bool                // set atomically when executeCommand is written
-	executeCommandCh    chan ExecuteCommandRequest // Engine->plugin typed execute-command callbacks
-	emitEvent           EmitEventHandler           // Typed fast path (no JSON)
-	hasEmitEvent        atomic.Bool                // set atomically when emitEvent is written
-	forwardCached       ForwardCachedHandler       // Typed fast path (no JSON) -- rs-fastpath-3
-	hasForwardCached    atomic.Bool                // set atomically when forwardCached is written
-	releaseCached       ReleaseCachedHandler       // Typed fast path (no JSON) -- rs-fastpath-3
-	hasReleaseCached    atomic.Bool                // set atomically when releaseCached is written
-	relayStoredRoute    RelayStoredRouteHandler    // Typed fast path (no JSON) -- egress-rail
-	hasRelayStoredRoute atomic.Bool                // set atomically when relayStoredRoute is written
-	injectWireRoute     InjectWireRouteHandler     // Typed fast path (no JSON) -- bmp-6
-	hasInjectWireRoute  atomic.Bool                // set atomically when injectWireRoute is written
-	updateRouteSel      UpdateRouteSelHandler      // Typed fast path with *selector.Selector
-	hasUpdateRouteSel   atomic.Bool                // set atomically when updateRouteSel is written
-	batchValidate       BatchValidateHandler       // Typed fast path (no string serialization) -- rpki batching
-	hasBatchValidate    atomic.Bool                // set atomically when batchValidate is written
-	callbackCh          chan BridgeCallback        // Engine->plugin callbacks (replaces pipe after startup)
-	closeOnce           sync.Once                  // Guards callbackCh close (Stop may be called multiple times)
-	sendMu              sync.RWMutex               // Held for reading by senders, for writing by CloseCallbacks
-	sendClosed          bool                       // Guarded by sendMu: the callback channels are closed
-	dispatchMu          sync.Mutex                 // Serializes dispatch admission with StopDispatch.
-	dispatchClosed      bool
-	dispatchWG          sync.WaitGroup
-	failed              atomic.Bool  // Set after callback loop failure; callers fail fast.
-	failureMu           sync.RWMutex // Guards failureErr, read only after failed is set.
-	failureErr          error        // First callback loop failure reported to later callers.
-	ready               atomic.Bool
+	deliverEvents         func(events []string) error
+	deliverStructured     func(events []any) error
+	hasStructured         atomic.Bool // set atomically when deliverStructured is written
+	dispatchRPC           func(method string, params json.RawMessage) (json.RawMessage, error)
+	dispatchCommand       DispatchCommandHandler       // Typed fast path (no JSON)
+	hasDispatchCmd        atomic.Bool                  // set atomically when dispatchCommand is written
+	dispatchCommandArgs   DispatchCommandArgsHandler   // Typed fast path with pre-tokenized args (no JSON)
+	hasDispatchCmdArgs    atomic.Bool                  // set atomically when dispatchCommandArgs is written
+	dispatchCommandAnswer DispatchCommandAnswerHandler // Typed answer path: a head, its records, a terminator
+	hasDispatchCmdAnswer  atomic.Bool                  // set atomically when dispatchCommandAnswer is written
+	executeCommand        ExecuteCommandHandler        // Typed engine->plugin command handler (no JSON input)
+	hasExecuteCommand     atomic.Bool                  // set atomically when executeCommand is written
+	executeCommandCh      chan ExecuteCommandRequest   // Engine->plugin typed execute-command callbacks
+	emitEvent             EmitEventHandler             // Typed fast path (no JSON)
+	hasEmitEvent          atomic.Bool                  // set atomically when emitEvent is written
+	forwardCached         ForwardCachedHandler         // Typed fast path (no JSON) -- rs-fastpath-3
+	hasForwardCached      atomic.Bool                  // set atomically when forwardCached is written
+	releaseCached         ReleaseCachedHandler         // Typed fast path (no JSON) -- rs-fastpath-3
+	hasReleaseCached      atomic.Bool                  // set atomically when releaseCached is written
+	relayStoredRoute      RelayStoredRouteHandler      // Typed fast path (no JSON) -- egress-rail
+	hasRelayStoredRoute   atomic.Bool                  // set atomically when relayStoredRoute is written
+	injectWireRoute       InjectWireRouteHandler       // Typed fast path (no JSON) -- bmp-6
+	hasInjectWireRoute    atomic.Bool                  // set atomically when injectWireRoute is written
+	updateRouteSel        UpdateRouteSelHandler        // Typed fast path with *selector.Selector
+	hasUpdateRouteSel     atomic.Bool                  // set atomically when updateRouteSel is written
+	batchValidate         BatchValidateHandler         // Typed fast path (no string serialization) -- rpki batching
+	hasBatchValidate      atomic.Bool                  // set atomically when batchValidate is written
+	callbackCh            chan BridgeCallback          // Engine->plugin callbacks (replaces pipe after startup)
+	closeOnce             sync.Once                    // Guards callbackCh close (Stop may be called multiple times)
+	sendMu                sync.RWMutex                 // Held for reading by senders, for writing by CloseCallbacks
+	sendClosed            bool                         // Guarded by sendMu: the callback channels are closed
+	dispatchMu            sync.Mutex                   // Serializes dispatch admission with StopDispatch.
+	dispatchClosed        bool
+	dispatchWG            sync.WaitGroup
+	failed                atomic.Bool  // Set after callback loop failure; callers fail fast.
+	failureMu             sync.RWMutex // Guards failureErr, read only after failed is set.
+	failureErr            error        // First callback loop failure reported to later callers.
+	ready                 atomic.Bool
 }
 
 // NewDirectBridge creates a bridge. Both sides must register handlers and call
@@ -210,7 +213,9 @@ func (b *DirectBridge) beginSend() bool {
 
 func (b *DirectBridge) endSend() { b.sendMu.RUnlock() }
 
-// beginDispatch admits one plugin-to-engine call before shutdown.
+// beginDispatch admits one plugin-to-engine call before shutdown. The caller
+// MUST call endDispatch once for each admission it takes, on every path out,
+// or WaitDispatch never returns.
 func (b *DirectBridge) beginDispatch() bool {
 	b.dispatchMu.Lock()
 	defer b.dispatchMu.Unlock()
@@ -221,6 +226,9 @@ func (b *DirectBridge) beginDispatch() bool {
 	return true
 }
 
+// endDispatch releases one admission. MUST be called exactly once for each
+// beginDispatch that returned true, and MUST NOT be called for one that
+// returned false.
 func (b *DirectBridge) endDispatch() {
 	b.dispatchWG.Done()
 }
@@ -370,6 +378,104 @@ func (b *DirectBridge) DispatchCommandArgs(command string, args []string, peer s
 // HasDispatchCommandArgs reports whether the typed dispatch-command-args handler is set.
 func (b *DirectBridge) HasDispatchCommandArgs() bool {
 	return b.ready.Load() && b.hasDispatchCmdArgs.Load()
+}
+
+// DispatchCommandAnswerHandler is the typed handler for an answer-returning
+// dispatch-command via DirectBridge. It hands back the answer itself -- the
+// head, the records the walk produced, and the terminator -- rather than the
+// {status, data, error} projection DispatchCommandHandler returns, so an
+// in-process plugin reads the rows one at a time exactly as a plugin on the
+// socket does (AC-7 of spec-record-answers-1-sdk-path).
+//
+// The handler MUST NOT start a goroutine for the answer or for a row: the
+// records are pulled by the caller's own range (ai/rules/goroutine-lifecycle.md).
+type DispatchCommandAnswerHandler func(command string) (*Answer, error)
+
+// SetDispatchCommandAnswer registers the engine-side answer-returning
+// dispatch-command handler. The hasDispatchCmdAnswer atomic creates a
+// happens-before edge so that readers calling HasDispatchCommandAnswer or
+// DispatchCommandAnswer see the function pointer.
+func (b *DirectBridge) SetDispatchCommandAnswer(fn DispatchCommandAnswerHandler) {
+	b.dispatchCommandAnswer = fn
+	b.hasDispatchCmdAnswer.Store(fn != nil)
+}
+
+// DispatchCommandAnswer calls the engine's answer-returning dispatch-command
+// handler directly. Returns an error when the handler is not set.
+//
+// The dispatch admission spans the WALK, not just the call: the rows of an
+// in-process answer are pulled from engine state after this returns, and
+// StopDispatch plus WaitDispatch is the rollback barrier that must cover them.
+// Releasing at the call would let a rollback tear that state down under a live
+// walk.
+//
+// The caller therefore MUST range over Answer.Records, to its end or to a stop
+// of its own, and MUST read Answer.Verdict, Answer.Err and Answer.Message after
+// that range, exactly as it must for an answer that arrived over the socket
+// (Answer, types.go). An answer whose records are never ranged holds the
+// admission, and WaitDispatch waits for it.
+func (b *DirectBridge) DispatchCommandAnswer(command string) (*Answer, error) {
+	if !b.beginDispatch() {
+		return nil, ErrBridgeClosed
+	}
+	if !b.hasDispatchCmdAnswer.Load() {
+		b.endDispatch()
+		return nil, errors.New("dispatch-command-answer handler not set")
+	}
+	answer, err := b.dispatchCommandAnswer(command)
+	if err != nil {
+		b.endDispatch()
+		return nil, err
+	}
+	if answer == nil {
+		b.endDispatch()
+		return nil, errors.New("dispatch-command-answer handler returned no answer")
+	}
+	answer.Records = b.releaseOnWalkEnd(answer.Records)
+	return answer, nil
+}
+
+// releaseOnWalkEnd wraps the records of an in-process answer so the dispatch
+// admission DispatchCommandAnswer took is released when the range over them
+// ends, by exhaustion or by the consumer stopping, and released exactly once.
+//
+// The once is what makes a second range harmless. Whether a second range yields
+// anything is the producer's business -- an answer read off the socket is spent
+// and one built over a slice is not -- and either way there is exactly ONE
+// admission to release. Without the once a second range would release an
+// admission this call no longer holds and drive the wait group negative.
+//
+// MUST be paired with beginDispatch: this is the endDispatch for the call that
+// produced the answer, and it is the only one on this path.
+func (b *DirectBridge) releaseOnWalkEnd(records iter.Seq[Record]) iter.Seq[Record] {
+	var released sync.Once
+	return func(yield func(Record) bool) {
+		defer released.Do(b.endDispatch)
+		if records == nil {
+			return
+		}
+		for record := range records {
+			if !yield(record) {
+				return
+			}
+		}
+	}
+}
+
+// HasDispatchCommandAnswer reports whether the answer-returning
+// dispatch-command handler is set.
+//
+// The SDK does NOT gate on it. Once the bridge is ready it is the plugin's only
+// transport, so DispatchCommandAnswer asks the bridge whatever this answers and
+// lets the bridge name a missing slot (Plugin.DispatchCommandAnswer,
+// pkg/plugin/sdk/sdk_engine.go). Its reader is the registry drift guard, which
+// is what keeps the typed slot set from changing by accident
+// (TestWireBridgeDispatchInstallsTypedSlots,
+// internal/component/plugin/server/dispatch_registry_test.go). Dropping it
+// would make that guard blind to this slot, which is the one thing it exists
+// for.
+func (b *DirectBridge) HasDispatchCommandAnswer() bool {
+	return b.ready.Load() && b.hasDispatchCmdAnswer.Load()
 }
 
 // UpdateRouteSelHandler is the typed handler for update-route that carries

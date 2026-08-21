@@ -198,9 +198,11 @@ Events are only sent to plugins that have subscribed.
 ## Correlation and Command Dispatch
 
 Every plugin RPC request has a `#<uint64>` correlation ID. The peer returns a
-response with the same ID. Every request except `dispatch-command` and
-`dispatch-command-args` receives exactly one response line. Those two receive a
-sequence of lines when the peer negotiated it: see Answer Protocol below.
+response with the same ID. Most requests receive exactly one response line.
+Three carry a command answer. Each of those receives a sequence of lines when
+the plugin declared the shape: `dispatch-command` and `dispatch-command-args`
+from the engine, and `execute-command` from the plugin. See Answer Protocol
+below.
 <!-- source: pkg/plugin/rpc/message.go -- ParseLine, AppendRequest, AppendResult, AppendError -->
 
 The command dispatcher is a payload protocol inside plugin RPC. For a peer that
@@ -241,17 +243,46 @@ The default is off. A peer receives the sequence only after it names
 #2 ok
 ```
 
+The Go SDK sends that line for every plugin built on it, and a plugin author
+sets no field to get it. A peer that speaks the protocol by hand chooses for
+itself, and the Python test client does so with `capability_done(protocol=...)`.
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, Stage 3 declare-capabilities -->
+<!-- source: test/scripts/ze_api.py -- capability_done -->
+
+**One declaration covers both directions.** `record-answers` says that this peer
+reads a record answer and also writes one. No engine-to-plugin message carries a
+protocol list, so the plugin's Stage 3 line is where both facts come from. The
+engine reads that line twice. It reads it to WRITE the answer to a command the
+plugin dispatched, and to READ the answer to a command the plugin ran.
+<!-- source: pkg/plugin/rpc/types.go -- ProtocolRecordAnswers, DeclareCapabilitiesInput.Understands -->
+<!-- source: internal/component/plugin/process/process.go -- Process.RecordAnswers -->
+<!-- source: internal/component/plugin/server/dispatch_registry.go -- answerResult -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.SendExecuteCommandAnswer, readsRecordAnswers -->
+
+**The frame follows the declaration, never the payload.** A declaring peer
+answers all three methods below with a head, its records and a terminator, a
+built value included. A reader must know which frame is arriving before it reads
+the first line, so the payload cannot choose it. A payload built whole is the one
+document a bounded walk collapses to, and the terminator states `count=1`.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
+
 The guard fails closed. An absent list, an empty list, an unknown name, and a
 peer whose Stage 3 has not run all read false. A plugin written before this
 shape existed therefore receives `#<id> ok [<json>]` exactly as before.
-<!-- source: pkg/plugin/rpc/types.go -- ProtocolRecordAnswers, DeclareCapabilitiesInput.Understands -->
-<!-- source: internal/component/plugin/process/process.go -- Process.RecordAnswers -->
 
-Only `dispatch-command` and `dispatch-command-args` take this path. Every other
-engine op returns its own typed output, and the startup RPCs keep the
-single-line frame whatever the peer declared. That is what lets Stage 3 itself
-be answered before the shape is known.
+Three methods take this path:
+
+| Method | Who asks | Who writes the answer |
+|--------|----------|-----------------------|
+| `ze-plugin-engine:dispatch-command` | the plugin | `WriteAnswer`, `internal/component/plugin/dispatch.go` |
+| `ze-plugin-engine:dispatch-command-args` | the plugin | the same writer |
+| `ze-plugin-callback:execute-command` | the engine | `Records.WriteAnswer`, `pkg/plugin/records.go` |
 <!-- source: internal/component/plugin/server/dispatch_registry.go -- answerResult, opDispatchCommand, opDispatchCommandArgs -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- Plugin.answerExecuteCommand -->
+
+Every other engine op returns its own typed output, and the startup RPCs keep
+the single-line frame whatever the peer declared. That is what lets Stage 3
+itself be answered before the shape is known.
 
 A later shape earns a NEW name in `protocol`. `ParseAnswerTail` refuses a key it
 does not know. A key added under an agreed name would make the whole line
@@ -302,7 +333,7 @@ carried 16 MB would not fit the line either.
 ```
 #7 ok fault={"message":"answer record does not fit one wire message","record":12,"encoded-bytes":16777300,"limit-bytes":16777216}
 ```
-<!-- source: internal/component/plugin/dispatch.go -- boundedRecord, answerRecordTooLargeFault -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- boundedRecord, answerRecordTooLargeFault -->
 
 ### The terminator states no status
 
@@ -337,8 +368,8 @@ leaves the records that arrived. No line then states how many there were.
 
 `fields=` carries the column schema of a `type=stream` answer, in column order. A
 reader zips each positional row back into an object against it.
-<!-- source: internal/component/plugin/answer_row.go -- zipRow, quoteFields -->
-<!-- source: internal/component/plugin/types.go -- CollapseRecords -->
+<!-- source: pkg/plugin/rpc/answer_row.go -- zipRow, quoteFields -->
+<!-- source: pkg/plugin/rpc/collapse.go -- CollapseRecords -->
 
 **`type=` and the pipe operators are unrelated, and the shared words are an
 unresolved naming collision.** `| json` and `| ndjson` are renderings an operator
@@ -361,7 +392,8 @@ holds up to `AnswerBufferThreshold` records while it decides.
 | passes 256, no `fields` declared | `status=<s> type=ndjson key=<k>` | one `item=` per record |
 | passes 256, `fields` declared | `status=<s> type=stream key=<k> fields=[...]` | one positional `item=` per record |
 <!-- source: pkg/plugin/rpc/message.go -- AnswerBufferThreshold -->
-<!-- source: internal/component/plugin/dispatch.go -- WriteAnswer, writeRecordAnswer, writeDocumentAnswer, answerStreamType -->
+<!-- source: internal/component/plugin/dispatch.go -- WriteAnswer -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, WriteDocumentAnswer, AnswerStreamType -->
 
 A walk that passes the threshold flushes the held records in walk order ahead of
 the rest. A bounded answer therefore keeps the JSON its command answered with
@@ -408,8 +440,9 @@ key rather than dropping them.
 | rows and rejected rows | `{"peers":[...],"errors":[...]}` |
 | rejected rows, no envelope key | `{"data":[...],"errors":[...]}` |
 | the handler names its envelope `errors` | refused on both paths |
-<!-- source: internal/component/plugin/types.go -- CollapseRecords, Records.MarshalJSON, answerErrorsKey, answerDefaultKey -->
-<!-- source: internal/component/plugin/dispatch.go -- errReservedEnvelopeKey -->
+<!-- source: internal/component/plugin/types.go -- Records.MarshalJSON -->
+<!-- source: pkg/plugin/records.go -- Records.MarshalJSON -->
+<!-- source: pkg/plugin/rpc/collapse.go -- CollapseRecords, AnswerErrorsKey, AnswerDefaultKey, ErrReservedEnvelopeKey -->
 
 `errors` appears only when a row faulted, so an ordinary answer keeps the shape
 it had. `data` is where the rows go when the handler names no envelope and a row
@@ -450,10 +483,12 @@ frame, never in the exit status.
 
 ### What produces records today
 
-`system command list` is the only handler that answers with a row generator.
-Every other command returns a built payload, which the encoder answers as one
-`type=json` document.
+Two kinds of handler answer with a row generator. `system command list` is the
+engine's. A plugin command handler is the SDK's: it returns a `plugin.Records`
+and the SDK writes one line for each row of the walk. Every other command
+returns a built payload, which the encoder answers as one `type=json` document.
 <!-- source: internal/component/plugin/server/system.go -- handleSystemCommandList, commandRows -->
+<!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->
 
 `Records.Fields` has no producer, so no command writes `type=stream` today. The
 column order a renderer applies still lives in the separate registry

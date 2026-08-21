@@ -114,6 +114,9 @@ func TestWireBridgeDispatchInstallsTypedSlots(t *testing.T) {
 	assert.True(t, b.HasEmitEvent(), "emit-event typed slot not installed")
 	assert.True(t, b.HasDispatchCommand(), "dispatch-command typed slot not installed")
 	assert.True(t, b.HasDispatchCommandArgs(), "dispatch-command-args typed slot not installed")
+	// dispatch-command carries two typed slots from its one registry entry: the
+	// built value a caller holds whole, and the records a caller walks.
+	assert.True(t, b.HasDispatchCommandAnswer(), "dispatch-command-answer typed slot not installed")
 	assert.True(t, b.HasUpdateRouteSel(), "update-route-sel typed slot not installed")
 	assert.True(t, b.HasForwardCached(), "forward-cached typed slot not installed")
 	assert.True(t, b.HasReleaseCached(), "release-cached typed slot not installed")

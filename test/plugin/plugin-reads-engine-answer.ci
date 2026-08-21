@@ -1,0 +1,214 @@
+# Test: a plugin reads a streamed engine answer and acts on it
+#
+# Flow:
+# 1. A shell script writes a config declaring one external Go SDK plugin
+# 2. The daemon starts, spawns `ze-test record-plugin`, and opens SSH
+# 3. When every plugin is ready, the plugin dispatches `system command list`
+#    through Plugin.DispatchCommandAnswer and walks the rows as they arrive
+# 4. It keeps the count, the first name and the last name, and no row
+# 5. `ze cli -c "show test engine answer"` reports what it read
+#
+# `system command list` is the driver because it is the longest answer the
+# daemon has, so it passes rpc.AnswerBufferThreshold on any registry the tree
+# can have and the engine streams it (WriteAnswer,
+# internal/component/plugin/dispatch.go). Before this spec no Go SDK plugin
+# could read that: MuxConn.CallAnswer had no non-test caller and every dispatch
+# result was one json.RawMessage.
+#
+# The head's type= is the fact that says the answer streamed, and the plugin
+# reports it. A walk that ended inside the threshold reads type=json and one
+# document, so a fixture whose answer was short would say nothing about the
+# streamed branch. The row count is checked against the same list the operator
+# reads, so the plugin is held to the answer the daemon actually produced rather
+# than to a number it made up.
+#
+# VALIDATES: AC-2 -- an SDK plugin dispatches an engine command whose walk
+# passes the threshold, receives every row in walk order, and holds no row.
+# VALIDATES: user story 2 -- a plugin reads a streamed engine answer and acts on
+# it.
+# PREVENTS: a plugin that declares record-answers and cannot read one, which
+# takes a head line's tail for its result (R-1).
+
+tmpfs=test-plugin-reads-engine-answer.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+# Signal test runner readiness
+touch daemon.ready
+
+cat > plugin-reads-engine-answer.conf << 'ZECONF'
+plugin {
+	external record-plugin {
+		run "ze-test record-plugin"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			profile [ admin ]
+		}
+	}
+	authorization {
+		profile admin {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action allow
+			}
+		}
+	}
+}
+
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port 0;
+		}
+	}
+}
+ZECONF
+
+# Use a PID-derived high port for BGP to avoid needing root for port 179
+export ze_test_bgp_port=$((10000 + ($$ % 50000)))
+
+ze start plugin-reads-engine-answer.conf 2>daemon.log &
+DAEMON_PID=$!
+trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+
+# Wait for the SSH server to report its listening address
+SSH_PORT=""
+for i in $(seq 1 50); do
+	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
+	if [ -n "$SSH_PORT" ]; then
+		break
+	fi
+	sleep 0.2
+done
+
+if [ -z "$SSH_PORT" ]; then
+	echo "FAIL: SSH server did not start (no address in daemon.log)" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+echo "SSH port: $SSH_PORT" >&2
+
+# Brief delay for postStartFunc to wire the authorizer
+sleep 0.5
+
+ADMIN_DIR=$(mktemp -d)
+trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
+
+# The plugin registers its commands at Stage 1, and the engine freezes the
+# registry after every plugin is ready. Wait for the name to be there rather
+# than for a duration.
+for i in $(seq 1 50); do
+	if ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" \
+		ze cli -c "system command list | raw" 2>/dev/null | grep -q 'show test engine answer'; then
+		break
+	fi
+	sleep 0.2
+done
+
+# The same list the plugin read, read here by an operator. It is the count the
+# plugin's own number is held to.
+if ! ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" \
+	ze cli -c "system command list | ndjson" > commands.ndjson 2> commands-err.log; then
+	echo "FAIL: system command list did not answer" >&2
+	cat commands-err.log >&2
+	exit 1
+fi
+COMMANDS=$(wc -l < commands.ndjson | tr -d ' ')
+
+if [ "$COMMANDS" -le 256 ]; then
+	echo "FAIL: fixture problem -- the daemon registers $COMMANDS commands, inside the 256-record threshold" >&2
+	exit 1
+fi
+
+# What the plugin read.
+if ! ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" \
+	ze cli -c "show test engine answer | raw" > reading.json 2> reading-err.log; then
+	echo "FAIL: the plugin could not report what it read" >&2
+	cat reading-err.log >&2
+	cat daemon.log >&2
+	exit 1
+fi
+
+python3 - reading.json "$COMMANDS" << 'PYEOF'
+import json
+import sys
+
+with open(sys.argv[1]) as handle:
+    document = json.load(handle)
+want_rows = int(sys.argv[2])
+
+reading = document.get("engine-answer")
+if reading is None:
+    print(f"FAIL: the answer carries {sorted(document)}, want engine-answer", file=sys.stderr)
+    sys.exit(1)
+
+# The head's type= says the answer streamed. A walk that ended inside the
+# threshold reads json, and one document is not what this test is about.
+if reading["type"] != "ndjson":
+    print(f"FAIL: the plugin read type={reading['type']!r}, want ndjson", file=sys.stderr)
+    sys.exit(1)
+
+if reading["key"] != "commands":
+    print(f"FAIL: the plugin read key={reading['key']!r}, want commands", file=sys.stderr)
+    sys.exit(1)
+
+# The terminator arrived, so the plugin read the whole answer rather than
+# losing it to a closed connection or a full queue.
+if reading["verdict"] != "done":
+    print(f"FAIL: the plugin read verdict={reading['verdict']!r}, want done", file=sys.stderr)
+    sys.exit(1)
+
+if reading["rows"] != want_rows:
+    print(f"FAIL: the plugin walked {reading['rows']} rows, the operator reads {want_rows}", file=sys.stderr)
+    sys.exit(1)
+
+if not reading["first"] or not reading["last"]:
+    print(f"FAIL: the plugin named no first or last row: {reading!r}", file=sys.stderr)
+    sys.exit(1)
+
+if reading["first"] == reading["last"]:
+    print(f"FAIL: the walk began and ended on {reading['first']!r}", file=sys.stderr)
+    sys.exit(1)
+
+print(f"OK: the plugin walked {reading['rows']} streamed rows and acted on them", file=sys.stderr)
+PYEOF
+
+exit 0
+EOF_SH
+
+# Process orchestration
+cmd=foreground:seq=1:exec=./test-plugin-reads-engine-answer.sh:timeout=60s
+expect=exit:code=0
+expect=stderr:pattern=OK: the plugin walked [0-9]+ streamed rows and acted on them
+reject=stderr:pattern=panic recovered

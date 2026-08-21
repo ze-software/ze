@@ -70,9 +70,17 @@ var engineOps = []engineOp{
 	{
 		method: rpc.MethodDispatchCommand,
 		handle: (*Server).opDispatchCommand,
+		// Two typed slots ride this one entry, because dispatch-command has one
+		// wire method and two readings of its answer: the built value a caller
+		// holds whole, and the records a caller walks. The registry is keyed by
+		// method, so a second entry would be a duplicate method rather than a
+		// second operation.
 		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
 			b.SetDispatchCommand(func(command string) (*rpc.DispatchCommandOutput, error) {
 				return s.dispatchCommand(proc, command)
+			})
+			b.SetDispatchCommandAnswer(func(command string) (*rpc.Answer, error) {
+				return s.dispatchCommandAnswer(proc, command)
 			})
 		},
 	},
@@ -273,11 +281,15 @@ func (s *Server) serveEngineOpDirect(proc *process.Process, op *engineOp, params
 		return nil, &rpc.RPCCallError{Message: err.Error()}
 	}
 	if answer, records := result.(*recordAnswer); records {
-		// The Direct bridge is a typed in-process call and not the wire, so it
-		// has no line to carry a record on. Project the answer instead, which
-		// is the JSON the record sequence reassembles to (AC-10 of
-		// spec-streaming-answer-protocol). Without this the marshal
-		// below would answer `{}`: recordAnswer exports no field.
+		// This is the JSON-shaped Direct path, so its result is one marshaled
+		// value and it has no line to carry a record on. Project the answer
+		// instead, which is the JSON the record sequence reassembles to (AC-10
+		// of spec-streaming-answer-protocol). Without this the marshal below
+		// would answer `{}`: recordAnswer exports no field.
+		//
+		// An in-process caller that wants the records themselves takes the
+		// typed answer slot rather than this path
+		// (DirectBridge.DispatchCommandAnswer, pkg/plugin/rpc/bridge.go).
 		result = responseToDispatchOutput(answer.resp)
 	}
 	return directResultResponse(result)

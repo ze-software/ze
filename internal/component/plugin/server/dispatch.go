@@ -626,6 +626,30 @@ func (s *Server) dispatchCommand(proc *process.Process, command string) (*rpc.Di
 	return responseToDispatchOutput(resp), err
 }
 
+// dispatchCommandAnswer is the answer-returning dispatch-command producer for
+// the DirectBridge transport. It hands back the answer itself -- the head, the
+// records the walk produced and the terminator -- so an in-process plugin reads
+// the rows one at a time exactly as a plugin on the socket does (AC-7 of
+// spec-record-answers-1-sdk-path).
+//
+// The accepted lifecycle action the response carries is completed once the
+// answer is built. AnswerFor has walked the generator by then, so the rows are
+// already the caller's and nothing the action tears down can change them. That
+// is the same boundary the socket keeps, where the action runs after the whole
+// sequence is written (serveEngineOpJSON, dispatch_registry.go).
+func (s *Server) dispatchCommandAnswer(proc *process.Process, command string) (*rpc.Answer, error) {
+	resp, err := s.dispatchCommandResponse(proc, command)
+	if err != nil {
+		return nil, err
+	}
+	answer, answerErr := plugin.AnswerFor(resp)
+	if answerErr != nil {
+		return nil, answerErr
+	}
+	resp.TransportComplete()
+	return answer, nil
+}
+
 // dispatchCommandResponse is the core dispatch-command logic, and it answers
 // with the response the dispatcher produced rather than its wire projection.
 // See dispatchCommandArgsResponse for why the record path needs it unprojected.

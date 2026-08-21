@@ -32,13 +32,16 @@ Every message is a single newline-terminated line:
 | Success | `#<id> ok [<json>]\n` | `#1 ok {"peers-affected":2}` |
 | Error | `#<id> error [<json>]\n` | `#1 error {"code":"error","message":"..."}` |
 
-A command answer has a second form. A peer that names `record-answers` at Stage 3
-receives `dispatch-command` and `dispatch-command-args` answers as a head, zero
-or more records, and a terminator, each line `#<id> ok <key=value tail>`. Every
-other request, and every peer that named nothing, keeps the single line above.
-The grammar is in [ipc_protocol.md](ipc_protocol.md), "Answer Protocol".
+A command answer has a second form, and a plugin that names `record-answers` at
+Stage 3 both reads it and writes it. The engine answers that plugin's
+`dispatch-command` and `dispatch-command-args` with a head, zero or more
+records, and a terminator. The plugin answers the engine's `execute-command` the
+same way. Each line is `#<id> ok <key=value tail>`. Every other request, and
+every plugin that named nothing, keeps the single line above. The grammar is in
+[ipc_protocol.md](ipc_protocol.md), "Answer Protocol".
 <!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerTerminator -->
 <!-- source: internal/component/plugin/server/dispatch_registry.go -- answerResult -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- Plugin.answerExecuteCommand -->
 
 - `<id>` is a monotonically increasing `uint64` correlation ID
 <!-- source: pkg/plugin/rpc/conn.go -- NextID -->
@@ -132,9 +135,15 @@ Tier-Ordered Startup below).
 | Post | Engine to Plugin | `ze-plugin-callback:post-startup` | (empty) |
 
 **Wire shape negotiation (Stage 3).** `DeclareCapabilitiesInput` carries an
-optional `protocol` list. It names the wire shapes the peer understands.
-`record-answers` is the only name today. It asks for the record answer form of
-`dispatch-command` and `dispatch-command-args`.
+optional `protocol` list. It names the wire shapes the peer speaks.
+`record-answers` is the only name today, and it is symmetric. The plugin READS
+the record answer form of `dispatch-command` and `dispatch-command-args`, and it
+WRITES that form for `execute-command`. No engine-to-plugin message carries a
+protocol list, so this one line is where both facts come from.
+
+The Go SDK sends the name for every plugin built on it, and a plugin author sets
+no field to get it. A peer that speaks the protocol by hand chooses for itself.
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, Stage 3 declare-capabilities -->
 
 The engine records the declaration before the capability injector runs. Every
 answer after the Stage 3 barrier is therefore written in a shape the peer agreed
@@ -359,7 +368,7 @@ site.
 |--------|-------|----------|-------------|
 | `deliver-event` | `{"event":"<json>"}` | `ok` | Single event |
 | `deliver-batch` | `{"events":[...]}` | `ok` | Batched events |
-| `execute-command` | `ExecuteCommandInput` | `ExecuteCommandOutput` | Command execution |
+| `execute-command` | `ExecuteCommandInput` | `ExecuteCommandOutput`, or a record answer from a plugin that named `record-answers` | Command execution |
 | `config-verify` | `ConfigVerifyInput` | `ConfigVerifyOutput` | Validate candidate config |
 | `config-apply` | `ConfigApplyInput` | `ConfigApplyOutput` | Apply config changes |
 | `config-rollback` | `{"transaction-id":"..."}` | `ok` | Undo changes for a config transaction |
@@ -1030,18 +1039,45 @@ At runtime, the engine dispatches commands to plugins via `execute-command`:
 #5 ze-plugin-callback:execute-command {"serial":"abc","command":"rib adjacent status","args":[],"peer":"*"}
 ```
 
-**Plugin to Engine (success):**
+**Plugin to Engine, a plugin that named nothing at Stage 3:**
 ```
 #5 ok {"status":"done","data":{"running":true,"peers":1}}
-```
-
-**Plugin to Engine (error):**
-```
 #5 ok {"status":"error","data":"component not found"}
 ```
 
-Note: command execution results are sent as `ok` responses with a `status` field
-(not as `error` responses), because the RPC itself succeeded even if the command failed.
+Command execution results are sent as `ok` responses with a `status` field.
+They are not sent as `error` responses, because the RPC itself succeeded even
+when the command failed.
+
+**Plugin to Engine, a plugin that named `record-answers` at Stage 3:** the
+answer is a head, its records and a terminator. Every plugin built on the Go SDK
+is in this group. The frame follows that declaration and never the payload. A
+handler that built one value therefore takes the same three lines as a handler
+that walked a table.
+
+A handler that built one value writes it as the one record of a `type=json`
+answer. The `data` member above is what that record carries, byte for byte. The
+handler's status moves to the head:
+
+```
+#5 ok status=done type=json
+#5 ok item={"running":true,"peers":1}
+#5 ok count=1
+```
+
+A handler that answered with a `plugin.Records` walk of more than 256 rows
+writes one line for each row. A walk over a large table therefore never becomes
+one 16 MB line. A shorter walk collapses to the `type=json` document above:
+
+```
+#5 ok status=done type=ndjson key=peers
+#5 ok item={"address":"10.0.0.1","state":"established"}
+#5 ok count=1
+```
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
+<!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.SendExecuteCommandAnswer, ExecuteCommandValue -->
+<!-- source: internal/component/plugin/server/command.go -- routeToProcess, pluginAnswerRows -->
 
 ### Inter-Plugin Communication
 

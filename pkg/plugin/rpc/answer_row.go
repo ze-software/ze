@@ -1,14 +1,20 @@
-// Design: docs/architecture/api/process-protocol.md -- the answer wire grammar
+// Design: docs/architecture/api/ipc_protocol.md -- the answer wire grammar
+// Related: collapse.go -- the document those rows collapse to
 //
 // The positional row of a streamed answer.
 //
 // A streamed answer whose rows share one schema carries the column names once,
 // on its head, and each row as an array of values read against them. This file
 // holds what that costs: the check that a row and the schema agree, and the
-// zip that renders one such row as the object a buffered consumer reads. The
-// two producers of an answer are dispatch.go (the wire) and Records.MarshalJSON
-// (the buffered document), and both refuse the same disagreement here.
-package plugin
+// zip that renders one such row as the object a buffered consumer reads.
+//
+// It sits beside the appenders that write those rows (message.go), because a
+// producer and a consumer of the answer grammar need the same two halves: the
+// wire writer holds each row to the schema (writeRecordLine, answer_write.go)
+// and a buffered reader rebuilds a document from it (CollapseRecords,
+// collapse.go).
+
+package rpc
 
 import (
 	"encoding/json"
@@ -16,23 +22,23 @@ import (
 	"fmt"
 )
 
-// errRowArity is what a row whose length disagrees with the answer's fields
+// ErrRowArity is what a row whose length disagrees with the answer's fields
 // earns, on the record path and on the buffered one alike. The two are read
 // against each other by POSITION, so a short row would gain a column it never
 // carried and a long one would lose a value. Neither is repaired here: a
 // producer that miscounts is named at the producer, rather than at whichever
 // consumer meets the row (`ai/rules/evidence.md`).
-var errRowArity = errors.New("answer row length disagrees with the fields the head declares")
+var ErrRowArity = errors.New("answer row length disagrees with the fields the head declares")
 
-// errRowNotPositional is what a row that is not a JSON array earns in an answer
+// ErrRowNotPositional is what a row that is not a JSON array earns in an answer
 // that declares fields. The head says every row is read by position, so an
 // object row would be read against the wrong schema rather than not at all.
-var errRowNotPositional = errors.New("answer row is not a positional array")
+var ErrRowNotPositional = errors.New("answer row is not a positional array")
 
-// checkRowArity refuses a row that does not agree with the column schema the
+// CheckRowArity refuses a row that does not agree with the column schema the
 // head declares. An answer that declares no fields carries self-describing
 // rows, and there is nothing to disagree with.
-func checkRowArity(item json.RawMessage, fields []string) error {
+func CheckRowArity(item json.RawMessage, fields []string) error {
 	if len(fields) == 0 {
 		return nil
 	}
@@ -41,7 +47,7 @@ func checkRowArity(item json.RawMessage, fields []string) error {
 		return err
 	}
 	if values != len(fields) {
-		return fmt.Errorf("%w: the row carries %d values and the head declares %d fields", errRowArity, values, len(fields))
+		return fmt.Errorf("%w: the row carries %d values and the head declares %d fields", ErrRowArity, values, len(fields))
 	}
 	return nil
 }
@@ -55,7 +61,7 @@ func checkRowArity(item json.RawMessage, fields []string) error {
 func jsonArrayLength(item []byte) (int, error) {
 	index := skipJSONSpace(item, 0)
 	if index == len(item) || item[index] != '[' {
-		return 0, errRowNotPositional
+		return 0, ErrRowNotPositional
 	}
 	index++
 
@@ -67,7 +73,7 @@ func jsonArrayLength(item []byte) (int, error) {
 		case '"':
 			end, closed := jsonStringEnd(item, index)
 			if !closed {
-				return 0, errRowNotPositional
+				return 0, ErrRowNotPositional
 			}
 			seenValue = true
 			index = end
@@ -83,13 +89,13 @@ func jsonArrayLength(item []byte) (int, error) {
 				// a trailing comma, which is not JSON and would be counted as a
 				// column the row does not carry.
 				if !seenValue && elements > 0 {
-					return 0, errRowNotPositional
+					return 0, ErrRowNotPositional
 				}
 				if seenValue {
 					elements++
 				}
 				if skipJSONSpace(item, index+1) != len(item) {
-					return 0, errRowNotPositional
+					return 0, ErrRowNotPositional
 				}
 				return elements, nil
 			}
@@ -99,7 +105,7 @@ func jsonArrayLength(item []byte) (int, error) {
 				// Each comma closes one element, so a comma with no value
 				// before it is a hole rather than a boundary.
 				if !seenValue {
-					return 0, errRowNotPositional
+					return 0, ErrRowNotPositional
 				}
 				elements++
 				seenValue = false
@@ -109,11 +115,11 @@ func jsonArrayLength(item []byte) (int, error) {
 			seenValue = true
 		}
 		if depth < 0 {
-			return 0, errRowNotPositional
+			return 0, ErrRowNotPositional
 		}
 		index++
 	}
-	return 0, errRowNotPositional
+	return 0, ErrRowNotPositional
 }
 
 // jsonStringEnd returns the index one past the JSON string that starts at
@@ -174,7 +180,7 @@ func quoteFields(fields []string) ([]json.RawMessage, error) {
 // order is what the field names exist to carry.
 func zipRow(names, row []json.RawMessage) (json.RawMessage, error) {
 	if len(row) != len(names) {
-		return nil, fmt.Errorf("%w: the row carries %d values and the head declares %d fields", errRowArity, len(row), len(names))
+		return nil, fmt.Errorf("%w: the row carries %d values and the head declares %d fields", ErrRowArity, len(row), len(names))
 	}
 
 	size := len("{}")

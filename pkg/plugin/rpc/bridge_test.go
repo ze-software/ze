@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"iter"
 	"net"
 	"testing"
 	"time"
@@ -478,4 +479,203 @@ func TestDirectBridgeWaitDispatchDrainsInflightCall(t *testing.T) {
 	case <-waitCtx.Done():
 		t.Fatal("WaitDispatch did not return after the admitted call finished")
 	}
+}
+
+// answerRowSeq yields the rows of one answer, items first and then the rows the
+// walk rejected. It is the in-process producer a DirectBridge answer handler
+// hands back, and it starts no goroutine: the caller's own range pulls each row
+// (ai/rules/goroutine-lifecycle.md).
+func answerRowSeq(items, faults []string) iter.Seq[Record] {
+	return func(yield func(Record) bool) {
+		for _, item := range items {
+			if !yield(Record{Item: json.RawMessage(item)}) {
+				return
+			}
+		}
+		for _, fault := range faults {
+			if !yield(Record{Fault: json.RawMessage(fault)}) {
+				return
+			}
+		}
+	}
+}
+
+// collectAnswer ranges an answer to its end and returns each row as text, the
+// rejected rows marked, so two transports can be compared row for row.
+func collectAnswer(answer *Answer) []string {
+	var rows []string
+	for record := range answer.Records {
+		if len(record.Fault) > 0 {
+			rows = append(rows, "fault "+string(record.Fault))
+			continue
+		}
+		rows = append(rows, string(record.Item))
+	}
+	return rows
+}
+
+// TestDirectBridgeDispatchCommandAnswer checks that one command answered over
+// the in-process bridge and over the socket produces the same answer. The
+// method: one row table drives both transports -- a peer writes its lines on a
+// pipe that MuxConn.CallAnswer reads, and a bridge handler yields the same rows
+// to DirectBridge.DispatchCommandAnswer -- and the two answers are compared row
+// for row and verdict for verdict.
+//
+// VALIDATES: AC-7 -- the same command served over the socket and over
+// DirectBridge produces the same row sequence and the same terminator counts.
+// PREVENTS: an internal plugin reading a projection where an external one reads
+// records. That is what the JSON-shaped in-process path still does, by design
+// (serveEngineOpDirect, internal/component/plugin/server/dispatch_registry.go),
+// so the typed answer slot is the only thing keeping the two transports equal.
+func TestDirectBridgeDispatchCommandAnswer(t *testing.T) {
+	t.Parallel()
+
+	const command = "show bgp neighbor summary"
+	items := []string{`{"peer":"10.0.0.1"}`, `{"peer":"10.0.0.2"}`}
+	faults := []string{`{"peer":"10.0.0.3","reason":"unreadable"}`}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Socket transport: the peer writes the answer this walk produces.
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "pluginEnd", pluginEnd)
+	defer closePipe(t, "engineEnd", engineEnd)
+
+	go func() {
+		engineConn := NewConn(engineEnd, engineEnd)
+		request, err := engineConn.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		lines := [][]byte{
+			AppendAnswerHead(nil, request.ID, StatusDone, AnswerTypeNDJSON, "peers", nil),
+			AppendAnswerItem(nil, request.ID, json.RawMessage(items[0])),
+			AppendAnswerItem(nil, request.ID, json.RawMessage(items[1])),
+			AppendAnswerFault(nil, request.ID, json.RawMessage(faults[0])),
+			AppendAnswerTerminator(nil, request.ID, uint64(len(items)), uint64(len(faults)), ""),
+		}
+		for _, line := range lines {
+			if _, writeErr := engineEnd.Write(append(line, '\n')); writeErr != nil {
+				return
+			}
+		}
+	}()
+
+	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
+	defer func() {
+		if err := mux.Close(); err != nil {
+			t.Logf("mux close: %v", err)
+		}
+	}()
+
+	overSocket, err := mux.CallAnswer(ctx, MethodDispatchCommand, &DispatchCommandInput{Command: command})
+	require.NoError(t, err)
+	socketRows := collectAnswer(overSocket)
+
+	// Bridge transport: the engine hands back the same walk in process.
+	bridge := NewDirectBridge()
+	bridge.SetDispatchCommandAnswer(func(dispatched string) (*Answer, error) {
+		assert.Equal(t, command, dispatched)
+		head := AnswerTail{Status: StatusDone, Type: AnswerTypeNDJSON, Key: "peers"}
+		terminator := AnswerTail{Count: uint64(len(items)), Faults: uint64(len(faults))}
+		return NewAnswer(head, terminator, answerRowSeq(items, faults)), nil
+	})
+	bridge.SetReady()
+
+	overBridge, err := bridge.DispatchCommandAnswer(command)
+	require.NoError(t, err)
+	bridgeRows := collectAnswer(overBridge)
+
+	assert.Equal(t, socketRows, bridgeRows, "both transports carry the same rows in the same order")
+	assert.Equal(t, overSocket.Key, overBridge.Key, "both heads name the same envelope")
+	assert.Equal(t, overSocket.Type, overBridge.Type, "both heads state how a row is read")
+	assert.Equal(t, overSocket.Verdict(), overBridge.Verdict(),
+		"both answers end on the same terminator counts: two rows produced and one rejected")
+}
+
+// TestDirectBridgeWaitDispatchSpansAnswerWalk checks that the dispatch
+// admission an answer takes is held until the walk that reads it ends, and is
+// released exactly once whether that walk ran out or the consumer stopped it.
+// The method: take an answer, stop dispatch, and watch WaitDispatch while the
+// records are still unread; then end the range and watch it return.
+//
+// The rows of an in-process answer are pulled from engine state after
+// DispatchCommandAnswer returns, and StopDispatch plus WaitDispatch is the
+// rollback barrier that must cover them.
+//
+// VALIDATES: the admission spans the walk, and the pair releases once on both
+// exits from the range.
+// PREVENTS: a rollback tearing down the state a live walk is reading, which is
+// what releasing at the call would allow. This test fails if the release moves
+// back to DispatchCommandAnswer.
+func TestDirectBridgeWaitDispatchSpansAnswerWalk(t *testing.T) {
+	t.Parallel()
+
+	rows := []string{`{"peer":"10.0.0.1"}`, `{"peer":"10.0.0.2"}`, `{"peer":"10.0.0.3"}`}
+
+	walked := func(t *testing.T, read func(*Answer)) {
+		t.Helper()
+
+		b := NewDirectBridge()
+		b.SetDispatchCommandAnswer(func(string) (*Answer, error) {
+			head := AnswerTail{Status: StatusDone, Type: AnswerTypeNDJSON, Key: "peers"}
+			terminator := AnswerTail{Count: uint64(len(rows))}
+			return NewAnswer(head, terminator, answerRowSeq(rows, nil)), nil
+		})
+		b.SetReady()
+
+		answer, err := b.DispatchCommandAnswer("show bgp neighbor summary")
+		require.NoError(t, err)
+
+		b.StopDispatch()
+
+		waitDone := make(chan struct{})
+		go func() {
+			b.WaitDispatch()
+			close(waitDone)
+		}()
+
+		select {
+		case <-waitDone:
+			t.Fatal("WaitDispatch returned while the answer's records were still unread")
+		case <-time.After(50 * time.Millisecond):
+		}
+
+		read(answer)
+
+		select {
+		case <-waitDone:
+		case <-time.After(time.Second):
+			t.Fatal("WaitDispatch did not return after the walk ended")
+		}
+
+		// Ranging again must not release the admission a second time: a second
+		// endDispatch drives the wait group negative and panics.
+		assert.NotPanics(t, func() { collectAnswer(answer) },
+			"a second range must not release the admission again")
+	}
+
+	t.Run("the walk runs out", func(t *testing.T) {
+		t.Parallel()
+
+		walked(t, func(answer *Answer) {
+			assert.Equal(t, rows, collectAnswer(answer))
+			assert.Equal(t, VerdictDone, answer.Verdict())
+		})
+	})
+
+	t.Run("the consumer stops", func(t *testing.T) {
+		t.Parallel()
+
+		walked(t, func(answer *Answer) {
+			read := 0
+			for range answer.Records {
+				read++
+				break
+			}
+			assert.Equal(t, 1, read)
+			assert.Equal(t, VerdictTruncated, answer.Verdict())
+		})
+	})
 }
