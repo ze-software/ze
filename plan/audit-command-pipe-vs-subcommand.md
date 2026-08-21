@@ -11,8 +11,9 @@
 
 `show bgp summary` was removed on 2026-08-21 and replaced by `show bgp` plus
 `show bgp | summary`, because `summary` was an aggregate of the same payload
-(`plan/spec-cli-show-bgp-is-the-command.md`). This audit asks how far that
-pattern reaches.
+(spec `cli-show-bgp-is-the-command`, closed and removed the same day; its
+record is the commits it names and this repository's history). This audit asks
+how far that pattern reaches.
 
 ## The rule applied
 
