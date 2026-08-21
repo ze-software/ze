@@ -89,5 +89,3 @@ that row is where you say which of the two happened.
 
 | Test | Reason |
 |------|--------|
-| TestShowBgpSummaryStillResolvesToItsOwnHandler | Renamed, not deleted. The test asserted that `show bgp summary` resolves to its own handler rather than being swallowed by a parent, and this commit removes that command, so the name asserts the opposite of the truth. It is now `TestBuiltinPathsResolveToTheirOwnHandler` and its two synthetic paths moved to real surviving children, which keeps the longer-path arm of the dispatcher guard covered by a path that exists. The gate reads a rename as a deletion because the old name has no function behind it. No case and no assertion is lost |
-| show-bgp-summary-family-arg | Renamed to `show-bgp-family-arg`, not deleted. The fixture tested that `show bgp summary ipv4` is refused as an address family in a subcommand position, and this commit removes the command it names. Its guard case is now `show bgp ipv4` and asserts the same refusal on the surviving spelling. A `.ci` file is one test named by its stem, so a rename empties the old stem and the gate reads that as a deletion. No case and no assertion is lost |

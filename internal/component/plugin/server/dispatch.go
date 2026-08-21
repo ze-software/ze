@@ -35,6 +35,25 @@ import (
 func (s *Server) handleSingleProcessCommandsRPC(proc *process.Process) {
 	defer s.cleanupProcess(proc)
 
+	// The drain runs on EVERY exit path, so it is a defer rather than a step of
+	// the bridge branch below. cleanupProcess is what releases
+	// WaitRuntimeCleanup, and rollbackStartupProcess frees the plugin's command
+	// names as soon as that returns. A path that reaches cleanupProcess without
+	// draining therefore lets rollback unregister a command while a
+	// plugin-to-engine call is still inside its handler.
+	//
+	// The nil branch below is such a path, and it is reachable rather than
+	// theoretical: Stop() nils the connection (process.closeConns), so a
+	// rollback that runs before this goroutine reads proc.Conn() makes conn nil
+	// here. Deferring costs one call on the mux path, where StopDispatch is a
+	// flag write and WaitDispatch is an uncontended WaitGroup.
+	if bridge := proc.Bridge(); bridge != nil {
+		defer func() {
+			bridge.StopDispatch()
+			bridge.WaitDispatch()
+		}()
+	}
+
 	conn := proc.Conn()
 	if conn == nil {
 		logger().Debug("rpc runtime: no connection (startup failed?)", "plugin", proc.Name())
@@ -49,8 +68,6 @@ func (s *Server) handleSingleProcessCommandsRPC(proc *process.Process) {
 		case <-s.ctx.Done():
 		case <-proc.Done():
 		}
-		proc.Bridge().StopDispatch()
-		proc.Bridge().WaitDispatch()
 		return
 	}
 

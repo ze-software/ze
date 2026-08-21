@@ -1073,3 +1073,113 @@ func TestExplicitShutdownReleasesWaitBeforeRuntimeHandlerDrain(t *testing.T) {
 	s.wg.Done()
 	require.NoError(t, s.Wait(waitCtx))
 }
+
+// TestRuntimeHandlerDrainsBridgeWhenConnectionIsAlreadyClosed pins the drain to
+// EVERY exit path of handleSingleProcessCommandsRPC, not only the bridge-mode
+// one.
+//
+// Process.Stop nils the connection (process.closeConns), so a rollback that
+// runs before the runtime handler's goroutine reads proc.Conn() leaves that
+// handler looking at nil. The nil branch returns immediately, and its deferred
+// cleanupProcess releases WaitRuntimeCleanup, which is the only thing
+// rollbackStartupProcess waits on before it frees the plugin's command names.
+// Without the drain on that path, rollback returns while a plugin-to-engine
+// call is still inside its handler.
+//
+// The order here is deterministic rather than raced: Stop runs BEFORE the
+// handler starts, so the nil branch is always the one taken. That is the same
+// state the scheduler produces intermittently, which is what made
+// TestBridgeRollbackWaitsForDirectDispatch flaky at three separate assertions
+// (plan/journal/grace-bound-hides-a-missing-signal.md).
+//
+// VALIDATES: The runtime handler drains admitted bridge calls even when the connection is already gone.
+// PREVENTS: Rollback freeing a command name while a plugin-to-engine call is still running.
+func TestRuntimeHandlerDrainsBridgeWhenConnectionIsAlreadyClosed(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const pluginName = "autoload-drain-after-close"
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        pluginName,
+		Description: "drain-after-close test plugin",
+		RunEngine: func(conn net.Conn) int {
+			var buf [1]byte
+			if _, err := conn.Read(buf[:]); err != nil {
+				return 0
+			}
+			return 0
+		},
+		CLIHandler: func([]string) int { return 0 },
+	}))
+
+	s, pm := newAutoloadTeardownTestServer()
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	t.Cleanup(s.cancel)
+	proc := process.NewProcess(plugin.PluginConfig{Name: pluginName, Internal: true})
+	require.NoError(t, proc.StartWithContext(s.ctx))
+	require.NoError(t, proc.InitConns())
+	proc.SetStage(plugin.StageRunning)
+	pm.AddProcess(pluginName, proc)
+
+	bridge := proc.Bridge()
+	require.NotNil(t, bridge)
+	proc.Conn().SetBridge(bridge)
+
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	bridge.SetDispatchRPC(func(string, json.RawMessage) (json.RawMessage, error) {
+		close(entered)
+		<-release
+		return json.RawMessage(`{"status":"done"}`), nil
+	})
+	bridge.SetReady()
+
+	callDone := make(chan error, 1)
+	go func() {
+		_, err := bridge.DispatchRPC("test", nil)
+		callDone <- err
+	}()
+
+	waitCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	select {
+	case <-entered:
+	case <-waitCtx.Done():
+		t.Fatal("direct bridge call did not enter its handler")
+	}
+
+	// Stop BEFORE the runtime handler starts. proc.Conn() is nil from here on,
+	// so the handler takes the nil branch every time this test runs.
+	proc.Stop()
+	require.Nil(t, proc.Conn(), "Stop must have closed the connection for this test to exercise the nil branch")
+
+	handlerReturned := make(chan struct{})
+	go func() {
+		defer close(handlerReturned)
+		s.handleSingleProcessCommandsRPC(proc)
+	}()
+
+	// The handler MUST still be inside the drain: the dispatch has not been
+	// released. A 100ms window is a floor on "did not return immediately", and
+	// the assertion that matters is the ordering one below, which cannot pass by
+	// luck.
+	select {
+	case <-handlerReturned:
+		t.Fatal("the runtime handler returned while a bridge dispatch was still in its handler")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	close(release)
+	select {
+	case err := <-callDone:
+		require.NoError(t, err)
+	case <-waitCtx.Done():
+		t.Fatal("admitted bridge call did not finish")
+	}
+	select {
+	case <-handlerReturned:
+	case <-waitCtx.Done():
+		t.Fatal("the runtime handler did not return after the dispatch drained")
+	}
+}
