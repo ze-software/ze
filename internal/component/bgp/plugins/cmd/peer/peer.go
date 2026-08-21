@@ -26,31 +26,54 @@ const (
 	cmdBgpPeerList = "show bgp peer list"
 )
 
-// cmdBgpChildren is every builtin command path under `show bgp`, as
-// `make ze-command-list` reports them.
+// cmdBgpChildren is every DIRECT child of `show bgp`, which is the shallowest
+// path of each branch beneath it. Each one declares itself empty, and that is
+// what stops the whole branch inheriting what registerColumns and
+// registerAliases declare on the parent.
 //
 // A column order and an alias resolve by the longest registered command path
 // that is a prefix of the command (commandRegistry.lookup in
 // internal/component/command/column_order.go), so what registerColumns and
-// registerAliases put on `show bgp` reaches all of these. Each one declares its
-// own emptiness to stop that, which is the mechanism registerPipeFilters uses
-// for the scalar rib commands (internal/component/bgp/plugins/cmd/rib/rib.go).
+// registerAliases put on `show bgp` reaches every path below it. Declaring the
+// emptiness is the mechanism registerPipeFilters uses for the scalar rib
+// commands (internal/component/bgp/plugins/cmd/rib/rib.go).
+//
+// SHALLOWEST is load-bearing, and the reason is the SELECTOR. An operator types
+// `show bgp peer 192.0.2.1 detail`, and the dispatcher folds the address into a
+// selector to reach the `show bgp peer detail` handler (matchCommandTokens in
+// internal/component/plugin/server/command.go). This registry never sees that
+// folding: it resolves the string the operator typed, and `show bgp peer detail`
+// is NOT a prefix of `show bgp peer 192.0.2.1 detail`, so an entry per leaf
+// leaves every selector spelling resolving `show bgp` instead.
+// `show bgp peer` is a prefix of both, so one entry covers the branch.
+//
+// `make ze-command-list` reports only part of this list, so building it from
+// the inventory leaves paths inheriting. The inventory walks AllBuiltinRPCs and
+// the streaming prefixes alone (scripts/inventory/commands.go), and reports
+// neither of these two kinds:
+//
+//   - `show bgp decode` and `show bgp encode`, offline handlers the CLI
+//     registers with registry.MustRegisterLocal. The completer still offers
+//     pipe names for a path it can complete (TreeCompleter.Complete in
+//     internal/component/command/completer.go), so the aliases would be
+//     offered on a command that never reaches ApplyPipes.
+//   - the four plugin branches, which the rpki, rs, adj-rib-in and healthcheck
+//     plugins register as PLUGIN names.
+//
+// The lookup reads the command STRING and knows nothing about which registry
+// answers it, which is why a path being a plugin name or a local handler
+// exempts it from nothing.
 var cmdBgpChildren = []string{
+	"show bgp adj-rib-in",
+	"show bgp decode",
+	"show bgp encode",
 	"show bgp health",
+	"show bgp healthcheck",
 	"show bgp irr",
-	"show bgp irr check",
-	"show bgp irr prefix",
-	"show bgp peer capabilities",
-	"show bgp peer detail",
-	"show bgp peer history",
-	cmdBgpPeerList,
-	"show bgp peer rib",
-	"show bgp peer statistics",
+	"show bgp peer",
 	"show bgp rib",
-	"show bgp rib best",
-	"show bgp rib best status",
-	"show bgp rib rpf",
-	"show bgp rib status",
+	"show bgp rpki",
+	"show bgp rs",
 }
 
 var (
@@ -72,7 +95,7 @@ func init() {
 
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-list", Handler: handleBgpPeerList},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-detail", Handler: HandleBgpPeerDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-detail", Handler: handleBgpPeerDetail},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-teardown", Handler: handleTeardown, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-pause", Handler: handleBgpPeerPause, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-resume", Handler: handleBgpPeerResume, RequiresSelector: true},
@@ -120,18 +143,14 @@ func registerColumns() {
 	command.RegisterColumns([]string{cmdBgpPeerList},
 		command.ColumnOrder{"name", "group", "remote-as", "state", "uptime"},
 	)
-	// Every other child of `show bgp` declares NO order of its own, which is
-	// what stops it inheriting the two above and rendering peer columns over an
+	// Every branch under `show bgp` declares NO order of its own, which is what
+	// stops it inheriting the two above and rendering peer columns over an
 	// answer that carries no peer rows.
 	//
-	// `show bgp peer list` is the one child left out of this loop, because it
-	// declares an order of its own above: an empty registration there would
-	// REPLACE that order rather than block an inherited one. It still takes the
-	// empty ALIAS registration in registerAliases, where it declares nothing.
+	// `show bgp peer list` is not overwritten by the `show bgp peer` entry: it
+	// declares its own order above on a LONGER path, and the longest registered
+	// prefix is what resolves.
 	for _, child := range cmdBgpChildren {
-		if child == cmdBgpPeerList {
-			continue
-		}
 		command.RegisterColumns([]string{child})
 	}
 }
@@ -142,7 +161,9 @@ func registerColumns() {
 // The answer carries the aggregate keys and the peer rows as siblings, so each
 // half is a selection among them and `| display` states both. The aliases sit
 // on `show bgp` alone: the names mean nothing over an answer with no peer rows
-// in it, so every child path declares no alias and inherits neither.
+// in it, so every path under it declares no alias and inherits neither. That
+// covers the plugin subtrees as well as the builtins, because the lookup reads
+// the command STRING and knows nothing about which registry answers it.
 //
 // An alias and a pipe filter that share a name on OVERLAPPING command paths are
 // refused at init, and the refusal is a panic: checkedAlias reports it one way
@@ -166,11 +187,9 @@ func registerAliases() {
 			Expansion:   "display peers",
 		},
 	)
-	// Every child of `show bgp` declares NO alias, which is what stops it
+	// Every branch under `show bgp` declares NO alias, which is what stops it
 	// inheriting the two above and offering `| summary` and `| peers` over an
-	// answer that carries no peer rows. `show bgp peer list` belongs in this
-	// list, unlike in registerColumns: it declares no alias of its own, so the
-	// empty registration replaces nothing.
+	// answer that carries no peer rows.
 	command.RegisterAliases(cmdBgpChildren)
 }
 
@@ -304,10 +323,10 @@ func handleBgpPeerList(ctx *pluginserver.CommandContext, args []string) (*plugin
 	}, nil
 }
 
-// HandleBgpPeerDetail returns detailed peer information indexed by IP.
+// handleBgpPeerDetail returns detailed peer information indexed by IP.
 // Used by "show bgp peer <selector>" - filters to matching peers.
 // The selector is extracted by dispatcher into ctx.Peer.
-func HandleBgpPeerDetail(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpPeerDetail(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	peers, errResp, err := filterPeersByArgs(ctx, args)
 	if errResp != nil {
 		return errResp, err

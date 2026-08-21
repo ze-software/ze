@@ -1294,11 +1294,13 @@ own. A token that names no family and no subcommand comes back as an unknown
 command, so a mistyped subcommand is not reported as an invalid family.
 
 The two aliases and the column order are declared on `show bgp`, and a command
-inherits a declaration from its own path or an ancestor of it. Every child path
-under `show bgp` declares no alias, so none of them offers `| summary` or
-`| peers`. Each declares no column order either, with `show bgp peer list` the
-one exception, which declares its own. So `show bgp rib` renders its columns
-alphabetically.
+inherits a declaration from its own path or an ancestor of it. Each branch under
+`show bgp` declares no alias and no column order at its own root, which covers
+every command in that branch: `show bgp peer` covers `show bgp peer 192.0.2.1
+detail`, and `show bgp rpki` covers `show bgp rpki status`. So no command under
+`show bgp` offers `| summary` or `| peers`, and `show bgp rib` renders its
+columns alphabetically. `show bgp peer list` is the one command that declares a
+column order of its own, on a longer path than the branch root, so it keeps it.
 
 `show bgp summary` was a second spelling of this command until 2026-08. It is
 removed, not aliased, so it answers an unknown-command error. `show bgp` gives

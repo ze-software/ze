@@ -235,7 +235,7 @@ Prometheus publishes it as the `ze_bgp_connect_retry_counter` gauge
 (`docs/guide/monitoring.md`). It is a gauge rather than a counter because the
 zeroing clauses make the value go down, which a Prometheus counter may not do.
 
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- HandleBgpPeerDetail -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- handleBgpPeerDetail -->
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- updatePeriodicMetrics -->
 
 ---

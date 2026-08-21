@@ -1919,6 +1919,14 @@ func TestShowBgpDoesNotSwallowPluginSubcommands(t *testing.T) {
 	results := d.Registry().Register(proc, []CommandDef{
 		{Name: "show bgp rpki status"},
 		{Name: "show bgp rpki roa"},
+		// The rpki plugin owns a command whose leaf token is the word
+		// spec-cli-show-bgp-is-the-command retired from `show bgp`. It is here
+		// because that spelling is the one a mistake would reach: the builtin
+		// parent takes `summary` as its leftover token and answers
+		// unknown-command for it (handleBgpOverview,
+		// internal/component/bgp/plugins/cmd/peer/summary.go), so a guard that
+		// missed this path would turn a working plugin command into that error.
+		{Name: "show bgp rpki summary"},
 		{Name: "show bgp rs status"},
 		{Name: "show bgp rs peers"},
 		{Name: "show bgp adj-rib-in"},
@@ -1931,6 +1939,7 @@ func TestShowBgpDoesNotSwallowPluginSubcommands(t *testing.T) {
 
 	plugins := []string{
 		"show bgp rpki status",
+		"show bgp rpki summary",
 		"show bgp rs peers",
 		"show bgp adj-rib-in",
 		"show bgp healthcheck",

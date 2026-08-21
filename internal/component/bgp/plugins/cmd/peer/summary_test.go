@@ -980,7 +980,7 @@ func TestShowBgpCarriesTheSummaryOrder(t *testing.T) {
 }
 
 // TestChildCommandsDoNotInheritTheSummaryOrder verifies AC-7 and A-1, driven
-// per child path rather than for one example.
+// per command path rather than for one example.
 //
 // VALIDATES: no command path under `show bgp` takes the column orders or the
 // pipe aliases registered on it, and `show bgp peer list` keeps the order it
@@ -988,18 +988,38 @@ func TestShowBgpCarriesTheSummaryOrder(t *testing.T) {
 // PREVENTS: `show bgp rib` rendering peer columns and offering `| peers` over
 // route output. commandRegistry.lookup resolves by the longest matching prefix
 // (internal/component/command/column_order.go), so `show bgp` reaches every one
-// of these paths unless the path declares its own emptiness.
+// of these paths unless a registered ancestor of it declares emptiness.
 func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
-	// Every builtin command path under `show bgp`, as `make ze-command-list`
-	// reports them.
-	children := []struct {
-		command string
-		// columns is the order this path declares for itself. An empty one
-		// means it declares none, and none may resolve for it.
-		columns command.ColumnOrder
-	}{
-		{command: "show bgp health"},
-		{command: "show bgp irr"},
+	// The branches cmdBgpChildren blocks, each at its shallowest path.
+	branches := []string{
+		"show bgp adj-rib-in",
+		"show bgp decode",
+		"show bgp encode",
+		"show bgp health",
+		"show bgp healthcheck",
+		"show bgp irr",
+		"show bgp peer",
+		"show bgp rib",
+		"show bgp rpki",
+		"show bgp rs",
+	}
+	// The table is the population, so it MUST name every branch the
+	// registrations block. A path added to cmdBgpChildren and not here would go
+	// untested, and one dropped from cmdBgpChildren would start inheriting.
+	assert.ElementsMatch(t, cmdBgpChildren, branches, "every blocked branch is driven by this table")
+
+	// Every command BENEATH those branches, as an operator types it. None is
+	// registered in its own right except `show bgp peer list`, so each one
+	// proves its branch's empty registration is what answers for it.
+	//
+	// Three kinds are here because each was missed once:
+	//
+	//   - the SELECTOR spellings. `show bgp peer detail` is not a prefix of
+	//     `show bgp peer 192.0.2.1 detail`, so a per-leaf registration leaves
+	//     the typed form resolving `show bgp`.
+	//   - the plugin paths, which `make ze-command-list` does not report.
+	//   - `show bgp decode`, an offline handler the inventory does not report.
+	commands := []commandOrder{
 		{command: "show bgp irr check"},
 		{command: "show bgp irr prefix"},
 		{command: "show bgp peer capabilities"},
@@ -1008,35 +1028,53 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 		{command: "show bgp peer list", columns: command.ColumnOrder{"name", "group", "remote-as", "state", "uptime"}},
 		{command: "show bgp peer rib"},
 		{command: "show bgp peer statistics"},
-		{command: "show bgp rib"},
+		{command: "show bgp peer 192.0.2.1 capabilities"},
+		{command: "show bgp peer 192.0.2.1 detail"},
+		{command: "show bgp peer 192.0.2.1 history"},
+		{command: "show bgp peer 192.0.2.1 rib"},
+		{command: "show bgp peer 192.0.2.1 statistics"},
 		{command: "show bgp rib best"},
 		{command: "show bgp rib best status"},
+		{command: "show bgp rib commands"},
 		{command: "show bgp rib rpf"},
 		{command: "show bgp rib status"},
+		{command: "show bgp adj-rib-in status"},
+		{command: "show bgp rpki aspa"},
+		{command: "show bgp rpki cache"},
+		{command: "show bgp rpki roa"},
+		{command: "show bgp rpki status"},
+		{command: "show bgp rpki summary"},
+		{command: "show bgp rs peers"},
+		{command: "show bgp rs status"},
 	}
 
-	for _, child := range children {
-		t.Run(child.command, func(t *testing.T) {
-			orders := command.ColumnsForCommand(child.command)
-			if len(child.columns) == 0 {
+	// A branch declares no order either, so one loop drives both populations.
+	paths := make([]commandOrder, 0, len(branches)+len(commands))
+	for _, branch := range branches {
+		paths = append(paths, commandOrder{command: branch})
+	}
+	paths = append(paths, commands...)
+
+	for _, path := range paths {
+		t.Run(path.command, func(t *testing.T) {
+			orders := command.ColumnsForCommand(path.command)
+			if len(path.columns) == 0 {
 				assert.Empty(t, orders, "declares no column order, so it must resolve none rather than inherit `show bgp`")
 			} else {
 				require.Len(t, orders, 1, "declares one column order of its own")
-				assert.Equal(t, child.columns, orders[0], "an empty registration here would replace the declared order")
+				assert.Equal(t, path.columns, orders[0], "a blocked ancestor must not replace the declared order")
 			}
 
-			names := aliasNames(t, child.command)
+			names := aliasNames(t, path.command)
 			assert.False(t, names["summary"], "`| summary` names aggregate fields this answer does not carry")
 			assert.False(t, names["peers"], "`| peers` names peer rows this answer does not carry")
 		})
 	}
+}
 
-	// The table is the population, so it MUST name every path the registrations
-	// block. A path added to cmdBgpChildren and not here would go untested, and
-	// one dropped from cmdBgpChildren would start inheriting.
-	tabled := make([]string, 0, len(children))
-	for _, child := range children {
-		tabled = append(tabled, child.command)
-	}
-	assert.ElementsMatch(t, cmdBgpChildren, tabled, "every blocked child path is driven by this table")
+// commandOrder is one command path and the column order it declares for itself.
+// An empty order means it declares none, and none may resolve for it.
+type commandOrder struct {
+	command string
+	columns command.ColumnOrder
 }

@@ -24,7 +24,7 @@ func TestHandlerPeerDetailAllPeers(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := HandleBgpPeerDetail(ctx, nil)
+	resp, err := handleBgpPeerDetail(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -64,7 +64,7 @@ func TestHandlerPeerDetailReportsConnectRetryCounter(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := HandleBgpPeerDetail(ctx, nil)
+	resp, err := handleBgpPeerDetail(ctx, nil)
 	require.NoError(t, err)
 
 	data, ok := resp.Data.(plugin.Map)
@@ -93,7 +93,7 @@ func TestHandlerPeerDetailFilterByIP(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := HandleBgpPeerDetail(ctx, nil)
+	resp, err := handleBgpPeerDetail(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 

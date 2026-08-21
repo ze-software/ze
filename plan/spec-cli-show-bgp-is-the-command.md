@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | cli |
 | Depends | - |
-| Phase | 3/5 |
+| Phase | 5/5 |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-08-21 |
@@ -90,8 +90,8 @@ match two paths for one answer.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| CLI ↔ looking glass, web, MCP, REST | Each issues the command string; every one moves from `show bgp summary` to `show bgp` | No |
-| Registry ↔ child commands | Empty registrations block the orders and aliases leaking down the subtree | No |
+| CLI ↔ looking glass, web, MCP, REST | Each issues the command string; every one moves from `show bgp summary` to `show bgp` | Yes. `make ze-functional-ui-test` 182/182 and `make ze-functional-plugin-test` 625/625 at the Review Gate, with `grep -rn 'show bgp summary'` leaving no live caller |
+| Registry ↔ child commands | Empty registrations block the orders and aliases leaking down the subtree | Yes, after the Review Gate corrected the population from 15 leaves to 10 branch roots. `TestChildCommandsDoNotInheritTheSummaryOrder` and `test/ui/show-bgp-children-do-not-inherit.ci`, both proven to go red when a branch is dropped |
 
 ### Integration Points
 - `internal/component/bgp/plugins/cmd/peer/peer.go` - the registrations move to `show bgp` and gain the blocking empties
@@ -99,13 +99,15 @@ match two paths for one answer.
 - `internal/component/lg/handler_api.go` - the query string moves
 
 ### Architectural Verification
+<!-- Filled at the Review Gate, 2026-08-21, by the independent reviewer. -->
+
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | Every consumer still issues a command string over the same dispatch channel; `handleBgpOverview` -> `handleBgpSummary` is the one path to the payload, and `handleBgpSummary` is registered against no wire method of its own |
+| No unintended coupling (components stay isolated) | Partly | `cmdBgpChildren` (`internal/component/bgp/plugins/cmd/peer/peer.go`) spells four other plugins' command roots and two CLI-local ones. The file already spelled `show bgp rib`, `show bgp irr` and `show bgp health` before this spec. The alternative is each plugin registering its own emptiness, which distributes the knowledge correctly and costs four more packages; not taken here, recorded as Review Gate NOTE-5 |
+| No duplicated functionality (extends existing, does not recreate) | Yes | The empty registration is the mechanism `registerPipeFilters` (`internal/component/bgp/plugins/cmd/rib/rib.go`) already uses. No registry gained an exact-path mode |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | No wire or buffer code changes. The payload builder is untouched |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | `internal/component/command` gained nothing. Every change is a call to the existing `RegisterColumns` / `RegisterAliases` from the owning plugin's `init` |
 
 ## Risks & Assumptions
 
@@ -148,15 +150,38 @@ keep inheriting the orders and the aliases until phase 3 removes it, which is
 what makes phase 1 safe to land on its own. The 15 named below are the ones that
 take an empty registration. `make ze-command-list` reports these builtin paths under `show bgp`, every one of which would inherit the `summary` and `peers` aliases from a `show bgp` registration: `health`, `irr`, `irr check`, `irr prefix`, `peer capabilities`, `peer detail`, `peer history`, `peer list`, `peer rib`, `peer statistics`, `rib`, `rib best`, `rib best status`, `rib rpf`, `rib status`. The four plugin subtrees (`rpki`, `rs`, `adj-rib-in`, `healthcheck`) are reached by fallback and are not builtins. AC-7 already says "every other child path"; the Implementation Steps and R-2 drove only four, and now drive all of them.
 
-**The empties are not one uniform loop.** `show bgp peer list` already carries its own `ColumnOrder` (`internal/component/bgp/plugins/cmd/peer/peer.go:registerColumns:99-102`), so an empty COLUMN registration there would destroy a declared order. It carries no alias registration, so it does need an empty ALIAS registration. Column empties and alias empties are two different lists.
+**The empties are not one uniform loop.** `show bgp peer list` already carries its own `ColumnOrder` (`internal/component/bgp/plugins/cmd/peer/peer.go`, `registerColumns`), so an empty COLUMN registration there would destroy a declared order. It carries no alias registration, so it does need an empty ALIAS registration. Column empties and alias empties are two different lists.
+
+**Both notes above are SUPERSEDED. Corrected at the Review Gate, 2026-08-21: the population is 10 BRANCHES, not 15 leaves, and it is not derivable from `make ze-command-list`.**
+Registering per leaf was wrong twice over, and both holes shipped in phase 1
+(Review Gate BLOCKER-1 and BLOCKER-2):
+
+- `make ze-command-list` is not the population. `collect` (`scripts/inventory/commands.go`) walks `AllBuiltinRPCs` and the streaming prefixes only, so it reports neither the ten plugin commands the rpki, rs, adj-rib-in and healthcheck plugins register as plugin NAMES, nor `show bgp decode` and `show bgp encode`, which `registry.MustRegisterLocal` owns.
+- A LEAF path does not prefix its own typed spelling when a selector sits in the middle of it. `commandRegistry.lookup` resolves the string the operator typed, and `matchCommandTokens` (`internal/component/plugin/server/command.go`) folds `192.0.2.1` out of `show bgp peer 192.0.2.1 detail` only afterwards. `commandMatchesPrefix("show bgp peer 192.0.2.1 detail", "show bgp peer detail")` is false, so every selector spelling under `show bgp peer` kept resolving `show bgp`.
+
+Registering at the SHALLOWEST path of each branch answers both: `show bgp peer`
+prefixes `show bgp peer 192.0.2.1 detail` and `show bgp peer list` alike, and
+`show bgp rpki` covers five plugin commands and any sixth added later. The
+population is `show bgp adj-rib-in`, `decode`, `encode`, `health`,
+`healthcheck`, `irr`, `peer`, `rib`, `rpki`, `rs`. `show bgp peer list` keeps
+its own `ColumnOrder`, because it declares it on a path LONGER than the branch
+root and the longest registered prefix resolves.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Operator runs `show bgp \| summary` | → | alias resolved against `show bgp`, then `handleBgpOverview` | `test/ui/show-bgp-alias-summary.ci` | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
-| Operator runs `show bgp summary` | → | no dispatcher key exists; the unknown-command path answers | `test/plugin/show-bgp-summary-is-gone.ci` | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
-| Operator runs `show bgp rib \| peers` | → | the empty registration blocks the inherited alias | `test/ui/show-bgp-children-do-not-inherit.ci` | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+| Operator runs `show bgp \| summary` | → | alias resolved against `show bgp`, then `handleBgpOverview` | `test/ui/alias-summary.ci` and `test/ui/alias-peers.ci` |
+| Operator runs `show bgp summary` | → | no dispatcher key exists; the unknown-command path answers | `test/plugin/show-bgp-summary-is-gone.ci` |
+| Operator runs `show bgp peer \<sel\> detail \| peers` | → | the branch's empty registration blocks the inherited alias | `test/ui/show-bgp-children-do-not-inherit.ci` |
+
+**Corrected at the Review Gate, 2026-08-21.** The first row named
+`test/ui/show-bgp-alias-summary.ci`, which was never written: `alias-summary.ci`
+and `alias-peers.ci` already drove both aliases end to end and phase 2 moved
+them onto `show bgp`, so a third fixture would have duplicated them. The third
+row named `show bgp rib`, and the path that was actually broken is the SELECTOR
+spelling under `show bgp peer` (Review Gate BLOCKER-2), so the fixture drives
+that one.
 
 ## Acceptance Criteria
 
@@ -170,7 +195,32 @@ take an empty registration. `make ze-command-list` reports these builtin paths u
 | AC-6 | `show bgp rpki status`, `show bgp rs peers`, `show bgp adj-rib-in`, `show bgp healthcheck`, `show bgp rib`, `show bgp peer list` | Each resolves to its own handler, unchanged |
 | AC-7 | `show bgp rib`, and every other child path | Renders alphabetically and rejects `\| peers`. The summary's orders and aliases do not leak down the subtree |
 | AC-8 | The looking glass peer page, the web summary page, the CLI dashboard, MCP and REST | All answer, each having moved to `show bgp` |
-| AC-9 | `grep -rn 'show bgp summary'` over the tree | Returns nothing outside git history and this spec |
+| AC-9 | `grep -rn 'show bgp summary'` over the tree | Returns nothing outside the exception list below |
+
+**AC-9's exception list, written at the Review Gate, 2026-08-21.** The criterion
+said "nothing outside git history and this spec", which no tree can satisfy: five
+kinds of survivor are CORRECT, and phrasing the criterion as an absence left the
+implementer judging each hit with no written rule. Four of the five were declared
+after the fact and all four hold. The list is what the criterion should have said
+from the start:
+
+| Kind | Sites | Correct because |
+|------|-------|-----------------|
+| An absence assertion | `test/plugin/show-bgp-summary-is-gone.ci`, `internal/component/plugin/server/command_test.go:2065,2067,2075` | A test that proves a name is gone must spell the name |
+| A YANG revision history entry | `ze-peer-cmd.yang` revision 2026-06-04 | A revision log records what a past revision did; rewriting it falsifies the changelog |
+| A release note | `docs/guide/command-reference.md` | The operator who types the retired spelling is the reader this note exists for |
+| Another daemon's command | `docs/comparison.md`, `docs/guide/command-catalogue.md` (VyOS, Junos, Nokia, Arista, FRR columns), `docs/architecture/cli/command-namespacing.md` (JunOS), `website/data/command-equivalents.json` (Junos MX, Cisco IOS XR), `scripts/dev/docker_exec_checked_test.py` (FRR vtysh) | It is FRR's or Junos's command and it still exists there. Changing it makes the document wrong |
+| A record of this change | `plan/` (this spec, the deferral shard, `plan/verification-debt/`, `plan/journal/`), `rfc/audit/rfc7606.json` (quotes commit 17f50bd81's subject) | A record describes what happened; it is not a caller |
+
+One kind is a survivor and is NOT correct: six OPEN specs under `plan/` name
+`show bgp summary` as a LIVE command in their own acceptance criteria and data
+flows (`spec-bgp-per-peer-received-counter`, `spec-bgp-filtered-route-storage`,
+`spec-lg-deferred-birdwatcher-route-counts`,
+`spec-fixit-redistribute-establishment-stall`,
+`plan/future/spec-cli-operator-defined-aliases`,
+`plan/future/spec-fixit-migrate-sleeps-infra`). Whoever implements one will write
+the retired command into a fixture. Review Gate ISSUE-3 records it; it is not
+fixed here, because those specs belong to other work.
 | AC-10 | `make ze-command-list` | Names `show bgp` and does not name `show bgp summary` |
 
 ## End-to-End User Stories
@@ -186,11 +236,12 @@ take an empty registration. `make ze-command-list` reports these builtin paths u
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestShowBgpCarriesTheSummaryOrder` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-1, the orders resolve against `show bgp` | pass |
-| `TestChildCommandsDoNotInheritTheSummaryOrder` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-7, A-1, driven per child path | pass |
+| `TestChildCommandsDoNotInheritTheSummaryOrder` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-7, A-1, driven per branch, per command beneath it, and per SELECTOR spelling | pass |
 | `TestShowBgpSummaryIsNotRegistered` | `internal/component/plugin/server/command_test.go` | AC-4 and AC-10, no dispatcher key and no wire method | pass |
 | `TestBgpOverviewAnswersTheSummary/the retired summary subcommand` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-4, the message is the unknown-command error and not the family rejection | pass |
 | `TestBgpOverviewAnswersTheSummary/family argument` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-5. This is the row phase 3 wrote instead of a new `TestShowBgpFamilyArgumentStillFilters`: the existing subtest already drove the overview's family path, and it was strengthened to assert the SCOPE (`family`, `peers-in-family`) rather than only the status. A second test asserting the same thing would be a duplicate | pass |
-| `TestAliasesResolveAgainstShowBgp` | `internal/component/command/alias_test.go` | AC-2 and AC-3 | |
+| `TestShowBgpCarriesTheSummaryOrder` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-2 and AC-3, the alias half. Written instead of `TestAliasesResolveAgainstShowBgp` in `alias_test.go`: the registration lives in the peer package, so the assertion belongs beside it, and `internal/component/command` has no BGP registration to resolve. Corrected at the Review Gate, 2026-08-21 | pass |
+| `TestShowBgpDoesNotSwallowPluginSubcommands/show bgp rpki summary` | `internal/component/plugin/server/command_test.go` | AC-6 for the one plugin path whose leaf token is the retired word. Added at the Review Gate, 2026-08-21 | pass |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -271,7 +322,7 @@ Not applicable. Scope is `cli`; no wire-visible protocol behaviour changes.
    - Tests: `TestShowBgpCarriesTheSummaryOrder`, `TestChildCommandsDoNotInheritTheSummaryOrder`
    - Files: `internal/component/bgp/plugins/cmd/peer/peer.go`
    - Verify: `show bgp` renders in the declared order and accepts the aliases while `show bgp summary` still exists. Nothing is removed yet, so nothing can regress
-   - The blocking empties cover ALL 16 builtin child paths listed in Blast Radius, not the four R-2 first named, and the column list and the alias list differ: `show bgp peer list` takes an empty ALIAS registration only, because it already declares its own `ColumnOrder`
+   - The blocking empties cover the SHALLOWEST path of every branch under `show bgp`, which is the 10 in the Review Gate correction under Blast Radius, not the four R-2 first named and not the 15 leaves phase 1 shipped. `show bgp peer list` keeps its own `ColumnOrder` because it declares it on a longer path than its branch root
 2. **Phase: The consumer sweep** -- every caller moves while the old command still answers
    - Tests: the web, lg, cli and plugin suites
    - Files: **151 files, 382 occurrences** (A-2 is broken; the counts are in the audit note under Assumptions). 24 production `.go`, 29 test `.go`, 40 `.ci`, 39 `.md`, 6 `.py`, 4 `.yang`, 4 `.html` golden files, 2 `.sh`, 1 each of `.txt`, `.tape`, `.json`. `handler_ui.go` carries 3 query sites and `handler_api.go` 2, so the looking glass alone is 5 <!-- doc-links: ignore (a REST route prefix, not a path in the tree) -->
@@ -311,7 +362,7 @@ Not applicable. Scope is `cli`; no wire-visible protocol behaviour changes.
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | `handleBgpOverview` bounds the token it echoes for an unknown subcommand. Confirm that bound survives, since the token is operator input reaching the response envelope |
-| Authorization | ANSWERED, 2026-08-21. Both keyings agree. `IsReadOnlyPath` (`internal/component/plugin/server/command.go:123-137`) cuts at the first space and switches on the verb alone, so both paths give `show` and the class cannot change. `Entry.matches` (`internal/component/authz/authz.go:78-100`) is prefix-with-word-boundary, so a rule keyed on `show` or `show bgp` matches the new path exactly as it matched the old one. One asymmetry survives and is a RELEASE-NOTE item, not a code change: an operator-written DENY rule keyed on the literal `show bgp summary` stops matching, because `show bgp` is shorter than the match string, which widens that operator's read surface by the summary payload. No shipped default profile keys on the literal; in-tree it appears only in `internal/component/authz/authz_test.go:854,891,920,934` |
+| Authorization | ANSWERED, 2026-08-21. Both keyings agree. `IsReadOnlyPath` (`internal/component/plugin/server/command.go:123-137`) cuts at the first space and switches on the verb alone, so both paths give `show` and the class cannot change. `Entry.matches` (`internal/component/authz/authz.go:78-100`) is prefix-with-word-boundary, so a rule keyed on `show` or `show bgp` matches the new path exactly as it matched the old one. One asymmetry survives and is a RELEASE-NOTE item, not a code change: an operator-written DENY rule keyed on the literal `show bgp summary` stops matching, because `show bgp` is shorter than the match string. **CORRECTED at the Review Gate, 2026-08-21: it does NOT widen that operator's read surface, and the claim that it does is false.** `handleBgpOverview` has answered `show bgp` with the identical payload since `647f33121` (2026-08-19, already on `origin/main`), so a DENY on the literal was already failing to hide the summary before this spec removed anything. The widening, if an operator's config predates that commit, belongs to `647f33121`. This spec removes one of two spellings of an already-reachable payload and narrows nothing and widens nothing. The rule that stops matching is still worth a release note, because a rule that silently matches nothing is the operator's problem whichever direction it fails in. No shipped default profile keys on the literal, and phase 2 moved the four `internal/component/authz/authz_test.go` sites, which used the string only as an arbitrary read command |
 | Information leakage | The payload is unchanged, so no field becomes newly visible |
 
 ### Failure Routing
@@ -340,7 +391,108 @@ Not applicable. Scope is `cli`; no wire-visible protocol behaviour changes.
 ## Known Limitations
 - An operator with muscle memory for `show bgp summary` gets an unknown-command error rather than a hint. Teaching the CLI to suggest `show bgp` for a retired command is a general facility and is not built here.
 - Only the BGP tree is treated. Other parent containers that answer nothing keep answering nothing.
-- The demonstration must be re-rendered after this lands, and that is a separate manual step.
+- The demonstration must be re-rendered after this lands, and that is a separate manual step. **It has NO automatic backstop**, corrected at the Review Gate, 2026-08-21: `ze-site-generate` (`Makefile`) runs `render.py --all --stamp-definition-hashes || true` immediately before `render.py --all --check-definition`, and `stamp_definition_hashes` (`demos/terminal/render.py`) writes the very field `verify_assets(definition_only=True)` compares. The check therefore passes unconditionally and the next site build re-records nothing. `render.py --check-definition --demo zefs-config` reports the definition changed today. Journal row: `plan/journal/stale-artifact-reused.md`, 2026-08-21.
+- `handleBgpOverview` reads `args[0]` and drops every token after it, so `show bgp ipv4 rubbish` answers the ipv4-scoped summary in silence. It predates this spec (`show bgp summary ipv4 rubbish` behaved the same) and the Boundary Tests row bounds only the case where the FIRST token names no family. Journal row: `plan/journal/silent-fall-through.md`, 2026-08-21.
+
+## Review Gate
+
+<!-- BLOCKING (ai/rules/planning.md). Filled by an INDEPENDENT reviewer that did
+     not write this code, running every lens itself, over the five committed
+     phases and the working tree they left. -->
+
+| Field | Value |
+|-------|-------|
+| Reviewer | independent context, Opus 5; did not author any of the five phases |
+| Diff under review | `eb84d7f41`, `17f50bd81`, `6123a6fc7`, `83c1cb9a2`, `d92d41425`, plus the working tree |
+| Reviewer lenses used | wiring + AC-to-test mapping; removed-behavior + logic + registry semantics; security + authorization; docs/record accuracy; simplicity/altitude |
+| Rounds | 3 |
+| `review_gate.py` artifact | not recorded by this pass; the closing session records it with `scripts/dev/review_gate.py record` |
+
+### Round scopes, written before each round ran
+
+| Round | Scope |
+|-------|-------|
+| 1 | The whole diff of the five commits, every AC-1..AC-10 verified independently against source and against a run, plus the five items the commissioning thread named (AC-9 survivors, the child blocking, the dispatcher guard, the `rpc overview` rename, `handleBgpSummary`, the authorization asymmetry, the demo re-render) |
+| 2 | Only round 1's fixes and what they touch: `cmdBgpChildren` and both registration functions in `internal/component/bgp/plugins/cmd/peer/peer.go`, `TestChildCommandsDoNotInheritTheSummaryOrder`, `TestShowBgpDoesNotSwallowPluginSubcommands`, the new `test/ui/show-bgp-children-do-not-inherit.ci`, the `command-reference.md` paragraph the fix makes true, and the sibling call sites of `RegisterColumns` / `RegisterAliases` (`internal/component/bgp/plugins/cmd/rib/rib.go`) |
+| 3 | Only round 2's one fix and what it touches: the `handleBgpPeerDetail` rename, its `RegisterRPCs` entry, its three `peer_ops_test.go` call sites, and the `docs/architecture/behavior/fsm.md` source anchor |
+
+### Round 1 findings
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| BLOCKER-1 | BLOCKER | AC-7 was FALSE for ten live command paths. The blocking list was built from `make ze-command-list`, which walks `AllBuiltinRPCs` and the streaming prefixes only (`collect`, `scripts/inventory/commands.go`), so it reports neither the rpki, rs, adj-rib-in and healthcheck commands (registered as PLUGIN names) nor `show bgp decode` / `show bgp encode` (`registry.MustRegisterLocal`, `internal/component/bgp/cli/register.go`). Measured, not argued: `AliasesForCommand` returned `[peers summary]` and `ColumnsForCommand` returned both summary orders for `show bgp rpki status`, `rpki summary`, `rpki cache`, `rpki roa`, `rpki aspa`, `rs status`, `rs peers`, `adj-rib-in`, `adj-rib-in status`, `healthcheck`. `TreeCompleter.Complete` (`internal/component/command/completer.go`) offers those alias names after `\|` for any command string, so an operator was offered `\| peers` on route and ROA output. Introduced by `eb84d7f41`: the old registration on `show bgp summary` is not a prefix of any of them | `internal/component/bgp/plugins/cmd/peer/peer.go`, `cmdBgpChildren` / `registerColumns` / `registerAliases` | The list now registers the SHALLOWEST path of each branch. `TestChildCommandsDoNotInheritTheSummaryOrder` drives every branch and every command beneath it; removing `show bgp rpki` from the list turns 7 subtests red |
+| BLOCKER-2 | BLOCKER | `test/ui/show-column-order-absent-unchanged.ci` was RED on HEAD, and it is the file whose stated purpose is "the prefix lookup is proven not to leak an order down to a command that did not ask for one". `show bgp peer 192.0.2.1 detail` rendered in the summary's peer-row order. Cause: the registry resolves the string the operator TYPED, and `matchCommandTokens` (`internal/component/plugin/server/command.go`) folds the selector out of the middle only afterwards, so `commandMatchesPrefix("show bgp peer 192.0.2.1 detail", "show bgp peer detail")` is false and a per-leaf registration never applies to the typed spelling. Phase 5 was verification only and no phase ran `make ze-functional-ui-test` | `internal/component/bgp/plugins/cmd/peer/peer.go`, `cmdBgpChildren` | Same fix: `show bgp peer` prefixes both spellings. `show-column-order-absent-unchanged` is green; removing `show bgp peer` from the list turns it red again |
+| ISSUE-1 | ISSUE | AC-7 had no functional test, and the Wiring Test table named `test/ui/show-bgp-children-do-not-inherit.ci`, which was never written. The unit table drove the registry directly and could not see BLOCKER-2, because it spelled the paths the way the REGISTRATION spells them rather than the way an operator types them | `test/ui/show-bgp-children-do-not-inherit.ci` | Written. It drives `show bgp peer list` and three selector spellings with both alias names, with the parent as the control. Removing `show bgp peer` from the list makes it fail with "the inherited alias was accepted" |
+| ISSUE-2 | ISSUE | `docs/guide/command-reference.md` asserted a product property that was false: "Every child path under `show bgp` declares no alias, so none of them offers `\| summary` or `\| peers`" (`ai/rules/evidence.md`, a false safety claim) | `docs/guide/command-reference.md` | The paragraph now states the branch-root mechanism and is true of the code |
+| ISSUE-3 | ISSUE | AC-9 is written as an absence ("returns nothing"), which no tree can satisfy, and it left the implementer judging each hit with no written rule. Six OPEN specs under `plan/` still name `show bgp summary` as a LIVE command in their own ACs and data flows, so whoever implements one writes the retired command into a fixture | `plan/spec-bgp-per-peer-received-counter.md`, `plan/spec-bgp-filtered-route-storage.md`, `plan/spec-lg-deferred-birdwatcher-route-counts.md`, `plan/spec-fixit-redistribute-establishment-stall.md`, `plan/future/spec-cli-operator-defined-aliases.md`, `plan/future/spec-fixit-migrate-sleeps-infra.md` | PARTLY. AC-9 now carries the exception list it should have had, and it names these six as survivors that are NOT correct. The six specs themselves are NOT edited: they belong to other work, and a reviewer rewriting another spec's acceptance criteria is the wrong hand. Reported to the owner |
+| ISSUE-4 | ISSUE | The Security Review's authorization row asserted a false security property: that removing the command "widens that operator's read surface by the summary payload". `handleBgpOverview` has answered `show bgp` with the identical payload since `647f33121` (2026-08-19, on `origin/main`), so a DENY keyed on the literal was already failing to hide it. The removal widens nothing | `plan/spec-cli-show-bgp-is-the-command.md`, Security Review Checklist | Corrected in place. The release note in `docs/guide/command-reference.md` is factually right as written ("matches nothing after the removal; key it on `show bgp`") and stays |
+| ISSUE-5 | ISSUE | The Known Limitation said the demo re-render was a manual step, and the phase-4 commit said `ze-site-generate` re-records when the check fails. It does not: the recipe runs `render.py --all --stamp-definition-hashes \|\| true` immediately before `--check-definition`, and the stamp rewrites the field the check compares, so the check cannot fail | `Makefile`, `ze-site-generate`; `demos/terminal/render.py`, `stamp_definition_hashes` | The Known Limitation now states the truth. The Makefile ordering is NOT fixed here: `--stamp-definition-hashes` exists to backfill artifacts rendered before the field existed, and removing it re-records every such demo, which is the website owner's cost to accept. Journal row in `plan/journal/stale-artifact-reused.md` |
+| NOTE-1 | NOTE | `handleBgpSummary` keeps the `handle` prefix that every OTHER function in `summary.go` carries because it is a registered wire handler. It is now registered against nothing. The doc comment says so in its first paragraph, so a reader is not misled | `internal/component/bgp/plugins/cmd/peer/summary.go` | Not changed. Renaming it would churn a 150-line function's call sites for a naming nuance the comment already answers |
+| NOTE-2 | NOTE | `ze-bgp-api.yang` renamed `rpc summary` to `rpc overview` and added no `revision` entry, while the sibling `ze-peer-cmd.yang` recorded one for the same change. `ai/rules/config.md` requires at least one revision and this module has one, so no gate fires | `internal/component/bgp/yang/ze-bgp-api.yang` | Not changed |
+| NOTE-3 | NOTE | `python3 scripts/dev/audit-test-relaxation.py origin/main` reports one `[WEAKENED]` finding, an RFC-tagged change in `internal/component/bgp/reactor/peer_initial_sync_test.go`. It belongs to `478dd21a5`, an unrelated commit in the same unpushed range, and no phase of this spec touched that file | `internal/component/bgp/reactor/peer_initial_sync_test.go` | Not this spec's. Reported to the owner: it needs a row in `test/rfc-changed.md`, which only he approves |
+| NOTE-4 | NOTE | `handleBgpOverview` drops every token after `args[0]`, so `show bgp ipv4 rubbish` answers the ipv4 summary in silence. Pre-existing: `show bgp summary ipv4 rubbish` behaved the same | `internal/component/bgp/plugins/cmd/peer/summary.go`, `handleBgpOverview` | Not changed. Journal row in `plan/journal/silent-fall-through.md`; recorded as a Known Limitation |
+| NOTE-5 | NOTE | The blocking list is still hand-maintained. A new BRANCH under `show bgp` inherits silently until somebody adds it. The branch shape makes this much rarer than the leaf shape it replaces (a new leaf is now covered for free), and no derivation is available at `init` time, when neither the YANG tree nor the plugin registry is populated | `internal/component/bgp/plugins/cmd/peer/peer.go`, `cmdBgpChildren` | Not changed. Journal row in `plan/journal/gate-excludes-part-of-its-population.md` |
+
+### Round 2 findings
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| ISSUE-6 | ISSUE | `make ze-repository-check` went RED once round 1's fix touched `peer.go`. The check is scoped to CHANGED files (`check_cross_package_wiring`, `scripts/dev/validate.py`), so it had never examined this file: `HandleBgpPeerDetail` is exported and has no caller outside its own package. It is a handler value passed to `RegisterRPCs` beside eight lowercase siblings. The gate red is charged to the tree this review leaves, so it is fixed here rather than journalled | `internal/component/bgp/plugins/cmd/peer/peer.go`, `handleBgpPeerDetail` | Unexported, with its three `peer_ops_test.go` call sites and the `docs/architecture/behavior/fsm.md` source anchor. `make ze-repository-check` passes |
+
+The rest of round 2's scope holds. No other BLOCKER and no other ISSUE inside
+it, and no always-in-scope finding anywhere.
+
+- `RegisterAliases` with an empty alias slice never reaches `checkedAlias`, so no branch registration can widen the `filterShadowing` panic surface. Read at `internal/component/command/alias.go`, `RegisterAliases`.
+- `registerPipeFilters` (`internal/component/bgp/plugins/cmd/rib/rib.go`) is the sibling call site of the same mechanism. It registers no filter named `summary` or `peers`, so `aliasShadowing` finds no collision, and its own empty registrations sit on paths that do not carry a mid-path selector.
+- `show bgp peer list` keeps its declared `ColumnOrder` under a `show bgp peer` branch registration, because the longest registered prefix resolves. Asserted in `TestChildCommandsDoNotInheritTheSummaryOrder`.
+- Every fix is on a cold path: `init`-time registrations, one `.ci`, one doc paragraph.
+
+### Round 3 findings
+
+Scope as written above. No BLOCKER, no ISSUE and no NOTE inside it, and no
+always-in-scope finding anywhere. The rename changes no behavior: the same
+function value reaches the same `RegisterRPCs` entry. `make ze-repository-check`
+passes, `make ze-lint-changed` reports 0 issues on both passes,
+`audit-test-relaxation.py` over the working tree is clean across 3 changed test
+files, and the peer, `plugin/server` and `command` packages plus the six `test/ui`
+and four `test/plugin` fixtures are green against a rebuilt daemon.
+
+### AC verification, each against source AND a run
+
+| AC | Implementation, file:symbol | Test | Verdict |
+|----|-----------------------------|------|---------|
+| AC-1 | `internal/component/bgp/plugins/cmd/peer/peer.go`, `registerColumns` on `cmdBgp`; `summary.go`, `handleBgpOverview` -> `handleBgpSummary` | `TestShowBgpCarriesTheSummaryOrder`; `test/plugin/show-bgp-bare-runs-summary.ci` (605, pass); `test/ui/show-bgp-summary-column-order.ci` (pass) | met |
+| AC-2 | `peer.go`, `registerAliases`, alias `summary` | `TestShowBgpCarriesTheSummaryOrder`; `test/ui/alias-summary.ci` (pass) | met |
+| AC-3 | `peer.go`, `registerAliases`, alias `peers` | `TestShowBgpCarriesTheSummaryOrder`; `test/ui/alias-peers.ci` (pass) | met |
+| AC-4 | `summary.go`, `handleBgpOverview` unknown-command branch; `ze-peer-cmd.yang` no longer declares `container summary` | `TestShowBgpSummaryIsNotRegistered`; `TestBgpOverviewAnswersTheSummary/the retired summary subcommand`; `test/plugin/show-bgp-summary-is-gone.ci` (608, pass) | met |
+| AC-5 | `summary.go`, `isFamilyArg` then `handleBgpSummary` | `TestBgpOverviewAnswersTheSummary/family argument`; `test/plugin/show-bgp-family-arg.ci` (607, pass) | met |
+| AC-6 | `internal/component/plugin/server/command.go`, `matchBuiltinTokens` -> `longerCommandPath` -> `isCommandPath` | `test/plugin/show-bgp-child-not-swallowed.ci` (606, pass, UNEDITED across all five phases: `git log` names only `647f33121`); `TestShowBgpDoesNotSwallowPluginSubcommands`, now including `show bgp rpki summary`; `TestBuiltinPathsResolveToTheirOwnHandler` | met |
+| AC-7 | `peer.go`, `cmdBgpChildren` with `registerColumns` and `registerAliases` | `TestChildCommandsDoNotInheritTheSummaryOrder` (branches, commands beneath them, and selector spellings); `test/ui/show-bgp-children-do-not-inherit.ci`; `test/ui/show-column-order-absent-unchanged.ci` | met AFTER BLOCKER-1 and BLOCKER-2; false as committed |
+| AC-8 | `internal/component/lg/handler_api.go` and `handler_ui.go` (5 query sites), `internal/component/web/page_bgp_summary.go`, `internal/component/cli/client/main.go`, `internal/component/cli/model_dashboard.go`, `internal/component/mcp/tools.go`, `internal/component/api/rest/server.go` `ConvenienceCommands`, `cmd/ze/hub/session_factory.go` | `make ze-functional-ui-test` 182/182; `make ze-functional-plugin-test` 625/625; `test/ui/lg-peer-table-flat-payload.ci` | met |
+| AC-9 | the sweep of 151 files | `grep -rn 'show bgp summary'` over the tree; every survivor classified in the exception list under Acceptance Criteria | met for five kinds; NOT met for the six open specs (ISSUE-3) |
+| AC-10 | `ze-peer-cmd.yang`, `container summary` deleted; `wire-methods.snapshot` entry removed | `make ze-command-list` names `show bgp` (`ze-bgp:overview`) and 15 children, and no `show bgp summary`; `TestShowBgpSummaryIsNotRegistered`; `TestRegisteredWireMethods` | met |
+
+### Gates run at this Review Gate
+
+| Gate | Result |
+|------|--------|
+| `make ze-repository-check` | pass |
+| `python3 scripts/dev/audit-test-relaxation.py` (working tree) | clean, 2 changed test files examined |
+| `python3 scripts/dev/audit-test-relaxation.py origin/main` | 1 finding, NOTE-3, owned by `478dd21a5` |
+| `make ze-lint-changed` | 0 issues, both host and `GOOS=linux` passes |
+| `make ze-rfc-check` | pass, 2966 gated MUST-level requirements. The first run went red on a corrupted go build cache ("package internal/strconv is not in std"), which this machine's near-full disk explains; the re-run is green and nothing in the tree changed between them |
+| `make ze-unit-pkg-test` over peer, command, plugin/server, plugin/all, config/yang, config/yang/cli, hub, authz | pass |
+| `make ze-functional-ui-test` | 183/183 pass, 10 skipped, the new fixture included |
+| `make ze-functional-plugin-test` | 625/625 pass, 56 skipped |
+| `make ze-repository-check`, `ze-lint-changed`, both suites, re-run after the round-2 fix | all green over the final tree |
+| `python3 demos/terminal/render.py --check-definition --demo zefs-config` | RED, deliberately: the re-render is outstanding (see Known Limitations and ISSUE-5) |
+
+### Final status
+
+- [ ] Round 3 found no BLOCKER and no ISSUE inside its scope, and no always-in-scope finding anywhere. The loop ends here
+- [ ] 0 BLOCKER outstanding
+- [ ] 0 ISSUE outstanding, with ONE exception stated rather than downgraded: ISSUE-3's six foreign specs still name the retired command as live. They are another owner's specs, so the finding stays at ISSUE and is reported to Thomas instead of being edited away
+- [ ] NOTE-1..NOTE-5 recorded above, none of them reopening a round
 
 ## Checklist
 
