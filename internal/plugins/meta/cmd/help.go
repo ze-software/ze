@@ -89,24 +89,72 @@ func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plu
 
 	name := textbuf.Join(args, " ")
 
-	if ctx.Dispatcher() != nil {
-		if cmd := ctx.Dispatcher().Lookup(name); cmd != nil {
-			data := map[string]any{
-				"command":     cmd.Name,
-				"description": cmd.Help,
-				"source":      sourceBuiltin,
-			}
-			if filters := pipeFilterHelp(command.PipeFiltersForCommand(cmd.Name)); len(filters) > 0 {
-				data["pipe-filters"] = filters
-			}
-			return &plugin.Response{
-				Status: plugin.StatusDone,
-				Data:   plugin.Map(data),
-			}, nil
-		}
+	dispatcher := ctx.Dispatcher()
+	if dispatcher == nil {
+		return nil, fmt.Errorf("unknown command: %s", name)
+	}
+
+	if cmd := dispatcher.Lookup(name); cmd != nil {
+		return commandHelp(cmd.Name, cmd.Help, sourceBuiltin, ""), nil
+	}
+
+	// A plugin's command sits in the command registry rather than in the
+	// dispatcher's builtin table, and it is the command a plugin's pipe alias
+	// is declared on. Reading the builtins alone answers "unknown command" for
+	// every command any plugin declares.
+	if cmd := dispatcher.Registry().Lookup(name); cmd != nil {
+		return commandHelp(cmd.Name, cmd.Description, cmd.Process.Name(), cmd.Args), nil
 	}
 
 	return nil, fmt.Errorf("unknown command: %s", name)
+}
+
+// commandHelp answers for one command: what it is, and the pipe names it
+// answers to beside the built-in operators.
+//
+// A running daemon is the only place both lists exist. A pipe filter and a pipe
+// alias are each registered at startup, an alias by an in-tree package or by a
+// plugin's Stage 1 message, so a tool reading the compiled command tree in its
+// own process can report neither.
+func commandHelp(name, description, source, args string) *plugin.Response {
+	data := map[string]any{
+		"command":     name,
+		"description": description,
+		"source":      source,
+	}
+	if args != "" {
+		data["args"] = args
+	}
+	if filters := pipeFilterHelp(command.PipeFiltersForCommand(name)); len(filters) > 0 {
+		data["pipe-filters"] = filters
+	}
+	if aliases := pipeAliasHelp(command.AliasesForCommand(name)); len(aliases) > 0 {
+		data["pipe-aliases"] = aliases
+	}
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data:   plugin.Map(data),
+	}
+}
+
+// pipeAliasHelp renders the pipe aliases a command answers to.
+//
+// The expansion is reported beside the description because an alias takes no
+// argument and names no other alias, so the chain it stands for is fixed at
+// registration and is the whole of what the name does.
+func pipeAliasHelp(aliases []command.Alias) []map[string]any {
+	if len(aliases) == 0 {
+		return nil
+	}
+	items := make([]map[string]any, 0, len(aliases))
+	for _, alias := range aliases {
+		items = append(items, map[string]any{
+			"name":        alias.Name,
+			"description": alias.Description,
+			"expansion":   alias.Expansion,
+		})
+	}
+	return items
 }
 
 func pipeFilterHelp(filters []command.PipeFilter) []map[string]any {

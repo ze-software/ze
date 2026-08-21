@@ -1,0 +1,225 @@
+# Test: `show command help` reports the pipe aliases a command answers to, for
+# a command an external plugin declared and for one the daemon carries itself.
+#
+# VALIDATES: AC-11, and User Story 3 "Runs `command help` and reads which pipe
+#            names the command answers to". A running daemon is the only place a
+#            declared alias exists, and this is the only surface that answers a
+#            question about a named command from any client. Completion answers
+#            it in the daemon-hosted TUI alone, so a name nothing lists here is a
+#            name most operators never meet.
+# PREVENTS:  the help answer naming a command's pipe FILTERS and no alias, which
+#            is what it did for an in-tree alias and a declared one alike.
+#
+# Method: a Python plugin declares one command and one alias over it in its
+# Stage 1 message. A second process, `ze cli`, asks the daemon for that
+# command's help and for the help of `show bgp`, which carries the in-tree
+# `summary` and `peers` aliases. Both halves are asserted, because the gap this
+# closes was never a plugin-only gap.
+#
+# The timeout is DECLARED because this file starts a daemon, waits for an
+# external plugin to reach Stage 5, and launches `ze` several times.
+option=timeout:value=60s
+
+# The plugin under test: it declares the command, declares the alias over it,
+# and answers the command with structured data.
+tmpfs=pipe-help-plugin.run:mode=755:terminator=EOF_PLUGIN
+#!/usr/bin/env python3
+"""Declare a command and a pipe alias over it, then serve the command."""
+
+from ze_api import API
+
+COMMAND = 'show pipehelp counters'
+
+ANSWER = {
+    'kind': 'pipe-help-probe',
+    'vrp-count': 7,
+    'servers': [
+        {'address': '192.0.2.101', 'state': 'established'},
+    ],
+}
+
+
+def handle_command(command, args):
+    if command == COMMAND:
+        return {'status': 'done', 'data': ANSWER}
+    return {'status': 'error', 'data': {'error': 'unknown: ' + command}}
+
+
+def main():
+    api = API()
+    api.declare_command(COMMAND)
+    api.declare_pipe(
+        command=COMMAND,
+        name='totals',
+        expansion='display kind vrp-count',
+        description='The counters alone',
+    )
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.on_execute_command(handle_command)
+    api.ready()
+    api.wait_for_shutdown(timeout=45.0)
+
+
+if __name__ == '__main__':
+    main()
+EOF_PLUGIN
+
+tmpfs=run.py:terminator=EOF_PY
+"""Start ze with the plugin attached, then ask the daemon for command help."""
+
+import json
+import os
+import subprocess
+
+from ze_api import wait_until
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+
+def run(argv, env):
+    result = subprocess.run(
+        argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, check=False
+    )
+    return result.returncode, result.stdout, result.stderr
+
+
+password_hash = subprocess.check_output(['ze', 'passwd'], input='secret\n', text=True).strip()
+with open('pipe-help.conf', 'w', encoding='utf-8') as fh:
+    fh.write('''plugin {
+    external pipe-help-provider {
+        run ./pipe-help-plugin.run
+        encoder json
+    }
+}
+
+bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+
+system {
+    authentication {
+        user ci {
+            password "''' + password_hash + '''"
+            profile [ admin ]
+        }
+    }
+}
+''')
+
+daemon_env = os.environ.copy()
+daemon_env['ZE_SSH_EPHEMERAL'] = os.path.abspath('ssh.addr')
+daemon_env['ZE_READY_FILE'] = os.path.abspath('ready')
+daemon_env['ZE_CONFIG_DIR'] = os.getcwd()
+# Leave port 179 alone: this suite runs unprivileged and a bind failure there
+# takes the daemon down before it writes `ready`.
+daemon_env['ze_test_bgp_port'] = str(12000 + os.getpid() % 40000)
+daemon = subprocess.Popen(
+    ['ze', '-f', 'pipe-help.conf'],
+    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=daemon_env,
+)
+
+
+def daemon_ready():
+    if daemon.poll() is not None:
+        out, err = daemon.communicate()
+        raise SystemExit('daemon exited early\nstdout:\n' + out + '\nstderr:\n' + err)
+    return os.path.exists('ssh.addr') and os.path.exists('ready')
+
+
+try:
+    if not wait_until(daemon_ready, attempts=300, delay=0.1):
+        raise SystemExit('daemon did not become ready')
+
+    host, port = open('ssh.addr', encoding='utf-8').read().strip().rsplit(':', 1)
+    cli_env = os.environ.copy()
+    cli_env.update({
+        'ZE_SSH_HOST': host,
+        'ZE_SSH_PORT': port,
+        'ZE_SSH_USERNAME': 'ci',
+        'ZE_SSH_PASSWORD': 'secret',
+        'ZE_CONFIG_DIR': os.getcwd(),
+    })
+
+    def cli(command):
+        code, out, err = run(['ze', 'cli', '-c', command], cli_env)
+        require(code == 0, '%s exit=%d: %s%s' % (command, code, out, err))
+        return out
+
+    def help_for(name):
+        out = cli('show command help "%s" | json' % name)
+        try:
+            return json.loads(out)
+        except ValueError:
+            raise SystemExit('help for %r is not JSON: %r' % (name, out))
+
+    def aliases_of(answer):
+        return {entry['name']: entry for entry in answer.get('pipe-aliases', [])}
+
+    # The plugin's command answers at all. Without this the help assertion below
+    # measures a plugin that never reached Stage 5.
+    if not wait_until(
+        lambda: 'vrp-count' in cli('show pipehelp counters | json'), attempts=100, delay=0.1
+    ):
+        raise SystemExit('the plugin command never answered')
+
+    # The declared half. The command belongs to a plugin, so help has to reach
+    # the plugin command registry to answer about it at all.
+    declared = help_for('show pipehelp counters')
+    require(
+        declared.get('command') == 'show pipehelp counters',
+        'help does not name the plugin command: %r' % declared,
+    )
+    offered = aliases_of(declared)
+    require('totals' in offered, 'help lists no pipe alias for the plugin command: %r' % declared)
+    require(
+        offered['totals'].get('description') == 'The counters alone',
+        'the alias is listed without the description the plugin declared: %r' % offered['totals'],
+    )
+    require(
+        offered['totals'].get('expansion') == 'display kind vrp-count',
+        'the alias is listed without what it stands for: %r' % offered['totals'],
+    )
+
+    # The in-tree half. `show bgp` carries `summary` and `peers`, declared by
+    # the BGP peer command plugin, and the same gap hid them.
+    builtin = help_for('show bgp')
+    carried = aliases_of(builtin)
+    for name in ('summary', 'peers'):
+        require(name in carried, 'help lists no `%s` alias for `show bgp`: %r' % (name, builtin))
+    require(
+        carried['summary'].get('expansion', '') != '',
+        'the in-tree alias is listed without what it stands for: %r' % carried['summary'],
+    )
+
+    # A command that answers to no alias carries no empty list, so a reader
+    # never has to tell "none" from "not reported".
+    bare = help_for('show command list')
+    require(
+        'pipe-aliases' not in bare,
+        '`show command list` reports an alias list it does not have: %r' % bare,
+    )
+finally:
+    daemon.terminate()
+    try:
+        daemon.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        daemon.kill()
+        daemon.wait(timeout=5)
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

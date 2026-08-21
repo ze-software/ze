@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | plugin |
 | Depends | - |
-| Phase | 3/6 |
+| Phase | 4/6 |
 | Deferral shard | `plan/deferrals/plugin-registers-pipe-operations.md` |
 | Handoff | - |
 | Updated | 2026-08-21 |
@@ -357,8 +357,9 @@ end.
 | `TestOnRegistrationRefusesPipeOnUndeclaredCommand` | `internal/component/plugin/server/startup_test.go` | AC-7 | |
 | `TestOnRegistrationRollsBackPipesOnLaterFailure` | `internal/component/plugin/server/startup_test.go` | A-5. A family conflict after the pipe registration leaves no alias behind | |
 | `TestPluginPipesRemovedOnPluginStop` | `internal/component/plugin/server/startup_test.go` | AC-9 | |
-| `TestAliasesForCommandListsPluginAliases` | `internal/component/command/alias_test.go` | The completion and help sources see a plugin's aliases | |
-| `TestPipeAliasArgumentRefused` | `internal/component/command/pipe_test.go` | AC-14 for a plugin-registered alias | |
+| `TestAliasesForCommandListsPluginAliases` | `internal/component/command/alias_test.go` | The completion and help sources see a plugin's aliases | done, phase 4. It asserts `completePipeForCommand` too, which is the completer contract AC-10 rests on |
+| `TestPipeAliasArgumentRefused` | `internal/component/command/pipe_test.go` | AC-14 for a plugin-registered alias | done, phase 4 |
+| `TestPipeAliasHelp` | `internal/plugins/meta/cmd/help_test.go` | The help renderer, beside `TestPipeFilterHelp` | done, phase 4 |
 
 ### Boundary Tests (numeric inputs)
 
@@ -374,8 +375,8 @@ end.
 | `plugin-pipe-alias` | `test/plugin/plugin-pipe-alias.ci` | An external Python plugin declares a command and an alias over it, and the operator gets the expansion's answer | done, phase 1 |
 | `plugin-pipe-alias-collision` | `test/plugin/plugin-pipe-alias-collision.ci` | A second plugin declares a name that is already taken, fails to start, and the first plugin keeps answering | | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 | `plugin-pipe-alias-namespaced` | `test/plugin/plugin-pipe-alias-namespaced.ci` | The alias is offered on the declaring plugin's command and refused on an unrelated command | | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
-| `plugin-pipe-alias-help` | `test/plugin/plugin-pipe-alias-help.ci` | `command help` lists the alias with its description | | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
-| `plugin-pipe-alias-completion` | `test/ui/plugin-pipe-alias-completion.ci` | The interactive CLI offers the plugin's alias name in the operator slot | | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+| `plugin-pipe-alias-help` | `test/plugin/plugin-pipe-alias-help.ci` | `command help` lists the alias with its description | done, phase 4. It asserts the in-tree half beside the declared one |
+| `plugin-pipe-alias-completion` | `test/ui/plugin-pipe-alias-completion.ci` | The interactive CLI offers the plugin's alias name in the operator slot | BLOCKED, phase 4. `ze cli` runs its model in the CLIENT process, so no declared alias is offered or resolvable there. See the Phase 4 Record | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 | `rpki-pipe-summary` | `test/plugin/rpki-pipe-summary.ci` | `show bgp rpki \| summary` answers the aggregate half, and `show bgp rpki summary` is unchanged | | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 
 ### Interop Tests (Scope: protocol)
@@ -764,15 +765,17 @@ it.
 
 | Surface | Kind | Sees a plugin's alias |
 |---------|------|----------------------|
-| Completion in the interactive CLI | Running daemon. `pipeExtras` reads `AliasesForCommand`, and the CLI is a Bubble Tea model the SSH server hosts | Yes, with no change |
+| Completion in the interactive CLI a plain ssh client with a pty reaches | Running daemon. `bubbletea.Middleware` in `internal/component/ssh/ssh.go` hosts the model, built by `buildSessionModelFactory` in `cmd/ze/hub/session_factory.go`, and `pipeExtras` reads `AliasesForCommand` in that process | Yes, with no change |
+| Completion in `ze cli` with no command argument | The CLIENT process. `runInteractiveSession` (`internal/component/cli/client/main.go`) runs its own `tea.NewProgram`, and `executeOperationalCommand` (`internal/component/cli/model_mode.go`) resolves the chain there before it sends anything | No. CORRECTED in phase 4: the plan recorded this surface as needing no change, and it needs a channel that does not exist. The compiled-in aliases work there, which is what hid it |
 | `command help "<name>"` | Running daemon. The meta command plugin answers it from the dispatcher and the registries | Only after a change. The handler reports a command's pipe FILTERS and no aliases. That gap exists for in-tree aliases today, and this spec closes it for both |
 | `make ze-command-list` | Own process. `scripts/inventory/commands.go` is a `go run` program that blank-imports the compiled plugin set | No, and it cannot |
 | `ze help command --json`, and the wiki catalog `make ze-wiki-commands-update` builds from it | Own process. `collectCommands` reads the YANG command tree and the local command registry, and `extractPipes` reads the in-process pipe filter registry | No, and it cannot |
 
 So the running daemon is the ONLY discovery surface for a plugin's alias, and
-`command help` is the only one of the two that answers a question about a named
-command. That is why the help change is in scope rather than deferred: without it
-a plugin's alias is discoverable by tab completion alone.
+`command help` is the only one that answers a question about a named command
+from any client. That is why the help change is in scope rather than deferred:
+without it a plugin's alias is discoverable by pressing Tab in one client and
+not at all in the other.
 
 The published wiki catalog therefore lists a plugin's commands without its pipe
 aliases. Giving the catalog a daemon-backed source is a change to the inventory
@@ -817,6 +820,12 @@ surface is scoped out and recorded in Known Limitations.
 - `cliClient.StreamMonitor` resolves pipes in the CLI client process, where a
   plugin's alias is unknown. An alias on a streaming monitor command would be
   reported as an unknown operator. No plugin declares such a command today.
+- CORRECTED in phase 4, and wider than the row above: the whole interactive
+  model of `ze cli` runs in the CLIENT process, so a declared alias is neither
+  offered by completion nor resolvable there. The surfaces that answer are the
+  SSH exec channel and the daemon-hosted TUI a plain ssh client reaches. The
+  repair is a channel that carries the daemon's alias table to the client, and
+  it is recorded in `plan/journal/unwired-feature.md` rather than designed here.
 - A plugin cannot declare a per-command COLUMN ORDER. Without one,
   `| display <partial>` over a plugin command offers no field names, because
   `completeDisplayFields` reads the column registry. The alias itself works, and
@@ -974,3 +983,36 @@ registers an alias, stops and starts again now starts.
 |------|-------------------|-------|
 | Discovery. `command help` reports a command's pipe filters and no alias, for an in-tree alias and a declared one alike | A declared alias is discoverable by tab completion alone | Phase 4 |
 | AC-14 for a plugin-registered name, and its test `TestPipeAliasArgumentRefused` | `expandAliases` refuses a word after any alias name and reads no owner, so `TestAliasTakesNoArgument` proves the mechanism for both. What no test makes is the assertion over a DECLARED name | Phase 4, which is the phase whose subject is what an operator types at a plugin alias |
+
+## Phase 4 Record: Discovery (2026-08-21)
+
+`command help` reports the pipe aliases a command answers to, for a command a
+plugin declared and for one the daemon carries itself. AC-11 and AC-14 are met.
+AC-10 is met at the completer and NOT met end to end, because one of the two
+interactive clients cannot see the registry the alias lives in.
+
+| What | Where |
+|------|-------|
+| The alias listing, beside the filter listing | `internal/plugins/meta/cmd/help.go` `pipeAliasHelp`, read by `commandHelp` |
+| The one answer both kinds of command are described by | `internal/plugins/meta/cmd/help.go` `commandHelp` |
+| A plugin's command being describable at all | `internal/plugins/meta/cmd/help.go` `handleBgpCommandHelp`, over `Dispatcher().Registry().Lookup` |
+| The cross-package caller `AliasesForCommand` was missing | `internal/plugins/meta/cmd/help.go` `commandHelp` |
+| AC-14 over a declared name | `internal/component/command/pipe_test.go` `TestPipeAliasArgumentRefused` |
+| The completer contract AC-10 rests on | `internal/component/command/alias_test.go` `TestAliasesForCommandListsPluginAliases`, over `completePipeForCommand` |
+| The operator's answer | `test/plugin/plugin-pipe-alias-help.ci` |
+
+### What phase 4 measured that the plan did not say
+
+| Finding | Consequence |
+|---------|-------------|
+| `handleBgpCommandHelp` read `Dispatcher().Lookup`, the BUILTIN table alone. `show command help "<any plugin command>"` answered `unknown command`, so the surface that owes the alias listing could not describe the commands the listing is for. `lookupCommandHelp` in the `system` namespace already read the plugin registry, so the two help surfaces disagreed about which commands exist | The handler reads the plugin command registry after the builtins. Recorded in `plan/journal/unwired-feature.md` |
+| `ze cli` with no command argument runs its Bubble Tea model in the CLIENT process, and that model resolves the pipe chain before it sends anything. A declared alias is therefore neither offered by Tab nor resolvable there, and the operator reads `pipe error: unknown pipe operator`. The compiled-in aliases work in the same client, which is what hid it: Tab after the pipe character on `show bgp` offers `summary` and `peers` | AC-10 has no end-to-end test and `test/ui/plugin-pipe-alias-completion.ci` is not written. The two surfaces that answer are the SSH exec channel and the daemon-hosted TUI. The repair is a new channel and a design decision, recorded in `plan/journal/unwired-feature.md` |
+| `system command complete` and `show command complete` complete command NAMES only. Neither offers a pipe operator, so no daemon-side surface answers a completion question about a pipe segment | There is no client-independent way to assert AC-10 end to end today |
+| `AliasesForCommand` resolves by longest prefix, so a command inherits what its nearest declared ancestor holds. The help listing inherits with it, which is the same answer completion gives and the same answer the parser gives | The listing needs no rule of its own |
+
+### What phase 4 deliberately does not do
+
+| Left | Consequence today | Owner |
+|------|-------------------|-------|
+| The channel that carries the daemon's alias table to a CLI client | A declared alias is offered and resolves over the SSH exec channel and in the daemon-hosted TUI, and neither works in `ze cli` interactive | Owner decision. It is a wire surface, a client-side registration whose collision rule differs from the plugin-facing one, and an answer for a plugin that stops mid-session |
+| `system command help` reports neither filters nor aliases | It reported neither before this phase, so the two help surfaces are exactly as far apart as they were | Whoever decides whether the two surfaces merge |

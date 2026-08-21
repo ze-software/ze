@@ -850,3 +850,50 @@ func TestPluginAliasDoesNotLeakToSiblingLeaf(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: AC-10 and AC-11 at their source. AliasesForCommand is the one
+// reader completion and help share, and it answers a declared alias with the
+// description and the expansion the declaration carried.
+// PREVENTS: a name that resolves and is never offered. The completer and the
+// help handler each read this function and nothing else, so an answer that
+// dropped the declared half would leave the alias discoverable only by an
+// operator who already knew it.
+func TestAliasesForCommandListsPluginAliases(t *testing.T) {
+	const declaring = "show probe counters"
+
+	resetAliasTables(t)
+
+	RegisterAliases([]string{"show"}, Alias{
+		Name: "kind", Description: "The kind alone", Expansion: "display kind",
+	})
+
+	if err := RegisterPluginAliases(testOwner, []string{declaring}, []PluginAlias{{
+		Command: declaring,
+		Alias: Alias{
+			Name: "totals", Description: "The counters alone", Expansion: "display vrp-count",
+		},
+	}}); err != nil {
+		t.Fatalf("the declaration was refused: %v", err)
+	}
+
+	aliases := AliasesForCommand(declaring)
+	if len(aliases) != 1 {
+		t.Fatalf("AliasesForCommand(%s) = %v, want the declared alias alone", declaring, aliases)
+	}
+
+	// Every field the declaration carried reaches the reader. The name is what
+	// an operator types, the description is the line beside it, and the
+	// expansion is what tells a reader what the name does.
+	got := aliases[0]
+	want := Alias{Name: "totals", Description: "The counters alone", Expansion: "display vrp-count"}
+	if got != want {
+		t.Errorf("AliasesForCommand(%s) = %+v, want %+v", declaring, got, want)
+	}
+
+	// The same answer reaches the completer, which offers the name and the
+	// description in the operator slot of a pipe segment.
+	offered := completePipeForCommand(declaring, "tot")
+	if len(offered) != 1 || offered[0].Text != "totals" || offered[0].Description != want.Description {
+		t.Errorf("completePipeForCommand(%s, %q) = %+v, want the declared alias", declaring, "tot", offered)
+	}
+}

@@ -1740,3 +1740,40 @@ func TestRecordChainStopsThroughEveryStage(t *testing.T) {
 		t.Errorf("the generator produced %d rows, want 1: a stop must reach it through every stage", produced)
 	}
 }
+
+// VALIDATES: AC-14 over a DECLARED name. A word after a pipe alias a caller
+// outside this repository registered is refused, and the refusal names the
+// alias and says it takes no argument.
+// PREVENTS: the word being dropped in silence. expandAliases reads no owner, so
+// TestAliasTakesNoArgument proves the mechanism for an in-tree name and nothing
+// asserts it over a declared one. A declared alias is the name an operator
+// meets on a plugin command, and a dropped word there answers the whole table
+// to somebody who typed a filter.
+func TestPipeAliasArgumentRefused(t *testing.T) {
+	const declaring = "show probe counters"
+
+	resetAliasTables(t)
+
+	if err := RegisterPluginAliases("declaring-owner", []string{declaring}, []PluginAlias{{
+		Command: declaring,
+		Alias: Alias{
+			Name: "totals", Description: "The counters alone", Expansion: "display vrp-count",
+		},
+	}}); err != nil {
+		t.Fatalf("the declaration was refused: %v", err)
+	}
+
+	// The name resolves with no word after it, so the refusal below measures
+	// the ARGUMENT rather than an alias that never registered.
+	payload := `{"vrp-count":7,"servers":[{"address":"192.0.2.101"}]}`
+	got := renderThroughPipes(t, declaring+" | totals | json", payload)
+	if !strings.Contains(got, "vrp-count") || strings.Contains(got, "192.0.2.101") {
+		t.Fatalf("the declared alias does not answer, so the refusal below proves nothing: %s", got)
+	}
+
+	_, _, errMsg := ProcessPipesChecked(declaring + " | totals established")
+	if errMsg == "" {
+		t.Fatal("a word after a declared alias was accepted, so the word went nowhere")
+	}
+	requireMentions(t, errMsg, "totals", "argument")
+}
