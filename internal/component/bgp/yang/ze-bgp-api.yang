@@ -100,8 +100,8 @@ module ze-bgp-api {
         }
     }
 
-    rpc summary {
-        description "Show BGP summary (peer table with statistics)";
+    rpc overview {
+        description "Show the BGP overview (peer table with statistics)";
         output {
             leaf uptime { type string; description "Daemon uptime"; }
             leaf peers-configured { type uint32; description "Total configured peers"; }

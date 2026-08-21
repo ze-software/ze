@@ -1,0 +1,140 @@
+# Test: `show bgp summary` is no longer a command.
+#
+# VALIDATES: spec-cli-show-bgp-is-the-command AC-4. The `summary` container is
+#            gone from ze-peer-cmd.yang and ze-bgp:summary is registered
+#            nowhere, so the tokens match `show bgp` and `summary` arrives at
+#            handleBgpOverview as an argument. It names no address family, so
+#            the operator is told the command is unknown.
+# PREVENTS:  R-3. The operator with muscle memory for the retired spelling being
+#            told that `summary` is an invalid address family, which is the
+#            wrong diagnosis, and the command quietly still working because a
+#            registration survived somewhere.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=summary-is-gone.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert the retired `show bgp summary` answers a clear unknown-command error."""
+import json
+import sys
+
+from ze_api import API
+
+
+def dispatch(api, command):
+    try:
+        resp = api._call_engine(
+            'ze-plugin-engine:dispatch-command', {'command': command})
+    except RuntimeError as exc:
+        # A command registered nowhere is an RPC-level error, which is the same
+        # answer Dispatch gives for any unknown command.
+        return {'status': 'error', 'data': str(exc)}
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def payload(result):
+    data = result.get('data', {})
+    if isinstance(data, str):
+        data = json.loads(data)
+    return data
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    failed = False
+    try:
+        # The control. The command that replaced it must answer, so a daemon
+        # that answers nothing cannot pass this test by refusing everything.
+        bare = dispatch(api, 'show bgp')
+        if bare.get('status') != 'done' or 'peers-configured' not in payload(bare):
+            print(f'FAIL: show bgp status={bare.get("status")} data={bare.get("data")}', file=sys.stderr)
+            failed = True
+
+        # One leftover token, then two. Both name no command and no family.
+        for command in ('show bgp summary', 'show bgp summary ipv4'):
+            result = dispatch(api, command)
+            if result.get('status') != 'error':
+                print(f'FAIL: {command} status={result.get("status")} want error', file=sys.stderr)
+                failed = True
+                continue
+            message = str(result.get('data', ''))
+            if 'unknown command' not in message:
+                print(f'FAIL: {command} must report an unknown command; got {message!r}', file=sys.stderr)
+                failed = True
+                continue
+            if 'show bgp summary' not in message:
+                print(f'FAIL: {command} must name what was typed; got {message!r}', file=sys.stderr)
+                failed = True
+                continue
+            if 'invalid family' in message or 'afi/safi' in message or 'negotiated' in message:
+                print(f'FAIL: a retired command is not a family typo; got {message!r}', file=sys.stderr)
+                failed = True
+                continue
+            print(f'OK: {command} answers {message!r}', file=sys.stderr)
+    finally:
+        dispatch(api, 'request shutdown')
+        api.wait_for_shutdown()
+
+    if failed:
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external summary-is-gone {
+		run ./summary-is-gone.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

@@ -6,6 +6,7 @@ module ze-peer-cmd {
     revision 2026-03-16 { description "Initial revision"; }
     revision 2026-06-03 { description "Relocated show bgp-health and delete bgp peer out of the central show/delete schemas into this owner (plugin self-containment)."; }
     revision 2026-06-04 { description "Removed bare 'summary' and 'peer list' duplicates; moved summary under show bgp; canonical paths are 'show bgp summary' and 'show bgp peer list'."; }
+    revision 2026-08-21 { description "Removed the 'summary' container under show bgp. 'show bgp' is the command that answers the peer summary, and the two views are reached with the '| summary' and '| peers' pipe aliases."; }
 
     container show {
         config false;
@@ -14,17 +15,9 @@ module ze-peer-cmd {
             config false;
             ze:command "ze-bgp:overview";
             description "BGP peers, sessions, RIB, and protocol tools.
-Typed with no subcommand, shows one line per peer, the same answer
-'show bgp summary' gives. Optionally scope by address family: ipv4,
+Typed with no subcommand, lists every peer with state, ASN, prefixes
+received, and uptime. Optionally scope by address family: ipv4,
 ipv6, or l2vpn.";
-
-            container summary {
-                config false;
-                ze:command "ze-bgp:summary";
-                description "Show a one-line-per-peer BGP summary.
-Lists every peer with state, ASN, prefixes received, and uptime.
-Optionally scope by address family: ipv4, ipv6, or l2vpn.";
-            }
 
             container peer {
                 config false;

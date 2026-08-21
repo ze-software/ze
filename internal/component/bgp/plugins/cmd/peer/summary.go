@@ -29,7 +29,6 @@ var (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:summary", Handler: handleBgpSummary},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:overview", Handler: handleBgpOverview},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-capabilities", Handler: handleBgpPeerCapabilities},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-statistics", Handler: handleBgpPeerStatistics},
@@ -200,8 +199,13 @@ func isFamilyArg(in string) bool {
 }
 
 // handleBgpSummary returns a BGP summary table with per-peer
-// statistics. Similar to FRR's "show bgp summary" — aggregate totals
-// plus per-peer rows.
+// statistics: aggregate totals plus per-peer rows.
+//
+// It is registered against no wire method of its own. handleBgpOverview
+// (ze-bgp:overview, `show bgp`) is the only caller: the overview decides
+// whether the leftover token is an address family or an unknown subcommand,
+// and this builds the payload once that question is answered. Keeping the two
+// apart keeps a dispatch concern out of a payload builder.
 //
 // With no arguments: every configured peer appears in the table.
 //

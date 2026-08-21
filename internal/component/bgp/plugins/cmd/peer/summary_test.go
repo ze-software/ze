@@ -895,10 +895,18 @@ func TestBgpOverviewAnswersTheSummary(t *testing.T) {
 		assert.Equal(t, want.Data, resp.Data, "the object command must give the summary")
 	})
 
+	// AC-5. The family reaches the overview as `show bgp ipv4` now that the
+	// longer path is gone, so the scoping is asserted here rather than only on
+	// handleBgpSummary (TestBgpSummary_FilterByFamily).
 	t.Run("family argument", func(t *testing.T) {
 		resp, err := handleBgpOverview(newTestContext(reactor), []string{"ipv4"})
 		require.NoError(t, err)
 		assert.Equal(t, plugin.StatusDone, resp.Status, "a family still scopes the overview")
+
+		data, ok := resp.Data.(plugin.Map)
+		require.True(t, ok)
+		assert.Equal(t, "ipv4/unicast", data["family"], "the shorthand expands and the scope is reported")
+		assert.Equal(t, 1, data["peers-in-family"], "the filtered count is the family's, not the total")
 	})
 
 	t.Run("an oversized token is bounded in the message", func(t *testing.T) {
@@ -916,6 +924,20 @@ func TestBgpOverviewAnswersTheSummary(t *testing.T) {
 		assert.Contains(t, resp.Error, "show bgp nonsense")
 		assert.Contains(t, resp.Error, "unknown command")
 		assert.NotContains(t, resp.Error, "invalid family", "an unregistered subcommand is not a family typo")
+	})
+
+	// AC-4. The retired spelling carries no dispatcher key of its own, so the
+	// word arrives here as the overview's leftover token. It names no address
+	// family, so the operator is told the command is unknown rather than that
+	// the word is a bad AFI/SAFI.
+	t.Run("the retired summary subcommand", func(t *testing.T) {
+		resp, err := handleBgpOverview(newTestContext(reactor), []string{"summary"})
+		require.Error(t, err)
+		assert.ErrorIs(t, err, pluginserver.ErrUnknownCommand)
+		assert.Equal(t, plugin.StatusError, resp.Status)
+		assert.Contains(t, resp.Error, "unknown command")
+		assert.NotContains(t, resp.Error, "invalid family", "a retired command is not a family typo")
+		assert.NotContains(t, resp.Error, "negotiated", "the family rejection lists families; this must not")
 	})
 }
 
@@ -935,10 +957,10 @@ func aliasNames(t *testing.T, cmd string) map[string]bool {
 // VALIDATES: the two column orders and the two pipe aliases resolve against
 // `show bgp`, the command that answers the summary.
 // PREVENTS: `show bgp` rendering alphabetically and refusing `| peers`. Both
-// registrations named the longer path `show bgp summary`, and
+// registrations once named a longer path under `show bgp`, and
 // commandMatchesPrefix (internal/component/command/column_order.go) refuses a
-// command shorter than the registered prefix, so the shorter spelling of the
-// same answer reached neither.
+// command shorter than the registered prefix, so the command that answers the
+// summary reached neither.
 func TestShowBgpCarriesTheSummaryOrder(t *testing.T) {
 	// The path an operator types, spelled out rather than read from cmdBgp. A
 	// lookup through the constant the registration uses moves with it, so it
@@ -969,8 +991,7 @@ func TestShowBgpCarriesTheSummaryOrder(t *testing.T) {
 // of these paths unless the path declares its own emptiness.
 func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 	// Every builtin command path under `show bgp`, as `make ze-command-list`
-	// reports them. `show bgp summary` is absent because it answers the same
-	// payload as `show bgp` and inherits both registrations on purpose.
+	// reports them.
 	children := []struct {
 		command string
 		// columns is the order this path declares for itself. An empty one

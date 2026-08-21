@@ -20,7 +20,7 @@ func TestInjectPluginCommands(t *testing.T) {
 	}, false)
 
 	commands := []commandEntry{
-		{Value: "show bgp health", Help: "BGP health"},       // already in tree
+		{Value: "show bgp health", Help: "BGP health"},        // already in tree
 		{Value: "show bgp irr", Help: "Show IRR filter data"}, // new plugin command
 		{Value: "update bgp irr", Help: "Update IRR data"},    // new plugin command
 	}

@@ -43,7 +43,6 @@ ze-bgp:plugin-format
 ze-bgp:pool-stats
 ze-bgp:show-announcements
 ze-bgp:subscribe
-ze-bgp:summary
 ze-bgp:unsubscribe
 ze-bgp:withdraw
 ze-clear:dns-cache

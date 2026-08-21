@@ -928,7 +928,7 @@ func TestSlowConsumerDoesNotStallReadLoop(t *testing.T) {
 	slow, err := mux.CallAnswer(ctx, "ze-bgp:peer-list", nil)
 	require.NoError(t, err)
 
-	result, err := mux.CallRPC(ctx, "ze-bgp:summary", nil)
+	result, err := mux.CallRPC(ctx, "ze-bgp:overview", nil)
 	require.NoError(t, err, "a caller that stopped reading must not stall the reader for every other id")
 	assert.Equal(t, `{"flowing":true}`, string(result))
 

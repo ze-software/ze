@@ -40,7 +40,7 @@ func TestBuildAdminCommandTree_FromYANG(t *testing.T) {
 					"warnings": {Name: "warnings", WireMethod: "ze-show:warnings"},
 				},
 			},
-			"summary": {Name: "summary", WireMethod: "ze-bgp:summary"},
+			"overview": {Name: "overview", WireMethod: "ze-bgp:overview"},
 		},
 	}
 
@@ -48,7 +48,7 @@ func TestBuildAdminCommandTree_FromYANG(t *testing.T) {
 
 	root := got[""]
 	require.NotEmpty(t, root, "root must list every top-level command")
-	assert.Equal(t, []string{"peer", "show", "summary"}, root, "top-level children must be alphabetical")
+	assert.Equal(t, []string{"overview", "peer", "show"}, root, "top-level children must be alphabetical")
 
 	peerKids := got["peer"]
 	assert.True(t, sort.StringsAreSorted(peerKids), "peer subtree must be sorted")
@@ -61,8 +61,8 @@ func TestBuildAdminCommandTree_FromYANG(t *testing.T) {
 	// children map (the FragmentData builder treats missing keys as leaves).
 	_, hasLeaf := got["peer/detail"]
 	assert.False(t, hasLeaf, "leaves must not appear with an empty child slice")
-	_, hasSummary := got["summary"]
-	assert.False(t, hasSummary, "leaves at the root must not appear")
+	_, hasRootLeaf := got["overview"]
+	assert.False(t, hasRootLeaf, "leaves at the root must not appear")
 }
 
 // TestAdminTreeFromYANG_NilTree verifies that a nil command tree produces

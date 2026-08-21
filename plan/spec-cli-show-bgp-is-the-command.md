@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | cli |
 | Depends | - |
-| Phase | 2/5 |
+| Phase | 3/5 |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-08-21 |
@@ -187,8 +187,9 @@ take an empty registration. `make ze-command-list` reports these builtin paths u
 |------|------|-----------|--------|
 | `TestShowBgpCarriesTheSummaryOrder` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-1, the orders resolve against `show bgp` | pass |
 | `TestChildCommandsDoNotInheritTheSummaryOrder` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-7, A-1, driven per child path | pass |
-| `TestShowBgpSummaryIsNotRegistered` | `internal/component/plugin/server/command_test.go` | AC-4 and AC-10, no dispatcher key and no wire method | |
-| `TestShowBgpFamilyArgumentStillFilters` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-5 | |
+| `TestShowBgpSummaryIsNotRegistered` | `internal/component/plugin/server/command_test.go` | AC-4 and AC-10, no dispatcher key and no wire method | pass |
+| `TestBgpOverviewAnswersTheSummary/the retired summary subcommand` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-4, the message is the unknown-command error and not the family rejection | pass |
+| `TestBgpOverviewAnswersTheSummary/family argument` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-5. This is the row phase 3 wrote instead of a new `TestShowBgpFamilyArgumentStillFilters`: the existing subtest already drove the overview's family path, and it was strengthened to assert the SCOPE (`family`, `peers-in-family`) rather than only the status. A second test asserting the same thing would be a duplicate | pass |
 | `TestAliasesResolveAgainstShowBgp` | `internal/component/command/alias_test.go` | AC-2 and AC-3 | |
 
 ### Boundary Tests (numeric inputs)
@@ -200,7 +201,10 @@ take an empty registration. `make ze-command-list` reports these builtin paths u
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `show-bgp-alias-summary` | `test/ui/show-bgp-alias-summary.ci` | An operator gets both views from `show bgp` and a pipe | | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
-| `show-bgp-summary-is-gone` | `test/plugin/show-bgp-summary-is-gone.ci` | The old command answers unknown-command | | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+| `show-bgp-summary-is-gone` | `test/plugin/show-bgp-summary-is-gone.ci` | The old command answers unknown-command | pass (608) |
+| `show-bgp-bare-runs-summary` | `test/plugin/show-bgp-bare-runs-summary.ci` | AC-1 end to end: `show bgp` answers the summary payload, and it is now the only spelling | pass (605) |
+| `show-bgp-family-arg` | `test/plugin/show-bgp-family-arg.ci` | AC-5 end to end. Renamed from `show-bgp-summary-family-arg.ci` in phase 3: it drove both spellings, and only one survives | pass (607) |
+| `show-bgp-child-not-swallowed` | `test/plugin/show-bgp-child-not-swallowed.ci` | AC-6 and A-3, UNCHANGED by this spec | pass (606) |
 | `show-bgp-children-do-not-inherit` | `test/ui/show-bgp-children-do-not-inherit.ci` | AC-7 across the child paths | | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 
 ### Interop Tests (Scope: protocol)

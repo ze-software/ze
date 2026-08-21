@@ -1,10 +1,14 @@
-# Test: `show bgp summary ipv4` still passes the family as an argument.
+# Test: `show bgp ipv4` still passes the family as an argument.
 #
-# VALIDATES: spec-cli-dispatch-child-guard AC-4. The dispatch guard refuses a
+# VALIDATES: spec-cli-dispatch-child-guard AC-4 and AC-5 of
+#            spec-cli-show-bgp-is-the-command. The dispatch guard refuses a
 #            parent match only when the leftover tokens reach a REGISTERED path.
-#            A value typed after a command still reaches its handler.
+#            A value typed after a command still reaches its handler, in the
+#            shorthand form and in the full afi/safi form.
 # PREVENTS:  R-1, a guard that refuses any match leaving tokens over. That rule
 #            passes its own unit test and breaks every argument-taking command.
+#            Also the family filter losing its own diagnosis: a family nobody
+#            negotiated must name the family, never report an unknown command.
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -12,7 +16,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=summary-family-arg.run:mode=755:terminator=EOF_RUN
+tmpfs=show-bgp-family-arg.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Assert the family argument survives the dispatch guard."""
 import json
@@ -51,7 +55,10 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        for command in ('show bgp summary ipv4', 'show bgp ipv4'):
+        # The shorthand and the full afi/safi form are both one argument to
+        # `show bgp`, and both must reach the summary rather than be read as a
+        # command path.
+        for command in ('show bgp ipv4', 'show bgp ipv4/unicast'):
             result = dispatch(api, command)
             if result.get('status') != 'done':
                 print(f'FAIL: {command} status={result.get("status")} data={result.get("data")}', file=sys.stderr)
@@ -60,16 +67,22 @@ def main():
             if 'peers-configured' not in data:
                 print(f'FAIL: {command} is not a summary: {sorted(data)}', file=sys.stderr)
                 sys.exit(1)
+            if data.get('family') != 'ipv4/unicast':
+                print(f'FAIL: {command} did not scope to ipv4/unicast: {data.get("family")!r}', file=sys.stderr)
+                sys.exit(1)
 
         # A family nobody negotiated is still the summary's own diagnosis, and it
         # names the family. It must not become an unknown-command error.
-        unnegotiated = dispatch(api, 'show bgp summary l2vpn')
+        unnegotiated = dispatch(api, 'show bgp l2vpn')
         if unnegotiated.get('status') != 'error':
-            print(f'FAIL: show bgp summary l2vpn status={unnegotiated.get("status")} want error', file=sys.stderr)
+            print(f'FAIL: show bgp l2vpn status={unnegotiated.get("status")} want error', file=sys.stderr)
             sys.exit(1)
         message = str(unnegotiated.get('data', ''))
         if 'l2vpn' not in message:
             print(f'FAIL: the rejection must name the family; got {message!r}', file=sys.stderr)
+            sys.exit(1)
+        if 'unknown command' in message:
+            print(f'FAIL: a known family is not an unknown command; got {message!r}', file=sys.stderr)
             sys.exit(1)
 
         print('OK: the family argument reaches the summary handler', file=sys.stderr)
@@ -84,8 +97,8 @@ EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external summary-family-arg {
-		run ./summary-family-arg.run
+	external show-bgp-family-arg {
+		run ./show-bgp-family-arg.run
 		encoder json
 	}
 }

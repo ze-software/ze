@@ -1913,7 +1913,7 @@ func TestMatchBuiltinKeepsArgumentsForLeftoverValues(t *testing.T) {
 func TestShowBgpDoesNotSwallowPluginSubcommands(t *testing.T) {
 	d := NewDispatcher()
 	d.Register("show bgp", noopHandler, "BGP overview")
-	d.Register("show bgp summary", noopHandler, "BGP summary")
+	d.Register("show bgp peer list", noopHandler, "BGP peer list")
 
 	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-subtrees"})
 	results := d.Registry().Register(proc, []CommandDef{
@@ -1953,10 +1953,15 @@ func TestShowBgpDoesNotSwallowPluginSubcommands(t *testing.T) {
 	assert.Equal(t, "show bgp", cmd.Name)
 	assert.Empty(t, args)
 
-	cmd, args, _, ok = d.matchBuiltinTokens([]string{"show", "bgp", "summary", "ipv4"})
-	require.True(t, ok, "a family argument must still reach the summary handler")
-	assert.Equal(t, "show bgp summary", cmd.Name)
+	cmd, args, _, ok = d.matchBuiltinTokens([]string{"show", "bgp", "ipv4"})
+	require.True(t, ok, "a family argument must still reach the overview handler")
+	assert.Equal(t, "show bgp", cmd.Name)
 	assert.Equal(t, []string{"ipv4"}, args)
+
+	cmd, args, _, ok = d.matchBuiltinTokens([]string{"show", "bgp", "peer", "list"})
+	require.True(t, ok, "a longer builtin path must resolve to itself")
+	assert.Equal(t, "show bgp peer list", cmd.Name)
+	assert.Empty(t, args)
 }
 
 // TestGuardSeesSubsystemCommands verifies the third registry the guard reads.
@@ -1983,22 +1988,21 @@ func TestGuardSeesSubsystemCommands(t *testing.T) {
 		"the subsystem comparison is exact, never a prefix")
 }
 
-// TestShowBgpSummaryStillResolvesToItsOwnHandler verifies AC-1, AC-3, AC-4 and
-// AC-5 against the real YANG command tree.
+// TestBuiltinPathsResolveToTheirOwnHandler verifies AC-1, AC-3 and AC-5 of
+// spec-cli-dispatch-child-guard against the real YANG command tree.
 //
-// VALIDATES: assumption A-3. `container bgp` now carries a ze:command and still
-// has children, the shape `show ospf` already had, and every path under it
-// resolves to the command registered at that path.
+// VALIDATES: assumption A-3. `container bgp` carries a ze:command and still has
+// children, the shape `show ospf` already had, and every path under it resolves
+// to the command registered at that path.
 //
-// PREVENTS: the parent command stealing `show bgp summary`, and the guard
-// refusing a parent whose leftover token is a value.
-func TestShowBgpSummaryStillResolvesToItsOwnHandler(t *testing.T) {
+// PREVENTS: the parent command stealing a child path, and the guard refusing a
+// parent whose leftover token is a value.
+func TestBuiltinPathsResolveToTheirOwnHandler(t *testing.T) {
 	loader, err := yang.DefaultLoader()
 	require.NoError(t, err, "load YANG")
 
 	wireToPaths := yang.WireMethodToPaths(loader)
 	assert.Contains(t, wireToPaths["ze-bgp:overview"], "show bgp", "the container command must produce the bare path")
-	assert.Contains(t, wireToPaths["ze-bgp:summary"], "show bgp summary")
 
 	d := NewDispatcher()
 	loadBuiltinsWithAliases(d, wireToPaths, yang.PathToDescription(loader),
@@ -2010,8 +2014,8 @@ func TestShowBgpSummaryStillResolvesToItsOwnHandler(t *testing.T) {
 		args  []string
 	}{
 		{input: "show bgp", key: "show bgp"},
-		{input: "show bgp summary", key: "show bgp summary"},
-		{input: "show bgp summary ipv4", key: "show bgp summary", args: []string{"ipv4"}},
+		{input: "show bgp ipv4", key: "show bgp", args: []string{"ipv4"}},
+		{input: "show bgp health", key: "show bgp health"},
 		{input: "show bgp peer list", key: "show bgp peer list"},
 		{input: "show ospf", key: "show ospf"},
 		{input: "show ospf instance", key: "show ospf instance"},
@@ -2030,6 +2034,51 @@ func TestShowBgpSummaryStillResolvesToItsOwnHandler(t *testing.T) {
 			assert.Equal(t, tc.args, args)
 		})
 	}
+}
+
+// TestShowBgpSummaryIsNotRegistered verifies AC-4 and AC-10 of
+// spec-cli-show-bgp-is-the-command against the real YANG command tree.
+//
+// VALIDATES: `show bgp summary` is no command. The YANG tree produces no path
+// for it and no wire method of its own, so make ze-command-list, which reads
+// the same WireMethodToPath map (scripts/inventory/commands.go), cannot name
+// it. Typed anyway, it matches `show bgp` and hands `summary` over as an
+// argument, which is what makes handleBgpOverview
+// (internal/component/bgp/plugins/cmd/peer/summary.go) answer the
+// unknown-command error rather than a family-validation error.
+//
+// PREVENTS: the command surviving as a second spelling of `show bgp`, and the
+// operator who types it being told `summary` is a bad address family.
+//
+// The registration half of the retirement, the method gone from
+// AllBuiltinRPCs, is held by TestRegisteredWireMethods
+// (internal/component/plugin/all/all_test.go) against its snapshot, because the
+// handler registers in a package this one cannot import.
+//
+// The assertion below is the ONLY place in internal/ that still spells the
+// retired method, and it spells it to prove it is gone.
+func TestShowBgpSummaryIsNotRegistered(t *testing.T) {
+	loader, err := yang.DefaultLoader()
+	require.NoError(t, err, "load YANG")
+
+	wireToPaths := yang.WireMethodToPaths(loader)
+	assert.NotContains(t, wireToPaths, "ze-bgp:summary", "the wire method is retired")
+	for method, paths := range wireToPaths {
+		assert.NotContains(t, paths, "show bgp summary",
+			"no wire method may produce the retired path (%s)", method)
+	}
+
+	d := NewDispatcher()
+	loadBuiltinsWithAliases(d, wireToPaths, yang.PathToDescription(loader),
+		yang.PathToArgDefs(loader), yang.BuildCommandTree(loader))
+
+	assert.Nil(t, d.Lookup("show bgp summary"), "no dispatcher key answers the retired path")
+
+	cmd, args, _, ok := d.matchBuiltinTokens([]string{"show", "bgp", "summary"})
+	require.True(t, ok, "the tokens still reach a builtin: the parent")
+	require.NotNil(t, cmd)
+	assert.Equal(t, "show bgp", cmd.Name, "the parent takes the match")
+	assert.Equal(t, []string{"summary"}, args, "`summary` arrives as an argument, not as a command path")
 }
 
 // unguardedMatch repeats the longest-prefix walk matchBuiltinTokens performs,

@@ -45,14 +45,14 @@ func TestDocList(t *testing.T) {
 // PREVENTS: Doc output missing output parameters.
 func TestDocCommandWithOutputParams(t *testing.T) {
 	var buf bytes.Buffer
-	// "summary" canonicalises to "show bgp summary" (the
-	// lexicographically smallest alias of ze-bgp:summary).
-	err := formatDocCommand(&buf, "show bgp summary")
+	// `show bgp` is the CLI path of ze-bgp:overview, and the `overview` RPC in
+	// ze-bgp-api.yang declares the peer-summary payload it answers with.
+	err := formatDocCommand(&buf, "show bgp")
 	require.NoError(t, err)
 
 	out := buf.String()
-	assert.Contains(t, out, "Parameters (output):", "summary should have output parameters")
-	assert.Contains(t, out, "uptime", "summary output should list uptime")
+	assert.Contains(t, out, "Parameters (output):", "the overview should have output parameters")
+	assert.Contains(t, out, "uptime", "the overview output should list uptime")
 }
 
 // PREVENTS: Doc output not showing commands with no parameters.

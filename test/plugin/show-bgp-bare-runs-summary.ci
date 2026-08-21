@@ -1,9 +1,11 @@
-# Test: `show bgp` typed with no subcommand answers the summary.
+# Test: `show bgp` typed with no subcommand answers the peer summary.
 #
-# VALIDATES: spec-cli-dispatch-child-guard AC-1 and AC-6. `container bgp` carries
-#            ze:command "ze-bgp:overview", so the object command answers the same
-#            data `show bgp summary` gives. A token that names no address family
-#            and no registered subcommand comes back as an unknown command.
+# VALIDATES: spec-cli-dispatch-child-guard AC-1 and AC-6, and AC-1 of
+#            spec-cli-show-bgp-is-the-command. `container bgp` carries
+#            ze:command "ze-bgp:overview", and since the `summary` child was
+#            retired this is the ONLY spelling of that answer. A token that
+#            names no address family and no registered subcommand comes back as
+#            an unknown command.
 # PREVENTS:  the operator who types the object with no verb getting an
 #            unknown-command error, and the operator who mistypes a subcommand
 #            being told the token is an invalid address family.
@@ -58,18 +60,11 @@ def main():
             print(f'FAIL: show bgp status={bare.get("status")} data={bare.get("data")}', file=sys.stderr)
             sys.exit(1)
 
-        summary = dispatch(api, 'show bgp summary')
-        if summary.get('status') != 'done':
-            print(f'FAIL: show bgp summary status={summary.get("status")}', file=sys.stderr)
-            sys.exit(1)
-
-        bare_data, summary_data = payload(bare), payload(summary)
-        if 'peers-configured' not in bare_data:
-            print(f'FAIL: show bgp is not the summary: {sorted(bare_data)}', file=sys.stderr)
-            sys.exit(1)
-        if sorted(bare_data) != sorted(summary_data):
-            print(f'FAIL: show bgp and show bgp summary differ: {sorted(bare_data)} vs {sorted(summary_data)}', file=sys.stderr)
-            sys.exit(1)
+        bare_data = payload(bare)
+        for key in ('router-id', 'local-as', 'uptime', 'peers-configured', 'peers-established', 'peers'):
+            if key not in bare_data:
+                print(f'FAIL: show bgp is not the summary, {key} is missing: {sorted(bare_data)}', file=sys.stderr)
+                sys.exit(1)
 
         unknown = dispatch(api, 'show bgp nonsense')
         if unknown.get('status') != 'error':

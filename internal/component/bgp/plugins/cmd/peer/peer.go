@@ -35,9 +35,6 @@ const (
 // registerAliases put on `show bgp` reaches all of these. Each one declares its
 // own emptiness to stop that, which is the mechanism registerPipeFilters uses
 // for the scalar rib commands (internal/component/bgp/plugins/cmd/rib/rib.go).
-//
-// `show bgp summary` is deliberately absent: it answers the same payload as
-// `show bgp`, so it MUST inherit both registrations.
 var cmdBgpChildren = []string{
 	"show bgp health",
 	"show bgp irr",

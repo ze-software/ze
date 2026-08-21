@@ -11,8 +11,8 @@ module ze-rib-cmd {
         container bgp {
             config false;
             description "BGP peers, sessions, RIB, and protocol tools.
-Typed with no subcommand, shows one line per peer, the same answer
-'show bgp summary' gives. Optionally scope by address family: ipv4,
+Typed with no subcommand, lists every peer with state, ASN, prefixes
+received, and uptime. Optionally scope by address family: ipv4,
 ipv6, or l2vpn.";
 
             container rib {

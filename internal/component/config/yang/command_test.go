@@ -129,10 +129,10 @@ module test-shortcut {
         description "Persist config";
     }
 
-    container summary {
+    container overview {
         config false;
-        ze:command "ze-bgp:summary";
-        description "Show summary (not an edit shortcut)";
+        ze:command "ze-bgp:overview";
+        description "Show an overview (not an edit shortcut)";
     }
 }
 `
@@ -154,10 +154,10 @@ module test-shortcut {
 	require.NotNil(t, saveEntry)
 	assert.True(t, hasEditShortcutExtension(saveEntry), "save should have ze:edit-shortcut")
 
-	summaryEntry := entry.Dir["summary"]
-	require.NotNil(t, summaryEntry)
-	assert.Equal(t, "ze-bgp:summary", GetCommandExtension(summaryEntry))
-	assert.False(t, hasEditShortcutExtension(summaryEntry), "summary should NOT have ze:edit-shortcut")
+	overviewEntry := entry.Dir["overview"]
+	require.NotNil(t, overviewEntry)
+	assert.Equal(t, "ze-bgp:overview", GetCommandExtension(overviewEntry))
+	assert.False(t, hasEditShortcutExtension(overviewEntry), "overview should NOT have ze:edit-shortcut")
 }
 
 // TestExtensionNilEntry verifies extension functions handle nil safely.
@@ -197,7 +197,8 @@ func TestPeerCmdModule(t *testing.T) {
 	bgp := show.Dir["bgp"]
 	require.NotNil(t, bgp)
 
-	assert.Equal(t, "ze-bgp:summary", GetCommandExtension(bgp.Dir["summary"]))
+	assert.Equal(t, "ze-bgp:overview", GetCommandExtension(bgp), "`show bgp` carries the command itself")
+	assert.Nil(t, bgp.Dir["summary"], "the `summary` container is retired")
 
 	showPeer := bgp.Dir["peer"]
 	require.NotNil(t, showPeer)
