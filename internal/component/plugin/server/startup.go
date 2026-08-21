@@ -567,8 +567,10 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 	}
 	// Validate pipe alias declarations before conversion. The pipe resolver
 	// reads the alias registry in this process. A declaration that reaches that
-	// registry is live for every operator, so a refusal happens before it.
-	if err := validatePipeDecls(input.Pipes); err != nil {
+	// registry is live for every operator, so a refusal happens before it. The
+	// commands travel with the pipes because an alias may sit only on a command
+	// path this same message declares.
+	if err := validatePipeDecls(input.Pipes, input.Commands); err != nil {
 		return fmt.Errorf("invalid pipe alias: %w", err)
 	}
 
@@ -1039,14 +1041,27 @@ func validateDoctorCheckDecls(checks []rpc.DoctorCheckDecl) error {
 }
 
 // validatePipeDecls validates pipe alias declarations from Stage 1 registration.
-// It reads the shape of each declaration. Whether a name is already taken is
-// decided by the alias registry, which is the only holder of that answer.
-func validatePipeDecls(pipes []rpc.PipeDecl) error {
+// It reads the shape of each declaration, and it confirms the plugin declared
+// the command path the alias sits on in the same message. Whether a NAME is
+// already taken is decided by the alias registry, which is the only holder of
+// that answer.
+//
+// An alias sits on a command PATH, and a path the plugin did not declare belongs
+// to whoever did. The check reads the declared command names and refuses every
+// path it does not find there, so a plugin that declares no command declares no
+// alias either.
+func validatePipeDecls(pipes []rpc.PipeDecl, commands []rpc.CommandDecl) error {
 	const maxPipes = 32
 	const maxNameLen = 64
 
 	if len(pipes) > maxPipes {
 		return fmt.Errorf("too many pipe aliases: %d (max %d)", len(pipes), maxPipes)
+	}
+	declared := make(map[string]struct{}, len(commands))
+	for _, c := range commands {
+		if path := commandPathKey(c.Name); path != "" {
+			declared[path] = struct{}{}
+		}
 	}
 	for _, p := range pipes {
 		if strings.TrimSpace(p.Command) == "" {
@@ -1061,8 +1076,22 @@ func validatePipeDecls(pipes []rpc.PipeDecl) error {
 		if strings.TrimSpace(p.Expansion) == "" {
 			return fmt.Errorf("pipe alias %q on %q expands to nothing", p.Name, p.Command)
 		}
+		if _, owned := declared[commandPathKey(p.Command)]; !owned {
+			return fmt.Errorf("pipe alias %q sits on %q, a command this plugin does not declare", p.Name, p.Command)
+		}
 	}
 	return nil
+}
+
+// commandPathKey is the one spelling of a command path the ownership check
+// compares. It matches what the alias registry stores: lowercase, with one
+// space between words.
+//
+// Two spellings of one path MUST answer the same here. A path that carries
+// nothing but spaces answers the empty string, which no declared command can
+// match, so it is refused rather than confirmed.
+func commandPathKey(command string) string {
+	return strings.ToLower(textbuf.Join(strings.Fields(command), " "))
 }
 
 // registerPluginPipes writes the declared pipe aliases into the alias registry

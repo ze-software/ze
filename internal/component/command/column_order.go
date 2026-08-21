@@ -103,6 +103,24 @@ func (r *commandRegistry[T]) register(commands []string, value T) {
 	}
 }
 
+// get returns what one command path declares itself, and nothing an ancestor
+// declares. It answers a different question from lookup: lookup resolves a
+// COMMAND to the nearest registered ancestor's declaration, and this reports
+// what the PATH holds.
+//
+// A caller that must not read an inherited answer reads this one. Registration
+// does, because a declaration on a shorter path is shadowed for this path
+// rather than in conflict with it.
+func (r *commandRegistry[T]) get(command string) (T, bool) {
+	command = normalizeCommand(command)
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	value, found := r.byCommand[command]
+	return value, found
+}
+
 func (r *commandRegistry[T]) lookup(command string) (T, bool) {
 	command = normalizeCommand(command)
 

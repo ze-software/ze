@@ -360,3 +360,47 @@ func TestOnRegistrationRefusesMalformedPluginPipe(t *testing.T) {
 	assert.Empty(t, s.registry.LookupCommand(commandName))
 	assert.Empty(t, command.AliasesForCommand(commandName))
 }
+
+// TestOnRegistrationRefusesPipeOnUndeclaredCommand verifies a plugin can name
+// only a command path it declared in the same message. The alias sits on a
+// command path, and a path the plugin did not declare belongs to somebody else.
+//
+// VALIDATES: AC-7. Stage 1 fails, and the error names the path.
+// PREVENTS: a plugin claiming another owner's subtree. The check refuses what it
+// cannot confirm, because a check that answers "allowed" on a path it cannot
+// resolve hands the whole command tree to whoever asks for it.
+func TestOnRegistrationRefusesPipeOnUndeclaredCommand(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const pluginName = "lifecycle-pipe-alias-undeclared"
+	const declaredCommand = "show lifecycle owned"
+	const claimedCommand = "show lifecycle borrowed"
+	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
+		p := sdk.NewWithConn(pluginName, conn)
+		err := p.Run(context.Background(), sdk.Registration{
+			Commands: []sdk.CommandDecl{{Name: declaredCommand}},
+			Pipes: []sdk.PipeDecl{{
+				Command:   claimedCommand,
+				Name:      "totals",
+				Expansion: "display kind",
+			}},
+		})
+		if err != nil {
+			return 1
+		}
+		return 0
+	})
+
+	s, _ := newLifecycleStartupServer(t)
+	err := s.runPluginPhase([]plugin.PluginConfig{
+		{Name: pluginName, Internal: true, Encoder: plugin.EncodingJSON},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), pluginName)
+	assert.Contains(t, err.Error(), claimedCommand)
+	assert.Empty(t, s.registry.LookupCommand(declaredCommand))
+	assert.Empty(t, command.AliasesForCommand(claimedCommand))
+	assert.Empty(t, command.AliasesForCommand(declaredCommand))
+}

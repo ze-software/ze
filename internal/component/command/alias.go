@@ -126,6 +126,17 @@ var errAliasNoName = errors.New("pipe alias registered with no name")
 // strings read here arrived over a socket. A bad one is an operating error, and
 // the caller is told which declaration is wrong and why.
 //
+// Two more registrations are refused here than RegisterAliases refuses, and
+// both are refusals an in-tree caller does not owe:
+//
+//   - a name the EXACT command path already carries, whoever registered it.
+//     RegisterAliases replaces what a path declared before, which is how a
+//     package restates its own table. A caller outside this repository holds no
+//     such table, so a replacement there takes a name a command already answers
+//     to.
+//   - one name declared twice on one path in one message. The message is built
+//     into one set for each path, so the later of the two would win in silence.
+//
 // Nothing is registered when any one declaration is refused. Every declaration
 // is checked before the first is stored. A caller therefore never has to undo a
 // partial registration it did not ask for.
@@ -154,13 +165,58 @@ func RegisterPluginAliases(declared []PluginAlias) error {
 			byCommand[command] = set
 			paths = append(paths, command)
 		}
+		if _, twice := set.byName[entry.alias.Name]; twice {
+			return fmt.Errorf("%s: pipe alias %s is declared twice in one message", command, entry.alias.Name)
+		}
+		if aliasOnPath(command, entry.alias.Name) {
+			return fmt.Errorf("%s: pipe alias %s is already registered on that command path", command, entry.alias.Name)
+		}
 		set.byName[entry.alias.Name] = entry
 	}
 
 	for _, path := range paths {
-		aliasRegistry.register([]string{path}, byCommand[path])
+		aliasRegistry.register([]string{path}, mergedAliases(path, byCommand[path]))
 	}
 	return nil
+}
+
+// aliasOnPath reports whether the EXACT command path already carries this alias
+// name, whoever registered it.
+//
+// The population is that one path and nothing above it. lookupAlias reads the
+// set on the longest registered prefix and never falls back to a shorter one,
+// so an alias of this name on a shorter path, or in the global table, is
+// SHADOWED for this path rather than in conflict with it. That shadowing is the
+// mechanism a longer path uses to answer a name of its own, and it is what lets
+// `show bgp rpki` carry `summary` while `show bgp` carries one.
+func aliasOnPath(command, name string) bool {
+	set, registered := aliasRegistry.get(command)
+	if !registered {
+		return false
+	}
+	_, carries := set.byName[name]
+	return carries
+}
+
+// mergedAliases returns what a command path holds once the declared set is
+// added to what it already held.
+//
+// A registration MUST NOT drop an alias another registration put on the same
+// path. `show bgp rpki` already carries the empty declaration the in-tree BGP
+// command plugin puts on every child of `show bgp`, so a declaring caller
+// registers onto an occupied path in the ordinary case. Every declared name is
+// checked against the same set before this runs, so nothing merged here
+// replaces anything.
+func mergedAliases(command string, declared aliasSet) aliasSet {
+	current, registered := aliasRegistry.get(command)
+	if !registered {
+		return declared
+	}
+
+	merged := aliasSet{byName: make(map[string]aliasEntry, len(current.byName)+len(declared.byName))}
+	maps.Copy(merged.byName, current.byName)
+	maps.Copy(merged.byName, declared.byName)
+	return merged
 }
 
 // checkedAlias returns the entry to store for one alias. It panics when the

@@ -906,3 +906,36 @@ proven to discriminate by disabling `registerPluginPipes`.
 | "`test/scripts/ze_api.py` gains the matching declaration method" | The declaration method was not enough. A Python plugin could declare a command and could not ANSWER one with data, so there was no payload for a selection to cut. `on_execute_command` was added beside `declare_pipe`. Recorded in `plan/journal/unwired-feature.md` |
 | Files to Modify names `pkg/plugin/sdk/sdk.go` | No change was needed. The SDK passes `Registration` straight to the wire, so the type alias is the whole SDK surface |
 | Discovery is phase 4 | `python3 scripts/dev/validate.py` reports that `AliasesForCommand` (`internal/component/command/alias.go`) has no cross-package non-test caller. It predates this spec and phase 1 only exposed it by touching the file. Phase 4 is the fix: `internal/plugins/meta/cmd/help.go` is the caller it is missing. The finding reds no gate, because `check_cross_package_wiring` is deliberately outside `ze-precommit-verify` (`Makefile`, `ze-repository-tree-check`) |
+
+## Phase 2 Record: Validation and refusal (2026-08-21)
+
+Every collision case answers. AC-2, AC-3, AC-5 and AC-6 were already implemented
+in phase 1, through the checks `checkAlias` shares with the in-tree path, and
+they gained the tests that prove it. AC-4, AC-7 and AC-15 gained the checks that
+were missing.
+
+| What | Where |
+|------|-------|
+| The exact-path alias-versus-alias refusal (AC-4) | `internal/component/command/alias.go` `aliasOnPath`, read by `RegisterPluginAliases` |
+| What one path declares, read without inheritance | `internal/component/command/column_order.go` `commandRegistry.get` |
+| A declaration adds to a path and never replaces what it holds | `internal/component/command/alias.go` `mergedAliases` |
+| The duplicate-name-in-one-message refusal (AC-15) | `internal/component/command/alias.go` `RegisterPluginAliases` |
+| The undeclared-command refusal (AC-7) | `internal/component/plugin/server/startup.go` `validatePipeDecls`, over `commandPathKey` |
+| The refusal an operator reads | `test/plugin/plugin-pipe-alias-collision.ci` |
+
+### What phase 2 measured that the plan did not say
+
+| Finding | Consequence |
+|---------|-------------|
+| The exact-path NAME check does not close the replacement hazard on its own. `commandRegistry.register` stores one value for each path, so a declaration carrying a name nobody holds still dropped every alias that path answered to. Measured before the fix: `show bgp` carrying `summary` and `peers` kept the declared `wide` alone | `mergedAliases` adds the declared set to what the path holds. Phase 3 removal by owner therefore removes ENTRIES, never paths: one path can hold the aliases of two owners |
+| Two plugins cannot collide on one exact path at all. `PluginRegistry.Register` refuses a command another plugin declared, and it runs before the alias registration, so the second plugin fails on the COMMAND and never reaches its alias | R-4's startup-order residual is unreachable, and so is the "second plugin" of the `plugin-pipe-alias-collision` row. The reachable exact-path collision is a plugin against an IN-TREE alias, which is what the functional test drives |
+| A refused plugin is torn down before it can act on the error the driver relays. The Python client recorded that it had started and never recorded the refusal | The operator's surface for a refusal is the daemon log, and the functional test reads it there |
+| AC-14 and its test `TestPipeAliasArgumentRefused` sit in no phase's test list | Nothing proves that an argument after a PLUGIN-registered alias is refused. `TestAliasTakesNoArgument` proves it for an in-tree one |
+| `scripts/dev/stress-repro.py` reads `bin/ze` and `bin/ze-test`, which a session-scoped build does not write | The load proof for the new functional test was six concurrent runs of the suite selector instead |
+
+### What phase 2 deliberately does not do
+
+Removal by owner, the rollback that calls it, and the derived empty barrier stay
+with phase 3, exactly as the Phase 1 Record records them. The exact-path refusal
+makes the missing removal reachable: a plugin that registers an alias, stops and
+starts again is now refused its own name.
