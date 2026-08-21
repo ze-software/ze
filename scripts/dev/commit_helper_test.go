@@ -247,10 +247,15 @@ func TestCommitHelperRejectsIgnoredPaths(t *testing.T) {
 	mustContain(t, stderr, "ignored path must not be committed: ignored.txt")
 }
 
-// VALIDATES: commit_helper refuses to write a script when ze-precommit-verify reports
-// STALE, and --unverified bypasses the gate with the reason recorded in output.
-// PREVENTS: silently preparing a commit over a red/stale verify -- the root
-// cause behind a batch of slipped-in breakage.
+// VALIDATES: a STALE ze-precommit-verify records a verification-debt row and the
+// commit PROCEEDS, and --unverified names that row's reason rather than
+// unlocking anything.
+// PREVENTS: the gate returning to commit time. It gates PUSHING (owner
+// directive, 2026-08-21, ai/rules/git-safety.md "Verify a Commit, Not the
+// Working Tree"): a commit that stays local costs nobody anything and a commit
+// that never happens costs the work, so the debt is owed where it reaches
+// users. The push refusal is covered by commit_helper_test.py
+// (test_the_recorded_debt_refuses_the_push).
 func TestCommitHelperVerifyGate(t *testing.T) {
 	root := makeCommitHelperFixture(t)
 	writeFixture(t, root, ".gitignore", "tmp/*\n")
@@ -273,10 +278,11 @@ func TestCommitHelperVerifyGate(t *testing.T) {
 		"--repo", root, "create", "--session", "aaaa0000",
 		"--subject", "tools: gated", "--file", "note.md", "--replace",
 	)
-	if code == 0 {
-		t.Fatalf("expected non-zero exit when verify is STALE\nstderr:\n%s", stderr)
+	if code != 0 {
+		t.Fatalf("a STALE verify must record debt and proceed, got %d\nstderr:\n%s", code, stderr)
 	}
-	mustContain(t, stderr, "not FRESH-green")
+	mustContain(t, stderr, "verification debt")
+	mustContain(t, stderr, "--push refuses")
 
 	out, stderr2, code2 := runCommitHelper(t, root,
 		"--repo", root, "create", "--session", "aaaa0000",
@@ -286,7 +292,7 @@ func TestCommitHelperVerifyGate(t *testing.T) {
 	if code2 != 0 {
 		t.Fatalf("expected success with --unverified, got %d\nstderr:\n%s", code2, stderr2)
 	}
-	mustContain(t, out, "verify=UNVERIFIED (known-red: test)")
+	mustContain(t, out, "verify=STALE (unverified: known-red: test)")
 }
 
 // VALIDATES: a DETERMINISTIC STRUCTURAL GATE red recorded in
@@ -348,7 +354,7 @@ func TestCommitHelperStructuralGateNotBypassable(t *testing.T) {
 	if code2 != 0 {
 		t.Fatalf("expected success: a flaky TEST red is bypassable with --unverified, got %d\nstderr:\n%s", code2, stderr2)
 	}
-	mustContain(t, out, "verify=UNVERIFIED (known-red: flaky functional suite)")
+	mustContain(t, out, "verify=STALE (unverified: known-red: flaky functional suite)")
 }
 
 func makeCommitHelperFixture(t *testing.T) string {

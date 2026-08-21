@@ -1192,7 +1192,7 @@ class TestVerifyStatusScope(unittest.TestCase):
         ch.verify_status(root, ("internal/a/a.go", ""))
         self.assertEqual(self._argv(root), ["check"])
 
-    def test_an_edit_to_a_committed_space_path_refuses(self):
+    def test_an_edit_to_a_committed_space_path_is_stale(self):
         """The regression the two cases above used to hide, driven end to end
         through the REAL checker.
 
@@ -1275,24 +1275,67 @@ class TestVerifyStatusScope(unittest.TestCase):
 
     def test_another_sessions_edit_leaves_the_gate_green(self):
         """AC-1. The whole-tree answer here is STALE, and it is STALE for a file
-        this commit does not carry."""
+        this commit does not carry, so nothing is owed."""
         root = self._real_checker_repo()
         (root / "theirs.txt").write_text(
             "theirs\n// another session\n", encoding="utf-8"
         )
         rc, msg = self._create(root)
         self.assertEqual(rc, 0, msg)
+        # FRESH is the whole answer: no row, so `--push` stays open. Scoping that
+        # charged a row anyway would block the push over somebody else's edit.
+        self.assertFalse((root / ch.VERIFICATION_DEBT_DIR / "abcd1234.md").exists())
 
-    def test_an_edit_to_a_committed_path_still_refuses(self):
-        """AC-2. Scoping answers about the session's own paths; it does not stop
-        answering."""
+    def test_an_edit_to_a_committed_path_records_debt_and_proceeds(self):
+        """AC-2, under the 2026-08-21 model. Scoping still answers about the
+        session's own paths, and a STALE answer now charges the commit a
+        verification-debt row instead of refusing it: the gate is owed at the
+        PUSH, which is what reaches users (ai/rules/git-safety.md, "Verify a
+        Commit, Not the Working Tree")."""
         root = self._real_checker_repo()
         (root / "mine.txt").write_text(
             "mine\n// edited after the pass\n", encoding="utf-8"
         )
         rc, msg = self._create(root)
+        self.assertEqual(rc, 0, msg)
+        self.assertIn("verification debt", msg)
+        # The row is the whole point of letting the commit through: without it
+        # the push gate has nothing to refuse on, and the debt is simply lost.
+        shard = (root / ch.VERIFICATION_DEBT_DIR / "abcd1234.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("| ze-precommit-verify (not FRESH-green) |", shard)
+        self.assertIn("| open |", shard)
+
+    def test_the_recorded_debt_refuses_the_push(self):
+        """The other half of the same directive: the commit is free, the push is
+        not. A downgrade that did not leave --push refusing would be a hole, not
+        a relaxation."""
+        root = self._real_checker_repo()
+        (root / "mine.txt").write_text(
+            "mine\n// edited after the pass\n", encoding="utf-8"
+        )
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = ch.main(
+                [
+                    "--repo",
+                    str(root),
+                    "create",
+                    "--session",
+                    "abcd1234",
+                    "--subject",
+                    "fixture",
+                    "--file",
+                    "mine.txt",
+                    "--push",
+                    "Thomas asked for the push",
+                ]
+            )
+        msg = out.getvalue() + err.getvalue()
         self.assertEqual(rc, 2, msg)
-        self.assertIn("not FRESH-green", msg)
+        self.assertIn("refusing --push", msg)
+        self.assertIn("ze-precommit-verify (not FRESH-green)", msg)
 
     def test_a_structural_red_still_refuses_over_untouched_paths(self):
         """Scoping the FRESHNESS question is not a route around a structural red.
@@ -1375,16 +1418,16 @@ class TestStructuralGateRemediation(unittest.TestCase):
 class TestStructuralRedOwnerOverride(unittest.TestCase):
     """The structural-gate refusal needs ONE escape, and only the owner may use it.
 
-    VALIDATES: `ai/rules/git-safety.md` "Structural Gates Are Never Known-Red" --
-    a structural red is never flaky, so `--unverified` and a
-    `plan/known-failures/` shard must keep failing to bypass it. But the refusal
-    had no override at all, which made a green tree the only route to any commit,
-    including one that touches no compiled code. `--structural-red-ok "<reason>"`
-    is that route, kept separate from `--unverified` so it can never be reached by
-    the flaky-test path, and required to carry a reason.
-    PREVENTS: an agent silently widening `--unverified` (or editing
-    STRUCTURAL_GATES) to get past a red tree, which is the hole the refusal was
-    added to close.
+    VALIDATES: `ai/rules/git-safety.md` "Verify a Commit, Not the Working Tree" --
+    a structural red is never flaky, and it is the ONE thing still refused at
+    commit time. A stale verify record is debt and lands; a broken tree is not,
+    so no flag that merely says "unverified" may reach this branch. But the
+    refusal had no override at all, which made a green tree the only route to any
+    commit, including one that touches no compiled code.
+    `--structural-red-ok "<reason>"` is that route, and it is required to carry a
+    reason.
+    PREVENTS: an agent reaching a red tree through a flag that unlocks nothing,
+    or editing STRUCTURAL_GATES, which is the hole the refusal was added to close.
     """
 
     def _run(self, extra: list[str]):
@@ -1810,17 +1853,20 @@ class TestDebtNotChargedForForeignRed(unittest.TestCase):
 
     def test_debt_not_charged_for_foreign_red(self):
         """AC-4. The red names one file, this commit does not carry it, and the
-        commit is prepared with no structural override -- so no `structural
-        gates (red)` row is written."""
-        rc, msg, root = self._run(
-            ["theirs.txt"], ["--unverified", "another session edited the tree"]
-        )
+        commit is prepared with no flag at all -- so the stale record earns its
+        own row and no `structural gates (red)` row is written.
+
+        No flag is the point of the case since 2026-08-21. The not-FRESH-green
+        row is written from the MEASUREMENT, so a session that types nothing
+        still hands the push gate something to refuse on."""
+        rc, msg, root = self._run(["theirs.txt"], [])
         self.assertEqual(rc, 0, msg)
         self.assertIn("red for another session only: ze-lint", msg)
         shard = (root / ch.VERIFICATION_DEBT_DIR / "abcd1234.md").read_text(
             encoding="utf-8"
         )
         self.assertIn("| ze-precommit-verify (not FRESH-green) |", shard)
+        self.assertIn("tree changed since last PASS", shard)
         self.assertNotIn("structural gates (red)", shard)
 
     def test_a_red_naming_a_committed_file_still_refuses(self):
@@ -1860,6 +1906,12 @@ class TestBrokenHeadFixEscape(unittest.TestCase):
     """
 
     def _run(self, reds: list[str], extra: list[str]):
+        """(exit code, everything printed, repo root).
+
+        The root outlives the call because the DEBT SHARD is now half of what
+        these cases assert: the flag clears one refusal, and what it must NOT do
+        is silence the row the stale verify record earns.
+        """
         import contextlib
         import io
 
@@ -1868,95 +1920,101 @@ class TestBrokenHeadFixEscape(unittest.TestCase):
         ch.structural_gate_reds = lambda repo, paths=(): ch.GateReds(
             tuple(reds), (), ()
         )
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
         try:
-            with tempfile.TemporaryDirectory() as tmp:
-                root = Path(tmp)
-                _git(root, "init", "-q")
-                _git(root, "config", "user.email", "t@example.com")
-                _git(root, "config", "user.name", "t")
-                _git(root, "config", "commit.gpgsign", "false")
-                (root / "f.txt").write_text("hello\n")
-                err = io.StringIO()
-                out = io.StringIO()
-                with contextlib.redirect_stderr(err), contextlib.redirect_stdout(out):
-                    rc = ch.main(
-                        [
-                            "--repo",
-                            str(root),
-                            "create",
-                            "--session",
-                            "abcd1234",
-                            "--subject",
-                            "fixture",
-                            "--file",
-                            "f.txt",
-                        ]
-                        + extra
-                    )
-                return rc, err.getvalue() + out.getvalue()
+            root = Path(tmp.name)
+            _git(root, "init", "-q")
+            _git(root, "config", "user.email", "t@example.com")
+            _git(root, "config", "user.name", "t")
+            _git(root, "config", "commit.gpgsign", "false")
+            (root / "f.txt").write_text("hello\n")
+            err = io.StringIO()
+            out = io.StringIO()
+            with contextlib.redirect_stderr(err), contextlib.redirect_stdout(out):
+                rc = ch.main(
+                    [
+                        "--repo",
+                        str(root),
+                        "create",
+                        "--session",
+                        "abcd1234",
+                        "--subject",
+                        "fixture",
+                        "--file",
+                        "f.txt",
+                    ]
+                    + extra
+                )
+            return rc, err.getvalue() + out.getvalue(), root
         finally:
             ch.verify_status, ch.structural_gate_reds = saved
 
+    def _shard(self, root: Path) -> str:
+        path = root / ch.VERIFICATION_DEBT_DIR / "abcd1234.md"
+        return path.read_text(encoding="utf-8") if path.exists() else ""
+
     def test_a_broken_head_alone_blocks_without_the_flag(self):
-        rc, msg = self._run([ch.TRACKED_BUILD_GATE], [])
+        rc, msg, _ = self._run([ch.TRACKED_BUILD_GATE], [])
         self.assertEqual(rc, 2, msg)
         self.assertIn("STRUCTURAL GATE", msg)
 
     def test_the_refusal_names_the_escape(self):
         # Telling the reader to "re-run a full verify until green" is advice that
         # cannot work here: only a commit clears this red.
-        _, msg = self._run([ch.TRACKED_BUILD_GATE], [])
+        _, msg, _ = self._run([ch.TRACKED_BUILD_GATE], [])
         self.assertIn("--broken-head-fix", msg)
 
-    def test_the_flag_lets_the_fixing_commit_through(self):
-        rc, msg = self._run(
+    def test_the_flag_alone_lets_the_fixing_commit_through(self):
+        # ONE flag. The stale verify record beside the broken HEAD needs none
+        # since 2026-08-21: it records a debt row and the commit proceeds.
+        rc, msg, _ = self._run(
             [ch.TRACKED_BUILD_GATE],
-            [
-                "--broken-head-fix",
-                "lands the PeerInfo field peer.go already reads",
-                "--unverified",
-                "record is stale because HEAD does not compile",
-            ],
+            ["--broken-head-fix", "lands the PeerInfo field peer.go already reads"],
         )
         self.assertEqual(rc, 0, msg)
         # Loud, or a broken HEAD reads the same as a green one in the transcript.
         self.assertIn("HEAD does not compile", msg)
 
     def test_the_flag_requires_a_reason(self):
-        rc, msg = self._run([ch.TRACKED_BUILD_GATE], ["--broken-head-fix", "   "])
+        rc, msg, _ = self._run([ch.TRACKED_BUILD_GATE], ["--broken-head-fix", "   "])
         self.assertEqual(rc, 2, msg)
-        # Assert the STRUCTURAL refusal specifically: a blank reason would exit 2
-        # through the later not-FRESH-green check too, so the exit code alone
-        # does not discriminate.
         self.assertIn("STRUCTURAL GATE", msg)
 
     def test_it_does_not_double_as_an_unverified(self):
         # It clears the STRUCTURAL refusal and nothing else. `verify_status` goes
         # stale for flaky test reds and for age too, and a reason written about
-        # HEAD does not speak for those, so --unverified is still required.
-        rc, msg = self._run([], ["--broken-head-fix", "no structural red here"])
-        self.assertEqual(rc, 2, msg)
-        self.assertIn("FRESH-green", msg)
+        # HEAD does not speak for those. Neither fact refuses the commit now, so
+        # what proves the flag did not absorb the verify gate is the ROW: the
+        # commit still owes ze-precommit-verify, and --push still refuses on it.
+        rc, msg, root = self._run([], ["--broken-head-fix", "no structural red here"])
+        self.assertEqual(rc, 0, msg)
+        self.assertIn("| ze-precommit-verify (not FRESH-green) |", self._shard(root))
 
     def test_it_does_not_wave_through_a_stale_record_even_when_head_is_broken(self):
         # The half the previous case misses: tracked-build IS red, the flag IS
-        # applied, and the record may ALSO be stale for reasons the reason given
-        # says nothing about. --unverified is still owed.
-        rc, msg = self._run(
+        # applied, and the record is ALSO stale for reasons the reason given says
+        # nothing about. Both gates are owed, so both rows are written.
+        rc, msg, root = self._run(
             [ch.TRACKED_BUILD_GATE], ["--broken-head-fix", "lands the missing producer"]
         )
-        self.assertEqual(rc, 2, msg)
-        self.assertIn("FRESH-green", msg)
+        self.assertEqual(rc, 0, msg)
+        shard = self._shard(root)
+        self.assertIn("| ze-precommit-verify (not FRESH-green) |", shard)
+        self.assertIn("(HEAD does not compile) |", shard)
 
-    def test_the_refusal_names_both_flags(self):
-        _, msg = self._run([ch.TRACKED_BUILD_GATE], [])
+    def test_the_refusal_asks_for_one_flag_only(self):
+        # It used to demand --unverified beside --broken-head-fix. Naming a flag
+        # that unlocks nothing sends the reader to type a sentence that changes
+        # no outcome, which is the ritual this model removed.
+        _, msg, _ = self._run([ch.TRACKED_BUILD_GATE], [])
         self.assertIn("--broken-head-fix", msg)
-        self.assertIn("--unverified", msg)
+        self.assertNotIn("--unverified", msg)
 
     def test_it_cannot_wave_through_another_structural_red(self):
         # The narrowness IS the guard: a lint or tier red riding alongside a
         # broken HEAD must still refuse.
-        rc, msg = self._run(
+        rc, msg, _ = self._run(
             [ch.TRACKED_BUILD_GATE, "ze-tier-check"],
             ["--broken-head-fix", "lands the missing producer"],
         )
@@ -4184,10 +4242,6 @@ class TestRfcChangedGate(unittest.TestCase):
                         self.TEST_PATH,
                         "--rfc-change-ok",
                         "Thomas approved it in chat on 2026-08-19",
-                        "--unverified",
-                        "temp repo, no verify record",
-                        "--missing-full-verify-ok",
-                        "temp repo, no verify record",
                     ]
                 )
             self.assertEqual(rc, 0, err.getvalue())
@@ -4234,10 +4288,6 @@ class TestTestCoverageGate(unittest.TestCase):
                     "feat(a): a thing",
                     "--file",
                     self.GO_PATH,
-                    "--unverified",
-                    "temp repo, no verify record",
-                    "--missing-full-verify-ok",
-                    "temp repo, no verify record",
                     *extra,
                 ]
             )
@@ -4434,14 +4484,48 @@ class TestFullVerifyCoverage(unittest.TestCase):
             )
         return rc, out.getvalue(), err.getvalue()
 
-    def test_create_refuses_a_go_commit_with_no_full_run(self) -> None:
+    def _shard(self, root: Path) -> str:
+        return (root / ch.VERIFICATION_DEBT_DIR / "abcd1234.md").read_text(
+            encoding="utf-8"
+        )
+
+    def test_create_records_debt_for_a_go_commit_with_no_full_run(self) -> None:
+        # Since 2026-08-21 the missing run is DEBT, not a refusal: the gate costs
+        # 25 to 53 minutes, and refusing here made a session hold finished work
+        # until one run was worth the wait (ai/rules/git-safety.md, "Verify a
+        # Commit, Not the Working Tree"). The row is what carries the obligation
+        # to the push.
         with tempfile.TemporaryDirectory() as tmp:
             root, path = self._git_repo_with_runner(tmp)
             rc, out, err = self._create(root, "--subject", "feat(a): x", "--file", path)
-            self.assertEqual(rc, 2, out)
+            self.assertEqual(rc, 0, out + err)
             self.assertIn("carries Go", err)
+            self.assertIn(
+                "| full ze-precommit-verify over this commit's Go |", self._shard(root)
+            )
 
-    def test_the_owner_override_clears_it_loudly(self) -> None:
+    def test_the_debt_row_refuses_the_push(self) -> None:
+        # The commit is free; the push is not. Downgrading the refusal without
+        # this would publish Go no full run has seen.
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._git_repo_with_runner(tmp)
+            rc, out, err = self._create(
+                root,
+                "--subject",
+                "feat(a): x",
+                "--file",
+                path,
+                "--push",
+                "Thomas ordered the push, 2026-08-21",
+            )
+            self.assertEqual(rc, 2, out + err)
+            self.assertIn("refusing --push", out + err)
+            self.assertIn("full ze-precommit-verify", out + err)
+
+    def test_the_flag_names_the_rows_reason_and_adds_no_second_row(self) -> None:
+        # --missing-full-verify-ok unlocks nothing now. It writes the REASON cell
+        # of the row the missing run already earns, and the gate is asked either
+        # way, so the flag can never hide the fact that no run happened.
         with tempfile.TemporaryDirectory() as tmp:
             root, path = self._git_repo_with_runner(tmp)
             rc, out, err = self._create(
@@ -4453,8 +4537,12 @@ class TestFullVerifyCoverage(unittest.TestCase):
                 "--missing-full-verify-ok",
                 "Thomas: land it, the runner is down",
             )
-            self.assertEqual(rc, 0, err)
-            self.assertIn("Owner override", err)
+            self.assertEqual(rc, 0, out + err)
+            shard = self._shard(root)
+            self.assertIn("Thomas: land it, the runner is down", shard)
+            self.assertEqual(
+                shard.count("| full ze-precommit-verify over this commit's Go |"), 1
+            )
 
     def test_one_run_covers_back_to_back_commits_of_the_same_code(self) -> None:
         # The debt is incurred by an EDIT, never by a commit: one body of work
@@ -4478,7 +4566,7 @@ class TestFullVerifyCoverage(unittest.TestCase):
             )
             self.assertEqual(rc, 0, err)
 
-    def test_a_go_deletion_is_gated_too(self) -> None:
+    def test_a_go_deletion_owes_the_run_too(self) -> None:
         # Deleting a .go file changes what the tree builds, so a commit that
         # only removes Go owes the same run as one that adds it.
         with tempfile.TemporaryDirectory() as tmp:
@@ -4494,10 +4582,16 @@ class TestFullVerifyCoverage(unittest.TestCase):
                 "--remove",
                 path,
             )
-            self.assertEqual(rc, 2, out)
+            self.assertEqual(rc, 0, out + err)
             self.assertIn("carries Go", err)
+            self.assertIn(
+                "| full ze-precommit-verify over this commit's Go |", self._shard(root)
+            )
 
     def test_a_commit_carrying_no_go_is_not_asked_for_a_full_run(self) -> None:
+        # The exit code alone stopped discriminating when the refusal became a
+        # debt row: every commit exits 0 now. The SHARD is what says whether the
+        # gate was charged, so that is what this asserts.
         with tempfile.TemporaryDirectory() as tmp:
             root, _ = self._git_repo_with_runner(tmp)
             (root / "docs").mkdir()
@@ -4506,6 +4600,9 @@ class TestFullVerifyCoverage(unittest.TestCase):
                 root, "--subject", "docs: x", "--file", "docs/x.md"
             )
             self.assertEqual(rc, 0, err)
+            self.assertFalse(
+                (root / ch.VERIFICATION_DEBT_DIR / "abcd1234.md").exists(), out + err
+            )
 
     def test_a_checkout_with_no_verify_runner_cannot_answer(self) -> None:
         # Mirrors verify_status(): a gate never invents an answer it cannot
@@ -4549,9 +4646,46 @@ class TestVerificationDebt(unittest.TestCase):
             ["another session's red", "index dirty from concurrent work"],
         )
 
-    def test_no_override_owes_nothing(self) -> None:
+    def test_no_override_and_nothing_measured_owes_nothing(self) -> None:
         args = argparse.Namespace(**{attr: None for attr, _ in ch.DEBT_FLAGS})
         self.assertEqual(ch.debt_owed(args), [])
+
+    def test_a_measured_gate_owes_a_row_with_no_flag(self) -> None:
+        """The 2026-08-21 model: the FACT writes the row, not the flag.
+
+        A stale verify record used to refuse the commit unless a reason was
+        typed. Now it lets the commit through, so the row has to come from the
+        measurement or the obligation is simply lost and `--push` has nothing to
+        refuse on.
+        """
+        args = argparse.Namespace(**{attr: None for attr, _ in ch.DEBT_FLAGS})
+        owed = ch.debt_owed(args, [("unverified", "verify-status is not FRESH-green")])
+        self.assertEqual(
+            owed,
+            [
+                (
+                    "ze-precommit-verify (not FRESH-green)",
+                    "verify-status is not FRESH-green",
+                )
+            ],
+        )
+
+    def test_a_declared_reason_wins_over_the_measured_one(self) -> None:
+        """One gate, one row. The caller can say whose red it is and which run
+        will cover the commit; the measurement can only say what state the
+        record is in, so the typed reason is the one kept."""
+        args = argparse.Namespace(**{attr: None for attr, _ in ch.DEBT_FLAGS})
+        args.unverified = "another session's iface break, my own gates ran green"
+        owed = ch.debt_owed(args, [("unverified", "verify-status is not FRESH-green")])
+        self.assertEqual(
+            owed,
+            [
+                (
+                    "ze-precommit-verify (not FRESH-green)",
+                    "another session's iface break, my own gates ran green",
+                )
+            ],
+        )
 
     def test_a_recorded_row_reads_back_as_open(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -1008,10 +1008,16 @@ def verify_status(repo: Path, paths: tuple[str, ...] | list[str]) -> tuple[str, 
     Scoping the FRESHNESS question is not a route around a structural red: that
     is `structural_gate_reds`, and it still reads every red the run recorded.
 
-    state is "fresh", "stale", or "unknown". Only "stale" blocks a commit:
-    the gate enforces a CONFIRMED red, it never invents one when the checker is
-    unavailable (missing script, isolated test repo, minimal checkout). This
-    never raises.
+    state is "fresh", "stale", or "unknown". Only "stale" costs the commit a
+    verification-debt row: the gate charges a CONFIRMED red, it never invents one
+    when the checker is unavailable (missing script, isolated test repo, minimal
+    checkout). This never raises.
+
+    Since 2026-08-21 a "stale" answer does not refuse the commit. It records the
+    row, the commit proceeds, and `--push` refuses while the row is open
+    (ai/rules/git-safety.md, "Verify a Commit, Not the Working Tree"). What still
+    refuses at commit time is a structural red charged to the commit's files,
+    which `structural_gate_reds` answers.
     """
     script = repo / "scripts" / "dev" / "verify-status.sh"
     if not script.exists():
@@ -1036,8 +1042,9 @@ def verify_status(repo: Path, paths: tuple[str, ...] | list[str]) -> tuple[str, 
 # violation, a broken plugin boundary, an unresolved iface, a failed feature-tag
 # type-check, a stale generated file, a stale wiring index, or a HEAD that does
 # not compile (ze-repository-tracked-build-check). They are therefore NOT eligible to be parked
-# in plan/known-failures/
-# or waved through with --unverified. Every name here MUST be a stage that
+# in plan/known-failures/, and they are the one fact `create` still refuses to
+# commit over: an unverified commit lands and owes a debt row, a structurally
+# broken one does not. Every name here MUST be a stage that
 # stagesForMode actually emits, or it matches nothing and gates nothing;
 # that is enforced by TestStructuralGatesAreLiveStages (Go, scripts/status)
 # and test_structural_gates_are_live_stages (Python, scripts/dev).
@@ -3553,14 +3560,20 @@ def _spec_closed_earlier(repo: Path, stem: str) -> bool:
 
 # --- Verification debt -------------------------------------------------------
 #
-# A commit override says "this gate did not run green over this commit, and I am
-# committing anyway". Before this ledger those overrides were waved through with
-# a reason nobody could find again, and the alternative -- refusing the commit --
-# is worse: several sessions share this checkout, the record is red for somebody
-# else's in-flight work nearly always, and a commit that never lands is the most
-# expensive failure this repo has (`ai/rules/rule-precedence.md`).
+# A row says "this gate did not run green over this commit, and the commit was
+# made anyway". Before this ledger the same commits were made and nothing was
+# written down, and the alternative -- refusing the commit -- is worse: several
+# sessions share this checkout, the record is red for somebody else's in-flight
+# work nearly always, and a commit that never lands is the most expensive failure
+# this repo has (`ai/rules/rule-precedence.md`).
 #
-# So the override is allowed and the OBLIGATION is written down. What is recorded
+# Since 2026-08-21 the row is written from the FACT rather than from a flag: a
+# stale verify record and Go no full run has seen each record one, whether or not
+# the caller typed an override (`create`, and ai/rules/git-safety.md "Verify a
+# Commit, Not the Working Tree"). An override flag survives to give the row its
+# REASON, which is the attribution a measurement cannot make.
+#
+# So the commit is allowed and the OBLIGATION is written down. What is recorded
 # is VERIFICATION debt: a gate that has not yet run over this code. That is a
 # different thing from a DEFECT, which `ai/rules/completion.md` requires you to
 # fix rather than record, and this ledger is never a home for one.
@@ -3572,7 +3585,9 @@ def _spec_closed_earlier(repo: Path, stem: str) -> bool:
 # VERIFICATION_DEBT_DIR itself is declared beside DEFERRAL_SCAN_EXEMPT_DIRS,
 # which names it and is read at import time well before this point.
 
-# Each override flag, and the gate whose absence it is admitting.
+# Each gate a commit can owe, keyed by the flag that declares it. `debt_owed`
+# reads the flag and the fact `create` measured under the same key, so a gate
+# whose absence the run detects needs no flag to earn its row.
 DEBT_FLAGS = (
     ("unverified", "ze-precommit-verify (not FRESH-green)"),
     ("structural_red_ok", "ze-precommit-verify structural gates (red)"),
@@ -3593,11 +3608,31 @@ def debt_shard_path(session: str) -> str:
     return f"{VERIFICATION_DEBT_DIR}/{session}.md"
 
 
-def debt_owed(args: argparse.Namespace) -> list[tuple[str, str]]:
-    """(gate, reason) for every override this create used. Order is DEBT_FLAGS."""
+def debt_owed(
+    args: argparse.Namespace,
+    observed: list[tuple[str, str]] | tuple[tuple[str, str], ...] = (),
+) -> list[tuple[str, str]]:
+    """(gate, reason) for every gate this commit owes. Order is DEBT_FLAGS.
+
+    Two sources name the same gates. `args` carries what the CALLER declared: an
+    override flag, whose reason is the attribution the ledger keeps. `observed`
+    carries what `create` MEASURED, keyed by the same flag name: a verify record
+    that is not FRESH-green, or Go that no full run has seen. Since 2026-08-21
+    those two facts record a row instead of refusing the commit, so a row is
+    written whether or not anybody typed a flag (ai/rules/git-safety.md).
+
+    A declared reason WINS over a measured one for the same gate. The caller can
+    say whose red it is and which run will cover the commit; the measurement can
+    only say what state the record is in. One gate never yields two rows: this
+    walks DEBT_FLAGS once, which is what `record_debt` and `open_debt_rows` both
+    rely on.
+    """
+    measured = dict(observed)
     owed: list[tuple[str, str]] = []
     for attr, gate in DEBT_FLAGS:
-        reason = (getattr(args, attr, None) or "").strip()
+        reason = (getattr(args, attr, None) or "").strip() or measured.get(
+            attr, ""
+        ).strip()
         if reason:
             owed.append((gate, reason))
     return owed
@@ -4088,20 +4123,31 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
     # Refuse an unusable authorisation before any expensive gate runs: the reason
     # is the only record of who ordered the push.
     push_reason = push_authorisation(args.push)
-    # Verify gate: a commit script must not be prepared over a non-green verify
-    # unless the caller explicitly acknowledges why (owner override, or a
-    # known-red logged in plan/known-failures/). This turns "verify before
-    # commit" from honor-system into an enforced, overridable gate. See
-    # ai/rules/git-safety.md.
+    # Verify gate. It reads the verify record, and since 2026-08-21 that reading
+    # gates the PUSH rather than the commit (ai/rules/git-safety.md, "Verify a
+    # Commit, Not the Working Tree"). A commit that stays local costs nobody
+    # anything and a commit that never happens costs the work, so a record that
+    # is not FRESH-green records a verification-debt row here and the commit
+    # proceeds. `--push` refuses while that row is open, which is where the debt
+    # is really owed: a push is what reaches users.
+    #
+    # `observed_debt` is what this run MEASURED, keyed by the flag whose gate it
+    # names, and `debt_owed` merges it with what the caller declared.
+    observed_debt: list[tuple[str, str]] = []
     vstate, detail = verify_status(repo, add_paths + remove_paths)
     if vstate == "stale":
         # A DETERMINISTIC STRUCTURAL GATE red (tier/lint/vet/plugin-boundary/
         # iface-resolution/regen-check-readonly/wiring-docs/tracked-build) is
-        # never flaky or environmental: the tree is structurally broken. Such a red is
-        # NOT bypassable by --unverified or a plan/known-failures/ known-red
-        # (those cover flaky TEST stages only). This closes the hole that let a
-        # misplaced-tier gate (routeinstall) be parked as "pre-existing" and
-        # shipped red on main. See ai/rules/git-safety.md.
+        # never flaky or environmental: the tree is structurally broken. That is a
+        # DIFFERENT fact from unverified, and it is the one thing still refused at
+        # commit time. Unverified says a gate has not run over this code, which a
+        # debt row carries to the push. Structurally broken says the code does not
+        # hold together now, and a debt row cannot carry that anywhere: the next
+        # session inherits a tree that does not build. It is NOT eligible for a
+        # plan/known-failures/ known-red either (those cover flaky TEST stages
+        # only). This closes the hole that let a misplaced-tier gate
+        # (routeinstall) be parked as "pre-existing" and shipped red on main.
+        # See ai/rules/git-safety.md.
         reds = structural_gate_reds(repo, add_paths + remove_paths)
         gate_reds = list(reds.charged)
         # Attribution is LOUD in both directions. A dropped red is still a red
@@ -4137,14 +4183,14 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
                 file=sys.stderr,
             )
             gate_reds = []
-        # ONE escape, owner-only, and deliberately NOT --unverified: keeping it a
-        # separate flag means the flaky-test path can never reach this branch by
-        # accident, and the reason has to be written down. Without any escape a
-        # green tree was the only route to any commit at all -- including one that
-        # touches no compiled code and cannot affect the red -- so the refusal was
-        # pushing sessions toward the real hole: widening --unverified or editing
-        # STRUCTURAL_GATES. The override is LOUD on purpose: a silent bypass would
-        # make a red tree indistinguishable from a green one in the transcript.
+        # ONE escape, owner-only, and it carries its own flag so that nothing
+        # which merely says "this code is unverified" can reach this branch. The
+        # reason has to be written down. Without any escape a red structural gate
+        # was the only route to any commit at all -- including one that touches no
+        # compiled code and cannot affect the red -- so the refusal was pushing
+        # sessions toward the real hole: editing STRUCTURAL_GATES. The override is
+        # LOUD on purpose: a silent bypass would make a red tree
+        # indistinguishable from a green one in the transcript.
         if gate_reds and (args.structural_red_ok or "").strip():
             print(
                 "WARNING: committing over a RED structural gate: "
@@ -4158,13 +4204,14 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
             gate_reds = []
         if gate_reds:
             raise UsageError(
-                "ze-precommit-verify has a DETERMINISTIC STRUCTURAL GATE red that "
-                "--unverified cannot bypass: " + ", ".join(gate_reds) + ".\n"
+                "ze-precommit-verify has a DETERMINISTIC STRUCTURAL GATE red charged "
+                "to this commit: " + ", ".join(gate_reds) + ".\n"
                 "  Structural gates (tier/lint/vet/plugin-boundary/iface-resolution/\n"
                 "  regen-check-readonly/wiring-docs/tracked-build) never fail for flaky\n"
                 "  or environmental reasons -- a red means the tree is structurally\n"
-                "  broken. They are NOT eligible for --unverified or a\n"
-                "  plan/known-failures/ known-red.\n"
+                "  broken. An unverified commit lands and owes a debt row. A BROKEN one\n"
+                "  does not, because the next session inherits the tree. This red is NOT\n"
+                "  eligible for a plan/known-failures/ known-red.\n"
                 + (
                     "  Charged for want of attribution: "
                     + "; ".join(reds.unattributed)
@@ -4182,8 +4229,8 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
                     "  usually because a commit took a consumer and left its producer\n"
                     "  uncommitted. That red is cleared BY a commit, not before one. If THIS\n"
                     '  commit lands the missing producer, pass --broken-head-fix "<reason>"\n'
-                    '  (and --unverified "<reason>" as well: the verify record is not green,\n'
-                    "  and a reason written about HEAD does not speak for anything else).\n"
+                    "  and prepare it again. The stale verify record needs no flag: it\n"
+                    "  records a debt row and --push refuses while that row is open.\n"
                     if TRACKED_BUILD_GATE in gate_reds
                     else ""
                 )
@@ -4211,63 +4258,61 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
                     else ""
                 )
             )
-        # --structural-red-ok acknowledges a strictly WORSE condition than
-        # --unverified (a red structural gate, not a flaky test), so it satisfies
-        # this check too rather than demanding both flags for one decision.
-        # --broken-head-fix is deliberately NOT in this list. It answers one
-        # question -- "may the commit that repairs a broken HEAD be prepared" --
-        # and `verify_status` goes stale for flaky test reds and for age as well.
-        # Letting a reason written about HEAD wave those through would make it a
-        # self-service --unverified. The fixing commit passes both flags.
-        if not args.unverified and not (args.structural_red_ok or "").strip():
-            raise UsageError(
-                "ze-precommit-verify is not FRESH-green ("
-                + (detail or "unknown")
-                + ").\n"
-                "  Run `make ze-precommit-verify` (or `make ze-precommit-verify-changed`) until green, then\n"
-                '  commit, OR pass --unverified "<reason>" to commit anyway (owner\n'
-                "  override, or a flaky/environmental known-red logged in\n"
-                "  plan/known-failures/; structural gates are never eligible)."
-            )
-    # Full-verify coverage gate (owner directive, 2026-08-17): a commit carrying
-    # Go must be preceded by a FULL `make ze-precommit-verify` that ran after the
-    # last Go edit. This is a different question from the verify-status gate
-    # above, which asks whether the record is GREEN. In a shared checkout the
-    # record is red for another session's in-flight work nearly every time, and
-    # the directive says to take that code as working -- so --unverified is
-    # passed on almost every commit and stopped being evidence that the gate ran
-    # at all. Hence a separate flag: --unverified explains a red, and this one
-    # answers "did the full run happen over YOUR code". See ai/rules/git-safety.md.
+        # The record is not FRESH-green, and past this point nothing about that
+        # refuses the commit. The gate is OWED, not skipped: one row per gate, and
+        # `--push` refuses while any row is open. No flag is required, and that is
+        # the point of the 2026-08-21 directive -- a reason typed on every commit
+        # stops being read, and the reason nobody reads was the only thing the
+        # refusal bought.
+        #
+        # `--unverified` still writes this row's reason when the caller gives one,
+        # because a caller can say whose red it is and which run will cover the
+        # commit. `detail` is the checker's verdict, and it can only say what
+        # state the record is in.
+        observed_debt.append(
+            ("unverified", "verify-status is not FRESH-green: " + (detail or "unknown"))
+        )
+        print(
+            "verification debt: ze-precommit-verify is not FRESH-green ("
+            + (detail or "unknown")
+            + ").\n"
+            "  The commit proceeds and owes one debt row. --push refuses while that\n"
+            "  row is open. Clear it with `make ze-verify-debt-clear`, which re-runs\n"
+            "  the gate and writes `cleared` only on exit 0.",
+            file=sys.stderr,
+        )
+    # Full-verify coverage: did a FULL `make ze-precommit-verify` run after the
+    # last Go edit this commit carries? This is a different question from the one
+    # the verify record answers above, and it earns a row of its own for that
+    # reason: one gate says a run went red, the other says no run happened at
+    # all. Both are verification debt, and since 2026-08-21 both record a row and
+    # let the commit through (ai/rules/git-safety.md, "Verify a Commit, Not the
+    # Working Tree"). The gate costs 25 to 53 minutes, so refusing here made a
+    # session batch its finished work until one run was worth the wait, which is
+    # the accumulation the directive exists to stop.
+    #
     # Removals count: deleting a .go file changes what the tree builds, and at
     # `create` time the file is still on disk (the script runs the git rm), so
     # its mtime reads like any other -- old, hence covered by an existing run.
+    #
+    # The coverage question is asked whether or not --missing-full-verify-ok was
+    # given: the flag writes the row's reason, and it does not decide whether the
+    # run happened.
     go_files = go_paths_in(add_paths + remove_paths)
-    if go_files and (args.missing_full_verify_ok or "").strip():
-        # LOUD on purpose: a silent bypass makes an unverified Go commit
-        # indistinguishable from a verified one in the transcript.
-        print(
-            "WARNING: committing Go with no full ze-precommit-verify over it.\n"
-            "  Owner override: " + args.missing_full_verify_ok.strip(),
-            file=sys.stderr,
-        )
-    elif go_files:
+    if go_files:
         cstate, cdetail = full_verify_coverage(repo, go_files)
-        if cstate == "uncovered":
-            raise UsageError(
-                "this commit carries Go and no full ze-precommit-verify covers it: "
-                + cdetail
-                + ".\n"
-                "  Owner directive (2026-08-17): a commit carrying .go, go.mod, go.sum or\n"
-                "  vendor/ is preceded by a full `make ze-precommit-verify`. Its RED stages\n"
-                "  do not block this commit -- a failure in code another session has\n"
-                "  uncommitted is taken as working, named in --unverified, and committed.\n"
-                "  What blocks it is never having run the gate over your own code.\n"
-                "  Run `make ze-precommit-verify` (25-30 min, foreground, and it takes a\n"
-                "  repo-wide lock), then prepare the commit, OR pass\n"
-                '  --missing-full-verify-ok "<reason>" (owner override only).'
-            )
         if cstate == "covered":
             print(f"full-verify coverage: {cdetail}")
+        elif cstate == "uncovered":
+            observed_debt.append(("missing_full_verify_ok", cdetail))
+            print(
+                "verification debt: this commit carries Go and no full "
+                "ze-precommit-verify covers it (" + cdetail + ").\n"
+                "  The commit proceeds and owes one debt row. --push refuses while that\n"
+                "  row is open. Clear it with `make ze-verify-debt-clear`, which runs the\n"
+                "  full gate (25-53 min, foreground, and it takes a repo-wide lock).",
+                file=sys.stderr,
+            )
     # Discovery-index gate: the generated maps (ai/PACKAGE-MAP.md,
     # ai/DOCS-TO-CODE.md, ai/LEARNED-FULL-INDEX.md) must match the committed
     # sources. With no CI, this is the only place the freshness is enforced.
@@ -4339,11 +4384,12 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
             + " --files"
             + ("" if not rc_code else " " + quote_paths(rc_code))
         )
-    # Verification debt. Every override used above admits a gate that has not run
-    # green over this commit; each becomes one row, and the shard rides along in
-    # the commit so the obligation reaches the session that eventually pushes.
+    # Verification debt. Every gate that has not run green over this commit
+    # becomes one row -- the ones the run MEASURED (`observed_debt`) and the ones
+    # an override flag declared. The shard rides along in the commit so the
+    # obligation reaches the session that eventually pushes.
     # Recorded AFTER the gates, so the shard itself can never trip one.
-    owed = debt_owed(args)
+    owed = debt_owed(args, observed_debt)
     debt_rel: str | None = None
     if owed and not args.dry_run:
         debt_rel = record_debt(repo, session, args.subject, owed)
@@ -4395,8 +4441,11 @@ def _create(args: argparse.Namespace, repo: Path, session: str, tag: str) -> int
         print(f"session={session}")
         print(f"message={msg_path}")
         print(f"script={script.relative_to(repo).as_posix()}")
+        # The STATE is always what is printed. `--unverified` annotates the debt
+        # row, and a flag must never rename the record's state in the output the
+        # session reads back.
         if args.unverified:
-            print(f"verify=UNVERIFIED ({args.unverified})")
+            print(f"verify={vstate.upper()} (unverified: {args.unverified})")
         else:
             print(f"verify={vstate.upper()} ({detail})")
         if args.review_override and spec_closure_stem(add_paths, remove_paths, repo):
@@ -4523,33 +4572,34 @@ def build_parser() -> argparse.ArgumentParser:
         "HEAD itself does not compile. Use when THIS commit lands the producer a "
         "previous commit left behind. Accepted only when tracked-build is the ONLY "
         "structural red, so it can never wave through a lint, tier or wiring failure. "
-        "It clears the STRUCTURAL refusal and nothing else: pass --unverified as "
-        "well, since the verify record is not green either",
+        "It clears the STRUCTURAL refusal and nothing else. The stale verify record "
+        "needs no flag: it records a debt row on its own",
     )
     create_cmd.add_argument(
         "--unverified",
-        help="reason this commit lands while ze-precommit-verify is not FRESH-green. "
-        "SELF-SERVICE: give a truthful reason and proceed -- do not stop to ask. "
-        "The gate is not skipped, it is OWED: one row lands in "
-        "plan/verification-debt/<session>.md and --push refuses while it is open",
+        help="OPTIONAL. The reason cell for the row a not-FRESH-green verify record "
+        "already writes: whose red it is, and which run will cover this commit. It "
+        "unlocks nothing, because nothing is locked -- the commit lands either way "
+        "and --push refuses while the row is open. Without it the row carries the "
+        "checker's own verdict",
     )
     create_cmd.add_argument(
         "--structural-red-ok",
         help="reason this commit lands while a deterministic structural gate is red in "
-        "the verify record. Deliberately separate from --unverified so the flaky-test "
-        "path can never reach it. Use when the red belongs to another session's "
-        "in-flight work and this commit cannot affect it. SELF-SERVICE and RECORDED: "
-        "the reason is echoed with the red gate names and becomes an open row in "
+        "the verify record. This one DOES unlock a refusal, and it is the only flag "
+        "that reaches it: a broken tree is a different fact from an unverified one. "
+        "Use when the red belongs to another session's in-flight work and this commit "
+        "cannot affect it. SELF-SERVICE and RECORDED: the reason is echoed with the "
+        "red gate names and becomes an open row in "
         "plan/verification-debt/<session>.md that --push refuses to publish over",
     )
     create_cmd.add_argument(
         "--missing-full-verify-ok",
-        help="reason to prepare a commit carrying Go when no full ze-precommit-verify ran "
-        "after the last Go edit. Deliberately separate from --unverified, which "
-        "explains a RED run: in a shared checkout that flag is passed on nearly every "
-        "commit, so it cannot also certify that the run happened. SELF-SERVICE and "
-        "RECORDED: the missing coverage becomes an open row in "
-        "plan/verification-debt/<session>.md that --push refuses to publish over",
+        help="OPTIONAL. The reason cell for the row a commit carrying Go already "
+        "writes when no full ze-precommit-verify ran after its last Go edit. It is "
+        "a separate row from --unverified because it answers a separate question: "
+        "that one explains a RED run, this one covers a run that never happened. "
+        "--push refuses while either row is open",
     )
     create_cmd.add_argument(
         "--stale-index-ok",
