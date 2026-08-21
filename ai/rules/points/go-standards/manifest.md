@@ -127,6 +127,11 @@ file-cross-references ## File Cross-References
   update-cross-references-when-a-file-moves
   exempt
   the-files-exempt-from-cross-references
+external-commands ## External Commands
+  ze-code-must-not-fork-a-system-tool
+  an-authorised-command-is-in-the-register
+  read-the-kernel-interface-instead
+  the-harness-is-not-ze
 no-backwards-compatibility ## No Backwards Compatibility
   pre-release-current-state
   ze-is-unreleased-so-write-no-compat-code

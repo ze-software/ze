@@ -443,6 +443,16 @@ When renaming/deleting a `.go` file, search for `// Detail:`, `// Overview:`, an
 
 Same as `// Design:`: `*_test.go`, `*_gen.go`, `register.go`, `embed.go`, `doc.go`.
 
+## External Commands
+
+**Ze code MUST NOT run an external binary.** No `exec.Command`, no `exec.CommandContext`, no shell. Ze is a network operating system: it runs on an appliance image carrying no shell utilities, inside a network namespace carrying nothing, and on a router nobody restarts. A fork buys three defects and one convenience. It depends on a binary the environment does not carry. It answers with a second implementation's opinion about the kernel, where Ze holds its own. And it reports nothing exactly when the environment is minimal and an operator most needs an answer.
+
+**Thomas authorises every exception, and it MUST carry a row in `ai/allowed-system-commands.md` before the code lands.** The register is the only authority: a fork whose command names no row there is a defect whatever the comment beside it says. An agent that believes a fork is unavoidable MUST state the case and STOP. It MUST NOT add its own row, and it MUST NOT ask whether to skip the Go path -- the question is which Go path to take.
+
+**Take the native path, and it nearly always exists.** Links, routes, addresses and generic families come from `vishvananda/netlink`; a family it does not wrap is still reachable by building the request by hand, as `scripts/evidence/l2tp-tunnel-diag/main.go` does for L2TP, which the library does not support at all. `/proc` and `/sys` answer through `os.ReadFile`, a device node through `os.Stat`, and the rest through `x/sys/unix`. A fork that only formats something Ze already knows MUST be replaced by stating Ze's own view, because a second view can disagree with it.
+
+**Test code and the build harness are outside this rule.** A `_test.go` anywhere, `test/`, `internal/test/`, `Makefile`, `mk/` and `scripts/dev/` all drive a developer machine or a CI runner, where the toolchain is present by construction and calling it is often the point: a test MAY run whatever it needs to set up or observe. What is governed is what Ze SHIPS and runs on an appliance: non-test code under `cmd/`, `internal/`, `pkg/` and `scripts/evidence/`, in every build and on every platform. A diagnostic Ze ships is Ze, and it runs where no toolchain exists.
+
 ## No Backwards Compatibility
 
 ### Pre-release (current state)
