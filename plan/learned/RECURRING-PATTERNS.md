@@ -585,6 +585,43 @@ whole applicable set, triage the gaps, and file the remainder as
 tracked work. `/ze-hunt` can enumerate applicable sites for
 grep-detectable test types.
 
+### An acceptance criterion written as an absence cannot be met
+
+**Symptom.** A criterion reads "a grep for the retired name returns nothing".
+The implementer runs it, gets a page of hits, and judges each one alone. The
+criterion is never demonstrably met, and the review ends up writing the rule the
+criterion should have carried.
+
+**Cause.** A removal leaves survivors that are correct, and some of them MUST
+spell the removed string. A fixture proving the name is gone has to name it. A
+YANG revision log records what a past revision did. A release note exists for
+the operator who types the retired spelling. Another daemon's command still
+works in that daemon. A record of the change describes what happened. An absence
+criterion outlaws all five, so no tree can satisfy it, and the hits that ARE
+wrong hide among the ones that are right.
+
+**Evidence.** spec-cli-show-bgp-is-the-command, AC-9, 2026-08-21. It asked for
+nothing outside git history and the spec itself. The tree held five kinds of
+correct survivor. Four of the five were declared after the fact and all four
+held, but six OPEN specs that named the retired command as a LIVE command in
+their own acceptance criteria sat in the same grep output and were noticed only
+when the review looked. The same shape is recorded for TESTS in
+`ai/rules/interop-and-goal-validation.md`: a test asserting an absence passes
+when the mechanism is deleted.
+
+**Avoid it by.** Writing the exception list INTO the criterion, at the moment
+you write the criterion, never after the first grep. State it positively: name
+the population that must move (the callers), then name the kinds that stay (an
+absence assertion, a changelog entry, a release note, another product's
+spelling, a record of the change). A criterion an implementer can run without
+judgment is one an implementer can meet.
+
+**Recover if you hit it.** Sort every survivor into a kind and write the kinds
+into the criterion. Then read the survivors no kind covers. Those are the
+misses, and they are what the absence phrasing was hiding.
+
+---
+
 ---
 
 ## Multi-source-of-truth traps
@@ -681,6 +718,78 @@ shard with a named destination spec.
 
 **Recover if you hit it.** Read the entire summary for "future",
 "deferred", "not yet wired"; pick up the work.
+
+### An inventory command is not the population it reports on
+
+**Symptom.** You build the list of every command under a prefix from
+`make ze-command-list`, register something against each entry, and ship. Live
+paths the list never named keep the old behavior, and no gate goes red.
+
+**Cause.** Ze resolves a typed command from THREE registries: the builtin RPCs,
+the plugin names, and the local handlers `registry.MustRegisterLocal` owns
+(`internal/component/bgp/cli/register.go`). `collect`
+(`scripts/inventory/commands.go`) walks `AllBuiltinRPCs` and the streaming
+prefixes, which is the first of the three. A verification tool blind to two
+thirds of the population answers "complete" about the third it can see.
+
+**Evidence.** spec-cli-show-bgp-is-the-command, 2026-08-21, Review Gate
+BLOCKER-1. Ten live paths under `show bgp` (five rpki commands, two rs, two
+adj-rib-in, healthcheck, plus decode and encode) kept inheriting the parent's
+column orders and its summary and peers aliases, so the completer offered the
+peers alias on ROA output. Measured with `AliasesForCommand` and
+`ColumnsForCommand`, not argued. The class file
+`plan/journal/gate-excludes-part-of-its-population.md` held 54 rows that day.
+
+**Avoid it by.** Deriving the population from what the RUNTIME resolves, never
+from an inventory. Then registering at the SHALLOWEST path of each branch rather
+than at each leaf. A branch root prefixes every leaf under it, the leaves nobody
+has written yet included, and the spellings that carry a selector in the middle:
+`commandMatchesPrefix` (`internal/component/command/column_order.go`) resolves
+the string the operator TYPED, so `show bgp peer detail` is not a prefix of
+`show bgp peer 192.0.2.1 detail` and a per-leaf registration never applies to it.
+Ten branch entries replaced fifteen leaf entries and covered every path the
+fifteen missed.
+
+**Recover if you hit it.** Drive the assertion from the operator's spelling, not
+from the registration's. A unit test that spells the paths the way the
+registration spells them cannot see the hole.
+`TestChildCommandsDoNotInheritTheSummaryOrder` drives each branch, each command
+beneath it, and each selector spelling, and dropping one branch from the list
+turns seven subtests red.
+
+---
+
+### A renamed command leaves its parameter schema keyed to the old rpc name
+
+**Symptom.** A command keeps answering after a rename and quietly loses its
+schema. `ze yang doc <command>` prints no "Parameters (output):" block, and the
+hub's per-command metadata carries no input parameters.
+
+**Cause.** Two YANG modules spell the same rpc and only one of them holds the
+`ze:command` binding. `AllRPCDocs`
+(`internal/component/config/yang/cli/tree.go`) looks up
+`paramIndex[doc.WireMethod]`, and `buildParamMeta`
+(`cmd/ze/hub/command_meta.go`) compares `rpc.Name` against the rpc half of the
+wire method. Both lookups MISS silently: the map returns the zero value and the
+loop finds no match, so the command renders with no parameters instead of
+failing. Renaming the command container and its wire method without renaming the
+`rpc` in the matching `-api` module is what breaks the key.
+
+**Evidence.** spec-cli-show-bgp-is-the-command, phase 3, 2026-08-21. The spec's
+Files to Modify never listed `internal/component/bgp/yang/ze-bgp-api.yang`.
+`rpc summary` there had to become `rpc overview` to follow the `ze-bgp:overview`
+wire method, or `show bgp` would have answered correctly with no payload schema
+behind it. `TestDocCommandWithOutputParams` pins it.
+
+**Avoid it by.** Grepping the bare rpc NAME across every YANG module when you
+rename a command, not only the wire-method string. The `-api` and `-cmd` modules
+are separate files, and a rename touches both.
+
+**Recover if you hit it.** Run `ze yang doc <command>` and check the parameter
+block is still there. A command whose schema vanished still answers, so no
+functional test sees it.
+
+---
 
 ---
 
@@ -868,6 +977,35 @@ current APIs (the old code's dependencies may have changed). The
 restoration is usually straightforward because the feature's runtime
 dependencies survive the refactor -- only the entry point and glue
 are deleted.
+
+### A phase runs the suites its files sit in, not the suites its change reaches
+
+**Symptom.** A phase is green and lands. A functional test in a suite nobody ran
+has been red since it landed, and the phases after it do not see the red either,
+because each one picks its suites the same way.
+
+**Cause.** The suite is chosen from the directory the edit is in. A registration
+change under `internal/component/bgp/plugins/cmd/peer/` reads as BGP work, so
+the package unit tests and the plugin suite get run. What the change actually
+alters is column rendering and pipe aliases, and that is what `test/ui/` covers.
+
+**Evidence.** spec-cli-show-bgp-is-the-command, 2026-08-21, Review Gate
+BLOCKER-2. `test/ui/show-column-order-absent-unchanged.ci` was RED on HEAD
+across four landed phases. Its stated purpose is that the prefix lookup does not
+leak a column order onto a command that declared none, which is exactly what
+phase 1 broke. Phase 5 was verification only and ran no suite at all. The review
+found it by running `make ze-functional-ui-test`.
+
+**Avoid it by.** Choosing the suite from the SURFACE the change alters, not from
+the package it edits. A registration that decides how output renders is a
+`test/ui/` change wherever its Go file lives.
+
+**Recover if you hit it.** Run the suite over HEAD before you assume your
+working tree caused the red. A test that was already red names the phase that
+broke it, and `git log` over the fixture says whether the fixture or the code
+moved.
+
+---
 
 ---
 
