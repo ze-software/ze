@@ -29,6 +29,12 @@ pushing-2026-08-05-owner-amendment ## Pushing (2026-08-05, owner amendment)
   what-to-do-when-a-push-goes-wrong
 commit-granularity ## Commit Granularity
   make-one-commit-per-logical-change
+  land-each-chunk-as-it-finishes
+  a-wide-working-tree-is-the-signal
+verify-a-commit-not-the-working-tree ## Verify a Commit, Not the Working Tree
+  the-gate-runs-on-a-commit-in-a-worktree
+  an-edit-during-a-run-voids-it
+  verify-periodically-not-per-commit
 commit-ownership-in-parallel-sessions-2026-07-10-owner ## Commit Ownership in Parallel Sessions (2026-07-10, owner decision)
   clear-the-index-after-a-failed-commit
   read-the-staged-list-after-any-failed-commit

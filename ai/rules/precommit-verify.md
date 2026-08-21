@@ -345,14 +345,27 @@ the commit script, on either route:
 2. You MUST ATTRIBUTE every red you saw, by the table above: name the file, and say
    whose it is. `git status --porcelain` plus a modification time settles it in seconds.
 3. You MUST prepare the script and let the helper judge your own paths first: `create` scopes
-   the freshness question to your `--file` list, so another session's edit needs no override.
-   When it still refuses, you MUST pass `--unverified "<attribution>"`, giving the gates you ran
-   and their verdicts, and naming the concurrent session's paths whose reds you attributed away.
+   the freshness question to your `--file` list, so an edit outside it changes nothing.
+   Since 2026-08-21 a stale record does NOT refuse the commit: it records a
+   verification-debt row and proceeds, and `--push` is what refuses while a row is
+   open (`ai/rules/git-safety.md`, "Verify a Commit, Not the Working Tree"). You
+   MUST still pass `--unverified "<attribution>"`, because that reason is the Reason
+   cell of the row: give the gates you ran and their verdicts, and name the paths
+   whose reds you attributed away. A row with no attribution leaves the next reader
+   with a debt nobody can judge. The one red that still REFUSES the commit is a
+   structural gate charged to it, and `--unverified` never cleared that.
 
 **`--unverified` is the CORRECT path in a shared checkout, not a shortcut.** It
 exists for exactly this: a full-tree gate whose red belongs to somebody else's
 in-flight work. Its own text names the owner override and a failure you tried and could not reproduce;
 concurrent-session interference is the third case, and the reason MUST say so.
+
+**Since 2026-08-21 it unlocks nothing, and that is what makes it worth writing.**
+A stale verify records a verification-debt row whether or not the flag is given,
+and `--push` refuses while that row is open. The flag fills the row's Reason
+cell. The checker can say the record is STALE; only a caller can say whose red it
+is and which run will cover this commit, and every judgement in this rule is
+built on that attribution.
 
 **A deterministic STRUCTURAL gate MUST NOT be waved through** (see "Structural
 Gates Are Never Known-Red"). Those read files, not a moving tree, so they are
@@ -463,7 +476,10 @@ When the override is active:
 - You MUST use `scripts/dev/commit_helper.py create` with the normal user-run script
   path. The override changes verification requirements only.
 - You MUST carry the override into the helper: `--unverified "<reason>"`, and
-  `--missing-full-verify-ok "<reason>"` as well when the commit carries Go.
+  `--missing-full-verify-ok "<reason>"` as well when the commit carries Go. Since
+  2026-08-21 neither flag unlocks the commit, which proceeds either way and records
+  a verification-debt row: they name the row's REASON, and the owner's authority is
+  what that reason states. `--push` refuses while a row is open.
 - You MUST NOT run `git add`, `git commit`, `git rm`, `git stash`, or prohibited git
   commands from an AI tool.
 - You MUST NOT add `--no-verify`, `--no-gpg-sign`, disabled hooks, or any bypass to

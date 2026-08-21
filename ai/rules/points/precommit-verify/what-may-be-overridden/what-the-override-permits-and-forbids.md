@@ -10,7 +10,10 @@ stage:
 - You MUST use `scripts/dev/commit_helper.py create` with the normal user-run script
   path. The override changes verification requirements only.
 - You MUST carry the override into the helper: `--unverified "<reason>"`, and
-  `--missing-full-verify-ok "<reason>"` as well when the commit carries Go.
+  `--missing-full-verify-ok "<reason>"` as well when the commit carries Go. Since
+  2026-08-21 neither flag unlocks the commit, which proceeds either way and records
+  a verification-debt row: they name the row's REASON, and the owner's authority is
+  what that reason states. `--push` refuses while a row is open.
 - You MUST NOT run `git add`, `git commit`, `git rm`, `git stash`, or prohibited git
   commands from an AI tool.
 - You MUST NOT add `--no-verify`, `--no-gpg-sign`, disabled hooks, or any bypass to
