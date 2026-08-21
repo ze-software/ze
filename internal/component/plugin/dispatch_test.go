@@ -1070,7 +1070,7 @@ func (w *framedWriter) Write(line []byte) (int, error) {
 }
 
 // rejectedRow is one entry of the errors collection a buffered consumer reads,
-// as answerRecordTooLargeFault writes it.
+// as answerRecordTooLargeFault writes it (pkg/plugin/rpc/answer_write.go).
 type rejectedRow struct {
 	Message      string `json:"message"`
 	Record       uint64 `json:"record"`
@@ -1167,6 +1167,184 @@ func TestRecordOverMaxMessageSizeFaults(t *testing.T) {
 			}
 			if rejected.Message == "" {
 				t.Error("the rejected row states no message, so an operator reads two numbers and no reason")
+			}
+		})
+	}
+}
+
+// answerRecordsOf ranges answer to its end and returns its records as text, the
+// rejected rows marked, so the in-process answer can be compared with the wire
+// row for row. It reads Verdict after the range, which is where Answer says it
+// must be read.
+func answerRecordsOf(answer *rpc.Answer) ([]string, string) {
+	var rows []string
+	for record := range answer.Records {
+		if len(record.Fault) > 0 {
+			rows = append(rows, "fault "+string(record.Fault))
+			continue
+		}
+		rows = append(rows, string(record.Item))
+	}
+	return rows, answer.Verdict()
+}
+
+// wireRecordsOf reads the lines WriteAnswer produced and reports the same facts
+// answerRecordsOf reports for the in-process answer: the head, the records
+// between it and the terminator, and the verdict that terminator derives.
+//
+// It derives all of them from the WIRE rather than from the producer, so an
+// agreement between the two paths is evidence and not a tautology.
+func wireRecordsOf(t *testing.T, wire []byte) ([]string, rpc.AnswerTail, string) {
+	t.Helper()
+	lines := readAnswer(t, wire)
+	if len(lines) < 2 {
+		t.Fatalf("answer has %d lines, want a head and a terminator at least", len(lines))
+	}
+	terminator := lines[len(lines)-1].tail
+	if !terminator.IsTerminator() {
+		t.Fatal("the last line carries no count=, so the answer never reached a terminator")
+	}
+	var rows []string
+	records := lines[1 : len(lines)-1]
+	for i := range records {
+		if fault := records[i].tail.Fault; len(fault) > 0 {
+			rows = append(rows, "fault "+string(fault))
+			continue
+		}
+		rows = append(rows, string(records[i].tail.Item))
+	}
+	return rows, lines[0].tail, rpc.Verdict(&terminator)
+}
+
+// TestAnswerForAgreesWithTheWire is the control over the two ANSWER PRODUCERS.
+// The method: one response shape is built twice, from a fresh generator each
+// time, and taken through WriteAnswer and through AnswerFor; the head, the
+// records and the verdict are compared.
+//
+// The two are separate implementations of one decision. WriteAnswer hands its
+// lines to rpc.WriteRecordAnswer, which holds up to rpc.AnswerBufferThreshold
+// records and collapses a walk that ends inside them. AnswerFor walks the
+// generator itself and makes the same choice from the same constant, because
+// DirectBridge carries no line for a record. Nothing but a test holds the two
+// to one answer.
+//
+// VALIDATES: AC-7 of spec-record-answers-1-sdk-path -- the same command served
+// over the socket and over DirectBridge produces the same row sequence and the
+// same terminator counts. TestDirectBridgeDispatchCommandAnswer
+// (pkg/plugin/rpc/bridge_test.go) proves the two TRANSPORTS carry one answer;
+// this proves the two PRODUCERS build one.
+// PREVENTS: an internal plugin reading a different answer from an external one
+// for the same command, which is what two producers of one grammar drift into.
+func TestAnswerForAgreesWithTheWire(t *testing.T) {
+	const id = 11
+
+	tests := []struct {
+		name string
+		resp func() *Response
+	}{
+		{
+			name: "a payload the handler built",
+			resp: func() *Response { return NewResponse(StatusDone, Map{"peers": 2}) },
+		},
+		{
+			name: "a response carrying no data at all",
+			resp: func() *Response { return NewResponse(StatusDone, nil) },
+		},
+		{
+			name: "a walk that ends inside the threshold",
+			resp: func() *Response {
+				return NewResponse(StatusDone, Records{Key: "peers", Rows: peerRows(3)})
+			},
+		},
+		{
+			name: "a walk that ends exactly at the threshold",
+			resp: func() *Response {
+				return NewResponse(StatusDone, Records{Key: "peers", Rows: peerRows(rpc.AnswerBufferThreshold)})
+			},
+		},
+		{
+			name: "a walk one row past the threshold",
+			resp: func() *Response {
+				return NewResponse(StatusDone, Records{Key: "peers", Rows: peerRows(rpc.AnswerBufferThreshold + 1)})
+			},
+		},
+		{
+			name: "a walk that declares its columns",
+			resp: func() *Response {
+				return NewResponse(StatusDone, Records{
+					Key:    "peers",
+					Fields: peerColumns,
+					Rows:   columnRows(rpc.AnswerBufferThreshold + 2),
+				})
+			},
+		},
+		{
+			name: "a walk with no generator",
+			resp: func() *Response { return NewResponse(StatusDone, Records{Key: "peers"}) },
+		},
+		{
+			name: "a command that failed and collapsed to one document",
+			resp: func() *Response {
+				resp := NewResponse(StatusError, Records{Key: "peers", Rows: peerRows(2)})
+				resp.Error = "the registry is not ready"
+				return resp
+			},
+		},
+		{
+			// The failure text rides the TERMINATOR, so a walk long enough to
+			// stream is the only case that proves the streamed producer carries
+			// it. A collapsed walk reaches the terminator by another route.
+			name: "a command that failed and streamed its rows",
+			resp: func() *Response {
+				resp := NewResponse(StatusError, Records{Key: "peers", Rows: peerRows(rpc.AnswerBufferThreshold + 4)})
+				resp.Error = "the walk stopped at row 260"
+				return resp
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var wire bytes.Buffer
+			if err := WriteAnswer(&wire, id, tc.resp()); err != nil {
+				t.Fatalf("WriteAnswer: %v", err)
+			}
+			wireRows, head, wireVerdict := wireRecordsOf(t, wire.Bytes())
+
+			answer, err := AnswerFor(tc.resp())
+			if err != nil {
+				t.Fatalf("AnswerFor: %v", err)
+			}
+			if answer.Status != head.Status {
+				t.Errorf("the in-process head states status=%s and the wire states status=%s", answer.Status, head.Status)
+			}
+			if answer.Type != head.Type {
+				t.Errorf("the in-process head states type=%s and the wire states type=%s", answer.Type, head.Type)
+			}
+			if answer.Key != head.Key {
+				t.Errorf("the in-process head names envelope %q and the wire names %q", answer.Key, head.Key)
+			}
+			if !slices.Equal(answer.Fields, head.Fields) {
+				t.Errorf("the in-process head declares fields %v and the wire declares %v", answer.Fields, head.Fields)
+			}
+
+			rows, verdict := answerRecordsOf(answer)
+			if !slices.Equal(rows, wireRows) {
+				t.Errorf("the two producers carry %d records in process and %d on the wire",
+					len(rows), len(wireRows))
+				for i := range min(len(rows), len(wireRows)) {
+					if rows[i] != wireRows[i] {
+						t.Errorf("record %d is %q in process and %q on the wire", i+1, rows[i], wireRows[i])
+						break
+					}
+				}
+			}
+			if verdict != wireVerdict {
+				t.Errorf("the in-process answer ends %s and the wire answer ends %s", verdict, wireVerdict)
+			}
+			if answer.Message() != tc.resp().Error {
+				t.Errorf("the in-process terminator states message %q, want the response's own %q",
+					answer.Message(), tc.resp().Error)
 			}
 		})
 	}

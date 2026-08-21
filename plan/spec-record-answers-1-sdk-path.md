@@ -185,7 +185,7 @@ directions, so the frame stops being dead code.
 | AC-4 | A plugin command handler answers with a row generator and an operator runs that command | The rows reach the operator as records, and the engine never holds the whole collection |
 | AC-5 | A plugin command handler answers with a built value | The VALUE is unchanged from today, byte for byte. **Narrowed in phase 4 from "the answer", and the owner should know.** As written this row contradicted AC-8's second half. The engine must know which frame is arriving BEFORE it reads the first line, so the frame follows the peer's Stage 3 DECLARATION and not the individual payload: a plugin that declared `record-answers` answers every `execute-command` with head, one `item=` line and a terminator, a built value included. Holding the whole answer byte-identical would mean the frame follows the payload, and then a reader would have to guess the shape of a line before parsing it, which is the ambiguity child 2 exists to remove. `TestExecuteCommandValueAnswerIsUnchanged` (`pkg/plugin/sdk/sdk_callbacks_test.go:438`) pins the VALUE against literals captured on the unmodified tree, for six handler shapes, and asserts the frame separately |
 | AC-6 | A row generator yields a row that is wider than one wire message | That row is reported as a fault and the walk continues, and the terminator counts it under `faults` |
-| AC-7 | The same plugin command is served over the socket and over `DirectBridge` | Both produce the same row sequence and the same terminator counts |
+| AC-7 | The same plugin command is served over the socket and over `DirectBridge` | Both produce the same row sequence and the same terminator counts. **Qualified at the Review Gate, and the owner should know.** The two producers are `rpc.WriteRecordAnswer` (socket) and `plugin.AnswerFor` (bridge), and they agree on every input a command can produce today, which `TestAnswerForAgreesWithTheWire` (`internal/component/plugin/dispatch_test.go`) now pins across the threshold, the column schema, the zero-row boundary and a failing walk. They diverge on exactly one input and do so deliberately: a row wider than `rpc.MaxMessageSize` is a rejected row on the socket (`boundedRecord`) and is carried whole in process, because one transport bounds a line and the other has no line. `AnswerFor`'s doc comment states it. A streamed in-process answer also skips the arity check `writeRecordLine` makes, so a positional row that disagrees with the head is named at the consumer rather than the producer. Neither is reachable from an in-tree engine generator: `commandRows` is the only one and it declares no `Fields` and produces no wide row |
 | AC-8 | A plugin declares `record-answers` and the engine sends `execute-command` | The engine reads the plugin's answer as a record sequence, and a plugin that declared nothing gets the value frame it gets today |
 | AC-9 | A plugin names `errors` as its record envelope | The answer is refused with the reserved-envelope error, on both the socket and the bridge |
 
@@ -219,6 +219,7 @@ directions, so the frame stops being dead code.
 | `TestRouteToProcessRefusesARowThatIsNotJSON` | `internal/component/plugin/server/command_test.go` | Security Review, input validation: a plugin row that is not JSON is a rejected row and the walk continues; the rejection quotes none of the payload | green (phase 4) |
 | `TestHubStartupSinkRecordsTheProtocolDeclaration` | `internal/component/plugin/server/subsystem_test.go` | the hub's own startup sink stores a forked subsystem's protocol declaration, so `SubsystemHandler.Handle` reads the frame that subsystem writes | green (phase 4) |
 | `TestDirectBridgeDispatchCommandAnswer` | `pkg/plugin/rpc/bridge_test.go` | bridge and socket agree row for row | green (phase 2) |
+| `TestAnswerForAgreesWithTheWire` | `internal/component/plugin/dispatch_test.go` | AC-7's other half, added at the Review Gate: the two PRODUCERS build one answer, where the row above proves the two TRANSPORTS carry one | green (Review Gate, run 1) |
 | `TestPluginRecordEnvelopeErrorsRefused` | `pkg/plugin/sdk/sdk_test.go` | the reserved envelope name is refused, on the socket and on the bridge | green (phase 3) |
 
 ### Boundary Tests (numeric inputs)
@@ -446,3 +447,172 @@ and it belongs to the owner or to the Review Gate, not to a phase agent.
 - [ ] Learned summary written to `plan/learned/NNN-record-answers-sdk-path.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-record-answers-1-sdk-path.md` only
+
+## Review Gate
+
+Reviewer: one independent context, spawned after the implementing phase ended,
+running every lens itself (`ai/rules/planning.md`, "Critical Review Is the
+Central Deliverable"). It did not write this code. No sub-readers were spawned.
+
+Subject of the review: commit `4bdae01c8`, "feat(plugin): the SDK produces and
+reads record answers". `pkg/plugin/rpc/types.go` has moved since, under
+`plan/spec-plugin-registers-pipe-operations` (`91203b8aa` onward, `PipeDecl`);
+that work is not part of this diff and was not reviewed.
+
+Evidence run for this gate:
+
+| Check | Result |
+|-------|--------|
+| `make ze-unit-pkg-test PKG=./pkg/plugin/...` | green: plugin, plugin/rpc, plugin/sdk |
+| `make ze-unit-pkg-test PKG=./internal/component/plugin/...` | green: all ten packages, race-instrumented |
+| `make ze-functional-plugin-test` | 629 of 629 pass in 136.4s, 0 fail, 56 platform-skipped, and the three new `.ci` are among the RUN set, not the skipped one: `plugin-command-partial-fault` 3.5s, `plugin-owned-command-streams` 3.3s, `plugin-reads-engine-answer` 2.7s |
+| `python3 scripts/dev/validate.py` | all checks passed |
+| `python3 scripts/dev/audit-test-relaxation.py 4bdae01c8~1` | clean, 102 test files examined |
+| `make ze-test-weakened-check` | parses, and every "moved, not weakened" row was verified against the destination file |
+| `make ze-lint-changed` | 0 issues, both passes |
+
+### Round 1 (whole diff)
+
+Scope, written before the round ran: every file of `4bdae01c8`, the wiring of
+every new exported symbol, each of AC-1..AC-9 against implementation and test,
+the discrimination of each test the spec names, the `internal` to `pkg` move,
+the `Row`-as-appender decision, and the emitted wire against the documented
+grammar.
+
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | ISSUE | **AC-7 had no test over its producing code.** `plugin.AnswerFor`, the whole in-process answer producer, has no test, and neither does its one caller `Server.dispatchCommandAnswer`. `TestDirectBridgeDispatchCommandAnswer`, the test the spec names for AC-7, drives a hand-written stub handler inside `pkg/plugin/rpc`: it proves the two TRANSPORTS carry one answer and says nothing about whether the two PRODUCERS build one. They are separate implementations of one decision (hold to the threshold, collapse or stream, state the counts), and nothing held them to the same answer. An acceptance criterion with no test is always in scope (`ai/rules/planning.md`, "Bounding the loop") | `internal/component/plugin/dispatch.go` AnswerFor, `internal/component/plugin/server/dispatch.go` dispatchCommandAnswer | fixed |
+| 2 | ISSUE | **`CheckRowArity` was exported by the move and has no caller outside its own package, test or not.** It was `checkRowArity` before this commit; the move to `pkg/` made it public API, which is a one-way door, for a function only `writeRecordLine` calls. `validate.py` cannot see it: `check_cross_package_wiring` collects symbols only from changed files under `internal/` and `cmd/`, so a `pkg/` export is outside the gate's population | `pkg/plugin/rpc/answer_row.go` CheckRowArity | fixed |
+| 3 | ISSUE | **`DirectBridge.HasDispatchCommandAnswer` is exported with a test as its only caller.** Its own doc comment says so: "Its reader is the registry drift guard". Its five siblings (`HasDispatchCommand`, `HasDispatchCommandArgs`, `HasEmitEvent`, `HasBatchValidate`, `HasExecuteCommand`) each have one non-test caller, so this one breaks the set rather than following it. `ai/rules/completion.md`: a symbol whose only hits are the definition and test files is dead code | `pkg/plugin/rpc/bridge.go` HasDispatchCommandAnswer | **NOT fixed**, see "What this gate could not close" |
+| 4 | ISSUE | **`streamType` duplicates the newly exported `rpc.AnswerStreamType`, line for line.** Before this diff the engine-side chooser was unexported, so the copy was forced. This diff exported it and left the copy standing, in a file that already imports `rpc`. Two names for one fact will disagree (`docs/contributing/ze-style.md`, and the style pass of the review skill) | `internal/component/command/render_records.go` streamType | **NOT fixed**, see below |
+| 5 | ISSUE | **Five comments name a symbol this diff deleted or renamed.** `writeDocumentAnswer` left `internal/component/plugin/dispatch.go` in phase 3 and exists nowhere now; `answerStreamType` became `rpc.AnswerStreamType`. Two of the five were ADDED by this diff, in doc comments written for the new code, and one of those sits on `rpc.NewAnswer`, a symbol this spec introduced. `ai/rules/stale-comments.md` is blocking, and the same diff repointed four other references correctly, so these are misses rather than a decision | `pkg/plugin/rpc/types.go` NewAnswer; `internal/component/plugin/dispatch.go` documentAnswer; `pkg/plugin/sdk/sdk_engine_test.go` documentAnswerLines and TestDispatchCommandAnswerBoundedIsDocument; `internal/component/command/render_records.go` streamType | fixed, except the `render_records.go` one, see below |
+| 6 | NOTE | **`Records.wire` says the append is "the ONE allocation".** `AppendTo(nil)` starts from a nil slice and grows, so a 60 kB row pays for several. The claim sits on the one comment that justifies the appender, so it is the comment a reader of child 3 will lean on | `pkg/plugin/records.go` wire | fixed: the wording now names the growth as the second cost child 3 removes |
+| 7 | NOTE | **AC-7's wording is stronger than the code.** The two producers diverge on one input by design: a row wider than `rpc.MaxMessageSize` is a rejected row on the socket and is carried whole in process. A streamed in-process answer also skips the arity check the wire writer makes. `AnswerFor`'s doc comment states the first. Neither is reachable from an in-tree generator: `commandRows` is the only one, it declares no `Fields`, and it produces no wide row | this spec, AC-7 | fixed: AC-7 now states the qualification and names the new test |
+| 8 | NOTE | **`p.recordAnswers` is read back from the plugin's own message, so it is unconditionally true.** `Plugin.Run` writes the protocol list and then stores `caps.Understands` of that same list. Nothing negotiates: the engine never answers with what it accepted. The consequence is two branches no SDK plugin can reach, the single-line arm of `dispatchCommandValue` and the non-nil-result arm of `answerExecuteCommand`. The spec already declares the first as the deliberate mirror of `answerResult` that child 2 removes, and the second is the same shape | `pkg/plugin/sdk/sdk.go` Plugin.Run, `pkg/plugin/sdk/sdk_dispatch.go` answerExecuteCommand | acknowledged: transitional by the spec's own design, dies with child 2 |
+| 9 | NOTE | **The command timeout now bounds the walk, not the call.** `routeToProcess` hands `cancel` to the row generator through `sync.OnceFunc`, so `cmd.Timeout` covers the operator's whole read of a streamed answer, and a consumer that never ranges holds the deadline until it expires. Deliberate, and the code says so | `internal/component/plugin/server/command.go` routeToProcess | acknowledged |
+| 10 | NOTE | **A `Record` carrying both an `Item` and a `Fault` silently drops the item.** Every reader tests `Fault` first (`Records.wire`, `writeRecordLine`, `CollapseRecords`, `checkedRecord`), so the precedence is at least consistent, and both `Record` types document that exactly one of the two is set | `pkg/plugin/records.go` wire | acknowledged: consistent everywhere, and the contract is stated |
+
+### Fixes applied
+
+- **Finding 1.** Added `TestAnswerForAgreesWithTheWire`
+  (`internal/component/plugin/dispatch_test.go`). One `*Response` shape is built
+  twice, from a fresh generator each time, and taken through `WriteAnswer` and
+  through `AnswerFor`; the head, the records and the verdict are compared. Nine
+  cases: a built payload, a response with no data, a walk inside the threshold,
+  a walk exactly at it, a walk one row past it, a walk declaring its columns, a
+  nil generator, a failing walk that collapses, and a failing walk that streams.
+  Both sides are read as a CONSUMER reads them, the wire through `rpc.ParseLine`
+  and `rpc.ParseAnswerTail` and the in-process answer through `Answer.Records`
+  and `Answer.Verdict`, so the agreement is evidence and not a tautology.
+
+  **Mutation-tested twice.** Changing `AnswerFor`'s threshold test from `<=` to
+  `<` fails the exactly-at-the-threshold case: "the in-process head states
+  type=ndjson and the wire states type=json". Dropping `Message` from the
+  streamed terminator fails the streaming-failure case: "the in-process answer
+  ends done and the wire answer ends aborted". The failing-walk-that-streams
+  case was added BECAUSE the first version of the table did not catch the second
+  mutation, a two-row failing walk collapses and reaches its terminator by
+  another route.
+- **Finding 2.** `CheckRowArity` is `checkRowArity` again, with a comment saying
+  why it stays unexported. `plan/spec-record-answers-3-zero-alloc.md` already
+  names it in lower case in two places, so the tree and its next spec agree.
+- **Finding 5.** Four comments repointed at symbols that exist: `writeDocumentLines`
+  in `pkg/plugin/rpc/answer_write.go` for the two that named `writeDocumentAnswer`
+  from `pkg/`, and `rpc.WriteDocumentAnswer` for the one that named it from the
+  engine side. Two neighbouring comments that named a symbol which still exists
+  but has changed package were given its new home at the same time
+  (`terminatedRecords` in `pkg/plugin/rpc/types.go`, `rejectedRow` in
+  `internal/component/plugin/dispatch_test.go`), because a reader who cannot find
+  the producer is the cost `ai/rules/evidence.md` names.
+- **Finding 6.** `Records.wire`'s comment now states both costs the appender
+  exists to remove, and names `spec-record-answers-3-zero-alloc` rather than
+  this spec.
+- **Finding 7.** AC-7 now carries the qualification and names the new test.
+
+### Round 2 (the fixes, and what they touched)
+
+Scope, written before the round ran: the unexport and its one call site plus its
+file siblings (`zipRow`, `quoteFields`, `jsonArrayLength`), the five repointed
+comments against the symbols they now name, and the new test against the two
+producers it compares.
+
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| - | - | Nothing found inside the round's scope, and no always-in-scope finding outside it. `make ze-lint-changed` 0 issues, `validate.py` clean, both plugin unit groups green, and `audit-test-relaxation.py` clean over the two edited test files | - | - |
+
+### What this gate could not close
+
+**Two ISSUEs are open at their real severity, so this gate is NOT clean.**
+
+Findings 3 and 4, and the `render_records.go` half of finding 5, all sit in
+`internal/component/plugin/server/` and `internal/component/command/`. Another
+agent holds those two directories, so this review reports them rather than
+editing them. Each is a one-line change:
+
+| Finding | The fix | Why it is not applied here |
+|---------|---------|----------------------------|
+| 3, `HasDispatchCommandAnswer` has only a test caller | Either delete it and let `TestWireBridgeDispatchInstallsTypedSlots` assert the slot by CALLING `DispatchCommandAnswer`, which is the stronger assertion because it proves the slot is wired to the engine rather than merely present, or give the method a product caller | Deleting it breaks the compile of `internal/component/plugin/server/dispatch_registry_test.go`, which the other agent owns. Gating `Plugin.DispatchCommandAnswer` on it instead would be worse code, and the bridge's own doc comment gives the reason: the bridge names the missing slot where a closed mux answers with a read error that says nothing |
+| 4, `streamType` duplicates `rpc.AnswerStreamType` | Return `rpc.AnswerStreamType(fields)` from it, or delete it and call `rpc.AnswerStreamType` at both sites | `internal/component/command/render_records.go` is the other agent's |
+| 5, a comment names `answerStreamType` | Repoint it at `rpc.AnswerStreamType` | Same file |
+
+### What the review verified rather than assumed
+
+| Item | Verdict |
+|------|---------|
+| Every AC has an implementation at file plus symbol AND a test | Yes for AC-1 to AC-9 after finding 1's fix. AC-7 was the only one whose named test did not reach its producer |
+| Every exported symbol in `pkg/plugin/records.go` has a non-test caller | Yes. `Row`, `Record`, `Records`, `Records.WriteAnswer` and `Records.MarshalJSON` are all reached from `internal/test/cli/cmd_record_plugin.go`, which ships in the `ze-test` binary and is driven by three `.ci` files through the real daemon |
+| Every exported symbol added to `pkg/plugin/rpc/` by this diff has a non-test caller | Two did not, findings 2 and 3. Every other one does: `WriteRecordAnswer`, `WriteDocumentAnswer`, `AnswerStreamType`, `CollapseRecords`, `CollapseAnswer`, `NewAnswer`, `ErrEmptyAnswerRecord`, `ErrReservedEnvelopeKey`, `SetDispatchCommandAnswer` and `DispatchCommandAnswer` each have one |
+| `MuxConn.CallAnswer` gained its first non-test caller | Yes, two: `pkg/plugin/sdk/sdk_engine.go` and `internal/component/plugin/ipc/rpc.go` |
+| The move dragged nothing heavy into `pkg/` | `go list -deps ./pkg/plugin/rpc` names three in-tree packages, `internal/core/stringsx`, `internal/core/textbuf` and `internal/core/selector`. `pkg/plugin` adds none |
+| The wire matches what the docs claim | Yes. `AppendAnswerHead` writes the head as `status=`, `type=`, then an optional `key=` and `fields=`; `AppendAnswerItem` writes `item=` and `AppendAnswerFault` writes `fault=`; `AppendAnswerTerminator` writes `count=` with an optional `faults=` and `message=`. The answer-type table in `docs/architecture/api/ipc_protocol.md` states the same three rows the encoder takes, the bounded head's missing `key=` included |
+| The width boundary is the LINE, not the item | Yes, and the two ends agree. `boundedRecord` accepts a line of exactly `MaxMessageSize`, `Conn.writeFrame` accepts one more for the newline, and `NewFrameReader` sets the scanner's exclusive maximum to the same number |
+| The tests the spec names discriminate | Sampled and confirmed. `TestExecuteCommandValueAnswerIsUnchanged` compares against literals captured on the unmodified tree, not against a second marshal. `TestRouteToProcessBuildsRecords` asserts `routeToProcess` returned with one line written, which is what proves the engine holds no collection. `TestRouteToProcessRefusesARowThatIsNotJSON` asserts the rejection quotes none of the payload. The three `.ci` files carry fixture preconditions that FAIL the test when the walk is not past both the 256-record threshold and the 16 MB line ceiling, which is what stops them passing with the record path removed. `TestAnswerForAgreesWithTheWire` was mutation-tested twice, above |
+| The "moved, not weakened" rows of `test/weakened.md` are true | Yes. All five named tests exist at the destination the row names, with the same assertions |
+
+### The two judgement calls
+
+**`Row` as an appender EARNS its place, and it is not speculative generality.**
+Three things decide it. `ai/rules/performance.md` states the directive outright:
+a named type MUST have an `AppendTo([]byte) []byte` method, and callers never
+format a type from the outside. The shape is already the tree's, in
+`internal/core/family` and in `pkg/plugin/rpc/enums.go`. And the spec it serves
+is WRITTEN, not hypothetical: `plan/spec-record-answers-3-zero-alloc.md` is at
+status `design` and says so at its A-1, "the appender shape exists and has a
+producer". The test `ai/rules/simplicity.md` applies is to an ABSTRACTION with
+one user, and the abstraction here is the `Row` interface, which is owed whatever
+the method's signature is. Only the signature differs between `AppendTo(buf)
+[]byte` and `Bytes() []byte`, the two cost the same to write and to implement,
+and a house rule names the first. The honest caveat is that the buffer parameter
+is dead today: `Records.wire` calls `AppendTo(nil)` for every row, so the
+appender buys nothing yet. Finding 6 fixed the comment that overstated what it
+buys.
+
+**The `internal` to `pkg` move is right, and the spec's reason for it is loosely
+stated.** The spec says `pkg/plugin/sdk` "cannot import
+`internal/component/plugin`". There is no compiler barrier: `go list -deps` shows
+`internal/component/plugin` does not reach `pkg/plugin/sdk`, so no import cycle
+exists, and Go's `internal` rule permits the import because both are rooted at
+`github.com/ze-software/ze`. The real reason is better than the stated one.
+`internal/component/plugin` pulls in `internal/component/config/storage`,
+`internal/component/plugin/registry`, `internal/core/metrics`,
+`internal/core/events` and `internal/core/family`, so an out-of-tree plugin
+importing the SDK would link the config storage layer and the plugin registry to
+get a collapse function. The move went the right way and it stayed cheap.
+
+What the move DID cost is the one-way door it opened, which is findings 2 and 3:
+three symbols became public API and two of them have no caller. `validate.py`
+cannot see that class, because its wiring check reads only changed files under
+`internal/` and `cmd/`. A `pkg/` symbol is exactly where an unwired export is
+most expensive and least checked.
+
+### Final status
+
+- [ ] The gate re-run shows 0 BLOCKER, 0 ISSUE
+
+**0 BLOCKER. 2 ISSUE open**, findings 3 and 4, plus the `render_records.go` half
+of finding 5. All three are one-line fixes in files another agent holds. They are
+left at their real severity rather than downgraded: this gate is not clean, and
+the spec MUST NOT close until they are applied and a round re-runs over them.
+
+NOTEs recorded above: findings 6 to 10. Six and seven were fixed anyway because
+they were free. Eight, nine and ten are acknowledged and need no change.

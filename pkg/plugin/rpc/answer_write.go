@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/ipc_protocol.md -- the answer wire grammar
 // Related: message.go -- AppendAnswerHead and its siblings, the lines this writes
 //          collapse.go -- the document a walk under the threshold collapses to
-//          answer_row.go -- CheckRowArity, the schema a positional row is held to
+//          answer_row.go -- checkRowArity, the schema a positional row is held to
 //          types.go -- NewAnswer, the in-process sibling of this writer
 //
 // answer_write.go writes one answer to the wire: a head line carrying the
@@ -189,7 +189,7 @@ func writeRecordLine(w io.Writer, buf []byte, id uint64, record Record, fields [
 	if len(record.Fault) > 0 {
 		return writeAnswerLine(w, AppendAnswerFault(buf[:0], id, record.Fault))
 	}
-	if err := CheckRowArity(record.Item, fields); err != nil {
+	if err := checkRowArity(record.Item, fields); err != nil {
 		return buf, err
 	}
 	return writeAnswerLine(w, AppendAnswerItem(buf[:0], id, record.Item))

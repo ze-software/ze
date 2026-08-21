@@ -35,10 +35,15 @@ var ErrRowArity = errors.New("answer row length disagrees with the fields the he
 // object row would be read against the wrong schema rather than not at all.
 var ErrRowNotPositional = errors.New("answer row is not a positional array")
 
-// CheckRowArity refuses a row that does not agree with the column schema the
+// checkRowArity refuses a row that does not agree with the column schema the
 // head declares. An answer that declares no fields carries self-describing
 // rows, and there is nothing to disagree with.
-func CheckRowArity(item json.RawMessage, fields []string) error {
+//
+// It stays unexported. The one caller is the wire writer in this package, and a
+// consumer meets the same refusal through CollapseRecords, which zips the row
+// against the head's names. An exported name with no caller outside the package
+// is public API nobody asked for (ai/rules/completion.md).
+func checkRowArity(item json.RawMessage, fields []string) error {
 	if len(fields) == 0 {
 		return nil
 	}

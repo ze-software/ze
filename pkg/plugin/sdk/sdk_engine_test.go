@@ -35,8 +35,8 @@ func answerLines(id uint64, key string, items, faults []string) [][]byte {
 // documentAnswerLines are the lines a peer writes for the answer of a walk that
 // ended within rpc.AnswerBufferThreshold records: a head naming type=json, the
 // one document that walk collapsed to, and the terminator carrying the walk's
-// counts. It is the wire writeDocumentAnswer produces
-// (internal/component/plugin/dispatch.go).
+// counts. It is the wire rpc.WriteDocumentAnswer produces
+// (pkg/plugin/rpc/answer_write.go).
 func documentAnswerLines(id uint64, document string, count, faults uint64) [][]byte {
 	lines := [][]byte{rpc.AppendAnswerHead(nil, id, rpc.StatusDone, rpc.AnswerTypeJSON, "", nil)}
 	if document != "" {
@@ -146,7 +146,7 @@ func TestDispatchCommandAnswerYieldsRows(t *testing.T) {
 // value the plugin sees is the value the same command produced before the
 // record frame existed. The method: complete the five-stage startup against a
 // fake engine, answer one dispatch with the head, item and terminator
-// writeDocumentAnswer writes for a bounded walk, and read it through both the
+// rpc.WriteDocumentAnswer writes for a bounded walk, and read it through both the
 // answer-returning call and the value-returning one.
 //
 // VALIDATES: AC-3 -- a bounded walk is one rpc.AnswerTypeJSON record whose item

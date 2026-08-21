@@ -301,7 +301,7 @@ func AnswerFor(resp *Response) (*rpc.Answer, error) {
 //
 // count and faults are the WALK's, not the record's, so the terminator states
 // what the command produced whichever type carried it. That is what
-// writeDocumentAnswer states on the wire for the same answer.
+// rpc.WriteDocumentAnswer states on the wire for the same answer.
 func documentAnswer(resp *Response, document json.RawMessage, count, faults uint64) *rpc.Answer {
 	head := rpc.AnswerTail{Status: answerStatus(resp), Type: rpc.AnswerTypeJSON}
 	terminator := rpc.AnswerTail{Count: count, Faults: faults, Message: answerMessage(resp)}

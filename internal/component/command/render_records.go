@@ -107,7 +107,7 @@ func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []strin
 		// One record past the threshold, so this answer is not one document.
 		// The records already held go out first, in the order the walk
 		// produced them, and the rest follow as they arrive.
-		answer.Type = streamType(fields)
+		answer.Type = rpc.AnswerStreamType(fields)
 		if !streamed {
 			continue
 		}
@@ -249,17 +249,6 @@ func streamsPerRecord(ops []pipeOp, fields []string, meta map[string]any) bool {
 		}
 	}
 	return false
-}
-
-// streamType is how a streamed answer's records are read: positional arrays
-// against the declared columns, or self-describing objects when the answer
-// declares none. It is the same choice answerStreamType makes on the plugin
-// connection, over the same input.
-func streamType(fields []string) string {
-	if len(fields) == 0 {
-		return rpc.AnswerTypeNDJSON
-	}
-	return rpc.AnswerTypeStream
 }
 
 // renderOps returns the operators the RENDERING still owes once the records

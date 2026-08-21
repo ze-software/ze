@@ -122,7 +122,7 @@ func (a *Answer) Message() string {
 // the producer knows because it has run the walk, and they are not a count of
 // the records that follow. The two disagree for an answer whose short walk was
 // collapsed into one document, exactly as they disagree on the wire
-// (writeDocumentAnswer, internal/component/plugin/dispatch.go).
+// (writeDocumentLines, answer_write.go).
 //
 // rows is the walk itself, and it MUST NOT start a goroutine: the consumer's
 // own range pulls each row (ai/rules/goroutine-lifecycle.md).
@@ -153,8 +153,8 @@ func NewAnswer(head, terminator AnswerTail, rows iter.Seq[Record]) *Answer {
 //
 // A row carrying neither an item nor a fault ends the answer with
 // ErrEmptyAnswerRecord and no terminator, which is the refusal the wire
-// producer makes for the same row (WriteAnswer,
-// internal/component/plugin/dispatch.go). The consumer reads it as a truncated
+// producer makes for the same row (WriteRecordAnswer, answer_write.go). The
+// consumer reads it as a truncated
 // answer naming its producer, rather than as a row that carries nothing.
 func terminatedRecords(answer *Answer, terminator AnswerTail, rows iter.Seq[Record]) iter.Seq[Record] {
 	return func(yield func(Record) bool) {

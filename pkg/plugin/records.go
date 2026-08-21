@@ -130,12 +130,13 @@ func (r Records) MarshalJSON() ([]byte, error) {
 // wire yields each row of the walk as the record the answer grammar carries: the
 // row's JSON, appended once, in the two fields rpc.Record states it in.
 //
-// The append is into a fresh slice for each row, and that is the ONE allocation
+// The append is into a fresh slice for each row, and that slice is what
 // rpc.Record's two json.RawMessage fields force: a reader holds a record's bytes
 // while later rows are produced, so a scratch reused across rows would rewrite
-// the rows already held. Row is an appender so that child 3 of
-// spec-record-answers-1-sdk-path can take that allocation off by changing what a
-// record holds; a Row that returned a fresh []byte itself could never be.
+// the rows already held. A nil starting buffer also grows, so a wide row pays
+// for the growth as well as for the slice. Row is an appender so that
+// spec-record-answers-3-zero-alloc can take both off by changing what a record
+// holds; a Row that returned a fresh []byte itself could never be.
 //
 // A nil Rows is a handler that named an envelope and produced nothing, which is
 // an empty collection rather than a missing answer; ranging a nil iter.Seq
