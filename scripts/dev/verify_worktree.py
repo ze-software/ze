@@ -54,7 +54,8 @@ def remove_worktree(root: Path, path: Path) -> None:
         # `worktree remove` refuses a directory it no longer recognises; the
         # registration still has to go, so clear both by hand.
         shutil.rmtree(path, ignore_errors=True)
-    run(["git", "-C", str(root), "worktree", "prune"], capture_output=True)
+    run(["git", "-C", str(root), "worktree", "prune", "--expire", "now"],
+        capture_output=True)
 
 
 def main() -> int:
