@@ -180,27 +180,29 @@ _numeric() {
     return 0
 }
 
-# _alive PID -- true when the process is still running a job. `kill -0` alone
-# reports a process owned by another user as absent, so /proc is consulted too:
-# a process we cannot signal is still holding its slot.
+# _alive PID -- true when the process is still running a job.
+#
+# The process table is asked, because the two cheaper questions each answer a
+# different one. `kill -0` asks whether we may SIGNAL the process, so another
+# user's job reads as absent while it holds a slot. /proc answers correctly and
+# exists on Linux alone, so a macOS session got the `kill -0` answer for every
+# process. `ps -o state=` is the one question with the one meaning, and this
+# script already depends on `ps -o` for MY_PGID.
 #
 # A ZOMBIE counts as gone. It has already exited, holds no CPU and no memory,
-# and writes nothing more, but `kill -0` succeeds on it and /proc still lists
-# it for as long as its parent takes to reap it. Reading that as "alive" makes
-# a finished job hold its slot, and makes a follower wait on a run that ended.
+# and writes nothing more, but `kill -0` succeeds on it and the process table
+# still lists it for as long as its parent takes to reap it. Reading that as
+# "alive" makes a finished job hold its slot, and makes a follower wait on a run
+# that ended. Linux prints the state as one letter and macOS appends flags to
+# it, so the STATE is the first letter in both.
 _alive() {
     _numeric "$1" || return 1
     [ "$1" -gt 0 ] || return 1
-    if [ -r "/proc/$1/status" ]; then
-        if grep -qs '^State:[[:space:]]*Z' "/proc/$1/status"; then
-            return 1
-        fi
-        return 0
-    fi
-    if kill -0 "$1" 2>/dev/null; then
-        return 0
-    fi
-    [ -e "/proc/$1" ]
+    case "$(ps -o state= -p "$1" 2>/dev/null | tr -d '[:space:]')" in
+        '') return 1 ;;
+        Z*) return 1 ;;
+    esac
+    return 0
 }
 
 _mtime() {
@@ -320,27 +322,52 @@ _attach() {
     printf '\033[36m[%s] attaching to the %s already running for this tree (pid %s): one run answers both\033[0m\n' \
         "$LABEL" "$LABEL" "$_pid" >&2
 
-    if [ -n "$_log" ] && [ -f "$_log" ]; then
-        # --pid is what ends the follow with the job. The watchdog is the
-        # backstop, because a follower must never outlive the job it follows.
-        tail -n +1 -f --pid="$_pid" -- "$_log" 2>/dev/null &
-        _follow=$!
-        while kill -0 "$_follow" 2>/dev/null; do
-            # The entry going is the job ending: it is removed after the result
-            # is recorded. A killed job leaves its entry behind, so the process
-            # is asked too.
-            if [ ! -f "$_entry" ] || ! _alive "$_pid"; then
-                sleep 1
-                kill "$_follow" 2>/dev/null || true
-                break
+    # The log is followed on a descriptor THIS job holds open, never by a tool
+    # told to watch a path. `cat` copies what has arrived and returns at end of
+    # file; the descriptor keeps its position, so the next round continues where
+    # this one stopped and no byte is printed twice.
+    #
+    # Holding the descriptor is what makes the LAST bytes readable. A job
+    # records its result and then unlinks its entry and its log in one `rm`, so
+    # a follower that reopens the path finds nothing and loses the end of the
+    # run. The open descriptor keeps the file until this loop closes it, and the
+    # copy taken after the entry is gone is therefore the whole tail of the run
+    # rather than a race against the holder's exit trap.
+    #
+    # `tail -f --pid=` did this until 2026-08-21. `--pid` is GNU coreutils only:
+    # BSD tail refused the option, the follower exited before it copied a byte,
+    # and the discarded diagnostic made the sharer print nothing and say
+    # nothing. Every other external call in this file already carries a
+    # portable form, and this one no longer needs one -- the shell can hold a
+    # descriptor itself.
+    #
+    # The open IS the test, and it carries no `2>/dev/null`: `exec` without a
+    # command applies its redirections to THIS SHELL, so silencing the open
+    # would silence every later banner this job writes, the one saying why it
+    # stopped sharing included. A name that cannot be opened leaves this job
+    # waiting for the holder without replaying it, which is what a job whose
+    # entry named no log always did, and the shell says which name failed.
+    _following=0
+    if [ -n "$_log" ] && exec 8< "$_log"; then
+        _following=1
+    fi
+    while :; do
+        if [ "$_following" = "1" ]; then
+            cat <&8
+        fi
+        # The entry going is the job ending: it is removed after the result is
+        # recorded. A killed job leaves its entry behind, so the process is
+        # asked too.
+        if [ ! -f "$_entry" ] || ! _alive "$_pid"; then
+            if [ "$_following" = "1" ]; then
+                cat <&8
             fi
-            sleep "$POLL_SECONDS"
-        done
-        wait "$_follow" 2>/dev/null || true
-    else
-        while _alive "$_pid" && [ -f "$_entry" ]; do
-            sleep "$POLL_SECONDS"
-        done
+            break
+        fi
+        sleep "$POLL_SECONDS"
+    done
+    if [ "$_following" = "1" ]; then
+        exec 8<&-
     fi
 
     _waited=0
