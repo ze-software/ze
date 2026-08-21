@@ -35,6 +35,9 @@ verify-a-commit-not-the-working-tree ## Verify a Commit, Not the Working Tree
   the-gate-runs-on-a-commit-in-a-worktree
   an-edit-during-a-run-voids-it
   verify-periodically-not-per-commit
+worktree-cleanup ## Worktree Cleanup
+  remove-a-worktree-once-its-commits-are-preserved
+  find-a-worktree-git-can-no-longer-see
 commit-ownership-in-parallel-sessions-2026-07-10-owner ## Commit Ownership in Parallel Sessions (2026-07-10, owner decision)
   clear-the-index-after-a-failed-commit
   read-the-staged-list-after-any-failed-commit
