@@ -130,12 +130,89 @@
 <h3 id="success-response-plugin-to-engine">Success Response (plugin to engine)</h3>
 <p>The answer is a head, its records and a terminator, on every connection. The
 frame is the same whatever the payload is, so a handler that built one value
-takes the same three lines as a handler that walked a table. The field after the
-id is a three-byte kind token saying which of the three a line is: <code>top</code>, <code>row</code>
-and <code>end</code>, with <code>bad</code> for a rejected row.</p>
-<pre><code>#17 top doc 1:0: 1:0:
-#17 row 2:34:{&quot;status&quot;:&quot;running&quot;,&quot;uptime&quot;:3600}
-#17 end 1:1 1:0 1:0:
+takes the same three lines as a handler that walked a table.</p>
+<p>An answer line carries no verb and no key name. The field after the id is a
+three-byte word saying what the line IS:</p>
+<table>
+<thead>
+<tr>
+<th>Word</th>
+<th>The line is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>top</code></td>
+<td>the head, which opens the answer</td>
+</tr>
+<tr>
+<td><code>row</code></td>
+<td>one record your command produced</td>
+</tr>
+<tr>
+<td><code>bad</code></td>
+<td>one record it rejected. The walk goes on</td>
+</tr>
+<tr>
+<td><code>end</code></td>
+<td>the terminator, which ends the answer</td>
+</tr>
+<tr>
+<td><code>nay</code></td>
+<td>the whole answer to a command text naming no command</td>
+</tr>
+</tbody>
+</table>
+<p>The head carries a second three-byte word saying how the records read:</p>
+<table>
+<thead>
+<tr>
+<th>Word</th>
+<th>The records are</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>doc</code></td>
+<td>one document. The whole answer is that one value</td>
+</tr>
+<tr>
+<td><code>map</code></td>
+<td>one map of names to values for each record</td>
+</tr>
+<tr>
+<td><code>tab</code></td>
+<td>one positional row for each record, read against the column names</td>
+</tr>
+</tbody>
+</table>
+<p>Every field after those is positional and takes one of two shapes. A NUMBER is
+decimal digits closed by a space or by the end of the line. A TEXT is decimal
+digits, a colon, then that many BYTES. <strong>The count is a BYTE count, never a count
+of characters.</strong> A text of zero bytes is written <code>0:</code>, present and empty, so a
+line's field count never varies.</p>
+<pre><code>#17 top doc 0: 0:
+|   |   |   |  |
+|   |   |   |  +----- column names, 0 BYTES, so the records are not positional
+|   |   |   +-------- envelope name, 0 BYTES, so the document carries its own
+|   |   +------------ item type doc: the whole answer is one document
+|   +---------------- kind top: the head, always the first line
++-------------------- correlation id 17, echoed from the request
+
+#17 row 34:{&quot;status&quot;:&quot;running&quot;,&quot;uptime&quot;:3600}
+|   |   |  |
+|   |   |  +----- those 34 bytes, what your handler returned, byte for byte
+|   |   +-------- 34, the payload's BYTE count, then the colon every text carries
+|   +------------ kind row: one record the command produced
++---------------- correlation id 17
+
+#17 end 1 0 0:
+|   |   | | |
+|   |   | | +----- message, 0 BYTES, so the command stated none
+|   |   | +------- 0 rows rejected
+|   |   +--------- 1 record produced
+|   +------------- kind end: the terminator, always the last line
++----------------- correlation id 17
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer -->
@@ -159,10 +236,13 @@ line an answer states an outcome on.</p>
     &quot;items&quot;: []string{&quot;a&quot;, &quot;b&quot;},
 }, nil
 </code></pre>
-<p>The SDK marshals this value once and sends it as the one record of the answer:</p>
-<pre><code>#17 top doc 1:0: 1:0:
-#17 row 2:30:{&quot;count&quot;:42,&quot;items&quot;:[&quot;a&quot;,&quot;b&quot;]}
-#17 end 1:1 1:0 1:0:
+<p>The SDK marshals this value once and sends it as the one record of the answer.
+The three lines read exactly as the decoded ones above. The <code>doc</code> head names no
+envelope and no columns, the <code>row</code> states 30 bytes and then the marshaled value,
+and the terminator counts one record, no rejection and no message.</p>
+<pre><code>#17 top doc 0: 0:
+#17 row 30:{&quot;count&quot;:42,&quot;items&quot;:[&quot;a&quot;,&quot;b&quot;]}
+#17 end 1 0 0:
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandOutput, executeCommandAnswer -->
 
@@ -170,9 +250,10 @@ line an answer states an outcome on.</p>
 <pre><code class="language-go">return &quot;done&quot;, nil, nil
 </code></pre>
 <p>Response. A command that reported nothing writes no record, and the terminator
-says so. Nothing is not the same answer as an empty collection:</p>
-<pre><code>#17 top doc 1:0: 1:0:
-#17 end 1:0 1:0 1:0:
+says so: zero records produced, zero rejected, and a message of zero bytes.
+Nothing is not the same answer as an empty collection:</p>
+<pre><code>#17 top doc 0: 0:
+#17 end 0 0 0:
 </code></pre>
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer, writeDocumentLines -->
 
@@ -182,11 +263,21 @@ built value. The SDK writes one line for each row, so neither the plugin nor the
 engine holds the whole answer:</p>
 <pre><code class="language-go">return &quot;done&quot;, sdk.Records{Key: &quot;sessions&quot;, Rows: sessionRows()}, nil
 </code></pre>
-<pre><code>#17 top map 1:8:sessions 1:0:
-#17 row 2:26:{&quot;id&quot;:1,&quot;peer&quot;:&quot;10.0.0.1&quot;}
-#17 row 2:26:{&quot;id&quot;:2,&quot;peer&quot;:&quot;10.0.0.2&quot;}
-#17 end 1:2 1:0 1:0:
+<pre><code>#17 top map 8:sessions 0:
+|   |   |   | |        |
+|   |   |   | |        +----- column names, 0 BYTES, so the rows are not positional
+|   |   |   | +-------------- those 8 bytes: sessions, your Key
+|   |   |   +---------------- 8, the envelope name's BYTE count, then its colon
+|   |   +-------------------- item type map: each record is one map of names to values
+|   +------------------------ kind top: the head
++---------------------------- correlation id 17
+
+#17 row 26:{&quot;id&quot;:1,&quot;peer&quot;:&quot;10.0.0.1&quot;}
+#17 row 26:{&quot;id&quot;:2,&quot;peer&quot;:&quot;10.0.0.2&quot;}
+#17 end 2 0 0:
 </code></pre>
+<p>Each <code>row</code> states the 26 bytes of its payload and then those bytes. The
+terminator counts two records produced, none rejected, and no message.</p>
 <p><code>Key</code> names the envelope the rows belong under. A handler MUST NOT name it
 <code>errors</code>, because that name holds the rows the walk rejected. <code>Rows</code> is walked
 once, before the handler's call returns. A handler MUST NOT store the sequence,
@@ -487,7 +578,7 @@ if command == &quot;my-plugin help&quot; {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 12:15 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 14:05 UTC</span>
                 </div>
             </div>
         </footer>

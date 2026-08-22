@@ -461,7 +461,15 @@ policy changed, and the SA should have been deleted when the change took effect.
 line names both selector sets. Narrow the selectors on BOTH ends, or clear the peer, rather
 than waiting for the rekey timer.
 
+The same floor applies to a rekey Ze STARTS. Ze installs the selectors the peer answered
+with, never the retired SA's, so both ends program the same traffic. An answer narrower
+than the scope in use is refused: Ze keeps the SA that is carrying traffic, sends no error
+notification (RFC 7296 Section 2.21.3), and logs both selector sets. It retries at each
+lifetime tick, so a repeating `narrows the scope in use` line means the peer's policy
+shrank and the tunnel will hard-expire unless one end is corrected.
+
 <!-- source: internal/component/ike/engine/ts_narrow.go -- programmableSelector, largestPrefixIn, floorWithinProposal, coversFloor -->
+<!-- source: internal/component/ike/engine/rekey.go -- applyChildRekeyResponse, newRekeyedChild -->
 
 | Port value | Meaning | RFC 7296 Section 3.13.1 encoding |
 |---|---|---|

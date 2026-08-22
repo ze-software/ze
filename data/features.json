@@ -434,7 +434,7 @@
           "category": "observe",
           "status": null,
           "title": "Development Activity",
-          "href": "activity/",
+          "href": "project/activity/",
           "external": false,
           "chips": [
             {

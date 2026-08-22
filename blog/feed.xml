@@ -5,8 +5,15 @@
         <link>https://ze-software.net/blog/</link>
         <description>Editorial articles on Ze.</description>
         <language>en</language>
-        <lastBuildDate>Mon, 10 Aug 2026 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Sat, 22 Aug 2026 00:00:00 +0000</lastBuildDate>
         <item>
+            <title>Reference from the system</title>
+            <link>https://ze-software.net/blog/reference-from-the-system/</link>
+            <guid isPermaLink="true">https://ze-software.net/blog/reference-from-the-system/</guid>
+            <pubDate>Sat, 22 Aug 2026 00:00:00 +0000</pubDate>
+            <dc:creator>Thomas Mangin</dc:creator>
+            <description>Generated references stay tied to code, registries and RFC evidence.</description>
+        </item>        <item>
             <title>AI coding has not had its Rails moment</title>
             <link>https://ze-software.net/blog/ai-coding-has-not-had-its-rails-moment/</link>
             <guid isPermaLink="true">https://ze-software.net/blog/ai-coding-has-not-had-its-rails-moment/</guid>

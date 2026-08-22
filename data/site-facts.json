@@ -1,5 +1,14 @@
 {
-  "blog_articles": 6,
+  "_sources": {
+    "interop.scenarios": "../main/test/interop/scenarios/",
+    "interop.targets": "../main/test/interop/Dockerfile.*",
+    "repo.annotations": "git ls-files *.go",
+    "repo.go_packages": "go list ./...",
+    "rfc": "../main/ai/RFC-REQUIREMENTS.md",
+    "rfc.enrolled": "../main/rfc/enrolled.txt",
+    "tests": "../main/test/health/latest.json"
+  },
+  "blog_articles": 7,
   "changes": 36,
   "cli_commands": 395,
   "config_sections": 36,
@@ -9,17 +18,39 @@
     "planned": 4
   },
   "generated_at": "2026-08-22",
-  "github_stars": 46,
+  "github_stars": 50,
   "interop": {
-    "scenario_dirs_raw": 128,
-    "scenarios": 128,
+    "scenario_dirs_raw": 149,
+    "scenarios": 148,
     "target_display": "9",
     "targets": 9
   },
-  "published_at": "2026-08-22T12:15:08+00:00",
+  "published_at": "2026-08-22T14:05:09+00:00",
+  "repo": {
+    "design_comments": 3639,
+    "design_comments_display": "3,639",
+    "detail_comments": 3153,
+    "detail_comments_display": "3,153",
+    "go_packages": 644,
+    "go_packages_display": "644"
+  },
+  "rfc": {
+    "enrolled": 171,
+    "enrolled_display": "171",
+    "gated_must": 2966,
+    "gated_must_display": "2,966",
+    "must": 3044,
+    "must_display": "3,044",
+    "requirements": 4703,
+    "requirements_display": "4,703",
+    "summaries": 177,
+    "summaries_display": "177"
+  },
   "tests": {
     "e2e": 1657,
     "e2e_display": "1,600+",
+    "editor": 165,
+    "editor_display": "160+",
     "fuzz": 78,
     "fuzz_display": "78",
     "unit": 23161,

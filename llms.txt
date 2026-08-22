@@ -15,7 +15,7 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
 - Current generated counts: 51 shipped or experimental feature cards, 4 roadmap cards, 395 CLI commands, 36 config sections, 96 plugin registrations, 42 direct Go dependencies, 36 weekly change entries.
-- Test evidence counts: 23,100+ unit tests, 78 fuzz targets, 1,600+ end-to-end transcript steps, 128 interop scenarios across 9 target implementations.
+- Test evidence counts: 23,100+ unit tests, 78 fuzz targets, 1,600+ end-to-end transcript steps, 148 interop scenarios across 9 target implementations.
 - Generated date: 2026-08-22.
 
 ## Quality and verification model
@@ -29,7 +29,7 @@ Ze uses layered proof because bugs appear at different boundaries.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
-- Interop: 128 scenarios against 9 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
+- Interop: 148 scenarios against 9 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
 - Verify workflow: `make ze-precommit-verify` takes a shared lock, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `make ze-precommit-verify-changed` and `make ze-repository-check` are narrower handoff gates.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
@@ -64,7 +64,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - MCP Integration [automate, current]: chips: MCP, OAuth 2.1; Streamable HTTP transport, OAuth 2.1 resource server; Server-initiated elicitation, task-augmented tool calls; MCP Apps UI with embedded panels; link: https://ze-software.net/features/mcp-integration/index.md
 - ExaBGP Compatibility [automate, current]: chips: Migration, Bridge; Automatic config migration; Plugin bridge for existing workflows; Migration path for existing scripts; link: https://ze-software.net/features/exabgp-compatibility/index.md
 - Evidence Over Claims [observe, current]: chips: Fuzz, Interop, Docker; Unit, functional, fuzz, chaos; Performance benchmarks; Interop vs FRR, BIRD, GoBGP; link: https://ze-software.net/features/interoperability-testing/index.md
-- Development Activity [observe, current]: chips: Heatmap, Live data; A year of commits and added lines, at a glance; Built from git history each time; Current Go code composition; link: https://ze-software.net/activity/index.md
+- Development Activity [observe, current]: chips: Heatmap, Live data; A year of commits and added lines, at a glance; Built from git history each time; Current Go code composition; link: https://ze-software.net/project/activity/index.md
 - Prometheus Telemetry [observe, current]: chips: Netdata, Prometheus; 138 metrics from /proc and /sys; Netdata naming, drop-in replacement; Existing Grafana dashboards keep working; link: https://ze-software.net/guides/monitoring/index.md
 - Health Registry [observe, current]: chips: HTTP, 503; /health HTTP endpoint; Per-component status checks; BGP, FIB, IPsec, L2TP, VPP; link: https://ze-software.net/features/index.md
 - Host Inventory [observe, current]: chips: CPU, NIC, SMART; CPU, NIC, DMI, memory, thermal; SMART disk health and self-tests; JSON output for pipelines; link: https://ze-software.net/features/index.md
@@ -948,10 +948,10 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 - [Quickstart](https://ze-software.net/guides/quickstart/index.md): Two BGP peers in under five minutes (web: https://ze-software.net/guides/quickstart/)
 - [Install Ze](https://ze-software.net/guides/ze-install/index.md): Run Ze on Linux or as a bootable appliance (web: https://ze-software.net/guides/ze-install/)
 - [Ubuntu build](https://ze-software.net/guides/ubuntu-build-install/index.md): Compile Ze, install it, create zefs, and start SSH (web: https://ze-software.net/guides/ubuntu-build-install/)
-### Learn the basics
+### Learn
+- [Architecture](https://ze-software.net/architecture/index.md): How the pieces fit together (web: https://ze-software.net/architecture/)
 - [BGP configuration](https://ze-software.net/features/bgp-configuration/index.md): Peer settings, validation, inheritance, and policy (web: https://ze-software.net/features/bgp-configuration/)
 - [CLI basics](https://ze-software.net/features/cli-commands/index.md): Diff, commit, history, and operator commands (web: https://ze-software.net/features/cli-commands/)
-- [Architecture](https://ze-software.net/architecture/index.md): How the pieces fit together (web: https://ze-software.net/architecture/)
 
 ## Evaluate
 
@@ -968,18 +968,18 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 
 ## Docs
 
-### Core workflows
+### Operate
 - [Documentation](https://ze-software.net/docs/index.md): All docs, organised by what you want to do (web: https://ze-software.net/docs/)
-- [Guides](https://ze-software.net/guides/index.md): Installation, configuration, operation, and troubleshooting (web: https://ze-software.net/guides/)
 - [Production diagnostics](https://ze-software.net/guides/production-diagnostics/index.md): Start from symptoms and debug safely (web: https://ze-software.net/guides/production-diagnostics/)
 - [Monitoring](https://ze-software.net/guides/monitoring/index.md): Metrics, health, and operational visibility (web: https://ze-software.net/guides/monitoring/)
 - [Lifecycle and rollback](https://ze-software.net/guides/lifecycle/index.md): Start, reload, update, recover, and verify (web: https://ze-software.net/guides/lifecycle/)
-### Interfaces and extensions
+- [Fleet management](https://ze-software.net/guides/fleet-config/index.md): Managed config, TLS hub, caching, and reconnect (web: https://ze-software.net/guides/fleet-config/)
+### Guides and interfaces
+- [Guides](https://ze-software.net/guides/index.md): Installation, configuration, operation, and troubleshooting (web: https://ze-software.net/guides/)
 - [REST and gRPC](https://ze-software.net/guides/api/index.md): Commands, config sessions, authentication, and streaming (web: https://ze-software.net/guides/api/)
 - [gNMI](https://ze-software.net/guides/gnmi/index.md): YANG Get, Set, Subscribe, TLS, and metrics (web: https://ze-software.net/guides/gnmi/)
 - [Web interface](https://ze-software.net/guides/web-interface/index.md): Configuration workbench, commands, and live state (web: https://ze-software.net/guides/web-interface/)
 - [Developer docs](https://ze-software.net/developers/index.md): Build plugins and contribute to Ze (web: https://ze-software.net/developers/)
-- [Fleet management](https://ze-software.net/guides/fleet-config/index.md): Managed config, TLS hub, caching, and reconnect (web: https://ze-software.net/guides/fleet-config/)
 
 ## Examples
 
@@ -1005,7 +1005,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 - [CLI reference](https://ze-software.net/reference/cli/index.md): 395 commands, generated from the live binary (web: https://ze-software.net/reference/cli/)
 - [Configuration reference](https://ze-software.net/reference/configuration/index.md): 36 sections, indexed from live YANG (web: https://ze-software.net/reference/configuration/)
 - [Plugin catalogue](https://ze-software.net/reference/plugins/index.md): Find runtime plugins by purpose, config, or dependency (web: https://ze-software.net/reference/plugins/)
-### Standards and migration
+### Standards and lookup
 - [RFC status](https://ze-software.net/reference/rfcs/index.md): Implemented RFCs, partial support, and known gaps (web: https://ze-software.net/reference/rfcs/)
 - [Command equivalents](https://ze-software.net/reference/command-equivalents/index.md): Search Ze commands across Junos MX, IOS XR, SR OS, and VyOS (web: https://ze-software.net/reference/command-equivalents/)
 - [Deprecated options](https://ze-software.net/reference/deprecations/index.md): Removed configuration syntax and replacements (web: https://ze-software.net/reference/deprecations/)
@@ -1013,17 +1013,17 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 
 ## Project
 
-### Progress and updates
+### Progress and history
 - [Project overview](https://ze-software.net/project/index.md): Progress, history, talks, and contribution paths (web: https://ze-software.net/project/)
 - [Roadmap](https://ze-software.net/project/roadmap/index.md): What works today and what remains before the first release (web: https://ze-software.net/project/roadmap/)
 - [Changes](https://ze-software.net/project/changes/index.md): 36 weekly updates, newest first (web: https://ze-software.net/project/changes/)
 - [Milestones](https://ze-software.net/project/milestones/index.md): Landmark features, oldest to newest (web: https://ze-software.net/project/milestones/)
 - [Activity](https://ze-software.net/project/activity/index.md): A year of commits, at a glance (web: https://ze-software.net/project/activity/)
+- [Project history](https://ze-software.net/project/history/index.md): How ExaBGP's programmable model grew into Ze (web: https://ze-software.net/project/history/)
+### Community and notes
+- [FAQ](https://ze-software.net/faq/index.md): Common questions before trying Ze (web: https://ze-software.net/faq/)
 - [Blog](https://ze-software.net/blog/index.md): Project notes and release stories (web: https://ze-software.net/blog/)
 - [Talks](https://ze-software.net/talks/index.md): Talk slides and conference material (web: https://ze-software.net/talks/)
-### About and contribute
-- [FAQ](https://ze-software.net/faq/index.md): Common questions before trying Ze (web: https://ze-software.net/faq/)
-- [Project history](https://ze-software.net/project/history/index.md): How ExaBGP's programmable model grew into Ze (web: https://ze-software.net/project/history/)
 - [Contribute](https://ze-software.net/contribute/index.md): How to send code, reports, and interop results (web: https://ze-software.net/contribute/)
 - [Contributor testing](https://ze-software.net/contribute/testing/index.md): How to choose and run the right test layer (web: https://ze-software.net/contribute/testing/)
 

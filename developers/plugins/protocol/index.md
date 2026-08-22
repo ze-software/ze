@@ -17,14 +17,78 @@ Every message is a single newline-terminated line:
 | Request | `#<id> <method> [<json-params>]\n` |
 | Success response | `#<id> ok [<json-result>]\n` |
 | Error response | `#<id> error [<json-error>]\n` |
-| Record answer | `#<id> ok <key=value tail>\n`, one line per record |
+| Record answer | `#<id> <kind> <positional fields>\n`: a head, one line for each record, and a terminator |
 
 <!-- source: pkg/plugin/rpc/message.go -- AppendRequest, AppendResult, AppendError -->
 
 The record answer applies to three methods. It replaces the single success line
 with a head, zero or more records, and a terminator. Every other method keeps
-the three forms above. The grammar is in
-[ipc_protocol.md](https://github.com/ze-software/ze/blob/main/docs/architecture/api/ipc_protocol.md), "Answer Protocol".
+the three forms above.
+
+An answer line carries no verb and no key name. The field after the id is a
+three-byte word saying what the line IS:
+
+| Word | The line is |
+|------|-------------|
+| `top` | the head, which opens the answer |
+| `row` | one record the command produced |
+| `bad` | one record it rejected. The walk goes on |
+| `end` | the terminator, which ends the answer |
+| `nay` | the whole answer to a command text naming no command |
+
+The head carries a second three-byte word saying how the records read:
+
+| Word | The records are |
+|------|-----------------|
+| `doc` | one document. The whole answer is that one value |
+| `map` | one map of names to values for each record |
+| `tab` | one positional row for each record, read against the column names |
+
+Every field after those is positional and takes one of two shapes. A NUMBER is
+decimal digits closed by a space or by the end of the line. A TEXT is decimal
+digits, a colon, then that many BYTES. **The count is a BYTE count, never a count
+of characters.** A text of zero bytes is written `0:`, so a line's field count
+never varies:
+
+```
+#43 top doc 0: 0:
+|   |   |   |  |
+|   |   |   |  +----- column names, 0 BYTES, so the records are not positional
+|   |   |   +-------- envelope name, 0 BYTES, so the document carries its own
+|   |   +------------ item type doc: the whole answer is one document
+|   +---------------- kind top: the head, always the first line
++-------------------- correlation id 43, echoed from the request
+
+#43 row 26:{"running":true,"peers":1}
+|   |   |  |
+|   |   |  +----- those 26 bytes, the handler's value byte for byte
+|   |   +-------- 26, the payload's BYTE count, then its colon
+|   +------------ kind row: one record the command produced
++---------------- correlation id 43
+
+#43 end 1 0 0:
+|   |   | | |
+|   |   | | +----- message, 0 BYTES, so the command stated none
+|   |   | +------- 0 rows rejected
+|   |   +--------- 1 record produced
+|   +------------- kind end: the terminator, always the last line
++----------------- correlation id 43
+```
+
+Neither the head nor the terminator states an outcome. The verdict is DERIVED
+from what the terminator carries:
+
+| The terminator | Verdict |
+|----------------|---------|
+| no rejected row and no message | `done` |
+| records and rejected rows, no message | `partial` |
+| a message over no record | `error` |
+| a message over records | `aborted` |
+| no terminator at all | `truncated` |
+
+[ipc_protocol.md](https://github.com/ze-software/ze/blob/main/docs/architecture/api/ipc_protocol.md), "Answer Protocol",
+carries the same grammar with the buffering threshold and the failure cases
+beside it.
 <!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerTerminator -->
 
 | Method | The plugin | The engine |
@@ -356,7 +420,11 @@ Plugin                                             Engine
    |                                                  |
    |  RUNTIME: command execution                      |
    |<- #43 ze-plugin-callback:execute-command {...} ---|
-   |-- #43 ok {"status":"done","data":"..."} -------->|
+   |-- #43 top doc 0: 0: ---------------------------->|  head: doc, no envelope,
+   |                                                  |  no column names
+   |-- #43 row 26:{"running":true,"peers":1} -------->|  26 BYTES of payload
+   |-- #43 end 1 0 0: ------------------------------->|  1 produced, 0 rejected,
+   |                                                  |  no message
    |                                                  |
    |  SHUTDOWN: bye                                   |
    |<- #99 ze-plugin-callback:bye {"reason":"..."} ---|

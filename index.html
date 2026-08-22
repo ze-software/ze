@@ -168,12 +168,12 @@
             <section class="whats-new reveal" aria-labelledby="whats-new-title">
                 <div class="whats-new-head">
                     <h2 id="whats-new-title">Latest news</h2>
-                    <a href="changes/">All updates</a>
+                    <a href="project/changes/">All updates</a>
                 </div>
                 <article class="whats-new-item tone-grape">
                     <span class="whats-new-label">Engineering note</span>
-                    <h3><a href="blog/ai-coding-has-not-had-its-rails-moment/">AI coding has not had its Rails moment</a></h3>
-                    <p>Harnesses and models improve every few weeks, and the repositories they work in still explain nothing about…</p>
+                    <h3><a href="blog/reference-from-the-system/">Reference from the system</a></h3>
+                    <p>Generated references stay tied to code, registries and RFC evidence.</p>
                 </article>
                 <article class="whats-new-item tone-sky">
                     <span class="whats-new-label">Recently shipped</span>
@@ -183,7 +183,7 @@
                 <article class="whats-new-item tone-pink">
                     <span class="whats-new-label">RFC compliance progress</span>
                     <h3><a href="quality/rfc-compliance/">Every MUST requirement tied to a test</a></h3>
-                    <p>Ze checks 2,950 MUST-level requirements across 168 RFCs. A requirement counts only when its test would fail…</p>
+                    <p>Every gated MUST-level requirement links to source text, status, and test evidence.</p>
                 </article>
             </section>
 
@@ -209,7 +209,7 @@
                 <div class="proof-strip" aria-label="Project evidence">
                     <a class="proof" href="quality/unit-fuzz-mutation/">
                         <strong
-                            >23,100+ <span class="label">unit tests</span></strong
+                            ><span data-ze-stat="tests.unit_display">23,100+</span> <span class="label">unit tests</span></strong
                         >
                         <ul>
                             <li>Wire encoding, parsing</li>
@@ -220,10 +220,10 @@
                     </a>
                     <a class="proof" href="quality/rfc-compliance/">
                         <strong
-                            >2,950 <span class="label">RFC MUST checks</span></strong
+                            ><span data-ze-stat="rfc.gated_must_display">2,966</span> <span class="label">RFC MUST checks</span></strong
                         >
                         <ul>
-                            <li>168 RFCs inspected</li>
+                            <li><span data-ze-stat="rfc.enrolled_display">171</span> RFCs inspected</li>
                             <li>Gaps disclosed before claims</li>
                             <li>Tests tied to requirement IDs</li>
                         </ul>
@@ -231,7 +231,7 @@
                     </a>
                     <a class="proof" href="quality/functional-ci/">
                         <strong
-                            >1,600+
+                            ><span data-ze-stat="tests.e2e_display">1,600+</span>
                             <span class="label">end to end tests</span></strong
                         >
                         <ul>
@@ -242,7 +242,7 @@
                         <span class="proof-check">Functional transcript format and rerun path.</span>
                     </a>
                     <a class="proof" href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">
-                        <strong>78 <span class="label">fuzz targets</span></strong>
+                        <strong><span data-ze-stat="tests.fuzz_display">78</span> <span class="label">fuzz targets</span></strong>
                         <ul>
                             <li>Parsers, external inputs</li>
                             <li>Wire formats, config files</li>
@@ -252,7 +252,7 @@
                     </a>
                     <a class="proof" href="quality/qemu-interop-release/#docker-interop">
                         <strong
-                            >9 <span class="label">interop targets</span></strong
+                            ><span data-ze-stat="interop.target_display">9</span> <span class="label">interop targets</span></strong
                         >
                         <ul>
                             <li>Real third-party daemons</li>
@@ -686,7 +686,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 12:15 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 14:05 UTC</span>
                 </div>
             </div>
         </footer>
