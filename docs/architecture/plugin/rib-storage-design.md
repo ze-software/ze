@@ -1086,8 +1086,21 @@ while `peerMu` is held, which matters because `handleReceivedStructured` takes
 `peerMu.Lock` for every UPDATE it processes: a walk that held the read side
 across its writes would stall UPDATE processing for as long as an operator's
 terminal took to drain a full table.
+
+**The reference covers the item last handed over and nothing else.** A pipeline
+stage that HOLDS items past the pull that produced them is outside that cover
+and takes a reference of its own. `last N` is that stage: it drains the whole
+walk into a ring of N and emits from the ring afterwards, so without one, every
+row `show bgp rib best last N` produced but the final one would be encoded from
+a released slot. `applyBestStages` is where the ring is given its reference and
+where the release it owes is returned to the caller.
+
+`show bgp rib` is NOT built on any of this. It holds `peerMu.RLock` across its
+whole drain and returns one document, so it writes nothing to a socket under the
+lock, and its adj-rib-in handles are covered by nothing at all.
 <!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- LookupRetained -->
-<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_best.go -- bestPipeline, bestPathRows, bestSource -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_best.go -- bestPipeline, bestPathRows, bestSource, applyBestStages -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- showPipeline, inboundSource, lastFilter -->
 
 ### Example: IPv4 Unicast
 

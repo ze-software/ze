@@ -71,10 +71,22 @@ type inboundPeerRef struct {
 
 // inboundSource iterates over all adj-rib-in routes matching the peer selector.
 // Caller (showPipeline) holds r.peerMu.RLock across construction and the full
-// drain. PeerRIB iteration uses PeerRIB's own lock, and the downstream
-// filters/terminals deref the captured InEntry pool handles -- the outer
-// peerMu.RLock keeps those handles live against handleReceived, which releases
-// them under peerMu.Lock (I2).
+// drain, and PeerRIB iteration uses PeerRIB's own lock.
+//
+// WHAT THAT LOCK DOES NOT DO. The downstream filters and terminals dereference
+// the captured InEntry pool handles, and peerMu does NOT keep those handles
+// live. peerMu protects the peer-keyed maps only (RIBManager.peerMu, rib.go):
+// handleReceivedStructured gives it back before its phase 2 removes anything
+// (rib_structured.go), and PeerRIB.Remove releases an entry's handles under
+// PeerRIB's own lock alone (FamilyRIB.Remove, storage/familyrib.go). So a route
+// withdrawn under this walk can leave a row reading a released slot, which a
+// release build may already have re-interned with other bytes.
+//
+// The cover this needs is a REFERENCE, which is what PeerRIB.LookupRetained
+// takes for the converted best-path walk (bestSource.Next,
+// rib_pipeline_best.go). This walk is not converted, so it does not have one.
+// The measurement and the reason it is recorded rather than repaired here are in
+// plan/journal/false-synchronization-claim.md.
 type inboundSource struct {
 	peers   []inboundPeerRef
 	peerIdx int
@@ -215,7 +227,11 @@ func (s *protocolInboundSource) Meta() PipelineMeta {
 // Lazy per-peer buffering: materializes one peer's routes at a time.
 // Caller (showPipeline) holds r.peerMu.RLock across construction and the full
 // drain, so reconstructRoute's pool-handle deref stays mutually exclusive with
-// the writers that release those handles -- handleSent holds peerMu.Lock (I2).
+// handleSent, which writes r.ribOut under peerMu.Lock (rib.go).
+//
+// That is a claim about the ADJ-RIB-OUT half alone. The adj-rib-in half of the
+// same pipeline does NOT have it: peerMu never covered a PeerRIB entry's handles
+// (inboundSource, above, and plan/journal/false-synchronization-claim.md).
 type outboundSource struct {
 	r       *RIBManager
 	peers   []netip.Addr
@@ -754,6 +770,14 @@ type lastFilter struct {
 	full     bool        // true once buf reached limit and started overwriting
 	drained  bool
 	idx      int // emission cursor over the drained items
+
+	// retain says this filter takes a reference of its own to the pool entry
+	// of every item it keeps. It is set only by a chain whose SOURCE hands an
+	// item's reference back on the next pull (bestSource.Next,
+	// rib_pipeline_best.go): this filter holds items past that pull, so the row
+	// built from one later would otherwise read attributes no reference covers.
+	// The caller that sets it MUST call release when it stops pulling.
+	retain bool
 }
 
 func newLastFilter(upstream pipelineIterator, arg string) *lastFilter {
@@ -791,16 +815,56 @@ func (f *lastFilter) drain() {
 		if !ok {
 			break
 		}
+		item = f.keep(item)
 		if len(f.buf) < f.limit {
 			// Still filling: append grows the buffer lazily, bounded by limit.
 			f.buf = append(f.buf, item)
 		} else {
-			// Full: overwrite the oldest element in O(1) and advance head.
+			// Full: the oldest element leaves the ring, so its reference goes
+			// back before it is overwritten.
+			f.drop(f.buf[f.head])
 			f.buf[f.head] = item
 			f.head = (f.head + 1) % f.limit
 			f.full = true
 		}
 	}
+}
+
+// keep takes this filter's own reference to item's pool entry, so the entry
+// survives the next pull from the source. An entry the RIB has already released
+// cannot be referenced, and the item then carries the prefix and its peer with
+// no attributes, which is the same answer a route withdrawn mid-walk produces
+// (bestSource.Next).
+//
+// It does nothing when the chain's source keeps its items alive by other means
+// (retain), so `show bgp rib` is unchanged.
+func (f *lastFilter) keep(item RouteItem) RouteItem {
+	if !f.retain || !item.HasInEntry {
+		return item
+	}
+	if err := item.InEntry.AddRef(); err != nil {
+		item.HasInEntry = false
+		item.InEntry = storage.RouteEntry{}
+	}
+	return item
+}
+
+// drop gives back the reference keep took, for an item leaving the ring.
+func (f *lastFilter) drop(item RouteItem) {
+	if !f.retain || !item.HasInEntry {
+		return
+	}
+	item.InEntry.Release()
+}
+
+// release gives back every reference this filter still holds. It MUST be called
+// by the caller that set retain, on every way out of the walk, and it is safe to
+// call more than once and safe to call before anything was pulled.
+func (f *lastFilter) release() {
+	for i := range f.buf {
+		f.drop(f.buf[i])
+	}
+	f.buf = nil
 }
 
 func (f *lastFilter) Meta() PipelineMeta {
@@ -1040,11 +1104,16 @@ const filterPath = "path"
 
 // showPipeline builds and executes a pipeline from command args.
 // Called by handleCommand for "show bgp rib" with optional scope + filter stages.
-// Holds r.peerMu.RLock across source construction AND the full drain: the
-// sources carry pool handles (ribOut entries, adj-rib-in bundle handles) that
-// filters/terminals dereference lazily, and the writers that release those
-// handles (handleSent/handleReceived) hold peerMu.Lock, so the read lock must
-// span the whole pipeline to keep handles live (I2).
+// Holds r.peerMu.RLock across source construction AND the full drain. The whole
+// answer is built under it and returned, so nothing is written to a transport
+// while it is held (AC-5 of spec-record-answers-3-zero-alloc).
+//
+// The read lock covers the peer-keyed maps and the adj-rib-out entries
+// handleSent writes under peerMu.Lock. It does NOT cover an adj-rib-in entry's
+// pool handles, which PeerRIB.Remove releases under PeerRIB's own lock alone:
+// see inboundSource and plan/journal/false-synchronization-claim.md. A converted
+// walk covers those with a reference instead (bestSource.Next,
+// rib_pipeline_best.go), and this one is not converted.
 func (r *RIBManager) showPipeline(selector string, args []string) any {
 	scope, pipeSelector, stages, errMsg := parsePipelineArgs(args)
 	if errMsg != "" {

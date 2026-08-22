@@ -43,12 +43,17 @@ type bestEntry struct {
 //
 // Construction reads the peer-keyed maps, so the caller MUST hold at least
 // RLock on RIBManager for newBestSource. The DRAIN needs no such lock: Next
-// re-resolves each item's pool entry and retains it, so every dereference
-// downstream is covered by a reference this source holds.
+// re-resolves each item's pool entry and retains it.
 //
-// The caller MUST call release when it stops pulling, whatever stopped it. Next
-// gives back the previous item's reference on every pull, so at most one is
-// held at a time, and the last one outlives the walk unless the caller says so.
+// The reference covers the item Next LAST handed over and nothing else, because
+// Next gives the previous one back on every pull. At most one is held at a time,
+// which is what makes a walk of a million rows affordable. A stage that HOLDS
+// items past the pull that produced them is therefore outside that cover and
+// MUST take a reference of its own: `last N` is that stage, and applyBestStages
+// is where it is given one.
+//
+// The caller MUST call release when it stops pulling, whatever stopped it, so
+// the last reference does not outlive the walk.
 type bestSource struct {
 	entries []bestEntry
 	idx     int
@@ -278,13 +283,8 @@ func (r *RIBManager) bestPipeline(selector string, args []string) any {
 	source := newBestSource(r, selector, candidatesByKey)
 	defer source.release()
 
-	var current pipelineIterator = source
-	for _, stage := range stages {
-		if stage.kind == bestTerminalReason {
-			continue
-		}
-		current = stage.apply(current)
-	}
+	current, releaseStages := applyBestStages(source, stages)
+	defer releaseStages()
 
 	// Reason terminal: drive a specialized drain that consults the stash.
 	if hasReasonTerminal(stages) {
@@ -335,10 +335,8 @@ func (r *RIBManager) bestPathRows(selectorStr string, stages []pipelineStage) it
 
 		defer source.release()
 
-		var current pipelineIterator = source
-		for _, stage := range stages {
-			current = stage.apply(current)
-		}
+		current, releaseStages := applyBestStages(source, stages)
+		defer releaseStages()
 
 		row := newBestRowWriter()
 		for {
@@ -349,6 +347,45 @@ func (r *RIBManager) bestPathRows(selectorStr string, stages []pipelineStage) it
 			if !yield(row.record(item)) {
 				return
 			}
+		}
+	}
+}
+
+// applyBestStages builds the stage chain over a bestSource and reports the
+// release that chain owes.
+//
+// bestSource.Next gives an item's pool reference back on the NEXT pull, so the
+// reference covers the item last handed over and nothing else. A stage that
+// HOLDS items past that pull therefore needs a reference of its own, and `last
+// N` is the one stage that holds them: lastFilter.drain pulls the whole walk
+// into a ring and emits from it afterwards. Without this, every row `show bgp
+// rib best last N` produces but the final one is encoded from handles the RIB
+// may already have released, and in a release build a released slot is
+// re-interned with other bytes (PeerRIB.LookupRetained).
+//
+// The caller MUST call the returned release on every way out, beside
+// bestSource.release. It is bounded by N, which is what makes the ring's
+// references affordable where retaining the whole walk would not be.
+// A stage is recognized as a holder by its TYPE rather than by its keyword, so
+// the keyword lives in one place (pipelineStage.apply). A buffering stage added
+// later that is not a lastFilter is invisible here, which is why lastFilter's
+// retain field states the obligation on its own side of the pair.
+func applyBestStages(source *bestSource, stages []pipelineStage) (pipelineIterator, func()) {
+	var current pipelineIterator = source
+	var holders []*lastFilter
+	for _, stage := range stages {
+		if stage.kind == bestTerminalReason {
+			continue
+		}
+		current = stage.apply(current)
+		if held, isHolder := current.(*lastFilter); isHolder {
+			held.retain = true
+			holders = append(holders, held)
+		}
+	}
+	return current, func() {
+		for _, held := range holders {
+			held.release()
 		}
 	}
 }

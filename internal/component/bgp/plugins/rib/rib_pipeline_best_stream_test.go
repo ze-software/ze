@@ -323,6 +323,97 @@ func TestBestPathRowsReleaseWhenTheWalkStops(t *testing.T) {
 	require.Error(t, err, "the walk kept a reference to a row it had already handed over")
 }
 
+// TestBestPathRowsHandleSafeUnderLastFilter proves the reference reaches the
+// ROW for a walk whose stage chain HOLDS its items.
+//
+// `last N` drains the whole walk into a ring and emits from it afterwards, so
+// every row it keeps but the final one is built after bestSource.Next has
+// already given that item's reference back. This is the same property
+// TestBestPipelineHandleSafeOutsideLock holds for the unfiltered walk, over the
+// one stage that breaks the source's "at most one held at a time" contract.
+//
+// VALIDATES: AC-12 of spec-record-answers-3-zero-alloc -- the pool-handle
+// dereference is safe outside the lock, for `show bgp rib best last N` as well
+// as for the bare walk.
+// PREVENTS: the row reading attributes the RIB has already released. In a
+// release build a released slot returns to its shard's free list and is
+// re-interned with other bytes (attrpool, slotReuseEnabled), so the row would
+// carry another route's attributes rather than an error.
+func TestBestPathRowsHandleSafeUnderLastFilter(t *testing.T) {
+	r := newTestRIBManager(t)
+	peerRIB := seedBestPathRows(t, r, 3)
+
+	fam := family.IPv4Unicast
+	first := []byte{32, 10, 0, 0, 0}
+
+	r.peerMu.RLock()
+	source := newBestSource(r, "*", nil)
+	r.peerMu.RUnlock()
+	defer source.release()
+
+	current, releaseStages := applyBestStages(source, []pipelineStage{{kind: "last", arg: "3"}})
+	defer releaseStages()
+
+	// The first pull drains the whole walk into the ring, so the item returned
+	// here was pulled from the source two pulls before the drain ended.
+	item, ok := current.Next()
+	require.True(t, ok)
+	require.True(t, item.HasInEntry, "the buffered item lost its pool entry")
+
+	// The withdrawal an UPDATE performs, on the path that performs it. The RIB
+	// gives back its own reference; only the ring's reference is left.
+	require.True(t, peerRIB.Remove(fam, first))
+
+	result := bestResultFor(item)
+	require.NotEmpty(t, result.Attrs, "the row lost the attributes its reference was taken for")
+	assert.Equal(t, "10.0.0.1", result.Attrs["next-hop"])
+	assert.Contains(t, result.Attrs, "as-path", "the row lost the AS path its reference was taken for")
+}
+
+// TestBestPathRowsLastFilterReleasesItsRing proves the ring gives every
+// reference back, so a bounded read does not pin a pool slot for the life of
+// the process.
+//
+// VALIDATES: R-1 -- every acquisition has a paired release, including the ones
+// `last N` takes for the rows it keeps.
+// PREVENTS: `show bgp rib best last N` leaking N pool references per run.
+func TestBestPathRowsLastFilterReleasesItsRing(t *testing.T) {
+	r := newTestRIBManager(t)
+	peerRIB := seedBestPathRows(t, r, 3)
+
+	fam := family.IPv4Unicast
+	first := []byte{32, 10, 0, 0, 0}
+	entry, ok := peerRIB.Lookup(fam, first)
+	require.True(t, ok)
+	handle := entry.ASPath
+	require.True(t, handle.IsValid())
+
+	func() {
+		r.peerMu.RLock()
+		source := newBestSource(r, "*", nil)
+		r.peerMu.RUnlock()
+		defer source.release()
+
+		current, releaseStages := applyBestStages(source, []pipelineStage{{kind: "last", arg: "3"}})
+		defer releaseStages()
+
+		rows := 0
+		for {
+			if _, more := current.Next(); !more {
+				break
+			}
+			rows++
+		}
+		require.Equal(t, 3, rows)
+	}()
+
+	// The RIB gives back its own reference. Nothing else may be holding one.
+	require.True(t, peerRIB.Remove(fam, first))
+
+	_, err := pool.ASPath.Get(handle)
+	require.Error(t, err, "`last N` kept a reference to a row the walk had finished with")
+}
+
 // walkDeadline bounds the concurrent walk below. It is far above the
 // milliseconds the walk takes and far below any suite timeout, so it separates a
 // wedged walk from a slow host without either one waiting on the other.

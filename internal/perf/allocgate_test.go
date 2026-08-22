@@ -23,10 +23,9 @@ import (
 // perf.AllocCeilings and absent here is a Missing violation by design
 // (fail-closed), so this fixture gains a line whenever the map gains an entry.
 //
-// It states what the COMPARATOR is fed, never what the daemon measures. The
-// record-path line reads zero allocs/op because these tests exercise the parse
-// and the comparison. The daemon's real number for that benchmark is not zero
-// today, and `make ze-alloc-check` is the one place that fact lives.
+// It states what the COMPARATOR is fed, never what the daemon measures. Every
+// line here is a fixture, and a number in it says nothing about the product:
+// `make ze-alloc-check` is the one place the daemon's real numbers live.
 const sampleBenchOutput = `goos: linux
 goarch: amd64
 pkg: github.com/ze-software/ze/internal/component/bgp/reactor
@@ -192,6 +191,18 @@ const (
 	recordPathPackage   = "internal/component/plugin"
 )
 
+// recordPathCeiling is the allocs/op the record path is held to, and it is a
+// GOAL rather than a measurement with headroom: AC-1 of
+// spec-record-answers-3-zero-alloc is zero allocations for each row.
+//
+// It is spelled here as well as in AllocCeilings because the gate compares
+// against whatever number the registry carries, so raising that number is the
+// cheapest route from a red gate to a green one -- cheaper than fixing the
+// allocation, and invisible in the gate's own output. Nothing else in the
+// pipeline reads it: the enforce check, the parse tests and the relaxation
+// audit all stay green at any ceiling.
+const recordPathCeiling = 0
+
 // allocGateMakefile is the gate's makefile, relative to the repository root.
 const allocGateMakefile = "mk/alloc-gate.mk"
 
@@ -208,8 +219,13 @@ const allocGateMakefile = "mk/alloc-gate.mk"
 //	benchmark that runs while nothing enforces a ceiling for it proves
 //	nothing at all. Neither shape is visible from the gate's own output.
 func TestAllocGateCoversRecordPath(t *testing.T) {
-	if _, registered := AllocCeilings[recordPathBenchmark]; !registered {
+	ceiling, registered := AllocCeilings[recordPathBenchmark]
+	if !registered {
 		t.Errorf("%s has no ceiling in AllocCeilings, so the gate enforces nothing for the record path", recordPathBenchmark)
+	}
+	if registered && ceiling != recordPathCeiling {
+		t.Errorf("%s is registered at %d allocs/op, want %d: a loosened ceiling turns the gate green without the allocation going away, and no other check reads this number",
+			recordPathBenchmark, ceiling, recordPathCeiling)
 	}
 
 	root := repoRootForTest(t)

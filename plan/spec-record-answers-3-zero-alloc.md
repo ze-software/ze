@@ -461,6 +461,8 @@ Two consequences for this spec's own goal, and neither is cosmetic:
 - `table` and `text` rendering still buffers every row before printing, because a column width needs them all. Recorded as a permanent limit in `plan/deferrals/streaming-answer-protocol.md`.
 - REST, gRPC, web, MCP and the looking glass still collapse to one document through `CollapseRecords`. Their record-level streaming has its own deferral row and its own spec.
 - The pool is sized in code rather than configured. An operator has no knob, which is deliberate: a pool size an operator can set is a way to make the daemon slower.
+- Zero allocations per row is a property of the ENCODER, and of no shipped producer. `BenchmarkRecordAnswerRows` measures a row that appends and keeps nothing, which is the cost the encoder cannot avoid. A handler that builds a value still pays for it: `bestRowWriter.record` measures 32 allocations and 2871 bytes for each route, and `yieldCompletion` marshals one slice for each row so that a row it cannot encode can be reported as a rejected row. AC-1 is met where the gate measures it and nowhere else.
+- The `tab` item type has one producer and it is `ze-test record-plugin`. No operator-facing command declares a column schema yet, so every real streamed answer still repeats its keys on every row. The first one to declare a schema is the `show bgp rib` flat-row conversion the owner ruled on for AC-4.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -471,6 +473,83 @@ message: it changes only how an already-selected route is rendered into a
 command answer. The one RFC-adjacent obligation is that a read walk must not
 delay UPDATE processing, which AC-5 asserts and the interop scenario proves
 against a real peer.
+
+## Review Gate
+
+Independent review of the six implementation phases, by a context that wrote
+none of them. Diff under review: `e41a46fd6..e9f0a8b8f` (phases 1 to 6, plus the
+`575c319ca` doc follow-up).
+
+### Round scope, written before each round ran
+
+| Round | Scope |
+|-------|-------|
+| 1 | The whole diff of the seven commits, plus every sibling call site of every function they changed: the five other `PeerRIB.IsAddPath` callers outside the show pipelines, every construction site of `lastFilter`, both branches of `bestPipeline`, both channels' answer writers, and the alloc gate's three files |
+| 2 | Only the files round 1's fixes touched, and the sibling call sites of what those fixes changed: `rib_pipeline.go` (`lastFilter`, `showPipeline`, `inboundSource`, `outboundSource`) with every `lastFilter` construction site, `rib_pipeline_best.go` (`applyBestStages`, `bestPipeline`, `bestPathRows`, `bestSource`), `internal/perf/allocgate_test.go`, `docs/architecture/plugin/rib-storage-design.md`, and the two journal files |
+
+### Findings
+
+| # | Severity | Finding | Disposition |
+|---|----------|---------|-------------|
+| B-1 | BLOCKER | `show bgp rib best last N` builds every row but the final one from pool handles no reference covers. `bestSource.Next` (`rib_pipeline_best.go`) gives the previous item's reference back on every pull; `lastFilter.drain` (`rib_pipeline.go`) pulls the WHOLE walk into a ring of N and emits from the ring afterwards, so the row is built long after its reference went back. `last` is a registered operator-facing pipe filter (`command.PipeFilter{Name: "last"}`, `internal/component/bgp/plugins/cmd/rib/rib.go`). Measured: seeded at 3 routes with `last 3` in the chain, `pool.ASPath.Get` on the first buffered row's handle answered `handle references dead slot` after one withdrawal and the row rendered with its as-path missing. In a release build that slot is re-interned, so the row carries another route's attributes. AC-12 claimed this dereference safe and `bestSource`'s own doc claimed every downstream dereference covered | FIXED. `applyBestStages` (`rib_pipeline_best.go`) builds the chain for the streamed walk and for the terminal branch, sets `lastFilter.retain` on every holder, and returns the release that chain owes. The ring takes its own reference per item kept, releases on eviction and releases the rest at the end, so the cost is bounded by N. `TestBestPathRowsHandleSafeUnderLastFilter` and `TestBestPathRowsLastFilterReleasesItsRing` are the regressions; each was proven by its own mutation |
+| I-1 | ISSUE | A loosened alloc ceiling is caught by nothing. `AllocCeilings` is the number the gate compares against and the gate prints the measurement, never the ceiling. Measured by mutation: `BenchmarkRecordAnswerRows` moved from 0 to 5 left `make ze-alloc-check` green, `./internal/perf/` green, and `audit-test-relaxation.py` silent. `TestAllocGateCoversRecordPath` asserted only that an entry exists, and this entry is a GOAL registered red a phase before the optimization | FIXED. `recordPathCeiling` (`internal/perf/allocgate_test.go`) spells the goal beside the registry and `TestAllocGateCoversRecordPath` fails when the two disagree. Proven by moving the registered value to 5 and watching it red by name. Scoped to this one entry on purpose: the other ceilings are measurements with headroom, where a raise can be honest |
+| I-2 | ISSUE | A false synchronization claim survived the phase that disproved it. `showPipeline`, `inboundSource` and `outboundSource` (`rib_pipeline.go`) each stated that holding `peerMu.RLock` across the drain keeps the `InEntry` pool handles live, naming `handleReceived` and calling it I2. `plan/journal/false-synchronization-claim.md` proved that false on 2026-08-22 and the sentences stayed in the code, where they are the shield that stops the next reader asking (`ai/rules/evidence.md`) | FIXED in the comments, not in the product. Each now states what the lock DOES cover, names `PeerRIB.Remove` releasing under the storage lock alone, and points at `LookupRetained` as the cover a converted walk has and this one does not. The `outboundSource` half of the claim was verified from the producer and KEPT: `handleSent` (`rib.go`) holds `peerMu.Lock` and calls `ribOutEntry.release()` under it |
+| I-3 | ISSUE | Stale comment asserting a false product property. `sampleBenchOutput` (`internal/perf/allocgate_test.go`) said "The daemon's real number for that benchmark is not zero today", written in phase 1 and left after phase 3 made it zero | FIXED. The comment now says the fixture states what the comparator is fed and nothing about the product |
+| N-1 | NOTE | AC-1 reads "the measured allocation count per row is zero", and that is true of the ENCODER and of no shipped producer. `BenchmarkRecordAnswerRows` measures a hand-written appender. `bestRowWriter.record` allocates a `map[string]any` per row through `bestResultFor`, measured at 32 allocs and 2871 B per route, and `yieldCompletion` (`plugin/server/system.go`) still calls `json.Marshal` once per row | Recorded, not fixed. Both are disclosed in their phase records; neither is a hot path this spec converts. Stated in Known Limitations so the closure record does not read wider than the measurement |
+| N-2 | NOTE | The `tab` item type's only producer is `ze-test record-plugin` (`internal/test/cli/cmd_record_plugin.go`). No operator-facing command declares a column schema, so no real answer streams positionally yet | Recorded. AC-6 and AC-7 are met by their letter and the phase record says plainly which handler declares one. The first operator-facing schema is the `show bgp rib` flat-row conversion below |
+| N-3 | NOTE | `docs/architecture/core-design.md` is in Files to Modify and was not changed. It carries no `peerMu` claim and no anchor into the rib pipeline, so there was nothing to correct | Design-phase over-scoping, not a doc defect |
+| N-4 | NOTE | Spec metadata is stale: Status `design`, Phase `-`, Updated 2026-08-21, after six implemented phases | Recorded here rather than edited, because the closure commit owns that transition |
+| N-5 | NOTE | `defer frame.release()` in `execMiddleware` (`internal/component/ssh/ssh.go`) is the one release line no test drives. Judged acceptable: the acquisition and the deferred release are adjacent in one function, `frame` reaches no goroutine, and both consumers use it synchronously. `TestAnswerFrameUsesPooledBuffer` proves the pair itself | Accepted. See the report's judgement for why closing it costs more than it buys |
+| N-6 | NOTE | `make ze-repository-check` reports `AddProcess has no cross-package non-test caller` and `audit-test-relaxation.py` reports two WEAKENED tests in `internal/component/firewall/plugins/irr/irr_test.go`. Neither is in this diff; both belong to other sessions' uncommitted work in this shared checkout | Neither belongs to this spec. Each is owned by the session whose uncommitted work carries it, and is named here so the next reader does not charge it to this commit |
+| N-7 | NOTE | A `misspell` red in `internal/component/plugin/process/manager.go` (another session's uncommitted hunk) blocked `make ze-lint-changed` | Fixed in place, one word in a comment, so the gate could give a real answer. Reported rather than folded in silently |
+
+### AC-4, decided and outstanding
+
+Owner ruling, 2026-08-23: **`show bgp rib` gets FLAT ROWS.** One envelope, one row
+per route, each row carrying `peer` and `direction` as fields, replacing the
+two-level object keyed by direction and then by peer. He took it knowing the
+payload changes and that `test/plugin/rib-pipe-filter.ci` asserts the current
+shape. The reason is what it enables: `show bgp rib | peer 10.0.0.1 | direction
+in | summary`, which the two-level object cannot express.
+
+So AC-4 and AC-8 were never in conflict, they were an undecided payload
+question, and it is now answered: **AC-8 no longer holds for `show bgp rib`, by
+owner decision.** `showPipeline` is unconverted in the code reviewed here, and
+phase 5 was right to decline to guess. The conversion is queued and lands after
+this review, so AC-4 closes as decided with its implementation outstanding, and
+not as a limitation.
+
+Two things the implementer needs from this review:
+
+- **The lock mechanism transfers, the reference mechanism does not.** Taking
+  `peerMu` to read the peer-keyed maps and giving it back before the first yield
+  is exactly what `bestPathRows` does, and `inboundSource`/`protocolInboundSource`
+  can be built the same way: their construction already reads only `r.bgpPeers`
+  and `r.ribInPool`. What does NOT transfer is `bestSource.Next`'s per-item
+  `LookupRetained`. Those two sources BUFFER a whole peer's `RouteItem`s at a time
+  inside `Next`, each carrying an `InEntry` copy, so a retain per item would hold
+  one peer's entire table of references rather than one. Converting them means
+  either resolving the entry per pull as `bestSource` does, which costs a lookup
+  per row and changes the iteration shape, or giving the buffer the ownership
+  `lastFilter` was just given.
+- **`outboundSource` needs neither**, because `handleSent` really does write
+  `ribOut` under `peerMu.Lock`. A converted `showPipeline` that gives `peerMu`
+  back before yielding LOSES that cover and would need its own answer for the
+  sent half.
+
+### Verification
+
+| What | Result |
+|------|--------|
+| `make ze-alloc-check` | green, exit 0. `BenchmarkRecordAnswerRows-4 300 143.8 ns/op 223 B/op 0 allocs/op`, harness beside it at 0 allocs/op. `-benchtime=300x` puts b.N at 300, past `AnswerBufferThreshold` of 256, so the streamed form is what is measured |
+| Phase 1 landed it RED, phase 3 turned it green | Confirmed from history, not from the report. `e41a46fd6` adds the ceiling of 0 and the benchmark and no producer change; `27c69fea7` adds `rpc.Row` and `RawRow`. Nothing between them touches the encoder |
+| Reversion re-run by the reviewer | `inboundSource.Next` reverted to `IsAddPath(fam)` inside the `IterateSorted` callback. `TestShowPipelineWalkSurvivesConcurrentUpdates` FAIL in 30.00s, naming the wedge. Restored from a saved copy |
+| `IsAddPath` inside an iteration | No site remains. The five callers outside the pipelines (`rib_commands.go` x3, `rib_commands_community.go` x2) all read the flag BEFORE `IterateFamily`/`ModifyFamilyAllKeyed`. `rib_mrt.go` reads `Families()` outside its iteration |
+| `make ze-lint-changed` | `0 issues.` on both passes, exit 0 |
+| `./internal/component/bgp/plugins/rib/` | green under `-race`, `GOFLAGS=-count=1`, real run |
+| `./internal/component/plugin/`, `./internal/perf/` | green, `GOFLAGS=-count=1`, real runs |
+| `make ze-repository-check` | one issue, and it belongs to another session (N-6) |
+
 
 ## Checklist
 
