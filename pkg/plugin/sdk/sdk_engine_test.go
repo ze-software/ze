@@ -18,7 +18,7 @@ import (
 // here so the SDK's reader is driven by the bytes and not by that producer.
 func answerLines(id uint64, key string, items, faults []string) [][]byte {
 	lines := make([][]byte, 0, len(items)+len(faults)+2)
-	lines = append(lines, rpc.AppendAnswerHead(nil, id, rpc.StatusDone, rpc.AnswerTypeNDJSON, key, nil))
+	lines = append(lines, rpc.AppendAnswerHead(nil, id, rpc.AnswerTypeMap, key, nil))
 	for _, item := range items {
 		lines = append(lines, rpc.AppendAnswerItem(nil, id, []byte(item)))
 	}
@@ -38,7 +38,7 @@ func answerLines(id uint64, key string, items, faults []string) [][]byte {
 // counts. It is the wire rpc.WriteDocumentAnswer produces
 // (pkg/plugin/rpc/answer_write.go).
 func documentAnswerLines(id uint64, document string, count, faults uint64) [][]byte {
-	lines := [][]byte{rpc.AppendAnswerHead(nil, id, rpc.StatusDone, rpc.AnswerTypeJSON, "", nil)}
+	lines := [][]byte{rpc.AppendAnswerHead(nil, id, rpc.AnswerTypeDocument, "", nil)}
 	if document != "" {
 		lines = append(lines, rpc.AppendAnswerItem(nil, id, []byte(document)))
 	}
@@ -149,7 +149,7 @@ func TestDispatchCommandAnswerYieldsRows(t *testing.T) {
 // rpc.WriteDocumentAnswer writes for a bounded walk, and read it through both the
 // answer-returning call and the value-returning one.
 //
-// VALIDATES: AC-3 -- a bounded walk is one rpc.AnswerTypeJSON record whose item
+// VALIDATES: AC-3 -- a bounded walk is one rpc.AnswerTypeDocument record whose item
 // is the whole document, and DispatchCommand rebuilds that document byte for
 // byte.
 // PREVENTS: the threshold turning a short answer into a row sequence, which
@@ -197,7 +197,7 @@ func TestDispatchCommandAnswerBoundedIsDocument(t *testing.T) {
 
 	answer, err := p.DispatchCommandAnswer(ctx, "show bgp neighbor summary")
 	require.NoError(t, err)
-	assert.Equal(t, rpc.AnswerTypeJSON, answer.Type, "a bounded walk states it is one document")
+	assert.Equal(t, rpc.AnswerTypeDocument, answer.Type, "a bounded walk states it is one document")
 
 	var records []string
 	for record := range answer.Records {
@@ -234,7 +234,7 @@ func TestDispatchCommandAnswerBoundedIsDocument(t *testing.T) {
 func TestCollapseAnswerRefusesAnUnreadableDocument(t *testing.T) {
 	t.Parallel()
 
-	head := rpc.AnswerTail{Status: rpc.StatusDone, Type: rpc.AnswerTypeJSON}
+	head := rpc.AnswerTail{Type: rpc.AnswerTypeDocument}
 
 	cases := []struct {
 		name    string

@@ -38,10 +38,10 @@ const answerLineCapacity = 512
 //
 // The head's type= is decided HERE, from the walk, and never by the producer.
 // The encoder holds up to AnswerBufferThreshold records: a walk that ends
-// within them is answered as one AnswerTypeJSON document, which is the JSON a
+// within them is answered as one AnswerTypeDocument document, which is the JSON a
 // command answered with before it produced records at all, so no consumer of an
 // existing command meets a new shape. A walk that passes them is streamed, as
-// AnswerTypeStream when head declares its columns and AnswerTypeNDJSON when it
+// AnswerTypeTable when head declares its columns and AnswerTypeMap when it
 // does not, and the held records are written first in walk order, so the switch
 // loses none of them.
 //
@@ -103,7 +103,7 @@ func WriteRecordAnswer(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[Re
 			// be one document. The head opens the stream and the records
 			// already held go out ahead of it, in the order the walk produced
 			// them.
-			buf, err = writeAnswerLine(w, AppendAnswerHead(buf[:0], id, head.Status, AnswerStreamType(head.Fields), head.Key, fields))
+			buf, err = writeAnswerLine(w, AppendAnswerHead(buf[:0], id, AnswerStreamType(head.Fields), head.Key, fields))
 			if err != nil {
 				return err
 			}
@@ -136,7 +136,7 @@ func WriteRecordAnswer(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[Re
 }
 
 // WriteDocumentAnswer writes the answer of a producer that built its whole
-// payload before the answer opened: a head naming AnswerTypeJSON, that one
+// payload before the answer opened: a head naming AnswerTypeDocument, that one
 // document as the single record, and the terminator. Only head's Status and
 // Message are read, because the document already carries its own envelope and
 // two statements of one fact can disagree.
@@ -164,7 +164,7 @@ func WriteDocumentAnswer(w io.Writer, id uint64, head AnswerTail, document json.
 // produced whichever type carried it, which is what a collapsed short walk and
 // a streamed long one have in common.
 func writeDocumentLines(w io.Writer, buf []byte, id uint64, head AnswerTail, document json.RawMessage, count, faults uint64) error {
-	buf, err := writeAnswerLine(w, AppendAnswerHead(buf[:0], id, head.Status, AnswerTypeJSON, "", nil))
+	buf, err := writeAnswerLine(w, AppendAnswerHead(buf[:0], id, AnswerTypeDocument, "", nil))
 	if err != nil {
 		return err
 	}
@@ -203,7 +203,7 @@ func writeRecordLine(w io.Writer, buf []byte, id uint64, record Record, fields [
 // answer. A walk that stopped there would discard every later row and reach no
 // terminator, and a consumer reads a missing terminator as a truncated answer
 // (Verdict), so one wide row would be reported as a lost connection. The answer
-// instead reaches its terminator, which counts the rejection in faults=, and the
+// instead reaches its terminator, which counts the rejection, and the
 // verdict derives to partial.
 //
 // It is measured before the line is built, so the row is never copied into a
@@ -286,9 +286,9 @@ func marshalAnswerFields(fields []string) (json.RawMessage, error) {
 // type for the same schema.
 func AnswerStreamType(fields []string) string {
 	if len(fields) == 0 {
-		return AnswerTypeNDJSON
+		return AnswerTypeMap
 	}
-	return AnswerTypeStream
+	return AnswerTypeTable
 }
 
 // noAnswerRecords is the empty row sequence. A producer that names an envelope

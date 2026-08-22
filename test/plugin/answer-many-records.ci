@@ -53,10 +53,11 @@ THRESHOLD = 256
 
 
 def tail_of(line, want_kind):
-    """Return the key=value tail of one answer line, checking its kind.
+    """Return the positional tail of one answer line, checking its kind.
 
     The field after the id is the three-byte kind token, and it is what says
-    what the line IS. The tail is never read to find that out.
+    what the line IS. The tail is never read to find that out, and it carries
+    no key name at all.
     """
     parts = line.split(" ", 2)
     if len(parts) != 3 or parts[1] != want_kind:
@@ -78,14 +79,21 @@ def main():
     if len(lines) < 3:
         runtime_fail(f"answer was {len(lines)} lines, want a head, records and a terminator: {lines}")
 
+    # The head is positional: the map item type, the envelope name as a counted
+    # text, and empty column names. It states no outcome and carries no key name.
     head = tail_of(lines[0], "top")
-    if head != "status=done type=ndjson key=commands":
-        runtime_fail(f"head was {head!r}, want 'status=done type=ndjson key=commands'")
+    if head != "map 1:8:commands 1:0:":
+        runtime_fail(f"head was {head!r}, want 'map 1:8:commands 1:0:'")
+    if "=" in head:
+        runtime_fail(f"head carries a key=value pair: {head!r}")
 
+    # The terminator is three positional fields: the records produced, the rows
+    # rejected, and the message. Each states its own width.
     terminator = tail_of(lines[-1], "end")
-    if not terminator.startswith("count="):
-        runtime_fail(f"last line was {terminator!r}, want the terminator's count=")
-    counted = int(terminator[len("count=") :])
+    fields = terminator.split(" ")
+    if len(fields) != 3 or fields[1] != "1:0" or fields[2] != "1:0:":
+        runtime_fail(f"last line was {terminator!r}, want three counted fields, no fault and no message")
+    counted = int(fields[0].split(":", 1)[1])
 
     records = lines[1:-1]
     if len(records) != counted:
@@ -100,13 +108,11 @@ def main():
     # the records can contradict.
     for i, line in enumerate(records):
         tail = tail_of(line, "row")
-        if not tail.startswith("item="):
-            runtime_fail(f"record {i} was {tail[:120]!r}, want an item=")
-        row = json.loads(tail[len("item=") :])
+        row = json.loads(tail)
         if "value" not in row:
             runtime_fail(f"record {i} carries no command name: {tail[:120]!r}")
         if "commands" in row:
-            runtime_fail(f"record {i} carries the envelope; the head carries it as key=: {tail[:120]!r}")
+            runtime_fail(f"record {i} carries the envelope; the head names it: {tail[:120]!r}")
 
     print(f"OK: {counted} records streamed, one line each", file=sys.stderr)
 

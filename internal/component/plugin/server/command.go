@@ -1321,7 +1321,7 @@ func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredComma
 		var tb textbuf.Buffer
 		return &plugin.Response{Status: plugin.StatusError, Error: tb.Str("failed to send request: ").Err(err).String()}, nil
 	}
-	if answer.Type != rpc.AnswerTypeJSON {
+	if answer.Type != rpc.AnswerTypeDocument {
 		return streamedPluginResponse(cmd.Name, answer, sync.OnceFunc(cancel)), nil
 	}
 
@@ -1341,18 +1341,14 @@ func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredComma
 // rows as they arrive, under the envelope and the column schema the head
 // declared.
 //
-// The status is the head's, normalized to the two words a response envelope
-// carries. A head that opened with a failure keeps its rows, exactly as the
-// engine's own answer does for a failing command (WriteAnswer,
-// internal/component/plugin/dispatch.go); which of the two a surface renders is
-// that surface's decision, not this one's.
+// The status is done, because the head declares no outcome and a streamed
+// answer has not ended yet: what the walk turns out to be is stated by the
+// terminator, which arrives after the last row. A consumer reads it through the
+// walk (rpc.Verdict), exactly as it does for the engine's own answer to a
+// failing command (WriteAnswer, internal/component/plugin/dispatch.go).
 func streamedPluginResponse(command string, answer *rpc.Answer, release func()) *plugin.Response {
-	status := plugin.StatusDone
-	if answer.Status == rpc.StatusError {
-		status = plugin.StatusError
-	}
 	return &plugin.Response{
-		Status: status,
+		Status: plugin.StatusDone,
 		Data: plugin.Records{
 			Key:    answer.Key,
 			Fields: answer.Fields,
@@ -1410,7 +1406,7 @@ func pluginAnswerRows(command string, answer *rpc.Answer, release func()) iter.S
 // checkedRecord is record when its payload is JSON, and the rejected row that
 // stands in for it when it is not.
 //
-// A record line's item= and fault= are the plugin's own bytes and the parser
+// A record line's payload is the plugin's own bytes and the parser
 // forwards them unread (rpc.Record), so this is the boundary where an untrusted
 // payload is checked before an operator's rendering treats it as JSON. The
 // buffered reading of the same answer checks it too, by re-encoding each row

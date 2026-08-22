@@ -230,11 +230,11 @@ func TestGeneratorAnswerReachesTheEncoder(t *testing.T) {
 	}
 
 	want := map[int]string{
-		0:            "#1:7 top status=done type=ndjson key=peers",
-		1:            `#1:7 row item={"peer":"10.0.0.0"}`,
-		2:            `#1:7 row item={"peer":"10.0.0.1"}`,
-		rowCount:     `#1:7 row item={"peer":"10.0.0.` + strconv.Itoa(rowCount-1) + `"}`,
-		rowCount + 1: "#1:7 end count=" + strconv.Itoa(rowCount),
+		0:            "#1:7 top map 1:5:peers 1:0:",
+		1:            `#1:7 row {"peer":"10.0.0.0"}`,
+		2:            `#1:7 row {"peer":"10.0.0.1"}`,
+		rowCount:     `#1:7 row {"peer":"10.0.0.` + strconv.Itoa(rowCount-1) + `"}`,
+		rowCount + 1: "#1:7 " + string(rpc.AppendAnswerTerminator(nil, rpc.AnswerNoID, uint64(rowCount), 0, "")),
 	}
 	for index, line := range want {
 		if got[index] != line {
@@ -299,11 +299,8 @@ func assertAnswerShape(t *testing.T, lines []answerLine, wantID, wantItems, want
 	}
 
 	head := lines[0].tail
-	if head.Status == "" {
-		t.Error("the head states no status=, so a consumer must buffer the answer to know how to render it")
-	}
 	if head.Type == "" {
-		t.Error("the head states no type=, so a consumer cannot read the items that follow it")
+		t.Error("the head states no item type, so a consumer cannot read the records that follow it")
 	}
 	if head.Kind != rpc.AnswerKindHead {
 		t.Errorf("the answer opens with a %q line, so a reader cannot tell it from the terminator", head.Kind)
@@ -312,13 +309,10 @@ func assertAnswerShape(t *testing.T, lines []answerLine, wantID, wantItems, want
 	for i := range records {
 		tail := &records[i].tail
 		if len(tail.Item) == 0 && len(tail.Fault) == 0 {
-			t.Errorf("record %d carries neither item= nor fault=", i+1)
+			t.Errorf("record %d carries no payload at all", i+1)
 		}
 		if tail.Kind != rpc.AnswerKindRecord && tail.Kind != rpc.AnswerKindFault {
 			t.Errorf("record %d states kind %q, which is no record kind", i+1, tail.Kind)
-		}
-		if tail.Status != "" {
-			t.Errorf("record %d carries status=, which only the head carries", i+1)
 		}
 	}
 
@@ -327,10 +321,10 @@ func assertAnswerShape(t *testing.T, lines []answerLine, wantID, wantItems, want
 		t.Fatalf("the last line states kind %q, so the answer reads as truncated: %+v", terminator.Kind, terminator)
 	}
 	if terminator.Count != wantItems {
-		t.Errorf("the terminator states count=%d, want %d", terminator.Count, wantItems)
+		t.Errorf("the terminator counts %d records, want %d", terminator.Count, wantItems)
 	}
 	if terminator.Faults != wantFaults {
-		t.Errorf("the terminator states faults=%d, want %d", terminator.Faults, wantFaults)
+		t.Errorf("the terminator counts %d rejected rows, want %d", terminator.Faults, wantFaults)
 	}
 }
 
@@ -551,14 +545,14 @@ func reassembleAnswer(t *testing.T, wire []byte) string {
 	head := lines[0].tail
 	records := lines[1 : len(lines)-1]
 
-	if head.Type == rpc.AnswerTypeJSON {
+	if head.Type == rpc.AnswerTypeDocument {
 		switch len(records) {
 		case 0:
 			return ""
 		case 1:
 			return string(records[0].tail.Item)
 		default:
-			t.Fatalf("a type=%s answer carries %d item lines, want one document", rpc.AnswerTypeJSON, len(records))
+			t.Fatalf("a type=%s answer carries %d item lines, want one document", rpc.AnswerTypeDocument, len(records))
 		}
 	}
 
@@ -603,13 +597,13 @@ func reassembleAnswer(t *testing.T, wire []byte) string {
 // own zip would prove nothing about what a consumer can rebuild.
 func zipStreamedRow(t *testing.T, head rpc.AnswerTail, item json.RawMessage) json.RawMessage {
 	t.Helper()
-	if head.Type != rpc.AnswerTypeStream {
+	if head.Type != rpc.AnswerTypeTable {
 		return item
 	}
 
 	var values []json.RawMessage
 	if err := json.Unmarshal(item, &values); err != nil {
-		t.Fatalf("a type=%s row is not a positional array: %v", rpc.AnswerTypeStream, err)
+		t.Fatalf("a type=%s row is not a positional array: %v", rpc.AnswerTypeTable, err)
 	}
 	if len(values) != len(head.Fields) {
 		t.Fatalf("the row carries %d values and the head declares %d fields", len(values), len(head.Fields))
@@ -838,8 +832,8 @@ func TestTheThresholdChoosesTheAnswerType(t *testing.T) {
 			t.Fatalf("answer has %d lines, want 3: a head, one document and a terminator", len(lines))
 		}
 		head := lines[0].tail
-		if head.Type != rpc.AnswerTypeJSON {
-			t.Errorf("the head states type=%q, want %q", head.Type, rpc.AnswerTypeJSON)
+		if head.Type != rpc.AnswerTypeDocument {
+			t.Errorf("the head states type=%q, want %q", head.Type, rpc.AnswerTypeDocument)
 		}
 		if head.Key != "" {
 			t.Errorf("the head names envelope %q, which the document already carries", head.Key)
@@ -868,8 +862,8 @@ func TestTheThresholdChoosesTheAnswerType(t *testing.T) {
 			t.Fatalf("answer has %d lines, want %d: a head, %d records and a terminator", len(lines), rowCount+2, rowCount)
 		}
 		head := lines[0].tail
-		if head.Type != rpc.AnswerTypeNDJSON {
-			t.Errorf("the head states type=%q, want %q", head.Type, rpc.AnswerTypeNDJSON)
+		if head.Type != rpc.AnswerTypeMap {
+			t.Errorf("the head states type=%q, want %q", head.Type, rpc.AnswerTypeMap)
 		}
 		if head.Key != "peers" {
 			t.Errorf("the head names envelope %q, want peers: a streamed record carries none", head.Key)
@@ -896,8 +890,8 @@ func TestTheThresholdChoosesTheAnswerType(t *testing.T) {
 
 		lines := readAnswer(t, answer.Bytes())
 		head := lines[0].tail
-		if head.Type != rpc.AnswerTypeStream {
-			t.Errorf("the head states type=%q, want %q", head.Type, rpc.AnswerTypeStream)
+		if head.Type != rpc.AnswerTypeTable {
+			t.Errorf("the head states type=%q, want %q", head.Type, rpc.AnswerTypeTable)
 		}
 		if !slices.Equal(head.Fields, peerColumns) {
 			t.Errorf("the head declares fields %q, want %q", head.Fields, peerColumns)
@@ -918,8 +912,8 @@ func TestTheThresholdChoosesTheAnswerType(t *testing.T) {
 		if len(lines) != 3 {
 			t.Fatalf("answer has %d lines, want 3: a head, one document and a terminator", len(lines))
 		}
-		if head := lines[0].tail; head.Type != rpc.AnswerTypeJSON || len(head.Fields) != 0 {
-			t.Errorf("the head states type=%q with %d fields, want %q and none", head.Type, len(head.Fields), rpc.AnswerTypeJSON)
+		if head := lines[0].tail; head.Type != rpc.AnswerTypeDocument || len(head.Fields) != 0 {
+			t.Errorf("the head states type=%q with %d fields, want %q and none", head.Type, len(head.Fields), rpc.AnswerTypeDocument)
 		}
 		want := `{"peers":[{"peer":"10.0.0.0","as":65000,"state":"established"},{"peer":"10.0.0.1","as":65001,"state":"established"}]}`
 		if got := string(lines[1].tail.Item); got != want {
@@ -977,8 +971,8 @@ func TestABoundedStageStopsTheWalkDuringBuffering(t *testing.T) {
 	if len(lines) != 3 {
 		t.Fatalf("answer has %d lines, want 3: ten rows are one document", len(lines))
 	}
-	if head := lines[0].tail; head.Type != rpc.AnswerTypeJSON {
-		t.Errorf("the head states type=%q, want %q", head.Type, rpc.AnswerTypeJSON)
+	if head := lines[0].tail; head.Type != rpc.AnswerTypeDocument {
+		t.Errorf("the head states type=%q, want %q", head.Type, rpc.AnswerTypeDocument)
 	}
 	assertAnswerShape(t, lines, 12, 10, 0)
 }
@@ -1315,9 +1309,6 @@ func TestAnswerForAgreesWithTheWire(t *testing.T) {
 			if err != nil {
 				t.Fatalf("AnswerFor: %v", err)
 			}
-			if answer.Status != head.Status {
-				t.Errorf("the in-process head states status=%s and the wire states status=%s", answer.Status, head.Status)
-			}
 			if answer.Type != head.Type {
 				t.Errorf("the in-process head states type=%s and the wire states type=%s", answer.Type, head.Type)
 			}
@@ -1348,4 +1339,90 @@ func TestAnswerForAgreesWithTheWire(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestFailedCommandStatesItsReasonOnTheTerminator checks that a response that
+// FAILED always puts a reason on the one line an answer states its outcome on.
+// The method: the three failing responses the projection can meet are each
+// written to the wire and read back through the shipped parser, and the
+// terminator is required to carry a message and to derive to an error verdict.
+//
+// The middle case is the one this exists for. responseFailure carries
+// errStatusErrorNoMessage for a response whose Status is StatusError and whose
+// Error is empty, which is a branch somebody wrote because the path is
+// reachable. Its terminator used to carry no message at all, and rpc.Verdict
+// reads an empty message with zero counts as a completed answer, so the failure
+// reached a consumer as a SUCCESS.
+//
+// VALIDATES: AC-11 and A-5 -- the terminator carries the whole outcome, so the
+// head's status states nothing a consumer still needs.
+// PREVENTS: a failure with no reason reading as done once the head stops
+// stating one (ai/rules/evidence.md: a zero value must never be a valid-looking
+// answer).
+func TestFailedCommandStatesItsReasonOnTheTerminator(t *testing.T) {
+	tests := []struct {
+		name string
+		resp func() *Response
+		want string
+	}{
+		{
+			name: "a failure that names its reason",
+			resp: func() *Response {
+				resp := NewResponse(StatusError, nil)
+				resp.Error = "peer 10.0.0.1 not configured"
+				return resp
+			},
+			want: "peer 10.0.0.1 not configured",
+		},
+		{
+			name: "a failure that names no reason",
+			resp: func() *Response { return NewResponse(StatusError, nil) },
+			want: rpc.AnswerFailureUnstated,
+		},
+		{
+			name: "no response at all",
+			resp: func() *Response { return nil },
+			want: "no response",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var wire bytes.Buffer
+			if err := WriteAnswer(&wire, 5, tc.resp()); err != nil {
+				t.Fatalf("WriteAnswer: %v", err)
+			}
+
+			lines := readAnswer(t, wire.Bytes())
+			if len(lines) == 0 {
+				t.Fatal("the failing answer wrote no line at all")
+			}
+			terminator := lines[len(lines)-1].tail
+			if terminator.Kind != rpc.AnswerKindTerminator {
+				t.Fatalf("the answer ends with a %q line, so it reads as truncated", terminator.Kind)
+			}
+			if terminator.Message != tc.want {
+				t.Errorf("the terminator states message %q, want %q", terminator.Message, tc.want)
+			}
+			if verdict := rpc.Verdict(&terminator); verdict != rpc.VerdictError {
+				t.Errorf("a consumer reading the terminator alone derives %q, want %q", verdict, rpc.VerdictError)
+			}
+		})
+	}
+
+	t.Run("the in-process answer agrees", func(t *testing.T) {
+		answer, err := AnswerFor(NewResponse(StatusError, nil))
+		if err != nil {
+			t.Fatalf("AnswerFor: %v", err)
+		}
+		for range answer.Records {
+			t.Error("a failing response with no data yielded a record")
+		}
+		if answer.Message() != rpc.AnswerFailureUnstated {
+			t.Errorf("the in-process terminator states message %q, want %q", answer.Message(), rpc.AnswerFailureUnstated)
+		}
+		if answer.Verdict() != rpc.VerdictError {
+			t.Errorf("the in-process answer derives %q, want %q", answer.Verdict(), rpc.VerdictError)
+		}
+	})
 }

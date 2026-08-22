@@ -91,11 +91,16 @@ type Records struct {
 // the head that states how each record is read, one line for each row of the
 // walk, and a terminator carrying the counts.
 //
-// status is what the head declares, rpc.StatusDone or rpc.StatusError, and it
-// is what the daemon knew when the answer opened. Which SHAPE the answer takes
-// is not the handler's to choose: rpc.WriteRecordAnswer decides it from the row
-// count, so a walk that ends within rpc.AnswerBufferThreshold rows is the one
-// document a command answered with before it produced rows at all.
+// message is the operational text the TERMINATOR carries: why the handler
+// produced fewer rows than it set out to, or why it produced none. It is empty
+// for a walk that ran to its end with nothing to say. The terminator is the one
+// line an answer states its outcome on, so a handler that failed states it here
+// and no other line can disagree with it.
+//
+// Which SHAPE the answer takes is not the handler's to choose:
+// rpc.WriteRecordAnswer decides it from the row count, so a walk that ends
+// within rpc.AnswerBufferThreshold rows is the one document a command answered
+// with before it produced rows at all.
 //
 // The walk runs to its end here, before this returns, which is the SDK's half of
 // the obligation Rows states: the handler keeps what Rows reads alive until this
@@ -105,8 +110,8 @@ type Records struct {
 // A row wider than one wire message is reported as a rejected row and the walk
 // goes on, so refusing one row does not cost the operator the rows around it.
 // An answer naming rpc.AnswerErrorsKey is refused before its first line.
-func (r Records) WriteAnswer(w io.Writer, id uint64, status string) error {
-	head := rpc.AnswerTail{Status: status, Key: r.Key, Fields: r.Fields}
+func (r Records) WriteAnswer(w io.Writer, id uint64, message string) error {
+	head := rpc.AnswerTail{Message: message, Key: r.Key, Fields: r.Fields}
 	return rpc.WriteRecordAnswer(w, id, head, r.wire())
 }
 

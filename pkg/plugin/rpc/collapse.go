@@ -51,7 +51,7 @@ const (
 
 // ErrEmptyAnswerRecord is what a row carrying neither an item nor a fault
 // earns, on the record path and on the buffered one alike. Record sets exactly
-// one of the two; a row that sets neither reaches the wire as `item=` with no
+// one of the two; a row that sets neither reaches the wire as a `row` line with no
 // value, which no consumer can decode, and reaches a buffered consumer as null,
 // which reads like a row the command produced. Refusing it names the producer
 // rather than handing either consumer an empty-looking answer
@@ -71,14 +71,14 @@ var ErrReservedEnvelopeKey = fmt.Errorf("answer envelope key %q is reserved for 
 // rejected row it is key over the items, or a bare array when key is empty,
 // which is the shape a buffered surface has always seen.
 //
-// fields is the column schema an AnswerTypeStream answer declares on its head.
+// fields is the column schema an AnswerTypeTable answer declares on its head.
 // When it is set, each item is read as a positional array and zipped against
-// the names, so the document holds the same objects an AnswerTypeNDJSON answer
+// the names, so the document holds the same objects an AnswerTypeMap answer
 // would have carried. An answer that declares no fields carries self-describing
 // rows, which pass through unchanged.
 //
 // The two collections stay separate, which is what keeps `| count` honest:
-// count= counts the rows produced and faults= counts the rows rejected, and
+// The terminator counts the rows produced and the rows rejected, and
 // nothing lands in the item array that the terminator did not count.
 //
 // This walks the whole answer into memory, which is what a buffered rendering
@@ -95,7 +95,7 @@ func CollapseRecords(key string, fields []string, rows iter.Seq[Record]) ([]byte
 
 	// A nil slice marshals to null, and a command that produced no rows
 	// produced an empty collection. The record path says the same thing with
-	// count=0, so the two must not disagree here. faults stays nil until a row
+	// a count of zero, so the two must not disagree here. faults stays nil until a row
 	// is rejected, because nil is what states that the sibling key is absent.
 	items := []json.RawMessage{}
 	var faults []json.RawMessage
@@ -139,7 +139,7 @@ func CollapseRecords(key string, fields []string, rows iter.Seq[Record]) ([]byte
 // CollapseAnswer walks answer to its end and returns the one document its
 // records carry.
 //
-// An answer of AnswerTypeJSON was collapsed by its producer: the walk ended
+// An answer of AnswerTypeDocument was collapsed by its producer: the walk ended
 // within AnswerBufferThreshold records, so the answer is one document in one
 // record, and a command that answered with no data at all carries none. Taking
 // that record as it stands is what makes the value byte-identical to the value
@@ -151,7 +151,7 @@ func CollapseRecords(key string, fields []string, rows iter.Seq[Record]) ([]byte
 // the walk been short enough. So one command answers one document whichever
 // side of the threshold it lands on.
 //
-// A record line is a peer's bytes and the parser forwards its item= unread, so
+// A record line is a peer's bytes and the parser forwards its payload unread, so
 // the document is checked here before it is handed to a caller that will treat
 // it as JSON. The collapse checks the same thing for a streamed answer, where
 // re-encoding each item is what refuses one that is not JSON.
@@ -165,7 +165,7 @@ func CollapseRecords(key string, fields []string, rows iter.Seq[Record]) ([]byte
 // The caller MUST read Answer.Err and Answer.Message after this returns: the
 // walk this runs is what fills them.
 func CollapseAnswer(answer *Answer) (json.RawMessage, error) {
-	if answer.Type != AnswerTypeJSON {
+	if answer.Type != AnswerTypeDocument {
 		return CollapseRecords(answer.Key, answer.Fields, answer.Records)
 	}
 
@@ -183,12 +183,12 @@ func CollapseAnswer(answer *Answer) (json.RawMessage, error) {
 
 	switch {
 	case records > 1:
-		return nil, fmt.Errorf("answer states type=%s and carries %d records, want at most one", AnswerTypeJSON, records)
+		return nil, fmt.Errorf("answer states type=%s and carries %d records, want at most one", AnswerTypeDocument, records)
 	case faults > 0:
 		// The type says the whole answer is one document, and a document has
 		// nowhere to carry a rejected row beside itself. A producer that sends
 		// one contradicts its own head.
-		return nil, fmt.Errorf("answer states type=%s and carries a rejected row", AnswerTypeJSON)
+		return nil, fmt.Errorf("answer states type=%s and carries a rejected row", AnswerTypeDocument)
 	case len(document) > 0 && !json.Valid(document):
 		return nil, fmt.Errorf("answer document is not JSON: %d bytes starting %.32q", len(document), string(document))
 	}

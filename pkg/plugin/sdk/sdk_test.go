@@ -2737,8 +2737,7 @@ func TestPluginAnswersRecordsWithoutDeclaringAShape(t *testing.T) {
 	answer, err := engine.mux.CallAnswer(ctx, "ze-plugin-callback:execute-command",
 		rpc.ExecuteCommandInput{Command: "show peers"})
 	require.NoError(t, err)
-	assert.Equal(t, rpc.StatusDone, answer.Status)
-	assert.Equal(t, rpc.AnswerTypeJSON, answer.Type)
+	assert.Equal(t, rpc.AnswerTypeDocument, answer.Type)
 
 	items := make([]string, 0, 1)
 	for record := range answer.Records {

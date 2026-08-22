@@ -68,9 +68,9 @@ id is a three-byte kind token saying which of the three a line is: `top`, `row`
 and `end`, with `bad` for a rejected row.
 
 ```
-#2:17 top status=done type=json
-#2:17 row item={"status":"running","uptime":3600}
-#2:17 end count=1
+#2:17 top doc 1:0: 1:0:
+#2:17 row {"status":"running","uptime":3600}
+#2:17 end 1:1 1:0 1:0:
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer -->
@@ -102,9 +102,9 @@ return "done", map[string]any{
 
 The SDK marshals this value once and sends it as the one record of the answer:
 ```
-#2:17 top status=done type=json
-#2:17 row item={"count":42,"items":["a","b"]}
-#2:17 end count=1
+#2:17 top doc 1:0: 1:0:
+#2:17 row {"count":42,"items":["a","b"]}
+#2:17 end 1:1 1:0 1:0:
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandOutput, executeCommandAnswer -->
 
@@ -117,8 +117,8 @@ return "done", nil, nil
 Response. A command that reported nothing writes no record, and the terminator
 says so. Nothing is not the same answer as an empty collection:
 ```
-#2:17 top status=done type=json
-#2:17 end count=0
+#2:17 top doc 1:0: 1:0:
+#2:17 end 1:0 1:0 1:0:
 ```
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer, writeDocumentLines -->
 
@@ -133,10 +133,10 @@ return "done", sdk.Records{Key: "sessions", Rows: sessionRows()}, nil
 ```
 
 ```
-#2:17 top status=done type=ndjson key=sessions
-#2:17 row item={"id":1,"peer":"10.0.0.1"}
-#2:17 row item={"id":2,"peer":"10.0.0.2"}
-#2:17 end count=2
+#2:17 top map 1:8:sessions 1:0:
+#2:17 row {"id":1,"peer":"10.0.0.1"}
+#2:17 row {"id":2,"peer":"10.0.0.2"}
+#2:17 end 1:2 1:0 1:0:
 ```
 
 `Key` names the envelope the rows belong under. A handler MUST NOT name it
@@ -145,7 +145,7 @@ once, before the handler's call returns. A handler MUST NOT store the sequence,
 and MUST keep whatever it reads alive until then. A row that no wire message can
 carry is reported as a rejected row, and the walk continues.
 
-A walk of 256 rows or fewer collapses to one `type=json` document, which is the
+A walk of 256 rows or fewer collapses to one `doc` record, which is the
 JSON the command answered with before it produced rows at all. The encoder
 decides that from the walk, and the handler states nothing about the wire.
 <!-- source: pkg/plugin/records.go -- Row, Record, Records, Records.WriteAnswer -->

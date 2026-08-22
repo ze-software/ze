@@ -208,7 +208,7 @@ func WriteAnswer(w io.Writer, id uint64, resp *Response) error {
 	if err != nil {
 		return err
 	}
-	head := rpc.AnswerTail{Status: answerStatus(resp), Message: answerMessage(resp)}
+	head := rpc.AnswerTail{Message: answerMessage(resp)}
 	if generated {
 		head.Key = records.Key
 		head.Fields = records.Fields
@@ -228,7 +228,7 @@ func WriteAnswer(w io.Writer, id uint64, resp *Response) error {
 //
 // It is WriteAnswer's in-process sibling and makes the same two decisions from
 // the same constant. The head's type= is decided here, from the output: a walk
-// that ends within rpc.AnswerBufferThreshold records is one rpc.AnswerTypeJSON
+// that ends within rpc.AnswerBufferThreshold records is one rpc.AnswerTypeDocument
 // document, and a walk that passes them is streamed, so one command answers one
 // shape whichever transport carried it (AC-7 of
 // spec-record-answers-1-sdk-path).
@@ -282,7 +282,6 @@ func AnswerFor(resp *Response) (*rpc.Answer, error) {
 	}
 
 	head := rpc.AnswerTail{
-		Status: answerStatus(resp),
 		Type:   rpc.AnswerStreamType(records.Fields),
 		Key:    records.Key,
 		Fields: records.Fields,
@@ -292,7 +291,7 @@ func AnswerFor(resp *Response) (*rpc.Answer, error) {
 }
 
 // documentAnswer is the answer whose records fit one document: a head naming
-// rpc.AnswerTypeJSON, that one document as the single record, and the
+// rpc.AnswerTypeDocument, that one document as the single record, and the
 // terminator. The head names no envelope, because the document already carries
 // it, and two statements of one fact can disagree.
 //
@@ -303,7 +302,7 @@ func AnswerFor(resp *Response) (*rpc.Answer, error) {
 // what the command produced whichever type carried it. That is what
 // rpc.WriteDocumentAnswer states on the wire for the same answer.
 func documentAnswer(resp *Response, document json.RawMessage, count, faults uint64) *rpc.Answer {
-	head := rpc.AnswerTail{Status: answerStatus(resp), Type: rpc.AnswerTypeJSON}
+	head := rpc.AnswerTail{Type: rpc.AnswerTypeDocument}
 	terminator := rpc.AnswerTail{Count: count, Faults: faults, Message: answerMessage(resp)}
 	if len(document) == 0 {
 		return rpc.NewAnswer(head, terminator, nil)
@@ -372,35 +371,36 @@ func builtDocument(resp *Response) (json.RawMessage, error) {
 // writes a head and a terminator, so its answer is complete rather than short.
 func noRecords(func(rpc.Record) bool) {}
 
-// answerStatus is what the head declares: what the daemon knows when the answer
-// opens. A command that failed before its first row says so on the first line,
-// so a consumer that renders a failure differently commits to a rendering
-// without buffering the answer to find out.
-func answerStatus(resp *Response) string {
-	if resp == nil {
-		return StatusError
-	}
-	if resp.Status == StatusError {
-		return StatusError
-	}
-	if resp.Error != "" {
-		return StatusError
-	}
-	return StatusDone
-}
-
 // answerMessage is the operational text the terminator carries: why a walk
-// produced fewer records than it set out to, or none at all.
+// produced fewer records than it set out to, why it produced none at all, or
+// nothing when it ran to its end.
+//
+// A response that FAILED always states one. The terminator is the one line an
+// answer states its outcome on, and a terminator carrying no message and no
+// counts derives to done (rpc.Verdict), so a failure that named no reason would
+// reach a consumer as a success. That state is reachable rather than
+// theoretical: responseFailure carries errStatusErrorNoMessage for a response
+// whose Status is StatusError and whose Error is empty. Naming it here is what
+// keeps the outcome on one line instead of splitting it across two that can
+// disagree (A-5).
 func answerMessage(resp *Response) string {
 	if resp == nil {
 		return "no response"
 	}
-	return resp.Error
+	if resp.Error != "" {
+		return resp.Error
+	}
+	if resp.Status == StatusError {
+		return rpc.AnswerFailureUnstated
+	}
+	return ""
 }
 
-// errStatusErrorNoMessage matches the historical "unknown error" text the hub
-// adapters returned for a Status=error response that carried no Error message.
-var errStatusErrorNoMessage = errors.New("unknown error")
+// errStatusErrorNoMessage is the failure a Status=error response with no Error
+// message reports. It is the text the terminator states for the same response
+// (rpc.AnswerFailureUnstated), so the string surface and the record surface name
+// one failure one way.
+var errStatusErrorNoMessage = errors.New(rpc.AnswerFailureUnstated)
 
 // The two refusals a record producer earns live in pkg/plugin/rpc, beside the
 // writer, the collapse and the appenders that share them:

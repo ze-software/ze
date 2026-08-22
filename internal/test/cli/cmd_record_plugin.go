@@ -186,8 +186,8 @@ func recordRows(rows, fill, wide int) iter.Seq[plugin.Record] {
 // engineAnswerReading is what one streamed engine answer turned out to be, in
 // the shape recordEngineCommand answers with.
 //
-// Type is the head's type=, and it is the fact that says the answer streamed:
-// rpc.AnswerTypeNDJSON for a walk that passed the threshold, rpc.AnswerTypeJSON
+// Type is the head's item type, and it is the fact that says the answer streamed:
+// rpc.AnswerTypeMap for a walk that passed the threshold, rpc.AnswerTypeDocument
 // for one that did not. Rows is what this plugin counted, and Verdict is what
 // the terminator derived, so the two together say the whole answer arrived.
 type engineAnswerReading struct {

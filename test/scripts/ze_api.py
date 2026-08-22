@@ -59,6 +59,7 @@ import signal
 import socket
 import ssl
 import sys
+import traceback
 from typing import Any, Callable
 
 
@@ -220,11 +221,18 @@ def _ends_answer(kind: str) -> bool:
     return kind in (_ANSWER_KIND_TERMINATOR, _ANSWER_KIND_NOT_UNDERSTOOD)
 
 
-# _ANSWER_TRAILING_KEYS are the keys whose value runs to the end of the line.
-# Every other value is space-free by construction, so a tail is split on spaces
-# until one of these opens (AppendAnswerHead, AppendAnswerItem,
-# AppendAnswerTerminator, pkg/plugin/rpc/message.go).
-_ANSWER_TRAILING_KEYS = ("item", "fault", "message", "fields")
+# Answer item types. The head's item type states what each record of the answer
+# IS. They are the tokens AppendAnswerHead writes and parseAnswerHead reads
+# (pkg/plugin/rpc/message.go).
+_ANSWER_TYPE_DOCUMENT = "doc"
+_ANSWER_TYPE_MAP = "map"
+_ANSWER_TYPE_TABLE = "tab"
+
+# _ANSWER_FAILURE_UNSTATED is the terminator's message for a handler that
+# reported a failure and gave no reason. A failure that said nothing would reach
+# the caller as a completed answer, because the verdict derives from the
+# terminator alone (AnswerFailureUnstated, pkg/plugin/rpc/message.go).
+_ANSWER_FAILURE_UNSTATED = "unknown error"
 
 # _ANSWER_RECORD_METHODS are the engine RPCs answered with a record sequence
 # rather than with one result line. Every peer receives it; nothing is declared
@@ -235,57 +243,140 @@ _ANSWER_RECORD_METHODS = (
 )
 
 
-def _answer_tail_fields(tail: str) -> dict[str, str]:
-    """Split one answer line's tail into its key=value pairs."""
-    fields: dict[str, str] = {}
-    rest = tail
-    while rest:
-        key, sep, value = rest.partition("=")
-        if not sep:
-            break
-        if key in _ANSWER_TRAILING_KEYS:
-            fields[key] = value
-            break
-        fields[key], _, rest = value.partition(" ")
-    return fields
+def _counted_number(value: int) -> str:
+    """Spell the `<len>:<digits>` field a counted number is written as."""
+    digits = str(value)
+    return f"{_ID_LENGTH_ALPHABET[len(digits)]}:{digits}"
+
+
+def _counted_text(text: str) -> str:
+    """Spell the `<len>:<n>:<bytes>` field a counted text is written as."""
+    return f"{_counted_number(len(text))}:{text}"
+
+
+def _cut_counted_number(field: str) -> tuple[int, str]:
+    """Take a counted number off the front of field and return it and the rest.
+
+    The stated length says where the digits end, so the field after it is
+    reached by addition and nothing is searched for (cutCountedNumber,
+    pkg/plugin/rpc/message.go).
+    """
+    if len(field) < 2:
+        raise RuntimeError(f"counted field states no length: {field[:80]}")
+    count = _ID_LENGTH_ALPHABET.find(field[0])
+    if count <= 0:
+        raise RuntimeError(f"counted field states no readable length: {field[:80]}")
+    if field[1] != ":":
+        raise RuntimeError(f"counted field length is not followed by ':': {field[:80]}")
+    end = 2 + count
+    if len(field) < end:
+        raise RuntimeError(f"counted field runs past the end of the line: {field[:80]}")
+    return int(field[2:end]), field[end:]
+
+
+def _cut_counted_text(field: str) -> tuple[str, str]:
+    """Take a counted text off the front of field and return it and the rest."""
+    size, rest = _cut_counted_number(field)
+    if not rest.startswith(":"):
+        raise RuntimeError(f"counted text length is not followed by ':': {field[:80]}")
+    rest = rest[1:]
+    if len(rest) < size:
+        raise RuntimeError(f"counted text runs past the end of the line: {field[:80]}")
+    return rest[:size], rest[size:]
+
+
+def _cut_field_separator(rest: str) -> str:
+    """Take the one space that separates two fields off the front of rest."""
+    if not rest.startswith(" "):
+        raise RuntimeError(f"answer line field is not followed by a space: {rest[:40]}")
+    return rest[1:]
+
+
+def _answer_head_fields(tail: str) -> tuple[str, str, list | None]:
+    """Read the head's three positional fields: type, envelope name, columns."""
+    if len(tail) < 3:
+        raise RuntimeError(f"answer head states no item type: {tail[:80]}")
+    item_type = tail[:3]
+    rest = _cut_field_separator(tail[3:])
+    key, rest = _cut_counted_text(rest)
+    rest = _cut_field_separator(rest)
+    columns, rest = _cut_counted_text(rest)
+    if rest:
+        raise RuntimeError(f"answer head carries bytes past its last field: {rest[:40]}")
+    return item_type, key, (json.loads(columns) if columns else None)
+
+
+def _answer_terminator_fields(tail: str) -> tuple[int, int, str]:
+    """Read the terminator's three positional fields: count, faults, message."""
+    count, rest = _cut_counted_number(tail)
+    rest = _cut_field_separator(rest)
+    faults, rest = _cut_counted_number(rest)
+    rest = _cut_field_separator(rest)
+    message, rest = _cut_counted_text(rest)
+    if rest:
+        raise RuntimeError(f"answer terminator carries bytes past its last field: {rest[:40]}")
+    return count, faults, message
+
+
+def _answer_not_understood_fields(tail: str) -> tuple[str, str]:
+    """Read the not-understood answer's two positional fields: code, message."""
+    code, rest = _cut_counted_text(tail)
+    rest = _cut_field_separator(rest)
+    message, rest = _cut_counted_text(rest)
+    if rest:
+        raise RuntimeError(f"answer nay line carries bytes past its last field: {rest[:40]}")
+    return code, message
+
+
+def _answer_payload(kind: str, tail: str) -> Any:
+    """Decode one record line's payload, naming the line when it is not JSON.
+
+    The payload is the whole tail: the kind states which payload follows, so no
+    key name sits in front of it. A bare ``json.loads`` here would report only
+    that column 1 held no value, which says nothing about the line it came from.
+    """
+    try:
+        return json.loads(tail)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"answer {kind} line carries no JSON payload: {tail[:120]!r}") from exc
 
 
 def _collapse_answer(lines: list[tuple[str, str]]) -> dict:
     """Rebuild the {status, data, error} result a record answer carries.
 
     It is the Python mirror of the reader both Go ends use (CollapseAnswer and
-    CollapseRecords, pkg/plugin/rpc/collapse.go). A type=json answer was
-    collapsed by its producer, so its one item IS the document. Any other type
-    is a walk past the buffering threshold, and its records go under the
-    envelope the head names, with the rejected rows beside them.
+    CollapseRecords, pkg/plugin/rpc/collapse.go). A `doc` answer was collapsed
+    by its producer, so its one record IS the document. Any other type is a walk
+    past the buffering threshold, and its records go under the envelope the head
+    names, with the rejected rows beside them.
 
     Each line arrives as its kind and its tail, so what a line holds is read
-    from the kind rather than from the keys inside it.
+    from the KIND. No key name reaches the wire, so a record's payload is the
+    whole tail and a head's fields are positional.
 
-    The terminator's message is the command's own failure text, which the
-    single-line frame carried in error=, so a caller reads one field either way.
+    The terminator's message is the command's own failure text, and the only
+    place an answer states its outcome: the head states none.
     """
-    head = _answer_tail_fields(lines[0][1]) if lines else {}
-    names = json.loads(head["fields"]) if "fields" in head else None
+    item_type, envelope, names = ("", "", None)
+    if lines:
+        item_type, envelope, names = _answer_head_fields(lines[0][1])
 
     items: list[Any] = []
     faults: list[Any] = []
     message = ""
     for kind, tail in lines[1:]:
-        parsed = _answer_tail_fields(tail)
         if kind == _ANSWER_KIND_RECORD:
-            items.append(json.loads(parsed["item"]))
+            items.append(_answer_payload(kind, tail))
         elif kind == _ANSWER_KIND_FAULT:
-            faults.append(json.loads(parsed["fault"]))
+            faults.append(_answer_payload(kind, tail))
         elif kind == _ANSWER_KIND_TERMINATOR:
-            message = parsed.get("message", "")
+            _, _, message = _answer_terminator_fields(tail)
 
-    result: dict[str, Any] = {"status": head.get("status", "")}
     if message:
-        result["error"] = message
-        return result
+        return {"status": "error", "error": message}
 
-    if head.get("type") == "json":
+    result: dict[str, Any] = {"status": "done"}
+    if item_type == _ANSWER_TYPE_DOCUMENT:
         if items:
             result["data"] = items[0]
         return result
@@ -298,7 +389,6 @@ def _collapse_answer(lines: list[tuple[str, str]]) -> dict:
                 )
         items = [dict(zip(names, row)) for row in items]
 
-    envelope = head.get("key", "")
     if faults:
         result["data"] = {envelope or "data": items, "errors": faults}
     elif envelope:
@@ -616,10 +706,8 @@ class API:
                 if kind == _ANSWER_KIND_NOT_UNDERSTOOD:
                     # The whole answer to a command text naming no command: one
                     # line, no head and no terminator, because nothing ran.
-                    named = _answer_tail_fields(tail)
-                    raise RuntimeError(
-                        f"RPC error from {method}: {named.get('message', tail)}"
-                    )
+                    _, named = _answer_not_understood_fields(tail)
+                    raise RuntimeError(f"RPC error from {method}: {named or tail}")
                 if kind in _ANSWER_KINDS:
                     answer.append((kind, tail))
                     if not _ends_answer(kind):
@@ -664,28 +752,36 @@ class API:
         """Answer one execute-command with the sequence every peer writes.
 
         It is the Python mirror of the one Go writer (WriteDocumentAnswer,
-        pkg/plugin/rpc/answer_write.go): a head naming the status and the json
-        item type, the one document the handler built, and a terminator counting
-        it. Nothing is declared and nothing is negotiated, so a handler that
-        answers with a value writes the same three lines a walk collapses to.
+        pkg/plugin/rpc/answer_write.go): a head naming the doc item type, the one
+        document the handler built, and a terminator counting it. Nothing is
+        declared and nothing is negotiated, so a handler that answers with a
+        value writes the same three lines a walk collapses to.
 
-        An absent or empty data value writes no item line and a count of zero:
+        Every field is positional and no key name reaches the wire. The head
+        states no outcome: a handler that failed states it on the terminator,
+        which is the one line an answer states an outcome on.
+
+        An absent or empty data value writes no record line and a count of zero:
         nothing is not the same answer as an empty collection.
         """
         result = result or {}
-        status = result.get("status", "done")
-        if status != "error":
-            status = "done"
+        message = ""
+        if result.get("status") == "error":
+            message = result.get("error", "") or _ANSWER_FAILURE_UNSTATED
 
         prefix = _id_field(req_id)
-        lines = [f"{prefix}{_ANSWER_KIND_HEAD} status={status} type=json\n"]
-        if "data" in result and result["data"] is not None:
+        head = f"{_ANSWER_KIND_HEAD} {_ANSWER_TYPE_DOCUMENT} {_counted_text('')} {_counted_text('')}"
+        lines = [f"{prefix}{head}\n"]
+        count = 0
+        if not message and "data" in result and result["data"] is not None:
             document = json.dumps(result["data"], separators=(",", ":"))
-            lines.append(f"{prefix}{_ANSWER_KIND_RECORD} item={document}\n")
+            lines.append(f"{prefix}{_ANSWER_KIND_RECORD} {document}\n")
             count = 1
-        else:
-            count = 0
-        lines.append(f"{prefix}{_ANSWER_KIND_TERMINATOR} count={count}\n")
+        terminator = (
+            f"{_ANSWER_KIND_TERMINATOR} {_counted_number(count)} "
+            f"{_counted_number(0)} {_counted_text(message)}"
+        )
+        lines.append(f"{prefix}{terminator}\n")
 
         payload = "".join(lines).encode("utf-8")
         if self._tls_mode:
@@ -1348,12 +1444,12 @@ class API:
 
         This is the wire-shape view ``dispatch`` hides: it returns the bytes
         the engine wrote, so a test can assert on the frame rather than on a
-        decoded payload. An answer in the original shape is ONE line,
-        ``#<len>:<id> ok <json>``. An answer in the record shape is a head, one line
-        for each record, and a terminator carrying ``count=``.
+        decoded payload. An answer is a head, one line for each record, and a
+        terminator carrying the counts. Every field is positional and no key
+        name reaches the wire.
 
-        Reading stops at the first line that ends the answer: a tail that is
-        not a key=value tail, or a terminator. It then waits ``settle`` for one
+        Reading stops at the first line that ends the answer: a terminator, or
+        the one line a not-understood answer is. It then waits ``settle`` for one
         more line and appends whatever arrives, so a test can prove that
         NOTHING follows the line it expected to be the last. The lines of one
         answer are written back to back on one connection, so ``settle`` is
@@ -2821,6 +2917,15 @@ def _emit_sentinel_if_unwinding() -> None:
     if exc is None or isinstance(exc, (SystemExit, KeyboardInterrupt)):
         return
     detail = f"{type(exc).__name__}: {exc}".replace("\n", " ")
+    # The deepest frame this repository owns. Without it the sentinel says only
+    # what went wrong and never where, and an observer script is relayed through
+    # ze rather than run under a debugger, so there is no second chance to ask.
+    # A standard-library frame is skipped: json.loads raising inside decoder.py
+    # names the decoder, never the line that called it.
+    frames = [f for f in traceback.extract_tb(sys.exc_info()[2]) if "/lib/python" not in f.filename]
+    if frames:
+        last = frames[-1]
+        detail += f" at {os.path.basename(last.filename)}:{last.lineno} in {last.name}"
     _write_sentinel(f"uncaught observer exception during shutdown: {detail}")
 
 

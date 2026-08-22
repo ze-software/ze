@@ -15,8 +15,8 @@
 # could read that: MuxConn.CallAnswer had no non-test caller and every dispatch
 # result was one json.RawMessage.
 #
-# The head's type= is the fact that says the answer streamed, and the plugin
-# reports it. A walk that ended inside the threshold reads type=json and one
+# The head's item type is the fact that says the answer streamed, and the plugin
+# reports it. A walk that ended inside the threshold reads the doc type and one
 # document, so a fixture whose answer was short would say nothing about the
 # streamed branch. The row count is checked against the same list the operator
 # reads, so the plugin is held to the answer the daemon actually produced rather
@@ -175,8 +175,8 @@ if reading is None:
 
 # The head's type= says the answer streamed. A walk that ended inside the
 # threshold reads json, and one document is not what this test is about.
-if reading["type"] != "ndjson":
-    print(f"FAIL: the plugin read type={reading['type']!r}, want ndjson", file=sys.stderr)
+if reading["type"] != "map":
+    print(f"FAIL: the plugin read item type {reading['type']!r}, want map", file=sys.stderr)
     sys.exit(1)
 
 if reading["key"] != "commands":

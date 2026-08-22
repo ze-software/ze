@@ -540,7 +540,7 @@ func (b *Bridge) zebgpToPluginWithScanner(ctx context.Context, scanner *bufio.Sc
 			}
 
 		case "error", rpc.AnswerKindNotUnderstood:
-			if !pending.signal(id, pendingResult{ok: false, errText: payload}) {
+			if !pending.signal(id, pendingResult{ok: false, errText: answerErrorText(verb, payload)}) {
 				slog.Debug("zebgp->plugin: orphaned error", "id", id)
 			}
 
@@ -553,6 +553,28 @@ func (b *Bridge) zebgpToPluginWithScanner(ctx context.Context, scanner *bufio.Sc
 	if err := scanner.Err(); err != nil {
 		slog.Warn("zebgp->plugin: scanner error", "error", err)
 	}
+}
+
+// answerErrorText is the reason a failing line states, in the form an ExaBGP
+// plugin reads it. A not-understood answer states its reason as a positional
+// field, so the tail is DECODED rather than echoed: the operator would otherwise
+// read the counted lengths in front of the message as part of it.
+//
+// An `error` response carries JSON, which the ack layer already forwards whole,
+// and a tail this build cannot read is forwarded rather than dropped, because a
+// failure nobody can read still has to reach the plugin as a failure.
+func answerErrorText(verb, payload string) string {
+	if verb != rpc.AnswerKindNotUnderstood {
+		return payload
+	}
+	tail, err := rpc.ParseAnswerTail(verb, []byte(payload))
+	if err != nil {
+		return payload
+	}
+	if tail.Message != "" {
+		return tail.Message
+	}
+	return tail.Code
 }
 
 // handleDeliverBatch processes a deliver-batch request: extracts events, translates

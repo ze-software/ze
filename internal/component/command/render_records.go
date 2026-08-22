@@ -35,8 +35,8 @@ import (
 
 // RecordAnswer is what a walk turned out to be, for the caller that frames it.
 //
-// Type is rpc.AnswerTypeJSON when the walk ended within the threshold and the
-// answer is one document, and rpc.AnswerTypeNDJSON or rpc.AnswerTypeStream when
+// Type is rpc.AnswerTypeDocument when the walk ended within the threshold and the
+// answer is one document, and rpc.AnswerTypeMap or rpc.AnswerTypeTable when
 // it passed the threshold. Count and Faults are the records the CHAIN produced,
 // not the records the command did: `| count` answers one record whatever it
 // counted, and the operator's terminator must state what the operator received.
@@ -74,7 +74,7 @@ func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []strin
 	// is, which is what makes them cost ten rows and one integer.
 	records := ApplyPipesRecords(input, rows)
 
-	answer := RecordAnswer{Type: rpc.AnswerTypeJSON}
+	answer := RecordAnswer{Type: rpc.AnswerTypeDocument}
 	streamed := streamsPerRecord(ops, fields, meta)
 
 	// held is the window the answer is decided in. It grows to the threshold
@@ -204,7 +204,7 @@ func answerDocument(held []rpc.Record, key string, fields []string, answered boo
 //
 // A rejected row is written as its own line. A stream has no document to group
 // them under, which is where a buffered rendering puts them, and the
-// terminator's faults= states how many there were either way.
+// terminator's fault count states how many there were either way.
 func writeRecordJSON(w io.Writer, record rpc.Record) error {
 	payload := record.Item
 	if len(record.Fault) > 0 {
@@ -232,7 +232,7 @@ func writeRecordJSON(w io.Writer, record rpc.Record) error {
 // value rather than one document for the answer.
 //
 // The answer must carry self-describing rows. A positional row is read against
-// the head's fields=, and the zip that turns it back into an object belongs to
+// the head's column names, and the zip that turns it back into an object belongs to
 // the collapse, so an answer that declares columns renders through it.
 //
 // The chain must have folded no display metadata. Metadata rides in the

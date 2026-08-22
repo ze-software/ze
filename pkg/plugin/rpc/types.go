@@ -61,18 +61,16 @@ type Record struct {
 // in-process producer through NewAnswer. Both fill the same terminator, so a
 // consumer reads one shape whichever transport carried it.
 type Answer struct {
-	// Status is the head's status= value: StatusDone or StatusError.
-	Status string
-	// Type is the head's type= value, which states how each record's Item is
-	// read: AnswerTypeJSON (one document in one record), AnswerTypeNDJSON (one
-	// self-describing object per record) or AnswerTypeStream (one positional
-	// array per record, read against Fields).
+	// Type is the head's item type, which states what each record's Item IS:
+	// AnswerTypeDocument (one document in one record), AnswerTypeMap (one map
+	// of names to values per record) or AnswerTypeTable (one positional row
+	// per record, read against Fields).
 	Type string
-	// Key is the head's key= value, the envelope the records belong under. It
-	// is empty when the head names none.
+	// Key is the head's envelope name, which the records belong under. It is
+	// empty when the head names none.
 	Key string
-	// Fields is the head's fields= value, the column names an AnswerTypeStream
-	// answer's rows are read against, in column order.
+	// Fields is the head's column names, which an AnswerTypeTable answer's rows
+	// are read against, in column order.
 	Fields  []string
 	Records iter.Seq[Record]
 
@@ -96,15 +94,16 @@ func (a *Answer) Verdict() string { return Verdict(a.terminator) }
 // truncated. MUST be read after the range over Records has returned.
 func (a *Answer) Err() error { return a.err }
 
-// Message reports the terminator's message=, the operational text stating why a
-// walk produced fewer records than it set out to, or none at all. It is empty
-// for a walk that ran to its end with nothing to say, and empty when no
-// terminator arrived. MUST be read after the range over Records has returned.
+// Message reports the terminator's operational text, stating why a walk
+// produced fewer records than it set out to, or none at all. It is empty for a
+// walk that ran to its end with nothing to say, and empty when no terminator
+// arrived. MUST be read after the range over Records has returned.
 //
-// It is the text a command's own failure travels in: an engine command that
-// failed before its first row opens the answer with status=error and states the
-// reason here, so a consumer rebuilding the command's outcome reads one string
-// rather than inferring it from a count.
+// It is the text a command's own failure travels in, and the ONLY place that
+// failure is stated: the head states no outcome, so a command that failed before
+// its first row says so here and nothing can disagree with it. A consumer
+// rebuilding the command's outcome reads one string rather than inferring it
+// from a count.
 func (a *Answer) Message() string {
 	if a.terminator == nil {
 		return ""
@@ -115,8 +114,8 @@ func (a *Answer) Message() string {
 // NewAnswer returns the answer an in-process producer hands its consumer, in
 // the shape the same answer has when it arrives over the socket.
 //
-// head is the line a peer would write to OPEN the answer, and only its Status,
-// Type, Key and Fields are read. terminator is the line that would END it, and
+// head is the line a peer would write to OPEN the answer, and only its Type,
+// Key and Fields are read. terminator is the line that would END it, and
 // only its Count, Faults and Message are read: the counts are the WALK's, which
 // the producer knows because it has run the walk, and they are not a count of
 // the records that follow. The two disagree for an answer whose short walk was
@@ -137,7 +136,7 @@ func (a *Answer) Message() string {
 // end or stop that range deliberately, and it MUST read Verdict, Err and
 // Message after the range has returned.
 func NewAnswer(head, terminator AnswerTail, rows iter.Seq[Record]) *Answer {
-	answer := &Answer{Status: head.Status, Type: head.Type, Key: head.Key, Fields: head.Fields}
+	answer := &Answer{Type: head.Type, Key: head.Key, Fields: head.Fields}
 	answer.Records = terminatedRecords(answer, terminator, rows)
 	return answer
 }

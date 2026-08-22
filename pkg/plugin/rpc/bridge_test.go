@@ -549,7 +549,7 @@ func TestDirectBridgeDispatchCommandAnswer(t *testing.T) {
 			return
 		}
 		lines := [][]byte{
-			AppendAnswerHead(nil, request.ID, StatusDone, AnswerTypeNDJSON, "peers", nil),
+			AppendAnswerHead(nil, request.ID, AnswerTypeMap, "peers", nil),
 			AppendAnswerItem(nil, request.ID, json.RawMessage(items[0])),
 			AppendAnswerItem(nil, request.ID, json.RawMessage(items[1])),
 			AppendAnswerFault(nil, request.ID, json.RawMessage(faults[0])),
@@ -577,7 +577,7 @@ func TestDirectBridgeDispatchCommandAnswer(t *testing.T) {
 	bridge := NewDirectBridge()
 	bridge.SetDispatchCommandAnswer(func(dispatched string) (*Answer, error) {
 		assert.Equal(t, command, dispatched)
-		head := AnswerTail{Status: StatusDone, Type: AnswerTypeNDJSON, Key: "peers"}
+		head := AnswerTail{Type: AnswerTypeMap, Key: "peers"}
 		terminator := AnswerTail{Count: uint64(len(items)), Faults: uint64(len(faults))}
 		return NewAnswer(head, terminator, answerRowSeq(items, faults)), nil
 	})
@@ -619,7 +619,7 @@ func TestDirectBridgeWaitDispatchSpansAnswerWalk(t *testing.T) {
 
 		b := NewDirectBridge()
 		b.SetDispatchCommandAnswer(func(string) (*Answer, error) {
-			head := AnswerTail{Status: StatusDone, Type: AnswerTypeNDJSON, Key: "peers"}
+			head := AnswerTail{Type: AnswerTypeMap, Key: "peers"}
 			terminator := AnswerTail{Count: uint64(len(rows))}
 			return NewAnswer(head, terminator, answerRowSeq(rows, nil)), nil
 		})

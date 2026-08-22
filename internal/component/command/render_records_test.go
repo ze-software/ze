@@ -122,9 +122,9 @@ func TestTheRenderingIsTheSameOnBothSidesOfTheThreshold(t *testing.T) {
 					t.Errorf("the answer counted %d records, want %d", answer.Count, count)
 				}
 
-				wantType := rpc.AnswerTypeJSON
+				wantType := rpc.AnswerTypeDocument
 				if count > rpc.AnswerBufferThreshold {
-					wantType = rpc.AnswerTypeNDJSON
+					wantType = rpc.AnswerTypeMap
 				}
 				if answer.Type != wantType {
 					t.Errorf("%d rows answered type %q, want %q", count, answer.Type, wantType)
@@ -158,8 +158,8 @@ func TestNDJSONPastTheThresholdAnswersInLockstep(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RenderRecords: %v", err)
 	}
-	if answer.Type != rpc.AnswerTypeNDJSON {
-		t.Fatalf("the answer states type %q, want %q", answer.Type, rpc.AnswerTypeNDJSON)
+	if answer.Type != rpc.AnswerTypeMap {
+		t.Fatalf("the answer states type %q, want %q", answer.Type, rpc.AnswerTypeMap)
 	}
 
 	// The first write carries the records held while the type was decided, so
@@ -256,8 +256,8 @@ func TestABoundedChainStopsTheWalkAndAnswersOneDocument(t *testing.T) {
 			if answer.Count != tt.wantCount {
 				t.Errorf("the answer counted %d records, want %d", answer.Count, tt.wantCount)
 			}
-			if answer.Type != rpc.AnswerTypeJSON {
-				t.Errorf("the answer states type %q, want %q", answer.Type, rpc.AnswerTypeJSON)
+			if answer.Type != rpc.AnswerTypeDocument {
+				t.Errorf("the answer states type %q, want %q", answer.Type, rpc.AnswerTypeDocument)
 			}
 			if want := renderedDocument(t, tt.chain, recordEnvelope, tt.available); body != want {
 				t.Errorf("the operator saw %q, want the whole-payload chain's %q", body, want)
@@ -280,8 +280,8 @@ func TestAStreamedRenderingRefusesToDropThePipeMetadata(t *testing.T) {
 	const rows = rpc.AnswerBufferThreshold + 10
 
 	body, answer, _ := renderRecordsForTest(t, "system command list | match show | ndjson", rows)
-	if answer.Type != rpc.AnswerTypeNDJSON {
-		t.Fatalf("the answer states type %q, want %q: the walk passed the threshold", answer.Type, rpc.AnswerTypeNDJSON)
+	if answer.Type != rpc.AnswerTypeMap {
+		t.Fatalf("the answer states type %q, want %q: the walk passed the threshold", answer.Type, rpc.AnswerTypeMap)
 	}
 	if !strings.Contains(body, `"pipe":{"match":"show"}`) {
 		t.Errorf("the rendering dropped the pipe metadata: %.200q", body)
@@ -362,8 +362,8 @@ func TestTheConfiguredFormatRendersARecordAnswer(t *testing.T) {
 	t.Cleanup(env.ResetCache)
 
 	body, answer, _ := renderRecordsForTest(t, "system command list", 3)
-	if answer.Type != rpc.AnswerTypeJSON {
-		t.Fatalf("the answer states type %q, want %q", answer.Type, rpc.AnswerTypeJSON)
+	if answer.Type != rpc.AnswerTypeDocument {
+		t.Fatalf("the answer states type %q, want %q", answer.Type, rpc.AnswerTypeDocument)
 	}
 	if !strings.Contains(body, "┌") && !strings.Contains(body, "│") {
 		t.Errorf("the configured default did not render a table:\n%s", body)

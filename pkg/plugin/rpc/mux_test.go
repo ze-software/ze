@@ -636,10 +636,10 @@ func TestMuxConnDeliversEveryRecordToOneCaller(t *testing.T) {
 			return
 		}
 		answer := []string{
-			wireLine(req.ID, "top status=done type=ndjson key=peers\n"),
-			wireLine(req.ID, "row item={\"peer\":\"10.0.0.1\"}\n"),
-			wireLine(req.ID, "row item={\"peer\":\"10.0.0.2\"}\n"),
-			wireLine(req.ID, "end count=2\n"),
+			wireLine(req.ID, "top map 1:5:peers 1:0:\n"),
+			wireLine(req.ID, "row {\"peer\":\"10.0.0.1\"}\n"),
+			wireLine(req.ID, "row {\"peer\":\"10.0.0.2\"}\n"),
+			wireLine(req.ID, "end 1:2 1:0 1:0:\n"),
 		}
 		for _, line := range answer {
 			if _, writeErr := engineEnd.Write([]byte(line)); writeErr != nil {
@@ -666,7 +666,7 @@ func TestMuxConnDeliversEveryRecordToOneCaller(t *testing.T) {
 	assert.Equal(t, "peers", received.Key, "the head names the envelope its records belong under")
 	assert.Equal(t, []string{`{"peer":"10.0.0.1"}`, `{"peer":"10.0.0.2"}`}, items,
 		"every record line of the answer must reach the one caller waiting on that id")
-	assert.Equal(t, VerdictDone, received.Verdict(), "the terminator carried count=2 faults=0")
+	assert.Equal(t, VerdictDone, received.Verdict(), "the terminator counted two records and no rejected row")
 	assert.NoError(t, received.Err(), "an answer that reached its terminator ended with no fault")
 
 	// The terminator releases the entry. readLoop sends the terminator to the
@@ -815,7 +815,7 @@ func TestOrphanRecordDoesNotCloseConnection(t *testing.T) {
 			return
 		}
 		for i := range orphans {
-			line := wireLine(999, fmt.Sprintf("row item={\"row\":%d}\n", i))
+			line := wireLine(999, fmt.Sprintf("row {\"row\":%d}\n", i))
 			if _, writeErr := engineEnd.Write([]byte(line)); writeErr != nil {
 				return
 			}
@@ -910,14 +910,14 @@ func TestSlowConsumerDoesNotStallReadLoop(t *testing.T) {
 		if err != nil {
 			return
 		}
-		writeLines(engineEnd, wireLine(slow.ID, "top status=done type=ndjson key=peers\n"))
+		writeLines(engineEnd, wireLine(slow.ID, "top map 1:5:peers 1:0:\n"))
 		for i := range records {
-			line := wireLine(slow.ID, fmt.Sprintf("row item={\"row\":%d}\n", i))
+			line := wireLine(slow.ID, fmt.Sprintf("row {\"row\":%d}\n", i))
 			if _, writeErr := engineEnd.Write([]byte(line)); writeErr != nil {
 				return
 			}
 		}
-		writeLines(engineEnd, wireLine(slow.ID, fmt.Sprintf("end count=%d\n", records)))
+		writeLines(engineEnd, wireLine(slow.ID, string(AppendAnswerTerminator(nil, AnswerNoID, uint64(records), 0, ""))+"\n"))
 
 		other, err := engineConn.ReadRequest(ctx)
 		if err != nil {
@@ -975,8 +975,8 @@ func TestAnswerWithoutTerminatorReportsTruncation(t *testing.T) {
 			return
 		}
 		writeLines(engineEnd,
-			wireLine(req.ID, "top status=done type=ndjson key=peers\n"),
-			wireLine(req.ID, "row item={\"peer\":\"10.0.0.1\"}\n"),
+			wireLine(req.ID, "top map 1:5:peers 1:0:\n"),
+			wireLine(req.ID, "row {\"peer\":\"10.0.0.1\"}\n"),
 		)
 		if closeErr := engineEnd.Close(); closeErr != nil {
 			return
@@ -1027,7 +1027,7 @@ func TestNotUnderstoodAnswerReachesTheCaller(t *testing.T) {
 		if err != nil {
 			return
 		}
-		writeLines(engineEnd, wireLine(req.ID, "nay message=unknown command: shwo bgp peers\n"))
+		writeLines(engineEnd, wireLine(req.ID, "nay 1:0: 2:31:unknown command: shwo bgp peers\n"))
 	}()
 
 	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
@@ -1077,7 +1077,7 @@ func TestCallAnswerStopsGeneratorOnConsumerStop(t *testing.T) {
 		if err != nil {
 			return
 		}
-		lines := [][]byte{AppendAnswerHead(nil, request.ID, StatusDone, AnswerTypeNDJSON, "peers", nil)}
+		lines := [][]byte{AppendAnswerHead(nil, request.ID, AnswerTypeMap, "peers", nil)}
 		for _, item := range items {
 			lines = append(lines, AppendAnswerItem(nil, request.ID, json.RawMessage(item)))
 		}
@@ -1130,7 +1130,7 @@ func TestCallAnswerStopsGeneratorOnConsumerStop(t *testing.T) {
 			}
 		}
 	}
-	head := AnswerTail{Status: StatusDone, Type: AnswerTypeNDJSON, Key: "peers"}
+	head := AnswerTail{Type: AnswerTypeMap, Key: "peers"}
 	terminator := AnswerTail{Count: uint64(len(items))}
 	inProcess := NewAnswer(head, terminator, rows)
 
@@ -1183,11 +1183,11 @@ func TestMuxReadLoopSeparatesAnswerFromResponse(t *testing.T) {
 		}
 		answerID, rpcID := ids[answerMethod], ids[rpcMethod]
 		writeLines(engineEnd,
-			wireLine(answerID, "top status=done type=ndjson key=peers\n"),
-			wireLine(answerID, "row item={\"peer\":\"10.0.0.1\"}\n"),
+			wireLine(answerID, "top map 1:5:peers 1:0:\n"),
+			wireLine(answerID, "row {\"peer\":\"10.0.0.1\"}\n"),
 			wireLine(rpcID, "ok {\"peers\":1}\n"),
-			wireLine(answerID, "row item={\"peer\":\"10.0.0.2\"}\n"),
-			wireLine(answerID, "end count=2\n"),
+			wireLine(answerID, "row {\"peer\":\"10.0.0.2\"}\n"),
+			wireLine(answerID, "end 1:2 1:0 1:0:\n"),
 		)
 	}()
 
@@ -1251,10 +1251,10 @@ func TestAwaitAnswerHeadValidatesByKind(t *testing.T) {
 		first string
 		want  string
 	}{
-		{name: "a head opens the answer", first: "top status=done type=json"},
-		{name: "a terminator does not", first: "end count=0", want: "opens with a end line"},
-		{name: "a result record does not", first: `row item={"peer":"10.0.0.1"}`, want: "opens with a row line"},
-		{name: "a rejected record does not", first: `bad fault={"message":"no"}`, want: "opens with a bad line"},
+		{name: "a head opens the answer", first: "top doc 1:0: 1:0:"},
+		{name: "a terminator does not", first: "end 1:0 1:0 1:0:", want: "opens with a end line"},
+		{name: "a result record does not", first: `row {"peer":"10.0.0.1"}`, want: "opens with a row line"},
+		{name: "a rejected record does not", first: `bad {"message":"no"}`, want: "opens with a bad line"},
 	}
 
 	for _, tt := range tests {
@@ -1276,7 +1276,7 @@ func TestAwaitAnswerHeadValidatesByKind(t *testing.T) {
 				}
 				writeLines(engineEnd,
 					wireLine(req.ID, tt.first+"\n"),
-					wireLine(req.ID, "end count=0\n"),
+					wireLine(req.ID, "end 1:0 1:0 1:0:\n"),
 				)
 			}()
 

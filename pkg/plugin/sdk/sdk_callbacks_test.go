@@ -21,8 +21,9 @@ import (
 // Every execute-command answer a plugin writes is a head, its records and a
 // terminator. This reads it the way the engine reads it
 // (PluginConn.SendExecuteCommand, internal/component/plugin/ipc/rpc.go): read
-// the answer, collapse it, and take the head's status. The engine tree cannot be
-// imported from here, so the three steps are spelled rather than shared.
+// the answer, collapse it, and rebuild the status from the terminator. The
+// engine tree cannot be imported from here, so the three steps are spelled
+// rather than shared.
 func executeCommand(t *testing.T, ctx context.Context, mux *rpc.MuxConn, input rpc.ExecuteCommandInput) *rpc.ExecuteCommandOutput {
 	t.Helper()
 
@@ -32,7 +33,10 @@ func executeCommand(t *testing.T, ctx context.Context, mux *rpc.MuxConn, input r
 	document, collapseErr := rpc.CollapseAnswer(answer)
 	require.NoError(t, answer.Err(), "the answer must reach its terminator")
 	require.NoError(t, collapseErr)
-	return &rpc.ExecuteCommandOutput{Status: answer.Status, Data: document}
+	if message := answer.Message(); message != "" {
+		return &rpc.ExecuteCommandOutput{Status: rpc.StatusError, Data: json.RawMessage(message)}
+	}
+	return &rpc.ExecuteCommandOutput{Status: rpc.StatusDone, Data: document}
 }
 
 func TestOnExecuteCommandAnyMap(t *testing.T) {
@@ -350,60 +354,58 @@ func TestOnExecuteCommandStringIsDoubleEncoded(t *testing.T) {
 // handler and the pipeline terminals ship json.RawMessage, and a handler that
 // produced nothing answers with none.
 var executeCommandValueCases = []struct {
-	name       string
-	command    string
-	status     string
-	data       any
-	wantStatus string
-	wantItem   string
+	name        string
+	command     string
+	status      string
+	data        any
+	wantMessage string
+	wantItem    string
 }{
 	{
-		name:       "a map",
-		command:    "status",
-		status:     "done",
-		data:       map[string]any{"running": true, "peers": 5},
-		wantStatus: "done",
-		wantItem:   `{"peers":5,"running":true}`,
+		name:     "a map",
+		command:  "status",
+		status:   "done",
+		data:     map[string]any{"running": true, "peers": 5},
+		wantItem: `{"peers":5,"running":true}`,
 	},
 	{
-		name:       "a slice of structs",
-		command:    "show",
-		status:     "done",
-		data:       []executeCommandEntry{{Prefix: "10.0.0.0/24", NextHop: "10.0.0.1"}},
-		wantStatus: "done",
-		wantItem:   `[{"prefix":"10.0.0.0/24","next-hop":"10.0.0.1"}]`,
+		name:     "a slice of structs",
+		command:  "show",
+		status:   "done",
+		data:     []executeCommandEntry{{Prefix: "10.0.0.0/24", NextHop: "10.0.0.1"}},
+		wantItem: `[{"prefix":"10.0.0.0/24","next-hop":"10.0.0.1"}]`,
 	},
 	{
-		name:       "a slice of strings",
-		command:    "events",
-		status:     "done",
-		data:       []string{"cache", "route", "peer"},
-		wantStatus: "done",
-		wantItem:   `["cache","route","peer"]`,
+		name:     "a slice of strings",
+		command:  "events",
+		status:   "done",
+		data:     []string{"cache", "route", "peer"},
+		wantItem: `["cache","route","peer"]`,
 	},
 	{
-		name:       "hand-built JSON",
-		command:    "raw",
-		status:     "done",
-		data:       json.RawMessage(`{"running":true,"peers":5}`),
-		wantStatus: "done",
-		wantItem:   `{"running":true,"peers":5}`,
+		name:     "hand-built JSON",
+		command:  "raw",
+		status:   "done",
+		data:     json.RawMessage(`{"running":true,"peers":5}`),
+		wantItem: `{"running":true,"peers":5}`,
 	},
 	{
-		name:       "no data at all",
-		command:    "noop",
-		status:     "done",
-		data:       nil,
-		wantStatus: "done",
-		wantItem:   "",
+		name:     "no data at all",
+		command:  "noop",
+		status:   "done",
+		data:     nil,
+		wantItem: "",
 	},
 	{
-		name:       "a failure the handler reported as a status",
-		command:    "broken",
-		status:     "error",
-		data:       map[string]any{"reason": "no cache"},
-		wantStatus: "error",
-		wantItem:   `{"reason":"no cache"}`,
+		// A failure rides the TERMINATOR, which is the one line an answer
+		// states its outcome on, and it carries no record: the reason is the
+		// answer.
+		name:        "a failure the handler reported as a status",
+		command:     "broken",
+		status:      "error",
+		data:        map[string]any{"reason": "no cache"},
+		wantMessage: `{"reason":"no cache"}`,
+		wantItem:    "",
 	},
 }
 
@@ -467,8 +469,7 @@ func TestExecuteCommandValueAnswerIsUnchanged(t *testing.T) {
 		answer, err := engine.mux.CallAnswer(ctx, "ze-plugin-callback:execute-command",
 			rpc.ExecuteCommandInput{Command: tc.command})
 		require.NoError(t, err, tc.name)
-		assert.Equal(t, tc.wantStatus, answer.Status, "%s: the head states the handler's status", tc.name)
-		assert.Equal(t, rpc.AnswerTypeJSON, answer.Type,
+		assert.Equal(t, rpc.AnswerTypeDocument, answer.Type,
 			"%s: a value the handler built is one document", tc.name)
 
 		var items []string
@@ -477,6 +478,8 @@ func TestExecuteCommandValueAnswerIsUnchanged(t *testing.T) {
 			items = append(items, string(record.Item))
 		}
 		require.NoError(t, answer.Err(), tc.name)
+		assert.Equal(t, tc.wantMessage, answer.Message(),
+			"%s: the terminator is the one line an answer states its outcome on", tc.name)
 
 		if tc.wantItem == "" {
 			assert.Empty(t, items, "%s: a handler that produced nothing carries no item line", tc.name)
@@ -543,13 +546,13 @@ func TestExecuteCommandRecordResult(t *testing.T) {
 			name:     "a walk past the threshold is streamed",
 			command:  "show peers",
 			rows:     rpc.AnswerBufferThreshold + 3,
-			wantType: rpc.AnswerTypeNDJSON,
+			wantType: rpc.AnswerTypeMap,
 		},
 		{
 			name:     "a walk under the threshold is one document",
 			command:  "show peers brief",
 			rows:     2,
-			wantType: rpc.AnswerTypeJSON,
+			wantType: rpc.AnswerTypeDocument,
 		},
 	}
 
@@ -573,7 +576,6 @@ func TestExecuteCommandRecordResult(t *testing.T) {
 			answer, err := engine.mux.CallAnswer(ctx, "ze-plugin-callback:execute-command",
 				rpc.ExecuteCommandInput{Command: tc.command})
 			require.NoError(t, err, "the plugin must answer a command that walks with the answer sequence")
-			assert.Equal(t, rpc.StatusDone, answer.Status)
 			assert.Equal(t, tc.wantType, answer.Type)
 
 			var items []string
@@ -585,7 +587,7 @@ func TestExecuteCommandRecordResult(t *testing.T) {
 			assert.NoError(t, answer.Err())
 			assert.Equal(t, tc.rows, produced, "every row of the walk was produced")
 
-			if tc.wantType == rpc.AnswerTypeJSON {
+			if tc.wantType == rpc.AnswerTypeDocument {
 				assert.Empty(t, answer.Key,
 					"a document answer names no envelope on its head: the document already carries it")
 				require.Len(t, items, 1, "a bounded walk is one record carrying the whole document")

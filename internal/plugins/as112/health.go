@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // errHealthUsage is returned for any args shape other than none or the
@@ -94,10 +95,10 @@ func parseHealthArgs(args []string) (string, error) {
 
 // handleAS112Health answers the `request as112 healthcheck` RPC: the optional "target
 // <ip>" arg names the anycast address to query on port 53 (the
-// address-family-appropriate loopback is used when omitted). Returns a
-// non-error Response whose Data carries the same exit-code semantics
-// runHealthQuery uses, so the CLI dispatcher's process exit code matches
-// (finding M4's "shell-friendly exit code" requirement).
+// address-family-appropriate loopback is used when omitted). Returns a Response
+// whose Status carries the same exit-code semantics runHealthQuery uses, so the
+// CLI dispatcher's process exit code matches (finding M4's "shell-friendly exit
+// code" requirement), and whose Error names the target that did not answer.
 func handleAS112Health(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	targetIP, err := parseHealthArgs(args)
 	if err != nil {
@@ -110,9 +111,20 @@ func handleAS112Health(_ *pluginserver.CommandContext, args []string) (*plugin.R
 	ctx, cancel := context.WithTimeout(context.Background(), healthCheckTimeout)
 	defer cancel()
 	code := runHealthQuery(ctx, target, healthCheckTimeout)
-	status := plugin.StatusDone
 	if code != 0 {
-		status = plugin.StatusError
+		// A failing response MUST name its reason. The outcome of an answer is
+		// stated once, on its terminator, and a failure carrying no text there
+		// reaches a consumer as a completed answer (rpc.Verdict). A status with
+		// no message is a zero value wearing a valid answer's clothes
+		// (ai/rules/evidence.md).
+		var tb textbuf.Buffer
+		reason := tb.Str("as112 healthcheck: ").Str(target).Str(" did not answer ").
+			Str(healthCheckQuery).Str(" SOA").String()
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Error:  reason,
+			Data:   plugin.Map{"healthy": false, "target": target},
+		}, nil
 	}
-	return &plugin.Response{Status: status, Data: plugin.Map{"healthy": code == 0, "target": target}}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"healthy": true, "target": target}}, nil
 }

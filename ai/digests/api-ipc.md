@@ -118,7 +118,7 @@ runtime request, see the gotcha below.
     (`Plugin.answerExecuteCommand`, `pkg/plugin/sdk/sdk_dispatch.go`). The reply is an
     ANSWER SEQUENCE written through `Conn.AnswerWriter` (`pkg/plugin/rpc/conn.go`). A `plugin.Records` payload becomes one line
     for each row (`Records.WriteAnswer`, `pkg/plugin/records.go`). A built value becomes the
-    one record of a `type=json` answer (`rpc.WriteDocumentAnswer`, `pkg/plugin/rpc/answer_write.go`).
+    one record of a `doc` answer (`rpc.WriteDocumentAnswer`, `pkg/plugin/rpc/answer_write.go`).
     A handler error still replies `#<len>:<id> error {...}` through `Conn.SendError`
     (`pkg/plugin/rpc/conn.go`).
 13. **Response routing back.** The engine-side `readLoop` reads the field after the id: a

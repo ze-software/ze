@@ -7,7 +7,7 @@
 // The channel has two streams and the answer uses both, because the daemon
 // renders. It has to: the format an operator sees comes from `ze.cli.format`,
 // which lives in the daemon's configuration, and four of the six renderings run
-// to several lines. Rendered text can therefore not travel inside an item=,
+// to several lines. Rendered text can therefore not travel inside a record,
 // which is one line by construction (AppendAnswerItem, pkg/plugin/rpc).
 //
 //	stdout  the rendering, written as the records arrive. For `ssh <host>
@@ -60,20 +60,24 @@ func newAnswerFrame(sess ssh.Session) *answerFrame {
 	return &answerFrame{w: sess.Stderr(), buf: make([]byte, 0, answerFrameCapacity)}
 }
 
-// head writes the line that opens the answer: what the daemon knows about the
-// command, and which shape the rendering on stdout was produced from.
+// head writes the line that opens the answer: which shape the rendering on
+// stdout was produced from, and the envelope and columns that shape is read
+// against.
 //
 // It is written after the body rather than before it, because the type is read
 // from the walk and the walk is what produces the body. The two streams are
 // read independently, so a client cannot order stderr against stdout anyway;
-// what it needs from the head is the status and the shape, and both are true
-// whenever it arrives.
-func (f *answerFrame) head(status, answerType, key string, fields []string) error {
+// what it needs from the head is the shape, and that is true whenever it
+// arrives.
+//
+// It states no outcome. The terminator carries the whole outcome, so nothing
+// here can disagree with it.
+func (f *answerFrame) head(answerType, key string, fields []string) error {
 	encoded, err := marshalAnswerFields(fields)
 	if err != nil {
 		return err
 	}
-	return f.write(rpc.AppendAnswerHead(f.buf[:0], rpc.AnswerNoID, status, answerType, key, encoded))
+	return f.write(rpc.AppendAnswerHead(f.buf[:0], rpc.AnswerNoID, answerType, key, encoded))
 }
 
 // terminator writes the line that ends the answer. Its absence is what states
@@ -136,12 +140,12 @@ func writeExecRecords(sess ssh.Session, frame *answerFrame, input string, record
 	key := records.Key
 	var fields []string
 	switch answer.Type {
-	case rpc.AnswerTypeJSON:
+	case rpc.AnswerTypeDocument:
 		key = ""
-	case rpc.AnswerTypeStream:
+	case rpc.AnswerTypeTable:
 		fields = records.Fields
 	}
-	if headErr := frame.head(plugin.StatusDone, answer.Type, key, fields); headErr != nil {
+	if headErr := frame.head(answer.Type, key, fields); headErr != nil {
 		return headErr
 	}
 	return frame.terminator(answer.Count, answer.Faults, "")
@@ -152,11 +156,11 @@ func writeExecRecords(sess ssh.Session, frame *answerFrame, input string, record
 //
 // An empty output is a command that reported nothing, and it writes no body:
 // nothing is not the same answer as an empty collection, and the terminator
-// says which by carrying count=0. The client is what turns that into the OK an
+// says which by counting zero records. The client is what turns that into the OK an
 // operator reads, because only the client knows whether the chain named a
 // format.
 func writeExecDocument(sess ssh.Session, frame *answerFrame, formatOutput func(string) string, output string) error {
-	if err := frame.head(plugin.StatusDone, rpc.AnswerTypeJSON, "", nil); err != nil {
+	if err := frame.head(rpc.AnswerTypeDocument, "", nil); err != nil {
 		return err
 	}
 
@@ -176,10 +180,10 @@ func writeExecDocument(sess ssh.Session, frame *answerFrame, formatOutput func(s
 
 // writeExecFailure reports a command that did not produce an answer.
 //
-// The frame reads the two failures apart: a command text that names no command
-// earns the error verb, which says the conversation was valid and re-sending is
-// pointless, and a command that ran and failed earns a head stating
-// status=error with the operational text on its terminator.
+// The frame reads the two failures apart by KIND: a command text that names no
+// command earns a nay line, which says the conversation was valid and re-sending
+// is pointless, and a command that ran and failed earns a head and a terminator
+// carrying the operational text.
 //
 // The operator's plain line is written first and the frame follows it. Both
 // audiences read one stream, and the terminator ends the answer, so nothing may
@@ -197,8 +201,8 @@ func writeExecFailure(sess ssh.Session, frame *answerFrame, err error) {
 		frame.notUnderstood(err.Error()) //nolint:errcheck // the session is ending; a lost line reads as truncated
 		return
 	}
-	frame.head(plugin.StatusError, rpc.AnswerTypeJSON, "", nil) //nolint:errcheck // as above
-	frame.terminator(0, 0, err.Error())                         //nolint:errcheck // as above
+	frame.head(rpc.AnswerTypeDocument, "", nil) //nolint:errcheck // as above
+	frame.terminator(0, 0, err.Error())         //nolint:errcheck // as above
 }
 
 // writeExecError writes the plain-text failure an operator reads, in the shape

@@ -43,12 +43,20 @@ from ze_api import API, runtime_fail
 
 MARKER = "silent-answer.txt"
 
+# The bytes a bounded answer's head and terminator carry, positionally. The head
+# is the doc item type, an empty envelope name and empty column names; the
+# terminator is one record, no rejected row and no message. Each counted field
+# states its own width, so an absent value is `1:0:` rather than a missing field.
+WANT_HEAD = "doc 1:0: 1:0:"
+WANT_TERMINATOR = "1:1 1:0 1:0:"
+
 
 def tail_of(line, want_kind):
-    """Return the key=value tail of one answer line, checking its kind.
+    """Return the positional tail of one answer line, checking its kind.
 
     The field after the id is the three-byte kind token, and it is what says
-    what the line IS. The tail is never read to find that out.
+    what the line IS. The tail is never read to find that out, and it carries
+    no key name at all.
     """
     parts = line.split(" ", 2)
     if len(parts) != 3 or parts[1] != want_kind:
@@ -64,18 +72,19 @@ def answer_item(api, command):
         runtime_fail(f"{command} answered {len(lines)} lines, want head, record, terminator: {lines}")
         return ""
     head = tail_of(lines[0], "top")
-    # type=json says the one item carries the whole answer as one document,
-    # which is what a payload the handler built whole always was.
-    if head != "status=done type=json":
-        runtime_fail(f"{command} head was {head!r}, want 'status=done type=json'")
+    # The doc item type says the one record carries the whole answer as one
+    # document, which is what a payload the handler built whole always was. The
+    # head states no outcome, and its envelope name and column names are
+    # present and empty.
+    if head != WANT_HEAD:
+        runtime_fail(f"{command} head was {head!r}, want {WANT_HEAD!r}")
+    if "=" in head:
+        runtime_fail(f"{command} head carries a key=value pair: {head!r}")
     record = tail_of(lines[1], "row")
-    if not record.startswith("item="):
-        runtime_fail(f"{command} record line was {record[:120]!r}, want an item=")
-        return ""
     terminator = tail_of(lines[2], "end")
-    if terminator != "count=1":
-        runtime_fail(f"{command} terminator was {terminator!r}, want 'count=1'")
-    return record[len("item=") :]
+    if terminator != WANT_TERMINATOR:
+        runtime_fail(f"{command} terminator was {terminator!r}, want {WANT_TERMINATOR!r}")
+    return record
 
 
 def main():
@@ -121,6 +130,13 @@ from ze_api import API, runtime_fail, wait_until
 
 MARKER = "silent-answer.txt"
 
+# The bytes a bounded answer's head and terminator carry, positionally. The head
+# is the doc item type, an empty envelope name and empty column names; the
+# terminator is one record, no rejected row and no message. Each counted field
+# states its own width, so an absent value is `1:0:` rather than a missing field.
+WANT_HEAD = "doc 1:0: 1:0:"
+WANT_TERMINATOR = "1:1 1:0 1:0:"
+
 
 def wait_for_silent(timeout=10.0):
     """Return the bytes the first peer received for the same command.
@@ -144,10 +160,11 @@ def wait_for_silent(timeout=10.0):
 
 
 def tail_of(line, want_kind):
-    """Return the key=value tail of one answer line, checking its kind.
+    """Return the positional tail of one answer line, checking its kind.
 
     The field after the id is the three-byte kind token, and it is what says
-    what the line IS. The tail is never read to find that out.
+    what the line IS. The tail is never read to find that out, and it carries
+    no key name at all.
     """
     parts = line.split(" ", 2)
     if len(parts) != 3 or parts[1] != want_kind:
@@ -174,25 +191,24 @@ def main():
         runtime_fail(f"answer was {len(lines)} lines, want head, record, terminator: {lines}")
 
     head = tail_of(lines[0], "top")
-    if head != "status=done type=json":
-        runtime_fail(f"head was {head!r}, want 'status=done type=json'")
+    if head != WANT_HEAD:
+        runtime_fail(f"head was {head!r}, want {WANT_HEAD!r}")
+    if "=" in head:
+        runtime_fail(f"head carries a key=value pair: {head!r}")
 
-    record = tail_of(lines[1], "row")
-    if not record.startswith("item="):
-        runtime_fail(f"record line was {record[:120]!r}, want an item=")
-    item = record[len("item=") :]
+    item = tail_of(lines[1], "row")
     if item != silent:
         runtime_fail(f"record carries {item[:120]!r}, the first peer got {silent[:120]!r}")
 
     terminator = tail_of(lines[2], "end")
-    if terminator != "count=1":
-        runtime_fail(f"terminator was {terminator!r}, want 'count=1'")
+    if terminator != WANT_TERMINATOR:
+        runtime_fail(f"terminator was {terminator!r}, want {WANT_TERMINATOR!r}")
 
     print("OK: the second peer received the same bytes", file=sys.stderr)
 
     # Every dispatch answer is a sequence, so the shutdown goes out the same
     # way. api.dispatch parses the answer as one JSON payload and would fail on
-    # the head's key=value tail.
+    # the head's positional tail.
     api.dispatch_wire_lines("request shutdown", timeout=2.0, settle=0.2)
     api.wait_for_shutdown()
 

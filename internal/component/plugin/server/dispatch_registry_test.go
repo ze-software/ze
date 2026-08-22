@@ -179,9 +179,9 @@ func TestEngineOpJSONAndDirectMatch(t *testing.T) {
 	// One payload, two frames: what the Direct path projects under "data" is
 	// what the socket writes as the answer's one item.
 	assert.Equal(t, []string{
-		"#1:5 top status=done type=json",
-		`#1:5 row item=` + string(projected.Data),
-		"#1:5 end count=1",
+		"#1:5 top doc 1:0: 1:0:",
+		`#1:5 row ` + string(projected.Data),
+		"#1:5 end 1:1 1:0 1:0:",
 	}, strings.Split(strings.TrimSuffix(wire.String(), "\n"), "\n"))
 }
 
@@ -350,9 +350,9 @@ func TestDispatchCommandAlwaysAnswersRecords(t *testing.T) {
 	caller := process.NewProcess(plugin.PluginConfig{Name: "unconditional"})
 
 	wantLines := []string{
-		"#1:7 top status=done type=json",
-		`#1:7 row item={"version":"3"}`,
-		"#1:7 end count=1",
+		"#1:7 top doc 1:0: 1:0:",
+		`#1:7 row {"version":"3"}`,
+		"#1:7 end 1:1 1:0 1:0:",
 	}
 
 	cases := []struct {

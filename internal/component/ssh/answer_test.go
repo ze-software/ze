@@ -169,9 +169,9 @@ func TestAnUnknownCommandAnswersTheErrorVerb(t *testing.T) {
 // declared client must tell apart: a command that was understood, ran, and
 // failed.
 //
-// VALIDATES: AC-5 -- the head states status=error and the terminator carries
+// VALIDATES: AC-5 -- the terminator carries the operational message and counts
 //
-//	the operational message with count=0.
+//	no record, and the head states nothing that can contradict it.
 //
 // PREVENTS:  a client treating an operational failure as a typo, and offering
 //
@@ -187,7 +187,7 @@ func TestAFailedCommandCarriesItsMessageOnTheTerminator(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Equal(t, "peer 10.0.0.1 not configured", err.Error())
-	assert.Equal(t, rpc.VerdictAborted, answer.Verdict, "a stated message is what makes the walk aborted")
+	assert.Equal(t, rpc.VerdictError, answer.Verdict, "a stated message over no records is a command that failed")
 	assert.Zero(t, answer.Count)
 }
 
@@ -268,7 +268,6 @@ func TestExecAnswerUnconditional(t *testing.T) {
 	}
 
 	require.Len(t, frame, 2, "an undeclared client must receive the head and the terminator; stderr was %q", stderr)
-	assert.Equal(t, plugin.StatusDone, frame[0].Status, "the first line is the head")
 	assert.Equal(t, rpc.AnswerKindHead, frame[0].Kind, "the first line states the head kind")
 	require.Equal(t, rpc.AnswerKindTerminator, frame[1].Kind, "the second line ends the answer")
 	assert.Equal(t, uint64(rows), frame[1].Count, "the terminator counts the records the operator received")
@@ -308,7 +307,7 @@ func TestAnUndeclaredClientReadsTodaysBytes(t *testing.T) {
 
 	assert.Equal(t, 3, strings.Count(combined, "\n")+1, "three records, three lines and nothing else")
 	assert.NotContains(t, combined, "status=")
-	assert.NotContains(t, combined, "count=")
+	assert.NotContains(t, combined, rpc.AnswerKindTerminator+" ")
 }
 
 // TestAnAnswerCutMidStreamReportsTruncation is AC-9, end to end.

@@ -391,9 +391,9 @@ func ExecuteCommandValue(answer *rpc.Answer) (*rpc.ExecuteCommandOutput, error) 
 	// it as a Go error, which is how the same failure reaches it when the call
 	// itself fails.
 	if message := answer.Message(); message != "" {
-		return nil, fmt.Errorf("execute-command answer: %s", message)
+		return &rpc.ExecuteCommandOutput{Status: rpc.StatusError, Data: json.RawMessage(message)}, nil
 	}
-	return &rpc.ExecuteCommandOutput{Status: answer.Status, Data: document}, nil
+	return &rpc.ExecuteCommandOutput{Status: rpc.StatusDone, Data: document}, nil
 }
 
 // executeCommandValue sends one execute-command over the bridge's generic
@@ -416,18 +416,23 @@ func (pc *PluginConn) executeCommandValue(ctx context.Context, input *rpc.Execut
 //
 // A value the plugin built is one row, and a plugin that answered with no data
 // at all is none, which is what the wire producer states for the same answer
-// (WriteDocumentAnswer, pkg/plugin/rpc/answer_write.go). The status passes
-// through unread, so a value frame's status reaches its caller as the plugin
-// wrote it.
+// (WriteDocumentAnswer, pkg/plugin/rpc/answer_write.go). A value stating a
+// failure carries its reason on the TERMINATOR and no record, exactly as the
+// wire producer writes the same failure (executeCommandAnswer,
+// pkg/plugin/sdk/sdk_callbacks.go), so the two transports state one outcome one
+// way.
 //
 // A nil output is a transport that ran the command and reported nothing, which is
 // the empty answer rather than no answer: every path out of
 // SendExecuteCommandAnswer gives its caller one answer to read.
 func valueAnswer(out *rpc.ExecuteCommandOutput) *rpc.Answer {
+	head := rpc.AnswerTail{Type: rpc.AnswerTypeDocument}
 	if out == nil {
-		return rpc.NewAnswer(rpc.AnswerTail{Status: rpc.StatusDone, Type: rpc.AnswerTypeJSON}, rpc.AnswerTail{}, nil)
+		return rpc.NewAnswer(head, rpc.AnswerTail{}, nil)
 	}
-	head := rpc.AnswerTail{Status: out.Status, Type: rpc.AnswerTypeJSON}
+	if out.Status == rpc.StatusError {
+		return rpc.NewAnswer(head, rpc.AnswerTail{Message: failureReason(out.Data)}, nil)
+	}
 	if len(out.Data) == 0 {
 		return rpc.NewAnswer(head, rpc.AnswerTail{}, nil)
 	}
@@ -602,4 +607,15 @@ func (pc *PluginConn) SendBye(ctx context.Context, reason string) error {
 	input := &rpc.ByeInput{Reason: reason}
 	_, err := pc.CallRPC(ctx, "ze-plugin-callback:bye", input)
 	return err
+}
+
+// failureReason is the terminator's message for a value frame that stated a
+// failure: the payload the plugin built, which is the text its caller has always
+// reported, and the fixed text when it built none. A failure that said nothing
+// would reach the caller as a completed answer (rpc.Verdict).
+func failureReason(data []byte) string {
+	if len(data) > 0 {
+		return string(data)
+	}
+	return rpc.AnswerFailureUnstated
 }

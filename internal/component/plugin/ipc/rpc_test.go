@@ -681,7 +681,7 @@ func TestEngineExecuteCommand(t *testing.T) {
 	assert.Equal(t, []string{"ipv4"}, input.Args)
 	assert.Equal(t, "10.0.0.1", input.Peer)
 
-	head := rpc.AnswerTail{Status: rpc.StatusDone}
+	head := rpc.AnswerTail{}
 	require.NoError(t, rpc.WriteDocumentAnswer(pluginEnd.AnswerWriter(ctx), req.ID, head,
 		json.RawMessage(`{"routes":[]}`)))
 
@@ -1252,15 +1252,14 @@ func TestSendExecuteCommandReadsRecords(t *testing.T) {
 				served <- fmt.Errorf("unexpected method %q", req.Method)
 				return
 			}
-			head := rpc.AnswerTail{Status: rpc.StatusDone, Key: "peers"}
+			head := rpc.AnswerTail{Key: "peers"}
 			served <- rpc.WriteRecordAnswer(pluginConn.AnswerWriter(ctx), req.ID, head, answerPeerRows(rows))
 		}()
 
 		answer, err := engineConn.SendExecuteCommandAnswer(ctx, input)
 		require.NoError(t, err)
 		require.NotNil(t, answer)
-		assert.Equal(t, rpc.StatusDone, answer.Status)
-		assert.Equal(t, rpc.AnswerTypeNDJSON, answer.Type, "a walk past the threshold is streamed")
+		assert.Equal(t, rpc.AnswerTypeMap, answer.Type, "a walk past the threshold is streamed")
 		assert.Equal(t, "peers", answer.Key)
 
 		got := make([]string, 0, rows)
@@ -1291,7 +1290,7 @@ func TestSendExecuteCommandReadsRecords(t *testing.T) {
 				served <- readErr
 				return
 			}
-			head := rpc.AnswerTail{Status: rpc.StatusDone}
+			head := rpc.AnswerTail{}
 			served <- rpc.WriteDocumentAnswer(pluginConn.AnswerWriter(ctx), req.ID, head,
 				json.RawMessage(`{"peers":[]}`))
 		}()
@@ -1305,4 +1304,86 @@ func TestSendExecuteCommandReadsRecords(t *testing.T) {
 
 		require.NoError(t, <-served)
 	})
+}
+
+// TestValueAnswerCarriesAFailureOnItsTerminator checks that a transport
+// carrying one marshaled value states a failing status where the wire states
+// one: on the terminator, which is the one line an answer states an outcome on.
+// The method: the three shapes a value frame can take are turned into answers
+// and each is read back the way its caller reads it.
+//
+// VALIDATES: AC-11 -- the in-process bridge and the socket report one outcome
+// one way, so a plugin that failed reaches its caller as a failure whichever
+// transport carried it.
+// PREVENTS: a failing value reaching the engine as a completed answer once the
+// head stops stating a status. rpc.Verdict reads an empty message with zero
+// counts as done, so a value frame that dropped its status would report a
+// failed plugin command as a success.
+func TestValueAnswerCarriesAFailureOnItsTerminator(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		out         *rpc.ExecuteCommandOutput
+		wantVerdict string
+		wantMessage string
+		wantRecords int
+	}{
+		{
+			name:        "a value the plugin built",
+			out:         &rpc.ExecuteCommandOutput{Status: rpc.StatusDone, Data: json.RawMessage(`{"peers":2}`)},
+			wantVerdict: rpc.VerdictDone,
+			wantRecords: 1,
+		},
+		{
+			name:        "a plugin that answered with no data",
+			out:         &rpc.ExecuteCommandOutput{Status: rpc.StatusDone},
+			wantVerdict: rpc.VerdictDone,
+		},
+		{
+			name:        "a failure naming its reason",
+			out:         &rpc.ExecuteCommandOutput{Status: rpc.StatusError, Data: json.RawMessage("the registry is not ready")},
+			wantVerdict: rpc.VerdictError,
+			wantMessage: "the registry is not ready",
+		},
+		{
+			name:        "a failure naming no reason",
+			out:         &rpc.ExecuteCommandOutput{Status: rpc.StatusError},
+			wantVerdict: rpc.VerdictError,
+			wantMessage: rpc.AnswerFailureUnstated,
+		},
+		{
+			name:        "a transport that reported nothing at all",
+			out:         nil,
+			wantVerdict: rpc.VerdictDone,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			answer := valueAnswer(tc.out)
+			require.NotNil(t, answer, "every path gives its caller one answer to read")
+
+			records := 0
+			for range answer.Records {
+				records++
+			}
+			require.NoError(t, answer.Err())
+			assert.Equal(t, tc.wantRecords, records)
+			assert.Equal(t, tc.wantMessage, answer.Message())
+			assert.Equal(t, tc.wantVerdict, answer.Verdict())
+
+			value, err := ExecuteCommandValue(answer)
+			require.NoError(t, err)
+			if tc.wantMessage == "" {
+				assert.Equal(t, rpc.StatusDone, value.Status)
+				return
+			}
+			assert.Equal(t, rpc.StatusError, value.Status,
+				"the caller rebuilds the value form's status from the terminator")
+			assert.Equal(t, tc.wantMessage, string(value.Data))
+		})
+	}
 }

@@ -1084,9 +1084,9 @@ The handler decides what it produces, and the wire decides how it travels.
 
 | The handler returns | On the wire | What `routeToProcess` builds |
 |---------------------|-------------|------------------------------|
-| a built value | `type=json` and one `item=` carrying that value | `plugin.RawJSON`, unchanged |
-| a `plugin.Records` walk of 256 rows or fewer | `type=json` and one `item=` carrying the collapsed document | `plugin.RawJSON` over that document |
-| a `plugin.Records` walk of more than 256 rows | `type=ndjson` and one `item=` for each row | `plugin.Records` over the arriving rows |
+| a built value | the `doc` item type and one record carrying that value | `plugin.RawJSON`, unchanged |
+| a `plugin.Records` walk of 256 rows or fewer | the `doc` item type and one record carrying the collapsed document | `plugin.RawJSON` over that document |
+| a `plugin.Records` walk of more than 256 rows | the `map` item type and one record for each row | `plugin.Records` over the arriving rows |
 
 The dispatcher branches on the head's `type=` and never on what the handler
 returned. A bounded walk is therefore the document it has always been, and only a

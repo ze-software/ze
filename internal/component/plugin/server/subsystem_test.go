@@ -108,9 +108,15 @@ func startTestHandler(t *testing.T, name string, mock *mockPluginCommands) *Subs
 					}
 					status, data := mock.handler(input.Command)
 					// The mock's Stage 3 above declares nothing, and it
-					// still answers with the head, the item and the
-					// terminator: one answer has one encoding.
-					head := rpc.AnswerTail{Status: status}
+					// still answers with the head, the record and the
+					// terminator: one answer has one encoding. A failure
+					// rides the terminator, which is the one line an
+					// answer states its outcome on.
+					head := rpc.AnswerTail{}
+					if status == rpc.StatusError {
+						head.Message = data
+						data = ""
+					}
 					answer := pluginMux.AnswerWriter(ctx)
 					if err := rpc.WriteDocumentAnswer(answer, req.ID, head, json.RawMessage(data)); err != nil {
 						return

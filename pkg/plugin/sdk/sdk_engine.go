@@ -291,8 +291,9 @@ func (p *Plugin) bridgeReady() bool {
 }
 
 // answerValue walks answer to its end and rebuilds the value its command
-// produced: the status the head declared, the document its records carry, and
-// the command's own failure as a Go error. label names the RPC in that error.
+// produced: the status its terminator derives, the document its records carry,
+// and the command's own failure as a Go error. label names the RPC in that
+// error.
 //
 // It is the buffered reading of an answer, so it holds what the walk produced.
 // A caller that must bound its memory reads Answer.Records itself.
@@ -306,13 +307,14 @@ func answerValue(answer *rpc.Answer, label string) (string, json.RawMessage, err
 	if collapseErr != nil {
 		return "", nil, fmt.Errorf("%s answer: %w", label, collapseErr)
 	}
-	// The terminator's message is the command's own failure text, which the
-	// single-line frame carried in error=. A caller reads it as a Go error, so
-	// the two frames fail a caller the same way.
+	// The terminator's message is the command's own failure text, and the ONLY
+	// place it is stated: the head declares no outcome, so an engine command
+	// that failed says so here. A caller reads it as a Go error, so the answer
+	// and the single-line frame it replaced fail a caller the same way.
 	if message := answer.Message(); message != "" {
-		return answer.Status, nil, errors.New(message)
+		return rpc.StatusError, nil, errors.New(message)
 	}
-	return answer.Status, document, nil
+	return rpc.StatusDone, document, nil
 }
 
 // dispatchDirectCommandResult projects an in-process result before it completes

@@ -97,7 +97,7 @@ func TestWriteRecordAnswerRefusesTheReservedEnvelope(t *testing.T) {
 	var wire bytes.Buffer
 	rows := func(yield func(Record) bool) { yield(Record{Item: []byte(`{"peer":"10.0.0.1"}`)}) }
 
-	err := WriteRecordAnswer(&wire, 3, AnswerTail{Status: StatusDone, Key: AnswerErrorsKey}, rows)
+	err := WriteRecordAnswer(&wire, 3, AnswerTail{Key: AnswerErrorsKey}, rows)
 	if err == nil {
 		t.Fatal("an answer naming the reserved envelope was written, want it refused")
 	}

@@ -31,12 +31,41 @@ import json
 import sys
 from ze_api import API, runtime_fail, result_text_data
 
+DEFAULT_TARGET = '127.0.0.1:53'
+
 def dispatch(api, command):
     resp = api._call_engine(
         'ze-plugin-engine:dispatch-command', {'command': command})
     if resp is None:
         return {'status': 'error', 'data': 'engine call returned None'}
     return resp.get('result', {})
+
+def check_health(resp, command, target):
+    """Assert the command RAN and reported a health verdict, and return it.
+
+    An unhealthy node is a command that ran and failed, and it states its reason
+    on the terminator, which is the one line an answer states an outcome on. A
+    command that never reached the handler states a different reason, so the
+    target is what tells the two apart. A healthy node answers with the data.
+    """
+    status = resp.get('status')
+    if status not in ('done', 'error'):
+        runtime_fail(f'{command}: unexpected status={status} resp={resp}')
+
+    if status == 'error':
+        reason = resp.get('error', '')
+        if target not in reason:
+            runtime_fail(f'{command}: failed without naming the target {target!r}: {reason!r}')
+        return False
+
+    data = result_text_data(resp)
+    if isinstance(data, str) and data:
+        data = json.loads(data)
+    if not isinstance(data, dict) or data.get('healthy') is not True:
+        runtime_fail(f'{command}: a done answer must carry healthy=true, got {data}')
+    if data.get('target') != target:
+        runtime_fail(f'{command}: expected target={target!r} in response, got {data}')
+    return True
 
 def main():
     api = API()
@@ -49,30 +78,12 @@ def main():
 
     try:
         resp = dispatch(api, 'request as112 healthcheck')
-        status = resp.get('status')
-        if status not in ('done', 'error'):
-            runtime_fail(f'request as112 healthcheck: unexpected status={status} data={resp.get("data")}')
-
-        data = result_text_data(resp)
-        if isinstance(data, str) and data:
-            data = json.loads(data)
-        if not isinstance(data, dict) or 'healthy' not in data:
-            runtime_fail(f'request as112 healthcheck: expected dict with "healthy", got {data}')
-
-        print(f'OK: request as112 healthcheck dispatched, healthy={data.get("healthy")}', file=sys.stderr)
+        healthy = check_health(resp, 'request as112 healthcheck', DEFAULT_TARGET)
+        print(f'OK: request as112 healthcheck dispatched, healthy={healthy}', file=sys.stderr)
 
         resp = dispatch(api, 'request as112 healthcheck target 127.0.0.1')
-        status = resp.get('status')
-        if status not in ('done', 'error'):
-            runtime_fail(f'request as112 healthcheck target 127.0.0.1: unexpected status={status} data={resp.get("data")} (a malformed-args rejection would surface differently, not as this status)')
-
-        data = result_text_data(resp)
-        if isinstance(data, str) and data:
-            data = json.loads(data)
-        if not isinstance(data, dict) or data.get('target') != '127.0.0.1:53':
-            runtime_fail(f'request as112 healthcheck target 127.0.0.1: expected target="127.0.0.1:53" in response, got {data}')
-
-        print(f'OK: request as112 healthcheck target 127.0.0.1 dispatched, target={data.get("target")}', file=sys.stderr)
+        check_health(resp, 'request as112 healthcheck target 127.0.0.1', DEFAULT_TARGET)
+        print(f'OK: request as112 healthcheck target 127.0.0.1 dispatched, target={DEFAULT_TARGET}', file=sys.stderr)
     finally:
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()

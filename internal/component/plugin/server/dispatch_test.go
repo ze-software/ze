@@ -46,9 +46,9 @@ func dispatchAnswerOverSocket(ctx context.Context, side net.Conn, input any) (st
 		return "", nil, collapseErr
 	}
 	if message := answer.Message(); message != "" {
-		return answer.Status, nil, errors.New(message)
+		return rpc.StatusError, nil, errors.New(message)
 	}
-	return answer.Status, document, nil
+	return rpc.StatusDone, document, nil
 }
 
 func registerExecuteCommandTarget(
@@ -111,11 +111,15 @@ func registerExecuteCommandTarget(
 			}
 
 			// The target declares no wire shape and answers with the sequence
-			// every peer answers with: the head, the one item its handler
-			// built, and the terminator.
+			// every peer answers with: the head, the one record its handler
+			// built, and the terminator. A failure rides the terminator,
+			// which is the one line an answer states its outcome on.
 			writeCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			head := rpc.AnswerTail{Status: out.Status}
-			err = rpc.WriteDocumentAnswer(pluginMux.AnswerWriter(writeCtx), req.ID, head, out.Data)
+			head, payload := rpc.AnswerTail{}, out.Data
+			if out.Status == plugin.StatusError {
+				head.Message, payload = string(out.Data), nil
+			}
+			err = rpc.WriteDocumentAnswer(pluginMux.AnswerWriter(writeCtx), req.ID, head, payload)
 			cancel()
 			if err != nil {
 				done <- err

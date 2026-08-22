@@ -316,7 +316,7 @@ func (p *Plugin) OnExecuteCommand(fn ExecuteCommandHandler) {
 // answer is nil for a transport whose result is one marshaled value, which is
 // the direct bridge, and id is then unread. That result is the answer this
 // callback has always carried, byte for byte, and so is the document the
-// sequence's one item= line carries (AC-5). A walk reaching the value transport
+// sequence's one record line carries (AC-5). A walk reaching the value transport
 // collapses through the one collapse rather than through a second rendering
 // (Records.MarshalJSON).
 //
@@ -348,19 +348,27 @@ func executeCommandAnswer(
 		return json.Marshal(out)
 	}
 
-	headStatus := answerHeadStatus(status)
 	if records, walk := data.(Records); walk {
-		return nil, records.WriteAnswer(answer, id, headStatus)
+		// A handler that reported a failure beside a walk gave no text with it,
+		// so the terminator states the fixed one. A failure that said nothing
+		// would otherwise reach the caller as a completed answer (rpc.Verdict).
+		return nil, records.WriteAnswer(answer, id, answerFailureMessage(status, nil))
 	}
 	// The value the handler built is the document a bounded walk collapses to,
-	// so it takes the same three lines: the head states the status, the one
-	// item= line carries the value's bytes unchanged, and the terminator counts
-	// it (AC-5).
+	// so it takes the same three lines: the head states how the record is read,
+	// the one record line carries the value's bytes unchanged, and the
+	// terminator counts it and states the failure, if any (AC-5).
 	out, err := executeCommandOutput(status, data)
 	if err != nil {
 		return nil, err
 	}
-	return nil, rpc.WriteDocumentAnswer(answer, id, rpc.AnswerTail{Status: headStatus}, out.Data)
+	head := rpc.AnswerTail{Message: answerFailureMessage(status, out.Data)}
+	if head.Message != "" {
+		// A failing answer carries its reason and no payload, which is what the
+		// caller rebuilds the failure from.
+		return nil, rpc.WriteDocumentAnswer(answer, id, head, nil)
+	}
+	return nil, rpc.WriteDocumentAnswer(answer, id, head, out.Data)
 }
 
 // executeCommandOutput is the value form of a handler's answer: the status it
@@ -379,20 +387,27 @@ func executeCommandOutput(status string, data any) (*rpc.ExecuteCommandOutput, e
 	return &rpc.ExecuteCommandOutput{Status: status, Data: raw}, nil
 }
 
-// answerHeadStatus is what an answer head declares for the status a handler
-// reported: rpc.StatusError when the handler said the command failed, and
-// rpc.StatusDone otherwise.
+// answerFailureMessage is the operational text an answer's TERMINATOR carries
+// for the status a handler reported, and the empty string when the handler
+// reported no failure.
 //
-// The head carries one of two words, and the value form carries the handler's
-// own string. Normalizing here rather than passing the string through is what
-// keeps a status with a space or a newline in it from breaking the line the
-// head is written on, and it is the same normalization the engine makes for its
-// own answers (answerStatus, internal/component/plugin/dispatch.go).
-func answerHeadStatus(status string) string {
-	if status == rpc.StatusError {
-		return rpc.StatusError
+// The terminator is the one line an answer states its outcome on, so a failure
+// that named nothing must still say something: rpc.Verdict reads an empty
+// message with zero counts as a completed answer, and a silent failure would
+// reach the caller as a success (ai/rules/evidence.md). reason is the payload
+// the handler built, which is the text its caller has always reported, and a
+// handler that built none earns the fixed text instead.
+//
+// It is the same repair the engine makes for its own answers (answerMessage,
+// internal/component/plugin/dispatch.go).
+func answerFailureMessage(status string, reason []byte) string {
+	if status != rpc.StatusError {
+		return ""
 	}
-	return rpc.StatusDone
+	if len(reason) > 0 {
+		return string(reason)
+	}
+	return rpc.AnswerFailureUnstated
 }
 
 // OnConfigVerify sets the handler for config verification requests (reload pipeline).

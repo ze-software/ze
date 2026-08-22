@@ -2289,7 +2289,7 @@ func startRecordAnsweringPlugin(t *testing.T, ctx context.Context, key string, r
 		}
 		peer.gate.writer = conn.AnswerWriter(ctx)
 		peer.served <- rpc.WriteRecordAnswer(peer.gate, req.ID,
-			rpc.AnswerTail{Status: rpc.StatusDone, Key: key}, rows)
+			rpc.AnswerTail{Key: key}, rows)
 	}()
 	return peer
 }

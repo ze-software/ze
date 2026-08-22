@@ -12,6 +12,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestZebgpToExabgpJSON_UpdateAnnounce verifies UPDATE announce conversion.
@@ -1545,10 +1547,13 @@ func TestMuxConnAnswerLinesAreNotAcknowledged(t *testing.T) {
 // the waiter received.
 //
 // VALIDATES: the nay kind carries a failure, so a bridge dispatch of a command
-// that does not exist is reported rather than reported as success.
-// PREVENTS: a typo reaching ExaBGP as a command that ran.
+// that does not exist is reported rather than reported as success, and the
+// reason reaches the plugin decoded rather than as the positional tail it
+// traveled in.
+// PREVENTS: a typo reaching ExaBGP as a command that ran, and an operator
+// reading the counted lengths in front of the message as part of it.
 func TestMuxConnNotUnderstoodAnswerFailsTheWaiter(t *testing.T) {
-	line := `#1:6 nay message=unknown command: shwo bgp peers`
+	line := "#1:6 " + string(rpc.AppendAnswerNotUnderstood(nil, rpc.AnswerNoID, "", "unknown command: shwo bgp peers"))
 	scanner := bufio.NewScanner(strings.NewReader(line + "\n"))
 
 	var pluginBuf strings.Builder
@@ -1569,7 +1574,8 @@ func TestMuxConnNotUnderstoodAnswerFailsTheWaiter(t *testing.T) {
 	select {
 	case result := <-waiter:
 		assert.False(t, result.ok, "a command the daemon did not understand is a failure")
-		assert.Contains(t, result.errText, "unknown command")
+		assert.Equal(t, "unknown command: shwo bgp peers", result.errText,
+			"the reason reached the plugin with its counted lengths still in front of it")
 	default:
 		t.Fatal("the nay line never released the waiter")
 	}

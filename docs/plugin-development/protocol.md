@@ -48,7 +48,7 @@ a caller that wants the whole payload reads.
 A plugin WRITES its own answer to `execute-command`, and the frame is the same
 whatever the payload is. A handler that returns a `plugin.Records` writes one
 line for each row of the walk. A handler that returns a built value writes that
-value as the one record of a `type=json` answer, byte for byte.
+value as the one record of a `doc` answer, byte for byte.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
 <!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->
 

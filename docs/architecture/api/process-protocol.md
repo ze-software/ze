@@ -1069,29 +1069,28 @@ table. Each line opens with a three-byte kind token after its id: `top` for the
 head, `row` and `bad` for a produced row and a rejected one, `end` for the
 terminator.
 
-A command that RAN and failed states `status=error` on its head. It is not an
-`error` response, because the RPC itself succeeded even when the command failed.
-The `error` verb is kept for a handler that returned a Go error, where the RPC
-itself did not succeed.
+A command that RAN and failed states its reason on the TERMINATOR, which is the
+one line an answer states an outcome on. It is not an `error` response, because
+the RPC itself succeeded even when the command failed. The `error` verb is kept
+for a handler that returned a Go error, where the RPC itself did not succeed.
 
-A handler that built one value writes it as the one record of a `type=json`
-answer. The handler's status is on the head, and the record carries the value
-byte for byte:
+A handler that built one value writes it as the one record of a `doc` answer.
+The head states no outcome, and the record carries the value byte for byte:
 
 ```
-#1:5 top status=done type=json
-#1:5 row item={"running":true,"peers":1}
-#1:5 end count=1
+#1:5 top doc 1:0: 1:0:
+#1:5 row {"running":true,"peers":1}
+#1:5 end 1:1 1:0 1:0:
 ```
 
 A handler that answered with a `plugin.Records` walk of more than 256 rows
 writes one line for each row. A walk over a large table therefore never becomes
-one 16 MB line. A shorter walk collapses to the `type=json` document above:
+one 16 MB line. A shorter walk collapses to the `doc` document above:
 
 ```
-#1:5 top status=done type=ndjson key=peers
-#1:5 row item={"address":"10.0.0.1","state":"established"}
-#1:5 end count=1
+#1:5 top map 1:5:peers 1:0:
+#1:5 row {"address":"10.0.0.1","state":"established"}
+#1:5 end 1:1 1:0 1:0:
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
 <!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->
@@ -1124,7 +1123,7 @@ Both APIs answer with a head, records, and a terminator. See
 
 A caller that reads that answer as one value gets `DispatchCommandOutput`. Its
 `data` field carries raw JSON (single-decode) and holds the document a bounded
-answer puts in its one `item=`. On error the value uses a separate `error`
+answer puts in its one record. On error the value uses a separate `error`
 field: `{"status":"error","error":"message"}`. The in-process `DirectBridge`
 carries that value directly, because it has no line to put a record on.
 <!-- source: pkg/plugin/rpc/types.go -- DispatchCommandOutput -->
