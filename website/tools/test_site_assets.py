@@ -153,6 +153,10 @@ def test_legacy_routes_redirect_to_canonical_collections():
     assert redirects["usage/route-server"] == "use-cases/route-server"
     assert redirects["presentations/linx-2026-06"] == "talks/linx-2026-06"
     assert redirects["dependencies"] == "reference/dependencies"
+    assert redirects["roadmap"] == "project/roadmap"
+    assert redirects["changes"] == "project/changes"
+    assert redirects["milestones"] == "project/milestones"
+    assert redirects["activity"] == "project/activity"
     assert (
         page_registry.file_redirects()["presentations/linx-2026-06/index-inlined.html"]
         == "talks/linx-2026-06/index-inlined.html"

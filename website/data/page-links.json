@@ -287,24 +287,24 @@
         }
       ]
     },
-    "roadmap/": {
+    "project/roadmap/": {
       "eyebrow": "Journey",
       "groups": [
         {
           "title": "Follow the work",
           "links": [
             {
-              "href": "milestones/",
+              "href": "project/milestones/",
               "label": "Milestones",
               "desc": "Delivered capabilities in chronological order."
             },
             {
-              "href": "changes/",
+              "href": "project/changes/",
               "label": "Changes",
               "desc": "Weekly development notes, newest first."
             },
             {
-              "href": "activity/",
+              "href": "project/activity/",
               "label": "Activity",
               "desc": "Commit and line-change history over the year."
             }
@@ -332,24 +332,24 @@
         }
       ]
     },
-    "milestones/": {
+    "project/milestones/": {
       "eyebrow": "Journey",
       "groups": [
         {
           "title": "Timeline context",
           "links": [
             {
-              "href": "roadmap/",
+              "href": "project/roadmap/",
               "label": "Roadmap",
               "desc": "What remains before a first release."
             },
             {
-              "href": "changes/",
+              "href": "project/changes/",
               "label": "Changes",
               "desc": "Weekly detail behind the milestones."
             },
             {
-              "href": "activity/",
+              "href": "project/activity/",
               "label": "Activity",
               "desc": "Development cadence and volume."
             }
@@ -372,24 +372,24 @@
         }
       ]
     },
-    "changes/": {
+    "project/changes/": {
       "eyebrow": "Journey",
       "groups": [
         {
           "title": "Project journey",
           "links": [
             {
-              "href": "roadmap/",
+              "href": "project/roadmap/",
               "label": "Roadmap",
               "desc": "What the work is leading toward."
             },
             {
-              "href": "milestones/",
+              "href": "project/milestones/",
               "label": "Milestones",
               "desc": "Landmark capabilities only."
             },
             {
-              "href": "activity/",
+              "href": "project/activity/",
               "label": "Activity",
               "desc": "Commit-level development view."
             }
@@ -412,24 +412,24 @@
         }
       ]
     },
-    "activity/": {
+    "project/activity/": {
       "eyebrow": "Journey",
       "groups": [
         {
           "title": "Explain the graph",
           "links": [
             {
-              "href": "changes/",
+              "href": "project/changes/",
               "label": "Changes",
               "desc": "Narrative for the commits shown here."
             },
             {
-              "href": "milestones/",
+              "href": "project/milestones/",
               "label": "Milestones",
               "desc": "Major outcomes of the work."
             },
             {
-              "href": "roadmap/",
+              "href": "project/roadmap/",
               "label": "Roadmap",
               "desc": "Where the cadence is heading."
             }
@@ -509,7 +509,7 @@
               "desc": "Check how coverage compares externally."
             },
             {
-              "href": "roadmap/",
+              "href": "project/roadmap/",
               "label": "Roadmap",
               "desc": "See what is still planned."
             }
@@ -987,7 +987,7 @@
               "desc": "How to report vulnerabilities and what is in scope."
             },
             {
-              "href": "activity/",
+              "href": "project/activity/",
               "label": "Activity",
               "desc": "Project movement around dependency changes."
             }
@@ -1017,7 +1017,7 @@
               "desc": "Find operational syntax quickly."
             },
             {
-              "href": "changes/",
+              "href": "project/changes/",
               "label": "Changes",
               "desc": "Scan recent work by week."
             }
@@ -1118,9 +1118,9 @@
   },
   "patterns": [
     {
-      "prefix": "changes/",
+      "prefix": "project/changes/",
       "exclude": [
-        "changes/"
+        "project/changes/"
       ],
       "eyebrow": "Change note",
       "groups": [
@@ -1128,22 +1128,22 @@
           "title": "More context",
           "links": [
             {
-              "href": "changes/",
+              "href": "project/changes/",
               "label": "All changes",
               "desc": "Return to the weekly update index."
             },
             {
-              "href": "milestones/",
+              "href": "project/milestones/",
               "label": "Milestones",
               "desc": "See which changes became landmarks."
             },
             {
-              "href": "roadmap/",
+              "href": "project/roadmap/",
               "label": "Roadmap",
               "desc": "Map this week to the release plan."
             },
             {
-              "href": "activity/",
+              "href": "project/activity/",
               "label": "Activity",
               "desc": "View commit cadence around this week."
             }

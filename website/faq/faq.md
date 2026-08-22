@@ -24,7 +24,7 @@ The questions people tend to ask before they spend time on Ze. If yours is not h
     <summary>Is Ze ready for production?</summary>
     <div>
       <p>Not yet, and the site says so everywhere on purpose. The routing core is heavily tested, but production exposure is still limited and the configuration syntax can still change before the first release.</p>
-      <p>The right place for Ze today is a lab: build a route server, migrate an ExaBGP config, stand up a looking glass, run the interop labs against real FRR or BIRD, and report where it breaks. The <a href="../roadmap/">roadmap</a> explains what remains before a stable release.</p>
+      <p>The right place for Ze today is a lab: build a route server, migrate an ExaBGP config, stand up a looking glass, run the interop labs against real FRR or BIRD, and report where it breaks. The <a href="../project/roadmap/">roadmap</a> explains what remains before a stable release.</p>
     </div>
   </details>
 
@@ -86,8 +86,8 @@ The questions people tend to ask before they spend time on Ze. If yours is not h
   <details class="faq-card cat-routing" id="config-stability">
     <summary>Will my configuration keep working as Ze changes?</summary>
     <div>
-      <p>Until the first release, treat the configuration syntax as not yet frozen. Breaking changes are called out in the <a href="../changes/">changes log</a>, and the policy is no silent breakage: a change that affects your config should come with either an automatic migration or a clear error.</p>
-      <p>Stabilising the syntax so it stays stable is an explicit milestone on the <a href="../roadmap/">roadmap</a>.</p>
+      <p>Until the first release, treat the configuration syntax as not yet frozen. Breaking changes are called out in the <a href="../project/changes/">changes log</a>, and the policy is no silent breakage: a change that affects your config should come with either an automatic migration or a clear error.</p>
+      <p>Stabilising the syntax so it stays stable is an explicit milestone on the <a href="../project/roadmap/">roadmap</a>.</p>
     </div>
   </details>
 

@@ -7,7 +7,7 @@ Usage:
 Runs presentations/tools/loc_activity.py fresh against the main repo (never
 touches any presentation's own frozen activity.html -- those are historic
 snapshots), extracts the heatmap widget, restyles it to the site's candy
-palette, and writes activity/index.html. Re-run this to refresh the data;
+palette, and writes project/activity/index.html. Re-run this to refresh the data;
 same one-command-regenerates-everything workflow as tools/render-docs.py.
 """
 
@@ -23,7 +23,7 @@ import sitepaths
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 LOC_ACTIVITY = GH_PAGES / "presentations" / "tools" / "loc_activity.py"
-DEST = GH_PAGES / "activity" / "index.html"
+DEST = GH_PAGES / "project" / "activity" / "index.html"
 MAIN_REPO = sitepaths.MAIN_REPO
 
 
@@ -109,7 +109,7 @@ PAGE = """<!doctype html>
             content="A year of Ze's commit and added-line history, visualized as a calendar heatmap. Live data, regenerated from git history."
         />
         <meta property="og:type" content="website" />
-        <link rel="icon" href="../assets/ze.svg" type="image/svg+xml" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
@@ -124,8 +124,8 @@ PAGE = """<!doctype html>
     <body>
         <header class="site-header">
             <nav class="nav" aria-label="Main navigation">
-                <a class="brand" href="../#top" aria-label="Ze home">
-                    <img src="../assets/ze.svg" alt="" width="32" height="32" />
+                <a class="brand" href="../../#top" aria-label="Ze home">
+                    <img src="../../assets/ze.svg" alt="" width="32" height="32" />
                     <span>Ze</span>
                 </a>
 {navblock}
@@ -623,7 +623,7 @@ def render_markdown(stats_html, go_panel_html):
     sliced out of loc_activity.py's raw output -- run through
     sitelib.html_to_markdown -- rather than the SVG heatmap or the tab-switch
     script, neither of which mean anything as text."""
-    base = sitelib.SITE_BASE + "activity/"
+    base = sitelib.SITE_BASE + "project/activity/"
     parts = [
         "# Development activity",
         "",
@@ -664,19 +664,19 @@ def main():
 
     page = PAGE.format(
         style=STYLE,
-        site_css=sitelib.asset_url("../", "assets/site.css"),
+        site_css=sitelib.asset_url("../../", "assets/site.css"),
         font_css=sitelib.FONT_CSS_URL,
         json_ld=sitelib.structured_data_script(),
-        site_js=sitelib.asset_url("../", "assets/site.js"),
-        navblock=sitelib.build_navblock("../"),
+        site_js=sitelib.asset_url("../../", "assets/site.js"),
+        navblock=sitelib.build_navblock("../../"),
         stats=stats_html,
         go_panel=go_panel_html,
         chart=chart_html,
         tooltip=tooltip_html,
         script=script_html,
-        footer=sitelib.footer_html("../"),
+        footer=sitelib.footer_html("../../"),
     )
-    page = sitelib.patch_page_sidebar(page, "../", "activity/")
+    page = sitelib.patch_page_sidebar(page, "../../", "project/activity/")
     page = sitelib.patch_social_meta(page)
     DEST.parent.mkdir(parents=True, exist_ok=True)
     DEST.write_text(page)

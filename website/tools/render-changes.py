@@ -13,12 +13,13 @@ them end to end:
                               extracted from the post's themed section headers
                               (the "**emoji Header**" lines). This is what lets
                               the index say more than the one-sentence intro.
-  changes/<slug>/index.html   the full write-up for one week (themed sections,
+  project/changes/<slug>/index.html
+                              the full write-up for one week (themed sections,
                               the readable version)
-  changes/index.html          a scannable index: one row per week (date, intro,
+  project/changes/index.html  a scannable index: one row per week (date, intro,
                               and category-colored topic chips) linking to the
                               week's page
-  changes/feed.xml            the "Ze weekly updates" RSS feed
+  project/changes/feed.xml    the canonical "Ze weekly updates" RSS feed
 
 Each week is authored as 3-7 themed sections with a consistent emoji vocabulary
 (STYLE.md standardises it: routing, security, appliance, observability, ...).
@@ -45,9 +46,10 @@ import sitelib
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 POSTS_DIR = GH_PAGES / "changes" / "posts"
-OUT_DIR = GH_PAGES / "changes"
+OUT_DIR = GH_PAGES / "project" / "changes"
+LEGACY_FEED = GH_PAGES / "changes" / "feed.xml"
 INDEX_JSON = GH_PAGES / "data" / "changes.json"
-CHANGES_URL = sitelib.SITE_BASE + "changes/"
+CHANGES_URL = sitelib.SITE_BASE + "project/changes/"
 RSS_HEAD = (
     '        <link rel="alternate" type="application/rss+xml" '
     'title="Ze weekly updates" href="../feed.xml" />\n'
@@ -460,8 +462,11 @@ def render_feed(weeks):
             "",
         ]
     )
-    (OUT_DIR / "feed.xml").write_text(feed)
-    print("rendered feed -> %s (%d items)" % (OUT_DIR / "feed.xml", len(live)))
+    feed_path = OUT_DIR / "feed.xml"
+    feed_path.write_text(feed)
+    LEGACY_FEED.parent.mkdir(parents=True, exist_ok=True)
+    LEGACY_FEED.write_text(feed)
+    print("rendered feed -> %s (%d items)" % (feed_path, len(live)))
 
 
 def clean_stale_week_dirs(keep_slugs):
@@ -503,15 +508,15 @@ def main():
             sitelib.page_head(
                 full_title,
                 desc,
-                "../../",
+                "../../../",
                 og_title=full_title,
                 og_desc=desc,
                 extra_head=RSS_HEAD,
-                page_key="changes/%s/" % slug,
+                page_key="project/changes/%s/" % slug,
             )
             + render_post(meta, intro, sections, covers)
             + "\n"
-            + sitelib.page_foot("../../")
+            + sitelib.page_foot("../../../")
         )
         sitelib.write_markdown_sibling(dest, render_post_markdown(meta, intro, sections, covers))
         topics = topics_from_tags(meta, f.name)
@@ -542,14 +547,14 @@ def main():
     head = sitelib.page_head(
         full_title,
         DESC,
-        "../",
+        "../../",
         og_title=full_title,
         og_desc=DESC,
         extra_head=INDEX_RSS_HEAD + INDEX_CSS,
-        page_key="changes/",
+        page_key="project/changes/",
     )
     out = OUT_DIR / "index.html"
-    out.write_text(head + render_index_html(weeks) + "\n" + sitelib.page_foot("../"))
+    out.write_text(head + render_index_html(weeks) + "\n" + sitelib.page_foot("../../"))
     sitelib.write_markdown_sibling(out, render_index_markdown(weeks))
     print("rendered changes -> %s (%d weeks, + detail pages, + index.md)" % (out, len(weeks)))
     render_feed(weeks)

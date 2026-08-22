@@ -67,7 +67,7 @@ LIVE_DESC_OVERRIDES = {
     "reference/dependencies/": lambda: (
         "%s direct packages, generated from go.mod" % live_counts()["dependencies"]
     ),
-    "changes/": lambda: "%s weekly updates, newest first" % live_counts()["changes"],
+    "project/changes/": lambda: "%s weekly updates, newest first" % live_counts()["changes"],
 }
 
 

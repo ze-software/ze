@@ -93,15 +93,16 @@ website/
     render-blog.py                        -- blog/posts/*.md (editorial articles) -> blog/**/index.html
                                               (empty until articles are added; the weekly changelog
                                               is the Changes section below, not the blog)
-    render-changes.py                     -- changes/posts/*.md (weekly updates) -> changes/<week>/
-                                              index.html full write-up + changes/index.html terse
-                                              index + changes/feed.xml RSS. Topic chips come from
-                                              each post's `tags:` front matter (comma-separated),
+    render-changes.py                     -- changes/posts/*.md (weekly updates) -> project/changes/<week>/
+                                              index.html full write-up + project/changes/index.html terse
+                                              index + project/changes/feed.xml RSS, with legacy
+                                              changes/feed.xml kept for feed readers. Topic chips come
+                                              from each post's `tags:` front matter (comma-separated),
                                               colored via data/topics.json; a post with no `tags:`
                                               falls back to its section headers and warns
-    render-activity.py                    -- git history -> activity/index.html
+    render-activity.py                    -- git history -> project/activity/index.html
     render-features.py                    -- data/features.json -> features/index.html
-    render-timeline.py                    -- data/milestones.json -> milestones/index.html, the
+    render-timeline.py                    -- data/milestones.json -> project/milestones/index.html, the
                                               landmark-features timeline, oldest first, grouped by
                                               quarter and color-coded by category
     render-command-equivalents.py         -- data/command-equivalents.json + live Ze CLI catalog ->
@@ -153,7 +154,7 @@ and per-step failures.
   matching generated pages, and `data/plugin-registry.json` is generated from
   `../internal/**/register.go` plus local `PLUGIN.md` metadata. Markdown
   sources live either in `website/` (`use-cases/`, `compare/`, `quality/`,
-  `contribute/`, `faq/`, `roadmap/`, `license/`, `docs/docs.md`) or in <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
+  `contribute/`, `faq/`, `roadmap/`, `license/`, `docs/docs.md`) and may render under `project/`, or in <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
   `../docs/` for product documentation and lab architecture detail.
   Top navigation dropdown entries in `data/nav.json` must use an emoji glyph
   for `icon`, not a text abbreviation or label.
@@ -316,7 +317,7 @@ page is already built:
   rule its HTML-link rewriter already used, just emitting Markdown link
   syntax).
 - **Built from JSON/data** (`features/`, `reference/cli/`, `dependencies/`,
-  `reference/configuration/`, `activity/`, blog posts): each `render-*.py` has a
+  `reference/configuration/`, `project/activity/`, blog posts): each `render-*.py` has a
   `render_markdown()` next to its `render()`, both reading the same data,
   so the two can't disagree.
 - **Hand-authored HTML, no source of either kind** (`labs/*/`, `talks/`,

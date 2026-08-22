@@ -13,10 +13,10 @@ Steps (default order, also the --only vocabulary):
     use-cases use-cases/*.md -> use-cases/**/index.html (tools/render-doc.py)
     blog      blog/posts/*.md (editorial articles) -> blog/**/index.html
               (tools/render-blog.py) -- empty until articles are added
-    changes   changes/posts/*.md (weekly updates) -> changes/<week>/index.html
-              full write-up + changes/index.html terse index + changes/feed.xml
+    changes   changes/posts/*.md (weekly updates) -> project/changes/<week>/index.html
+              full write-up + project/changes/index.html terse index + project/changes/feed.xml
               (tools/render-changes.py)
-    activity  git history -> activity/index.html         (tools/render-activity.py)
+    activity  git history -> project/activity/index.html (tools/render-activity.py)
     compare   compare/*.md -> compare/**/index.html      (tools/render-doc.py)
     features  data/features.json -> features/index.html  (tools/render-features.py)
     cli       `ze help command --json` -> reference/cli/index.html  (tools/render-cli-catalog.py)
@@ -37,7 +37,7 @@ Steps (default order, also the --only vocabulary):
     contribute contribute/contribute.md -> contribute/index.html (tools/render-doc.py)
     talks     data/talks.json -> talks/index.html          (tools/render-talks.py)
     index     data/audience.json -> index.html            (tools/render-index.py)
-    timeline  data/milestones.json -> milestones/index.html (tools/render-timeline.py)
+    timeline  data/milestones.json -> project/milestones/index.html (tools/render-timeline.py)
     hubs      curated collection landing pages -> */index.html (tools/render-doc.py)
     nav       patch <div class="nav-links"> and <footer> in the remaining
               hand-authored pages (zeledon, labs/*, style-guide,
@@ -381,8 +381,8 @@ def step_roadmap():
     render_doc = load_module("render-doc")
     render_doc.render(
         GH_PAGES / "roadmap" / "roadmap.md",
-        GH_PAGES / "roadmap" / "index.html",
-        "../",
+        GH_PAGES / "project" / "roadmap" / "index.html",
+        "../../",
         ROADMAP_DESC,
         journey_label="Release path",
     )

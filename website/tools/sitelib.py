@@ -632,7 +632,7 @@ def blog_dropdown_columns(n=5):
     root."""
     col = [
         (
-            "changes/",
+            "project/changes/",
             "\U0001f4da",
             "All updates",
             "Every weekly update, newest first",
@@ -645,7 +645,7 @@ def blog_dropdown_columns(n=5):
             title += " (draft)"
         intro = " ".join((post.get("intro") or "").split())
         desc = (intro[:70] + "…") if len(intro) > 70 else (intro or "Weekly update")
-        col.append(("changes/%s/" % post["slug"], "\U0001f5d3️", title, desc, False))
+        col.append(("project/changes/%s/" % post["slug"], "\U0001f5d3️", title, desc, False))
     return [col]
 
 
@@ -699,8 +699,8 @@ NOSCRIPT_HUB_LINKS = [
     ("docs/", "Docs"),
     ("features/", "Features"),
     ("compare/", "Compare"),
-    ("roadmap/", "Roadmap"),
-    ("changes/", "Changes"),
+    ("project/roadmap/", "Roadmap"),
+    ("project/changes/", "Changes"),
     ("faq/", "FAQ"),
     ("contribute/", "Contribute"),
 ]

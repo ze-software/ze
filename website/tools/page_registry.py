@@ -394,6 +394,13 @@ def legacy_docs_dest_rel_dir_for(doc_path):
     return LEGACY_DOCS_DEST_OVERRIDES.get(doc_path, "docs/%s" % doc_stem(doc_path))
 
 
+def changes_post_slugs():
+    posts_dir = GH_PAGES / "changes" / "posts"
+    if not posts_dir.exists():
+        return ()
+    return tuple(sorted(path.stem for path in posts_dir.glob("*.md")))
+
+
 def url_redirects():
     """Legacy site-relative directory -> canonical site-relative directory."""
     redirects = {}
@@ -412,8 +419,13 @@ def url_redirects():
         old = "usage" if new == "use-cases" else new.replace("use-cases/", "usage/", 1)
         redirects[old] = new
 
+    for slug in changes_post_slugs():
+        redirects["changes/%s" % slug] = "project/changes/%s" % slug
+
     redirects.update(
         {
+            "activity": "project/activity",
+            "changes": "project/changes",
             "cli": "reference/cli",
             "command-equivalents": "reference/command-equivalents",
             "config-reference": "reference/configuration",
@@ -423,8 +435,10 @@ def url_redirects():
             "docs/features/plugins": "reference/plugins",
             "docs/guide/exabgp-migration": "use-cases/exabgp-migration",
             "guides/configuration": "guides/configuration-model",
+            "milestones": "project/milestones",
             "presentations/linx-2026-06": "talks/linx-2026-06",
             "presentations/netmcr-2026-04": "talks/netmcr-2026-04",
+            "roadmap": "project/roadmap",
             "why-ze": "project/why-ze",
         }
     )

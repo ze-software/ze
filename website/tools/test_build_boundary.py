@@ -28,6 +28,7 @@ GENERATED_FILES = {
     "assets/site.css",
     "assets/site.js",
     "blog/feed.xml",
+    "project/changes/feed.xml",
     "changes/feed.xml",
     "data/changes.json",
     "data/cli-commands.json",

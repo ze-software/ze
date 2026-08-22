@@ -1,5 +1,5 @@
 #!/usr/bin/env -S uv run python3
-"""Render milestones/index.html from data/milestones.json.
+"""Render project/milestones/index.html from data/milestones.json.
 
 Usage:
     tools/render-timeline.py
@@ -10,7 +10,7 @@ newest first, grouped by quarter and color-coded by the same seven
 categories as the Features page (so a routing node reads tangerine, a
 secure node pink, and so on, straight from assets/site.css's cat-* vars).
 
-This is deliberately coarser than changes/ (which lists every week) and
+This is deliberately coarser than project/changes/ (which lists every week) and
 features/ (which is current state, not chronology): one node per capability
 class the first time it arrived. Add a row to data/milestones.json and
 re-run to publish it. A render_markdown() sibling reads the same data, so
@@ -27,7 +27,7 @@ import sitelib
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 DATA = GH_PAGES / "data" / "milestones.json"
-DEST = GH_PAGES / "milestones" / "index.html"
+DEST = GH_PAGES / "project" / "milestones" / "index.html"
 
 TITLE = "Milestones - Ze"
 
@@ -181,7 +181,7 @@ def render(data):
         "The landmark features Ze has shipped, newest first: one node per "
         "capability the first time it arrived, on a timeline."
     )
-    out = [sitelib.page_head(TITLE, desc, "../", extra_head=EXTRA_HEAD, page_key="milestones/")]
+    out = [sitelib.page_head(TITLE, desc, "../../", extra_head=EXTRA_HEAD, page_key="project/milestones/")]
 
     out.append('            <section aria-labelledby="milestones-title">')
     out.append('                <div class="section-head journey-hero reveal">')
@@ -198,7 +198,7 @@ def render(data):
     out.append(
         "                    <p>Each node's color is its category. This is the "
         "coarse view: the <a href=\"../changes/\">Changes</a> log has every "
-        "week, and <a href=\"../features/\">Features</a> lists what ships "
+        "week, and <a href=\"../../features/\">Features</a> lists what ships "
         "today. Click a category to filter, click again to show everything.</p>"
     )
     out.append("                </div>")
@@ -226,7 +226,7 @@ def render(data):
     out.append("            </section>")
 
     body = "\n".join(out)
-    dest_text = body + "\n" + sitelib.page_foot("../")
+    dest_text = body + "\n" + sitelib.page_foot("../../")
     DEST.parent.mkdir(parents=True, exist_ok=True)
     DEST.write_text(dest_text)
     sitelib.write_markdown_sibling(DEST, render_markdown(data))

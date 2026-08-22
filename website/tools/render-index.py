@@ -170,7 +170,7 @@ def render_blog_teaser_card(post, i, topics):
         % esc(post["slug"])
     )
     parts.append(
-        '                        <h3><a href="changes/%s/">%s</a></h3>'
+        '                        <h3><a href="project/changes/%s/">%s</a></h3>'
         % (esc(post["slug"]), esc(post["intro"] or "Weekly update"))
     )
     parts.append(render_home_update_tags(topics).rstrip())
@@ -232,7 +232,7 @@ def render_whats_new(data):
             render_whats_new_item(
                 "Recently shipped",
                 "sky",
-                "changes/%s/" % week["slug"],
+                "project/changes/%s/" % week["slug"],
                 "Week of %s" % week["slug"],
                 clip(week["intro"] or "What shipped that week."),
             )
@@ -281,7 +281,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                                     <span>ExaBGP compatible</span>
                                 </p>
                                 <p class="hero-start-lead">
-                                    Ze speaks <a href="guides/bgp/"><strong>BGP</strong></a>,
+                                    Ze speaks <a href="guides/bgp-peering/"><strong>BGP</strong></a>,
                                     <a href="guides/isis/"><strong>ISIS</strong></a>,
                                     <a href="guides/ospf/"><strong>OSPF</strong></a>,
                                     manages <a href="features/interfaces/"><strong>interfaces</strong></a> and tunnels
@@ -296,8 +296,8 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                                 </p>
                                 <p class="hero-start-lead">
                                     It is built on a configuration and protocol
-                                    engine that runs as a daemon or immutable
-                                    appliance.
+                                    engine that runs as a <a href="architecture/"><strong>daemon</strong></a> or
+                                    <a href="guides/appliance/"><strong>immutable appliance</strong></a>.
                                 </p>
                             </div>
                             <figure class="hero-product-demo" aria-labelledby="hero-demo-title">
@@ -653,7 +653,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
 {blog_teaser_cards}
                 </div>
                 <div class="link-list reveal">
-                    <a href="changes/">See all updates</a>
+                    <a href="project/changes/">See all updates</a>
                 </div>
             </section>
 

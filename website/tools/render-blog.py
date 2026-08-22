@@ -102,14 +102,14 @@ def render_index(articles):
         lead = (
             "Occasional articles on Ze: design notes, deep dives, and talk "
             "write-ups. For what shipped week by week, see the "
-            '<a href="../changes/">changelog</a>.'
+            '<a href="../project/changes/">changelog</a>.'
         )
     else:
         lead = (
             "Occasional articles on Ze: design notes, deep dives, and talk "
             "write-ups. None published yet. In the meantime, what shipped "
-            'week by week is in the <a href="../changes/">changelog</a>, and '
-            'the landmark features are on the <a href="../milestones/">'
+            'week by week is in the <a href="../project/changes/">changelog</a>, and '
+            'the landmark features are on the <a href="../project/milestones/">'
             "Milestones</a> timeline."
         )
     parts.append(
@@ -147,7 +147,7 @@ def render_index_markdown(articles):
         parts.append(
             "Occasional articles on Ze: design notes, deep dives, and talk "
             "write-ups. For what shipped week by week, see the "
-            "[changelog](../changes/)."
+            "[changelog](../project/changes/)."
         )
         parts.append("")
         for a in articles:
@@ -160,8 +160,8 @@ def render_index_markdown(articles):
     else:
         parts.append(
             "Occasional articles on Ze. None published yet. See the "
-            "[changelog](../changes/) for what shipped week by week, and the "
-            "[Milestones](../milestones/) timeline for the landmark features."
+            "[changelog](../project/changes/) for what shipped week by week, and the "
+            "[Milestones](../project/milestones/) timeline for the landmark features."
         )
     return "\n".join(parts).strip() + "\n"
 
