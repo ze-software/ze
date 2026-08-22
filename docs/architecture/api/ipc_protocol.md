@@ -87,8 +87,8 @@ its value while it walks to that space. A uint64 occupies 20 digits at most, and
 an ID wider than that is refused. The optional payload is compact JSON.
 
 A COUNT belongs on a field whose value can hold the delimiter, which is the
-record payload and every other counted field below. It never belonged on the
-ID.
+record payload and every other text field below. It never belonged on the ID,
+and it never belonged in front of a digit run either.
 <!-- source: pkg/plugin/rpc/framing.go -- FrameReader, FrameWriter -->
 <!-- source: pkg/plugin/rpc/message.go -- ParseLine -->
 
@@ -212,8 +212,8 @@ Events are only sent to plugins that have subscribed.
 
 ## Correlation and Command Dispatch
 
-Every plugin RPC request has a `#<len>:<uint64>` correlation ID. The peer returns a
-response with the same ID. Most requests receive exactly one response line.
+Every plugin RPC request has a `#<uint64>` correlation ID, written in decimal and
+closed by one space. The peer returns a response with the same ID. Most requests receive exactly one response line.
 Three carry a command answer, and each of those receives a sequence of lines:
 `dispatch-command` and `dispatch-command-args` from the engine, and
 `execute-command` from the plugin. See Answer Protocol below.
@@ -343,16 +343,29 @@ by arithmetic and searches no line for a separator.
 
 | Field shape | Written as | Used by |
 |-------------|-----------|---------|
-| word | three bytes, no length | the kind, and the head's item type |
-| counted number | `<len>:<digits>`, `<len>` one base-36 character | the terminator's two counts |
-| counted text | `<len>:<n>:<bytes>`, where `<len>:<n>` is a counted number stating the byte count | the envelope name, the column names, every message, the error code, and the record payload |
+| word | three bytes, no count | the kind, and the head's item type |
+| counted number | decimal digits, closed by a space or by the end of the line | the terminator's two counts |
+| counted text | `<n>:<bytes>`, where `<n>` is the BYTE count of the bytes after the colon | the envelope name, the column names, every message, the error code, and the record payload |
 <!-- source: pkg/plugin/rpc/message.go -- appendCountedNumber, appendCountedText, cutCountedNumber, cutCountedText -->
+
+The count on a counted text is a BYTE count and never a count of characters. A
+value MAY hold multi-byte utf-8, and a reader slices the bytes that arrived rather
+than the text they decode to: a box-drawing glyph is three bytes and one
+character, and a reader counting characters would take such a value two bytes
+short of each one.
+
+The colon is what tells the two apart, and it is ALWAYS there on a counted text,
+an empty one included. So a number never carries one and a text always does. A
+number whose digits are followed by `:`, and a text whose digits are not, are
+each refused by name: the two fields differ by that byte alone, and reading one
+as the other mis-slices every field that follows.
+<!-- source: pkg/plugin/rpc/message.go -- errCountedNumberColon, errCountedTextUnclosed -->
 
 ### A line ends at exactly one newline
 
-An answer line states its own width: every variable-width field carries its byte
-count, so a reader sums what the fields state and takes the line by that number.
-The byte after it MUST be exactly one `\n`.
+An answer line states its own width: a number field is the digits a space closes
+and a text field states its byte count, so a reader sums what the fields state
+and takes the line by that number. The byte after it MUST be exactly one `\n`.
 
 That is what lets a value carry a raw newline or a carriage return. Neither is a
 frame boundary, so neither is rewritten on the way to the wire, and an operator's
@@ -367,10 +380,12 @@ behind it or one past the 16 MB maximum.
 <!-- source: pkg/plugin/rpc/framing.go -- ScanAnswerLines, scanStatedLine -->
 <!-- source: pkg/plugin/rpc/message.go -- answerLineWidth, answerLineShapes -->
 
-A counted field of length zero is present and empty, never omitted, so the field
-count of a kind never varies. A uint64 occupies 20 decimal digits at most, so one
-base-36 length character expresses every counted number the protocol writes, and
-a counted text carries a value of any length.
+A text of zero bytes is present and empty, never omitted: it is written `0:`, so
+the field count of a kind never varies. Neither field states an outer length of
+its own, because a digit run is closed by a byte no digit can be, so a count in
+front of it would tell a reader what the terminator already tells it. A text
+therefore carries a value of any length, and no field is capped by its own
+encoding.
 
 ### Lines
 
@@ -401,10 +416,10 @@ records after it still arrive, and the terminator counts the two collections
 separately:
 
 ```
-#7 top map 1:5:peers 1:0:
-#7 row 2:41:{"peer":"10.0.0.1","state":"established"}
-#7 bad 2:60:{"path":"bgp/peer/10.0.0.2","message":"nexthop unreachable"}
-#7 end 1:1 1:1 1:0:
+#7 top map 5:peers 0:
+#7 row 41:{"peer":"10.0.0.1","state":"established"}
+#7 bad 60:{"path":"bgp/peer/10.0.0.2","message":"nexthop unreachable"}
+#7 end 1 1 0:
 ```
 <!-- source: pkg/plugin/rpc/message_test.go -- TestAnswerLineTableMatchesDoc -->
 
@@ -420,7 +435,7 @@ terminator. The rejected row quotes none of the record, because a row that
 carried 16 MB would not fit the line either.
 
 ```
-#7 bad 3:117:{"message":"answer record does not fit one wire message","record":12,"encoded-bytes":16777300,"limit-bytes":16777216}
+#7 bad 117:{"message":"answer record does not fit one wire message","record":12,"encoded-bytes":16777300,"limit-bytes":16777216}
 ```
 <!-- source: pkg/plugin/rpc/answer_write.go -- boundedRecord, answerRecordTooLargeFault -->
 
@@ -456,7 +471,7 @@ sources can disagree.
 <!-- source: pkg/plugin/rpc/message.go -- Verdict, VerdictDone, VerdictPartial, VerdictError, VerdictAborted, VerdictTruncated -->
 
 The message makes an aborted walk expressible when no row faulted.
-`end 3:417 1:0 2:20:rib snapshot expired` is neither done nor partial, and the
+`end 417 0 20:rib snapshot expired` is neither done nor partial, and the
 counts alone cannot say so. The count is also what tells a command that failed
 outright from a walk that stopped part way: both state a message, and only the
 second one produced rows.
@@ -532,7 +547,7 @@ behind it is. The consumer stops the generator inside the buffering window.
 <!-- source: internal/component/ssh/answer.go -- writeExecFailure -->
 
 ```
-#7 nay 1:0: 2:31:unknown command: shwo bgp peers
+#7 nay 0: 31:unknown command: shwo bgp peers
 ```
 
 A client therefore offers completion for the first, and an operational message

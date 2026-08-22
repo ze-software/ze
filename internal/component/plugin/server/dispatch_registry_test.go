@@ -179,9 +179,9 @@ func TestEngineOpJSONAndDirectMatch(t *testing.T) {
 	// One payload, two frames: what the Direct path projects under "data" is
 	// what the socket writes as the answer's one item.
 	assert.Equal(t, []string{
-		"#5 top doc 1:0: 1:0:",
+		"#5 top doc 0: 0:",
 		string(rpc.AppendAnswerItem(nil, 5, projected.Data)),
-		"#5 end 1:1 1:0 1:0:",
+		"#5 end 1 0 0:",
 	}, strings.Split(strings.TrimSuffix(wire.String(), "\n"), "\n"))
 }
 
@@ -353,9 +353,9 @@ func TestDispatchCommandAlwaysAnswersRecords(t *testing.T) {
 	// spelled by the shipped appender rather than by a second copy of the
 	// grammar here.
 	wantLines := []string{
-		"#7 top doc 1:0: 1:0:",
+		"#7 top doc 0: 0:",
 		string(rpc.AppendAnswerItem(nil, 7, json.RawMessage(`{"version":"3"}`))),
-		"#7 end 1:1 1:0 1:0:",
+		"#7 end 1 0 0:",
 	}
 
 	cases := []struct {

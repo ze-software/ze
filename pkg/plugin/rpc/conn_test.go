@@ -846,9 +846,9 @@ func TestAnswerWriterPutsEachLineOnTheWireWhole(t *testing.T) {
 	defer cancel()
 
 	want := []string{
-		"#7 top map 1:5:peers 1:0:",
+		"#7 top map 5:peers 0:",
 		`#7 row {"peer":"10.0.0.1","state":"established"}`,
-		"#7 end 1:1 1:0 1:0:",
+		"#7 end 1 0 0:",
 	}
 
 	// net.Pipe is synchronous, so the writes must not run on the goroutine

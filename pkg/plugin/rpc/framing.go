@@ -92,8 +92,9 @@ func NewFrameReader(r io.Reader) *FrameReader {
 // ScanAnswerLines is the bufio.SplitFunc every reader of this protocol frames
 // with. It replaces bufio.ScanLines, which is wrong here twice over.
 //
-// An answer line states its own width: every variable-width field carries its
-// byte count, so this takes exactly that many bytes and REQUIRES the byte after
+// An answer line states its own width: a number field is the digits a space
+// closes and a text field states its byte count, so this takes exactly that many
+// bytes and REQUIRES the byte after
 // them to be the newline that ends the line. No payload is searched for one, so
 // a raw `\n` inside a value is DATA rather than a frame boundary and no writer
 // has to rewrite it before it reaches the wire.

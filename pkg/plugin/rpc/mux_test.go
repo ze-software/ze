@@ -636,10 +636,10 @@ func TestMuxConnDeliversEveryRecordToOneCaller(t *testing.T) {
 			return
 		}
 		answer := []string{
-			wireLine(req.ID, "top map 1:5:peers 1:0:\n"),
+			wireLine(req.ID, "top map 5:peers 0:\n"),
 			wireLine(req.ID, answerRowTail(`{"peer":"10.0.0.1"}`)),
 			wireLine(req.ID, answerRowTail(`{"peer":"10.0.0.2"}`)),
-			wireLine(req.ID, "end 1:2 1:0 1:0:\n"),
+			wireLine(req.ID, "end 2 0 0:\n"),
 		}
 		for _, line := range answer {
 			if _, writeErr := engineEnd.Write([]byte(line)); writeErr != nil {
@@ -910,7 +910,7 @@ func TestSlowConsumerDoesNotStallReadLoop(t *testing.T) {
 		if err != nil {
 			return
 		}
-		writeLines(engineEnd, wireLine(slow.ID, "top map 1:5:peers 1:0:\n"))
+		writeLines(engineEnd, wireLine(slow.ID, "top map 5:peers 0:\n"))
 		for i := range records {
 			line := wireLine(slow.ID, answerRowTail(fmt.Sprintf(`{"row":%d}`, i)))
 			if _, writeErr := engineEnd.Write([]byte(line)); writeErr != nil {
@@ -975,7 +975,7 @@ func TestAnswerWithoutTerminatorReportsTruncation(t *testing.T) {
 			return
 		}
 		writeLines(engineEnd,
-			wireLine(req.ID, "top map 1:5:peers 1:0:\n"),
+			wireLine(req.ID, "top map 5:peers 0:\n"),
 			wireLine(req.ID, answerRowTail(`{"peer":"10.0.0.1"}`)),
 		)
 		if closeErr := engineEnd.Close(); closeErr != nil {
@@ -1027,7 +1027,7 @@ func TestNotUnderstoodAnswerReachesTheCaller(t *testing.T) {
 		if err != nil {
 			return
 		}
-		writeLines(engineEnd, wireLine(req.ID, "nay 1:0: 2:31:unknown command: shwo bgp peers\n"))
+		writeLines(engineEnd, wireLine(req.ID, "nay 0: 31:unknown command: shwo bgp peers\n"))
 	}()
 
 	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
@@ -1183,11 +1183,11 @@ func TestMuxReadLoopSeparatesAnswerFromResponse(t *testing.T) {
 		}
 		answerID, rpcID := ids[answerMethod], ids[rpcMethod]
 		writeLines(engineEnd,
-			wireLine(answerID, "top map 1:5:peers 1:0:\n"),
+			wireLine(answerID, "top map 5:peers 0:\n"),
 			wireLine(answerID, answerRowTail(`{"peer":"10.0.0.1"}`)),
 			wireLine(rpcID, "ok {\"peers\":1}\n"),
 			wireLine(answerID, answerRowTail(`{"peer":"10.0.0.2"}`)),
-			wireLine(answerID, "end 1:2 1:0 1:0:\n"),
+			wireLine(answerID, "end 2 0 0:\n"),
 		)
 	}()
 
@@ -1251,8 +1251,8 @@ func TestAwaitAnswerHeadValidatesByKind(t *testing.T) {
 		first string
 		want  string
 	}{
-		{name: "a head opens the answer", first: "top doc 1:0: 1:0:"},
-		{name: "a terminator does not", first: "end 1:0 1:0 1:0:", want: "opens with a end line"},
+		{name: "a head opens the answer", first: "top doc 0: 0:"},
+		{name: "a terminator does not", first: "end 0 0 0:", want: "opens with a end line"},
 		{name: "a result record does not", first: fmt.Sprintf("row %s", countedTextFixture(`{"peer":"10.0.0.1"}`)), want: "opens with a row line"},
 		{name: "a rejected record does not", first: fmt.Sprintf("bad %s", countedTextFixture(`{"message":"no"}`)), want: "opens with a bad line"},
 	}
@@ -1276,7 +1276,7 @@ func TestAwaitAnswerHeadValidatesByKind(t *testing.T) {
 				}
 				writeLines(engineEnd,
 					wireLine(req.ID, tt.first+"\n"),
-					wireLine(req.ID, "end 1:0 1:0 1:0:\n"),
+					wireLine(req.ID, "end 0 0 0:\n"),
 				)
 			}()
 

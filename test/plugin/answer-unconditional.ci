@@ -45,10 +45,11 @@ MARKER = "silent-answer.txt"
 
 # The bytes a bounded answer's head and terminator carry, positionally. The head
 # is the doc item type, an empty envelope name and empty column names; the
-# terminator is one record, no rejected row and no message. Each counted field
-# states its own width, so an absent value is `1:0:` rather than a missing field.
-WANT_HEAD = "doc 1:0: 1:0:"
-WANT_TERMINATOR = "1:1 1:0 1:0:"
+# terminator is one record, no rejected row and no message. A counted text states
+# its byte count and then its colon, so an absent value is `0:` rather than a
+# missing field.
+WANT_HEAD = "doc 0: 0:"
+WANT_TERMINATOR = "1 0 0:"
 
 
 def tail_of(line, want_kind):
@@ -134,10 +135,11 @@ MARKER = "silent-answer.txt"
 
 # The bytes a bounded answer's head and terminator carry, positionally. The head
 # is the doc item type, an empty envelope name and empty column names; the
-# terminator is one record, no rejected row and no message. Each counted field
-# states its own width, so an absent value is `1:0:` rather than a missing field.
-WANT_HEAD = "doc 1:0: 1:0:"
-WANT_TERMINATOR = "1:1 1:0 1:0:"
+# terminator is one record, no rejected row and no message. A counted text states
+# its byte count and then its colon, so an absent value is `0:` rather than a
+# missing field.
+WANT_HEAD = "doc 0: 0:"
+WANT_TERMINATOR = "1 0 0:"
 
 
 def wait_for_silent(timeout=10.0):

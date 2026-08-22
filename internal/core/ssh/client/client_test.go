@@ -666,9 +666,9 @@ func TestResolveDBPath_HonorsConfigDirEnv(t *testing.T) {
 // on, which would report a complete answer as truncated.
 func TestReadAnswerFrameTakesItsCountsFromTheTerminator(t *testing.T) {
 	frame := strings.Join([]string{
-		"top map 1:5:peers 1:0:",
-		"end 1:2 1:1 1:0:",
-		"top doc 1:0: 1:0:",
+		"top map 5:peers 0:",
+		"end 2 1 0:",
+		"top doc 0: 0:",
 		"",
 	}, "\n")
 

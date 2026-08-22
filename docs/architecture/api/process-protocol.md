@@ -1078,9 +1078,9 @@ A handler that built one value writes it as the one record of a `doc` answer.
 The head states no outcome, and the record carries the value byte for byte:
 
 ```
-#5 top doc 1:0: 1:0:
-#5 row 2:26:{"running":true,"peers":1}
-#5 end 1:1 1:0 1:0:
+#5 top doc 0: 0:
+#5 row 26:{"running":true,"peers":1}
+#5 end 1 0 0:
 ```
 
 A handler that answered with a `plugin.Records` walk of more than 256 rows
@@ -1088,9 +1088,9 @@ writes one line for each row. A walk over a large table therefore never becomes
 one 16 MB line. A shorter walk collapses to the `doc` document above:
 
 ```
-#5 top map 1:5:peers 1:0:
-#5 row 2:44:{"address":"10.0.0.1","state":"established"}
-#5 end 1:1 1:0 1:0:
+#5 top map 5:peers 0:
+#5 row 44:{"address":"10.0.0.1","state":"established"}
+#5 end 1 0 0:
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
 <!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->

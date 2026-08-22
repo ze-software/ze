@@ -151,12 +151,12 @@ func TestFrameRefusesWhatIsNotOneNewline(t *testing.T) {
 		},
 		{
 			name:    "a count larger than the payload behind it",
-			wire:    "#7 row 3:400:{\"peer\":\"10.0.0.1\"}\n",
+			wire:    "#7 row 400:{\"peer\":\"10.0.0.1\"}\n",
 			refusal: "arrived before the stream ended",
 		},
 		{
 			name:    "a count past the maximum message",
-			wire:    "#7 row 9:999999999:x\n",
+			wire:    "#7 row 999999999:x\n",
 			refusal: "past the 16777216-byte maximum",
 		},
 	}

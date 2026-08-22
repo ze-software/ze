@@ -162,13 +162,6 @@ _ANSWER_KINDS = (
 )
 
 
-# _COUNTED_LENGTH_ALPHABET spells the base-36 length character a COUNTED field
-# opens with. It is the alphabet appendCountedNumber writes and countedDigits
-# reads (pkg/plugin/rpc/message.go). The id carries no length: it is a decimal
-# digit run that one space closes.
-_COUNTED_LENGTH_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-
 def _id_field(req_id: int) -> str:
     """Spell the `#<id> ` field every wire line this harness writes opens with."""
     return f"#{req_id} "
@@ -213,9 +206,9 @@ _ANSWER_LINE_SHAPES = {
     _ANSWER_KIND_NOT_UNDERSTOOD: ("text", "text"),
 }
 
-# _COUNTED_NUMBER_MAX is the widest counted number: the length character, its
-# colon, and the twenty decimal digits a uint64 occupies.
-_COUNTED_NUMBER_MAX = 22
+# _UINT64_DIGITS_MAX is the widest decimal spelling of a uint64. A counted
+# number is that digit run, and a counted text states its byte count in one.
+_UINT64_DIGITS_MAX = 20
 
 
 def _id_field_end(data: bytes) -> int:
@@ -228,32 +221,65 @@ def _id_field_end(data: bytes) -> int:
     return -1
 
 
+def _counted_digits(data: bytes) -> int:
+    """Return how many decimal digits open data.
+
+    The walk stops one byte past the widest run a uint64 can hold, so a payload
+    of digits is never walked to its end (countedDigitsBytes,
+    pkg/plugin/rpc/message.go).
+    """
+    end = min(len(data), _UINT64_DIGITS_MAX + 1)
+    for at in range(end):
+        if not b"0" <= data[at : at + 1] <= b"9":
+            return at
+    return end
+
+
 def _counted_field_width(data: bytes, counted_text: bool) -> tuple[int, int]:
-    """Return the byte width of one counted field at the front of data."""
-    if len(data) < 2:
-        return 0, _ANSWER_LINE_PARTIAL
-    count = _COUNTED_LENGTH_ALPHABET.find(data[0:1].decode("latin-1"))
-    if count <= 0 or count > 20 or data[1:2] != b":":
-        return 0, _ANSWER_LINE_OTHER
-    width = 2 + count
-    if len(data) < width:
-        return 0, _ANSWER_LINE_PARTIAL
+    """Return the byte width of one counted field at the front of data.
+
+    A counted number is the digit run alone, and a counted text is the run, the
+    colon that MUST close it, and the bytes it counts (answerFieldWidth,
+    pkg/plugin/rpc/message.go).
+    """
+    digits = _counted_digits(data)
     if not counted_text:
-        return width, _ANSWER_LINE_STATED
-    if len(data) <= width:
-        return 0, _ANSWER_LINE_PARTIAL
-    if data[width : width + 1] != b":":
-        return 0, _ANSWER_LINE_OTHER
-    return width + 1 + int(data[2:width]), _ANSWER_LINE_STATED
+        if digits >= len(data):
+            # The run reached the end of what arrived, so the next read may
+            # extend it. The byte that closes a number is a space on every kind
+            # written today, and the line terminator would do as well: either
+            # way it has to arrive before the width is known.
+            return 0, _ANSWER_LINE_PARTIAL
+        if digits == 0 or digits > _UINT64_DIGITS_MAX:
+            return 0, _ANSWER_LINE_OTHER
+        return digits, _ANSWER_LINE_STATED
+    if digits == 0 or digits > _UINT64_DIGITS_MAX:
+        return 0, _counted_text_state(data)
+    if digits >= len(data) or data[digits : digits + 1] != b":":
+        return 0, _counted_text_state(data)
+    return digits + 1 + int(data[:digits]), _ANSWER_LINE_STATED
+
+
+def _counted_text_state(data: bytes) -> int:
+    """Say whether a counted text this reader could not read is malformed or
+    merely still arriving.
+
+    Its header is at most the twenty decimal digits a uint64 occupies and the
+    colon that closes them, so anything shorter than that may still be completed
+    by the next read (countedTextState, pkg/plugin/rpc/message.go).
+    """
+    return _ANSWER_LINE_PARTIAL if len(data) <= _UINT64_DIGITS_MAX else _ANSWER_LINE_OTHER
 
 
 def _answer_line_width(data: bytes) -> tuple[int, int]:
     """Return how many bytes the answer line opening data occupies.
 
-    Every variable-width field states its own byte count, so a whole line's
-    width is the sum of what its fields state and nothing is searched for. That
-    is what lets a counted value hold a raw newline: it sits inside the count,
-    and no reader frames on it (answerLineWidth, pkg/plugin/rpc/message.go).
+    Every variable-width field states its own width, a counted number by the
+    digits a space closes and a counted text by its byte count, so a whole
+    line's width is the sum of what its fields state and nothing is searched
+    for. That is what lets a counted text hold a raw newline: it sits inside the
+    count, and no reader frames on it (answerLineWidth,
+    pkg/plugin/rpc/message.go).
     """
     at = 0
     if data[:1] == b"#":
@@ -361,44 +387,72 @@ _ANSWER_RECORD_METHODS = (
 
 
 def _counted_number(value: int) -> str:
-    """Spell the `<len>:<digits>` field a counted number is written as."""
-    digits = str(value)
-    return f"{_COUNTED_LENGTH_ALPHABET[len(digits)]}:{digits}"
+    """Spell the decimal digits a counted number is written as.
+
+    A space or the end of the line closes them, so the digits are the whole
+    field and no count sits in front of them (appendCountedNumber,
+    pkg/plugin/rpc/message.go).
+    """
+    return str(value)
 
 
 def _counted_text(text: str) -> str:
-    """Spell the `<len>:<n>:<bytes>` field a counted text is written as.
+    """Spell the `<n>:<bytes>` field a counted text is written as.
 
     The count is a BYTE count, so it is taken over the utf-8 encoding rather
     than over the decoded characters. A box-drawing glyph is three bytes and one
     character, and counting characters would state a width no reader can slice
     at.
+
+    The colon is always written, so an empty text is `0:`: the field is present
+    and empty rather than omitted, and a line's field count never varies.
     """
     return f"{_counted_number(len(text.encode('utf-8')))}:{text}"
+
+
+def _counted_digits_text(field: str) -> int:
+    """Return how many decimal digits open field (countedDigitsText)."""
+    end = min(len(field), _UINT64_DIGITS_MAX + 1)
+    for at in range(end):
+        if not field[at].isdigit() or not field[at].isascii():
+            return at
+    return end
+
+
+def _check_counted_digits(digits: int, field: str) -> None:
+    """Refuse a digit run no uint64 can hold (checkCountedDigits)."""
+    if digits == 0:
+        raise RuntimeError(f"counted field states no digits: {field[:80]}")
+    if digits > _UINT64_DIGITS_MAX:
+        raise RuntimeError(
+            f"counted field states more than the {_UINT64_DIGITS_MAX} digits "
+            f"a uint64 occupies: {field[:80]}"
+        )
 
 
 def _cut_counted_number(field: str) -> tuple[int, str]:
     """Take a counted number off the front of field and return it and the rest.
 
-    The stated length says where the digits end, so the field after it is
-    reached by addition and nothing is searched for (cutCountedNumber,
-    pkg/plugin/rpc/message.go).
+    A counted number is decimal digits and nothing else: a space or the end of
+    the line closes them. A colon there is a counted text's byte count, and it
+    is refused by name, because the two fields differ by that byte alone
+    (cutCountedNumber, pkg/plugin/rpc/message.go).
     """
-    if len(field) < 2:
-        raise RuntimeError(f"counted field states no length: {field[:80]}")
-    count = _COUNTED_LENGTH_ALPHABET.find(field[0])
-    if count <= 0:
-        raise RuntimeError(f"counted field states no readable length: {field[:80]}")
-    if field[1] != ":":
-        raise RuntimeError(f"counted field length is not followed by ':': {field[:80]}")
-    end = 2 + count
-    if len(field) < end:
-        raise RuntimeError(f"counted field runs past the end of the line: {field[:80]}")
-    return int(field[2:end]), field[end:]
+    digits = _counted_digits_text(field)
+    _check_counted_digits(digits, field)
+    if digits < len(field) and field[digits] == ":":
+        raise RuntimeError(
+            f"counted number is closed by ':', which is a counted text's "
+            f"byte count: {field[:80]}"
+        )
+    return int(field[:digits]), field[digits:]
 
 
 def _cut_counted_text(field: str) -> tuple[str, str]:
     """Take a counted text off the front of field and return it and the rest.
+
+    The colon MUST be there, whatever the count states: it is what separates a
+    text from a number, and a text carries it even when it carries no bytes.
 
     The stated count is a BYTE count and a value may hold multi-byte utf-8, so
     the slice is taken over the encoding rather than over the decoded
@@ -406,10 +460,15 @@ def _cut_counted_text(field: str) -> tuple[str, str]:
     one character each, and slicing by character takes such a payload short by
     two bytes for every one of them.
     """
-    size, rest = _cut_counted_number(field)
-    if not rest.startswith(":"):
-        raise RuntimeError(f"counted text length is not followed by ':': {field[:80]}")
-    raw = rest[1:].encode("utf-8")
+    digits = _counted_digits_text(field)
+    _check_counted_digits(digits, field)
+    if digits >= len(field) or field[digits] != ":":
+        raise RuntimeError(
+            f"counted text byte count is not closed by ':', which every text "
+            f"carries, an empty one included: {field[:80]}"
+        )
+    size = int(field[:digits])
+    raw = field[digits + 1 :].encode("utf-8")
     if len(raw) < size:
         raise RuntimeError(f"counted text runs past the end of the line: {field[:80]}")
     try:

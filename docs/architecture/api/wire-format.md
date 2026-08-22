@@ -6,10 +6,10 @@ Messages are UTF-8 lines terminated by exactly one newline byte (0x0A). A line
 MUST NOT be terminated by `\r\n`, and a reader MUST NOT strip a trailing `\r`.
 
 A line that states its own width is taken by that width, and the byte after it
-MUST be the newline. Every variable-width field of an answer line carries its
-byte count, so a value inside one MAY hold a raw newline or a carriage return:
-neither is a frame boundary and neither is rewritten on the way to the wire.
-Every other line ends at its newline.
+MUST be the newline. Every variable-width field of an answer line states its own
+width, and a text field states it as a BYTE count, so a value inside one MAY hold
+a raw newline or a carriage return: neither is a frame boundary and neither is
+rewritten on the way to the wire. Every other line ends at its newline.
 <!-- source: pkg/plugin/rpc/framing.go -- ScanAnswerLines, scanStatedLine -->
 
 ```
@@ -103,9 +103,9 @@ three-byte kind token stating what the line IS, and the fields after that are
 positional rather than JSON and carry no key name:
 
 ```
-#42 top map 1:5:peers 1:0:
-#42 row 2:44:{"address":"10.0.0.1","state":"established"}
-#42 end 1:1 1:0 1:0:
+#42 top map 5:peers 0:
+#42 row 44:{"address":"10.0.0.1","state":"established"}
+#42 end 1 0 0:
 ```
 
 `top` opens the answer, `row` and `bad` carry a produced row and a rejected one,
@@ -117,7 +117,8 @@ separator.
 The head's item type says what each record IS: `doc`, `map` or `tab`. Neither
 the head nor the terminator states an outcome. The verdict is DERIVED from the
 terminator's two counts and its message, and a missing terminator means the
-answer was truncated. Every variable-width field states its own byte count, so a
+answer was truncated. A number field is decimal digits a space closes, and every
+other variable-width field states its own BYTE count and then a colon, so a
 reader reaches each one by arithmetic. The frame is the same whatever the payload
 is, so a handler that built one value answers with the same three lines and the
 `doc` type. The grammar is in

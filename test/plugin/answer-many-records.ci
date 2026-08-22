@@ -82,18 +82,19 @@ def main():
     # The head is positional: the map item type, the envelope name as a counted
     # text, and empty column names. It states no outcome and carries no key name.
     head = tail_of(lines[0], "top")
-    if head != "map 1:8:commands 1:0:":
-        runtime_fail(f"head was {head!r}, want 'map 1:8:commands 1:0:'")
+    if head != "map 8:commands 0:":
+        runtime_fail(f"head was {head!r}, want 'map 8:commands 0:'")
     if "=" in head:
         runtime_fail(f"head carries a key=value pair: {head!r}")
 
     # The terminator is three positional fields: the records produced, the rows
-    # rejected, and the message. Each states its own width.
+    # rejected, and the message. A count is decimal digits a space closes, and a
+    # message is a byte count, a colon, and the bytes it counts.
     terminator = tail_of(lines[-1], "end")
     fields = terminator.split(" ")
-    if len(fields) != 3 or fields[1] != "1:0" or fields[2] != "1:0:":
+    if len(fields) != 3 or fields[1] != "0" or fields[2] != "0:":
         runtime_fail(f"last line was {terminator!r}, want three counted fields, no fault and no message")
-    counted = int(fields[0].split(":", 1)[1])
+    counted = int(fields[0])
 
     records = lines[1:-1]
     if len(records) != counted:

@@ -115,7 +115,7 @@ deletes is produced by `answerStatus`, which did NOT move.
 - [ ] `internal/component/ssh/answer.go` - `declaresRecordAnswers`, `answerFrame`, `writeExecAnswer`, `writeExecRecords`, `writeExecDocument`, `writeExecFailure`
 - [ ] `internal/core/ssh/client/answer.go` - `ExecCommandStream`, `readAnswerFrame`, `ErrAnswerTruncated` set `ZE_ANSWER_PROTOCOL`
 - [ ] `internal/component/command/render_records.go` - `RenderRecords` and `streamsPerRecord` read the answer for the operator
-- [ ] `test/plugin/answer-not-negotiated.ci` - asserts on the bytes a plugin declaring nothing receives; its premise disappears with the branch
+- [ ] `test/plugin/answer-unconditional.ci` - asserts on the bytes a plugin declaring nothing receives; its premise disappears with the branch
 
 **Behavior to preserve:**
 - The data an operator sees. Every command's payload is unchanged; only the frame around it moves.
@@ -154,29 +154,43 @@ deletes is produced by `answerStatus`, which did NOT move.
 ### Line Grammar
 
 Field order per kind, on the mux channel. The exec channel is identical with the
-`#<len>:<id>` field absent, because one answer owns that channel.
+`#<id>` field absent, because one answer owns that channel.
 
 **Owner directive, 2026-08-21: every field is counted, including the payload.**
 The payload no longer runs to the end of the line. It states its byte count
-first, in the same `<len>:<value>` shape every other variable field uses, and the
-newline stays as the line terminator.
+first, in the same shape every other variable-width value uses, and the newline
+stays as the line terminator.
+
+**Owner directive, 2026-08-22: a counted field drops its own outer length, and
+the rule is keyed to the field's TYPE.** A number is decimal digits and nothing
+else, closed by a space or by the end of the line. A text is decimal digits, then
+`:`, then exactly that many BYTES. The colon is ALWAYS present on a text, an
+empty one included, which is `0:`.
 
 | Kind | Fields, in order | Example |
 |------|------------------|---------|
-| `top` | id, item type, envelope key, column names | `#2:42 top map 5:peers 0:` |
-| `row` | id, the row payload | `#2:42 row 2:42 {"peer":"10.0.0.1","state":"up"}` |
-| `bad` | id, the fault payload | `#2:42 bad 2:38 {"message":"...","record":12}` |
-| `end` | id, count, faults, message | `#2:42 end 3:417 1:3 0:` |
-| `nay` | id, error code, message | `#2:42 nay 1:5 15:no such command` |
+| `top` | id, item type, envelope key, column names | `#42 top map 5:peers 0:` |
+| `row` | id, the row payload | `#42 row 32:{"peer":"10.0.0.1","state":"up"}` |
+| `bad` | id, the fault payload | `#42 bad 33:{"message":"nexthop unreachable"}` |
+| `end` | id, count, faults, message | `#42 end 417 3 0:` |
+| `nay` | id, error code, message | `#42 nay 15:unknown-command 15:no such command` |
 
 | Field shape | Written as | Used by |
 |-------------|-----------|---------|
-| word | three bytes, no length | kind, item type |
-| counted | `<len>:<value>`, `<len>` one base-36 character | EVERY other field: id, envelope key, column names, count, faults, error code, message, row payload, fault payload |
+| word | three bytes, no count | kind, item type |
+| counted number | decimal digits, closed by a space or by the end of the line | the id, under a `#` sigil; count; faults |
+| counted text | `<n>:<value>`, where `<n>` is the value's BYTE count | envelope key, column names, error code, message, row payload, fault payload |
 
-A `counted` field of length zero is present and empty, never omitted, so the
-field count of a kind never varies. **There is no third shape.** Two shapes, and
-a reader reaches every field of every kind by arithmetic with no scan anywhere.
+**A count is a BYTE count, never a count of characters.** A value MAY hold
+multi-byte utf-8, so a reader slices the bytes that arrived rather than the text
+they decode to. Phase 6 cost three red fixtures to a harness that counted
+characters, and the grammar had never said which it was.
+
+A counted text of zero bytes is present and empty, never omitted: it is written
+`0:`, so the field count of a kind never varies. **There is no third shape.** Two
+shapes, and a reader reaches every field of every kind by arithmetic with no scan
+anywhere. Neither shape states an outer length of its own: a digit run is closed
+by a byte no digit can be, so a count in front of one buys a reader nothing.
 
 Why the payload is counted rather than trailing, and what it costs:
 
@@ -354,7 +368,7 @@ AC-11 against the terminator FIRST, and only then deletes the field.
 | AC-14 | The tree is searched for the answer tail key names | `answerKeyStatus` through `answerKeyCode` are absent, and `ParseAnswerTail` no longer dispatches on a key name |
 | AC-15 | A head is written | It states no status, and a reader that meets a line whose kind is not `top` where a head belongs refuses the answer |
 | AC-16 | Each token is checked against a dictionary | Every one is a whole word, not a truncation: `top`, `row`, `bad`, `end`, `nay`, `doc`, `map`, `tab` |
-| AC-17 | A head names an envelope | The name is length-prefixed like the id, and an absent name writes length zero rather than omitting the field |
+| AC-17 | A head names an envelope | The name states its own BYTE count and then the colon every counted text carries, and an absent name writes `0:` rather than omitting the field, so a line's field count never varies |
 | AC-18 | A handler names an envelope longer than 35 bytes, or an error code longer than 35 bytes | It is refused where the name is registered, with a message naming the limit, rather than producing a line no reader can parse |
 | AC-19 | A row payload whose LAST byte is `\r`, and one containing a raw `\n`, are written and read | Both round-trip byte for byte. Neither is rewritten, neither is truncated, and no reader strips anything after the counted payload. This fails today: `bufio.ScanLines` strips a trailing `\r` at `pkg/plugin/rpc/framing.go:78` and `internal/core/ssh/client/answer.go:122` |
 | AC-20 | A line arrives terminated with `\r\n`, and a line arrives whose stated payload length disagrees with the bytes before its `\n` | Each is refused with a named error rather than parsed. A line ends with exactly one `\n`, and the length is checked against what arrived |
@@ -442,7 +456,7 @@ AC-11 against the terminator FIRST, and only then deletes the field.
 - `test/plugin/answer-payload-unchanged.ci` - payload bytes survive the reframe <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
 
 ## Files to Delete
-- `test/plugin/answer-not-negotiated.ci` - its premise is the branch this spec removes
+- `test/plugin/answer-unconditional.ci` - it replaced `answer-unconditional.ci` in phase 1, whose premise was the branch this spec removes
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -490,7 +504,7 @@ AC-11 against the terminator FIRST, and only then deletes the field.
 2. **Phase: Delete the negotiation** -- one encoding, no flag
    - Tests: `TestDispatchCommandAlwaysAnswersRecords`, `test-plugin-answer-unconditional`, `test-exec-answer-unconditional`
    - Files: `pkg/plugin/rpc/types.go`, `internal/component/plugin/process/process.go`, `internal/component/plugin/server/startup.go`, `internal/core/ssh/client/answer.go`, `internal/component/plugin/server/dispatch.go`
-   - Verify: AC-10's search is empty, and `answer-not-negotiated.ci` is deleted rather than adjusted
+   - Verify: AC-10's search is empty, and `answer-unconditional.ci` is deleted rather than adjusted
 3. **Phase: Length-prefixed id** -- every line carrying an id
    - Tests: `TestAppendRequestLengthPrefixedID`, `TestAnswerIDLengthPrefixRoundTrip`, `TestAnswerIDMaxUint64`, `TestAnswerIDLengthCharacterRejected`
    - Files: `pkg/plugin/rpc/message.go`, `pkg/plugin/rpc/conn.go`, `pkg/plugin/rpc/mux.go`

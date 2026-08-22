@@ -366,9 +366,9 @@ func TestParseLineCarriesTheAnswerTailWhole(t *testing.T) {
 	}{
 		{
 			name:        "head",
-			line:        "#7 top map 1:5:peers 1:0:",
+			line:        "#7 top map 5:peers 0:",
 			wantVerb:    AnswerKindHead,
-			wantPayload: "map 1:5:peers 1:0:",
+			wantPayload: "map 5:peers 0:",
 		},
 		{
 			name:        "a record holding = and spaces",
@@ -378,15 +378,15 @@ func TestParseLineCarriesTheAnswerTailWhole(t *testing.T) {
 		},
 		{
 			name:        "terminator",
-			line:        "#7 end 2:97 1:3 1:0:",
+			line:        "#7 end 97 3 0:",
 			wantVerb:    AnswerKindTerminator,
-			wantPayload: "2:97 1:3 1:0:",
+			wantPayload: "97 3 0:",
 		},
 		{
 			name:        "not understood",
-			line:        "#7 nay 1:0: 2:31:unknown command: shwo bgp peers",
+			line:        "#7 nay 0: 31:unknown command: shwo bgp peers",
 			wantVerb:    AnswerKindNotUnderstood,
-			wantPayload: "1:0: 2:31:unknown command: shwo bgp peers",
+			wantPayload: "0: 31:unknown command: shwo bgp peers",
 		},
 	}
 
@@ -414,18 +414,18 @@ func TestParseLineCarriesTheAnswerTailWhole(t *testing.T) {
 func TestTailTokenizerNeedsNoJSONDecoder(t *testing.T) {
 	t.Parallel()
 
-	head, err := ParseAnswerTail(AnswerKindHead, []byte("map 1:5:peers 1:0:"))
+	head, err := ParseAnswerTail(AnswerKindHead, []byte("map 5:peers 0:"))
 	require.NoError(t, err)
 	assert.Equal(t, AnswerTypeMap, head.Type)
 	assert.Equal(t, "peers", head.Key)
 	assert.Equal(t, AnswerKindHead, head.Kind)
 
-	record, err := ParseAnswerTail(AnswerKindRecord, []byte("2:20:<<this is not json>>"))
+	record, err := ParseAnswerTail(AnswerKindRecord, []byte("20:<<this is not json>>"))
 	require.NoError(t, err)
 	assert.Equal(t, "<<this is not json>>", string(record.Item))
 	assert.Equal(t, AnswerKindRecord, record.Kind)
 
-	terminator, err := ParseAnswerTail(AnswerKindTerminator, []byte("2:97 1:3 1:0:"))
+	terminator, err := ParseAnswerTail(AnswerKindTerminator, []byte("97 3 0:"))
 	require.NoError(t, err)
 	assert.Equal(t, uint64(97), terminator.Count)
 	assert.Equal(t, uint64(3), terminator.Faults)
@@ -644,7 +644,7 @@ func TestHeadStatesNoStatus(t *testing.T) {
 
 	// A head that states an outcome is a line this build cannot read, rather
 	// than a line whose extra field is ignored.
-	_, err := ParseAnswerTail(AnswerKindHead, []byte("map done 1:5:peers 1:0:"))
+	_, err := ParseAnswerTail(AnswerKindHead, []byte("map done 5:peers 0:"))
 	require.Error(t, err, "a head stating an outcome must be refused")
 }
 
@@ -667,19 +667,19 @@ func TestAnswerTerminatorCountBoundaries(t *testing.T) {
 	assert.Equal(t, uint64(math.MaxUint64), highest.Count)
 	assert.Equal(t, uint64(math.MaxUint64), highest.Faults)
 
-	_, err := ParseAnswerTail(AnswerKindTerminator, []byte("K:18446744073709551616 1:0 1:0:"))
+	_, err := ParseAnswerTail(AnswerKindTerminator, []byte("18446744073709551616 0 0:"))
 	require.Error(t, err, "a count past max uint64 must be refused")
 
-	_, err = ParseAnswerTail(AnswerKindTerminator, []byte("2:-1 1:0 1:0:"))
+	_, err = ParseAnswerTail(AnswerKindTerminator, []byte("-1 0 0:"))
 	require.Error(t, err, "a negative count must be refused")
 
 	// A message stating more bytes than arrived. It is the last field, so a
 	// reader that clamped the length to what it got would accept the line.
-	_, err = ParseAnswerTail(AnswerKindTerminator, []byte("1:0 1:0 2:99:short"))
+	_, err = ParseAnswerTail(AnswerKindTerminator, []byte("0 0 99:short"))
 	require.Error(t, err, "a message wider than the line must be refused")
 
 	// The same for the not-understood answer, whose message is also last.
-	_, err = ParseAnswerTail(AnswerKindNotUnderstood, []byte("1:0: 2:99:short"))
+	_, err = ParseAnswerTail(AnswerKindNotUnderstood, []byte("0: 99:short"))
 	require.Error(t, err, "a not-understood message wider than the line must be refused")
 
 	_, err = ParseAnswerTail(AnswerKindTerminator, []byte(""))
@@ -759,33 +759,33 @@ func TestHeadStatesHowItsItemsAreRead(t *testing.T) {
 		tail string
 	}{
 		{name: "a head with no item type", kind: AnswerKindHead, tail: ""},
-		{name: "a head whose type is two bytes", kind: AnswerKindHead, tail: "do 1:5:peers 1:0:"},
-		{name: "a head whose type is four bytes", kind: AnswerKindHead, tail: "docs 1:5:peers 1:0:"},
-		{name: "a head stating a type nobody implements", kind: AnswerKindHead, tail: "pbf 1:0: 1:0:"},
+		{name: "a head whose type is two bytes", kind: AnswerKindHead, tail: "do 5:peers 0:"},
+		{name: "a head whose type is four bytes", kind: AnswerKindHead, tail: "docs 5:peers 0:"},
+		{name: "a head stating a type nobody implements", kind: AnswerKindHead, tail: "pbf 0: 0:"},
 		{name: "a head stating only its type", kind: AnswerKindHead, tail: "map"},
-		{name: "columns with a type that does not read them", kind: AnswerKindHead, tail: `map 1:0: 2:10:["peer"]`},
-		{name: "a table with no schema to read against", kind: AnswerKindHead, tail: "tab 1:0: 1:0:"},
-		{name: "a table with an empty schema", kind: AnswerKindHead, tail: "tab 1:0: 1:2:[]"},
-		{name: "a schema that is not an array of names", kind: AnswerKindHead, tail: `tab 1:0: 2:11:{"peer":1}`},
-		{name: "a head carrying bytes past its last field", kind: AnswerKindHead, tail: "map 1:0: 1:0: extra"},
+		{name: "columns with a type that does not read them", kind: AnswerKindHead, tail: `map 0: 10:["peer"]`},
+		{name: "a table with no schema to read against", kind: AnswerKindHead, tail: "tab 0: 0:"},
+		{name: "a table with an empty schema", kind: AnswerKindHead, tail: "tab 0: 2:[]"},
+		{name: "a schema that is not an array of names", kind: AnswerKindHead, tail: `tab 0: 11:{"peer":1}`},
+		{name: "a head carrying bytes past its last field", kind: AnswerKindHead, tail: "map 0: 0: extra"},
 		// A counted field that states more bytes than arrived. It sits LAST on
 		// the line, so a reader that clamped the length to what it got would
 		// accept the line rather than refuse it: a shorter field would be
 		// caught by the separator the next field expects, for the wrong
 		// reason. The stated length is what a reader slices on, so it is
 		// checked against the bytes that arrived before the slice.
-		{name: "column names wider than the line", kind: AnswerKindHead, tail: `tab 1:0: 2:99:["peer"]`},
-		{name: "an envelope name wider than the line", kind: AnswerKindHead, tail: "map 2:99:peers 1:0:"},
+		{name: "column names wider than the line", kind: AnswerKindHead, tail: `tab 0: 99:["peer"]`},
+		{name: "an envelope name wider than the line", kind: AnswerKindHead, tail: "map 99:peers 0:"},
 		// A counted text whose length is not closed by its colon. The bytes
 		// after it are exactly the length it states, so a reader that took the
 		// value without asking for the colon would accept the line.
-		{name: "column names with no colon after their count", kind: AnswerKindHead, tail: `tab 1:0: 1:8["peer"]`},
+		{name: "column names with no colon after their count", kind: AnswerKindHead, tail: `tab 0: 8["peer"]`},
 		// Two fields with no space between them. Each field states its own
 		// width, so a reader that did not ask for the separator would take
 		// both and accept the line; the space is what says another field
 		// follows rather than what says this one ended.
-		{name: "a head whose item type is not separated", kind: AnswerKindHead, tail: "map1:0: 1:0:"},
-		{name: "a head whose envelope name is not separated", kind: AnswerKindHead, tail: "map 1:0:1:0:"},
+		{name: "a head whose item type is not separated", kind: AnswerKindHead, tail: "map0: 0:"},
+		{name: "a head whose envelope name is not separated", kind: AnswerKindHead, tail: "map 0:0:"},
 	}
 	for _, tt := range refused {
 		t.Run(tt.name, func(t *testing.T) {
@@ -795,6 +795,82 @@ func TestHeadStatesHowItsItemsAreRead(t *testing.T) {
 			require.Error(t, err, "the reader accepted %q", tt.tail)
 		})
 	}
+}
+
+// TestCountedFieldsAreToldApartByTheirColon checks that the colon is what
+// separates the two field types. A counted text carries one and a counted
+// number does not, and each field refuses the other's spelling BY NAME.
+//
+// The method: a terminator whose counts are closed by a colon, a head whose two
+// texts state a byte count with no colon after it, and a record whose payload
+// does the same. Each is offered to the reader, and each refusal is required to
+// name the byte.
+//
+// VALIDATES: the type rule -- a counted number is decimal digits and nothing
+// else, and a counted text always carries its colon, an empty one included.
+// PREVENTS: one field being read as the other, which takes the bytes after the
+// count as a value and mis-slices every field that follows.
+//
+// The message is what is asserted, not the error. Every case here is also
+// refused by the rest of the reader for a reason of its own: a separator that is
+// not a space, or a head that ends where a field belongs. A test that required
+// an error alone would therefore pass with both guards deleted.
+func TestCountedFieldsAreToldApartByTheirColon(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		kind string
+		tail string
+		want string
+	}{
+		{
+			name: "a terminator count closed by a colon",
+			kind: AnswerKindTerminator,
+			tail: "417:3 0 0:",
+			want: "counted number is closed by ':'",
+		},
+		{
+			name: "a terminator fault count closed by a colon",
+			kind: AnswerKindTerminator,
+			tail: "417 3:0 0:",
+			want: "counted number is closed by ':'",
+		},
+		{
+			name: "an envelope name whose count is not closed by a colon",
+			kind: AnswerKindHead,
+			tail: "map 5peers 0:",
+			want: "counted text byte count is not closed by ':'",
+		},
+		{
+			name: "empty column names with no colon at all",
+			kind: AnswerKindHead,
+			tail: "map 5:peers 0",
+			want: "counted text byte count is not closed by ':'",
+		},
+		{
+			name: "a record payload whose count is not closed by a colon",
+			kind: AnswerKindRecord,
+			tail: `19{"peer":"10.0.0.1"}`,
+			want: "counted text byte count is not closed by ':'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := ParseAnswerTail(tt.kind, []byte(tt.tail))
+			require.Error(t, err, "the reader accepted %q", tt.tail)
+			assert.ErrorContains(t, err, tt.want, "the refusal of %q names another byte", tt.tail)
+		})
+	}
+
+	// The two spellings the guards exist to keep apart, each read as itself.
+	terminator, err := ParseAnswerTail(AnswerKindTerminator, []byte("417 3 0:"))
+	require.NoError(t, err)
+	assert.Equal(t, uint64(417), terminator.Count, "a number closed by a space does not read back")
+	assert.Empty(t, terminator.Message, "an empty text written 0: does not read back")
 }
 
 // TestColumnNamesAreCounted checks that the head's column names are a counted
@@ -855,12 +931,6 @@ func TestAnswerRecordLineSizeMeasuresTheLineItsAppenderWrites(t *testing.T) {
 		}
 	}
 }
-
-// countedLengthAlphabetFixture spells the base-36 length character a counted
-// field states its digit count in. It is written out here rather than read from
-// the writer, so a change to the alphabet has to be made in both places and
-// cannot pass unnoticed.
-const countedLengthAlphabetFixture = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 // TestAppendRequestSpellsTheSameIDField checks that a request line carries the
 // same id field an answer line carries. The method: one id is written into a
@@ -1132,18 +1202,18 @@ func TestParseAnswerLineUnknownKind(t *testing.T) {
 		name string
 		line string
 	}{
-		{name: "a token no kind claims", line: "xyz doc 1:0: 1:0:"},
-		{name: "the verb an answer line used to open with", line: "ok doc 1:0: 1:0:"},
-		{name: "the error verb", line: "error 2:15:unknown command"},
-		{name: "a token whose tail would name a terminator", line: "xyz 1:2 1:0 1:0:"},
-		{name: "a kind spelled in upper case", line: "END 1:2 1:0 1:0:"},
-		{name: "a longer word opening with a kind", line: "topple doc 1:0: 1:0:"},
-		{name: "a kind with no space after it", line: "end1:2 1:0 1:0:"},
+		{name: "a token no kind claims", line: "xyz doc 0: 0:"},
+		{name: "the verb an answer line used to open with", line: "ok doc 0: 0:"},
+		{name: "the error verb", line: "error 15:unknown command"},
+		{name: "a token whose tail would name a terminator", line: "xyz 2 0 0:"},
+		{name: "a kind spelled in upper case", line: "END 2 0 0:"},
+		{name: "a longer word opening with a kind", line: "topple doc 0: 0:"},
+		{name: "a kind with no space after it", line: "end2 0 0:"},
 		// Each of these carries a tail its kind would accept, so the byte that
 		// refuses it is the one the token must be closed with and nothing else.
-		{name: "a terminator tail behind a separator that is not a space", line: "endX1:2 1:0 1:0:"},
+		{name: "a terminator tail behind a separator that is not a space", line: "endX2 0 0:"},
 		{name: "a record tail behind a separator that is not a space", line: `rowX{"peer":"10.0.0.1"}`},
-		{name: "a head tail behind a separator that is not a space", line: "top:doc 1:0: 1:0:"},
+		{name: "a head tail behind a separator that is not a space", line: "top:doc 0: 0:"},
 		{name: "a kind and no tail", line: "end"},
 		{name: "a line shorter than one kind", line: "en"},
 		{name: "an empty line", line: ""},
@@ -1158,7 +1228,7 @@ func TestParseAnswerLineUnknownKind(t *testing.T) {
 		})
 	}
 
-	_, err := ParseAnswerTail("xyz", []byte("1:2 1:0 1:0:"))
+	_, err := ParseAnswerTail("xyz", []byte("2 0 0:"))
 	require.Error(t, err, "the tail reader accepted an unknown kind")
 	assert.Contains(t, err.Error(), answerKindWords, "the refusal names the kinds a reader accepts")
 }
@@ -1243,9 +1313,9 @@ func TestAnswerLineCarriesNoKeyNames(t *testing.T) {
 		// reader refuses the whole line rather than taking the fields it
 		// understood and ignoring the rest, which is what would let a key
 		// creep back on one kind at a time.
-		{kind: AnswerKindHead, tail: "map 1:5:peers 1:0: status=done"},
-		{kind: AnswerKindTerminator, tail: "1:2 1:0 1:0: status=done"},
-		{kind: AnswerKindNotUnderstood, tail: "1:0: 1:2:no code=unknown-command"},
+		{kind: AnswerKindHead, tail: "map 5:peers 0: status=done"},
+		{kind: AnswerKindTerminator, tail: "2 0 0: status=done"},
+		{kind: AnswerKindNotUnderstood, tail: "0: 2:no code=unknown-command"},
 	}
 	for _, tt := range retired {
 		_, err := ParseAnswerTail(tt.kind, []byte(tt.tail))
@@ -1280,10 +1350,10 @@ func TestEnvelopeKeyLengthPrefixed(t *testing.T) {
 	named := string(AppendAnswerHead(nil, 7, AnswerTypeMap, "peers", nil))
 	assert.Len(t, strings.Split(absent, " "), len(strings.Split(named, " ")),
 		"a head naming no envelope has a different field count: %q against %q", absent, named)
-	assert.Contains(t, absent, " 1:0: ", "an absent envelope name is not written as length zero: %q", absent)
+	assert.Contains(t, absent, " 0: ", "an absent envelope name is not written as length zero: %q", absent)
 
 	// A head that omits the field is a line this build cannot read.
-	_, err := ParseAnswerTail(AnswerKindHead, []byte("map 1:0:"))
+	_, err := ParseAnswerTail(AnswerKindHead, []byte("map 0:"))
 	require.Error(t, err, "a head that omits its column names must be refused")
 }
 
@@ -1409,37 +1479,36 @@ func idFieldFixture(id uint64) string {
 	return fmt.Sprintf("#%d ", id)
 }
 
-// countedNumberFixture spells the `<len>:<digits>` a counted number is written
-// as, from the alphabet fixture rather than from the writer's own.
+// countedNumberFixture spells the decimal digits a counted number is written
+// as. It is written out here rather than read from the writer, so a change to
+// the field has to be made in both places and cannot pass unnoticed.
 func countedNumberFixture(value int) string {
-	return countedDigitsFixture(strconv.Itoa(value))
+	return strconv.Itoa(value)
 }
 
-// countedTextFixture spells the `<len>:<n>:<bytes>` a counted text is written
-// as, from the alphabet fixture rather than from the writer's own.
+// countedTextFixture spells the `<n>:<bytes>` a counted text is written as,
+// where `<n>` is the BYTE count of the value. The colon is always there, so an
+// empty text is `0:`.
 func countedTextFixture(text string) string {
 	return fmt.Sprintf("%s:%s", countedNumberFixture(len(text)), text)
 }
 
-// countedDigitsFixture puts the base-36 length character in front of digits, so
-// a change to the alphabet has to be made here as well as in the writer.
-func countedDigitsFixture(digits string) string {
-	return fmt.Sprintf("%s:%s", countedLengthAlphabetFixture[len(digits):len(digits)+1], digits)
-}
-
-// recordPayloadStart returns the offset a record line's payload starts at,
+// recordPayloadStart returns the offset a record line's payload starts at. It is
 // computed from the widths the line states and from no search of the line: the
-// id field, the three-byte kind and the space that closes it, then the counted
-// number stating the payload's byte count and the colon that closes it.
+// id field, the three-byte kind and the space that closes it, then the digits
+// stating the payload's byte count and the colon that closes them.
 func recordPayloadStart(t *testing.T, id uint64, line string) int {
 	t.Helper()
 
 	at := len(idFieldFixture(id)) + answerKindWidth + 1
-	count, known := countedLengthValue(line[at])
-	require.True(t, known, "the payload count of %q states no readable length", line)
-	require.Equal(t, byte(':'), line[at+1], "the payload count of %q does not close its length", line)
-	require.Equal(t, byte(':'), line[at+2+count], "the payload count of %q does not close its digits", line)
-	return at + 2 + count + 1
+	require.Equal(t, byte(' '), line[at-1], "the kind of %q is not closed by a space", line)
+	digits := 0
+	for line[at+digits] >= '0' && line[at+digits] <= '9' {
+		digits++
+	}
+	require.NotZero(t, digits, "the payload count of %q states no digits", line)
+	require.Equal(t, byte(':'), line[at+digits], "the payload count of %q is not closed by its colon", line)
+	return at + digits + 1
 }
 
 // TestAnswerRecordLineSizeExact checks that the size a producer refuses a record

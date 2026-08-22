@@ -530,11 +530,43 @@ class TestCountedTextIsCountedInBytes(unittest.TestCase):
 
     def test_the_stated_count_is_the_byte_count(self):
         field = ze_api._counted_text("\u250c\u2500\u2510")  # noqa: SLF001
-        self.assertTrue(field.startswith("1:9:"), f"the count is not the byte count: {field!r}")
+        self.assertTrue(field.startswith("9:"), f"the count is not the byte count: {field!r}")
 
     def test_a_count_past_what_arrived_is_refused(self):
         with self.assertRaises(RuntimeError):
-            ze_api._cut_counted_text("2:99:short")  # noqa: SLF001
+            ze_api._cut_counted_text("99:short")  # noqa: SLF001
+
+
+class TestCountedFieldsAreToldApartByTheirColon(unittest.TestCase):
+    """The colon a counted text carries and a counted number does not.
+
+    VALIDATES: the type rule in the harness -- a counted number is decimal
+    digits and nothing else, and a counted text always carries its colon, an
+    empty one included (cutCountedNumber and cutCountedText,
+    pkg/plugin/rpc/message.go).
+    PREVENTS: the harness reading one field as the other, which takes the bytes
+    after the count as a value and mis-slices every field that follows.
+
+    The message is asserted rather than the failure. A terminator whose count
+    carries a colon is refused by the field separator too, so a test asking only
+    for an exception would pass with the guard gone.
+    """
+
+    def test_a_number_closed_by_a_colon_is_refused(self):
+        with self.assertRaisesRegex(RuntimeError, "counted number is closed by ':'"):
+            ze_api._answer_terminator_fields("417:3 0 0:")  # noqa: SLF001
+
+    def test_a_text_whose_count_carries_no_colon_is_refused(self):
+        with self.assertRaisesRegex(RuntimeError, "not closed by ':'"):
+            ze_api._answer_head_fields("map 5peers 0:")  # noqa: SLF001
+
+    def test_an_empty_text_is_refused_without_its_colon(self):
+        with self.assertRaisesRegex(RuntimeError, "not closed by ':'"):
+            ze_api._answer_head_fields("map 5:peers 0")  # noqa: SLF001
+
+    def test_the_two_spellings_each_read_as_themselves(self):
+        self.assertEqual((417, 3, ""), ze_api._answer_terminator_fields("417 3 0:"))  # noqa: SLF001
+        self.assertEqual(("map", "peers", None), ze_api._answer_head_fields("map 5:peers 0:"))  # noqa: SLF001
 
 
 class TestFrameIsTakenByTheWidthItStates(unittest.TestCase):
@@ -578,7 +610,7 @@ class TestFrameIsTakenByTheWidthItStates(unittest.TestCase):
         self.assertEqual(b"#8 ok\n", rest)
 
     def test_a_line_that_has_not_arrived_is_not_framed(self):
-        self.assertIsNone(ze_api._cut_frame(b"#7 row 2:40:{\"peer\""))  # noqa: SLF001
+        self.assertIsNone(ze_api._cut_frame(b"#7 row 40:{\"peer\""))  # noqa: SLF001
 
 
 class TestPostStartupSurvivesTheQueuedPath(unittest.TestCase):

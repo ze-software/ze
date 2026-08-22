@@ -91,50 +91,46 @@ const (
 	idPrefixMax     = 22
 )
 
-// countedLengthAlphabet spells a counted field's length character, `0` to `9`
-// then `A` to `Z`, so one byte states a length up to 35. A uint64 needs 20
-// decimal digits at most, so every counted number this protocol writes is
-// expressible with room left.
-const countedLengthAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-// A counted field states its own width: one base-36 length character, a colon,
-// and then exactly what the length names. A reader takes the length byte and
-// reaches the field after it by addition, so no line is searched for a
-// separator. Two fields are built from it, and the protocol has no third
-// variable-width shape:
+// A variable-width field states its own width, and the field's TYPE says how.
+// There are two, and the protocol has no third variable-width shape:
 //
-//	counted number  `<len>:<digits>`     the decimal spelling of a uint64
-//	counted text    `<len>:<n>:<bytes>`  a counted number stating the byte count
-//	                                     of the bytes that follow it
+//	counted number  decimal digits, closed by a space or by the end of the line
+//	counted text    decimal digits, then `:`, then exactly that many BYTES
 //
-// A uint64 occupies 20 decimal digits at most, and a byte count is a uint64, so
-// one length character expresses every counted number this protocol writes,
-// with room left. A counted text therefore carries a value of any length, and no
-// field is capped by its own encoding.
+// The count on a text is a BYTE count and never a count of characters. A value
+// MAY hold multi-byte utf-8, and a reader slices the bytes that arrived rather
+// than the text they decode to.
 //
-// The id field is a counted number under a `#` sigil, closed by the space that
+// The colon is what tells the two fields apart, and it is ALWAYS there on a
+// text, an empty one included, which is written `0:`. So a number never carries
+// one and a text always does. A reader that meets the wrong byte refuses the
+// line rather than reading one field as the other, which would take the bytes
+// after it as a value and mis-slice every field that follows (cutCountedNumber,
+// cutCountedText).
+//
+// NEITHER field states an outer length of its own. A digit run is closed by a
+// byte no digit can be, so a count in front of it buys a reader nothing: the
+// reader still has to check the terminator and still has to parse the digits,
+// which IS the whole cost of the plain form (owner measurement, 2026-08-22: 3.2
+// ns against 8.6 ns for a counted length, zero allocations either way, and two
+// bytes less on every field). The count that stays is the text's, and it states
+// a different fact: it counts bytes that MAY hold the delimiter, so nothing else
+// can say where such a value ends.
+//
+// The id field is a number under a `#` sigil, closed by the space that
 // separates it from the field after it (appendID, cutID).
 
-// countedNumberMax is the widest counted number: the base-36 length character,
-// the colon that closes it, and the twenty decimal digits a uint64 occupies. It
-// is what makes the record line's prefix arithmetic rather than a guess
-// (answerRecordPrefixWidth).
-const countedNumberMax = 2 + uint64DigitsMax
-
-// appendCountedNumber appends the `<len>:<digits>` field carrying value.
-//
-// The digits are formatted once and the length is read off the very bytes that
-// reach the wire, so the two halves of the field cannot disagree (R-2).
+// appendCountedNumber appends the decimal digits carrying value. The space that
+// separates this field from the next one closes it, and so does the end of the
+// line, so the digits are the whole field.
 func appendCountedNumber(buf []byte, value uint64) []byte {
-	var scratch [uint64DigitsMax]byte
-	digits := strconv.AppendUint(scratch[:0], value, 10)
-	buf = append(buf, countedLengthAlphabet[len(digits)], ':')
-	return append(buf, digits...)
+	return strconv.AppendUint(buf, value, 10)
 }
 
-// appendCountedText appends the `<len>:<n>:<bytes>` field carrying text. An
-// empty text writes `1:0:`, so the field is present and empty rather than
-// omitted and the field count of a line never varies (AC-17).
+// appendCountedText appends the `<n>:<bytes>` field carrying text, where `<n>`
+// is the BYTE count of what follows the colon. An empty text writes `0:`, so
+// the field is present and empty rather than omitted and the field count of a
+// line never varies (AC-17).
 func appendCountedText(buf []byte, text string) []byte {
 	buf = appendCountedNumber(buf, uint64(len(text)))
 	buf = append(buf, ':')
@@ -149,84 +145,104 @@ func appendCountedBytes(buf, value []byte) []byte {
 	return append(buf, value...)
 }
 
-// countedDigits reads the `<len>:` a counted field opens with and reports how
-// many decimal digits follow it.
+// The two refusals the colon earns. A number and a text differ by that one byte,
+// so each field names it when it meets the other field's spelling: a message
+// saying only that the line is malformed would leave a reader hunting for which
+// of the two it holds.
+var (
+	errCountedNumberColon  = errors.New("counted number is closed by ':', which is a counted text's byte count")
+	errCountedTextUnclosed = errors.New("counted text byte count is not closed by ':', which every text carries, an empty one included")
+)
+
+// countedDigitsText reports how many decimal digits open line, and
+// countedDigitsBytes is its twin for a line held as bytes. The wire reaches the
+// frame reader as bytes and the multiplexer as a string, and neither pays a
+// conversion to reach one counter.
 //
-// It is the one place a malformed length is refused, and both readers of the
-// shape call it: cutCountedDigits, which works on the string a caller keys its
-// pending answers by, and cutCountedBytes, which works on the bytes a record's
-// payload is sliced out of. Neither keeps its own copy of the rule.
-//
-// length is the base-36 length character, separator the byte that MUST close
-// it, and available how many bytes the field has left for its digits. The
-// caller quotes the field it read them from, because only the caller knows how
-// to bound that quotation.
-func countedDigits(length, separator byte, available int) (int, error) {
-	count, known := countedLengthValue(length)
-	if !known {
-		return 0, fmt.Errorf("counted field length %q is not one base-36 character, 0 to 9 then A to Z", string(rune(length)))
+// Both stop one byte past the widest run a uint64 can hold, so a payload of
+// digits is never walked to its end. What is past that bound is refused by
+// checkCountedDigits, whatever follows it.
+func countedDigitsText(line string) int {
+	end := min(len(line), uint64DigitsMax+1)
+	for at := range end {
+		if line[at] < '0' || line[at] > '9' {
+			return at
+		}
 	}
-	if count == 0 {
-		return 0, errors.New("counted field states a length of zero digits")
-	}
-	if count > uint64DigitsMax {
-		return 0, fmt.Errorf("counted field states %d digits, past the %d a uint64 occupies", count, uint64DigitsMax)
-	}
-	if separator != ':' {
-		return 0, errors.New("counted field length is not followed by ':'")
-	}
-	if available < count {
-		return 0, fmt.Errorf("counted field of %d digits runs past the end of the line", count)
-	}
-	return count, nil
+	return end
 }
 
-// cutCountedDigits takes a counted number off the front of line and returns its
-// decimal digits and everything after the field.
+func countedDigitsBytes(field []byte) int {
+	end := min(len(field), uint64DigitsMax+1)
+	for at := range end {
+		if field[at] < '0' || field[at] > '9' {
+			return at
+		}
+	}
+	return end
+}
+
+// checkCountedDigits judges the digit run a counted field opens with. It is the
+// one place both fields and both readers refuse a run no uint64 can hold. A
+// malformed count therefore reads the same whichever of them met it.
 //
-// It is the one reader of the shape appendCountedNumber writes for a value held
-// as a string, and cutCountedBytes is its twin for one held as bytes.
-func cutCountedDigits(line string) (digits, rest string, err error) {
-	if len(line) < 2 {
-		return "", "", fmt.Errorf("counted field states no length: %q", truncate(line, 80))
+// The caller quotes the field it read the run from, because only the caller
+// knows how to bound that quotation.
+func checkCountedDigits(digits int) error {
+	if digits == 0 {
+		return errors.New("counted field states no digits")
 	}
-	count, err := countedDigits(line[0], line[1], len(line)-2)
-	if err != nil {
-		return "", "", fmt.Errorf("%w: %q", err, truncate(line, 80))
+	if digits > uint64DigitsMax {
+		return fmt.Errorf("counted field states more than the %d digits a uint64 occupies", uint64DigitsMax)
 	}
-	end := 2 + count
-	return line[2:end], line[end:], nil
+	return nil
 }
 
 // cutCountedNumber takes a counted number off the front of line and returns its
 // value and everything after the field.
+//
+// A space or the end of the line closes the digits. What closes them is checked
+// here, and what FOLLOWS them is the caller's business. cutFieldSeparator says
+// another field follows; this says the field itself is a number.
 func cutCountedNumber(line string) (value uint64, rest string, err error) {
-	digits, rest, err := cutCountedDigits(line)
-	if err != nil {
-		return 0, "", err
+	digits := countedDigitsText(line)
+	if err := checkCountedDigits(digits); err != nil {
+		return 0, "", fmt.Errorf("%w: %q", err, truncate(line, 80))
 	}
-	value, err = strconv.ParseUint(digits, 10, 64)
-	if err != nil {
-		return 0, "", fmt.Errorf("counted number %q: %w", digits, err)
+	if digits < len(line) && line[digits] == ':' {
+		return 0, "", fmt.Errorf("%w: %q", errCountedNumberColon, truncate(line, 80))
 	}
-	return value, rest, nil
+	// The digits were counted above, so ParseUint refuses only a value past the
+	// range of a uint64.
+	value, err = strconv.ParseUint(line[:digits], 10, 64)
+	if err != nil {
+		return 0, "", fmt.Errorf("counted number %q: %w", line[:digits], err)
+	}
+	return value, line[digits:], nil
 }
 
 // cutCountedText takes a counted text off the front of line and returns its
 // bytes and everything after the field.
 //
+// The colon MUST be there, whatever the count states. It is what separates a
+// text from a number, and a text carries it even when it carries no bytes.
+//
 // The stated byte count is checked against what arrived BEFORE the slice, so a
 // line claiming more bytes than it carries is refused rather than panicking the
 // reader.
 func cutCountedText(line string) (text, rest string, err error) {
-	size, rest, err := cutCountedNumber(line)
+	digits := countedDigitsText(line)
+	if err := checkCountedDigits(digits); err != nil {
+		return "", "", fmt.Errorf("%w: %q", err, truncate(line, 80))
+	}
+	if digits >= len(line) || line[digits] != ':' {
+		return "", "", fmt.Errorf("%w: %q", errCountedTextUnclosed, truncate(line, 80))
+	}
+	size, err := strconv.ParseUint(line[:digits], 10, 64)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("counted text byte count %q: %w", line[:digits], err)
 	}
-	if rest == "" || rest[0] != ':' {
-		return "", "", fmt.Errorf("counted text length is not followed by ':': %q", truncate(line, 80))
-	}
-	rest = rest[1:]
+	rest = line[digits+1:]
 	if uint64(len(rest)) < size {
 		return "", "", fmt.Errorf("counted text of %d bytes runs past the end of the line: %q", size, truncate(line, 80))
 	}
@@ -239,8 +255,8 @@ func cutCountedText(line string) (text, rest string, err error) {
 // It is cutCountedText for a value held as bytes, and it exists for the reason
 // appendCountedBytes does: a record's payload reaches and leaves the wire
 // without being copied into a string, on the line that repeats. The refusals
-// are countedDigits's, so the two readers cannot disagree about what a
-// malformed length is.
+// are checkCountedDigits's and errCountedTextUnclosed's, so the two readers
+// cannot disagree about what a malformed count is.
 //
 // The stated byte count is checked against what arrived BEFORE the slice, so a
 // line claiming more bytes than it carries is refused rather than panicking the
@@ -258,42 +274,28 @@ func cutCountedBytes(field []byte) (value, rest []byte, err error) {
 	return field[header:end], field[end:], nil
 }
 
-// countedNumberAt reads the counted number at the front of field and returns
-// its value and how many bytes the field occupies.
+// countedTextAt reads the `<n>:` a counted text opens with and returns the byte
+// count it states and how wide that header is. The bytes of the value follow the
+// header and are never touched here.
 //
-// It is the offset-returning half of cutCountedBytes, and the frame reader's
-// own half: a reader that needs to know where a line ENDS asks for widths and
-// never for the values behind them.
-func countedNumberAt(field []byte) (value uint64, width int, err error) {
-	if len(field) < 2 {
-		return 0, 0, fmt.Errorf("counted field states no length: %q", truncateBytes(field, 80))
-	}
-	count, err := countedDigits(field[0], field[1], len(field)-2)
-	if err != nil {
+// It is cutCountedText for a line held as bytes, minus the slice. A reader that
+// needs to know where a line ENDS asks for widths and never for the values
+// behind them, and that reader is the frame reader.
+func countedTextAt(field []byte) (size uint64, header int, err error) {
+	digits := countedDigitsBytes(field)
+	if err := checkCountedDigits(digits); err != nil {
 		return 0, 0, fmt.Errorf("%w: %q", err, truncateBytes(field, 80))
 	}
-	width = 2 + count
-	// The digits were counted above, so ParseUint refuses only a byte that is
-	// not a decimal digit and a value past the range of a uint64.
-	value, err = strconv.ParseUint(string(field[2:width]), 10, 64)
+	if digits >= len(field) || field[digits] != ':' {
+		return 0, 0, fmt.Errorf("%w: %q", errCountedTextUnclosed, truncateBytes(field, 80))
+	}
+	// The digits were counted above, so ParseUint refuses only a value past the
+	// range of a uint64.
+	size, err = strconv.ParseUint(string(field[:digits]), 10, 64)
 	if err != nil {
-		return 0, 0, fmt.Errorf("counted number %q: %w", field[2:width], err)
+		return 0, 0, fmt.Errorf("counted text byte count %q: %w", field[:digits], err)
 	}
-	return value, width, nil
-}
-
-// countedTextAt reads the `<len>:<n>:` a counted text opens with and returns the
-// byte count it states and how wide that header is. The bytes of the value
-// follow the header and are never touched here.
-func countedTextAt(field []byte) (size uint64, header int, err error) {
-	size, width, err := countedNumberAt(field)
-	if err != nil {
-		return 0, 0, err
-	}
-	if len(field) <= width || field[width] != ':' {
-		return 0, 0, fmt.Errorf("counted text length is not followed by ':': %q", truncateBytes(field, 80))
-	}
-	return size, width + 1, nil
+	return size, digits + 1, nil
 }
 
 // cutFieldSeparator takes the one space that separates two fields off the front
@@ -317,20 +319,6 @@ func appendID(buf []byte, id uint64) []byte {
 	buf = append(buf, '#')
 	buf = strconv.AppendUint(buf, id, 10)
 	return append(buf, ' ')
-}
-
-// countedLengthValue reads one base-36 length character and reports whether it
-// is one. Anything outside `0` to `9` and `A` to `Z` is refused, lower case
-// included: one spelling of a length is what keeps the offset arithmetic the
-// same at both ends of the wire.
-func countedLengthValue(c byte) (int, bool) {
-	if c >= '0' && c <= '9' {
-		return int(c - '0'), true
-	}
-	if c >= 'A' && c <= 'Z' {
-		return int(c-'A') + 10, true
-	}
-	return 0, false
 }
 
 // cutID takes the `#<id> ` field off the front of line and returns the id, the
@@ -756,14 +744,14 @@ func AppendAnswerFault(buf []byte, id uint64, fault json.RawMessage) []byte {
 //	idPrefixMax        the id field at its widest, 22 bytes
 //	answerKindWidth    the kind token, 3 bytes
 //	1                  the space that closes the kind
-//	countedNumberMax   the counted number stating the payload's byte count
+//	uint64DigitsMax    the digits stating the payload's byte count, 20 bytes
 //	1                  the colon that closes that count
 //
-// That is 49 bytes, and it is what appendAnswerRecordPrefix writes for the
+// That is 47 bytes, and it is what appendAnswerRecordPrefix writes for the
 // widest id and the widest count, neither more nor less
 // (TestAnswerRecordLineSizeExact). A looser constant would cost nothing a test
 // can see, which is why the test states equality rather than a bound.
-const answerRecordPrefixWidth = idPrefixMax + answerKindWidth + 1 + countedNumberMax + 1
+const answerRecordPrefixWidth = idPrefixMax + answerKindWidth + 1 + uint64DigitsMax + 1
 
 // AnswerRecordLineSize reports how many bytes the record line for record
 // occupies under id, its newline terminator excluded. It measures the line
@@ -1282,10 +1270,11 @@ func idFieldEnd(data []byte) int {
 // answerLineWidth reports how many bytes the answer line opening data occupies,
 // its newline terminator excluded.
 //
-// Every variable-width field of every kind states its own byte count, so the
-// width of a whole line is the sum of what its fields state and NOTHING is
-// searched for. That is what lets a value hold a raw newline: it sits inside a
-// counted field, and no reader frames on it.
+// Every variable-width field of every kind states its own width: a number by the
+// digits a space closes, a text by its byte count. The width of a whole line is
+// the sum of what its fields state, and NOTHING is searched for. That is what
+// lets a value hold a raw newline: it sits inside a counted field, and no reader
+// frames on it.
 //
 // A prefix that has not fully arrived reports answerLineOther rather than
 // answerLinePartial, and that is safe: a well-formed prefix holds no newline,
@@ -1351,15 +1340,23 @@ func answerFieldWidth(shape answerFieldShape, field []byte) (uint64, answerLineS
 		}
 		return answerTypeWidth, answerLineStated
 	case answerFieldNumber:
-		_, width, err := countedNumberAt(field)
-		if err != nil {
-			return 0, countedFieldState(field)
+		digits := countedDigitsBytes(field)
+		if digits >= len(field) {
+			// The run reached the end of what arrived, so the next read MAY
+			// extend it and nothing has said yet where this number ends. The
+			// byte that closes it is a space on every kind written today, and
+			// the line terminator would do as well: either way it has to
+			// arrive before the width is known.
+			return 0, answerLinePartial
 		}
-		return uint64(width), answerLineStated
+		if checkCountedDigits(digits) != nil {
+			return 0, answerLineOther
+		}
+		return uint64(digits), answerLineStated
 	case answerFieldText:
 		size, header, err := countedTextAt(field)
 		if err != nil {
-			return 0, countedFieldState(field)
+			return 0, countedTextState(field)
 		}
 		return uint64(header) + size, answerLineStated
 	}
@@ -1368,12 +1365,12 @@ func answerFieldWidth(shape answerFieldShape, field []byte) (uint64, answerLineS
 	return 0, answerLineOther
 }
 
-// countedFieldState says whether a counted field this build could not read is
-// malformed or merely still arriving. A counted field's own header is at most
-// countedNumberMax plus the colon that closes it, so anything shorter than that
-// may still be completed by the next read.
-func countedFieldState(field []byte) answerLineState {
-	if len(field) <= countedNumberMax {
+// countedTextState says whether a counted text this build could not read is
+// malformed or merely still arriving. Its header is at most the twenty decimal
+// digits a uint64 occupies and the colon that closes them, so anything shorter
+// than that may still be completed by the next read.
+func countedTextState(field []byte) answerLineState {
+	if len(field) <= uint64DigitsMax {
 		return answerLinePartial
 	}
 	return answerLineOther
