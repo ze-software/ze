@@ -222,10 +222,19 @@ _tree_hash() {
 }
 
 # The parameters this job was given: the make command-line variable
-# definitions, one per line. GNU make writes them into MAKEFLAGS behind a `--`
-# separator, after the flags, so `-j4` and `--jobserver-auth` stay out by
-# construction -- neither changes a verdict, and jobserver-auth differs on
-# every invocation.
+# definitions, one per line. A definition is recognised by its SHAPE, a name
+# that starts with a letter or an underscore and ends at an `=`, so `-j4` and
+# `--jobserver-auth=fifo:...` stay out -- neither changes a verdict, and
+# jobserver-auth differs on every invocation.
+#
+# The `--` separator is stripped when make wrote one, and its absence is not
+# read as "this job was given no parameters". GNU make emits the separator only
+# when the command line ALSO carried flags. `make ze-unit-pkg-test PKG=./a`
+# carries none, so its MAKEFLAGS is the bare `PKG=./a`, and a key that required
+# the separator found no parameters at all and fell back to the command alone.
+# Two sessions testing DIFFERENT packages then shared one verdict, which is the
+# 2026-08-19 defect this function exists to stop, alive again on a host whose
+# make writes no separator. GNU Make 3.81, which macOS ships, is such a host.
 #
 # Sorted, because make lists the definitions in the caller's own order: two
 # sessions typing `PKG=./a RUN=X` and `RUN=X PKG=./a` ask for one thing, so the
@@ -240,14 +249,14 @@ _tree_hash() {
 # keying on it would silently make it say that nobody may take THIS job's
 # verdict either.
 _job_params() {
-    case "${MAKEFLAGS:-}" in
-        *' -- '*) ;;
-        *) return 0 ;;
+    _flags="${MAKEFLAGS:-}"
+    case "$_flags" in
+        *' -- '*) _flags="${_flags#* -- }" ;;
     esac
-    printf '%s\n' "${MAKEFLAGS#* -- }" \
+    printf '%s\n' "$_flags" \
         | tr '[:blank:]' '\n' \
-        | grep -v -e '^$' \
-            -e '^ZE_RUN_SLOTS=' -e '^ZE_JOB_STALL_SECONDS=' \
+        | grep -e '^[A-Za-z_][A-Za-z0-9_.]*=' \
+        | grep -v -e '^ZE_RUN_SLOTS=' -e '^ZE_JOB_STALL_SECONDS=' \
             -e '^ZE_VERIFY_MAX_LOCK_AGE=' -e '^MAY_ATTACH=' \
         | LC_ALL=C sort
 }

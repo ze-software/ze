@@ -400,6 +400,36 @@ class ZeRunCase(unittest.TestCase):
         )
         self.assertEqual(ran, 2, "one run answered for two different packages")
 
+    def test_a_different_parameter_set_does_not_attach_without_a_separator(self):
+        """make writes no `--` when the command line carried no flags.
+
+        `make ze-unit-pkg-test PKG=./a` is the invocation the Makefile
+        prescribes and it passes no flag, so MAKEFLAGS is the bare `PKG=./a`.
+        A key that required the separator read that as "no parameters", fell
+        back to the command alone, and handed the second asker the first's
+        exit code for a package it never compiled. Measured on 2026-08-22 on
+        GNU Make 3.81, which macOS ships: an asker for
+        ./internal/component/iface attached to a run of ./pkg/plugin/rpc and
+        reported its exit 0.
+        """
+        ran = self._two_askers("PKG=./package-a", "PKG=./package-b")
+        self.assertEqual(ran, 2, "a separator-free MAKEFLAGS lost both packages")
+
+    def test_a_jobserver_option_is_not_read_as_a_parameter(self):
+        """An option that carries an `=` is still an option, not a definition.
+
+        `--jobserver-fds=3,4` and `--jobserver-auth=fifo:...` differ on every
+        invocation, so reading either as a parameter would split every job from
+        every other and no asker would ever share a run. Recognising a
+        definition by its NAME shape is what keeps them out once the `--`
+        separator stops being the thing that separates them.
+        """
+        ran = self._two_askers(
+            " --no-print-directory --jobserver-fds=3,4 -j -- PKG=./package-a",
+            " --no-print-directory --jobserver-fds=7,8 -j -- PKG=./package-a",
+        )
+        self.assertEqual(ran, 1, "a per-invocation jobserver option split a shared job")
+
     def test_the_same_parameter_set_still_attaches(self):
         """The sharing that is correct survives: same parameters, one run.
 
