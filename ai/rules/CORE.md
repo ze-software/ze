@@ -32,6 +32,10 @@ Core reasons: no past task would surface it, precedence rung 1/2, the ladder its
 | You edited a shared plan file | Commit it promptly. The longer it sits, the likelier another session's commit absorbs it. |
 | Your commit omits a shared plan file you edited | Check `git log -1 -- <file>` before assuming the edit was lost: another session probably committed it already. |
 | You see foreign rows in a shared plan file's diff | That is expected, not misconduct. Do not "clean" them out; you would revert another session's work. |
+**A `--file` list is a list of PATHS, and a path carries whatever the file holds
+- Every hunk is yours: commit it.
+- A hunk is another session's, and the file is a shared plan log or journal class
+- A hunk is another session's, and the file is anything else: drop the path from
 **Explicit commit requests are a fast path.** When the user asks for a
 **One check is exempt, because it cannot run earlier: `make ze-repository-tracked-build-check`
 **Thomas ruled on this exemption on 2026-08-04: KEEP IT.** It is settled, so you

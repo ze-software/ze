@@ -11,6 +11,7 @@ commit-rules ## Commit Rules
   keep-each-shard-single-writer
   what-to-do-about-a-cross-committed-plan-file
   a-cross-commit-is-structural-not-misconduct
+  diff-every-path-before-you-name-it
   treat-an-explicit-commit-request-as-a-fast-path
   keep-the-tracked-build-check-exemption
   commit-workflow

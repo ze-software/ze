@@ -6,7 +6,11 @@ stage:
 **A `ze-precommit-verify` run MUST execute these stages, in order:**
 
 1. **Lint** (full or changed-only depending on target)
-2. **Cached full pass** (`go test` without `-race`): Go caches results by source hash.
+2. **Cached full pass** (`go test` without `-race`): Go caches a verdict against the
+   files the TEST BINARY OPENED. That is narrower than a source hash, and the
+   difference decides whether a mutation proof means anything: a producer the test
+   reaches through `exec` is not one of those files, so editing it leaves the verdict
+   cached and the tool answers `ok (cached)` for a run that never happened.
    The pass uses `ze_core` plus the default-on feature tags from `feature-gates.txt`,
    matching the shipped `make ze-build` feature set. It also runs the bare `ze_core`
    hub compile-out checks so absent-feature tests still execute.

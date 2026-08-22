@@ -24,3 +24,4 @@ is open.
 | 2026-08-22 | acb7c2cd | ike: close the resource-lifetime spec and pair the SA events in docs | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-22 | acb7c2cd | plan: close spec-fixit-ike-resource-lifetime-leaks | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-22 | acb7c2cd | plan: the functional suite runs a backend Ze does not ship | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-22 | acb7c2cd | rules: three points so today's lessons bind the next session | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |

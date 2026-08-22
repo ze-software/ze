@@ -106,6 +106,7 @@ the-affected-population-is-not-the-edited-population ## The Affected Population 
   the-three-shapes-a-missed-fixture-takes
   derive-the-reachable-set-from-the-graph-not-from-git-diff
   run-the-audit-that-exists-over-the-reachable-tagged-tests
+  the-tests-you-write-for-a-change-are-green-by-construction
 no-throw-away-tests ## No Throw-Away Tests
   never-write-a-throw-away-test
   where-each-kind-of-test-lives-and-its-format
@@ -242,6 +243,7 @@ mutation-testing ## Mutation Testing
   the-environment-variables-that-tune-gomu
   what-is-excluded-because-gomu-has-no-tag-support
   mutate-a-file-you-own-never-a-shared-one
+  state-whether-a-discrimination-re-run-was-real
 pre-commit ## Pre-Commit
   where-the-full-pre-commit-workflow-lives
   ze-verify-is-the-only-acceptable-pre-commit-check
