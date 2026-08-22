@@ -64,6 +64,14 @@ type Credentials struct {
 
 // ExecCommand connects to the daemon via SSH and runs a command.
 // Returns the command output or an error.
+//
+// The two streams are read apart rather than merged. stdout is the answer, and
+// stderr carries the answer frame the daemon writes for every session, plus any
+// plain text it wrote for a person (answer.go, internal/component/ssh). A
+// merged read would put frame lines inside the payload a caller unmarshals.
+//
+// A failure is reported from stderr, and readAnswerFrame is what reads it, so
+// this call and ExecCommandStream report one message from one parser.
 func ExecCommand(creds Credentials, command string) (string, error) {
 	client, err := dialDaemon(creds)
 	if err != nil {
@@ -77,8 +85,17 @@ func ExecCommand(creds Credentials, command string) (string, error) {
 	}
 	defer session.Close() //nolint:errcheck // best-effort cleanup
 
-	output, err := session.CombinedOutput(command)
+	var frame strings.Builder
+	session.Stderr = &frame
+	output, err := session.Output(command)
 	if err != nil {
+		answer, text := readAnswerFrame(strings.NewReader(frame.String()))
+		if answer.Message != "" {
+			return "", errors.New(answer.Message)
+		}
+		if text != "" {
+			return "", errors.New(trimErrorPrefix(text))
+		}
 		if len(output) > 0 {
 			return "", errors.New(trimErrorPrefix(strings.TrimSpace(string(output))))
 		}

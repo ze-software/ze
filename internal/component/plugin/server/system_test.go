@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"sync"
@@ -253,21 +252,16 @@ func TestDaemonTerminationSocketResponsePrecedesWait(t *testing.T) {
 				waitDone <- s.Wait(testCtx)
 			}()
 
-			pluginConn := rpc.NewConn(pluginSide, pluginSide)
 			type callResult struct {
-				output rpc.DispatchCommandOutput
+				status string
 				err    error
 			}
 			callDone := make(chan callResult, 1)
 			go func() {
-				raw, callErr := pluginConn.CallRPC(testCtx, rpc.MethodDispatchCommand, &rpc.DispatchCommandInput{
+				status, _, callErr := dispatchAnswerOverSocket(testCtx, pluginSide, &rpc.DispatchCommandInput{
 					Command: tt.command,
 				})
-				var output rpc.DispatchCommandOutput
-				if callErr == nil {
-					callErr = json.Unmarshal(raw, &output)
-				}
-				callDone <- callResult{output: output, err: callErr}
+				callDone <- callResult{status: status, err: callErr}
 			}()
 
 			var result callResult
@@ -277,7 +271,7 @@ func TestDaemonTerminationSocketResponsePrecedesWait(t *testing.T) {
 				t.Fatal("daemon command did not return its socket response")
 			}
 			require.NoError(t, result.err)
-			assert.Equal(t, plugin.StatusDone, result.output.Status)
+			assert.Equal(t, plugin.StatusDone, result.status)
 
 			select {
 			case <-reactor.entered:

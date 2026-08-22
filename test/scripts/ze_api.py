@@ -185,6 +185,91 @@ def _ends_answer(verb: str, tail: str) -> bool:
     return tail.startswith("count=")
 
 
+# _ANSWER_TRAILING_KEYS are the keys whose value runs to the end of the line.
+# Every other value is space-free by construction, so a tail is split on spaces
+# until one of these opens (AppendAnswerHead, AppendAnswerItem,
+# AppendAnswerTerminator, pkg/plugin/rpc/message.go).
+_ANSWER_TRAILING_KEYS = ("item", "fault", "message", "fields")
+
+# _ANSWER_RECORD_METHODS are the engine RPCs answered with a record sequence
+# rather than with one result line. Every peer receives it; nothing is declared
+# and nothing is negotiated.
+_ANSWER_RECORD_METHODS = (
+    "ze-plugin-engine:dispatch-command",
+    "ze-plugin-engine:dispatch-command-args",
+)
+
+
+def _answer_tail_fields(tail: str) -> dict[str, str]:
+    """Split one answer line's tail into its key=value pairs."""
+    fields: dict[str, str] = {}
+    rest = tail
+    while rest:
+        key, sep, value = rest.partition("=")
+        if not sep:
+            break
+        if key in _ANSWER_TRAILING_KEYS:
+            fields[key] = value
+            break
+        fields[key], _, rest = value.partition(" ")
+    return fields
+
+
+def _collapse_answer(tails: list[str]) -> dict:
+    """Rebuild the {status, data, error} result a record answer carries.
+
+    It is the Python mirror of the reader both Go ends use (CollapseAnswer and
+    CollapseRecords, pkg/plugin/rpc/collapse.go). A type=json answer was
+    collapsed by its producer, so its one item IS the document. Any other type
+    is a walk past the buffering threshold, and its records go under the
+    envelope the head names, with the rejected rows beside them.
+
+    The terminator's message is the command's own failure text, which the
+    single-line frame carried in error=, so a caller reads one field either way.
+    """
+    head = _answer_tail_fields(tails[0]) if tails else {}
+    names = json.loads(head["fields"]) if "fields" in head else None
+
+    items: list[Any] = []
+    faults: list[Any] = []
+    message = ""
+    for tail in tails[1:]:
+        parsed = _answer_tail_fields(tail)
+        if "item" in parsed:
+            items.append(json.loads(parsed["item"]))
+        elif "fault" in parsed:
+            faults.append(json.loads(parsed["fault"]))
+        elif "count" in parsed:
+            message = parsed.get("message", "")
+
+    result: dict[str, Any] = {"status": head.get("status", "")}
+    if message:
+        result["error"] = message
+        return result
+
+    if head.get("type") == "json":
+        if items:
+            result["data"] = items[0]
+        return result
+
+    if names is not None:
+        for row in items:
+            if len(row) != len(names):
+                raise RuntimeError(
+                    f"answer row has {len(row)} values against {len(names)} column names"
+                )
+        items = [dict(zip(names, row)) for row in items]
+
+    envelope = head.get("key", "")
+    if faults:
+        result["data"] = {envelope or "data": items, "errors": faults}
+    elif envelope:
+        result["data"] = {envelope: items}
+    else:
+        result["data"] = items
+    return result
+
+
 class API:
     """ZeBGP API client using YANG RPC protocol.
 
@@ -472,6 +557,12 @@ class API:
         req_id = self._next_id()
         self._send_rpc(self._engine_fd, req_id, method, params)
 
+        # A dispatch answers with a head, its records and a terminator, so its
+        # lines are gathered here and collapsed once the terminator arrives.
+        # Every other method answers on one line.
+        records = method in _ANSWER_RECORD_METHODS
+        answer: list[str] = []
+
         # Read lines until we get the response for our request.
         while True:
             if self._tls_mode:
@@ -482,6 +573,19 @@ class API:
                 if _is_shutdown_dispatch(method, params):
                     return {"result": {"status": "done"}}
                 raise RuntimeError(f"no response for {method}")
+
+            if records:
+                resp_id, verb, tail = _split_wire_line(line)
+                if self._tls_mode and verb not in ("ok", "error"):
+                    self._pending_requests.append(self._parse_line(line))
+                    continue
+                if verb == "ok":
+                    answer.append(tail)
+                    if not _ends_answer(verb, tail):
+                        continue
+                    return {"result": _collapse_answer(answer)}
+                # The error verb keeps the single-line JSON frame: a dispatch
+                # that never reached a command has no answer to write.
 
             resp_id, verb, payload = self._parse_line(line)
 

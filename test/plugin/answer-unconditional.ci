@@ -1,30 +1,28 @@
-# Test: a peer that did not negotiate the record shape sees today's frame
+# Test: every peer receives the record answer, whatever it declared
 #
 # Flow:
 # 1. Daemon starts with two external plugins on one BGP peer
-# 2. answer-plain declares NO wire shape at Stage 3, then dispatches commands
+# 2. answer-silent declares NO protocol name at Stage 3, then dispatches commands
 # 3. answer-records declares "record-answers" at Stage 3, then dispatches the
 #    same command
 # 4. Each plugin asserts the frame it received, on the bytes, not on a decoded
-#    payload
+#    payload, and the two frames are compared byte for byte
 #
-# The answer shape is negotiated per peer at Stage 3 (declare-capabilities), so
-# the two plugins share one daemon, one dispatcher and one command, and differ
-# only in what they declared. answer-plain must receive `#<id> ok <json>` on one
-# line, with the {status, data} envelope byte for byte; answer-records must
-# receive a head, one record line and a terminator. The record line must carry
-# the SAME data bytes the plain plugin received, which is what makes the
-# negotiation a change of frame and nothing else.
+# One answer has one encoding. The two plugins share one daemon, one dispatcher
+# and one command, and differ only in what they declared at Stage 3, so a
+# difference between the bytes they receive would be a negotiation that survived.
+# Both must receive a head, one record line and a terminator, and the record
+# lines must carry the SAME data bytes.
 #
 # `system version api` is the compared command because its answer is constant
 # (handleSystemVersionAPI, internal/component/plugin/server/system.go), so a
 # byte comparison across two dispatches is a comparison of the frames rather
 # than of two moments in time.
 #
-# VALIDATES: AC-13 -- a peer that has not negotiated the new shape receives
-# `#<id> ok [<json>]` exactly as today.
-# PREVENTS: the record shape being emitted unconditionally, which breaks every
-# plugin written against the frame that exists today, in the tree and outside it.
+# VALIDATES: AC-1 -- a plugin that completes Stage 3 declaring no protocol name
+# receives the record answer sequence.
+# PREVENTS: the negotiation returning, which would leave two encodings of one
+# answer on the wire and let a peer read either.
 
 # ze-peer expectations: one session so `show bgp peer list` names a real peer.
 stdin=peer:terminator=EOF_PEER
@@ -33,56 +31,69 @@ option=timeout:value=25s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Un-negotiated plugin: declares no wire shape, so its answer is one line.
-tmpfs=answer-plain.run:mode=755:terminator=EOF_PLAIN
+# Silent plugin: it names no protocol, and it receives the records anyway.
+tmpfs=answer-silent.run:mode=755:terminator=EOF_SILENT
 #!/usr/bin/env python3
-"""Un-negotiated peer: it names no wire shape, so every answer is one line."""
+"""Silent peer: it names no protocol at Stage 3, and still reads records."""
 
 import os
 import sys
 
 from ze_api import API, runtime_fail
 
-# ENVELOPE is the answer frame every plugin written before the record shape
-# reads: `#<id> ok ` and one JSON object carrying status then data
-# (AppendResult and DispatchCommandOutput, pkg/plugin/rpc).
-ENVELOPE = '{"status":"done","data":'
-MARKER = "plain-answer.txt"
+MARKER = "silent-answer.txt"
 
 
-def answer_data(api, command):
-    """Return the data bytes of a one-line answer, or fail loudly."""
+def tail_of(line, want_verb="ok"):
+    """Return the key=value tail of one answer line."""
+    parts = line.split(" ", 2)
+    if len(parts) != 3 or parts[1] != want_verb:
+        runtime_fail(f"unexpected answer line: {line[:120]}")
+        return ""
+    return parts[2]
+
+
+def answer_item(api, command):
+    """Return the item bytes of a record answer, or fail loudly."""
     lines = api.dispatch_wire_lines(command)
-    if len(lines) != 1:
-        runtime_fail(f"{command} answered {len(lines)} lines, want 1: {lines}")
-    parts = lines[0].split(" ", 2)
-    if len(parts) != 3 or parts[1] != "ok":
-        runtime_fail(f"{command} answered an unexpected frame: {lines[0][:120]}")
-    tail = parts[2]
-    if not tail.startswith(ENVELOPE) or not tail.endswith("}"):
-        runtime_fail(f"{command} answer envelope changed: {tail[:120]}")
-    return tail[len(ENVELOPE) : -1]
+    if len(lines) != 3:
+        runtime_fail(f"{command} answered {len(lines)} lines, want head, record, terminator: {lines}")
+        return ""
+    head = tail_of(lines[0])
+    # type=json says the one item carries the whole answer as one document,
+    # which is what a payload the handler built whole always was.
+    if head != "status=done type=json":
+        runtime_fail(f"{command} head was {head!r}, want 'status=done type=json'")
+    record = tail_of(lines[1])
+    if not record.startswith("item="):
+        runtime_fail(f"{command} record line was {record[:120]!r}, want an item=")
+        return ""
+    terminator = tail_of(lines[2])
+    if terminator != "count=1":
+        runtime_fail(f"{command} terminator was {terminator!r}, want 'count=1'")
+    return record[len("item=") :]
 
 
 def main():
     api = API()
     api.declare_done()
     api.wait_for_config()
-    # Stage 3 with no protocol list: this peer names no wire shape.
+    # Stage 3 with no protocol list: this peer names no wire shape and is
+    # answered with records regardless.
     api.capability_done()
     api.wait_for_registry()
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
 
-    version = answer_data(api, "system version api")
-    peers = answer_data(api, "show bgp peer list")
+    version = answer_item(api, "system version api")
+    peers = answer_item(api, "show bgp peer list")
     if '"peers"' not in peers:
         runtime_fail(f"show bgp peer list lost its envelope: {peers[:120]}")
 
-    print("OK: the un-negotiated peer received today's frame", file=sys.stderr)
+    print("OK: the peer that declared nothing received the record shape", file=sys.stderr)
 
-    # Hand the answer bytes to the negotiated peer. Written to a temporary name
-    # and renamed, so the reader never opens a half-written file.
+    # Hand the answer bytes to the other peer. Written to a temporary name and
+    # renamed, so the reader never opens a half-written file.
     with open(MARKER + ".tmp", "w", encoding="utf-8") as handle:
         handle.write(version)
     os.rename(MARKER + ".tmp", MARKER)
@@ -92,23 +103,23 @@ def main():
 
 if __name__ == "__main__":
     main()
-EOF_PLAIN
+EOF_SILENT
 
-# Negotiated plugin: declares record-answers, so its answer is a sequence.
+# Declaring plugin: it names record-answers, and receives the same bytes.
 tmpfs=answer-records.run:mode=755:terminator=EOF_RECORDS
 #!/usr/bin/env python3
-"""Negotiated peer: it names record-answers, so every answer is a sequence."""
+"""Declaring peer: it names record-answers, and reads the same answer."""
 
 import os
 import sys
 
 from ze_api import API, runtime_fail, wait_until
 
-MARKER = "plain-answer.txt"
+MARKER = "silent-answer.txt"
 
 
-def wait_for_plain(timeout=10.0):
-    """Return the bytes the un-negotiated peer received for the same command.
+def wait_for_silent(timeout=10.0):
+    """Return the bytes the silent peer received for the same command.
 
     The other peer writes this file from its own process, so a file appearing has
     no event to wait on and the wait is a bounded poll. The poll INTERVAL lives in
@@ -122,7 +133,7 @@ def wait_for_plain(timeout=10.0):
         attempts=max(1, int(timeout / interval)),
         delay=interval,
     ):
-        runtime_fail(f"the un-negotiated peer wrote no answer within {timeout}s")
+        runtime_fail(f"the silent peer wrote no answer within {timeout}s")
         return ""
     with open(MARKER, encoding="utf-8") as handle:
         return handle.read()
@@ -133,6 +144,7 @@ def tail_of(line, want_verb="ok"):
     parts = line.split(" ", 2)
     if len(parts) != 3 or parts[1] != want_verb:
         runtime_fail(f"unexpected answer line: {line[:120]}")
+        return ""
     return parts[2]
 
 
@@ -140,21 +152,20 @@ def main():
     api = API()
     api.declare_done()
     api.wait_for_config()
-    # Stage 3 naming the wire shape this peer reads.
+    # Stage 3 naming the wire shape. It changes nothing: the name is what this
+    # test proves has stopped deciding the frame.
     api.capability_done(protocol=["record-answers"])
     api.wait_for_registry()
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
 
-    plain = wait_for_plain()
+    silent = wait_for_silent()
 
     lines = api.dispatch_wire_lines("system version api")
     if len(lines) != 3:
         runtime_fail(f"answer was {len(lines)} lines, want head, record, terminator: {lines}")
 
     head = tail_of(lines[0])
-    # type=json says the one item carries the whole answer as one document,
-    # which is what a payload the handler built whole always was.
     if head != "status=done type=json":
         runtime_fail(f"head was {head!r}, want 'status=done type=json'")
 
@@ -162,18 +173,18 @@ def main():
     if not record.startswith("item="):
         runtime_fail(f"record line was {record[:120]!r}, want an item=")
     item = record[len("item=") :]
-    if item != plain:
-        runtime_fail(f"record carries {item[:120]!r}, the plain peer got {plain[:120]!r}")
+    if item != silent:
+        runtime_fail(f"record carries {item[:120]!r}, the silent peer got {silent[:120]!r}")
 
     terminator = tail_of(lines[2])
     if terminator != "count=1":
         runtime_fail(f"terminator was {terminator!r}, want 'count=1'")
 
-    print("OK: the negotiated peer received the record shape", file=sys.stderr)
+    print("OK: the peer that declared the shape received the same bytes", file=sys.stderr)
 
-    # A negotiated peer reads EVERY dispatch answer as a sequence, so the
-    # shutdown goes out the same way. api.dispatch parses the answer as one
-    # JSON payload and would fail on the head's key=value tail.
+    # Every dispatch answer is a sequence, so the shutdown goes out the same
+    # way. api.dispatch parses the answer as one JSON payload and would fail on
+    # the head's key=value tail.
     api.dispatch_wire_lines("request shutdown", timeout=2.0, settle=0.2)
     api.wait_for_shutdown()
 
@@ -185,8 +196,8 @@ EOF_RECORDS
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external answer-plain {
-		run ./answer-plain.run
+	external answer-silent {
+		run ./answer-silent.run
 		encoder json
 	}
 	external answer-records {
@@ -230,7 +241,7 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
 expect=exit:code=0
-expect=stderr:contains=OK: the un-negotiated peer received today's frame
-expect=stderr:contains=OK: the negotiated peer received the record shape
+expect=stderr:contains=OK: the peer that declared nothing received the record shape
+expect=stderr:contains=OK: the peer that declared the shape received the same bytes
 reject=stderr:pattern=ZE-OBSERVER-FAIL
 reject=stderr:pattern=panic recovered

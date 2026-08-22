@@ -12,9 +12,9 @@
 //
 //	stdout  the rendering, written as the records arrive. For `ssh <host>
 //	        <command>` this is the whole answer and it is what it always was.
-//	stderr  the head, the terminator and the not-understood line, and ONLY for
-//	        a client that declared the shape in an SSH env request. An operator
-//	        who did not ask sees no frame at all.
+//	stderr  the head, the terminator and the not-understood line, for every
+//	        session. One answer has one encoding, so nothing is declared and
+//	        nothing is negotiated.
 //
 // Truncation is then a missing terminator, which is what AC-9 asks for: a
 // connection that dies part way leaves the records that arrived and no line
@@ -43,8 +43,7 @@ import (
 // then reuses the grown slice.
 const answerFrameCapacity = 256
 
-// answerFrame writes the frame of one exec-channel answer, and writes nothing
-// at all when the client did not declare it.
+// answerFrame writes the frame of one exec-channel answer.
 //
 // One answer owns the channel, so every line is written with rpc.AnswerNoID and
 // carries no #<id>. Everything after the verb is the grammar the plugin
@@ -54,18 +53,12 @@ type answerFrame struct {
 	buf []byte
 }
 
-// newAnswerFrame returns the frame for this session: a writer when the client
-// declared the shape, and a frame that writes nothing when it did not.
+// newAnswerFrame returns the frame for this session. Every session gets one:
+// the frame is what says how many records the answer holds and whether it
+// finished, and a client that cannot ask for it still needs to be told.
 func newAnswerFrame(sess ssh.Session) *answerFrame {
-	if !declaresRecordAnswers(sess.Environ()) {
-		return &answerFrame{}
-	}
 	return &answerFrame{w: sess.Stderr(), buf: make([]byte, 0, answerFrameCapacity)}
 }
-
-// declared reports whether this answer carries a frame. A caller that must
-// choose between the frame and today's plain-text error asks here.
-func (f *answerFrame) declared() bool { return f.w != nil }
 
 // head writes the line that opens the answer: what the daemon knows about the
 // command, and which shape the rendering on stdout was produced from.
@@ -76,9 +69,6 @@ func (f *answerFrame) declared() bool { return f.w != nil }
 // what it needs from the head is the status and the shape, and both are true
 // whenever it arrives.
 func (f *answerFrame) head(status, answerType, key string, fields []string) error {
-	if !f.declared() {
-		return nil
-	}
 	encoded, err := marshalAnswerFields(fields)
 	if err != nil {
 		return err
@@ -89,9 +79,6 @@ func (f *answerFrame) head(status, answerType, key string, fields []string) erro
 // terminator writes the line that ends the answer. Its absence is what states
 // truncation, so nothing else may be written after it.
 func (f *answerFrame) terminator(count, faults uint64, message string) error {
-	if !f.declared() {
-		return nil
-	}
 	return f.write(rpc.AppendAnswerTerminator(f.buf[:0], rpc.AnswerNoID, count, faults, message))
 }
 
@@ -100,9 +87,6 @@ func (f *answerFrame) terminator(count, faults uint64, message string) error {
 // a client can offer completion here rather than reporting an operational
 // failure the daemon never attempted.
 func (f *answerFrame) notUnderstood(message string) error {
-	if !f.declared() {
-		return nil
-	}
 	return f.write(rpc.AppendAnswerNotUnderstood(f.buf[:0], rpc.AnswerNoID, "", message))
 }
 
@@ -117,7 +101,7 @@ func (f *answerFrame) write(line []byte) error {
 }
 
 // writeExecAnswer writes one exec-channel answer: the rendering on stdout, and
-// the frame on stderr for a client that declared it.
+// the frame on stderr.
 //
 // input is the operator's whole text, pipe chain included, because the chain
 // decides the rendering. formatOutput renders a payload the handler built
@@ -192,20 +176,23 @@ func writeExecDocument(sess ssh.Session, frame *answerFrame, formatOutput func(s
 
 // writeExecFailure reports a command that did not produce an answer.
 //
-// A client that declared the frame reads the two failures apart: a command text
-// that names no command earns the error verb, which says the conversation was
-// valid and re-sending is pointless, and a command that ran and failed earns a
-// head stating status=error with the operational text on its terminator. A
-// client that declared nothing reads the text it always read.
+// The frame reads the two failures apart: a command text that names no command
+// earns the error verb, which says the conversation was valid and re-sending is
+// pointless, and a command that ran and failed earns a head stating
+// status=error with the operational text on its terminator.
+//
+// The operator's plain line is written first and the frame follows it. Both
+// audiences read one stream, and the terminator ends the answer, so nothing may
+// come after it. A client reading the frame keeps the plain line as the daemon
+// talking to a person rather than to it (readAnswerFrame,
+// internal/core/ssh/client/answer.go), and the message it reports comes from
+// the frame, so the two cannot disagree.
 //
 // The frame writes are best-effort: the session is ending with exit code 1
 // whatever they do, and a client whose terminator never arrives reads the
 // answer as truncated, which is the right verdict for one that never finished.
 func writeExecFailure(sess ssh.Session, frame *answerFrame, err error) {
-	if !frame.declared() {
-		writeExecError(sess, err)
-		return
-	}
+	writeExecError(sess, err)
 	if errors.Is(err, pluginserver.ErrUnknownCommand) {
 		frame.notUnderstood(err.Error()) //nolint:errcheck // the session is ending; a lost line reads as truncated
 		return
@@ -235,25 +222,4 @@ func marshalAnswerFields(fields []string) (json.RawMessage, error) {
 		return nil, fmt.Errorf("marshal answer fields: %w", err)
 	}
 	return encoded, nil
-}
-
-// declaresRecordAnswers reports whether the client named the record answer
-// shape in the environment it requested for this session.
-//
-// It fails closed. A variable that is absent, empty, or naming only shapes this
-// daemon does not write leaves the client with the bytes it would have received
-// before the shape existed.
-func declaresRecordAnswers(environ []string) bool {
-	for _, entry := range environ {
-		name, value, found := strings.Cut(entry, "=")
-		if !found || name != rpc.AnswerProtocolEnv {
-			continue
-		}
-		for declared := range strings.SplitSeq(value, ",") {
-			if strings.TrimSpace(declared) == rpc.ProtocolRecordAnswers {
-				return true
-			}
-		}
-	}
-	return false
 }

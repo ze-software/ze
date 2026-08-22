@@ -15,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -67,16 +68,12 @@ func answerCredentials(t *testing.T, srv *Server) sshclient.Credentials {
 	return sshclient.Credentials{Host: host, Port: port, Username: "operator", Auth: "read-pass"}
 }
 
-// commandRecords answers a generator of count command-list rows, and reports
-// how many rows the walk produced.
-func commandRecords(count int, produced *int) iter.Seq[rpc.Record] {
+// commandRecords answers a generator of count command-list rows.
+func commandRecords(count int) iter.Seq[rpc.Record] {
 	return func(yield func(rpc.Record) bool) {
 		for i := range count {
 			var b textbuf.Buffer
 			b.Str(`{"value":"show cmd-`).Int(int64(i)).Str(`"}`)
-			if produced != nil {
-				*produced++
-			}
 			if !yield(rpc.Record{Item: json.RawMessage(b.String())}) {
 				return
 			}
@@ -106,7 +103,7 @@ func TestARecordAnswerReachesTheOperatorOverTheExecChannel(t *testing.T) {
 	srv := answerServer(t, func(string) (*plugin.Response, error) {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Records{Key: "commands", Rows: commandRecords(recordRowsWanted, nil)},
+			Data:   plugin.Records{Key: "commands", Rows: commandRecords(recordRowsWanted)},
 		}, nil
 	})
 	creds := answerCredentials(t, srv)
@@ -194,14 +191,102 @@ func TestAFailedCommandCarriesItsMessageOnTheTerminator(t *testing.T) {
 	assert.Zero(t, answer.Count)
 }
 
-// TestAnUndeclaredClientReadsTodaysBytes is the negotiation control for the
-// exec channel: a client that declares nothing must see the rendering and no
-// frame at all.
+// execUndeclared runs one command over a real SSH exec channel and sets no
+// environment variable at all, which is `ssh <host> <command>` as an operator
+// types it. It returns the two streams separately, because the rendering and
+// the frame are written to different ones.
+func execUndeclared(t *testing.T, srv *Server, command string) (string, string) {
+	t.Helper()
+
+	client, err := gossh.Dial("tcp", srv.Address(), &gossh.ClientConfig{
+		User:            "operator",
+		Auth:            []gossh.AuthMethod{gossh.Password("read-pass")},
+		HostKeyCallback: gossh.InsecureIgnoreHostKey(), //nolint:gosec // the test server key is generated per run
+		Timeout:         5 * time.Second,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+
+	session, err := client.NewSession()
+	require.NoError(t, err)
+	defer session.Close() //nolint:errcheck // best-effort cleanup
+
+	var stdout, stderr strings.Builder
+	session.Stdout = &stdout
+	session.Stderr = &stderr
+	require.NoError(t, session.Run(command))
+	return stdout.String(), stderr.String()
+}
+
+// TestExecAnswerUnconditional drives the exec channel from a client that
+// requests no environment, and reads the frame it is answered with.
 //
-// VALIDATES: AC-13 for the exec channel -- `ssh <host> <command>` is unchanged.
+// The frame used to be negotiated: a session that named no shape in an SSH env
+// request received the rendering and nothing else. One answer has one encoding,
+// so the frame is now written for every session and no code reads an
+// environment variable to decide.
+//
+// VALIDATES: AC-2 -- a client that sets no ZE_ANSWER_PROTOCOL receives the
+// head and the terminator, and the records between them.
+// PREVENTS: the declaration returning as the condition on the frame, which
+// would leave a peer unable to tell a complete answer from a truncated one
+// unless it knew to ask.
+func TestExecAnswerUnconditional(t *testing.T) {
+	t.Setenv("ze.cli.format", "text")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	const rows = 3
+	recordRowsWanted = rows
+	srv := answerServer(t, func(string) (*plugin.Response, error) {
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data:   plugin.Records{Key: "commands", Rows: commandRecords(recordRowsWanted)},
+		}, nil
+	})
+
+	stdout, stderr := execUndeclared(t, srv, "system command list | ndjson")
+
+	// The rendering is unchanged: one line for each record, on stdout, and no
+	// frame line among them.
+	body := strings.Split(strings.TrimRight(stdout, "\n"), "\n")
+	require.Len(t, body, rows, "one line for each record")
+	for i, line := range body {
+		assert.Equal(t, `{"value":"show cmd-`+textbuf.StringInt(int64(i))+`"}`, line)
+	}
+
+	// The frame is on stderr, and this client asked for nothing to receive it.
+	var frame []rpc.AnswerTail
+	for line := range strings.SplitSeq(strings.TrimRight(stderr, "\n"), "\n") {
+		if line == "" {
+			continue
+		}
+		verb, tail, parseErr := rpc.ParseAnswerLine([]byte(line))
+		require.NoError(t, parseErr, "every stderr line must be an answer line; got %q", line)
+		assert.Equal(t, rpc.AnswerVerbOK, verb)
+		frame = append(frame, tail)
+	}
+
+	require.Len(t, frame, 2, "an undeclared client must receive the head and the terminator; stderr was %q", stderr)
+	assert.Equal(t, plugin.StatusDone, frame[0].Status, "the first line is the head")
+	assert.False(t, frame[0].IsTerminator(), "the head is not the terminator")
+	require.True(t, frame[1].IsTerminator(), "the second line ends the answer")
+	assert.Equal(t, uint64(rows), frame[1].Count, "the terminator counts the records the operator received")
+}
+
+// TestAnUndeclaredClientReadsTodaysBytes reads what ExecCommand returns for a
+// client that asked for nothing: the rendering, and no frame line in it.
+//
+// The frame now reaches every session, so what keeps this true is the streams
+// being read apart rather than the frame being withheld. ExecCommand takes the
+// answer from stdout and reads stderr for the failure alone (client.go,
+// internal/core/ssh/client).
+//
+// VALIDATES: AC-8 for the exec channel -- the payload an operator's tooling
+// unmarshals is the same bytes it always was.
 // PREVENTS:  every script that pipes `ssh host 'show ...'` into a parser
 //
-//	suddenly reading frame lines on its stderr.
+//	suddenly reading frame lines inside the document it parses.
 func TestAnUndeclaredClientReadsTodaysBytes(t *testing.T) {
 	t.Setenv("ze.cli.format", "text")
 	env.ResetCache()
@@ -211,13 +296,13 @@ func TestAnUndeclaredClientReadsTodaysBytes(t *testing.T) {
 	srv := answerServer(t, func(string) (*plugin.Response, error) {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Records{Key: "commands", Rows: commandRecords(recordRowsWanted, nil)},
+			Data:   plugin.Records{Key: "commands", Rows: commandRecords(recordRowsWanted)},
 		}, nil
 	})
 	creds := answerCredentials(t, srv)
 
-	// ExecCommand declares nothing and reads stdout and stderr together, so a
-	// frame line would land in what it returns.
+	// ExecCommand asks for nothing, and the daemon frames the answer anyway. A
+	// frame line reaching this string is the merge this test exists to refuse.
 	combined, err := sshclient.ExecCommand(creds, "system command list | ndjson")
 	require.NoError(t, err)
 
@@ -253,7 +338,7 @@ func TestAnAnswerCutMidStreamReportsTruncation(t *testing.T) {
 	srv := answerServer(t, func(string) (*plugin.Response, error) {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Records{Key: "commands", Rows: commandRecords(rows, nil)},
+			Data:   plugin.Records{Key: "commands", Rows: commandRecords(rows)},
 		}, nil
 	})
 

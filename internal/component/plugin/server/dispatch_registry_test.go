@@ -133,9 +133,15 @@ func TestWireBridgeDispatchInstallsTypedSlots(t *testing.T) {
 }
 
 // TestEngineOpJSONAndDirectMatch asserts the JSON socket path and the in-process
-// Direct path produce byte-identical results for a representative op, proving
+// Direct path answer with the same payload for a representative op, proving
 // both derive from the one entry (AC-2). dispatch-command is used because it
 // exercises the shared s.dispatchCommand core through both serve wrappers.
+//
+// The two carry that payload in different frames, and the difference is the
+// transport rather than the answer. The socket writes the record sequence line
+// by line (serveEngineOpJSON), and the Direct path is one marshaled value with
+// no line to carry a record on, so it projects the same response instead
+// (serveEngineOpDirect). What must not drift is the payload inside them.
 func TestEngineOpJSONAndDirectMatch(t *testing.T) {
 	t.Parallel()
 
@@ -157,12 +163,26 @@ func TestEngineOpJSONAndDirectMatch(t *testing.T) {
 	result, err := op.handle(s, proc, params)
 	require.NoError(t, err)
 
+	answer, records := result.(*recordAnswer)
+	require.True(t, records, "the socket path answers a record sequence, got %T", result)
+	var wire bytes.Buffer
+	require.NoError(t, answer.write(&wire, 5))
+
 	direct, err := s.dispatchPluginRPCDirect(proc, rpc.MethodDispatchCommand, params)
 	require.NoError(t, err)
 
-	marshaled, err := directResultResponse(result)
-	require.NoError(t, err)
-	assert.JSONEq(t, string(marshaled), string(direct), "JSON and Direct results diverged")
+	var projected rpc.DispatchCommandOutput
+	require.NoError(t, json.Unmarshal(direct, &projected))
+	assert.Equal(t, plugin.StatusDone, projected.Status)
+	assert.JSONEq(t, `{"ok":true}`, string(projected.Data))
+
+	// One payload, two frames: what the Direct path projects under "data" is
+	// what the socket writes as the answer's one item.
+	assert.Equal(t, []string{
+		"#5 ok status=done type=json",
+		`#5 ok item=` + string(projected.Data),
+		"#5 ok count=1",
+	}, strings.Split(strings.TrimSuffix(wire.String(), "\n"), "\n"))
 }
 
 // TestOpUpdateRouteInjectsInternalIdentity pins the fix for the route-propagation
@@ -295,64 +315,6 @@ func TestEngineOpBatchValidateJSONFallback(t *testing.T) {
 	assert.Equal(t, 1, out.Rejected)
 }
 
-// TestAnswerResultTakesTheRecordPathOnlyWhenNegotiated verifies the per-peer
-// switch: the shape of a command answer follows what THIS peer declared at
-// Stage 3, and one dispatcher serves both shapes from one response.
-//
-// The goal is AC-13. The method projects one response twice, once for a peer
-// that declared the shape and once for a peer that did not, and reads the bytes
-// each of them would receive.
-//
-// VALIDATES: AC-13 -- an un-negotiated peer receives `#<id> ok [<json>]`
-// exactly as today, and a negotiated peer receives the record sequence.
-// PREVENTS: a global switch, which would move every peer at once and break the
-// plugins that never asked.
-func TestAnswerResultTakesTheRecordPathOnlyWhenNegotiated(t *testing.T) {
-	t.Parallel()
-
-	newResponse := func() *plugin.Response {
-		return &plugin.Response{
-			Status: plugin.StatusDone,
-			Data:   plugin.Map{"version": "3"},
-		}
-	}
-
-	t.Run("a peer that declared nothing", func(t *testing.T) {
-		t.Parallel()
-
-		result := answerResult(false, newResponse())
-
-		output, isProjection := result.(*rpc.DispatchCommandOutput)
-		require.True(t, isProjection, "want the JSON projection, got %T", result)
-		assert.Equal(t, plugin.StatusDone, output.Status)
-		assert.JSONEq(t, `{"version":"3"}`, string(output.Data))
-
-		// The bytes the peer reads are the frame it has always read.
-		line := rpc.AppendResult(nil, 7, mustMarshal(t, output))
-		assert.Equal(t, `#7 ok {"status":"done","data":{"version":"3"}}`, string(line))
-	})
-
-	t.Run("a peer that declared record-answers", func(t *testing.T) {
-		t.Parallel()
-
-		result := answerResult(true, newResponse())
-
-		answer, isRecords := result.(*recordAnswer)
-		require.True(t, isRecords, "want the record answer, got %T", result)
-
-		var wire bytes.Buffer
-		require.NoError(t, answer.write(&wire, 7))
-		// The head names the type, and a payload the handler built whole is one
-		// JSON document: the item carries the same bytes the projection above
-		// puts under "data".
-		assert.Equal(t, []string{
-			"#7 ok status=done type=json",
-			`#7 ok item={"version":"3"}`,
-			"#7 ok count=1",
-		}, strings.Split(strings.TrimSuffix(wire.String(), "\n"), "\n"))
-	})
-}
-
 // TestUndeclaredPeerReadsAsUnnegotiated verifies the state a peer starts in: a
 // process whose Stage 3 has not run reports that it negotiated nothing.
 //
@@ -366,11 +328,77 @@ func TestUndeclaredPeerReadsAsUnnegotiated(t *testing.T) {
 	assert.False(t, (&process.Process{}).RecordAnswers())
 }
 
-// mustMarshal renders a value the way the RPC transport does.
-func mustMarshal(t *testing.T, value any) []byte {
-	t.Helper()
+// TestDispatchCommandAlwaysAnswersRecords drives both dispatch ops with a peer
+// that named no protocol at Stage 3, and reads the bytes it is answered with.
+//
+// The peer is the one the negotiation used to send down the other path: a
+// process whose capability declaration named nothing. It must now receive the
+// head, the item and the terminator, on dispatch-command and on
+// dispatch-command-args alike, because one answer has one encoding.
+//
+// VALIDATES: AC-1 -- a plugin that completes Stage 3 declaring no protocol name
+// receives the record answer sequence for dispatch-command and for
+// dispatch-command-args.
+// PREVENTS: the negotiation branch returning, which would put two encodings of
+// one answer back on the wire and let a peer read either.
+// Not parallel, and neither are its subtests: the two dispatches share one
+// registered target that serves exactly two calls in order, and the verdict on
+// that target is read once both have run.
+func TestDispatchCommandAlwaysAnswersRecords(t *testing.T) {
+	d := NewDispatcher()
+	done := registerExecuteCommandTarget(t, d, "request target version", 2,
+		func(_ int, _ *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
+			return &rpc.ExecuteCommandOutput{
+				Status: plugin.StatusDone,
+				Data:   json.RawMessage(`{"version":"3"}`),
+			}, nil
+		})
 
-	encoded, err := json.Marshal(value)
-	require.NoError(t, err)
-	return encoded
+	s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	defer s.cancel()
+
+	// A process that has declared nothing. Stage 3 no longer writes a protocol
+	// list, so this is the state every caller is in.
+	caller := process.NewProcess(plugin.PluginConfig{Name: "unconditional"})
+
+	wantLines := []string{
+		"#7 ok status=done type=json",
+		`#7 ok item={"version":"3"}`,
+		"#7 ok count=1",
+	}
+
+	cases := []struct {
+		name   string
+		method string
+		params string
+	}{
+		{
+			name:   "dispatch-command",
+			method: rpc.MethodDispatchCommand,
+			params: `{"command":"request target version"}`,
+		},
+		{
+			name:   "dispatch-command-args",
+			method: rpc.MethodDispatchCommandArgs,
+			params: `{"command":"request target version","args":[]}`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			op := lookupEngineOp(tc.method)
+			require.NotNil(t, op)
+
+			result, err := op.handle(s, caller, json.RawMessage(tc.params))
+			require.NoError(t, err)
+
+			answer, records := result.(*recordAnswer)
+			require.True(t, records, "want the record answer, got %T", result)
+
+			var wire bytes.Buffer
+			require.NoError(t, answer.write(&wire, 7))
+			assert.Equal(t, wantLines, strings.Split(strings.TrimSuffix(wire.String(), "\n"), "\n"))
+		})
+	}
+	require.NoError(t, <-done)
 }

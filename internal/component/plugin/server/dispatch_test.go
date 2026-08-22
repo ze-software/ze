@@ -20,6 +20,37 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
+// dispatchAnswerOverSocket runs one dispatch RPC from the plugin side of a
+// socket and rebuilds the value the command answered with: the head's status,
+// the document its records carry, and the command's own failure as an error.
+//
+// The engine writes the record sequence to every peer, so the reader here is
+// the answer reader rather than the single-line CallRPC. It rebuilds the value
+// exactly as a real plugin does (answerValue, pkg/plugin/sdk/sdk_engine.go),
+// which is what keeps these tests asserting on what a plugin receives.
+//
+// The caller owns side and closes it; the mux reader ends when it does.
+func dispatchAnswerOverSocket(ctx context.Context, side net.Conn, input any) (string, json.RawMessage, error) {
+	answer, err := rpc.NewMuxConn(rpc.NewConn(side, side)).CallAnswer(ctx, rpc.MethodDispatchCommand, input)
+	if err != nil {
+		return "", nil, err
+	}
+
+	document, collapseErr := rpc.CollapseAnswer(answer)
+
+	// Read after the range, never before: the range is what fills them.
+	if answerErr := answer.Err(); answerErr != nil {
+		return "", nil, answerErr
+	}
+	if collapseErr != nil {
+		return "", nil, collapseErr
+	}
+	if message := answer.Message(); message != "" {
+		return answer.Status, nil, errors.New(message)
+	}
+	return answer.Status, document, nil
+}
+
 func registerExecuteCommandTarget(
 	t *testing.T,
 	d *Dispatcher,
@@ -174,20 +205,15 @@ func TestDispatchCommandToPlugin(t *testing.T) {
 		s.handleSingleProcessCommandsRPC(proc)
 	}()
 
-	pluginConn := rpc.NewConn(pluginSide, pluginSide)
-
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	input := &rpc.DispatchCommandInput{Command: "test command"}
-	result, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:dispatch-command", input)
+	status, data, err := dispatchAnswerOverSocket(ctx, pluginSide, input)
 	require.NoError(t, err)
 
-	var output rpc.DispatchCommandOutput
-	require.NoError(t, json.Unmarshal(result, &output))
-
-	assert.Equal(t, "done", output.Status)
-	assert.Contains(t, string(output.Data), "last-index")
+	assert.Equal(t, "done", status)
+	assert.Contains(t, string(data), "last-index")
 
 	if err := pluginSide.Close(); err != nil {
 		t.Logf("close: %v", err)
@@ -243,17 +269,12 @@ func TestHandleDispatchCommandRPCPreservesPluginIdentity(t *testing.T) {
 		s.handleSingleProcessCommandsRPC(proc)
 	}()
 
-	pluginConn := rpc.NewConn(pluginSide, pluginSide)
-
 	callCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	result, err := pluginConn.CallRPC(callCtx, "ze-plugin-engine:dispatch-command", &rpc.DispatchCommandInput{Command: "test command"})
+	status, _, err := dispatchAnswerOverSocket(callCtx, pluginSide, &rpc.DispatchCommandInput{Command: "test command"})
 	require.NoError(t, err)
-
-	var output rpc.DispatchCommandOutput
-	require.NoError(t, json.Unmarshal(result, &output))
-	assert.Equal(t, plugin.StatusDone, output.Status)
+	assert.Equal(t, plugin.StatusDone, status)
 	// spec-fixit-authz-admin-fallthrough O-4: internal dispatch injects the
 	// reserved trusted identity (un-typeable), keeping the plugin name after the
 	// prefix for audit while authorizing as a trusted in-process caller.
@@ -352,19 +373,14 @@ func TestDispatchCommandPluginError(t *testing.T) {
 		s.handleSingleProcessCommandsRPC(proc)
 	}()
 
-	pluginConn := rpc.NewConn(pluginSide, pluginSide)
-
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	input := &rpc.DispatchCommandInput{Command: "failing command"}
-	result, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:dispatch-command", input)
-	require.NoError(t, err)
-
-	var output rpc.DispatchCommandOutput
-	require.NoError(t, json.Unmarshal(result, &output))
-	assert.Equal(t, "error", output.Status)
-	assert.Contains(t, output.Error, "something went wrong")
+	status, _, err := dispatchAnswerOverSocket(ctx, pluginSide, input)
+	require.Error(t, err, "the command's own failure reaches the caller as an error")
+	assert.Contains(t, err.Error(), "something went wrong")
+	assert.Equal(t, "error", status)
 
 	if err := pluginSide.Close(); err != nil {
 		t.Logf("close: %v", err)

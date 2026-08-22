@@ -203,15 +203,15 @@ type transportCompleteResponse interface {
 	TransportComplete()
 }
 
-// recordAnswer is the op result of a peer that declared
-// rpc.ProtocolRecordAnswers at Stage 3: the response itself, unprojected, so
-// the transport writes it as a head, its records and a terminator instead of
-// marshaling it into one JSON result.
+// recordAnswer is the op result of a command answer: the response itself,
+// unprojected, so the transport writes it as a head, its records and a
+// terminator instead of marshaling it into one JSON result.
 //
-// It exists because the two readings of one answer are exclusive. A generator
-// payload is walked once, so the {status, data, error} projection and the
-// record sequence cannot both run over the same response
-// (Records, internal/component/plugin/types.go).
+// Every peer reads this shape. The two readings of one answer are exclusive --
+// a generator payload is walked once, so the {status, data, error} projection
+// and the record sequence cannot both run over the same response (Records,
+// internal/component/plugin/types.go) -- so the wire carries one of them and
+// this is it.
 type recordAnswer struct {
 	resp *plugin.Response
 }
@@ -225,18 +225,6 @@ func (a *recordAnswer) write(w io.Writer, id uint64) error {
 // after the transport has delivered the answer. Repeated calls are harmless.
 func (a *recordAnswer) TransportComplete() {
 	a.resp.TransportComplete()
-}
-
-// answerResult projects resp for the peer that will read it. A peer that
-// declared the record shape takes the record sequence; every other peer takes
-// the {status, data, error} projection, unchanged, which is what keeps a plugin
-// written before this shape existed working (AC-13 of
-// spec-streaming-answer-protocol).
-func answerResult(recordAnswers bool, resp *plugin.Response) any {
-	if recordAnswers {
-		return &recordAnswer{resp: resp}
-	}
-	return responseToDispatchOutput(resp)
 }
 
 // serveEngineOpJSON runs an op for the JSON socket path, writes its result, then
@@ -255,7 +243,7 @@ func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginCo
 	if completed, ok := result.(transportCompleteResponse); ok {
 		defer completed.TransportComplete()
 	}
-	if answer, negotiated := result.(*recordAnswer); negotiated {
+	if answer, records := result.(*recordAnswer); records {
 		if writeErr := answer.write(conn.AnswerWriter(reply), req.ID); writeErr != nil {
 			logger().Debug("rpc runtime: write answer failed", "plugin", proc.Name(), "error", writeErr)
 		}
@@ -359,7 +347,7 @@ func (s *Server) opDispatchCommand(proc *process.Process, params json.RawMessage
 	if err != nil {
 		return nil, err
 	}
-	return answerResult(proc.RecordAnswers(), resp), nil
+	return &recordAnswer{resp: resp}, nil
 }
 
 // opDispatchCommandArgs is the shared handler for dispatch-command-args.
@@ -373,7 +361,7 @@ func (s *Server) opDispatchCommandArgs(proc *process.Process, params json.RawMes
 	if err != nil {
 		return nil, err
 	}
-	return answerResult(proc.RecordAnswers(), resp), nil
+	return &recordAnswer{resp: resp}, nil
 }
 
 // opSubscribeEvents is the shared handler for subscribe-events.
