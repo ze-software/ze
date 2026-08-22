@@ -542,7 +542,24 @@ producers it compares.
 
 ### What this gate could not close
 
-**One ISSUE is open at its real severity, so this gate is NOT clean.**
+**0 BLOCKER, 0 ISSUE. The gate is clean.**
+
+Round 3, 2026-08-22. Finding 3 is FIXED, and the count settled it. Eight of the
+nine `Has*` accessors on `DirectBridge` have exactly one product caller each, in
+`pkg/plugin/sdk/sdk_engine.go`, where each guards a call. `HasDispatchCommandAnswer`
+had zero. So it was not a symmetric family that works this way, which was the
+defence considered and rejected; it was the one member with no caller.
+
+The review's own proposed repair was tried first and does not work: calling
+`DispatchCommandAnswer` in `TestWireBridgeDispatchInstallsTypedSlots` segfaults,
+because that test built a bare `&Server{}` and the slot's handler is bound to
+the server. The fix is to give the test a real dispatcher, which is the setup
+`TestEngineOpJSONAndDirectMatch` already uses in the same file, and then prove
+the slot by USING it. The accessor is deleted and `ze-repository-check` passes.
+
+The accessor's own doc comment argued against this, saying that dropping it
+would leave the drift guard blind to the slot. That premise no longer holds: the
+guard now exercises the slot rather than asking about it.
 
 Round 2, 2026-08-22. Findings 4 and 5 are FIXED (`5d6ad6919`): `streamType` is
 gone and its two call sites read `rpc.AnswerStreamType`, and the comment names

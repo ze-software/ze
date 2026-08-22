@@ -97,7 +97,15 @@ func TestPluginRPCRegistryCoversAllPaths(t *testing.T) {
 func TestWireBridgeDispatchInstallsTypedSlots(t *testing.T) {
 	t.Parallel()
 
-	s := &Server{}
+	// A real dispatcher, not a bare &Server{}, because the answer slot below is
+	// proved by USING it and its handler is bound to this server. The pattern is
+	// TestEngineOpJSONAndDirectMatch's, in this file.
+	d := NewDispatcher()
+	d.Register("typed slots probe", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"ok": true}}, nil
+	}, "typed slots probe")
+
+	s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	defer s.cancel()
 
@@ -117,14 +125,21 @@ func TestWireBridgeDispatchInstallsTypedSlots(t *testing.T) {
 	// dispatch-command carries two typed slots from its one registry entry: the
 	// built value a caller holds whole, and the records a caller walks.
 	//
-	// Asked through the accessor rather than by calling DispatchCommandAnswer.
-	// Calling it here was tried on 2026-08-22 and segfaults: the slot is wired
-	// to a handler bound to this Server, and this test builds a bare
-	// &Server{} with no dispatcher, so the dispatch nil-derefs before it can
-	// report whether the slot exists. Asserting the slot by using it needs a
-	// fully built server, which is a different test from this one, whose whole
-	// subject is that the registry wires every slot.
-	assert.True(t, b.HasDispatchCommandAnswer(), "dispatch-command-answer typed slot not installed")
+	// This one is proved by USING the slot rather than by asking an accessor.
+	// Its eight siblings each guard a call in pkg/plugin/sdk, so each has a
+	// product caller; a HasDispatchCommandAnswer had none, because
+	// DispatchCommandAnswer deliberately checks the slot itself so its refusal
+	// names the missing slot where a closed mux would answer with a read error
+	// that says nothing. An exported accessor whose only caller is this line was
+	// exported API with no product caller (ai/rules/completion.md), so the
+	// question is put the way a caller puts it. Any error other than the
+	// missing-slot refusal means the dispatch reached an installed handler,
+	// which is what this test is about.
+	_, answerErr := b.DispatchCommandAnswer("typed slots probe")
+	if answerErr != nil {
+		assert.NotContains(t, answerErr.Error(), "dispatch-command-answer handler not set",
+			"dispatch-command-answer typed slot not installed")
+	}
 	assert.True(t, b.HasUpdateRouteSel(), "update-route-sel typed slot not installed")
 	assert.True(t, b.HasForwardCached(), "forward-cached typed slot not installed")
 	assert.True(t, b.HasReleaseCached(), "release-cached typed slot not installed")

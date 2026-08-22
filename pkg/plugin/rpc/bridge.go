@@ -393,8 +393,8 @@ type DispatchCommandAnswerHandler func(command string) (*Answer, error)
 
 // SetDispatchCommandAnswer registers the engine-side answer-returning
 // dispatch-command handler. The hasDispatchCmdAnswer atomic creates a
-// happens-before edge so that readers calling HasDispatchCommandAnswer or
-// DispatchCommandAnswer see the function pointer.
+// happens-before edge so that a caller of DispatchCommandAnswer sees the
+// function pointer.
 func (b *DirectBridge) SetDispatchCommandAnswer(fn DispatchCommandAnswerHandler) {
 	b.dispatchCommandAnswer = fn
 	b.hasDispatchCmdAnswer.Store(fn != nil)
@@ -460,22 +460,6 @@ func (b *DirectBridge) releaseOnWalkEnd(records iter.Seq[Record]) iter.Seq[Recor
 			}
 		}
 	}
-}
-
-// HasDispatchCommandAnswer reports whether the answer-returning
-// dispatch-command handler is set.
-//
-// The SDK does NOT gate on it. Once the bridge is ready it is the plugin's only
-// transport, so DispatchCommandAnswer asks the bridge whatever this answers and
-// lets the bridge name a missing slot (Plugin.DispatchCommandAnswer,
-// pkg/plugin/sdk/sdk_engine.go). Its reader is the registry drift guard, which
-// is what keeps the typed slot set from changing by accident
-// (TestWireBridgeDispatchInstallsTypedSlots,
-// internal/component/plugin/server/dispatch_registry_test.go). Dropping it
-// would make that guard blind to this slot, which is the one thing it exists
-// for.
-func (b *DirectBridge) HasDispatchCommandAnswer() bool {
-	return b.ready.Load() && b.hasDispatchCmdAnswer.Load()
 }
 
 // UpdateRouteSelHandler is the typed handler for update-route that carries
