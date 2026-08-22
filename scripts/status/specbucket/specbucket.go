@@ -10,19 +10,19 @@
 // (`go run` follows imports) and the package test.
 //
 // Buckets separate committed backlog (work someone chose to start: design,
-// ready, in-progress) from idea capture (skeleton stubs that are a title plus a
-// template and may never be developed). Counting the two together inflates the
-// apparent open-work backlog, which is failure mode #3 in the 2026-07-16 audit
-// (spec-fixit-spec-hygiene-tooling).
+// ready, in-progress, verification) from idea capture (skeleton stubs that are
+// a title plus a template and may never be developed). Counting the two
+// together inflates the apparent open-work backlog, which is failure mode #3 in
+// the 2026-07-16 audit (spec-fixit-spec-hygiene-tooling).
 package specbucket
 
 import "time"
 
 // Bucket names.
 const (
-	Backlog = "backlog" // committed work: design / ready / in-progress
+	Backlog = "backlog" // committed work: design / ready / in-progress / verification
 	Idea    = "idea"    // idea capture: skeleton stubs
-	Other   = "other"   // blocked / deferred / unknown
+	Other   = "other"   // blocked / deferred / done / unknown / unparsed
 )
 
 // SkeletonTTLWeeks is how long a skeleton may sit untouched before it is flagged
@@ -33,10 +33,17 @@ const SkeletonTTLWeeks = 6
 // SkeletonTTLDays is the TTL expressed in days for age arithmetic.
 const SkeletonTTLDays = SkeletonTTLWeeks * 7
 
-// Category maps a spec status to its inventory bucket.
+// Category maps a spec status to its inventory bucket. A status named nowhere
+// here lands in Other, which is correct for a terminal state such as `done` and
+// for an unreadable spec.
 func Category(status string) string {
 	switch status {
-	case "in-progress", "ready", "design":
+	// `verification` is committed work waiting on a reviewer
+	// (ai/rules/planning.md tells the implementing session to set it before it
+	// commits), so it belongs with the work someone chose to start. Counting it
+	// as Other filed finished-and-unreviewed work beside blocked and deferred,
+	// which is where a reader looks for work nobody is carrying.
+	case "in-progress", "verification", "ready", "design":
 		return Backlog
 	case "skeleton":
 		return Idea

@@ -50,25 +50,31 @@ type spec struct {
 // Status row was absent from it.
 const statusUnparsed = "unparsed"
 
-// statusOrder returns the sort key for a status (lower = sorted first).
+// statusOrder returns the sort key for a status (lower = sorted first). A
+// status named nowhere here sorts last, and it is still counted and printed.
 func statusOrder(status string) int {
 	switch status {
-	case "in-progress":
-		return 1
-	case "ready":
-		return 2
-	case "design":
-		return 3
-	case "skeleton":
-		return 4
-	case "blocked":
-		return 5
-	case "deferred":
-		return 6
 	case statusUnparsed:
 		// Sorted first: a spec the inventory cannot read is the one row a
 		// reader must act on, and burying it reads as "nothing to see".
 		return 0
+	case "in-progress":
+		return 1
+	case "verification":
+		// Committed work waiting on a reviewer, so it sorts beside in-progress
+		// rather than beside blocked. ai/rules/planning.md tells the
+		// implementing session to set this status before it commits.
+		return 2
+	case "ready":
+		return 3
+	case "design":
+		return 4
+	case "skeleton":
+		return 5
+	case "blocked":
+		return 6
+	case "deferred":
+		return 7
 	}
 	return 9
 }
@@ -212,7 +218,31 @@ func printTable(specs []spec) {
 	for _, s := range specs {
 		counts[s.Status]++
 	}
-	order := []string{statusUnparsed, "in-progress", "ready", "design", "skeleton", "blocked", "deferred", "unknown"}
+	// order is a REPORTING ORDER, not the status vocabulary. A name in it buys a
+	// position and nothing else, which is why "verification" is here (committed
+	// work in flight, so it belongs beside in-progress) and "done" is not
+	// (terminal, so the sorted tail below prints it last).
+	order := []string{statusUnparsed, "in-progress", "verification", "ready", "design", "skeleton", "blocked", "deferred", "unknown"}
+	// A status this list has never heard of is printed after the named ones,
+	// sorted, so the counts always sum to the total. Dropping it made the one
+	// line a reader trusts under-report: on 2026-08-22 the summary claimed 242
+	// specs over six counts summing to 240, because two specs carry "done".
+	// The vocabulary itself lives in ai/rules/planning.md and in the case
+	// statement of .claude/hooks/validate-spec.sh; a third copy here would
+	// drift from both.
+	named := make(map[string]bool, len(order))
+	for _, st := range order {
+		named[st] = true
+	}
+	var rest []string
+	for st := range counts {
+		if !named[st] {
+			rest = append(rest, st)
+		}
+	}
+	sort.Strings(rest)
+	order = append(order, rest...)
+
 	var sb strings.Builder
 	first := true
 	for _, st := range order {
@@ -248,13 +278,13 @@ func printTable(specs []spec) {
 
 	fmt.Fprintf(os.Stdout, "Specs: %d total (%s)\n", len(specs), sb.String())
 	fmt.Fprintf(os.Stdout,
-		"Buckets: committed backlog %d (design/ready/in-progress) | idea capture %d skeletons (%d past the %d-week TTL) | other %d\n\n",
+		"Buckets: committed backlog %d (design/ready/in-progress/verification) | idea capture %d skeletons (%d past the %d-week TTL) | other %d\n\n",
 		len(backlog), len(ideas), stale, specbucket.SkeletonTTLWeeks, len(other),
 	)
 
-	printBucketSection("Committed backlog: design / ready / in-progress", backlog)
+	printBucketSection("Committed backlog: design / ready / in-progress / verification", backlog)
 	printBucketSection("Idea capture: skeleton stubs (STALE = past TTL, triage or drop)", ideas)
-	printBucketSection("Other: blocked / deferred / unknown", other)
+	printBucketSection("Other: blocked / deferred / done / unknown / unparsed", other)
 }
 
 // printJSON writes the spec list as a JSON array, one record per line,

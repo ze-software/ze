@@ -61,6 +61,8 @@ LEARNED_DIR = PLAN_DIR / "learned"
 
 # `| Status | in-progress |` in the metadata table at the top of a spec.
 STATUS_RE = re.compile(r"^\|\s*Status\s*\|\s*([^|]*?)\s*\|", re.MULTILINE)
+# The header row that opens that table, and the anchor the scan starts from.
+META_HEADER_RE = re.compile(r"^\|\s*Field\s*\|\s*Value\s*\|")
 # plan/learned/NNN-<slug>.md references embedded in a spec body.
 LEARNED_REF_RE = re.compile(r"plan/learned/(\d{3,}-[a-z0-9][a-z0-9-]*)\.md")
 # Learned-summary filenames on disk: NNN-<slug>.md
@@ -188,10 +190,30 @@ def _journal_evidence(repo: Path) -> dict[str, str]:
 
 
 def _status(content: str) -> str:
-    # Only the metadata table (first lines) is authoritative; take the first hit.
-    head = "\n".join(content.splitlines()[:12])
-    m = STATUS_RE.search(head)
-    return m.group(1).strip().lower() if m else "unknown"
+    # Only the metadata table is authoritative, and it is found by its own header
+    # row rather than by a line count. plan/TEMPLATE.md opens with a six-line
+    # authoring comment, so a spec written exactly as ai/rules/planning.md
+    # prescribes puts its Status row past any fixed window: the 12-line window
+    # this replaced already missed plan/spec-support-export.md, whose row sits on
+    # line 14, and reported it "unknown". scripts/status/specmeta reads the same
+    # table by the same rule for the same reason.
+    #
+    # The scan stops at the first "## " heading and at the first line that leaves
+    # the table, so the Assumptions, TDD and Interop tables further down, whose
+    # header rows end "| Status |", are never read.
+    found = False
+    for line in content.splitlines():
+        if line.startswith("## "):
+            break
+        if not found:
+            found = bool(META_HEADER_RE.match(line))
+            continue
+        if not line.lstrip().startswith("|"):
+            break
+        m = STATUS_RE.match(line)
+        if m:
+            return m.group(1).strip().lower()
+    return "unknown"
 
 
 def _stem(path: Path) -> str:

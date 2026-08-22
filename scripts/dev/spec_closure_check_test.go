@@ -27,6 +27,37 @@ const specMetaInProgress = `# Spec: widget
 Build the widget.
 `
 
+// specMetaPastAFixedWindow is the same spec with the preamble a real spec
+// carries: a warning line and the six-line authoring comment plan/TEMPLATE.md
+// ships. The Status row then sits on line 14, past the 12-line window the
+// detector used to read. plan/spec-support-export.md has exactly this shape and
+// was reported "unknown" for it.
+const specMetaPastAFixedWindow = `# Spec: widget
+
+> WARNING: Critical review is required before implementation and commit.
+
+<!-- DESIGN-TIME template: everything that must exist BEFORE code is written.
+     The closure half (Implementation Summary, Audit, Goal Validation, Review
+     Gate, Pre-Commit Verification, Mistake Log) lives in
+     plan/TEMPLATE-CLOSURE.md and is APPENDED by /ze-close at step 1.
+     Do not copy it in advance: sections copied 300 lines ahead of their use
+     reach closure untouched, the ones created when needed get filled. -->
+
+| Field | Value |
+|-------|-------|
+| Status | in-progress |
+| Phase | 3/3 |
+
+## Task
+Build the widget.
+
+## Risks & Assumptions
+
+| ID | Assumption | Basis | If wrong | Validated by | Status |
+|----|-----------|-------|----------|--------------|--------|
+| A-1 | something | a basis | a cost | a check | unvalidated |
+`
+
 // A finished Review Gate: the section /ze-close appends, with nothing left to
 // tick before closing. With a journal row this is the closure signal.
 const specReviewGateDone = `
@@ -72,6 +103,36 @@ func TestSpecClosureFlagsCommittedButOpenSpec(t *testing.T) {
 	mustContain(t, stderr, "git rm plan/spec-widget.md")
 
 	// --list surfaces it on stdout.
+	stdout, _, lcode := runSpecClosure(t, root, "--list")
+	if lcode != 0 {
+		t.Fatalf("--list exit %d\n%s", lcode, stdout)
+	}
+	mustContain(t, stdout, "plan/spec-widget.md")
+}
+
+// VALIDATES: the detector reads the Status row wherever the metadata table puts
+// it, so a spec written from plan/TEMPLATE.md with the authoring preamble it
+// ships is judged on its real status.
+// PREVENTS: the whole detector going silent on a spec it cannot read. Status
+// drives every branch here, and a fixed-window scan that misses the row reports
+// "unknown", which is neither in-progress nor closed, so the spec is skipped and
+// nothing says why. The Assumptions table below the first heading ends its
+// header "| Status |", so the scan must stop before reaching it rather than
+// widen (spec-fixit-spec-status-metadata-window).
+func TestSpecClosureReadsStatusPastAFixedWindow(t *testing.T) {
+	root := makeCommitHelperFixture(t)
+	configFixtureGit(t, root)
+	writeFixture(t, root, ".gitignore", "tmp/*\n")
+	writeFixture(t, root, "plan/spec-widget.md", specMetaPastAFixedWindow)
+	writeFixture(t, root, "plan/learned/900-widget.md", "# widget\n\nlesson body\n")
+	commitFixtureAll(t, root, "feat: widget with a template preamble")
+
+	_, stderr, code := runSpecClosure(t, root, "--spec", "plan/spec-widget.md")
+	if code != 3 {
+		t.Fatalf("expected exit 3, got %d: the Status row sits on line 14 and the detector must still read it\nstderr:\n%s", code, stderr)
+	}
+	mustContain(t, stderr, "COMPLETED BUT NOT CLOSED")
+
 	stdout, _, lcode := runSpecClosure(t, root, "--list")
 	if lcode != 0 {
 		t.Fatalf("--list exit %d\n%s", lcode, stdout)
@@ -317,6 +378,17 @@ func TestSpecClosureIgnoresJournalReadme(t *testing.T) {
 func runSpecClosure(t *testing.T, fixtureRoot string, args ...string) (string, string, int) {
 	t.Helper()
 	script := filepath.Join(repoRoot(t), "scripts", "dev", "spec-closure-check.py")
+	// Read the detector before running it. go test caches a result against the
+	// files the TEST BINARY opened, and it cannot see a file an exec'd
+	// interpreter reads, so without this read every test here reports its last
+	// verdict from the cache after the detector itself changes. Measured
+	// 2026-08-22 while proving TestSpecClosureReadsStatusPastAFixedWindow
+	// discriminates: reverting _status to its fixed 12-line window left the
+	// package "ok (cached)", and the test went red only under -count=1.
+	// scripts/status/verify_run_test.go reads its own gate for the same reason.
+	if _, err := os.ReadFile(script); err != nil {
+		t.Fatalf("read %s: %v", script, err)
+	}
 	return runFixtureCommandAllowError(t, fixtureRoot, "python3", append([]string{script}, args...)...)
 }
 

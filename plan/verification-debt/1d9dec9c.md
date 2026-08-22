@@ -19,3 +19,6 @@ is open.
 | 2026-08-22 | 1d9dec9c | ipsec: prove a responder-role rekey against strongSwan | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-22 | 1d9dec9c | ipsec: prove a responder-role rekey against strongSwan | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
 | 2026-08-22 | 1d9dec9c | plan: close spec-fixit-child-sa-rekey-policy | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-22 | 1d9dec9c | fix(status): the spec inventory counts every spec it reads | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-22 | 1d9dec9c | fix(status): the spec inventory counts every spec it reads | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
+| 2026-08-22 | 1d9dec9c | chore(plan): close fixit-spec-status-metadata-window | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |

@@ -9,13 +9,17 @@ import (
 func TestCategory(t *testing.T) {
 	cases := map[string]string{
 		"in-progress": Backlog,
-		"ready":       Backlog,
-		"design":      Backlog,
-		"skeleton":    Idea,
-		"blocked":     Other,
-		"deferred":    Other,
-		"unknown":     Other,
-		"":            Other,
+		// Committed work waiting on a reviewer, so it counts as backlog.
+		"verification": Backlog,
+		"ready":        Backlog,
+		"design":       Backlog,
+		"skeleton":     Idea,
+		"blocked":      Other,
+		"deferred":     Other,
+		// Terminal: the work is finished, so it is not open backlog.
+		"done":    Other,
+		"unknown": Other,
+		"":        Other,
 	}
 	for status, want := range cases {
 		if got := Category(status); got != want {
