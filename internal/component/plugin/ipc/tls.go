@@ -62,7 +62,7 @@ const authMethod = "auth"
 // validPluginName matches alphanumeric names with hyphens, max 64 chars.
 var validPluginName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9-]{0,63}$`)
 
-// authParams is the JSON payload for the #1:0 auth RPC.
+// authParams is the JSON payload for the #0 auth RPC.
 type authParams struct {
 	Token string `json:"token"`
 	Name  string `json:"name"`
@@ -247,7 +247,7 @@ func writeErrorRaw(conn net.Conn, id uint64, message string) {
 	_, _ = conn.Write(append(line, '\n')) //nolint:errcheck // best-effort error response
 }
 
-// SendAuth sends the auth RPC to the engine as #1:0 auth {"token":"...","name":"..."}.
+// SendAuth sends the auth RPC to the engine as #0 auth {"token":"...","name":"..."}.
 // Writes directly to conn without creating rpc.Conn (avoids reader goroutine leak).
 func SendAuth(_ context.Context, conn net.Conn, token, name string) error {
 	params := authParams{Token: token, Name: name}

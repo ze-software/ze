@@ -9,20 +9,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
 )
 
-// Request represents a parsed incoming RPC request line: #<len>:<id> <method> [<json>].
+// Request represents a parsed incoming RPC request line: #<id> <method> [<json>].
 type Request struct {
-	ID     uint64          // Correlation ID from the #<len>:<id> prefix
+	ID     uint64          // Correlation ID from the #<id> prefix
 	Method string          // module:rpc-name
 	Params json.RawMessage // JSON payload (may be nil)
 }
 
 // RPCCallError represents an error returned by the remote side via
-// #<len>:<id> error [<json>].
+// #<id> error [<json>].
 type RPCCallError struct {
 	Code    string // Short kebab-case identifier (may be empty)
 	Message string // Human-readable detail
@@ -68,24 +69,32 @@ func ExtractErrorMessage(payload json.RawMessage) string {
 	return ""
 }
 
-// The id field every line carrying an id opens with: `#<len>:<id> `, where
-// <len> is one base-36 character stating how many decimal digits the id
-// occupies. A reader takes that one byte and reaches every later field by
-// addition, and searches no line for a separator.
+// The id field every line carrying an id opens with: `#<id> `, the decimal
+// spelling of the id, closed by one space.
 //
-// idDigitsMax is the widest id: a uint64 is at most 20 decimal digits.
-// idPrefixMax is the whole field at that width: `#`, the length, `:`, twenty
-// digits, and the space that ends the field.
+// A digit run that a space terminates is unambiguous: nothing inside it can be
+// the byte that ends it. So the id needs no count in front of it, and one fused
+// loop accumulates the value while it walks to that space, which is ONE pass
+// where a search for the space and a separate parse of what it found would be
+// two (owner measurement, 2026-08-22: 3.2 ns against 8.6 ns for a counted id,
+// and two bytes less on every line).
+//
+// A COUNT belongs on a field whose value can hold the delimiter, which is the
+// record payload and every other counted field below. It never belonged here.
+//
+// uint64DigitsMax is the widest decimal spelling of a uint64, and the id is
+// one. idPrefixMax is the whole id field at that width: `#`, twenty digits, and
+// the space that ends the field.
 const (
-	idDigitsMax = 20
-	idPrefixMax = 24
+	uint64DigitsMax = 20
+	idPrefixMax     = 22
 )
 
-// idLengthAlphabet spells the length character, `0` to `9` then `A` to `Z`, so
-// one byte states a length up to 35. A uint64 needs 20 decimal digits at most,
-// so the whole id range is expressible with room left and no counter has to
-// wrap to keep its id readable.
-const idLengthAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+// countedLengthAlphabet spells a counted field's length character, `0` to `9`
+// then `A` to `Z`, so one byte states a length up to 35. A uint64 needs 20
+// decimal digits at most, so every counted number this protocol writes is
+// expressible with room left.
+const countedLengthAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 // A counted field states its own width: one base-36 length character, a colon,
 // and then exactly what the length names. A reader takes the length byte and
@@ -109,16 +118,16 @@ const idLengthAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 // the colon that closes it, and the twenty decimal digits a uint64 occupies. It
 // is what makes the record line's prefix arithmetic rather than a guess
 // (answerRecordPrefixWidth).
-const countedNumberMax = 2 + idDigitsMax
+const countedNumberMax = 2 + uint64DigitsMax
 
 // appendCountedNumber appends the `<len>:<digits>` field carrying value.
 //
 // The digits are formatted once and the length is read off the very bytes that
 // reach the wire, so the two halves of the field cannot disagree (R-2).
 func appendCountedNumber(buf []byte, value uint64) []byte {
-	var scratch [idDigitsMax]byte
+	var scratch [uint64DigitsMax]byte
 	digits := strconv.AppendUint(scratch[:0], value, 10)
-	buf = append(buf, idLengthAlphabet[len(digits)], ':')
+	buf = append(buf, countedLengthAlphabet[len(digits)], ':')
 	return append(buf, digits...)
 }
 
@@ -152,15 +161,15 @@ func appendCountedBytes(buf, value []byte) []byte {
 // caller quotes the field it read them from, because only the caller knows how
 // to bound that quotation.
 func countedDigits(length, separator byte, available int) (int, error) {
-	count, known := idLengthValue(length)
+	count, known := countedLengthValue(length)
 	if !known {
 		return 0, fmt.Errorf("counted field length %q is not one base-36 character, 0 to 9 then A to Z", string(rune(length)))
 	}
 	if count == 0 {
 		return 0, errors.New("counted field states a length of zero digits")
 	}
-	if count > idDigitsMax {
-		return 0, fmt.Errorf("counted field states %d digits, past the %d a uint64 occupies", count, idDigitsMax)
+	if count > uint64DigitsMax {
+		return 0, fmt.Errorf("counted field states %d digits, past the %d a uint64 occupies", count, uint64DigitsMax)
 	}
 	if separator != ':' {
 		return 0, errors.New("counted field length is not followed by ':'")
@@ -274,20 +283,20 @@ func cutFieldSeparator(rest string) (string, error) {
 	return rest[1:], nil
 }
 
-// appendID appends the `#<len>:<id> ` field naming which conversation a line
-// belongs to. Requests, responses and answer lines open with it alike, so the
-// protocol carries ONE id encoding rather than one for each direction.
+// appendID appends the `#<id> ` field naming which conversation a line belongs
+// to. Requests, responses and answer lines open with it alike, so the protocol
+// carries ONE id encoding rather than one for each direction.
 func appendID(buf []byte, id uint64) []byte {
 	buf = append(buf, '#')
-	buf = appendCountedNumber(buf, id)
+	buf = strconv.AppendUint(buf, id, 10)
 	return append(buf, ' ')
 }
 
-// idLengthValue reads one base-36 length character and reports whether it is
-// one. Anything outside `0` to `9` and `A` to `Z` is refused, lower case
+// countedLengthValue reads one base-36 length character and reports whether it
+// is one. Anything outside `0` to `9` and `A` to `Z` is refused, lower case
 // included: one spelling of a length is what keeps the offset arithmetic the
 // same at both ends of the wire.
-func idLengthValue(c byte) (int, bool) {
+func countedLengthValue(c byte) (int, bool) {
 	if c >= '0' && c <= '9' {
 		return int(c - '0'), true
 	}
@@ -297,45 +306,58 @@ func idLengthValue(c byte) (int, bool) {
 	return 0, false
 }
 
-// cutID takes the `#<len>:<id> ` field off the front of line and returns the
-// id's decimal digits and everything after the space that ends the field.
+// cutID takes the `#<id> ` field off the front of line and returns the id, the
+// decimal digits it was spelled with, and everything after the space that ends
+// the field.
 //
-// The length character states the digit count, so the id and the field after
-// it are both reached by addition. The byte the length names as the end of the
-// id MUST be that space: a length disagreeing with its digits would otherwise
-// slice the next field in half, and this check is what makes such a line a
-// refusal rather than a wrong read (R-2).
+// ONE loop accumulates the value while it walks to that space. The digits come
+// back beside the value because a caller keys its pending calls by them and the
+// substring costs nothing, where a search for the space and a ParseUint over
+// what it found would walk the same bytes twice.
+//
+// The field MUST end at a space. A digit run that reaches the end of the line,
+// a byte that is neither a digit nor that space, an id past the 20 digits a
+// uint64 occupies, and one past the range of a uint64 are each refused: this is
+// the field a reader takes before it knows anything else about the line, so a
+// wrong read here mis-slices every field after it (R-2).
 //
 // It is the one reader of the id, and appendID is the one writer, so no
 // consumer keeps its own copy of the rule.
-func cutID(line string) (digits, rest string, err error) {
+func cutID(line string) (id uint64, digits, rest string, err error) {
 	if line == "" {
-		return "", "", errors.New("empty line carries no id")
+		return 0, "", "", errors.New("empty line carries no id")
 	}
 	if line[0] != '#' {
-		return "", "", fmt.Errorf("line missing # prefix: %q", truncate(line, 80))
+		return 0, "", "", fmt.Errorf("line missing # prefix: %q", truncate(line, 80))
 	}
-	digits, rest, err = cutCountedDigits(line[1:])
-	if err != nil {
-		return "", "", fmt.Errorf("line states no readable id: %w", err)
+	for i := 1; i < len(line); i++ {
+		c := line[i]
+		if c == ' ' {
+			if i == 1 {
+				return 0, "", "", fmt.Errorf("line states no id digits: %q", truncate(line, 80))
+			}
+			return id, line[1:i], line[i+1:], nil
+		}
+		if c < '0' || c > '9' {
+			return 0, "", "", fmt.Errorf("line states an id holding %q, which is not a decimal digit: %q", string(rune(c)), truncate(line, 80))
+		}
+		if i > uint64DigitsMax {
+			return 0, "", "", fmt.Errorf("line states an id past the %d digits a uint64 occupies: %q", uint64DigitsMax, truncate(line, 80))
+		}
+		if id > (math.MaxUint64-uint64(c-'0'))/10 {
+			return 0, "", "", fmt.Errorf("line states an id past the range of a uint64: %q", truncate(line, 80))
+		}
+		id = id*10 + uint64(c-'0')
 	}
-	if rest == "" || rest[0] != ' ' {
-		return "", "", fmt.Errorf("id of %d digits does not end at a space: %q", len(digits), truncate(line, 80))
-	}
-	return digits, rest[1:], nil
+	return 0, "", "", fmt.Errorf("id does not end at a space: %q", truncate(line, 80))
 }
 
 // ParseLine parses a wire line into id, verb, and payload.
-// Format: #<len>:<id> <verb> [<payload>].
+// Format: #<id> <verb> [<payload>].
 func ParseLine(line []byte) (id uint64, verb string, payload []byte, err error) {
-	digits, rest, err := cutID(string(line))
+	id, _, rest, err := cutID(string(line))
 	if err != nil {
 		return 0, "", nil, err
-	}
-
-	id, err = strconv.ParseUint(digits, 10, 64)
-	if err != nil {
-		return 0, "", nil, fmt.Errorf("invalid id %q: %w", digits, err)
 	}
 
 	if rest == "" {
@@ -351,7 +373,7 @@ func ParseLine(line []byte) (id uint64, verb string, payload []byte, err error) 
 	return id, verb, payload, nil
 }
 
-// AppendRequest appends a request line (#<len>:<id> <method> [<json>]) to buf
+// AppendRequest appends a request line (#<id> <method> [<json>]) to buf
 // and returns the extended slice. Newline is NOT appended. Callers on
 // the hot path should supply a pool buffer; tests and one-shot callers
 // can pass nil.
@@ -366,7 +388,7 @@ func AppendRequest(buf []byte, id uint64, method string, params json.RawMessage)
 	return buf
 }
 
-// AppendResult appends a success response line (#<len>:<id> ok [<json>]) to
+// AppendResult appends a success response line (#<id> ok [<json>]) to
 // buf. Newline is NOT appended.
 func AppendResult(buf []byte, id uint64, result json.RawMessage) []byte {
 	buf = appendID(buf, id)
@@ -378,13 +400,13 @@ func AppendResult(buf []byte, id uint64, result json.RawMessage) []byte {
 	return buf
 }
 
-// AppendOK appends an empty success response line (#<len>:<id> ok) to buf.
+// AppendOK appends an empty success response line (#<id> ok) to buf.
 // Newline is NOT appended.
 func AppendOK(buf []byte, id uint64) []byte {
 	return append(appendID(buf, id), 'o', 'k')
 }
 
-// AppendError appends an error response line (#<len>:<id> error [<json>]) to
+// AppendError appends an error response line (#<id> error [<json>]) to
 // buf. Newline is NOT appended.
 func AppendError(buf []byte, id uint64, errPayload json.RawMessage) []byte {
 	buf = appendID(buf, id)
@@ -399,7 +421,7 @@ func AppendError(buf []byte, id uint64, errPayload json.RawMessage) []byte {
 // Answer lines. Every answer is a head, zero or more records, and a
 // terminator, whatever its record count, so a reader follows one path and
 // nothing declares a shape the payload can contradict. Each line is
-// `#<len>:<id> <kind> <tail>`, where the kind states what the line IS and the
+// `#<id> <kind> <tail>`, where the kind states what the line IS and the
 // tail is the positional fields that kind carries, so a reader decides how to
 // read the answer without a JSON decoder and without reading a key name.
 
@@ -536,13 +558,13 @@ const AnswerBufferThreshold = 256
 
 // AnswerNoID is the id of an answer on a channel that carries exactly one
 // answer, which is the SSH exec channel: one command owns the channel, so
-// nothing needs to be told apart and no #<len>:<id> is written. Every other answer
+// nothing needs to be told apart and no #<id> is written. Every other answer
 // travels on the multiplexed plugin connection, whose ids start at 1
 // (Conn.idSeq), so no real id collides with it.
 const AnswerNoID uint64 = 0
 
 // AppendAnswerHead appends an answer head line
-// (#<len>:<id> top <type> <len>:<n>:<key> <len>:<n>:<columns>) to buf and
+// (#<id> top <type> <len>:<n>:<key> <len>:<n>:<columns>) to buf and
 // returns the extended slice. Newline is NOT appended.
 //
 // Its fields are positional: the head states no key name, so a reader reaches
@@ -585,7 +607,7 @@ func appendAnswerRecordPrefix(buf []byte, id uint64, kind string, size uint64) [
 }
 
 // AppendAnswerItem appends a result record line
-// (#<len>:<id> row <len>:<n>:<json>) and returns the extended slice. Newline is
+// (#<id> row <len>:<n>:<json>) and returns the extended slice. Newline is
 // NOT appended.
 //
 // The kind states that the payload is a produced row, so no key name sits in
@@ -603,7 +625,7 @@ func AppendAnswerItem(buf []byte, id uint64, item json.RawMessage) []byte {
 }
 
 // AppendAnswerFault appends an error record line
-// (#<len>:<id> bad <len>:<n>:<json>) and returns the extended slice. Newline is
+// (#<id> bad <len>:<n>:<json>) and returns the extended slice. Newline is
 // NOT appended. A fault records one rejected row and does not end the walk,
 // which is what lets an answer report 97 rows applied and 3 rejected.
 //
@@ -618,13 +640,13 @@ func AppendAnswerFault(buf []byte, id uint64, fault json.RawMessage) []byte {
 // and it is the scratch AnswerRecordLineSize measures one in. Every part of it
 // states its own bound, so it is arithmetic rather than a guess:
 //
-//	idPrefixMax        the id field at its widest, 24 bytes
+//	idPrefixMax        the id field at its widest, 22 bytes
 //	answerKindWidth    the kind token, 3 bytes
 //	1                  the space that closes the kind
 //	countedNumberMax   the counted number stating the payload's byte count
 //	1                  the colon that closes that count
 //
-// That is 51 bytes, and it is what appendAnswerRecordPrefix writes for the
+// That is 49 bytes, and it is what appendAnswerRecordPrefix writes for the
 // widest id and the widest count, neither more nor less
 // (TestAnswerRecordLineSizeExact). A looser constant would cost nothing a test
 // can see, which is why the test states equality rather than a bound.
@@ -653,7 +675,7 @@ func AnswerRecordLineSize(id uint64, record Record) int {
 }
 
 // AppendAnswerTerminator appends the terminator line
-// (#<len>:<id> end <len>:<count> <len>:<faults> <len>:<n>:<message>) to buf and
+// (#<id> end <len>:<count> <len>:<faults> <len>:<n>:<message>) to buf and
 // returns the extended slice. Newline is NOT appended.
 //
 // The kind says the line ends the answer, and its fields are positional. It
@@ -677,7 +699,7 @@ func AppendAnswerTerminator(buf []byte, id, count, faults uint64, message string
 }
 
 // AppendAnswerNotUnderstood appends the answer to a command the daemon did not
-// understand (#<len>:<id> nay <len>:<n>:<code> <len>:<n>:<message>) to buf and
+// understand (#<id> nay <len>:<n>:<code> <len>:<n>:<message>) to buf and
 // returns the extended slice. Newline is NOT appended.
 //
 // It is the whole answer for its id: the kind says the conversation was valid
@@ -694,7 +716,7 @@ func AppendAnswerNotUnderstood(buf []byte, id uint64, code, message string) []by
 	return replaceNewlines(buf, start)
 }
 
-// appendAnswerPrefix appends the `#<len>:<id> <kind>` every answer line opens
+// appendAnswerPrefix appends the `#<id> <kind>` every answer line opens
 // with. It is the one writer of the kind token, and answerKindAt the one
 // reader, so no line spells a kind the reader does not know.
 func appendAnswerPrefix(buf []byte, id uint64, kind string) []byte {
@@ -702,7 +724,7 @@ func appendAnswerPrefix(buf []byte, id uint64, kind string) []byte {
 	return append(buf, kind...)
 }
 
-// appendAnswerID appends the `#<len>:<id> ` that names which answer a line
+// appendAnswerID appends the `#<id> ` that names which answer a line
 // belongs to, and appends nothing for AnswerNoID. A muxed connection
 // interleaves the answers of many callers and needs the id on every line; the
 // SSH exec channel carries one answer and would be stating a fact with one
@@ -1039,7 +1061,7 @@ func Verdict(terminator *AnswerTail) string {
 	return VerdictPartial
 }
 
-// FormatRequest returns a request line (#<len>:<id> <method> [<json>]) in a
+// FormatRequest returns a request line (#<id> <method> [<json>]) in a
 // freshly-allocated slice. Retained for tests and low-rate callers;
 // hot-path senders should use AppendRequest with a pool buffer.
 func FormatRequest(id uint64, method string, params json.RawMessage) []byte {

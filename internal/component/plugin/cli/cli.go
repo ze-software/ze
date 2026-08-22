@@ -272,7 +272,7 @@ func connFromEnv() (net.Conn, error) {
 		return nil, fmt.Errorf("TLS dial %s: %w", addr, dialErr)
 	}
 
-	// Auth: send #1:0 auth, read response.
+	// Auth: send #0 auth, read response.
 	if authErr := ipc.SendAuth(context.Background(), conn, token, name); authErr != nil {
 		conn.Close() //nolint:errcheck,gosec // cleanup
 		return nil, fmt.Errorf("auth: %w", authErr)

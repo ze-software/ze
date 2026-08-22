@@ -19,7 +19,7 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// parseMuxLine parses a MuxConn wire format line: #<len>:<id> <verb> [<payload>].
+// parseMuxLine parses a MuxConn wire format line: #<id> <verb> [<payload>].
 // Returns the request ID, verb (method name or "ok"/"error"), and optional payload.
 //
 // The line grammar has one reader, rpc.ParseLine, so the bridge and the daemon
@@ -33,13 +33,13 @@ func parseMuxLine(line string) (id uint64, verb, payload string, err error) {
 	return id, verb, string(payloadBytes), nil
 }
 
-// formatMuxOK formats a successful MuxConn response: #<len>:<id> ok.
+// formatMuxOK formats a successful MuxConn response: #<id> ok.
 func formatMuxOK(id uint64) string {
 	return string(rpc.AppendOK(nil, id))
 }
 
 // formatDispatchRequest formats a MuxConn dispatch-command request:
-// #<len>:<id> ze-plugin-engine:dispatch-command {"command":"<cmd>"}.
+// #<id> ze-plugin-engine:dispatch-command {"command":"<cmd>"}.
 func formatDispatchRequest(id uint64, command string) string {
 	payload, err := json.Marshal(map[string]string{"command": command})
 	if err != nil {
@@ -64,7 +64,7 @@ func extractBatchEvents(payload string) ([]string, error) {
 }
 
 // formatFlushRequest formats a MuxConn peer-flush RPC request:
-// #<len>:<id> ze-bgp:peer-flush {"selector":"<addr>"}.
+// #<id> ze-bgp:peer-flush {"selector":"<addr>"}.
 func formatFlushRequest(id uint64, selector string) string {
 	payload, err := json.Marshal(map[string]string{"selector": selector})
 	if err != nil {

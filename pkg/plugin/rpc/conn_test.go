@@ -23,7 +23,7 @@ func writeLine(t *testing.T, conn net.Conn, line string) {
 	require.NoError(t, err)
 }
 
-// wireLine spells the `#<len>:<id> ` field the writers produce, followed by
+// wireLine spells the `#<id> ` field the writers produce, followed by
 // rest byte for byte. A test that is not about the id encoding states what it
 // cares about in rest and leaves the id field to the one writer, so no fixture
 // keeps a second copy of the grammar.
@@ -653,39 +653,39 @@ func TestParseResponse(t *testing.T) {
 	}{
 		{
 			name:       "ok with payload",
-			line:       `#1:1 ok {"key":"val"}`,
+			line:       `#1 ok {"key":"val"}`,
 			expectedID: 1,
 			wantData:   `{"key":"val"}`,
 		},
 		{
 			name:       "ok without payload",
-			line:       "#1:1 ok",
+			line:       "#1 ok",
 			expectedID: 1,
 			wantData:   "",
 		},
 		{
 			name:       "error with payload",
-			line:       `#1:1 error {"message":"bad"}`,
+			line:       `#1 error {"message":"bad"}`,
 			expectedID: 1,
 			wantErr:    true,
 			wantRPCErr: true,
 		},
 		{
 			name:       "error without payload",
-			line:       "#1:1 error",
+			line:       "#1 error",
 			expectedID: 1,
 			wantErr:    true,
 			wantRPCErr: true,
 		},
 		{
 			name:       "mismatched id",
-			line:       "#1:2 ok",
+			line:       "#2 ok",
 			expectedID: 1,
 			wantErr:    true,
 		},
 		{
 			name:       "unknown verb",
-			line:       "#1:1 foobar",
+			line:       "#1 foobar",
 			expectedID: 1,
 			wantErr:    true,
 		},
@@ -715,7 +715,7 @@ func TestParseResponse(t *testing.T) {
 }
 
 // TestInterpretResponse verifies interpretResponse handles ok, error, and
-// unknown verb after the #<len>:<id> prefix has been stripped by MuxConn.
+// unknown verb after the #<id> prefix has been stripped by MuxConn.
 //
 // VALIDATES: interpretResponse correctly extracts payload or returns typed errors.
 // PREVENTS: Silent mishandling of response bodies in MuxConn.CallRPC.
@@ -846,9 +846,9 @@ func TestAnswerWriterPutsEachLineOnTheWireWhole(t *testing.T) {
 	defer cancel()
 
 	want := []string{
-		"#1:7 top map 1:5:peers 1:0:",
-		`#1:7 row {"peer":"10.0.0.1","state":"established"}`,
-		"#1:7 end 1:1 1:0 1:0:",
+		"#7 top map 1:5:peers 1:0:",
+		`#7 row {"peer":"10.0.0.1","state":"established"}`,
+		"#7 end 1:1 1:0 1:0:",
 	}
 
 	// net.Pipe is synchronous, so the writes must not run on the goroutine

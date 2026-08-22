@@ -49,14 +49,14 @@ p.OnExecuteCommand(func(serial, command string, args []string, peer string) (sta
 
 ## Wire Format
 
-Commands are delivered to the plugin as `execute-command` RPCs over the MuxConn connection. The wire format uses `#<len>:<id> <verb> [<json>]` framing.
+Commands are delivered to the plugin as `execute-command` RPCs over the MuxConn connection. The wire format uses `#<id> <verb> [<json>]` framing.
 <!-- source: pkg/plugin/rpc/message.go -- AppendRequest, AppendResult, AppendError -->
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput, ExecuteCommandOutput -->
 
 ### Request (engine to plugin)
 
 ```
-#2:17 ze-plugin-callback:execute-command {"serial":"abc123","command":"my-plugin status","args":[],"peer":""}
+#17 ze-plugin-callback:execute-command {"serial":"abc123","command":"my-plugin status","args":[],"peer":""}
 ```
 
 ### Success Response (plugin to engine)
@@ -68,9 +68,9 @@ id is a three-byte kind token saying which of the three a line is: `top`, `row`
 and `end`, with `bad` for a rejected row.
 
 ```
-#2:17 top doc 1:0: 1:0:
-#2:17 row 2:34:{"status":"running","uptime":3600}
-#2:17 end 1:1 1:0 1:0:
+#17 top doc 1:0: 1:0:
+#17 row 2:34:{"status":"running","uptime":3600}
+#17 end 1:1 1:0 1:0:
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer -->
@@ -84,7 +84,7 @@ line an answer states an outcome on.
 ### Error Response (plugin to engine)
 
 ```
-#2:17 error {"message":"execute-command not supported"}
+#17 error {"message":"execute-command not supported"}
 ```
 
 ## Return Values
@@ -103,9 +103,9 @@ return "done", map[string]any{
 
 The SDK marshals this value once and sends it as the one record of the answer:
 ```
-#2:17 top doc 1:0: 1:0:
-#2:17 row 2:30:{"count":42,"items":["a","b"]}
-#2:17 end 1:1 1:0 1:0:
+#17 top doc 1:0: 1:0:
+#17 row 2:30:{"count":42,"items":["a","b"]}
+#17 end 1:1 1:0 1:0:
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandOutput, executeCommandAnswer -->
 
@@ -118,8 +118,8 @@ return "done", nil, nil
 Response. A command that reported nothing writes no record, and the terminator
 says so. Nothing is not the same answer as an empty collection:
 ```
-#2:17 top doc 1:0: 1:0:
-#2:17 end 1:0 1:0 1:0:
+#17 top doc 1:0: 1:0:
+#17 end 1:0 1:0 1:0:
 ```
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer, writeDocumentLines -->
 
@@ -134,10 +134,10 @@ return "done", sdk.Records{Key: "sessions", Rows: sessionRows()}, nil
 ```
 
 ```
-#2:17 top map 1:8:sessions 1:0:
-#2:17 row 2:26:{"id":1,"peer":"10.0.0.1"}
-#2:17 row 2:26:{"id":2,"peer":"10.0.0.2"}
-#2:17 end 1:2 1:0 1:0:
+#17 top map 1:8:sessions 1:0:
+#17 row 2:26:{"id":1,"peer":"10.0.0.1"}
+#17 row 2:26:{"id":2,"peer":"10.0.0.2"}
+#17 end 1:2 1:0 1:0:
 ```
 
 `Key` names the envelope the rows belong under. A handler MUST NOT name it
@@ -163,7 +163,7 @@ return "", nil, fmt.Errorf("operation failed: database timeout")
 ```
 Response:
 ```
-#2:17 error {"message":"operation failed: database timeout"}
+#17 error {"message":"operation failed: database timeout"}
 ```
 <!-- source: pkg/plugin/rpc/message.go -- FormatError, NewErrorPayload -->
 

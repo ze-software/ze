@@ -508,6 +508,35 @@ class TestDispatchUntilShortCircuit(SentinelTestCase):
         self.assertEqual(len(calls), 3)
 
 
+class TestCountedTextIsCountedInBytes(unittest.TestCase):
+    """A counted field states a BYTE count, so a multi-byte value round-trips.
+
+    VALIDATES: the harness writes and reads the count the Go writer writes
+    (appendCountedText and cutCountedBytes, pkg/plugin/rpc/message.go), which is
+    a byte count and never a character count.
+    PREVENTS: the harness slicing a payload by character. `show bgp rib graph`
+    renders box-drawing glyphs, three bytes and one character each, so a
+    character slice takes a 203-byte payload 100 bytes short and reports the
+    line as running past its end.
+    """
+
+    def test_a_multi_byte_value_round_trips(self):
+        for value in ("", "peers", "\u250c\u2500\u2510", "AS64501 \u2500\u2500\u2500> AS64502", "caf\u00e9"):
+            with self.subTest(value=value):
+                field = ze_api._counted_text(value)  # noqa: SLF001
+                got, rest = ze_api._cut_counted_text(field)  # noqa: SLF001
+                self.assertEqual(value, got)
+                self.assertEqual("", rest)
+
+    def test_the_stated_count_is_the_byte_count(self):
+        field = ze_api._counted_text("\u250c\u2500\u2510")  # noqa: SLF001
+        self.assertTrue(field.startswith("1:9:"), f"the count is not the byte count: {field!r}")
+
+    def test_a_count_past_what_arrived_is_refused(self):
+        with self.assertRaises(RuntimeError):
+            ze_api._cut_counted_text("2:99:short")  # noqa: SLF001
+
+
 class TestPostStartupSurvivesTheQueuedPath(unittest.TestCase):
     """The post-startup callback usually arrives while an RPC is in flight.
 
@@ -567,7 +596,7 @@ class TestPostStartupSurvivesTheQueuedPath(unittest.TestCase):
         """The socket route is the one that already worked; it stays covered."""
         api = self._api_holding_a_queued_post_startup()
         api._pending_requests = []
-        lines = ["#1:7 ze-plugin-callback:post-startup"]
+        lines = ["#7 ze-plugin-callback:post-startup"]
         api._read_tls_line = lambda timeout=None: lines.pop(0) if lines else None
         api.POST_STARTUP_FLOOR = 0.05
         self.assertTrue(api.wait_for_post_startup(timeout=0.05))

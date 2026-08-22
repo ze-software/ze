@@ -785,7 +785,7 @@ plugin {
 
 ## Writing External Plugins
 
-External plugins communicate with ze using the same newline-framed YANG RPC protocol as internal plugins: `#<len>:<id> <verb> [json]`. External processes connect back to the plugin hub over TLS using the `ZE_PLUGIN_HUB_*` environment variables set by the engine. The Go SDK in `pkg/plugin/sdk` is the reference implementation; the functional-test helper `test/scripts/ze_api.py` shows the Python shape:
+External plugins communicate with ze using the same newline-framed YANG RPC protocol as internal plugins: `#<id> <verb> [json]`. External processes connect back to the plugin hub over TLS using the `ZE_PLUGIN_HUB_*` environment variables set by the engine. The Go SDK in `pkg/plugin/sdk` is the reference implementation; the functional-test helper `test/scripts/ze_api.py` shows the Python shape:
 
 ```python
 from ze_api import API

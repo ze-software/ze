@@ -36,7 +36,7 @@
 |---------|-------------|
 | **Engine Role** | FSM, parsing, wire I/O, BGP cache |
 | **API Role** | RIB storage, policy, best-path, GR state |
-| **Communication** | YANG RPC wire format (`#<len>:<id> <verb> [json]`) with JSON events and DirectBridge for in-process hot paths |
+| **Communication** | YANG RPC wire format (`#<id> <verb> [json]`) with JSON events and DirectBridge for in-process hot paths |
 | **Key Types** | `Server`, `Client`, `Process`, `Dispatcher` |
 | **RIB** | Owned by API program (use `internal/component/bgp/rib/` as reference) |
 | **Polyglot** | API programs can be Go, Python, Rust, etc. |

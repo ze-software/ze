@@ -162,46 +162,41 @@ _ANSWER_KINDS = (
 )
 
 
-# _ID_LENGTH_ALPHABET spells the base-36 length character an id field opens
-# with. Every line carrying an id opens with `#<len>:<id> `, where <len> states
-# how many decimal digits the id occupies, so a reader reaches the field after
-# the id by addition rather than by searching for a space. It is the encoding
-# appendID writes and cutID reads (pkg/plugin/rpc/message.go).
-_ID_LENGTH_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+# _COUNTED_LENGTH_ALPHABET spells the base-36 length character a COUNTED field
+# opens with. It is the alphabet appendCountedNumber writes and countedDigits
+# reads (pkg/plugin/rpc/message.go). The id carries no length: it is a decimal
+# digit run that one space closes.
+_COUNTED_LENGTH_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
 def _id_field(req_id: int) -> str:
-    """Spell the `#<len>:<id> ` field every wire line this harness writes opens with."""
-    digits = str(req_id)
-    return f"#{_ID_LENGTH_ALPHABET[len(digits)]}:{digits} "
+    """Spell the `#<id> ` field every wire line this harness writes opens with."""
+    return f"#{req_id} "
 
 
 def _cut_id(line: str) -> tuple[int, str]:
-    """Take the `#<len>:<id> ` field off line and return the id and the rest.
+    """Take the `#<id> ` field off line and return the id and the rest.
 
-    The stated length is checked against the byte it names as the end of the
-    id: a length that disagrees with its digits would otherwise slice the verb
-    in half, and this is the check that makes such a line a refusal.
+    A digit run that a space terminates is unambiguous, so the id carries no
+    count in front of it. Every byte before that space MUST be a decimal digit,
+    and the field MUST end at one: a line that ends inside the digits would
+    otherwise be read as an id nobody wrote (cutID, pkg/plugin/rpc/message.go).
     """
     if not line.startswith("#"):
         raise RuntimeError(f"line missing # prefix: {line[:80]}")
-    if len(line) < 3:
-        raise RuntimeError(f"line states no id length: {line[:80]}")
-    count = _ID_LENGTH_ALPHABET.find(line[1])
-    if count <= 0:
-        raise RuntimeError(f"line states no readable id length: {line[:80]}")
-    if count > 20:
-        raise RuntimeError(f"id states {count} digits, past the 20 a uint64 occupies")
-    if line[2] != ":":
-        raise RuntimeError(f"id length is not followed by ':': {line[:80]}")
-    end = 3 + count
-    if len(line) <= end or line[end] != " ":
-        raise RuntimeError(f"id of {count} digits does not end at a space: {line[:80]}")
-    return int(line[3:end]), line[end + 1 :]
+    end = line.find(" ")
+    if end < 0:
+        raise RuntimeError(f"id does not end at a space: {line[:80]}")
+    digits = line[1:end]
+    if not digits.isdigit():
+        raise RuntimeError(f"line states an id that is not decimal: {line[:80]}")
+    if len(digits) > 20:
+        raise RuntimeError(f"id states {len(digits)} digits, past the 20 a uint64 occupies")
+    return int(digits), line[end + 1 :]
 
 
 def _split_wire_line(line: str) -> tuple[int, str, str]:
-    """Split `#<len>:<id> <verb-or-kind> [<tail>]` and leave the tail undecoded.
+    """Split `#<id> <verb-or-kind> [<tail>]` and leave the tail undecoded.
 
     `API._parse_line` json.loads the tail, which a record-shaped answer line
     is not. This one keeps the bytes, so a test can assert on them.
@@ -246,12 +241,18 @@ _ANSWER_RECORD_METHODS = (
 def _counted_number(value: int) -> str:
     """Spell the `<len>:<digits>` field a counted number is written as."""
     digits = str(value)
-    return f"{_ID_LENGTH_ALPHABET[len(digits)]}:{digits}"
+    return f"{_COUNTED_LENGTH_ALPHABET[len(digits)]}:{digits}"
 
 
 def _counted_text(text: str) -> str:
-    """Spell the `<len>:<n>:<bytes>` field a counted text is written as."""
-    return f"{_counted_number(len(text))}:{text}"
+    """Spell the `<len>:<n>:<bytes>` field a counted text is written as.
+
+    The count is a BYTE count, so it is taken over the utf-8 encoding rather
+    than over the decoded characters. A box-drawing glyph is three bytes and one
+    character, and counting characters would state a width no reader can slice
+    at.
+    """
+    return f"{_counted_number(len(text.encode('utf-8')))}:{text}"
 
 
 def _cut_counted_number(field: str) -> tuple[int, str]:
@@ -263,7 +264,7 @@ def _cut_counted_number(field: str) -> tuple[int, str]:
     """
     if len(field) < 2:
         raise RuntimeError(f"counted field states no length: {field[:80]}")
-    count = _ID_LENGTH_ALPHABET.find(field[0])
+    count = _COUNTED_LENGTH_ALPHABET.find(field[0])
     if count <= 0:
         raise RuntimeError(f"counted field states no readable length: {field[:80]}")
     if field[1] != ":":
@@ -275,14 +276,26 @@ def _cut_counted_number(field: str) -> tuple[int, str]:
 
 
 def _cut_counted_text(field: str) -> tuple[str, str]:
-    """Take a counted text off the front of field and return it and the rest."""
+    """Take a counted text off the front of field and return it and the rest.
+
+    The stated count is a BYTE count and a value may hold multi-byte utf-8, so
+    the slice is taken over the encoding rather than over the decoded
+    characters. `show bgp rib graph` renders box-drawing glyphs, three bytes and
+    one character each, and slicing by character takes such a payload short by
+    two bytes for every one of them.
+    """
     size, rest = _cut_counted_number(field)
     if not rest.startswith(":"):
         raise RuntimeError(f"counted text length is not followed by ':': {field[:80]}")
-    rest = rest[1:]
-    if len(rest) < size:
+    raw = rest[1:].encode("utf-8")
+    if len(raw) < size:
         raise RuntimeError(f"counted text runs past the end of the line: {field[:80]}")
-    return rest[:size], rest[size:]
+    try:
+        return raw[:size].decode("utf-8"), raw[size:].decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise RuntimeError(
+            f"counted text of {size} bytes ends inside a character: {field[:80]}"
+        ) from exc
 
 
 def _cut_field_separator(rest: str) -> str:
@@ -420,7 +433,7 @@ class API:
       - TLS mode (ZE_PLUGIN_HUB_TOKEN set): single TLS connection, bidirectional mux
       - FD mode (ZE_ENGINE_FD set): inherited file descriptors (legacy)
 
-    Messages are newline-delimited lines: #<len>:<id> <verb> [<json-payload>]
+    Messages are newline-delimited lines: #<id> <verb> [<json-payload>]
     """
 
     def __init__(self, engine_fd: int | None = None, callback_fd: int | None = None):
@@ -582,14 +595,14 @@ class API:
     def _format_line(
         self, req_id: int, verb: str, payload: dict | None = None
     ) -> bytes:
-        """Format #<len>:<id> <verb> [<json-payload>] newline-terminated line."""
+        """Format #<id> <verb> [<json-payload>] newline-terminated line."""
         if payload is not None:
             json_str = json.dumps(payload, separators=(",", ":"))
             return f"{_id_field(req_id)}{verb} {json_str}\n".encode("utf-8")
         return f"{_id_field(req_id)}{verb}\n".encode("utf-8")
 
     def _parse_line(self, line: str) -> tuple[int, str, dict | None]:
-        """Parse #<len>:<id> <verb> [<json-payload>] from a raw line.
+        """Parse #<id> <verb> [<json-payload>] from a raw line.
 
         Returns:
             Tuple of (request_id, verb, payload_dict_or_None)
@@ -602,7 +615,7 @@ class API:
     def _send_rpc(
         self, fd: int, req_id: int, method: str, params: dict | None = None
     ) -> None:
-        """Send a newline-terminated RPC line: #<len>:<id> <method> [<json-params>]."""
+        """Send a newline-terminated RPC line: #<id> <method> [<json-params>]."""
         line = self._format_line(req_id, method, params)
         if self._tls_mode:
             self._tls_sock.sendall(line)
@@ -669,8 +682,8 @@ class API:
     def _call_engine(self, method: str, params: Any = None) -> dict | None:
         """Send RPC to engine and wait for response.
 
-        Sends: #<len>:<id> <method> [<json-params>]
-        Expects: #<len>:<id> ok [<json>] or #<len>:<id> error [<json>]
+        Sends: #<id> <method> [<json-params>]
+        Expects: #<id> ok [<json>] or #<id> error [<json>]
 
         In TLS mode, reads from the shared connection. If an inbound request
         arrives instead of the expected response, it is queued for _serve_one.
@@ -748,7 +761,7 @@ class API:
             return {"result": payload}
 
     def _respond_ok(self, req_id: int) -> None:
-        """Send OK response: #<len>:<id> ok."""
+        """Send OK response: #<id> ok."""
         line = self._format_line(req_id, "ok")
         if self._tls_mode:
             self._tls_sock.sendall(line)
@@ -756,7 +769,7 @@ class API:
             os.write(self._callback_fd, line)
 
     def _respond_result(self, req_id: int, result: dict) -> None:
-        """Send OK response with JSON result: #<len>:<id> ok <json>."""
+        """Send OK response with JSON result: #<id> ok <json>."""
         line = self._format_line(req_id, "ok", result)
         if self._tls_mode:
             self._tls_sock.sendall(line)

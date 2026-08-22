@@ -494,5 +494,5 @@ return fmt.Errorf("validation failed")
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop -->
 
 ```
-#1:5 error {"code":"error","message":"unknown method: ze-plugin-callback:foo"}
+#5 error {"code":"error","message":"unknown method: ze-plugin-callback:foo"}
 ```

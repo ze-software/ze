@@ -15,7 +15,7 @@ text command string the SSH CLI and plugins use, REST/gRPC build that string fro
 hand it to the same `plugin/server.Dispatcher` (token-based, longest-prefix match) that the
 CLI editor digest (`cli-editor.md`) already covers. When a command resolves to a
 plugin-registered handler rather than a builtin, the request crosses process boundaries over
-`pkg/plugin/rpc.MuxConn`'s newline-framed `#<len>:<id> <verb> [<json>]` wire format. `internal/core/ipc`
+`pkg/plugin/rpc.MuxConn`'s newline-framed `#<id> <verb> [<json>]` wire format. `internal/core/ipc`
 is a small, mostly dormant sibling: it defines the wire-method string format (`module:rpc-name`)
 and a `RPCDispatcher` that is built and populated at startup but never actually dispatches a
 runtime request, see the gotcha below.
@@ -106,12 +106,12 @@ runtime request, see the gotcha below.
     (`Conn.NextID`, `pkg/plugin/rpc/conn.go`), registers a buffered response channel keyed
     by that id (`pkg/plugin/rpc/mux.go`), and writes the request line via `conn.writeAppended`
     (`pkg/plugin/rpc/conn.go`) + `AppendRequest` (`pkg/plugin/rpc/message.go`), which
-    produces `#<len>:<id> ze-plugin-callback:execute-command {"command":...}` with no trailing
+    produces `#<id> ze-plugin-callback:execute-command {"command":...}` with no trailing
     newline; `FrameWriter.Write` (`pkg/plugin/rpc/framing.go`) appends the `\n` terminator
     on the actual socket/pipe write (max message size 16 MB, `pkg/plugin/rpc/framing.go`). The caller then
     blocks on the response channel, `ctx.Done()`, or mux shutdown (`pkg/plugin/rpc/mux.go`).
 12. **Plugin side.** The plugin's own `MuxConn.readLoop` (`pkg/plugin/rpc/mux.go`) reads a line via
-    `Conn.readFrame` (`pkg/plugin/rpc/conn.go`), splits the `#<len>:<id>` prefix from `<verb> [<payload>]`
+    `Conn.readFrame` (`pkg/plugin/rpc/conn.go`), splits the `#<id>` prefix from `<verb> [<payload>]`
     (`pkg/plugin/rpc/mux.go`); since the verb is a method name (not `ok`/`error`) it is an inbound
     request, pushed non-blocking onto `Requests()` (`pkg/plugin/rpc/mux.go`, channel defined `:44`). The
     plugin SDK's event loop reads it and runs the plugin's registered command handler
@@ -119,7 +119,7 @@ runtime request, see the gotcha below.
     ANSWER SEQUENCE written through `Conn.AnswerWriter` (`pkg/plugin/rpc/conn.go`). A `plugin.Records` payload becomes one line
     for each row (`Records.WriteAnswer`, `pkg/plugin/records.go`). A built value becomes the
     one record of a `doc` answer (`rpc.WriteDocumentAnswer`, `pkg/plugin/rpc/answer_write.go`).
-    A handler error still replies `#<len>:<id> error {...}` through `Conn.SendError`
+    A handler error still replies `#<id> error {...}` through `Conn.SendError`
     (`pkg/plugin/rpc/conn.go`).
 13. **Response routing back.** The engine-side `readLoop` reads the field after the id: a
     three-byte answer kind (`top`, `row`, `bad`, `end`, `nay`) taken by arithmetic, or the
@@ -267,7 +267,7 @@ runtime request, see the gotcha below.
 - `docs/architecture/api/ipc_protocol.md`, canonical wire format spec (line protocol, event/response envelopes, status codes)
 - `docs/architecture/api/process-protocol.md`, 5-stage plugin startup, MuxConn/DirectBridge transport modes, framing
 - `docs/architecture/api/commands.md`, command syntax reference
-- `docs/architecture/api/wire-format.md`, `#<len>:<id> <verb> [<json>]` wire format details
+- `docs/architecture/api/wire-format.md`, `#<id> <verb> [<json>]` wire format details
 - `ai/digests/plugin-transport.md`, engine↔plugin event/RPC layer (DirectBridge, EventBus, 5-stage startup) that this digest's IPC hop builds on
 - `ai/digests/cli-editor.md`, SSH/CLI editor path into the same `Dispatcher`, and the `cli.Editor`/`ConfigEditor` type this digest's config sessions wrap
 - `ai/digests/mcp.md`, a third transport (MCP) sharing the same command metadata source

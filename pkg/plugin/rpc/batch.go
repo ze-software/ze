@@ -38,7 +38,7 @@ func WriteBatchFrame(w io.Writer, id uint64, events [][]byte) error {
 	}
 	buf := (*bp)[:0]
 
-	// Build line: #<len>:<id> ze-plugin-callback:deliver-batch {"events":[...]}
+	// Build line: #<id> ze-plugin-callback:deliver-batch {"events":[...]}
 	// appendID writes the id field, so this frame states an id the same way
 	// every other line does rather than keeping a second spelling of it.
 	buf = appendID(buf, id)

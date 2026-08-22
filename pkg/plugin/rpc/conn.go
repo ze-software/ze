@@ -7,10 +7,10 @@
 // Package rpc defines the canonical wire-format types and shared connection
 // logic for the ze plugin RPC protocol.
 //
-// Wire format: #<len>:<id> <verb> [<json>]\n
-// Requests:    #<len>:<id> <method> [<json-params>]\n
-// Success:     #<len>:<id> ok [<json-result>]\n
-// Error:       #<len>:<id> error [<json-error>]\n
+// Wire format: #<id> <verb> [<json>]\n
+// Requests:    #<id> <method> [<json-params>]\n
+// Success:     #<id> ok [<json-result>]\n
+// Error:       #<id> error [<json-error>]\n
 //
 // Both the engine (internal/plugin) and the SDK (pkg/plugin/sdk) import this
 // package to ensure a single source of truth for RPC message structures and
@@ -45,7 +45,7 @@ const defaultWriteDeadline = 30 * time.Second
 
 // Conn provides newline-framed RPC communication over a network connection.
 //
-// Wire format: #<len>:<id> <verb> [<json>]\n
+// Wire format: #<id> <verb> [<json>]\n
 //
 // A persistent reader goroutine (started lazily on first read operation) owns
 // the FrameReader exclusively. Callers receive frames via a channel, avoiding
@@ -443,7 +443,7 @@ func (c *Conn) writeLineWithContext(ctx context.Context, line []byte) error {
 }
 
 // ReadRequest reads the next incoming RPC request from the read connection.
-// Parses #<len>:<id> <method> [<json>] format.
+// Parses #<id> <method> [<json>] format.
 // Uses the persistent reader -- no goroutine is spawned per call.
 func (c *Conn) ReadRequest(ctx context.Context) (*Request, error) {
 	data, err := c.readFrame(ctx)
@@ -535,7 +535,7 @@ func (c *Conn) CallRPC(ctx context.Context, method string, params any) (json.Raw
 }
 
 // batchFrameOverhead is the maximum size of the non-event portion of a batch
-// frame: #<len>:<id> ze-plugin-callback:deliver-batch {"events":[]}\n
+// frame: #<id> ze-plugin-callback:deliver-batch {"events":[]}\n
 // Conservative upper bound covering a 20-digit ID.
 const batchFrameOverhead = 128
 

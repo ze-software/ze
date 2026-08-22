@@ -77,23 +77,26 @@ plugin RPC frames.
 All plugin RPC messages are UTF-8, newline-delimited lines:
 
 ```
-#<len>:<id> <verb> [<json>]\n
+#<id> <verb> [<json>]\n
 ```
 
 Each line is a complete message. The `#` prefix and decimal `uint64` ID are
-required, and the ID states its own width: `<len>` is one base-36 character,
-`0` to `9` then `A` to `Z`, naming how many decimal digits follow the `:`. A
-reader takes that one byte and reaches the verb by addition rather than by
-searching the line for a space. A uint64 occupies 20 digits at most, so `K` is
-the widest length an id can state. The optional payload is compact JSON.
+required, and one space closes the ID. A digit run a space terminates is
+unambiguous, so the ID carries no count in front of it and one fused loop reads
+its value while it walks to that space. A uint64 occupies 20 digits at most, and
+an ID wider than that is refused. The optional payload is compact JSON.
+
+A COUNT belongs on a field whose value can hold the delimiter, which is the
+record payload and every other counted field below. It never belonged on the
+ID.
 <!-- source: pkg/plugin/rpc/framing.go -- FrameReader, FrameWriter -->
 <!-- source: pkg/plugin/rpc/message.go -- ParseLine -->
 
 ### RPC Request (Either Direction)
 
 ```
-#2:42 ze-plugin-engine:subscribe-events {"events":["update"]}
-#2:43 ze-plugin-callback:deliver-batch {"events":[{"type":"bgp"}]}
+#42 ze-plugin-engine:subscribe-events {"events":["update"]}
+#43 ze-plugin-callback:deliver-batch {"events":[{"type":"bgp"}]}
 ```
 
 For a request, the verb is a method name. A plugin-to-engine method uses the
@@ -104,13 +107,13 @@ For a request, the verb is a method name. A plugin-to-engine method uses the
 ### RPC Response (Either Direction)
 
 ```
-#2:42 ok
-#2:43 error {"code":"invalid-event","message":"unknown event"}
+#42 ok
+#43 error {"code":"invalid-event","message":"unknown event"}
 ```
 
 | Component | Requirement |
 |-----------|-------------|
-| `#<len>:<id>` | Echoes the request ID, with its base-36 digit count in front |
+| `#<id>` | Echoes the request ID, closed by one space |
 | `ok` | The only success response verb |
 | `error` | The only error response verb |
 | `<json>` | Optional result or error payload |
@@ -219,7 +222,7 @@ Three carry a command answer, and each of those receives a sequence of lines:
 The command dispatcher is a payload protocol inside plugin RPC:
 
 ```
-#1:1 ze-plugin-engine:dispatch-command {"command":"show bgp peer * detail"}
+#1 ze-plugin-engine:dispatch-command {"command":"show bgp peer * detail"}
 ```
 
 The request line is the plugin RPC frame, and the `command` member inside it
@@ -240,7 +243,7 @@ terminator. One code path writes every answer, whatever its record count, so a
 reader follows one path and nothing declares a shape the payload can contradict.
 <!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerItem, AppendAnswerFault, AppendAnswerTerminator -->
 
-Each line is `#<len>:<id> <kind> <fields>`, and its fields are positional, so a
+Each line is `#<id> <kind> <fields>`, and its fields are positional, so a
 reader decides how to take the answer without a JSON decoder and without reading
 a key name. On the SSH exec channel there is no id field at all: one command owns
 the channel, so nothing needs to be told apart.
@@ -255,8 +258,8 @@ reads that same sequence back from every plugin. Stage 3
 and names no wire shape:
 
 ```
-#1:2 ze-plugin-engine:declare-capabilities {"capabilities":[]}
-#1:2 ok
+#2 ze-plugin-engine:declare-capabilities {"capabilities":[]}
+#2 ok
 ```
 <!-- source: pkg/plugin/rpc/types.go -- DeclareCapabilitiesInput, CapabilityDecl -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, WriteDocumentAnswer -->
@@ -316,8 +319,8 @@ line for a separator. The offset differs per channel and is fixed within one:
 
 | Channel | The kind sits at |
 |---------|------------------|
-| plugin connection | `4 + <digits>`, where `<digits>` is the count the id's base-36 length character states |
-| SSH exec channel | offset zero, because that channel carries one answer and writes no `#<len>:<id>` |
+| plugin connection | one byte past the space that closes the id field |
+| SSH exec channel | offset zero, because that channel carries one answer and writes no `#<id>` |
 <!-- source: pkg/plugin/rpc/message.go -- answerKindWidth, answerKindAt, ParseAnswerLine -->
 
 Each kind is a whole word rather than a stump, because a person reads a captured
@@ -333,7 +336,7 @@ by arithmetic and searches no line for a separator.
 | Field shape | Written as | Used by |
 |-------------|-----------|---------|
 | word | three bytes, no length | the kind, and the head's item type |
-| counted number | `<len>:<digits>`, `<len>` one base-36 character | the id, and the terminator's two counts |
+| counted number | `<len>:<digits>`, `<len>` one base-36 character | the terminator's two counts |
 | counted text | `<len>:<n>:<bytes>`, where `<len>:<n>` is a counted number stating the byte count | the envelope name, the column names, every message, the error code, and the record payload |
 <!-- source: pkg/plugin/rpc/message.go -- appendCountedNumber, appendCountedText, cutCountedNumber, cutCountedText -->
 
@@ -371,10 +374,10 @@ records after it still arrive, and the terminator counts the two collections
 separately:
 
 ```
-#1:7 top map 1:5:peers 1:0:
-#1:7 row 2:41:{"peer":"10.0.0.1","state":"established"}
-#1:7 bad 2:60:{"path":"bgp/peer/10.0.0.2","message":"nexthop unreachable"}
-#1:7 end 1:1 1:1 1:0:
+#7 top map 1:5:peers 1:0:
+#7 row 2:41:{"peer":"10.0.0.1","state":"established"}
+#7 bad 2:60:{"path":"bgp/peer/10.0.0.2","message":"nexthop unreachable"}
+#7 end 1:1 1:1 1:0:
 ```
 <!-- source: pkg/plugin/rpc/message_test.go -- TestAnswerLineTableMatchesDoc -->
 
@@ -390,7 +393,7 @@ terminator. The rejected row quotes none of the record, because a row that
 carried 16 MB would not fit the line either.
 
 ```
-#1:7 bad 3:117:{"message":"answer record does not fit one wire message","record":12,"encoded-bytes":16777300,"limit-bytes":16777216}
+#7 bad 3:117:{"message":"answer record does not fit one wire message","record":12,"encoded-bytes":16777300,"limit-bytes":16777216}
 ```
 <!-- source: pkg/plugin/rpc/answer_write.go -- boundedRecord, answerRecordTooLargeFault -->
 
@@ -487,7 +490,7 @@ behind it is. The consumer stops the generator inside the buffering window.
 <!-- source: internal/component/ssh/answer.go -- writeExecFailure -->
 
 ```
-#1:7 nay 1:0: 2:31:unknown command: shwo bgp peers
+#7 nay 1:0: 2:31:unknown command: shwo bgp peers
 ```
 
 A client therefore offers completion for the first, and an operational message
@@ -1034,7 +1037,7 @@ peer 192.0.2.1 remote as 65001 sent keepalive 42
 
 ## Plugin Wire Format
 
-All plugins use the unified `#<len>:<id> <verb> [<json>]\n` wire format (see `wire-format.md`).
+All plugins use the unified `#<id> <verb> [<json>]\n` wire format (see `wire-format.md`).
 There is no separate text mode. The same newline-delimited framing is used for both
 the 5-stage startup handshake and post-startup concurrent RPCs.
 <!-- source: pkg/plugin/rpc/mux.go -- MuxConn -->

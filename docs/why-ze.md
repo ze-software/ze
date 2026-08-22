@@ -232,7 +232,7 @@ dwarfed by the cost of parsing, policy evaluation, and re-encoding.
 
 ### Custom IPC vs. gRPC
 
-Ze uses a custom multiplexed text protocol (`#<len>:<id> <verb> [<json>]`) for plugin
+Ze uses a custom multiplexed text protocol (`#<id> <verb> [<json>]`) for plugin
 communication instead of gRPC. This was a deliberate choice:
 <!-- source: pkg/plugin/rpc/framing.go -- wire framing for multiplexed protocol -->
 <!-- source: pkg/plugin/rpc/mux.go -- MuxConn multiplexer -->

@@ -71,8 +71,8 @@ func pendingKey(id uint64) string {
 //
 // A background reader goroutine reads all incoming lines and routes them:
 //   - Answer lines (the field after the id is a three-byte kind token) are routed
-//     to the CallAnswer waiting on that #<len>:<id>.
-//   - Responses (verb is "ok" or "error") are routed to waiting CallRPC callers by #<len>:<id>.
+//     to the CallAnswer waiting on that #<id>.
+//   - Responses (verb is "ok" or "error") are routed to waiting CallRPC callers by #<id>.
 //   - Requests (verb is a method name) are pushed to the Requests() channel.
 //
 // MuxConn owns the Conn's reader exclusively -- do not call ReadRequest
@@ -107,7 +107,7 @@ type MuxConn struct {
 }
 
 // NewMuxConn creates a MuxConn wrapping the given Conn.
-// Starts a background reader goroutine that routes responses by #<len>:<id> prefix
+// Starts a background reader goroutine that routes responses by #<id> prefix
 // and inbound requests to the Requests() channel.
 func NewMuxConn(conn *Conn) *MuxConn {
 	m := &MuxConn{
@@ -188,7 +188,7 @@ func (m *MuxConn) CallRPC(ctx context.Context, method string, params any) (json.
 		paramsRaw = b
 	}
 
-	// Send request line: #<len>:<id> <method> [<json>]\n (appended into pool buffer).
+	// Send request line: #<id> <method> [<json>]\n (appended into pool buffer).
 	writeErr := m.conn.writeAppended(ctx, func(buf []byte) []byte {
 		return AppendRequest(buf, id, method, paramsRaw)
 	})
@@ -374,7 +374,7 @@ func answerEndedErr(call *answerCall) error {
 }
 
 // readLoop is the background reader goroutine. It reads response lines
-// from the connection and routes them to waiting callers by #<len>:<id> prefix.
+// from the connection and routes them to waiting callers by #<id> prefix.
 // Runs until the connection is closed or a read error occurs.
 //
 // Uses conn.readFrame() to consume from the persistent reader's channel,
@@ -398,10 +398,10 @@ func (m *MuxConn) readLoop() {
 
 		line := string(data)
 
-		// Take the `#<len>:<id> ` field by arithmetic (no JSON parsing). The
-		// length character says where the id ends, so the body starts at a
-		// computed offset rather than at the first space a search finds.
-		idStr, body, idErr := cutID(line)
+		// Take the `#<id> ` field. One fused loop reads the value and finds
+		// the space that closes the field, so the body starts where that loop
+		// stopped and nothing walks the digits twice.
+		id, idStr, body, idErr := cutID(line)
 		if idErr != nil {
 			slog.Warn("mux conn: line states no readable id", "error", idErr, "line", truncate(line, 80))
 			if m.badLine() {
@@ -428,16 +428,8 @@ func (m *MuxConn) readLoop() {
 			continue
 		}
 
-		// Inbound request from the remote side -- parse and dispatch.
-		id, parseErr := strconv.ParseUint(idStr, 10, 64)
-		if parseErr != nil {
-			slog.Warn("mux conn: bad request ID", "id", idStr)
-			if m.badLine() {
-				return
-			}
-			continue
-		}
-
+		// Inbound request from the remote side -- dispatch it. cutID already
+		// returned the value, so nothing parses the digits a second time.
 		_, payload, _ := strings.Cut(body, " ")
 		req := &Request{
 			ID:     id,
@@ -621,7 +613,7 @@ func (m *MuxConn) sendRequest(req *Request) bool {
 	}
 }
 
-// interpretResponse parses the body after #<len>:<id> (e.g., "ok {...}" or "error {...}")
+// interpretResponse parses the body after #<id> (e.g., "ok {...}" or "error {...}")
 // and returns the result payload on success or an RPCCallError on error.
 func interpretResponse(body []byte) (json.RawMessage, error) {
 	s := string(body)

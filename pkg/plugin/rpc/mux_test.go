@@ -691,7 +691,7 @@ func writeLines(conn net.Conn, lines ...string) {
 
 // TestSingleResponseCallRPCPathUnchanged checks that a peer answering with
 // today's one-line frame still reaches its caller byte for byte. The method: a
-// peer answers a CallRPC with #<len>:<id> ok <json>, and the test compares the
+// peer answers a CallRPC with #<id> ok <json>, and the test compares the
 // returned payload against the bytes it wrote and then checks the pending entry
 // is gone.
 //
@@ -1005,7 +1005,7 @@ func TestAnswerWithoutTerminatorReportsTruncation(t *testing.T) {
 
 // TestNotUnderstoodAnswerReachesTheCaller checks that the nay kind ends an
 // answer as an error rather than as an empty result. The method: a peer answers
-// a CallAnswer with one #<len>:<id> nay message= line, and the test asserts the
+// a CallAnswer with one #<id> nay message= line, and the test asserts the
 // call fails with that message.
 //
 // VALIDATES: AC-4 -- the not-understood answer is the only line for its id, and

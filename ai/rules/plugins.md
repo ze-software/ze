@@ -174,7 +174,7 @@ in function names, variable names, or type names.
 | 5. Ready | Plugin->Engine (A) | `ze-plugin-engine:ready`, enter event loop |
 | Post | Engine->Plugin (B) | `ze-plugin-callback:post-startup`, sent once after every startup phase completes and both the plugin registry and dispatcher command registry are frozen |
 
-After Stage 5: SDK wraps Socket A in `MuxConn` for concurrent RPCs. Engine dispatches Socket A requests in goroutines. Wire format: `#<len>:<id> <verb> [<json>]\n` (see `docs/architecture/api/wire-format.md`).
+After Stage 5: SDK wraps Socket A in `MuxConn` for concurrent RPCs. Engine dispatches Socket A requests in goroutines. Wire format: `#<id> <verb> [<json>]\n` (see `docs/architecture/api/wire-format.md`).
 
 ### One command-answer encoding (BLOCKING)
 

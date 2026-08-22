@@ -145,7 +145,7 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 	}
 	_ = conn.SetReadDeadline(time.Time{}) // clear deadline
 
-	// Parse response: #<len>:<id> <verb> [payload]
+	// Parse response: #<id> <verb> [payload]
 	_, verb, _, parseErr := rpc.ParseLine(authLine)
 	if parseErr != nil || verb != "ok" {
 		return errAuthRejected

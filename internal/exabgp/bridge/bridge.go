@@ -441,7 +441,7 @@ func (b *Bridge) Run(ctx context.Context) error {
 
 	// Stage 6: Running - start plugin and begin MuxConn translation.
 	// After stage 5, ze wraps the connection in MuxConn. All subsequent I/O
-	// uses #<len>:<id> verb [payload]\n framing.
+	// uses #<id> verb [payload]\n framing.
 	if err := b.Start(ctx); err != nil {
 		return err
 	}
@@ -507,7 +507,7 @@ func (b *Bridge) zebgpToPluginWithScanner(ctx context.Context, scanner *bufio.Sc
 			continue
 		}
 
-		// Parse MuxConn wire format: #<len>:<id> <verb> [<payload>]
+		// Parse MuxConn wire format: #<id> <verb> [<payload>]
 		id, verb, payload, err := parseMuxLine(line)
 		if err != nil {
 			slog.Warn("zebgp->plugin: invalid MuxConn line",

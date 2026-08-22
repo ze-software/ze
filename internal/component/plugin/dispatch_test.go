@@ -235,11 +235,11 @@ func TestGeneratorAnswerReachesTheEncoder(t *testing.T) {
 		return string(rpc.AppendAnswerItem(nil, 7, json.RawMessage(`{"peer":"`+peer+`"}`)))
 	}
 	want := map[int]string{
-		0:            "#1:7 top map 1:5:peers 1:0:",
+		0:            "#7 top map 1:5:peers 1:0:",
 		1:            recordLine("10.0.0.0"),
 		2:            recordLine("10.0.0.1"),
 		rowCount:     recordLine("10.0.0." + strconv.Itoa(rowCount-1)),
-		rowCount + 1: "#1:7 " + string(rpc.AppendAnswerTerminator(nil, rpc.AnswerNoID, uint64(rowCount), 0, "")),
+		rowCount + 1: "#7 " + string(rpc.AppendAnswerTerminator(nil, rpc.AnswerNoID, uint64(rowCount), 0, "")),
 	}
 	for index, line := range want {
 		if got[index] != line {

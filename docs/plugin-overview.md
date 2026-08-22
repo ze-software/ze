@@ -79,7 +79,7 @@ authenticate with a token (`ZE_PLUGIN_HUB_TOKEN`).
 The SDK uses `MuxConn` for the startup connection and runtime RPCs. After Stage 5,
 internal plugins can switch supported hot paths to DirectBridge; external plugins
 continue using newline-framed YANG RPC over TLS. The wire format is
-`#<len>:<id> <verb> [<json>]\n` with newline-delimited, UTF-8 messages and correlation IDs.
+`#<id> <verb> [<json>]\n` with newline-delimited, UTF-8 messages and correlation IDs.
 <!-- source: internal/component/plugin/server/server.go -- plugin server, handshake -->
 <!-- source: pkg/plugin/sdk/sdk.go -- plugin SDK, MuxConn wrapping -->
 

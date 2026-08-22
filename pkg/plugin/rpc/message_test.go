@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestParseLine verifies parsing of the #<len>:<id> <verb> [<payload>] wire format.
+// TestParseLine verifies parsing of the #<id> <verb> [<payload>] wire format.
 //
 // VALIDATES: ParseLine correctly extracts id, verb, and optional payload.
 // PREVENTS: Incorrect parsing of the unified line format.
@@ -29,15 +29,15 @@ func TestParseLine(t *testing.T) {
 		wantPayload string
 		wantErr     bool
 	}{
-		{"request with params", `#1:1 test-method {"key":"value"}`, 1, "test-method", `{"key":"value"}`, false},
-		{"request no params", "#2:42 ping", 42, "ping", "", false},
-		{"ok with payload", `#1:5 ok {"result":"done"}`, 5, "ok", `{"result":"done"}`, false},
-		{"ok no payload", "#1:3 ok", 3, "ok", "", false},
-		{"error with payload", `#1:7 error {"code":"not-found","message":"peer not found"}`, 7, "error", `{"code":"not-found","message":"peer not found"}`, false},
-		{"error no payload", "#1:9 error", 9, "error", "", false},
-		{"large id", "#K:18446744073709551615 method", 18446744073709551615, "method", "", false},
+		{"request with params", `#1 test-method {"key":"value"}`, 1, "test-method", `{"key":"value"}`, false},
+		{"request no params", "#42 ping", 42, "ping", "", false},
+		{"ok with payload", `#5 ok {"result":"done"}`, 5, "ok", `{"result":"done"}`, false},
+		{"ok no payload", "#3 ok", 3, "ok", "", false},
+		{"error with payload", `#7 error {"code":"not-found","message":"peer not found"}`, 7, "error", `{"code":"not-found","message":"peer not found"}`, false},
+		{"error no payload", "#9 error", 9, "error", "", false},
+		{"large id", "#18446744073709551615 method", 18446744073709551615, "method", "", false},
 		{"missing hash prefix", "1 method", 0, "", "", true},
-		{"no verb", "#1:1", 0, "", "", true},
+		{"no verb", "#1", 0, "", "", true},
 		{"invalid id", "#3:abc method", 0, "", "", true},
 		{"empty after hash", "#", 0, "", "", true},
 	}
@@ -63,7 +63,7 @@ func TestParseLine(t *testing.T) {
 	}
 }
 
-// TestFormatRequest verifies request line formatting: #<len>:<id> <method> [<json>]
+// TestFormatRequest verifies request line formatting: #<id> <method> [<json>]
 //
 // VALIDATES: FormatRequest produces correct wire format for requests.
 // PREVENTS: Malformed request lines on the wire.
@@ -77,10 +77,10 @@ func TestFormatRequest(t *testing.T) {
 		params json.RawMessage
 		want   string
 	}{
-		{"with params", 1, "test-method", json.RawMessage(`{"key":"value"}`), `#1:1 test-method {"key":"value"}`},
-		{"no params", 42, "ping", nil, "#2:42 ping"},
-		{"null params", 5, "ping", json.RawMessage("null"), "#1:5 ping"},
-		{"empty params", 3, "method", json.RawMessage(""), "#1:3 method"},
+		{"with params", 1, "test-method", json.RawMessage(`{"key":"value"}`), `#1 test-method {"key":"value"}`},
+		{"no params", 42, "ping", nil, "#42 ping"},
+		{"null params", 5, "ping", json.RawMessage("null"), "#5 ping"},
+		{"empty params", 3, "method", json.RawMessage(""), "#3 method"},
 	}
 
 	for _, tt := range tests {
@@ -92,7 +92,7 @@ func TestFormatRequest(t *testing.T) {
 	}
 }
 
-// TestFormatOK verifies empty success response formatting: #<len>:<id> ok
+// TestFormatOK verifies empty success response formatting: #<id> ok
 //
 // VALIDATES: FormatOK produces correct wire format.
 // PREVENTS: Malformed empty ok responses.
@@ -100,10 +100,10 @@ func TestFormatOK(t *testing.T) {
 	t.Parallel()
 
 	got := FormatOK(42)
-	assert.Equal(t, "#2:42 ok", string(got))
+	assert.Equal(t, "#42 ok", string(got))
 }
 
-// TestFormatError verifies error response formatting: #<len>:<id> error [<json>]
+// TestFormatError verifies error response formatting: #<id> error [<json>]
 //
 // VALIDATES: FormatError produces correct wire format for error responses.
 // PREVENTS: Malformed error responses on the wire.
@@ -116,9 +116,9 @@ func TestFormatError(t *testing.T) {
 		payload json.RawMessage
 		want    string
 	}{
-		{"with payload", 1, json.RawMessage(`{"code":"not-found","message":"peer not found"}`), `#1:1 error {"code":"not-found","message":"peer not found"}`},
-		{"empty payload", 2, nil, "#1:2 error"},
-		{"empty bytes", 3, json.RawMessage(""), "#1:3 error"},
+		{"with payload", 1, json.RawMessage(`{"code":"not-found","message":"peer not found"}`), `#1 error {"code":"not-found","message":"peer not found"}`},
+		{"empty payload", 2, nil, "#2 error"},
+		{"empty bytes", 3, json.RawMessage(""), "#3 error"},
 	}
 
 	for _, tt := range tests {
@@ -366,25 +366,25 @@ func TestParseLineCarriesTheAnswerTailWhole(t *testing.T) {
 	}{
 		{
 			name:        "head",
-			line:        "#1:7 top map 1:5:peers 1:0:",
+			line:        "#7 top map 1:5:peers 1:0:",
 			wantVerb:    AnswerKindHead,
 			wantPayload: "map 1:5:peers 1:0:",
 		},
 		{
 			name:        "a record holding = and spaces",
-			line:        `#1:7 row {"peer":"10.0.0.1","note":"a=b c"}`,
+			line:        `#7 row {"peer":"10.0.0.1","note":"a=b c"}`,
 			wantVerb:    AnswerKindRecord,
 			wantPayload: `{"peer":"10.0.0.1","note":"a=b c"}`,
 		},
 		{
 			name:        "terminator",
-			line:        "#1:7 end 2:97 1:3 1:0:",
+			line:        "#7 end 2:97 1:3 1:0:",
 			wantVerb:    AnswerKindTerminator,
 			wantPayload: "2:97 1:3 1:0:",
 		},
 		{
 			name:        "not understood",
-			line:        "#1:7 nay 1:0: 2:31:unknown command: shwo bgp peers",
+			line:        "#7 nay 1:0: 2:31:unknown command: shwo bgp peers",
 			wantVerb:    AnswerKindNotUnderstood,
 			wantPayload: "1:0: 2:31:unknown command: shwo bgp peers",
 		},
@@ -627,12 +627,12 @@ func TestHeadStatesNoStatus(t *testing.T) {
 	// item type, the envelope name and the column names. Four, whatever the
 	// answer turned out to be.
 	for _, head := range heads {
-		_, tail, err := ParseAnswerLine([]byte(strings.TrimPrefix(head, "#1:7 ")))
+		_, tail, err := ParseAnswerLine([]byte(strings.TrimPrefix(head, "#7 ")))
 		require.NoError(t, err, "the head does not read back: %q", head)
 		assert.Equal(t, AnswerKindHead, tail.Kind)
 		assert.NotEmpty(t, tail.Type, "the head states no item type: %q", head)
 
-		fields := strings.Split(strings.TrimPrefix(head, "#1:7 "), " ")
+		fields := strings.Split(strings.TrimPrefix(head, "#7 "), " ")
 		assert.Len(t, fields, 4, "the head has %d fields rather than four: %q", len(fields), head)
 	}
 
@@ -850,22 +850,23 @@ func TestAnswerRecordLineSizeMeasuresTheLineItsAppenderWrites(t *testing.T) {
 	}
 }
 
-// idLengthAlphabetFixture spells the base-36 length character the wire states an
-// id's digit count in. It is written out here rather than read from the writer,
-// so a change to the alphabet has to be made in both places and cannot pass
-// unnoticed.
-const idLengthAlphabetFixture = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+// countedLengthAlphabetFixture spells the base-36 length character a counted
+// field states its digit count in. It is written out here rather than read from
+// the writer, so a change to the alphabet has to be made in both places and
+// cannot pass unnoticed.
+const countedLengthAlphabetFixture = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-// TestAppendRequestLengthPrefixedID checks that a request line carries the same
-// id field an answer line carries. The method: one id is written into a request
-// line, into both response lines, and into a record line, and each is required
-// to open with the `#<len>:<id> ` the table spells out.
+// TestAppendRequestSpellsTheSameIDField checks that a request line carries the
+// same id field an answer line carries. The method: one id is written into a
+// request line, into both response lines, and into a record line, and each is
+// required to open with the `#<id> ` the table spells out.
 //
-// VALIDATES: every line that carries an id states its length first, requests
+// VALIDATES: every line that carries an id spells it the same way, requests
 // included, so the protocol carries ONE id encoding rather than two.
-// PREVENTS: a request keeping the bare decimal id while answers state a length,
-// which would leave a reader computing the wrong offset for every later field.
-func TestAppendRequestLengthPrefixedID(t *testing.T) {
+// PREVENTS: one direction of the protocol spelling the id differently from the
+// other, which leaves a reader computing the wrong offset for every later
+// field.
+func TestAppendRequestSpellsTheSameIDField(t *testing.T) {
 	t.Parallel()
 
 	const method = "ze-bgp:peer-list"
@@ -875,9 +876,9 @@ func TestAppendRequestLengthPrefixedID(t *testing.T) {
 		id      uint64
 		idField string
 	}{
-		{"one digit", 7, "#1:7 "},
-		{"two digits", 42, "#2:42 "},
-		{"ten digits", 1234567890, "#A:1234567890 "},
+		{"one digit", 7, "#7 "},
+		{"two digits", 42, "#42 "},
+		{"ten digits", 1234567890, "#1234567890 "},
 	}
 
 	for _, tt := range tests {
@@ -903,19 +904,18 @@ func TestAppendRequestLengthPrefixedID(t *testing.T) {
 	}
 }
 
-// TestAnswerIDLengthPrefixRoundTrip checks that the length character and the id
-// beside it agree for every width an id can have. The method: for each digit
-// count from 1 to 20 the smallest and the largest id of that width are written
-// into a request line, the length byte is compared with the base-36 spelling of
-// the count, the byte after the digits is required to be the field separator,
-// and the line is read back.
+// TestAnswerIDRoundTrip checks that every id a uint64 can hold reaches the wire
+// and reads back. The method: for each digit count from 1 to 20 the smallest
+// and the largest id of that width are written into a request line, the field
+// is required to be `#`, those digits, and the space that closes it, and the
+// line is read back.
 //
-// VALIDATES: R-2 -- one writer produces both halves of the id field, so a
-// reader that trusts the length reaches the next field and reads back the id
-// that was written.
-// PREVENTS: a length that disagrees with its digits, which slices the following
-// field in half and reads a verb out of the middle of a number.
-func TestAnswerIDLengthPrefixRoundTrip(t *testing.T) {
+// VALIDATES: the whole uint64 range is expressible, so no counter has to wrap
+// to keep its id readable, and the space that closes the field is what a reader
+// stops its fused loop at.
+// PREVENTS: an id that reaches the wire and reads back as another number, and a
+// field a reader cannot tell the end of.
+func TestAnswerIDRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	const method = "ze-bgp:peer-list"
@@ -928,16 +928,15 @@ func TestAnswerIDLengthPrefixRoundTrip(t *testing.T) {
 		}
 		for _, id := range []uint64{smallest, largest} {
 			line := string(AppendRequest(nil, id, method, nil))
-			require.Equal(t, digits, len(strconv.FormatUint(id, 10)),
+			spelled := strconv.FormatUint(id, 10)
+			require.Equal(t, digits, len(spelled),
 				"the fixture id %d is not %d digits wide", id, digits)
 
-			require.Greater(t, len(line), digits+3, "line %q is shorter than its id field", line)
+			require.Greater(t, len(line), digits+1, "line %q is shorter than its id field", line)
 			assert.Equal(t, byte('#'), line[0], "line %q does not open with #", line)
-			assert.Equal(t, idLengthAlphabetFixture[digits], line[1],
-				"line %q states the wrong length for %d digits", line, digits)
-			assert.Equal(t, byte(':'), line[2], "line %q does not separate the length from the id", line)
-			assert.Equal(t, byte(' '), line[3+digits],
-				"line %q does not end its id at the byte the length names", line)
+			assert.Equal(t, spelled, line[1:1+digits], "line %q does not spell its id in decimal", line)
+			assert.Equal(t, byte(' '), line[1+digits],
+				"line %q does not close its id field with a space", line)
 
 			readID, verb, _, err := ParseLine([]byte(line))
 			require.NoError(t, err, "line %q does not read back", line)
@@ -950,23 +949,24 @@ func TestAnswerIDLengthPrefixRoundTrip(t *testing.T) {
 	}
 }
 
-// TestAnswerIDMaxUint64 checks that the whole id range is expressible in one
-// base-36 length character. The method: the largest uint64 is written into a
-// request line and into a record line, the length byte is required to be K, and
-// both lines are read back.
+// TestAnswerIDMaxUint64 checks that the whole id range reaches the wire. The
+// method: the largest uint64 is written into a request line and into a record
+// line, both are required to open with its twenty decimal digits, and the
+// request is read back.
 //
-// VALIDATES: A-2 -- one base-36 character covers every id Ze can produce, so no
-// counter has to wrap and no reader needs a second length byte.
-// PREVENTS: an id at the top of the range writing a length no reader can spell,
-// which is the failure a wrapping counter would have been introduced to avoid.
+// VALIDATES: A-2 -- every id Ze can produce is expressible, so no counter has
+// to wrap to keep its id readable.
+// PREVENTS: an id at the top of the range being truncated or rejected by its
+// own encoding, which is the failure a wrapping counter would have been
+// introduced to avoid.
 func TestAnswerIDMaxUint64(t *testing.T) {
 	t.Parallel()
 
-	const maxIDField = "#K:18446744073709551615 "
+	const maxIDField = "#18446744073709551615 "
 
 	request := string(AppendRequest(nil, math.MaxUint64, "ze-bgp:peer-list", nil))
 	assert.Equal(t, "ze-bgp:peer-list", strings.TrimPrefix(request, maxIDField),
-		"the widest id writes a length of K, the base-36 spelling of 20")
+		"the widest id writes its twenty decimal digits")
 
 	record := string(AppendAnswerItem(nil, math.MaxUint64, json.RawMessage(`{"peer":"10.0.0.1"}`)))
 	assert.Equal(t, fmt.Sprintf("row %s", countedTextFixture(`{"peer":"10.0.0.1"}`)), strings.TrimPrefix(record, maxIDField),
@@ -978,37 +978,42 @@ func TestAnswerIDMaxUint64(t *testing.T) {
 	assert.Equal(t, "ze-bgp:peer-list", verb)
 }
 
-// TestAnswerIDLengthCharacterRejected checks that a reader refuses an id field
-// it cannot trust rather than slicing on it. The method: each malformed id
-// field is read, and the reader is required to return an error.
+// TestAnswerIDFieldRejected checks that a reader refuses an id field it cannot
+// trust rather than slicing on it. The method: each malformed id field is read,
+// and the reader is required to return an error.
 //
-// VALIDATES: the boundary table of the length character -- 0 to 9 then A to Z,
-// a length of zero refused, a length past the 20 digits a uint64 occupies
-// refused, and a length that disagrees with its digits refused.
-// PREVENTS: a reader trusting a length it cannot spell, which takes the next
-// field from inside the id and reports an unknown verb on a line it mangled.
-func TestAnswerIDLengthCharacterRejected(t *testing.T) {
+// VALIDATES: the boundary table of the id field -- the `#` is required, every
+// byte before the space is a decimal digit, the field ends at a space, and an
+// id past the 20 digits or past the range of a uint64 is refused.
+// PREVENTS: a reader taking a verb out of the middle of a number, and an id
+// that wraps silently into another conversation's.
+//
+// Each refusal names the guard that made it, because a malformed line is
+// refused by whatever meets it FIRST and the rest of the reader would refuse
+// several of these for a reason of its own. `#42` is the case that proves it: a
+// line with no verb is refused whether or not the id field checks that it ends
+// at a space, so only the message says which check fired.
+func TestAnswerIDFieldRejected(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name string
-		line string
+		name    string
+		line    string
+		refusal string
 	}{
-		{"lower case length", "#a:1234567890 ok"},
-		{"length below zero", "#/:1 ok"},
-		{"length above Z", "#[:1 ok"},
-		{"length of zero digits", "#0: ok"},
-		{"length past a uint64", "#L:000000000000000000001 ok"},
-		{"id past a uint64", "#K:99999999999999999999 ok"},
-		{"length longer than the digits", "#2:4 ok"},
-		{"length shorter than the digits", "#1:42 ok"},
-		{"separator that is not a colon", "#2x42 ok"},
-		{"no separator after the length", "#2 42 ok"},
-		{"no space after the id", "#2:42ok"},
-		{"nothing after the hash", "#"},
-		{"length with nothing after it", "#2"},
-		{"no hash", "1:1 ok"},
-		{"id that is not decimal", "#2:4x ok"},
+		// The boundary of the digit run, last valid first.
+		{name: "twenty digits, the widest a uint64 occupies", line: "#18446744073709551615 ok"},
+		{name: "twenty-one digits", line: "#000000000000000000001 ok", refusal: "past the 20 digits a uint64 occupies"},
+		{name: "twenty digits past the range of a uint64", line: "#99999999999999999999 ok", refusal: "past the range of a uint64"},
+
+		{name: "no hash", line: "1 ok", refusal: "missing # prefix"},
+		{name: "nothing after the hash", line: "#", refusal: "does not end at a space"},
+		{name: "no digits before the space", line: "# ok", refusal: "states no id digits"},
+		{name: "no space after the id", line: "#42ok", refusal: "not a decimal digit"},
+		{name: "digits that run to the end of the line", line: "#42", refusal: "does not end at a space"},
+		{name: "a byte that is not a decimal digit", line: "#4x ok", refusal: "not a decimal digit"},
+		{name: "a letter where the digits belong", line: "#abc ok", refusal: "not a decimal digit"},
+		{name: "a sign in front of the digits", line: "#-1 ok", refusal: "not a decimal digit"},
 	}
 
 	for _, tt := range tests {
@@ -1016,7 +1021,13 @@ func TestAnswerIDLengthCharacterRejected(t *testing.T) {
 			t.Parallel()
 
 			_, _, _, err := ParseLine([]byte(tt.line))
+			if tt.refusal == "" {
+				require.NoError(t, err, "line %q was refused rather than read", tt.line)
+				return
+			}
 			require.Error(t, err, "line %q was read rather than refused", tt.line)
+			assert.ErrorContains(t, err, tt.refusal,
+				"line %q was refused by another check than the one under test", tt.line)
 		})
 	}
 }
@@ -1064,10 +1075,10 @@ func TestParseAnswerLineFixedOffsets(t *testing.T) {
 	t.Parallel()
 
 	for _, id := range []uint64{7, 1234567890, math.MaxUint64} {
-		// The id field is `#`, the length character, `:`, the digits, and the
-		// space that closes it, so the kind starts at that width and nothing is
+		// The id field is `#`, the decimal digits, and the space that closes
+		// it, so the kind starts one byte past that space and nothing is
 		// searched for.
-		want := 4 + len(strconv.FormatUint(id, 10))
+		want := 2 + len(strconv.FormatUint(id, 10))
 		for kind, line := range answerKindLines(id) {
 			require.Greater(t, len(line), want+answerKindWidth, "line %q is shorter than its own prefix", line)
 			assert.Equal(t, kind, line[want:want+answerKindWidth],
@@ -1201,7 +1212,7 @@ func TestAnswerLineCarriesNoKeyNames(t *testing.T) {
 		AnswerKindFault:  `{"path":"bgp/peer/10.0.0.2","message":"nexthop unreachable"}`,
 	}
 	for kind, line := range answerKindLines(7) {
-		tail := strings.TrimPrefix(line, "#1:7 "+kind+" ")
+		tail := strings.TrimPrefix(line, "#7 "+kind+" ")
 		require.NotEqual(t, line, tail, "the %s line does not open with its id and kind: %q", kind, line)
 
 		if payload, carried := payloads[kind]; carried {
@@ -1382,15 +1393,14 @@ func readAnswerLine(t *testing.T, id uint64, line string) AnswerTail {
 	return tail
 }
 
-// idFieldFixture spells the `#<len>:<id> ` an answer line opens with, and
-// nothing for the exec channel's AnswerNoID. It is written out here rather than
-// read from appendID, so a change to the field has to be made in both places.
+// idFieldFixture spells the `#<id> ` an answer line opens with, and nothing for
+// the exec channel's AnswerNoID. It is written out here rather than read from
+// appendID, so a change to the field has to be made in both places.
 func idFieldFixture(id uint64) string {
 	if id == AnswerNoID {
 		return ""
 	}
-	digits := strconv.FormatUint(id, 10)
-	return fmt.Sprintf("#%s ", countedDigitsFixture(digits))
+	return fmt.Sprintf("#%d ", id)
 }
 
 // countedNumberFixture spells the `<len>:<digits>` a counted number is written
@@ -1408,7 +1418,7 @@ func countedTextFixture(text string) string {
 // countedDigitsFixture puts the base-36 length character in front of digits, so
 // a change to the alphabet has to be made here as well as in the writer.
 func countedDigitsFixture(digits string) string {
-	return fmt.Sprintf("%s:%s", idLengthAlphabetFixture[len(digits):len(digits)+1], digits)
+	return fmt.Sprintf("%s:%s", countedLengthAlphabetFixture[len(digits):len(digits)+1], digits)
 }
 
 // recordPayloadStart returns the offset a record line's payload starts at,
@@ -1419,7 +1429,7 @@ func recordPayloadStart(t *testing.T, id uint64, line string) int {
 	t.Helper()
 
 	at := len(idFieldFixture(id)) + answerKindWidth + 1
-	count, known := idLengthValue(line[at])
+	count, known := countedLengthValue(line[at])
 	require.True(t, known, "the payload count of %q states no readable length", line)
 	require.Equal(t, byte(':'), line[at+1], "the payload count of %q does not close its length", line)
 	require.Equal(t, byte(':'), line[at+2+count], "the payload count of %q does not close its digits", line)

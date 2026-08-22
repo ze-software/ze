@@ -6,8 +6,8 @@ Messages are UTF-8 lines terminated by a newline byte (0x0A).
 Compact JSON never contains unescaped newlines, making newline an unambiguous frame delimiter.
 
 ```
-#1:1 ze-bgp:peer-list {"selector":"10.0.0.1"}
-#1:1 ok {"peers":[{"address":"10.0.0.1","state":"established"}]}
+#1 ze-bgp:peer-list {"selector":"10.0.0.1"}
+#1 ok {"peers":[{"address":"10.0.0.1","state":"established"}]}
 ```
 
 ### Framing
@@ -19,14 +19,13 @@ Compact JSON never contains unescaped newlines, making newline an unambiguous fr
 | Max message size | 16 MB (16,777,216 bytes) |
 | Initial buffer | 64 KB |
 
-Each line has the format: `#<len>:<id> <verb> [<json-payload>]`
+Each line has the format: `#<id> <verb> [<json-payload>]`
 
-- `#<len>:<id>` is a decimal integer (monotonically increasing per connection),
-  preceded by one base-36 character stating how many digits it occupies. A
-  reader takes that byte and reaches the verb by addition, never by searching
-  the line for a space. `0` to `9` then `A` to `Z` spell a length up to 35, and
-  a uint64 occupies 20 decimal digits at most, so `K` is the widest length any
-  id can state.
+- `#<id>` is a decimal integer (monotonically increasing per connection),
+  closed by one space. A digit run a space terminates is unambiguous, so the id
+  needs no count in front of it, and one fused loop reads the value while it
+  walks to that space. A uint64 occupies 20 decimal digits at most, and an id
+  wider than that is refused.
 - `<verb>` is a method name (requests) or `ok`/`error` (responses).
 - `<json-payload>` is optional compact JSON.
 
@@ -63,27 +62,27 @@ declaration can set a different wire method for command dispatch.
 ## Request
 
 ```
-#2:42 ze-bgp:peer-list {"selector":"10.0.0.1"}
-#2:43 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/unicast","mode":"both"}]}
-#2:44 ze-bgp:subscribe {"args":["bgp","event","update"]}
+#42 ze-bgp:peer-list {"selector":"10.0.0.1"}
+#43 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/unicast","mode":"both"}]}
+#44 ze-bgp:subscribe {"args":["bgp","event","update"]}
 ```
 
 | Component | Description |
 |-----------|-------------|
-| `#<len>:<id>` | Correlation ID (decimal integer), preceded by its base-36 digit count |
+| `#<id>` | Correlation ID (decimal integer), closed by one space |
 | `<method>` | `module:rpc-name` |
 | `<json>` | Optional JSON params |
 
 ## Successful Response
 
 ```
-#2:42 ok {"peers":[{"address":"10.0.0.1","state":"established"}]}
-#2:43 ok
+#42 ok {"peers":[{"address":"10.0.0.1","state":"established"}]}
+#43 ok
 ```
 
 | Component | Description |
 |-----------|-------------|
-| `#<len>:<id>` | Echoed from request |
+| `#<id>` | Echoed from request |
 | `ok` | Success verb |
 | `<json>` | Optional JSON result (absent for void responses) |
 
@@ -97,15 +96,16 @@ three-byte kind token stating what the line IS, and the fields after that are
 positional rather than JSON and carry no key name:
 
 ```
-#2:42 top map 1:5:peers 1:0:
-#2:42 row 2:44:{"address":"10.0.0.1","state":"established"}
-#2:42 end 1:1 1:0 1:0:
+#42 top map 1:5:peers 1:0:
+#42 row 2:44:{"address":"10.0.0.1","state":"established"}
+#42 end 1:1 1:0 1:0:
 ```
 
 `top` opens the answer, `row` and `bad` carry a produced row and a rejected one,
 `end` ends it, and `nay` is the whole answer to a command text naming no
-command. Every token is three bytes, so a reader reaches it by arithmetic from
-the id's length character rather than by searching the line for a space.
+command. Every token is three bytes and every one is closed by a space, so a
+reader takes the four bytes as one load rather than searching the line for a
+separator.
 
 The head's item type says what each record IS: `doc`, `map` or `tab`. Neither
 the head nor the terminator states an outcome. The verdict is DERIVED from the
@@ -121,13 +121,13 @@ is, so a handler that built one value answers with the same three lines and the
 ## Error Response
 
 ```
-#2:42 error {"code":"peer-not-found","message":"no peer at 10.0.0.99"}
-#2:43 error {"message":"unknown method"}
+#42 error {"code":"peer-not-found","message":"no peer at 10.0.0.99"}
+#43 error {"message":"unknown method"}
 ```
 
 | Component | Description |
 |-----------|-------------|
-| `#<len>:<id>` | Echoed from request |
+| `#<id>` | Echoed from request |
 | `error` | Error verb |
 | `<json>` | Optional JSON with `code` and/or `message` fields |
 
@@ -136,8 +136,8 @@ is, so a handler that built one value answers with the same three lines and the
 Events are delivered in batches for efficiency using a pooled buffer.
 
 ```
-#1:7 ze-plugin-callback:deliver-batch {"events":["event1-json","event2-json"]}
-#1:7 ok
+#7 ze-plugin-callback:deliver-batch {"events":["event1-json","event2-json"]}
+#7 ok
 ```
 
 Implementation: `pkg/plugin/rpc/batch.go`

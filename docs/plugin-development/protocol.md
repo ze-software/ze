@@ -5,7 +5,7 @@ bidirectional connection. Internal plugins use `net.Pipe()` for startup; externa
 plugins connect back via TLS.
 <!-- source: pkg/plugin/sdk/sdk.go -- NewWithConn, NewFromTLSEnv -->
 
-All messages use newline-delimited framing with the wire format `#<len>:<id> <verb> [<json>]\n`.
+All messages use newline-delimited framing with the wire format `#<id> <verb> [<json>]\n`.
 <!-- source: pkg/plugin/rpc/conn.go -- Conn doc comment -->
 
 ## Wire Format
@@ -14,10 +14,10 @@ Every message is a single newline-terminated line:
 
 | Message type | Format |
 |-------------|--------|
-| Request | `#<len>:<id> <method> [<json-params>]\n` |
-| Success response | `#<len>:<id> ok [<json-result>]\n` |
-| Error response | `#<len>:<id> error [<json-error>]\n` |
-| Record answer | `#<len>:<id> ok <key=value tail>\n`, one line per record |
+| Request | `#<id> <method> [<json-params>]\n` |
+| Success response | `#<id> ok [<json-result>]\n` |
+| Error response | `#<id> error [<json-error>]\n` |
+| Record answer | `#<id> ok <key=value tail>\n`, one line per record |
 
 <!-- source: pkg/plugin/rpc/message.go -- AppendRequest, AppendResult, AppendError -->
 
@@ -59,32 +59,32 @@ value as the one record of a `doc` answer, byte for byte.
 
 **Routing:** `MuxConn` multiplexes a single connection for concurrent RPCs. A background
 reader goroutine routes incoming lines by verb: `ok`/`error` responses go to the waiting
-`CallRPC` caller by `#<len>:<id>`, while method-name requests go to the `Requests()` channel.
+`CallRPC` caller by `#<id>`, while method-name requests go to the `Requests()` channel.
 <!-- source: pkg/plugin/rpc/mux.go -- MuxConn, readLoop -->
 
 **Examples:**
 
 ```
 # Plugin sends declare-registration (Stage 1)
-#1:1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}]}
+#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}]}
 
 # Engine responds OK
-#1:1 ok
+#1 ok
 
 # Engine sends configure to plugin (Stage 2)
-#1:1 ze-plugin-callback:configure {"sections":[{"root":"bgp","data":"{...}"}]}
+#1 ze-plugin-callback:configure {"sections":[{"root":"bgp","data":"{...}"}]}
 
 # Plugin responds OK
-#1:1 ok
+#1 ok
 
 # Engine sends event at runtime
-#2:42 ze-plugin-callback:deliver-event {"event":"{\"type\":\"state\",...}"}
+#42 ze-plugin-callback:deliver-event {"event":"{\"type\":\"state\",...}"}
 
 # Plugin responds OK
-#2:42 ok
+#42 ok
 
 # Error response with payload
-#1:5 error {"code":"error","message":"unknown family: ipv4/unknown"}
+#5 error {"code":"error","message":"unknown family: ipv4/unknown"}
 ```
 
 ## Protocol Stages
@@ -151,8 +151,8 @@ Set `afi` and `safi` for a custom family. A built-in family can omit both numeri
 **Wire example:**
 
 ```
-#1:1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","description":"Show FlowSpec status"}],"wants-config":["bgp"]}
-#1:1 ok
+#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","description":"Show FlowSpec status"}],"wants-config":["bgp"]}
+#1 ok
 ```
 
 ### Stage 2: Config (Engine to Plugin)
@@ -175,8 +175,8 @@ Each `ConfigSection` has:
 **Wire example:**
 
 ```
-#1:1 ze-plugin-callback:configure {"sections":[{"root":"bgp","data":"{\"bgp\":{\"peer\":{...}}}"}]}
-#1:1 ok
+#1 ze-plugin-callback:configure {"sections":[{"root":"bgp","data":"{\"bgp\":{\"peer\":{...}}}"}]}
+#1 ok
 ```
 
 ### Stage 3: Capabilities (Plugin to Engine)
@@ -202,8 +202,8 @@ Each `CapabilityDecl` has:
 **Wire example:**
 
 ```
-#1:2 ze-plugin-engine:declare-capabilities {"capabilities":[{"code":64,"encoding":"hex","payload":"0078","peers":["192.168.1.1"]}]}
-#1:2 ok
+#2 ze-plugin-engine:declare-capabilities {"capabilities":[{"code":64,"encoding":"hex","payload":"0078","peers":["192.168.1.1"]}]}
+#2 ok
 ```
 
 ### Stage 4: Registry (Engine to Plugin)
@@ -227,8 +227,8 @@ Each `RegistryCommand` has:
 **Wire example:**
 
 ```
-#1:2 ze-plugin-callback:share-registry {"commands":[{"name":"rib adjacent status","plugin":"bgp-adj-rib-in"},{"name":"peer","plugin":"bgp"}]}
-#1:2 ok
+#2 ze-plugin-callback:share-registry {"commands":[{"name":"rib adjacent status","plugin":"bgp-adj-rib-in"},{"name":"peer","plugin":"bgp"}]}
+#2 ok
 ```
 
 ### Stage 5: Ready (Plugin to Engine)
@@ -254,8 +254,8 @@ callbacks flow through `bridge.CallbackCh()` instead of the MuxConn.
 **Wire example:**
 
 ```
-#1:3 ze-plugin-engine:ready {"subscribe":{"events":["update","state"],"peers":["*"],"format":"json"},"transport":"bridge"}
-#1:3 ok
+#3 ze-plugin-engine:ready {"subscribe":{"events":["update","state"],"peers":["*"],"format":"json"},"transport":"bridge"}
+#3 ok
 ```
 
 After Stage 5, the SDK activates the DirectBridge (for internal plugins) and enters
@@ -327,7 +327,7 @@ Plugins call the engine during runtime through these SDK methods:
 Plugin                                             Engine
    |                                                  |
    |  STAGE 1: declare-registration                   |
-   |-- #1:1 ze-plugin-engine:declare-registration {...}->|
+   |-- #1 ze-plugin-engine:declare-registration {...}->|
    |<- #1 ok ---------------------------------------- |
    |                                                  |
    |  STAGE 2: configure                              |
@@ -335,7 +335,7 @@ Plugin                                             Engine
    |-- #1 ok ---------------------------------------->|
    |                                                  |
    |  STAGE 3: declare-capabilities                   |
-   |-- #1:2 ze-plugin-engine:declare-capabilities {...}->|
+   |-- #2 ze-plugin-engine:declare-capabilities {...}->|
    |<- #2 ok ---------------------------------------- |
    |                                                  |
    |  STAGE 4: share-registry                         |
@@ -352,14 +352,14 @@ Plugin                                             Engine
    |                                                  |
    |  RUNTIME: plugin sends route update              |
    |-- #4 ze-plugin-engine:update-route {...} -------->|
-   |<- #1:4 ok {"peers-affected":2,"routes-sent":2} --- |
+   |<- #4 ok {"peers-affected":2,"routes-sent":2} --- |
    |                                                  |
    |  RUNTIME: command execution                      |
-   |<- #2:43 ze-plugin-callback:execute-command {...} ---|
+   |<- #43 ze-plugin-callback:execute-command {...} ---|
    |-- #43 ok {"status":"done","data":"..."} -------->|
    |                                                  |
    |  SHUTDOWN: bye                                   |
-   |<- #2:99 ze-plugin-callback:bye {"reason":"..."} ---|
+   |<- #99 ze-plugin-callback:bye {"reason":"..."} ---|
    |-- #99 ok ---------------------------------------->|
    |  (plugin exits)                                  |
 ```
@@ -370,7 +370,7 @@ Plugin                                             Engine
 an error from `Run()` with context like `"stage 1 (declare-registration): ..."`.
 <!-- source: pkg/plugin/sdk/sdk.go -- Run -->
 
-**Runtime errors:** Callback handlers return errors via `#<len>:<id> error {"code":"...","message":"..."}`.
+**Runtime errors:** Callback handlers return errors via `#<id> error {"code":"...","message":"..."}`.
 Unknown methods are rejected with `"unknown method: <method>"`.
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop -->
 
@@ -390,8 +390,8 @@ channel, JSON-quotes each one, and sends them in a single `deliver-batch` RPC.
 <!-- source: pkg/plugin/rpc/batch.go -- WriteBatchFrame -->
 
 ```
-#2:42 ze-plugin-callback:deliver-batch {"events":["<json-event-1>","<json-event-2>",...]}
-#2:42 ok
+#42 ze-plugin-callback:deliver-batch {"events":["<json-event-1>","<json-event-2>",...]}
+#42 ok
 ```
 
 The SDK unpacks the batch and dispatches each event to the `OnEvent` handler individually.
