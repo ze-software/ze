@@ -555,6 +555,30 @@ ruling for selector words. The rule text MUST be corrected in the change that
 implements the first group B conversion, not left to be discovered by the next
 reader: a rule that contradicts a landed decision is worse than no rule.
 
+**What every conversion owes, learned from the first one (2026-08-21).** The
+RPKI conversion landed in `8226ae968` and turned up an obligation the mechanism
+does not enforce, so every later conversion carries it too.
+
+A pipe alias expands to `display <keys>`, which is a SECOND copy of the field
+list the command writes. `display` names keys and reports no miss, so a field
+added to the payload and not to the expansion is dropped from the alias in
+silence, and no test fails. The alias keeps answering; it just answers less.
+
+So a conversion is not done when the alias resolves. It owes three things:
+one authored list of the view's field names, an expansion DERIVED from that list
+rather than repeating it, and a test holding the list against the bytes the
+writer actually produces. RPKI does this with `summaryFieldNames`,
+`buildSummaryAliasExpansion`, and two tests
+(`internal/component/bgp/plugins/rpki/rpki.go`).
+
+Two smaller costs, both measured on that conversion. A plugin cannot declare a
+column order, so a converted plugin command and its pipe form sort
+alphabetically and read differently; the pipe form reads better, because
+`display` orders what it names. And `c_string_concat` refuses the obvious
+spelling of a derived expansion, `"display " + join(...)`, even in a
+package-level `var`, so it has to be built through a `textbuf.Buffer` in a
+function.
+
 Note also that `ai/rules/cli.md` already says "Every command that produces
 output MUST support all pipe operators", which is the direction of travel.
 

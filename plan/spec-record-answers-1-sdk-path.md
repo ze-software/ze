@@ -456,7 +456,7 @@ Central Deliverable"). It did not write this code. No sub-readers were spawned.
 
 Subject of the review: commit `4bdae01c8`, "feat(plugin): the SDK produces and
 reads record answers". `pkg/plugin/rpc/types.go` has moved since, under
-`plan/spec-plugin-registers-pipe-operations` (`91203b8aa` onward, `PipeDecl`);
+`plan/spec-plugin-registers-pipe-operations.md` (`91203b8aa` onward, `PipeDecl`);
 that work is not part of this diff and was not reviewed.
 
 Evidence run for this gate:
