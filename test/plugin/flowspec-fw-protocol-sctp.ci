@@ -10,7 +10,13 @@
 #
 # Reverting the translator change makes this test fail: the term would carry
 # MatchProtocol{"132"}, the reconcile would fail, and no table named flowspec
-# would ever appear in the kernel.
+# would ever appear in the kernel. The presence of the RULE is therefore the
+# discriminating assertion, and the spelling nft prints it in is not.
+#
+# nft prints the lowered value as `meta l4proto 132`, measured against nftables
+# in the QEMU Alpine VM on 2026-08-22. It reserves its symbolic names for the
+# protocols its own inet_proto table carries, so both spellings are accepted
+# here rather than one being asserted.
 #
 # Requires CAP_NET_ADMIN.
 
@@ -62,7 +68,9 @@ state = {"ruleset": ""}
 def installed():
     snap = subprocess.run(["nft", "list", "ruleset"], capture_output=True, text=True)
     state["ruleset"] = snap.stdout
-    return "flowspec" in state["ruleset"] and "sctp" in state["ruleset"]
+    return "table inet flowspec" in state["ruleset"] and (
+        "l4proto 132" in state["ruleset"] or "l4proto sctp" in state["ruleset"]
+    )
 
 
 ok = wait_until(installed, attempts=200, delay=0.1)
@@ -115,8 +123,12 @@ cmd=background:seq=2:exec=ze -:stdin=ze-bgp
 cmd=foreground:seq=3:exec=python3 driver.py:timeout=35s
 expect=exit:code=0
 expect=stdout:contains=table inet flowspec
-# nft renders protocol 132 symbolically; the name is the whole point of the fix.
-expect=stdout:pattern=l4proto (132|sctp)
 expect=stdout:contains=10.1.0.0/24
-# A digits spelling must never appear: it is the defect this test exists for.
-reject=stdout:pattern=l4proto "132"
+# One rule carrying every condition the peer announced. Asserting the protocol
+# alone would accept a rule wider than the announcement, which is the failure
+# mode a dropped match produces.
+expect=stdout:pattern=daddr 10\.1\.0\.0/24 th dport 80 meta l4proto (132|sctp) drop
+# A `reject` on a digits spelling stood here and could never fire. With the
+# defect in place lowerProtoMatch refuses MatchProtocol{"132"} and Apply returns
+# before its Flush, so no rule of any spelling reaches the kernel. The rule
+# pattern above is what denies.

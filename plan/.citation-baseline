@@ -17,6 +17,7 @@ plan/spec-filter-wire-4-plugins-nlri.md
 plan/spec-filter-wire-5-plugins-modify.md
 plan/spec-fixit-bcrypt-hash-credential.md
 plan/spec-fixit-ddos-test-infra.md
+plan/spec-fixit-flowspec-protocol-name-drift.md
 plan/spec-fixit-parser-fuzz-gaps.md
 plan/spec-fixit-qemu-artifact-cache.md
 plan/spec-fixit-tombstone-code-point-split.md

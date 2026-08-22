@@ -261,6 +261,41 @@ func TestRouteWithNoActionIsCountedAndLogged(t *testing.T) {
 	assert.Contains(t, logged.String(), "rule refused", "the refusal must reach the log")
 }
 
+// TestUnknownProtocolRouteIsCountedAndNamed covers the other half of AC-2: the
+// refusal is visible to an operator.
+//
+// VALIDATES: a route naming an IP protocol with no canonical firewall name
+// moves ze_flowspec_rules_refused_total with reason "unknown-protocol", and the
+// WARN line carries the protocol number and the rule key.
+// PREVENTS: refusedReasonUnknownProtocol having no producer any test drives.
+// The refusal is otherwise invisible: nothing is registered, no reconcile
+// fails, and `show firewall` has nothing to render, so the peer believes ze
+// filters the traffic and ze does not.
+func TestUnknownProtocolRouteIsCountedAndNamed(t *testing.T) {
+	reg := newReasonRegistry()
+	previous := bridgeMetricsPtr.Load()
+	t.Cleanup(func() { bridgeMetricsPtr.Store(previous) })
+	bindMetrics(reg)
+
+	var logged bytes.Buffer
+	b := newBridge(slog.New(slog.NewTextHandler(&logged, nil)))
+
+	event := daemonAddJSON("10.0.0.1", "rate-limit:0",
+		`{"destination": [["10.2.0.0/24"]], "protocol": [["=253"]]}`)
+	require.NoError(t, b.handleEvent(event))
+
+	assert.Nil(t, b.rules.buildTable(), "a refused route installs nothing")
+	assert.Equal(t, 1, reg.count(refusedReasonUnknownProtocol), "the refusal must reach the counter")
+
+	line := logged.String()
+	assert.Contains(t, line, "rule refused", "the refusal must reach the log")
+	// The number is read out of the ERROR text, not out of the rule key: the
+	// key quotes the whole NLRI, so it carries "253" whatever the error says.
+	assert.Contains(t, line, errUnknownProtocol.Error()+": 253",
+		"the log must name the protocol number")
+	assert.Contains(t, line, "10.2.0.0/24", "the log must name the rule key")
+}
+
 // reasonRegistry is a metrics.Registry that tallies CounterVec .Inc() by its
 // first label value, which is the refusal reason this bridge records.
 type reasonRegistry struct {

@@ -39,8 +39,13 @@ import os
 import signal
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 
 from ze_api import wait_until
+
+PORT = "$PORT2"  # substituted by the runner, same value as the telemetry block
+REFUSED = 'ze_flowspec_rules_refused_total{reason="unknown-protocol"}'
 
 if not wait_until(
     lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
@@ -52,30 +57,73 @@ if not wait_until(
 with open("daemon.pid") as f:
     pid = int(f.read().strip())
 
-state = {"ruleset": ""}
+state = {"ruleset": "", "metrics": ""}
 
 
 def reconciled():
     snap = subprocess.run(["nft", "list", "ruleset"], capture_output=True, text=True)
     state["ruleset"] = snap.stdout
     # The locally configured table proves other owners still reach the kernel;
-    # sctp proves the reconcile did not stop when the refused route arrived.
-    return "ze_fslocal" in state["ruleset"] and "sctp" in state["ruleset"]
+    # the sctp rule proves the reconcile did not stop when the refused route
+    # arrived. nft prints the lowered value as `meta l4proto 132` and reserves
+    # its symbolic names for the protocols its own inet_proto table carries, so
+    # both spellings are accepted rather than one being asserted.
+    return "ze_fslocal" in state["ruleset"] and (
+        "l4proto 132" in state["ruleset"] or "l4proto sctp" in state["ruleset"]
+    )
 
 
 ok = wait_until(reconciled, attempts=200, delay=0.1)
 
+
+def refusal_counted():
+    """True once the bridge has published its refusal of the first route.
+
+    This is a BARRIER, not a nicety. The daemon is killed below as soon as the
+    kernel carries the sctp rule, and the refusal of the FIRST route leaves no
+    kernel trace at all, so the stderr assertion at the foot of this file was
+    racing the kill: it failed on one QEMU run in five while every kernel
+    assertion passed. The CounterVec child exists only after the label set is
+    used, so this waits on the refusal itself rather than on a delay.
+    """
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/metrics", timeout=2) as resp:
+            body = resp.read().decode()
+    except (urllib.error.URLError, OSError):
+        return False
+    state["metrics"] = body
+    return REFUSED in body
+
+
+counted = wait_until(refusal_counted, attempts=200, delay=0.1)
+
 sys.stdout.write(state["ruleset"])
+for line in state["metrics"].split("\n"):
+    if line.startswith("ze_flowspec"):
+        print(line)
+
 os.kill(pid, signal.SIGTERM)
 
 if not ok:
     sys.exit("the reconcile did not survive the untranslatable FlowSpec route")
+if not counted:
+    sys.exit("the refused route never reached ze_flowspec_rules_refused_total")
 EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	internal flowspec-firewall {
 		use flowspec-firewall
+	}
+}
+
+telemetry {
+	prometheus {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
 	}
 }
 
@@ -137,8 +185,9 @@ expect=exit:code=0
 expect=stdout:contains=table inet ze_fslocal
 # The enforceable FlowSpec route reached the kernel AFTER the refused one.
 expect=stdout:contains=table inet flowspec
-expect=stdout:pattern=l4proto (132|sctp)
 expect=stdout:contains=10.1.0.0/24
+# One rule carrying every condition the enforceable route announced.
+expect=stdout:pattern=daddr 10\.1\.0\.0/24 th dport 80 meta l4proto (132|sctp) drop
 # The refused route enforces nothing, under any spelling. The match is what is
 # rejected, not the bare prefix: the refusal WARN this test requires two lines
 # below quotes the whole NLRI, so a bare `10.2.0.0/24` is a string the passing
@@ -147,7 +196,15 @@ expect=stdout:contains=10.1.0.0/24
 # event and printed neither. `daddr` appears in a programmed rule and never in
 # the NLRI spelling, which is what makes this able to fail.
 reject=stdout:pattern=daddr 10\.2\.0\.0/24
-reject=stdout:pattern=l4proto "253"
+# A `reject` on a digits spelling of 253 stood here and could never fire. With
+# the defect in place lowerProtoMatch refuses MatchProtocol{"253"} and Apply
+# returns before its Flush, so no rule of any spelling reaches the kernel. The
+# daddr reject above is what denies an enforced 10.2.0.0/24.
 # The bridge says so, naming the protocol number and the rule key.
 expect=stderr:contains=rule refused
 expect=stderr:contains=253
+# And it says so where an operator scraping Prometheus can see it. A refused
+# route registers nothing, fails no reconcile and renders nothing in
+# `show firewall`, so this series is the only standing record that a peer's
+# route is not being enforced.
+expect=stdout:pattern=ze_flowspec_rules_refused_total\{reason="unknown-protocol"\} 1

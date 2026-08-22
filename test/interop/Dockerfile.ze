@@ -27,7 +27,12 @@ RUN ZE_FEATURES="$(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr
 
 FROM alpine:3.21
 
-RUN apk add --no-cache tini python3
+# nftables supplies the `nft` CLI. Ze programs the kernel over netlink and needs
+# no binary, but a scenario that asserts what reached the KERNEL has no other
+# instrument: `show firewall` renders the registry's own record, and the nft
+# readback skips every table outside the ze_ ownership prefix
+# (internal/plugins/firewall/nft/readback_linux.go).
+RUN apk add --no-cache tini python3 nftables
 
 COPY --from=builder /ze /usr/local/bin/ze
 COPY --from=builder /ze-test /usr/local/bin/ze-test
