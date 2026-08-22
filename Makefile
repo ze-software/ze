@@ -21,6 +21,27 @@ export GOCACHE := $(CURDIR)/cache/go-cache
 export GOLANGCI_LINT_CACHE := $(CURDIR)/tmp/golangci-lint-cache
 export CGO_ENABLED := 0
 
+# The toolchain every target builds and lints with, READ FROM go.mod rather than
+# written here. golangci-lint is a separate binary linked against one version of
+# go/types, and it decodes the export data the ambient toolchain writes. When the
+# ambient Go is newer than the one the linter was built with, every package fails
+# to typecheck with "export data version N is greater than maximum supported
+# version M", the linter prints "0 issues" and exits non-zero. Measured 2026-08-22
+# with ambient Go 1.27.0 against golangci-lint built with 1.26.6.
+#
+# A warm GOCACHE hides this: the entries were written by whatever toolchain ran
+# first, so the break appears only on a cold cache, which is when nobody is
+# looking for a toolchain fault.
+#
+# Derived, never copied. A literal here and the version in go.mod are two records
+# of one fact, and the one nothing compares drifts (plan/journal/stale-spec-claims-done.md).
+# A go.mod with no toolchain line yields the empty string and leaves the ambient
+# toolchain untouched, which is the pre-2026-08-22 behavior.
+ZE_GO_TOOLCHAIN := $(shell awk '$$1 == "toolchain" { print $$2; exit }' $(CURDIR)/go.mod)
+ifneq ($(ZE_GO_TOOLCHAIN),)
+export GOTOOLCHAIN := $(ZE_GO_TOOLCHAIN)
+endif
+
 # Ensure the tmp/ and cache/ symlinks point at their out-of-tree targets before any target
 # writes scratch. This replaces the old tmp/go.mod nested-module sentinel: `go list ./...`
 # skips a directory SYMLINK named tmp/ (verified), so no marker file is needed.
