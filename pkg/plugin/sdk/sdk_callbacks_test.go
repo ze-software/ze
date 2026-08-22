@@ -345,8 +345,8 @@ func TestOnExecuteCommandStringIsDoubleEncoded(t *testing.T) {
 }
 
 // executeCommandValueCases are the answers a command handler builds before its
-// answer opens, each with the status its head declares and the exact bytes its
-// one item= line carries. The bytes are literals rather than a second marshal of
+// answer opens, each with the status its handler returns and the exact bytes its
+// one record line carries. The bytes are literals rather than a second marshal of
 // the same value: a golden derived from the code under test agrees with that
 // code whatever it does.
 //
@@ -426,7 +426,7 @@ type executeCommandEntry struct {
 // code whatever it does.
 //
 // The FRAME around those bytes is the only frame there is: this plugin's answer
-// is a head, one item= line and a terminator, whether the handler built a value
+// is a head, one record line and a terminator, whether the handler built a value
 // or produced rows. Nothing chooses it from the payload, because the engine must
 // know which frame is arriving before it reads the first line (AC-8). What AC-5
 // holds fixed is the VALUE inside it.

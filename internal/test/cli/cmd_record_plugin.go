@@ -7,7 +7,7 @@
 // reads an engine answer as one. It exists because the record path has two
 // halves and only a running daemon joins them. A plugin's own rows travel to an
 // operator through execute-command. An engine command's rows travel back
-// through dispatch-command. Four .ci files under test/plugin/ drive it.
+// through dispatch-command. Five .ci files under test/plugin/ drive it.
 
 package cli
 

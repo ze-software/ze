@@ -667,8 +667,8 @@ const AnswerBufferThreshold = 256
 const AnswerNoID uint64 = 0
 
 // AppendAnswerHead appends an answer head line
-// (#<id> top <type> <len>:<n>:<key> <len>:<n>:<columns>) to buf and
-// returns the extended slice. Newline is NOT appended.
+// (#<id> top <type> <n>:<key> <n>:<columns>) to buf and returns the extended
+// slice. Newline is NOT appended.
 //
 // Its fields are positional: the head states no key name, so a reader reaches
 // each one by arithmetic and nothing is spelled twice on the wire. It states no
@@ -708,7 +708,7 @@ func appendAnswerRecordPrefix(buf []byte, id uint64, kind string, size uint64) [
 }
 
 // AppendAnswerItem appends a result record line
-// (#<id> row <len>:<n>:<json>) and returns the extended slice. Newline is
+// (#<id> row <n>:<json>) and returns the extended slice. Newline is
 // NOT appended.
 //
 // The kind states that the payload is a produced row, so no key name sits in
@@ -716,17 +716,18 @@ func appendAnswerRecordPrefix(buf []byte, id uint64, kind string, size uint64) [
 // by arithmetic and never searches the line for where it stops.
 //
 // The payload is appended VERBATIM. It is the line that repeats, so no pass is
-// made over its bytes. A newline inside it is the one byte that has no wire
-// form, because the frame reader ends a line at the first one it meets: such a
-// line is refused by the count it states (parseAnswerRecord) rather than
-// rewritten, so a producer that writes one is told instead of half-read.
+// made over its bytes, and no byte of it has to be rewritten. A raw newline or
+// carriage return inside the payload is ordinary data: the frame is taken by the
+// width the line states rather than by the first newline it meets
+// (ScanAnswerLines, framing.go), so the terminator is the newline AFTER the
+// counted payload and nothing else ends the line.
 func AppendAnswerItem(buf []byte, id uint64, item json.RawMessage) []byte {
 	buf = appendAnswerRecordPrefix(buf, id, AnswerKindRecord, uint64(len(item)))
 	return append(buf, item...)
 }
 
 // AppendAnswerFault appends an error record line
-// (#<id> bad <len>:<n>:<json>) and returns the extended slice. Newline is
+// (#<id> bad <n>:<json>) and returns the extended slice. Newline is
 // NOT appended. A fault records one rejected row and does not end the walk,
 // which is what lets an answer report 97 rows applied and 3 rejected.
 //
@@ -776,8 +777,8 @@ func AnswerRecordLineSize(id uint64, record Record) int {
 }
 
 // AppendAnswerTerminator appends the terminator line
-// (#<id> end <len>:<count> <len>:<faults> <len>:<n>:<message>) to buf and
-// returns the extended slice. Newline is NOT appended.
+// (#<id> end <count> <faults> <n>:<message>) to buf and returns the extended
+// slice. Newline is NOT appended.
 //
 // The kind says the line ends the answer, and its fields are positional. It
 // states no outcome of its own: the verdict is DERIVED from the counts it
@@ -798,8 +799,8 @@ func AppendAnswerTerminator(buf []byte, id, count, faults uint64, message string
 }
 
 // AppendAnswerNotUnderstood appends the answer to a command the daemon did not
-// understand (#<id> nay <len>:<n>:<code> <len>:<n>:<message>) to buf and
-// returns the extended slice. Newline is NOT appended.
+// understand (#<id> nay <n>:<code> <n>:<message>) to buf and returns the
+// extended slice. Newline is NOT appended.
 //
 // It is the whole answer for its id: the kind says the conversation was valid
 // and the command was not, which is what lets a client offer completion here and

@@ -417,9 +417,35 @@ separately:
 
 ```
 #7 top map 5:peers 0:
+|  |   |   | |     |
+|  |   |   | |     +----- column names, 0 BYTES, so the records are not positional
+|  |   |   | +----------- those 5 bytes: peers
+|  |   |   +------------- 5, the envelope name's BYTE count, then its colon
+|  |   +----------------- item type map: each record is one map of names to values
+|  +--------------------- kind top: the head
++------------------------ correlation id 7
+
 #7 row 41:{"peer":"10.0.0.1","state":"established"}
+|  |   |  |
+|  |   |  +----- those 41 bytes
+|  |   +-------- 41, the payload's BYTE count, then its colon
+|  +------------ kind row: a record the walk produced
++--------------- correlation id 7
+
 #7 bad 60:{"path":"bgp/peer/10.0.0.2","message":"nexthop unreachable"}
+|  |   |  |
+|  |   |  +----- those 60 bytes
+|  |   +-------- 60, the payload's BYTE count, then its colon
+|  +------------ kind bad: a record the walk rejected
++--------------- correlation id 7
+
 #7 end 1 1 0:
+|  |   | | |
+|  |   | | +----- message, 0 BYTES, so the walk stated none
+|  |   | +------- 1 row rejected
+|  |   +--------- 1 record produced
+|  +------------- kind end: the terminator
++---------------- correlation id 7
 ```
 <!-- source: pkg/plugin/rpc/message_test.go -- TestAnswerLineTableMatchesDoc -->
 
@@ -436,6 +462,11 @@ carried 16 MB would not fit the line either.
 
 ```
 #7 bad 117:{"message":"answer record does not fit one wire message","record":12,"encoded-bytes":16777300,"limit-bytes":16777216}
+|  |   |   |
+|  |   |   +----- those 117 bytes: the walk position, the size, and the limit
+|  |   +--------- 117, the fault's BYTE count, then its colon
+|  +------------- kind bad: the record the encoder refused
++---------------- correlation id 7
 ```
 <!-- source: pkg/plugin/rpc/answer_write.go -- boundedRecord, answerRecordTooLargeFault -->
 
@@ -548,6 +579,12 @@ behind it is. The consumer stops the generator inside the buffering window.
 
 ```
 #7 nay 0: 31:unknown command: shwo bgp peers
+|  |   |  |  |
+|  |   |  |  +----- those 31 bytes, the reason an operator reads
+|  |   |  +-------- 31, the message's BYTE count, then its colon
+|  |   +----------- error code, 0 BYTES, so this answer names none
+|  +--------------- kind nay: the whole answer, and the only line for this id
++------------------ correlation id 7
 ```
 
 A client therefore offers completion for the first, and an operational message

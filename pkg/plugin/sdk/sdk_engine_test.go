@@ -33,7 +33,7 @@ func answerLines(id uint64, key string, items, faults []string) [][]byte {
 }
 
 // documentAnswerLines are the lines a peer writes for the answer of a walk that
-// ended within rpc.AnswerBufferThreshold records: a head naming type=json, the
+// ended within rpc.AnswerBufferThreshold records: a head naming the doc item type, the
 // one document that walk collapsed to, and the terminator carrying the walk's
 // counts. It is the wire rpc.WriteDocumentAnswer produces
 // (pkg/plugin/rpc/answer_write.go).
@@ -218,18 +218,18 @@ func TestDispatchCommandAnswerBoundedIsDocument(t *testing.T) {
 // TestCollapseAnswerRefusesAnUnreadableDocument checks that the buffered
 // reading of an answer refuses a record it cannot hand on as JSON. The method:
 // three answers a peer can write and no consumer can use -- a document that is
-// not JSON, a type=json answer carrying two records, and one carrying a
+// not JSON, a doc answer carrying two records, and one carrying a
 // rejected row -- are collapsed, and each is expected to be named rather than
 // forwarded.
 //
-// A record line's item= reaches the reader unread (ParseAnswerTail,
+// A record line's payload reaches the reader unread (ParseAnswerTail,
 // pkg/plugin/rpc/message.go), which is what lets a forwarding consumer parse
 // nothing. A consumer that hands the bytes on as a value cannot take that
 // unread, so the check lives at the point where the value is built.
 //
 // VALIDATES: the Security Review Checklist's input-validation row for the read
 // side: a row that is not valid JSON is refused rather than forwarded.
-// PREVENTS: a plugin unmarshaling whatever a peer put after `item=`, which the
+// PREVENTS: a plugin unmarshaling whatever a peer put behind the payload's byte count, which the
 // whole-document unmarshal this replaced would have refused.
 func TestCollapseAnswerRefusesAnUnreadableDocument(t *testing.T) {
 	t.Parallel()

@@ -2393,7 +2393,7 @@ func TestRouteToProcessBuildsRecords(t *testing.T) {
 // to an operator. The method: a streamed answer whose second row is not JSON,
 // walked to its end.
 //
-// A record line's item= is the plugin's bytes and the answer parser forwards
+// A record line's payload is the plugin's bytes and the answer parser forwards
 // them unread, so the engine is the boundary that has to check them. Rejecting
 // the one row keeps the rows around it, which is what a wide row already does.
 //

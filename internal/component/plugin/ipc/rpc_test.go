@@ -1222,7 +1222,7 @@ func answerPeerRows(count int) iter.Seq[rpc.Record] {
 // terminator.
 // VALIDATES: AC-8 of spec-record-answers-1-sdk-path -- the document a bounded
 // answer carries reaches the engine byte for byte.
-// PREVENTS: the engine taking a head line's key=value tail for an
+// PREVENTS: the engine taking a head line's positional tail for an
 // execute-command result, which is what a single-frame read does to an answer
 // sequence (R-1).
 func TestSendExecuteCommandReadsRecords(t *testing.T) {

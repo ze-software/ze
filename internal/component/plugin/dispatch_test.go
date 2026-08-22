@@ -213,7 +213,8 @@ func TestAnswerReportsAFailedGeneratorRatherThanItsRows(t *testing.T) {
 // with the wire grammar.
 //
 // VALIDATES: AC-6 -- a walk past the threshold produces one item line for each
-// row and a terminator carrying count=N, with no count stated before it.
+// row and a terminator whose first positional count is N, with no count stated
+// before it.
 // PREVENTS: a generator payload being flattened into one line, which is the
 // whole-answer materialization this protocol exists to remove.
 func TestGeneratorAnswerReachesTheEncoder(t *testing.T) {
@@ -494,7 +495,7 @@ func (w *failingWriter) Write(p []byte) (int, error) {
 // hundred-row answer, and the test counts what the generator produced.
 //
 // The Go error slot carries transport failure alone. A rejected ROW is a
-// fault= line and the walk continues (TestFaultDoesNotEndTheWalk); a dead
+// bad line and the walk continues (TestFaultDoesNotEndTheWalk); a dead
 // connection has nobody left to produce rows for, so the walk stops and no
 // terminator is claimed.
 //
@@ -593,9 +594,9 @@ func reassembleAnswer(t *testing.T, wire []byte) string {
 	return string(reassembled)
 }
 
-// zipStreamedRow renders one row the way a consumer of a type=stream answer
-// must: the head's field names over the row's values, in the head's column
-// order. A type=ndjson row describes itself and passes through.
+// zipStreamedRow renders one row the way a consumer of a tab answer must: the
+// head's column names over the row's values, in the head's column order. A map
+// row describes itself and passes through.
 //
 // It is written here rather than called from the encoder, because a consumer of
 // the wire has only the wire: an agreement reached by calling the producer's
@@ -773,7 +774,7 @@ func TestReservedEnvelopeKeyIsRefusedOnBothPaths(t *testing.T) {
 // is taken through both paths.
 //
 // VALIDATES: rpc.Record's contract that exactly one of Item and Fault is set.
-// PREVENTS: an `item=` line with no value, which no consumer can decode, and a
+// PREVENTS: a record line with no value, which no consumer can decode, and a
 // null in the buffered array, which reads like a row the command produced.
 func TestEmptyRecordIsRefusedOnBothPaths(t *testing.T) {
 	empty := func(yield func(rpc.Record) bool) { yield(rpc.Record{}) }
@@ -791,7 +792,7 @@ func TestEmptyRecordIsRefusedOnBothPaths(t *testing.T) {
 //
 // VALIDATES: a command that produced nothing answers completely.
 // PREVENTS: a panic on ranging a nil iter.Seq, which would take the daemon down
-// on a handler's omission rather than answering `count=0`.
+// on a handler's omission rather than answering a terminator that counts zero.
 func TestRecordsWithNoGeneratorIsAnEmptyAnswer(t *testing.T) {
 	var answer bytes.Buffer
 	if err := WriteAnswer(&answer, 6, NewResponse(StatusDone, Records{Key: "peers"})); err != nil {

@@ -51,9 +51,9 @@ to a rendering on the first line, and on the SSH exec channel that is not even
 possible, because `answerFrame.head` is written after the body.
 
 The goal is one encoding with one field vocabulary. Every field on every line is
-a three-byte word, a length-prefixed value, or a value that runs to the end of
-the line, so a reader reaches every field by arithmetic and no line states a
-fact another line can contradict.
+a three-byte word closed by a space, a counted number, or a counted text, so a
+reader reaches every field by arithmetic and no line states a fact another line
+can contradict.
 
 ## Required Reading
 
@@ -68,18 +68,18 @@ fact another line can contradict.
 - [ ] `ai/rules/performance.md` - buffer ownership, and what a hot path may not do
   → Constraint: the record line is the line that repeats; every byte and every scan removed from it is multiplied by the walk length
 - [ ] `docs/contributing/ze-style.md` - a limit on everything, types that cannot lie
-  → Constraint: a fixed-width field states its own bound, so `answerRecordPrefixMax` stops being a maximum and becomes the exact prefix size
+  → Constraint: a fixed-width field states its own bound, so `answerRecordPrefixMax` stops being a maximum and becomes `answerRecordPrefixWidth`, the exact prefix size
 
 **Key insights:** (minimal context to resume after compaction)
 - Fixing the verb width alone buys nothing: the variable id in front of it moves every later offset.
 - The kind token replaces both the verb AND the `item=` / `fault=` key, because a kind already says which payload follows. That is the whole win on the hot line.
-- Three field shapes, and nothing else: a three-byte word, a `<len>:<value>` with a base-36 length, or a value that runs to the end of the line. Every line is built from those three, so one reader serves every line kind.
+- Two field shapes, and nothing else: a three-byte word closed by a space, and a counted value. A counted NUMBER is decimal digits closed by a space or by the end of the line. A counted TEXT is decimal digits, a colon, then that many bytes. Every line is built from those two, so one reader serves every line kind.
 - Every token is a real word, never a truncation (`ai/rules/writing.md`, `docs/contributing/ze-style.md` on naming). Line kinds are `top`, `row`, `bad`, `end`, `nay`; item types are `doc`, `map`, `tab`. Byte 0 is distinct inside each field, so a machine switches on one load and a person reads a word.
 - `doc` / `map` / `tab` say what an `item` IS -- one whole document, a map of names to values, a tabular row read against the head's columns -- rather than naming a serialization. That also ends the collision `ipc_protocol.md` apologises for, where `type=json` and the `| json` pipe operator share a word and mean different things.
 - The head's `status=` is deleted, not shortened. `nay` covers the not-understood case, and the terminator's counts and message cover every other outcome.
 - Every tail KEY leaves the wire with it. The head becomes positional, so `answerKeyStatus` through `answerKeyCode` and `ParseAnswerTail`'s key-dispatch loop all disappear.
-- The id is length-prefixed rather than padded: `#2:42`, `#3:123`. One character says how many digits follow, so a reader takes one byte and computes every later offset with an addition, never a search. A padded field would spend eighteen bytes on every line of a million-row walk to say the same thing. ZeFS uses the same encoding (owner, 2026-08-20).
-- The length character is base 36, `0` to `9` then `A` to `Z`, so one byte expresses a length up to 35. A uint64 needs at most 20 decimal digits, so the whole id range fits with room left and no counter ever has to wrap (owner, 2026-08-20).
+- The id is `#42 `: the sigil, the decimal digits, and the one space that closes them. It is neither padded nor counted. A padded field would spend eighteen bytes on every line of a million-row walk, and a counted one measured slower than the fused loop that reads the plain form. The 2026-08-20 length prefix is REVERSED, and Key Design Decisions carries the measurement (owner, 2026-08-22).
+- No field states an outer length. A digit run is closed by a byte no digit can be, a space for a number and a colon for a text, so a count in front of one buys a reader nothing. The base-36 length alphabet is deleted (owner, 2026-08-22).
 - Offsets are computed per channel, not global: the mux channel carries the id and the exec channel writes `rpc.AnswerNoID` and no `#<id>` at all, so each has its own prefix rule and a reader knows which channel it is on at construction.
 - `FormatResult` has no non-test caller. It is dead code that pins the old shape in a test.
 
@@ -127,13 +127,13 @@ deletes is produced by `answerStatus`, which did NOT move.
 
 **Behavior to change:**
 - `ProtocolRecordAnswers`, `AnswerProtocolEnv`, `declaresRecordAnswers`, `Process.RecordAnswers`, `Process.SetRecordAnswers` and the `answerResult` branch are deleted. Every peer gets the record sequence.
-- The id becomes length-prefixed on every line that carries one, requests included: `#<len>:<id> `, where `<len>` is one base-36 character naming how many decimal digits the id occupies.
+- The id keeps its `#<id> ` spelling on every line that carries one, requests included: the sigil, the decimal digits, and the one space that closes them. Phase 3 put a base-36 length character in front of it and phase 6 deleted that character again, so the field ends this spec where it started.
 - The verb on an answer line becomes a three-byte kind token: `top`, `row`, `bad`, `end`, `nay`.
-- The record line drops `item=` and `fault=`; the kind states which, and the payload runs to the end of the line.
-- Every other tail key goes too. Each line's fields become positional, in a fixed order per kind, and a variable-width field carries the same `<len>:` prefix the id uses.
+- The record line drops `item=` and `fault=`; the kind states which, and the payload is a counted text that states its own byte count. It did run to the end of the line, until the owner's 2026-08-21 directive below made every field counted.
+- Every other tail key goes too. Each line's fields become positional, in a fixed order per kind, and a variable-width field states its own byte count as a counted text: the digits, a colon, then that many bytes.
 - The head's `status=` is deleted. `answerStatus` and `StatusOK` lose their only answer-side purpose, and the head-validity check in `awaitAnswerHead` moves from the status vocabulary to the kind token.
 - `type=` becomes an item-type token: `doc`, `map`, `tab` in place of `json`, `ndjson`, `stream`.
-- `answerRecordPrefixMax` shrinks and becomes derivable: the kind token is three bytes and the id's length is stated by one digit, so the widest prefix is arithmetic rather than a guessed 32.
+- `answerRecordPrefixMax` becomes `answerRecordPrefixWidth` and it is derivable: the id field at its widest, the three-byte kind, the space that closes it, the twenty digits a uint64 occupies, and the colon that closes that count. 47 bytes, arithmetic rather than a guessed 32.
 - `FormatResult` is deleted with its test.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -144,11 +144,11 @@ deletes is produced by `answerStatus`, which did NOT move.
 
 ### Transformation Path
 1. `WriteAnswer` decides the answer type from the record count, unchanged.
-2. Each line is built by the append helpers into the reused line buffer, now writing a length-prefixed id and a three-byte kind token instead of `#<decimal> ok`.
-3. A record line writes kind, id, and the row payload, with no key between them.
-4. The head writes kind, id, item type, then the length-prefixed envelope key, then the length-prefixed column names. It states no status.
-5. The terminator writes kind, id, then the length-prefixed counts, then the length-prefixed message.
-6. On the mux channel the reader takes the kind from the id's length byte with one addition; on the exec channel the id is absent and the kind sits at offset zero.
+2. Each line is built by the append helpers into the reused line buffer, now writing a three-byte kind token where `ok` used to sit.
+3. A record line writes id, kind, and the row payload as a counted text, with no key between them.
+4. The head writes id, kind, item type, then the envelope key as a counted text, then the column names as a counted text. It states no status.
+5. The terminator writes id, kind, then the two counts as counted numbers, then the message as a counted text.
+6. On the mux channel the reader walks the id's digits to the space that closes them and takes the kind from the bytes after it; on the exec channel the id is absent and the kind sits at offset zero.
 7. `RenderRecords` and `readAnswerFrame` read the kind directly rather than deriving it from the tail, and `awaitAnswerHead` validates the head by its kind rather than by its status.
 
 ### Line Grammar
@@ -217,7 +217,7 @@ Why the payload is counted rather than trailing, and what it costs:
   constraint is gone.
 
 The count is the PAYLOAD's length, never the whole line's. The prefix width
-differs per channel, because the mux channel carries `#<len>:<id>` and the exec
+differs per channel, because the mux channel carries `#<id> ` and the exec
 channel carries none, so a whole-line count would force per-channel arithmetic on
 the reader. A payload count is the same number on both channels.
 
@@ -252,7 +252,7 @@ payload length no reader can verify.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine ↔ Plugin (mux connection) | length-prefixed id, three-byte kind, keyless record payload | No |
+| Engine ↔ Plugin (mux connection) | `#<id> ` field, three-byte kind, keyless counted record payload | No |
 | Daemon ↔ SSH exec client | no id on the channel, so the kind is at offset zero | No |
 | Answer line ↔ request line | both carry `#<id>`, so the id width changes for both | No |
 | Engine ↔ in-process plugin (`DirectBridge`) | no wire involved; the bridge must produce the same rows | No |
@@ -279,7 +279,7 @@ payload length no reader can verify.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | No out-of-tree consumer speaks this wire | `ai/rules/go-standards.md` states Ze has never been released and permits no compat code anywhere, the plugin API included | The negotiation flag must survive, and the whole spec collapses to a rename | Owner confirmation, recorded here | unvalidated |
-| A-2 | One base-36 length character covers every id Ze can produce | `Conn.idSeq` is a per-connection uint64, which is at most 20 decimal digits; base 36 expresses a length up to 35 in one byte | A longer length field is needed, and every reader's offset arithmetic changes | Unit test writing and reading the maximum uint64 id | unvalidated |
+| A-2 | RETIRED with the mechanism it was about. The id carries no length character, so nothing has to cover its range | Phase 6 (`9313b7d5e`) deleted the length prefix. `cutID` walks the digits to the space that closes them, and refuses an id past the 20 digits a uint64 occupies and one past the range of a uint64 | N-A | `TestAnswerIDMaxUint64` and `TestAnswerIDFieldRejected` | **retired** |
 | A-3 | The mux read loop can tell an answer line from a plain response line by its fixed-offset kind token | `MuxConn.readLoop` splits on the first space today and `interpretResponse` reads the verb | A separate discriminator is needed, most likely a distinct first byte for answer lines | Unit test feeding both line families through one reader | unvalidated |
 | A-4 | Three bytes is enough for every line kind now and later | Five kinds exist: head, result record, rejected record, terminator, not understood | A sixth kind would need a longer token or a second alphabet | Owner directive: three bytes confirmed 2026-08-20 | unvalidated |
 | A-5 | The head's `status=` carries nothing the terminator does not | `answerStatus` reads the response, never the walk, so it is blind to a partial and to a late failure; `Verdict` derives the outcome from the terminator alone and states that as its reason | A consumer loses a distinction it needs, and the status must return as a positional token | A test asserting a failed command, an aborted walk and a partial are told apart from the terminator alone | **broken** |
@@ -289,7 +289,7 @@ payload length no reader can verify.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | The deletion lands before child 1, so no plugin can answer | Plugin functional tests fail at Stage 3 or on the first command | `Depends` is enforced by review: this spec does not start until child 1 is closed |
-| R-2 | The length character and the id disagree, so a reader slices at the wrong offset and takes the kind from inside the id | A reader reporting an unknown kind on a well-formed line | One writer produces both halves and a test asserts they agree for every digit count from 1 to 20; a reader checks the byte after the id is the expected separator before it trusts the length |
+| R-2 | RETIRED with the mechanism it was about: there is no length character left to disagree with the id. The risk under it survives, which is a reader that mis-slices the id and takes the kind from inside it | A reader reporting an unknown kind on a well-formed line | `cutID` is the one reader and `appendID` the one writer. The field MUST end at a space, every byte before it MUST be a decimal digit, an id past 20 digits is refused, and so is one past the range of a uint64. `TestAnswerIDFieldRejected` asserts the message each refusal earns, not only that one was earned |
 | R-3 | The two channels get different offsets and a shared reader assumes one | A test passing over the plugin connection and failing over SSH exec | One reader takes the prefix length from its channel, set once at construction, never inferred per line |
 | R-4 | Deleting the head's status loses a distinction some consumer relied on | A consumer that rendered a failure from the head now waits for the terminator | **The mitigation as written is now FALSE and the risk has landed.** `CallAnswer` has three non-test callers and `Answer.Status` has three production readers, all added by child 1 on 2026-08-21 and none present at HEAD: `answerValue` (`pkg/plugin/sdk/sdk_engine.go`), `ExecuteCommandValue` (`internal/component/plugin/ipc/rpc.go`) and `streamedPluginResponse` (`internal/component/plugin/server/command.go`, `if answer.Status == rpc.StatusError`). The surface is no longer provably unused. AC-11 still governs, and it now has to be MADE true rather than merely pinned |
 
@@ -346,7 +346,7 @@ AC-11 against the terminator FIRST, and only then deletes the field.
 | Plugin runs a command over the mux connection | → | `answerResult` with the branch removed | `TestDispatchCommandAlwaysAnswersRecords` |
 | Operator runs `ssh ze "<command>"` without setting any env var | → | `writeExecAnswer` with `declaresRecordAnswers` removed | `test-exec-answer-unconditional` |
 | A reader takes a record line | → | `ParseAnswerLine` reaches the kind by arithmetic | `TestParseAnswerLineFixedOffsets` |
-| A request line is written | → | `AppendRequest` writes a length-prefixed id | `TestAppendRequestLengthPrefixedID` |
+| A request line is written | → | `AppendRequest` opens with `appendID`, the one writer of the field | `TestAppendRequestSpellsTheSameIDField` |
 
 ## Acceptance Criteria
 
@@ -357,19 +357,19 @@ AC-11 against the terminator FIRST, and only then deletes the field.
 | AC-3 | Any answer line is written on the mux channel | Its kind token is reached from the id's length byte with one addition, identically for all five kinds, and never by searching for a space |
 | AC-4 | Any answer line is written on the exec channel | Its kind token starts at offset zero |
 | AC-5 | A result record line is written | Its payload's byte count follows the kind token, and the payload follows the count. No key, and no separator scanned for at either end: the reader slices the payload by arithmetic and never looks for the newline to find where it stops |
-| AC-6 | Ids of one digit, ten digits and the maximum uint64 are written | Each line states its id length in one base-36 byte, each reads back to the value written, and a reader reaches the kind token by arithmetic rather than by searching for a separator |
+| AC-6 | Ids of one digit, ten digits and the maximum uint64 are written | Each reads back to the value written, and a reader reaches the kind token by walking the id's digits to the one space that closes them. An id past the twenty digits a uint64 occupies, and one past the range of a uint64, are each refused by name |
 | AC-7 | A reader meets an unknown three-byte kind | It refuses the line with a named error rather than guessing the kind from the tail |
 | AC-8 | A command answers with a bounded payload | The payload bytes are identical to those the same command produced before this spec |
 | AC-9 | A bounded answer's document exceeds one wire message | It is refused with the same fault an over-wide record gets, rather than being written and read as truncated |
 | AC-10 | The tree is searched for the deleted symbols | `ProtocolRecordAnswers`, `AnswerProtocolEnv`, `declaresRecordAnswers`, `RecordAnswers`, `SetRecordAnswers` and `FormatResult` are absent |
 | AC-11 | A command fails outright, a walk is aborted part way, and a walk rejects some rows | A consumer tells the three apart from the terminator alone, and no line states an outcome that another line can contradict |
 | AC-12 | A walk of one million rows is written and read | No line is scanned for a separator before its payload is taken |
-| AC-13 | Any answer line is parsed | It carries no `key=value` pair at all, and only TWO field shapes exist: a three-byte word, or a `<len>:<value>`. No field runs to the end of the line |
+| AC-13 | Any answer line is parsed | It carries no `key=value` pair at all, and every field is one of three shapes: a three-byte word closed by a space, a counted number of decimal digits closed by a space or by the end of the line, or a counted text of decimal digits, a colon, and that many bytes. No field runs to the end of the line uncounted |
 | AC-14 | The tree is searched for the answer tail key names | `answerKeyStatus` through `answerKeyCode` are absent, and `ParseAnswerTail` no longer dispatches on a key name |
 | AC-15 | A head is written | It states no status, and a reader that meets a line whose kind is not `top` where a head belongs refuses the answer |
 | AC-16 | Each token is checked against a dictionary | Every one is a whole word, not a truncation: `top`, `row`, `bad`, `end`, `nay`, `doc`, `map`, `tab` |
 | AC-17 | A head names an envelope | The name states its own BYTE count and then the colon every counted text carries, and an absent name writes `0:` rather than omitting the field, so a line's field count never varies |
-| AC-18 | A handler names an envelope longer than 35 bytes, or an error code longer than 35 bytes | It is refused where the name is registered, with a message naming the limit, rather than producing a line no reader can parse |
+| AC-18 | RETIRED by phase 6 (`0faf5e3a9`). It capped an envelope key and an error code at 35 bytes | The cap existed only because the spec assumed a one-character length form. A counted text states its byte count as a run of decimal digits, so it carries a value of any length and nothing is capped by its own encoding. The cap was never implemented: `grep -rn "envelopeKeyMax" --include=*.go .` returns nothing. What still bounds these values is the frame's own `MaxMessageSize` refusal |
 | AC-19 | A row payload whose LAST byte is `\r`, and one containing a raw `\n`, are written and read | Both round-trip byte for byte. Neither is rewritten, neither is truncated, and no reader strips anything after the counted payload. This fails today: `bufio.ScanLines` strips a trailing `\r` at `pkg/plugin/rpc/framing.go:78` and `internal/core/ssh/client/answer.go:122` |
 | AC-20 | A line arrives terminated with `\r\n`, and a line arrives whose stated payload length disagrees with the bytes before its `\n` | Each is refused with a named error rather than parsed. A line ends with exactly one `\n`, and the length is checked against what arrived |
 
@@ -389,10 +389,10 @@ AC-11 against the terminator FIRST, and only then deletes the field.
 |------|------|-----------|--------|
 | `TestParseAnswerLineFixedOffsets` | `pkg/plugin/rpc/message_test.go` | every kind puts its token at the same offset | |
 | `TestAppendAnswerRecordNoKey` | `pkg/plugin/rpc/message_test.go` | the record payload follows the prefix directly | |
-| `TestAppendRequestLengthPrefixedID` | `pkg/plugin/rpc/message_test.go` | requests carry the same id encoding as answers | |
-| `TestAnswerIDLengthPrefixRoundTrip` | `pkg/plugin/rpc/message_test.go` | every digit count from 1 to 20 states its base-36 length and reads back | |
-| `TestAnswerIDMaxUint64` | `pkg/plugin/rpc/message_test.go` | the maximum uint64 id writes length `K` and round-trips (A-2) | |
-| `TestAnswerIDLengthCharacterRejected` | `pkg/plugin/rpc/message_test.go` | a lower-case or out-of-range length character refuses the line | |
+| `TestAppendRequestSpellsTheSameIDField` | `pkg/plugin/rpc/message_test.go` | requests carry the same id encoding as answers | |
+| `TestAnswerIDRoundTrip` | `pkg/plugin/rpc/message_test.go` | every digit count from 1 to 20 reads back to the value written | |
+| `TestAnswerIDMaxUint64` | `pkg/plugin/rpc/message_test.go` | the maximum uint64 id round-trips | |
+| `TestAnswerIDFieldRejected` | `pkg/plugin/rpc/message_test.go` | a malformed id field refuses the line, and each case earns its own message | |
 | `TestParseAnswerLineUnknownKind` | `pkg/plugin/rpc/message_test.go` | an unknown kind is refused, not guessed | |
 | `TestAnswerRecordLineSizeExact` | `pkg/plugin/rpc/message_test.go` | the measured size equals the written size | |
 | `TestDispatchCommandAlwaysAnswersRecords` | `internal/component/plugin/server/dispatch_registry_test.go` | the negotiation branch is gone | |
@@ -404,17 +404,17 @@ AC-11 against the terminator FIRST, and only then deletes the field.
 | `TestHeadStatesNoStatus` | `pkg/plugin/rpc/message_test.go` | the head writes kind, id, type, key, columns, and nothing else (AC-15) | |
 | `TestAwaitAnswerHeadValidatesByKind` | `pkg/plugin/rpc/mux_test.go` | the head guard moved from status to the kind token | |
 | `TestVerdictTellsFailedFromAbortedFromPartial` | `pkg/plugin/rpc/message_test.go` | the terminator alone distinguishes the three outcomes (AC-11, A-5) | |
-| `TestEnvelopeKeyLengthPrefixed` | `pkg/plugin/rpc/message_test.go` | an absent envelope writes length zero rather than omitting the field (AC-17) | |
-| `TestEnvelopeKeyOverLimitRefused` | `internal/component/plugin/types_test.go` | a name past 35 bytes is refused where it is registered (AC-18) | |
+| `TestEnvelopeKeyLengthPrefixed` | `pkg/plugin/rpc/message_test.go` | an absent envelope writes `0:` rather than omitting the field (AC-17) | |
+| ~~`TestEnvelopeKeyOverLimitRefused`~~ | - | RETIRED with AC-18 by phase 6 (`0faf5e3a9`). A counted text carries a value of any length, so there is no 35-byte cap to prove | retired |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| answer id digits | 1 to 20 | 20, written as length `K` | length `0` refuses the line | length `L` and above is unreachable, because no uint64 needs 21 digits |
-| length character | `0` to `9`, `A` to `Z` | `Z` | a character below `0` refuses the line | a character above `Z`, and lower case, refuse the line |
+| answer id digits | 1 to 20 | 20 | zero digits, `# `, refuses the line | 21 digits refuses the line, and so does a 20-digit run past the range of a uint64 |
+| counted field digits | 1 to 20 | 20 | zero digits refuses the field | 21 digits refuses the field, because a uint64 occupies 20 |
 | kind token length | 3 | 3 | 2 refuses the line | 4 refuses the line |
 | item type token length | 3 | 3 | 2 refuses the head | 4 refuses the head |
-| envelope key length | 0 to 35 | 35 | N/A, zero means no envelope | 36 cannot be expressed in one base-36 character |
+| envelope key length | 0 to the frame's own limit | `MaxMessageSize`, like every other counted text | N/A, zero means no envelope and writes `0:` | N/A. The 35-byte cap was retired with AC-18 |
 | record line width | prefix to `MaxMessageSize` | `MaxMessageSize` | N/A | one byte over becomes a fault |
 | document line width | prefix to `MaxMessageSize` | `MaxMessageSize` | N/A | one byte over is refused (AC-9) |
 
@@ -422,9 +422,10 @@ AC-11 against the terminator FIRST, and only then deletes the field.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `test-exec-answer-unconditional` | `test/plugin/exec-answer-unconditional.ci` | an operator runs a command over SSH with nothing configured | | <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
-| `test-plugin-answer-unconditional` | `test/plugin/answer-unconditional.ci` | a plugin that declares nothing still gets records; replaces `answer-not-negotiated.ci` | | <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
-| `test-answer-first-bounds-long-walk` | `test/plugin/answer-first-bounds-long-walk.ci` | `first 10` over a long walk still bounds the read | | <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
-| `test-answer-payload-unchanged` | `test/plugin/answer-payload-unchanged.ci` | the payload of an existing command is byte-identical after the reframe | | <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
+| `test-plugin-answer-unconditional` | `test/plugin/answer-unconditional.ci` | a plugin that declares nothing still gets records; replaces `answer-not-negotiated.ci` | done, phase 1 |
+| `test-answer-first-bounds-long-walk` | `test/plugin/answer-first-bounds-long-walk.ci` | `first 10` over a long walk still bounds the read | done, phase 6 |
+| `test-plugin-command-document-too-wide` | `test/plugin/plugin-command-document-too-wide.ci` | a bounded answer whose document no line can carry is refused rather than truncated (AC-9, R-7) | done, phase 7 |
+| `test-answer-payload-unchanged` | `test/plugin/answer-payload-unchanged.ci` | the payload of an existing command is byte-identical after the reframe | done, phase 8 |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -432,9 +433,9 @@ AC-11 against the terminator FIRST, and only then deletes the field.
 | N/A | - | - | This wire is internal to Ze: the plugin connection and the SSH exec channel have no third-party speaker, so no peer daemon can validate it. The `.ci` tests drive the real daemon, the real SDK and the real SSH client, which is the strongest evidence this surface admits | N/A |
 
 ## Files to Modify
-- `pkg/plugin/rpc/message.go` - length-prefixed id, kind tokens, keyless record lines, bounded prefix size, delete `FormatResult`
+- `pkg/plugin/rpc/message.go` - kind tokens, positional counted fields, keyless record lines, the exact prefix width, delete `FormatResult`
 - `pkg/plugin/rpc/types.go` - delete `ProtocolRecordAnswers` and `AnswerProtocolEnv`; `DeclareCapabilitiesInput` loses the protocol list if nothing else uses it
-- `pkg/plugin/rpc/mux.go` - `readLoop` and `interpretResponse` read the length-prefixed id; `awaitAnswerHead` validates the head by its kind rather than by its status; `Answer` loses its `Status` field
+- `pkg/plugin/rpc/mux.go` - `readLoop` and `interpretResponse` take the id through `cutID`; `awaitAnswerHead` validates the head by its kind rather than by its status; `Answer` loses its `Status` field
 - `pkg/plugin/rpc/conn.go` - the id writer shared with requests
 - `internal/component/plugin/dispatch.go` - `WriteAnswer` unconditional; `writeDocumentAnswer` bounds its line
 - `internal/component/plugin/server/dispatch_registry.go` - `answerResult` loses its branch
@@ -450,13 +451,14 @@ AC-11 against the terminator FIRST, and only then deletes the field.
 - `test/plugin/answer-single-record.ci`, `test/plugin/answer-many-records.ci`, `test/plugin/answer-truncation-detected.ci`, `test/plugin/answer-unknown-command.ci` - reframed fixtures
 
 ## Files to Create
-- `test/plugin/exec-answer-unconditional.ci` - SSH exec with nothing configured <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
-- `test/plugin/answer-unconditional.ci` - replaces `answer-not-negotiated.ci` <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
-- `test/plugin/answer-first-bounds-long-walk.ci` - the pipe still bounds the walk <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
-- `test/plugin/answer-payload-unchanged.ci` - payload bytes survive the reframe <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
+- `test/plugin/exec-answer-unconditional.ci` - SSH exec with nothing configured. NOT CREATED, and it is the one open item this spec leaves <!-- doc-links: ignore (functional test this spec planned and did not create) -->
+- `test/plugin/answer-unconditional.ci` - replaces `answer-not-negotiated.ci`. Created by phase 1
+- `test/plugin/answer-first-bounds-long-walk.ci` - the pipe still bounds the walk. Created by phase 6
+- `test/plugin/plugin-command-document-too-wide.ci` - a bounded answer's document is measured before it is built. Created by phase 7
+- `test/plugin/answer-payload-unchanged.ci` - payload bytes survive the reframe. Created by phase 8
 
 ## Files to Delete
-- `test/plugin/answer-unconditional.ci` - it replaced `answer-unconditional.ci` in phase 1, whose premise was the branch this spec removes
+- `test/plugin/answer-not-negotiated.ci` - DONE by phase 1 (`c08252e0a`), which renamed it to `answer-unconditional.ci`. Its premise was the branch this spec removes <!-- doc-links: ignore (the path names a file this spec DELETED; it no longer exists, which is the row's point) -->
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -506,7 +508,7 @@ AC-11 against the terminator FIRST, and only then deletes the field.
    - Files: `pkg/plugin/rpc/types.go`, `internal/component/plugin/process/process.go`, `internal/component/plugin/server/startup.go`, `internal/core/ssh/client/answer.go`, `internal/component/plugin/server/dispatch.go`
    - Verify: AC-10's search is empty, and `answer-unconditional.ci` is deleted rather than adjusted
 3. **Phase: Length-prefixed id** -- every line carrying an id
-   - Tests: `TestAppendRequestLengthPrefixedID`, `TestAnswerIDLengthPrefixRoundTrip`, `TestAnswerIDMaxUint64`, `TestAnswerIDLengthCharacterRejected`
+   - Tests: `TestAppendRequestSpellsTheSameIDField`, `TestAnswerIDRoundTrip`, `TestAnswerIDMaxUint64`, `TestAnswerIDFieldRejected`
    - Files: `pkg/plugin/rpc/message.go`, `pkg/plugin/rpc/conn.go`, `pkg/plugin/rpc/mux.go`
    - Verify: requests and answers agree on the encoding, the whole uint64 range is expressible, and A-3 is answered by `TestMuxReadLoopSeparatesAnswerFromResponse`
 4. **Phase: Kind tokens** -- the line states what it is
@@ -526,9 +528,10 @@ AC-11 against the terminator FIRST, and only then deletes the field.
    - Files: `internal/component/plugin/dispatch.go`
    - Verify: an over-wide bounded answer is refused, and the journal row is answered by code rather than by a record
 8. **Phase: Fixtures and docs** -- one pass over everything that reads the wire
-   - Tests: the four reframed `.ci` files plus `test-answer-payload-unchanged`
+   - Tests: the reframed `.ci` files plus `test-answer-payload-unchanged`
    - Files: the `.ci` files and every doc row answered Yes above
    - Verify: `make ze-functional-plugin-test` passes, and the payload test proves only the frame moved
+   - Owner directive, 2026-08-22: **the wire stopped explaining itself, so the document owes what the wire no longer says.** `#42 ok status=done type=ndjson key=peers` was legible with no documentation, because the key names WERE the explanation. `#42 top map 5:peers 0:` is not. So every wire example in an API document carries an IN-PLACE decode naming each field, adjacent to the bytes rather than in prose nearby; every count is stated as a BYTE count; every three-letter word is given its meaning where a reader first meets it; and no API page delegates its own subject to another page. A link stays for depth and MUST NOT be the only route to the meaning.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -546,7 +549,7 @@ AC-11 against the terminator FIRST, and only then deletes the field.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | The negotiation is gone | `grep -rn "ProtocolRecordAnswers\|AnswerProtocolEnv\|declaresRecordAnswers\|SetRecordAnswers\|FormatResult" --include=*.go .` returns nothing |
-| The id states its own length | `TestAnswerIDLengthPrefixRoundTrip` and `TestAnswerIDMaxUint64` pass |
+| The id is one digit run a space closes | `TestAnswerIDRoundTrip`, `TestAnswerIDMaxUint64` and `TestAnswerIDFieldRejected` pass |
 | The kind is reached by arithmetic | `TestParseAnswerLineFixedOffsets` passes |
 | No key name reaches the wire | `grep -n "answerKeyStatus\|answerKeyType\|answerKeyEnvelope\|answerKeyFields\|answerKeyItem\|answerKeyFault\|answerKeyCount\|answerKeyFaults\|answerKeyMessage\|answerKeyCode" pkg/plugin/rpc/message.go` returns nothing |
 | The head states no status | `TestHeadStatesNoStatus` passes, and `grep -n "StatusOK" pkg/plugin/rpc/` returns no answer-side use |
@@ -582,9 +585,9 @@ AC-11 against the terminator FIRST, and only then deletes the field.
 |----------|------------------------|-----------|
 | A three-byte kind token replaces the verb | Keep `ok` and `error` and pad them; use a single discriminating byte | Padding hides the field boundary from a person reading a capture. One byte is unreadable. Three bytes gives a word a person reads and a first byte a machine switches on, with no trade between them (owner directive, 2026-08-20) |
 | The kind replaces `item=` and `fault=` as well | Keep the keys and add a kind | Two statements of one fact can disagree, and the record line is the line that repeats. The key is the scan this spec exists to remove |
-| The id is length-prefixed, `#<len>:<id>` | 16 zero-padded hex digits; decimal padded to 20 | A padded field pays its widest case on every line, which is eighteen wasted bytes per line of a million-row walk. One length byte gives the reader the same arithmetic and costs nothing when the id is small. It also stays decimal, so a person reading a capture reads the number they see in a log (owner directive, 2026-08-20; the same encoding ZeFS uses) |
-| The length character is base 36 | One decimal digit, capping the id at nine digits and wrapping the counter | Base 36 expresses 35 in one byte, and a uint64 needs 20 decimal digits at most, so the whole id range fits with headroom. A decimal length would have forced a wrapping counter, which is a correctness argument nobody should have to make (owner directive, 2026-08-20) |
-| Every field is a three-byte word, a `<len>:<value>`, or a run to end of line | Keep `key=value` tails on the head and terminator, since they run once per answer | Two mechanisms in one protocol is the cost, not the byte count. One vocabulary means one reader, and it removes `ParseAnswerTail`'s key dispatch and its unknown-key branch outright |
+| **REVERSED 2026-08-22.** The id was to be length-prefixed, `#<len>:<id>` | 16 zero-padded hex digits; decimal padded to 20 | DECIDED 2026-08-20: a padded field pays its widest case on every line, which is eighteen wasted bytes per line of a million-row walk, and one length byte was to give the reader the same arithmetic for nothing. Phase 3 (`326ce6e96`) built it. **The owner measured it and reversed it in phase 6 (`9313b7d5e`): a counted id costs 8.1 to 9.2 ns against 3.2 to 3.5 ns for a fused loop over the plain form, zero allocations either way, and it is two bytes wider on every line.** The count bought nothing, because `cutID` still had to check the space that closes the field and still had to parse the digits, which IS the cost of the plain form. A count belongs on a field whose value can hold the delimiter. An id cannot: a digit is not a space. The id is `#<id> ` |
+| **REVERSED 2026-08-22.** The length character was to be base 36, and every counted field was to state its own outer length | One decimal digit, capping the id at nine digits and wrapping the counter | DECIDED 2026-08-20: base 36 expresses 35 in one byte, so the whole 20-digit uint64 range fits with headroom and no counter has to wrap. Phase 5 (`46c4d0e1e`) extended the same form to every counted field. **The owner measured it and reversed it in `50468ee34`: reading an id with a fused accumulate loop costs 3.2 ns against 8.6 ns for decoding a base-36 length and then calling ParseUint on the slice it just measured, zero allocations either way (owner, Go 1.26.6).** The outer length bought nothing for the same reason, so `countedLengthAlphabet` is deleted. What closes a field is keyed to its TYPE instead: a number ends at a space or the line's end, a text ends after the bytes its count states. The one count that stays is the text's, because a text MAY hold the delimiter and nothing else can say where it ends |
+| Every field is a three-byte word, a counted number, or a counted text | Keep `key=value` tails on the head and terminator, since they run once per answer | Two mechanisms in one protocol is the cost, not the byte count. One vocabulary means one reader, and it removes `ParseAnswerTail`'s key dispatch and its unknown-key branch outright |
 | The head states no status | Shorten it to a three-byte token beside the type | `answerStatus` reads the response and never the walk, so it is blind to a partial and to a late failure; the terminator's counts and message already tell a failed command, an aborted walk and a partial apart. `Verdict` says as much in its own comment: a terminator carries no status, so nothing can disagree with the counts. The head's status was the one field that could |
 | Item types are `doc`, `map`, `tab` | `jsn`, `ndj`, `str`, as three-byte spellings of the existing names | These say what an item IS rather than naming a serialization, and they end the collision `ipc_protocol.md` apologises for between `type=json` and the `\| json` pipe operator. They are also words rather than stumps |
 | Every token is a whole word | Truncations such as `hed`, `don`, `obj`, `arr` | `docs/contributing/ze-style.md` asks for the noun, not the abbreviation, and a token a person must expand is the readability this design already spends. Byte 0 stays distinct inside each field, so nothing is lost mechanically (owner directive, 2026-08-21) |
@@ -609,7 +612,7 @@ channel data, exactly as before.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-18 all demonstrated
+- [ ] AC-1..AC-20 all demonstrated, or retired here with the commit that retired them (AC-18 only)
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)

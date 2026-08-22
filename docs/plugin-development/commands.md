@@ -63,14 +63,56 @@ Commands are delivered to the plugin as `execute-command` RPCs over the MuxConn 
 
 The answer is a head, its records and a terminator, on every connection. The
 frame is the same whatever the payload is, so a handler that built one value
-takes the same three lines as a handler that walked a table. The field after the
-id is a three-byte kind token saying which of the three a line is: `top`, `row`
-and `end`, with `bad` for a rejected row.
+takes the same three lines as a handler that walked a table.
+
+An answer line carries no verb and no key name. The field after the id is a
+three-byte word saying what the line IS:
+
+| Word | The line is |
+|------|-------------|
+| `top` | the head, which opens the answer |
+| `row` | one record your command produced |
+| `bad` | one record it rejected. The walk goes on |
+| `end` | the terminator, which ends the answer |
+| `nay` | the whole answer to a command text naming no command |
+
+The head carries a second three-byte word saying how the records read:
+
+| Word | The records are |
+|------|-----------------|
+| `doc` | one document. The whole answer is that one value |
+| `map` | one map of names to values for each record |
+| `tab` | one positional row for each record, read against the column names |
+
+Every field after those is positional and takes one of two shapes. A NUMBER is
+decimal digits closed by a space or by the end of the line. A TEXT is decimal
+digits, a colon, then that many BYTES. **The count is a BYTE count, never a count
+of characters.** A text of zero bytes is written `0:`, present and empty, so a
+line's field count never varies.
 
 ```
 #17 top doc 0: 0:
+|   |   |   |  |
+|   |   |   |  +----- column names, 0 BYTES, so the records are not positional
+|   |   |   +-------- envelope name, 0 BYTES, so the document carries its own
+|   |   +------------ item type doc: the whole answer is one document
+|   +---------------- kind top: the head, always the first line
++-------------------- correlation id 17, echoed from the request
+
 #17 row 34:{"status":"running","uptime":3600}
+|   |   |  |
+|   |   |  +----- those 34 bytes, what your handler returned, byte for byte
+|   |   +-------- 34, the payload's BYTE count, then the colon every text carries
+|   +------------ kind row: one record the command produced
++---------------- correlation id 17
+
 #17 end 1 0 0:
+|   |   | | |
+|   |   | | +----- message, 0 BYTES, so the command stated none
+|   |   | +------- 0 rows rejected
+|   |   +--------- 1 record produced
+|   +------------- kind end: the terminator, always the last line
++----------------- correlation id 17
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer -->
@@ -101,7 +143,10 @@ return "done", map[string]any{
 }, nil
 ```
 
-The SDK marshals this value once and sends it as the one record of the answer:
+The SDK marshals this value once and sends it as the one record of the answer.
+The three lines read exactly as the decoded ones above. The `doc` head names no
+envelope and no columns, the `row` states 30 bytes and then the marshaled value,
+and the terminator counts one record, no rejection and no message.
 ```
 #17 top doc 0: 0:
 #17 row 30:{"count":42,"items":["a","b"]}
@@ -116,7 +161,8 @@ return "done", nil, nil
 ```
 
 Response. A command that reported nothing writes no record, and the terminator
-says so. Nothing is not the same answer as an empty collection:
+says so: zero records produced, zero rejected, and a message of zero bytes.
+Nothing is not the same answer as an empty collection:
 ```
 #17 top doc 0: 0:
 #17 end 0 0 0:
@@ -135,10 +181,21 @@ return "done", sdk.Records{Key: "sessions", Rows: sessionRows()}, nil
 
 ```
 #17 top map 8:sessions 0:
+|   |   |   | |        |
+|   |   |   | |        +----- column names, 0 BYTES, so the rows are not positional
+|   |   |   | +-------------- those 8 bytes: sessions, your Key
+|   |   |   +---------------- 8, the envelope name's BYTE count, then its colon
+|   |   +-------------------- item type map: each record is one map of names to values
+|   +------------------------ kind top: the head
++---------------------------- correlation id 17
+
 #17 row 26:{"id":1,"peer":"10.0.0.1"}
 #17 row 26:{"id":2,"peer":"10.0.0.2"}
 #17 end 2 0 0:
 ```
+
+Each `row` states the 26 bytes of its payload and then those bytes. The
+terminator counts two records produced, none rejected, and no message.
 
 `Key` names the envelope the rows belong under. A handler MUST NOT name it
 `errors`, because that name holds the rows the walk rejected. `Rows` is walked

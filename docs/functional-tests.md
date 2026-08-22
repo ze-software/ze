@@ -1906,7 +1906,7 @@ It registers four commands, and each one is one property of the record path.
 | `show test engine answer` | what the plugin read from the engine's own streamed answer to `system command list` |
 <!-- source: internal/test/cli/cmd_record_plugin.go -- cmdRecordPlugin, recordRows, engineAnswerReader -->
 
-Four `.ci` files drive it from the operator's seat over `ze cli`.
+Five `.ci` files drive it from the operator's seat over `ze cli`.
 
 | Test | Proves |
 |------|--------|
@@ -1914,6 +1914,17 @@ Four `.ci` files drive it from the operator's seat over `ze cli`.
 | `test/plugin/plugin-reads-engine-answer.ci` | a plugin reads a streamed engine answer through `Plugin.DispatchCommandAnswer` and acts on it |
 | `test/plugin/plugin-command-partial-fault.ci` | applied rows and rejected rows reach the operator together |
 | `test/plugin/plugin-command-document-too-wide.ci` | a collapsed document no line can carry is rejected by name, and the answer still reaches its terminator |
+| `test/plugin/answer-payload-unchanged.ci` | every row an operator receives, on both wire shapes, is byte for byte the bytes `recordRow.AppendTo` wrote |
+
+`answer-payload-unchanged.ci` is the one that reads the PAYLOAD rather than the
+frame. `recordRow.AppendTo` writes each row with no marshaler, so the test builds
+the expected bytes from the two numbers the walk is sized by. It then compares
+them literally. What it exists to catch is a frame that parses cleanly and hands
+the operator a byte the producer never wrote.
+
+`| raw` is the rendering it uses. `| ndjson` decodes and re-encodes each record
+on purpose, which alphabetizes the producer's key order.
+<!-- source: internal/component/command/render_records.go -- writeRecordJSON -->
 
 The row sizes are load-bearing, and each test states its own preconditions. The
 two readings of a walk are the same document by design, so a fixture of ordinary

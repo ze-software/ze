@@ -5,16 +5,16 @@
 # 2. The plugin declares nothing at Stage 3, which is all a peer can do
 # 3. It dispatches `system command list`, whose rows are every command the
 #    daemon can dispatch: far more than the 256-record threshold
-# 4. It asserts the head states the top kind and type=ndjson, that one row line carries each
+# 4. It asserts the head states the top kind and the map item type, that one row line carries each
 #    record, and that the terminator counts them all
 #
 # The type is decided at RUN TIME from the output and never by the command
 # (WriteAnswer, internal/component/plugin/dispatch.go). The encoder holds up to
 # rpc.AnswerBufferThreshold records: a walk that ends within them is answered as
-# one type=json document, and a walk that passes them switches to a stream and
-# flushes what it held. This test drives the second branch on a running daemon,
-# which is the only place the decision is observable end to end -- an operator
-# reading `ze cli` sees the same rendering either way, by design.
+# one document under the doc item type, and a walk that passes them switches to
+# a stream and flushes what it held. This test drives the second branch on a
+# running daemon, which is the only place the decision is observable end to end
+# -- an operator reading `ze cli` sees the same rendering either way, by design.
 #
 # `system command list` is the driver because it is the longest answer the
 # daemon has and because it answers a single-key array today, so the streamed
@@ -25,7 +25,8 @@
 # VALIDATES: AC-1c -- a walk past the threshold streams, and the records held
 # while the type was being decided go out in walk order ahead of the rest.
 # VALIDATES: AC-6 -- a generator of N rows produces N record lines and a
-# terminator carrying count=N, with no count before it.
+# terminator stating N as the first of its positional counts, with no count
+# before it.
 # PREVENTS: the answer being built whole and flattened into one line, which
 # makes the 16 MB message ceiling a ceiling on the whole answer.
 
@@ -98,7 +99,7 @@ def main():
 
     records = lines[1:-1]
     if len(records) != counted:
-        runtime_fail(f"the answer carries {len(records)} record lines and states count={counted}")
+        runtime_fail(f"the answer carries {len(records)} record lines and the terminator counts {counted}")
     if counted <= THRESHOLD:
         runtime_fail(
             f"fixture problem: the daemon registers {counted} commands, "

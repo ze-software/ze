@@ -35,9 +35,13 @@ Every message is a single newline-terminated line:
 A command answer has a second form, and every peer reads it and writes it. The
 engine answers a plugin's `dispatch-command` and `dispatch-command-args` with a
 head, zero or more records, and a terminator. The plugin answers the engine's
-`execute-command` the same way. Each line is `#<id> ok <key=value tail>`. Every
-other request keeps the single line above. The grammar is in
-[ipc_protocol.md](ipc_protocol.md), "Answer Protocol".
+`execute-command` the same way. Every other request keeps the single line above.
+
+Each answer line is `#<id> <kind> <positional fields>`, where the kind is `top`,
+`row`, `bad`, `end` or `nay`. An answer line carries no verb and no key name.
+"Command Execution" below names each word and decodes a real answer field by
+field. [ipc_protocol.md](ipc_protocol.md), "Answer Protocol", carries the same
+grammar with the buffering threshold and the failure cases beside it.
 <!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerTerminator -->
 <!-- source: internal/component/plugin/server/dispatch_registry.go -- recordAnswer, opDispatchCommand -->
 <!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.SendExecuteCommandAnswer -->
@@ -1065,9 +1069,34 @@ At runtime, the engine dispatches commands to plugins via `execute-command`:
 **Plugin to Engine:** the answer is a head, its records and a terminator. Every
 plugin writes it. The frame is the same whatever the payload is, so a handler
 that built one value takes the same three lines as a handler that walked a
-table. Each line opens with a three-byte kind token after its id: `top` for the
-head, `row` and `bad` for a produced row and a rejected one, `end` for the
-terminator.
+table.
+
+An answer line carries no verb and no key name. The field after the id is a
+three-byte word saying what the line IS, and every field after that is
+positional. The five words:
+
+| Word | The line is |
+|------|-------------|
+| `top` | the head. It opens the answer and is always the first line for this id |
+| `row` | one record the command produced |
+| `bad` | one record the command rejected. The walk goes on |
+| `end` | the terminator. It ends the answer and is always the last line for this id |
+| `nay` | the whole answer to a command text naming no command |
+
+The head's item type is a three-byte word too, and it says how the records read:
+
+| Word | The records are |
+|------|-----------------|
+| `doc` | one document. The whole answer is that one value |
+| `map` | one map of names to values for each record |
+| `tab` | one positional row for each record, read against the head's column names |
+
+Two field shapes carry every value. A NUMBER is decimal digits closed by a space
+or by the end of the line. A TEXT is decimal digits, a colon, then that many
+BYTES. **The count is a BYTE count, never a count of characters.** A value
+holding multi-byte utf-8 is therefore sliced by the bytes that arrived. A text of
+zero bytes is written `0:`, present and empty, so a line's field count never
+varies.
 
 A command that RAN and failed states its reason on the TERMINATOR, which is the
 one line an answer states an outcome on. It is not an `error` response, because
@@ -1079,19 +1108,56 @@ The head states no outcome, and the record carries the value byte for byte:
 
 ```
 #5 top doc 0: 0:
+|  |   |   |  |
+|  |   |   |  +----- column names, 0 BYTES, so the records are not positional
+|  |   |   +-------- envelope name, 0 BYTES, so the document carries its own
+|  |   +------------ item type doc: the whole answer is one document
+|  +---------------- kind top: the head, always the first line
++------------------- correlation id 5, the digits a space closes
+
 #5 row 26:{"running":true,"peers":1}
+|  |   |  |
+|  |   |  +----- those 26 bytes, the handler's value byte for byte
+|  |   +-------- 26, the payload's BYTE count, then the colon every text carries
+|  +------------ kind row: one record the command produced
++--------------- correlation id 5
+
 #5 end 1 0 0:
+|  |   | | |
+|  |   | | +----- message, 0 BYTES, so the command stated none
+|  |   | +------- 0 rows rejected
+|  |   +--------- 1 record produced
+|  +------------- kind end: the terminator, always the last line
++---------------- correlation id 5
 ```
 
 A handler that answered with a `plugin.Records` walk of more than 256 rows
 writes one line for each row. A walk over a large table therefore never becomes
-one 16 MB line. A shorter walk collapses to the `doc` document above:
+one 16 MB line. A shorter walk collapses to the `doc` document above. Only the
+head differs from the three lines above, and it differs in two fields:
 
 ```
 #5 top map 5:peers 0:
+|  |   |   | |     |
+|  |   |   | |     +----- column names, 0 BYTES, so the records are not positional
+|  |   |   | +----------- those 5 bytes: peers, the key the records go under
+|  |   |   +------------- 5, the envelope name's BYTE count, then its colon
+|  |   +----------------- item type map: each record is one map of names to values
+|  +--------------------- kind top: the head
++------------------------ correlation id 5
+
 #5 row 44:{"address":"10.0.0.1","state":"established"}
+|  |   |  |
+|  |   |  +----- those 44 bytes, one row of the walk byte for byte
+|  |   +-------- 44, the payload's BYTE count, then its colon
+|  +------------ kind row: one record the walk produced
++--------------- correlation id 5
+
 #5 end 1 0 0:
 ```
+
+The terminator reads exactly as the one above it: one record produced, no row
+rejected, and no message.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
 <!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->
 <!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.SendExecuteCommandAnswer, ExecuteCommandValue -->
@@ -1345,7 +1411,9 @@ RUNTIME: Route sent to peer
 RUNTIME: Command request
 #44 ze-plugin-callback:execute-command
   {"serial":"abc","command":"rib adjacent status","args":[],"peer":"*"}  --->
-                       <--- #44 ok {"status":"done","data":"{\"running\":true,\"peers\":1}"}
+                       <--- #44 top doc 0: 0:        head: doc, no envelope, no columns
+                       <--- #44 row 26:{"running":true,"peers":1}   26 BYTES of payload
+                       <--- #44 end 1 0 0:           1 produced, 0 rejected, no message
 
 RUNTIME: Plugin sends route update to engine
                        <--- #4 ze-plugin-engine:update-route

@@ -1511,9 +1511,9 @@ func TestMuxConnDispatchResponseIgnored(t *testing.T) {
 // unrequested responses on the wire and stalls every dispatch it sends.
 func TestMuxConnAnswerLinesAreNotAcknowledged(t *testing.T) {
 	answer := strings.Join([]string{
-		`#6 top status=done type=ndjson key=peers`,
-		`#6 row item={"peer":"10.0.0.1"}`,
-		`#6 end count=1`,
+		`#6 top map 5:peers 0:`,
+		`#6 row 19:{"peer":"10.0.0.1"}`,
+		`#6 end 1 0 0:`,
 	}, "\n")
 	scanner := bufio.NewScanner(strings.NewReader(answer + "\n"))
 

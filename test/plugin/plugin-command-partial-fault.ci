@@ -10,7 +10,7 @@
 # A row wider than rpc.MaxMessageSize is rejected and the walk goes on
 # (boundedRecord, pkg/plugin/rpc/answer_write.go), so refusing one row does not
 # cost the operator the rows around it. The terminator states the two counts
-# separately, count= for the rows applied and faults= for the rows refused, and
+# separately and positionally, the rows applied and then the rows refused, and
 # a buffered reading of that answer is the two collections side by side: the
 # handler's own envelope holds the applied rows and "errors" holds the refused
 # one (CollapseRecords, pkg/plugin/rpc/collapse.go). Nothing lands in the

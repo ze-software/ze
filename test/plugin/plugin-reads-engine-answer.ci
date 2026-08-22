@@ -173,8 +173,8 @@ if reading is None:
     print(f"FAIL: the answer carries {sorted(document)}, want engine-answer", file=sys.stderr)
     sys.exit(1)
 
-# The head's type= says the answer streamed. A walk that ended inside the
-# threshold reads json, and one document is not what this test is about.
+# The head's item type says the answer streamed. A walk that ended inside the
+# threshold reads doc, and one document is not what this test is about.
 if reading["type"] != "map":
     print(f"FAIL: the plugin read item type {reading['type']!r}, want map", file=sys.stderr)
     sys.exit(1)

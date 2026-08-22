@@ -345,10 +345,10 @@ func TestParseLineFormatRoundTrip(t *testing.T) {
 	})
 }
 
-// TestParseLineCarriesKeyValueTailWhole checks that the frame layer hands a
-// key=value tail to the answer reader unsplit. The method: one line of each
-// answer shape is parsed, and the payload is compared with everything the line
-// carries after the verb.
+// TestParseLineCarriesTheAnswerTailWhole checks that the frame layer hands an
+// answer's positional tail to the answer reader unsplit. The method: one line of
+// each answer shape is parsed, and the payload is compared with everything the
+// line carries after the kind.
 //
 // VALIDATES: A-1 of spec-streaming-answer-protocol -- the frame layer
 // needs no change to carry a tail, because ParseLine cuts the verb at the first
@@ -1326,10 +1326,10 @@ func TestAnswerLineCarriesNoKeyNames(t *testing.T) {
 // TestEnvelopeKeyLengthPrefixed checks that the head's envelope name states its
 // own width and is never omitted. The method: names of several widths, and no
 // name at all, are written and read back; the written bytes are compared against
-// the length prefix the id uses; and a head that omits the field is refused.
+// the counted-text spelling; and a head that omits the field is refused.
 //
-// VALIDATES: AC-17 -- the name is length-prefixed like the id, and an absent
-// name writes length zero rather than dropping the field.
+// VALIDATES: AC-17 -- the name states its byte count and the colon every counted
+// text carries, and an absent name writes `0:` rather than dropping the field.
 // PREVENTS: an absent name shortening the line, which would move every field
 // after it and make the head's field count depend on its content.
 func TestEnvelopeKeyLengthPrefixed(t *testing.T) {
@@ -1358,7 +1358,7 @@ func TestEnvelopeKeyLengthPrefixed(t *testing.T) {
 }
 
 // TestAnswerRecordLineSizeAllocatesNothing checks that measuring a record line
-// costs no allocation, which is what answerRecordPrefixMax is for. The method:
+// costs no allocation, which is what answerRecordPrefixWidth is for. The method:
 // the widest prefix the encoder can write (the widest id and the kind token) is
 // measured under testing.AllocsPerRun.
 //

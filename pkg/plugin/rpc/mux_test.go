@@ -1146,15 +1146,15 @@ func TestCallAnswerStopsGeneratorOnConsumerStop(t *testing.T) {
 }
 
 // TestMuxReadLoopSeparatesAnswerFromResponse checks that one reader carries
-// both line families over one connection once every line states its id length.
+// both line families over one connection, told apart by the field after the id.
 // The method: a CallRPC and a CallAnswer run at once, the peer writes the plain
 // response between two records of the answer, and each caller is required to
 // receive its own lines whole.
 //
-// VALIDATES: A-3 -- the mux read loop takes the id field by arithmetic and
-// still tells an answer line from a plain response line, so one reader serves
-// both without a second discriminator.
-// PREVENTS: the length-prefixed id costing the reader its routing, which would
+// VALIDATES: A-3 -- the mux read loop takes the id field through its one reader
+// and still tells an answer line from a plain response line, so one reader
+// serves both without a second discriminator.
+// PREVENTS: the id field costing the reader its routing, which would
 // deliver a record to a CallRPC caller or strand an answer behind a response.
 func TestMuxReadLoopSeparatesAnswerFromResponse(t *testing.T) {
 	t.Parallel()

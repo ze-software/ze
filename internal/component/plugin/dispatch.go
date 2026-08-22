@@ -182,22 +182,22 @@ func ResponseJSON(resp *Response, err error) (string, error) {
 }
 
 // WriteAnswer writes resp to w as the answer sequence every consumer reads the
-// same way: a head line carrying the verdict and the type, one line for each
-// record, and a terminator carrying the counts. A reader never branches on how
-// many records arrive, and nothing states a count that the records can
-// contradict.
+// same way: a head line naming the item type and the envelope, one line for each
+// record, and a terminator carrying the counts and the message. A reader never
+// branches on how many records arrive, and nothing states a count that the
+// records can contradict. The head states no outcome, so the terminator is the
+// one line an outcome is read from.
 //
 // It projects one *Response onto the answer grammar and hands the writing to
 // rpc, which is the ONE writer both ends of the plugin connection use: the
 // engine writes the answer to a command an operator ran, and the SDK writes the
 // answer to a command the engine asked a plugin to run (Records.WriteAnswer,
-// pkg/plugin/records.go). What this file still owns is the projection -- which
-// status the head declares, what a built payload renders to, and what the
-// terminator says about a failure.
+// pkg/plugin/records.go). What this file still owns is the projection -- what a
+// built payload renders to, and what the terminator says about a failure.
 //
 // A generator answers through rpc.WriteRecordAnswer, which decides the head's
-// type= from the walk. A payload the handler built before the answer opened is
-// one document and answers through rpc.WriteDocumentAnswer.
+// item type from the walk. A payload the handler built before the answer opened
+// is one document and answers through rpc.WriteDocumentAnswer.
 //
 // It is the record-path sibling of ResponseJSON, which stays the path for a
 // surface that takes the whole answer as one string (REST, gRPC, web, MCP, the
@@ -227,7 +227,7 @@ func WriteAnswer(w io.Writer, id uint64, resp *Response) error {
 // terminator that walk earns.
 //
 // It is WriteAnswer's in-process sibling and makes the same two decisions from
-// the same constant. The head's type= is decided here, from the output: a walk
+// the same constant. The head's item type is decided here, from the output: a walk
 // that ends within rpc.AnswerBufferThreshold records is one rpc.AnswerTypeDocument
 // document, and a walk that passes them is streamed, so one command answers one
 // shape whichever transport carried it (AC-7 of

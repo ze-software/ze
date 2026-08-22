@@ -104,25 +104,66 @@ positional rather than JSON and carry no key name:
 
 ```
 #42 top map 5:peers 0:
+|   |   |   | |     |
+|   |   |   | |     +----- column names, 0 BYTES, so the records are not positional
+|   |   |   | +----------- those 5 bytes: peers, the key the records go under
+|   |   |   +------------- 5, the envelope name's BYTE count, then its colon
+|   |   +----------------- item type map: each record is one map of names to values
+|   +--------------------- kind top: the head, always the first line for this id
++------------------------- correlation id 42: the sigil, the digits, and the space
+
 #42 row 44:{"address":"10.0.0.1","state":"established"}
+|   |   |  |
+|   |   |  +----- those 44 bytes, the row byte for byte
+|   |   +-------- 44, the payload's BYTE count, then its colon
+|   +------------ kind row: one record the walk produced
++---------------- correlation id 42
+
 #42 end 1 0 0:
+|   |   | | |
+|   |   | | +----- message, 0 BYTES, so the walk stated none
+|   |   | +------- 0 rows rejected
+|   |   +--------- 1 record produced
+|   +------------- kind end: the terminator, always the last line for this id
++----------------- correlation id 42
 ```
 
-`top` opens the answer, `row` and `bad` carry a produced row and a rejected one,
-`end` ends it, and `nay` is the whole answer to a command text naming no
-command. Every token is three bytes and every one is closed by a space, so a
-reader takes the four bytes as one load rather than searching the line for a
-separator.
+Five words say what a line IS, and each is three bytes closed by a space, so a
+reader takes the four bytes as one load rather than searching for a separator.
 
-The head's item type says what each record IS: `doc`, `map` or `tab`. Neither
-the head nor the terminator states an outcome. The verdict is DERIVED from the
-terminator's two counts and its message, and a missing terminator means the
-answer was truncated. A number field is decimal digits a space closes, and every
-other variable-width field states its own BYTE count and then a colon, so a
-reader reaches each one by arithmetic. The frame is the same whatever the payload
-is, so a handler that built one value answers with the same three lines and the
-`doc` type. The grammar is in
-[ipc_protocol.md](ipc_protocol.md), "Answer Protocol".
+| Word | The line is |
+|------|-------------|
+| `top` | the head, which opens the answer |
+| `row` | one record the command produced |
+| `bad` | one record the command rejected. The walk goes on |
+| `end` | the terminator, which ends the answer |
+| `nay` | the whole answer to a command text naming no command |
+
+Three more words say how the records read, and the head carries one of them:
+
+| Word | The records are |
+|------|-----------------|
+| `doc` | one document. The whole answer is that one value |
+| `map` | one map of names to values for each record |
+| `tab` | one positional row for each record, read against the head's column names |
+
+Two field shapes carry every value. A NUMBER is decimal digits closed by a space
+or by the end of the line, and it never carries a colon. A TEXT is decimal
+digits, a colon, then that many BYTES. **The count is a BYTE count, never a count
+of characters**, so a value holding multi-byte utf-8 is sliced by the bytes that
+arrived. A text of zero bytes is written `0:`, present and empty, so a line's
+field count never varies.
+
+Neither the head nor the terminator states an outcome. The verdict is DERIVED
+from the terminator's two counts and its message: no rejected row and no message
+is `done`, some of each is `partial`, a message over no record is `error`, a
+message over records is `aborted`, and a missing terminator is `truncated`. The
+frame is the same whatever the payload is, so a handler that built one value
+answers with the same three lines and the `doc` type.
+
+[ipc_protocol.md](ipc_protocol.md), "Answer Protocol", carries the same grammar
+with the buffering threshold, the over-wide record, and the failure cases beside
+it.
 <!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerItem, AppendAnswerTerminator, ParseAnswerTail, Verdict, AnswerKindHead, AnswerKindTerminator -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, WriteDocumentAnswer -->
 

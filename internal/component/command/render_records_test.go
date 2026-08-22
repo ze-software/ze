@@ -376,7 +376,7 @@ func TestTheConfiguredFormatRendersARecordAnswer(t *testing.T) {
 // TestAnEmptyWalkAnswersTheEmptyCollection checks that a command whose walk
 // produced nothing still answers the collection it has always answered.
 //
-// VALIDATES: AC-3 -- a command that returns no data answers count=0 and the
+// VALIDATES: AC-3 -- a command that returns no data answers a zero count and the
 //
 //	envelope it named.
 //

@@ -1088,7 +1088,7 @@ The handler decides what it produces, and the wire decides how it travels.
 | a `plugin.Records` walk of 256 rows or fewer | the `doc` item type and one record carrying the collapsed document | `plugin.RawJSON` over that document |
 | a `plugin.Records` walk of more than 256 rows | the `map` item type and one record for each row | `plugin.Records` over the arriving rows |
 
-The dispatcher branches on the head's `type=` and never on what the handler
+The dispatcher branches on the head's item type and never on what the handler
 returned. A bounded walk is therefore the document it has always been, and only a
 walk that streams reaches an operator as records.
 <!-- source: pkg/plugin/records.go -- Records.WriteAnswer -->
@@ -1096,8 +1096,8 @@ walk that streams reaches an operator as records.
 <!-- source: internal/component/plugin/server/command.go -- routeToProcess, pluginAnswerRows -->
 
 The value a built payload carries is unchanged, byte for byte. Only the frame
-around it changed. It changed for every answer of a declaring plugin, because a
-reader must know the frame before it reads the first line.
+around it changed, and it changed for every peer. Nothing declares an answer
+shape, so there is one frame and every reader knows it before the first line.
 
 The rows are pulled as the operator's rendering writes them, so the engine never
 holds the whole collection for a walk that streams. A row wider than one wire
