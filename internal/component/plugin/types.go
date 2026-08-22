@@ -177,10 +177,15 @@ func (r RawJSON) MarshalJSON() ([]byte, error) {
 // answer is streamed at all is decided from how many rows the walk produces
 // (WriteAnswer, dispatch.go). A handler that declares no fields yields
 // self-describing objects.
+//
+// A row appends its own JSON into the buffer the encoder owns (rpc.Row), so a
+// walk of a million rows costs no allocation for a row. A handler MAY hand back
+// one Row value for every row and refill it in place: the encoder appends it
+// before the yield that carried it returns and keeps no reference to it.
 type Records struct {
 	Key    string
 	Fields []string
-	Rows   iter.Seq[rpc.Record]
+	Rows   iter.Seq[rpc.RowRecord]
 }
 
 func (Records) responseData() {}
@@ -189,7 +194,7 @@ func (Records) responseData() {}
 // that names an envelope and carries no generator is an empty collection, which
 // is what a command that produced nothing answered with; ranging a nil
 // iter.Seq panics instead of saying so.
-func (r Records) rows() iter.Seq[rpc.Record] {
+func (r Records) rows() iter.Seq[rpc.RowRecord] {
 	if r.Rows == nil {
 		return noRecords
 	}
@@ -214,11 +219,14 @@ func (r Records) rows() iter.Seq[rpc.Record] {
 // (pkg/plugin/rpc/collapse.go).
 //
 // This walks the whole answer into memory, which is what a buffered rendering
-// is. A caller that must bound the memory takes the record path.
+// is. A caller that must bound the memory takes the record path. The rows are
+// held rather than written, so each one is appended into a slice of its own
+// (rpc.HeldRecords), which is the allocation a walk that reaches the wire does
+// not pay.
 //
 // Rows is walked once here, so one Records value takes one path, never both.
 func (r Records) MarshalJSON() ([]byte, error) {
-	return rpc.CollapseRecords(r.Key, r.Fields, r.rows())
+	return rpc.CollapseRecords(r.Key, r.Fields, rpc.HeldRecords(r.rows()))
 }
 
 // UnauthorizedMessage is the canonical operator-facing text for a command

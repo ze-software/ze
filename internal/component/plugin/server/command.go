@@ -1390,14 +1390,21 @@ func streamedPluginResponse(command string, answer *rpc.Answer, release func()) 
 // sentence and the count: the cause is a Go error and goes to the daemon log,
 // because a fault payload reaches an operator (Security Review of
 // spec-record-answers-1-sdk-path).
-func pluginAnswerRows(command string, answer *rpc.Answer, release func()) iter.Seq[rpc.Record] {
-	return func(yield func(rpc.Record) bool) {
+func pluginAnswerRows(command string, answer *rpc.Answer, release func()) iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
 		defer release()
+
+		// The rows arrive as bytes and leave as the appender the engine's
+		// writer takes. One row carries them all in turn: the writer appends it
+		// before the yield returns and keeps no reference to it (rpc.Row), so
+		// forwarding a plugin's table of a million rows allocates for none of
+		// them.
+		var forwarded rpc.RawRow
 
 		var produced uint64
 		for record := range answer.Records {
 			produced++
-			if !yield(checkedRecord(produced, record)) {
+			if !yield(forwardedRow(&forwarded, checkedRecord(produced, record))) {
 				return
 			}
 		}
@@ -1408,8 +1415,24 @@ func pluginAnswerRows(command string, answer *rpc.Answer, release func()) iter.S
 		}
 		logger().Warn("plugin answer ended before its terminator",
 			"command", command, "records", produced, "error", err)
-		yield(rpc.Record{Fault: answerTruncatedFault(produced)})
+		forwarded = rpc.RawRow(answerTruncatedFault(produced))
+		yield(rpc.RowRecord{Fault: &forwarded})
 	}
+}
+
+// forwardedRow states one arrived record as the appending row the engine's
+// answer writer takes, through the one row this walk refills for each of them.
+//
+// A record that is neither an item nor a fault cannot arrive here: checkedRecord
+// rejects an empty payload as a rejected row, because nothing is not a row
+// either.
+func forwardedRow(forwarded *rpc.RawRow, record rpc.Record) rpc.RowRecord {
+	if len(record.Fault) > 0 {
+		*forwarded = rpc.RawRow(record.Fault)
+		return rpc.RowRecord{Fault: forwarded}
+	}
+	*forwarded = rpc.RawRow(record.Item)
+	return rpc.RowRecord{Item: forwarded}
 }
 
 // checkedRecord is record when its payload is JSON, and the rejected row that

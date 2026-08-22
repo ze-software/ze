@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"iter"
@@ -2255,7 +2254,7 @@ type recordAnsweringPlugin struct {
 // startRecordAnsweringPlugin wires a plugin process the way production wires one
 // -- a MuxConn, which is what routes an answer's lines by id -- and serves one
 // execute-command on the far end.
-func startRecordAnsweringPlugin(t *testing.T, ctx context.Context, key string, rows iter.Seq[rpc.Record]) *recordAnsweringPlugin {
+func startRecordAnsweringPlugin(t *testing.T, ctx context.Context, key string, rows iter.Seq[rpc.RowRecord]) *recordAnsweringPlugin {
 	t.Helper()
 
 	engineSide, pluginSide := net.Pipe()
@@ -2332,12 +2331,14 @@ func (p *recordAnsweringPlugin) walk(t *testing.T, ctx context.Context, rows ite
 }
 
 // peerRows is the walk a test plugin answers with: one self-describing row for
-// each of count peers, produced one at a time.
-func peerRows(count int) iter.Seq[rpc.Record] {
-	return func(yield func(rpc.Record) bool) {
+// each of count peers, produced one at a time. Every row is stated through one
+// value, which the writer appends before the yield returns.
+func peerRows(count int) iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
+		var row rpc.RawRow
 		for i := range count {
-			row := json.RawMessage(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)
-			if !yield(rpc.Record{Item: row}) {
+			row = rpc.RawRow(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)
+			if !yield(rpc.RowRecord{Item: &row}) {
 				return
 			}
 		}
@@ -2382,7 +2383,7 @@ func TestRouteToProcessBuildsRecords(t *testing.T) {
 	require.True(t, generated, "a streamed answer is a plugin.Records payload")
 	assert.Equal(t, "peers", records.Key)
 
-	got := peer.walk(t, ctx, records.Rows)
+	got := peer.walk(t, ctx, rpc.HeldRecords(records.Rows))
 	require.Len(t, got, rows)
 	assert.Equal(t, `{"peer":"10.0.0.0"}`, string(got[0].Item), "the records arrive in walk order")
 	assert.Equal(t, `{"peer":"10.0.0.`+strconv.Itoa(rows-1)+`"}`, string(got[rows-1].Item))
@@ -2411,13 +2412,14 @@ func TestRouteToProcessRefusesARowThatIsNotJSON(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	walk := func(yield func(rpc.Record) bool) {
+	walk := func(yield func(rpc.RowRecord) bool) {
+		var row rpc.RawRow
 		for i := range rows {
-			row := json.RawMessage(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)
+			row = rpc.RawRow(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)
 			if i == 1 {
-				row = json.RawMessage(poison)
+				row = rpc.RawRow(poison)
 			}
-			if !yield(rpc.Record{Item: row}) {
+			if !yield(rpc.RowRecord{Item: &row}) {
 				return
 			}
 		}
@@ -2430,7 +2432,7 @@ func TestRouteToProcessRefusesARowThatIsNotJSON(t *testing.T) {
 	records, generated := plugin.RecordRows(resp)
 	require.True(t, generated)
 
-	got := peer.walk(t, ctx, records.Rows)
+	got := peer.walk(t, ctx, rpc.HeldRecords(records.Rows))
 	require.Len(t, got, rows, "rejecting one row must not cost the rows around it")
 
 	assert.Equal(t, `{"peer":"10.0.0.0"}`, string(got[0].Item))

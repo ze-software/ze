@@ -3,7 +3,6 @@ package ssh
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -69,13 +68,16 @@ func answerCredentials(t *testing.T, srv *Server) sshclient.Credentials {
 	return sshclient.Credentials{Host: host, Port: port, Username: "operator", Auth: "read-pass"}
 }
 
-// commandRecords answers a generator of count command-list rows.
-func commandRecords(count int) iter.Seq[rpc.Record] {
-	return func(yield func(rpc.Record) bool) {
+// commandRecords answers a generator of count command-list rows. Each row is
+// stated through one value, which the writer appends before the yield returns.
+func commandRecords(count int) iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
+		var row rpc.RawRow
 		for i := range count {
 			var b textbuf.Buffer
 			b.Str(`{"value":"show cmd-`).Int(int64(i)).Str(`"}`)
-			if !yield(rpc.Record{Item: json.RawMessage(b.String())}) {
+			row = rpc.RawRow(b.String())
+			if !yield(rpc.RowRecord{Item: &row}) {
 				return
 			}
 		}

@@ -772,9 +772,32 @@ func AnswerRecordLineSize(id uint64, record Record) int {
 	if len(record.Fault) > 0 {
 		kind, value = AnswerKindFault, record.Fault
 	}
-	var scratch [answerRecordPrefixWidth]byte
-	return len(appendAnswerRecordPrefix(scratch[:0], id, kind, uint64(len(value)))) + len(value)
+	return answerRowLineSize(id, kind, len(value))
 }
+
+// answerRowLineSize reports how many bytes the record line of kind occupies
+// under id when its payload is payload bytes long, its newline terminator
+// excluded.
+//
+// It is the same measurement AnswerRecordLineSize makes, taken from a LENGTH
+// rather than from a slice, because a row that appends itself into the
+// encoder's buffer has no slice of its own to measure: the encoder knows how
+// many bytes the row wrote and nothing else about it (writeAnswerRow,
+// answer_write.go).
+func answerRowLineSize(id uint64, kind string, payload int) int {
+	var scratch [answerRecordPrefixWidth]byte
+	return len(appendAnswerRecordPrefix(scratch[:0], id, kind, uint64(payload))) + payload
+}
+
+// answerRecordGap is the room a record line's prefix is written into once the
+// row behind it has stated its width. It is zero bytes, and the encoder writes
+// the prefix so that it ENDS where the payload begins, so the bytes of the gap
+// the prefix did not need are never written to the wire.
+//
+// Its width is the widest prefix appendAnswerRecordPrefix can write, so the
+// prefix always fits (TestAnswerRecordLineSizeExact holds the two to the same
+// number).
+var answerRecordGap [answerRecordPrefixWidth]byte
 
 // AppendAnswerTerminator appends the terminator line
 // (#<id> end <count> <faults> <n>:<message>) to buf and returns the extended

@@ -50,18 +50,17 @@ var AllocCeilings = map[string]int{
 	// The command-answer record path, per ROW of a streamed walk
 	// (BenchmarkRecordAnswerRows, internal/component/plugin/dispatch_test.go).
 	//
-	// This ceiling is the GOAL, not a measurement with headroom. It is the one
-	// entry in this map that is RED today. AC-1 of
-	// spec-record-answers-3-zero-alloc is zero allocations for each row. The
-	// measurement lands before the optimization, so the gate can never be a
-	// green that was unable to be red.
+	// This ceiling was the GOAL before it was a measurement. It is the one
+	// entry here that was registered RED. AC-1 of
+	// spec-record-answers-3-zero-alloc is zero allocations for each row, and
+	// the measurement landed a phase before the optimization. The gate can
+	// therefore never be a green that was unable to be red.
 	//
-	// Measured 1 alloc/row on 2026-08-22, and that one allocation is the slice
-	// rpc.Record's json.RawMessage fields force on every row whatever the
-	// handler does. Phase 3 of that spec removes it by letting a row append
-	// into the encoder's buffer. The answer ENVELOPE costs 21 allocations
-	// beside it, and that count does not grow with the walk: the same benchmark
-	// measured 321 for 300 rows and 1021 for 1000.
+	// It measured 1 alloc/row while a row reached the encoder as a slice of its
+	// own, and 0 since a row appends into the encoder's buffer instead
+	// (rpc.Row). The answer ENVELOPE costs 17 allocations beside it, and that
+	// count does not grow with the walk: the same answer measured 17 for 300
+	// rows and 17 for 1300 (TestWriteAnswerZeroAllocPerRow).
 	"BenchmarkRecordAnswerRows": 0,
 }
 

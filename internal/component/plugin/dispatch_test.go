@@ -337,11 +337,12 @@ func assertAnswerShape(t *testing.T, lines []answerLine, wantID, wantItems, want
 
 // peerRows is a generator of count result records. It stops when the consumer
 // stops, which is what a walk over a table nobody wants whole must do.
-func peerRows(count int) iter.Seq[rpc.Record] {
-	return func(yield func(rpc.Record) bool) {
+func peerRows(count int) iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
+		var item rpc.RawRow
 		for i := range count {
-			item := json.RawMessage(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)
-			if !yield(rpc.Record{Item: item}) {
+			item = rpc.RawRow(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)
+			if !yield(rpc.RowRecord{Item: &item}) {
 				return
 			}
 		}
@@ -354,11 +355,12 @@ var peerColumns = []string{"peer", "as", "state"}
 // columnRows is a generator of count positional rows, each an array of values
 // in peerColumns order. It is what a handler that declares its columns yields:
 // the names live on the head, and the rows carry values alone.
-func columnRows(count int) iter.Seq[rpc.Record] {
-	return func(yield func(rpc.Record) bool) {
+func columnRows(count int) iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
+		var row rpc.RawRow
 		for i := range count {
-			row := json.RawMessage(`["10.0.0.` + strconv.Itoa(i) + `",6500` + strconv.Itoa(i%10) + `,"established"]`)
-			if !yield(rpc.Record{Item: row}) {
+			row = rpc.RawRow(`["10.0.0.` + strconv.Itoa(i) + `",6500` + strconv.Itoa(i%10) + `,"established"]`)
+			if !yield(rpc.RowRecord{Item: &row}) {
 				return
 			}
 		}
@@ -368,15 +370,18 @@ func columnRows(count int) iter.Seq[rpc.Record] {
 // mixedRows is a generator of itemCount result records and faultCount rejected
 // ones, interleaved rather than arriving in two blocks. The walk ends when both
 // pools are empty, and each pass takes one row from one of them.
-func mixedRows(itemCount, faultCount int) iter.Seq[rpc.Record] {
-	return func(yield func(rpc.Record) bool) {
+func mixedRows(itemCount, faultCount int) iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
+		var row rpc.RawRow
 		items, faults := itemCount, faultCount
 		for i := 0; items > 0 || faults > 0; i++ {
 			leaf := strconv.Itoa(i)
-			record := rpc.Record{Item: json.RawMessage(`{"leaf":` + leaf + `}`)}
+			row = rpc.RawRow(`{"leaf":` + leaf + `}`)
+			record := rpc.RowRecord{Item: &row}
 			if faults > 0 && (items == 0 || i%2 == 1) {
 				faults--
-				record = rpc.Record{Fault: json.RawMessage(`{"leaf":` + leaf + `,"message":"invalid"}`)}
+				row = rpc.RawRow(`{"leaf":` + leaf + `,"message":"invalid"}`)
+				record = rpc.RowRecord{Fault: &row}
 			} else {
 				items--
 			}
@@ -439,12 +444,15 @@ func TestSingleRecordUsesTheSameReaderPath(t *testing.T) {
 // 97-of-100 into the 0-of-100 this protocol exists to tell apart.
 func TestFaultDoesNotEndTheWalk(t *testing.T) {
 	produced := 0
-	rows := func(yield func(rpc.Record) bool) {
+	rows := func(yield func(rpc.RowRecord) bool) {
+		var row rpc.RawRow
 		for i := range 5 {
 			leaf := strconv.Itoa(i)
-			record := rpc.Record{Item: json.RawMessage(`{"leaf":` + leaf + `}`)}
+			row = rpc.RawRow(`{"leaf":` + leaf + `}`)
+			record := rpc.RowRecord{Item: &row}
 			if i%2 == 1 {
-				record = rpc.Record{Fault: json.RawMessage(`{"leaf":` + leaf + `,"message":"invalid"}`)}
+				row = rpc.RawRow(`{"leaf":` + leaf + `,"message":"invalid"}`)
+				record = rpc.RowRecord{Fault: &row}
 			}
 			produced++
 			if !yield(record) {
@@ -506,10 +514,12 @@ func (w *failingWriter) Write(p []byte) (int, error) {
 func TestTransportErrorEndsTheWalk(t *testing.T) {
 	available := rpc.AnswerBufferThreshold + 100
 	produced := 0
-	rows := func(yield func(rpc.Record) bool) {
+	rows := func(yield func(rpc.RowRecord) bool) {
+		var row rpc.RawRow
 		for i := range available {
 			produced++
-			if !yield(rpc.Record{Item: json.RawMessage(`{"row":` + strconv.Itoa(i) + `}`)}) {
+			row = rpc.RawRow(`{"row":` + strconv.Itoa(i) + `}`)
+			if !yield(rpc.RowRecord{Item: &row}) {
 				return
 			}
 		}
@@ -648,29 +658,29 @@ func TestStreamedAndBufferedAnswersAreIdentical(t *testing.T) {
 		name   string
 		key    string
 		fields []string
-		rows   func() iter.Seq[rpc.Record]
+		rows   func() iter.Seq[rpc.RowRecord]
 	}{
-		{name: "an envelope over many rows", key: "peers", rows: func() iter.Seq[rpc.Record] { return peerRows(3) }},
-		{name: "an envelope over one row", key: "peers", rows: func() iter.Seq[rpc.Record] { return peerRows(1) }},
-		{name: "an envelope over no rows", key: "peers", rows: func() iter.Seq[rpc.Record] { return peerRows(0) }},
-		{name: "no envelope", key: "", rows: func() iter.Seq[rpc.Record] { return peerRows(3) }},
-		{name: "an envelope over items and faults", key: "leaves", rows: func() iter.Seq[rpc.Record] { return mixedRows(3, 2) }},
-		{name: "no envelope over items and faults", key: "", rows: func() iter.Seq[rpc.Record] { return mixedRows(3, 2) }},
-		{name: "an envelope over faults alone", key: "leaves", rows: func() iter.Seq[rpc.Record] { return mixedRows(0, 2) }},
+		{name: "an envelope over many rows", key: "peers", rows: func() iter.Seq[rpc.RowRecord] { return peerRows(3) }},
+		{name: "an envelope over one row", key: "peers", rows: func() iter.Seq[rpc.RowRecord] { return peerRows(1) }},
+		{name: "an envelope over no rows", key: "peers", rows: func() iter.Seq[rpc.RowRecord] { return peerRows(0) }},
+		{name: "no envelope", key: "", rows: func() iter.Seq[rpc.RowRecord] { return peerRows(3) }},
+		{name: "an envelope over items and faults", key: "leaves", rows: func() iter.Seq[rpc.RowRecord] { return mixedRows(3, 2) }},
+		{name: "no envelope over items and faults", key: "", rows: func() iter.Seq[rpc.RowRecord] { return mixedRows(3, 2) }},
+		{name: "an envelope over faults alone", key: "leaves", rows: func() iter.Seq[rpc.RowRecord] { return mixedRows(0, 2) }},
 
 		// The threshold decides how the SAME answer is framed, so each shape is
 		// taken once on each side of it. A pair that agrees only below the
 		// threshold would leave every long answer unproven.
-		{name: "an envelope over a walk within the threshold", key: "peers", rows: func() iter.Seq[rpc.Record] { return peerRows(rpc.AnswerBufferThreshold) }},
-		{name: "an envelope over a walk past the threshold", key: "peers", rows: func() iter.Seq[rpc.Record] { return peerRows(rpc.AnswerBufferThreshold + 1) }},
-		{name: "no envelope past the threshold", key: "", rows: func() iter.Seq[rpc.Record] { return peerRows(rpc.AnswerBufferThreshold + 1) }},
-		{name: "items and faults past the threshold", key: "leaves", rows: func() iter.Seq[rpc.Record] { return mixedRows(rpc.AnswerBufferThreshold, 3) }},
+		{name: "an envelope over a walk within the threshold", key: "peers", rows: func() iter.Seq[rpc.RowRecord] { return peerRows(rpc.AnswerBufferThreshold) }},
+		{name: "an envelope over a walk past the threshold", key: "peers", rows: func() iter.Seq[rpc.RowRecord] { return peerRows(rpc.AnswerBufferThreshold + 1) }},
+		{name: "no envelope past the threshold", key: "", rows: func() iter.Seq[rpc.RowRecord] { return peerRows(rpc.AnswerBufferThreshold + 1) }},
+		{name: "items and faults past the threshold", key: "leaves", rows: func() iter.Seq[rpc.RowRecord] { return mixedRows(rpc.AnswerBufferThreshold, 3) }},
 
 		// A declared column schema changes the wire and not the answer: the
 		// rows travel as positional arrays, and both paths render the objects.
-		{name: "columns within the threshold", key: "peers", fields: peerColumns, rows: func() iter.Seq[rpc.Record] { return columnRows(3) }},
-		{name: "columns past the threshold", key: "peers", fields: peerColumns, rows: func() iter.Seq[rpc.Record] { return columnRows(rpc.AnswerBufferThreshold + 1) }},
-		{name: "columns with no envelope", key: "", fields: peerColumns, rows: func() iter.Seq[rpc.Record] { return columnRows(rpc.AnswerBufferThreshold + 1) }},
+		{name: "columns within the threshold", key: "peers", fields: peerColumns, rows: func() iter.Seq[rpc.RowRecord] { return columnRows(3) }},
+		{name: "columns past the threshold", key: "peers", fields: peerColumns, rows: func() iter.Seq[rpc.RowRecord] { return columnRows(rpc.AnswerBufferThreshold + 1) }},
+		{name: "columns with no envelope", key: "", fields: peerColumns, rows: func() iter.Seq[rpc.RowRecord] { return columnRows(rpc.AnswerBufferThreshold + 1) }},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -714,7 +724,7 @@ func TestBufferedAnswerCarriesRejectedRowsBesideTheRows(t *testing.T) {
 	tests := []struct {
 		name string
 		key  string
-		rows iter.Seq[rpc.Record]
+		rows iter.Seq[rpc.RowRecord]
 		want string
 	}{
 		{
@@ -778,7 +788,7 @@ func TestReservedEnvelopeKeyIsRefusedOnBothPaths(t *testing.T) {
 // PREVENTS: a record line with no value, which no consumer can decode, and a
 // null in the buffered array, which reads like a row the command produced.
 func TestEmptyRecordIsRefusedOnBothPaths(t *testing.T) {
-	empty := func(yield func(rpc.Record) bool) { yield(rpc.Record{}) }
+	empty := func(yield func(rpc.RowRecord) bool) { yield(rpc.RowRecord{}) }
 
 	if err := WriteAnswer(&bytes.Buffer{}, 5, NewResponse(StatusDone, Records{Rows: empty})); !errors.Is(err, rpc.ErrEmptyAnswerRecord) {
 		t.Errorf("WriteAnswer returned %v, want %v", err, rpc.ErrEmptyAnswerRecord)
@@ -945,15 +955,17 @@ func TestTheThresholdChoosesTheAnswerType(t *testing.T) {
 // which would put the daemon back to walking a table nobody reads.
 func TestABoundedStageStopsTheWalkDuringBuffering(t *testing.T) {
 	produced := 0
-	source := func(yield func(rpc.Record) bool) {
+	source := func(yield func(rpc.RowRecord) bool) {
+		var row rpc.RawRow
 		for i := range 1000 {
 			produced++
-			if !yield(rpc.Record{Item: json.RawMessage(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)}) {
+			row = rpc.RawRow(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)
+			if !yield(rpc.RowRecord{Item: &row}) {
 				return
 			}
 		}
 	}
-	firstTen := func(yield func(rpc.Record) bool) {
+	firstTen := func(yield func(rpc.RowRecord) bool) {
 		kept := 0
 		for record := range source {
 			if !yield(record) {
@@ -997,25 +1009,27 @@ func TestABoundedStageStopsTheWalkDuringBuffering(t *testing.T) {
 // PREVENTS: a column schema and its rows drifting apart silently, which turns
 // every later column of that answer into the wrong value.
 func TestRowArityIsRefusedOnBothPaths(t *testing.T) {
-	oneRow := func(item string) iter.Seq[rpc.Record] {
-		return func(yield func(rpc.Record) bool) {
-			yield(rpc.Record{Item: json.RawMessage(item)})
+	oneRow := func(item string) iter.Seq[rpc.RowRecord] {
+		return func(yield func(rpc.RowRecord) bool) {
+			row := rpc.RawRow(item)
+			yield(rpc.RowRecord{Item: &row})
 		}
 	}
-	pastThreshold := func(item string) iter.Seq[rpc.Record] {
-		return func(yield func(rpc.Record) bool) {
+	pastThreshold := func(item string) iter.Seq[rpc.RowRecord] {
+		return func(yield func(rpc.RowRecord) bool) {
 			for record := range columnRows(rpc.AnswerBufferThreshold + 1) {
 				if !yield(record) {
 					return
 				}
 			}
-			yield(rpc.Record{Item: json.RawMessage(item)})
+			row := rpc.RawRow(item)
+			yield(rpc.RowRecord{Item: &row})
 		}
 	}
 
 	tests := []struct {
 		name string
-		rows func(string) iter.Seq[rpc.Record]
+		rows func(string) iter.Seq[rpc.RowRecord]
 		item string
 		want error
 	}{
@@ -1089,13 +1103,18 @@ type answerRows struct {
 // rows yields the good records in order and the oversized one before the good
 // record at index oversized, so the walk has records to produce after the
 // rejection as well as before it.
-func (a answerRows) rows() iter.Seq[rpc.Record] {
-	return func(yield func(rpc.Record) bool) {
+func (a answerRows) rows() iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
+		var row rpc.RawRow
 		for i := range a.items {
-			if i == a.oversized && !yield(rpc.Record{Item: oversizedItem()}) {
-				return
+			if i == a.oversized {
+				row = rpc.RawRow(oversizedItem())
+				if !yield(rpc.RowRecord{Item: &row}) {
+					return
+				}
 			}
-			if !yield(rpc.Record{Item: json.RawMessage(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)}) {
+			row = rpc.RawRow(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)
+			if !yield(rpc.RowRecord{Item: &row}) {
 				return
 			}
 		}
@@ -1449,15 +1468,62 @@ const pooledAnswerRuns = 200
 // answerEnvelopeAllocs is what one streamed answer costs BEYOND its rows: the
 // records it holds until the threshold decides the answer type, the loop
 // variables a range over a generator moves to the heap, and everything else
-// that is not a row. It is 17 with a pooled line buffer and was 19 with a
-// buffer of the answer's own, measured on 2026-08-22.
+// that is not a row. It is 17 with pooled buffers and was 19 with a line buffer
+// of the answer's own, measured on 2026-08-22.
 //
-// It is a ceiling rather than a reading. The per-row cost is phase 3's of
-// spec-record-answers-3-zero-alloc and will fall, and every number under the
-// ceiling passes. What it pins is the line buffer: an answer that allocates one
-// of its own reads as two more, because the buffer is one allocation and the
-// slice header the loop moves to the heap beside it is the other.
+// It does NOT grow with the walk. The rows themselves cost nothing once a row
+// appends into the encoder's buffer rather than into a slice of its own, which
+// is why the streamed measurement below is held to this number rather than to
+// this number plus a row count.
+//
+// What it pins is the buffers: an answer that allocates one of its own reads as
+// two more, because the buffer is one allocation and the slice header the loop
+// moves to the heap beside it is the other.
 const answerEnvelopeAllocs = 17
+
+// answerWriteErrorAllocs is what wrapping a failed write costs: the formatted
+// message and the error that carries it (writeAnswerLineFrom,
+// pkg/plugin/rpc/answer_write.go). An exit path that reports a dead transport
+// pays it on top of the answer it had written so far.
+const answerWriteErrorAllocs = 2
+
+// builtPayloadResponse is the response a handler that built its whole payload
+// before the answer opened hands back. It is the fixture every measurement over
+// a document answer uses, so builtPayloadAllocs measures the marshal those
+// measurements pay for.
+func builtPayloadResponse() *Response {
+	return NewResponse(StatusDone, sampleData{PeerCount: 3, Name: "core"})
+}
+
+// builtPayloadAllocs is what marshaling that payload costs on the toolchain
+// running the test, measured rather than stated.
+//
+// It belongs in the ceiling of every measurement over a built payload, and it
+// is DERIVED because it is not this file's cost to pin: encoding/json's price
+// is the standard library's and it moves between Go releases. These ceilings
+// were written against a marshal of one allocation, Go measured two on
+// 2026-08-22, and two exit paths went red over an allocation that has nothing
+// to do with the line buffer they exist to guard.
+//
+// The answer writer's own cost is what the ceilings state ON TOP of this: zero
+// for the answer that reaches its terminator, and answerWriteErrorAllocs for
+// the one whose transport died.
+func builtPayloadAllocs(t *testing.T) int {
+	t.Helper()
+
+	resp := builtPayloadResponse()
+	allocs := testing.AllocsPerRun(pooledAnswerRuns, func() {
+		if _, err := json.Marshal(resp.Data); err != nil {
+			t.Fatalf("marshal the built payload: %v", err)
+		}
+	})
+	return int(allocs)
+}
+
+// pooledAnswerID is the request id every measured answer is written under. One
+// id for all of them keeps the line width the same across the measurements, and
+// a wider id writes a wider line.
+const pooledAnswerID = 42
 
 // answerAllocs reports the allocations one answer costs, and the error that
 // answer returned.
@@ -1469,11 +1535,11 @@ const answerEnvelopeAllocs = 17
 // so a goroutine the scheduler moves between two Ps reads a pool that is empty
 // through no fault of the writer. A test that calls this MUST NOT call
 // t.Parallel.
-func answerAllocs(t *testing.T, w io.Writer, id uint64, resp *Response) (float64, error) {
+func answerAllocs(t *testing.T, w io.Writer, resp *Response) (float64, error) {
 	t.Helper()
 	var writeErr error
 	allocs := testing.AllocsPerRun(pooledAnswerRuns, func() {
-		writeErr = WriteAnswer(w, id, resp)
+		writeErr = WriteAnswer(w, pooledAnswerID, resp)
 	})
 	return allocs, writeErr
 }
@@ -1523,22 +1589,22 @@ func (w *answerCutTransport) Write(line []byte) (int, error) {
 // built inside a generator, because a row built for each yield allocates and
 // these measurements are about what the ANSWER costs around its rows.
 var (
-	pooledRow           = json.RawMessage(`{"peer":"10.0.0.1","state":"up"}`)
-	pooledPositionalRow = json.RawMessage(`["10.0.0.1",65001,"established"]`)
-	pooledShortRow      = json.RawMessage(`["10.0.0.1",65001]`)
+	pooledRow           = rpc.RawRow(`{"peer":"10.0.0.1","state":"up"}`)
+	pooledPositionalRow = rpc.RawRow(`["10.0.0.1",65001,"established"]`)
+	pooledShortRow      = rpc.RawRow(`["10.0.0.1",65001]`)
 )
 
 // emptyRecordRows yields rows and then one record carrying neither an item nor
 // a fault, which is the refusal a producer earns after the answer has taken its
 // line buffer and written lines through it.
-func emptyRecordRows(before int) iter.Seq[rpc.Record] {
-	return func(yield func(rpc.Record) bool) {
+func emptyRecordRows(before int) iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
 		for range before {
-			if !yield(rpc.Record{Item: pooledRow}) {
+			if !yield(rpc.RowRecord{Item: &pooledRow}) {
 				return
 			}
 		}
-		yield(rpc.Record{})
+		yield(rpc.RowRecord{})
 	}
 }
 
@@ -1546,26 +1612,26 @@ func emptyRecordRows(before int) iter.Seq[rpc.Record] {
 // carrying a value too few, which the wire writer refuses (checkRowArity). The
 // short row comes after the buffering threshold, so the refusal happens while
 // the answer is streaming and its line buffer is in hand.
-func shortColumnRows(before int) iter.Seq[rpc.Record] {
-	return func(yield func(rpc.Record) bool) {
+func shortColumnRows(before int) iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
 		for range before {
-			if !yield(rpc.Record{Item: pooledPositionalRow}) {
+			if !yield(rpc.RowRecord{Item: &pooledPositionalRow}) {
 				return
 			}
 		}
-		yield(rpc.Record{Item: pooledShortRow})
+		yield(rpc.RowRecord{Item: &pooledShortRow})
 	}
 }
 
 // oversizedRows yields rows with one record too wide for a line among them, so
 // the walk reaches the width rejection and carries on to its terminator.
-func oversizedRows(before int, wide json.RawMessage) iter.Seq[rpc.Record] {
-	return func(yield func(rpc.Record) bool) {
+func oversizedRows(before int, wide rpc.RawRow) iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
 		for i := range before {
-			if i == before/2 && !yield(rpc.Record{Item: wide}) {
+			if i == before/2 && !yield(rpc.RowRecord{Item: &wide}) {
 				return
 			}
-			if !yield(rpc.Record{Item: pooledRow}) {
+			if !yield(rpc.RowRecord{Item: &pooledRow}) {
 				return
 			}
 		}
@@ -1589,8 +1655,6 @@ func oversizedRows(before int, wide json.RawMessage) iter.Seq[rpc.Record] {
 // costs the same: a buffer that is never returned makes every later answer
 // allocate its own.
 func TestWriteAnswerUsesPooledBuffer(t *testing.T) {
-	const id = 42
-
 	tests := []struct {
 		name    string
 		resp    *Response
@@ -1599,17 +1663,17 @@ func TestWriteAnswerUsesPooledBuffer(t *testing.T) {
 		{
 			name:    "a streamed walk",
 			resp:    NewResponse(StatusDone, Records{Key: "peers", Rows: benchmarkPeerRows(pooledAnswerRows)}),
-			ceiling: pooledAnswerRows + answerEnvelopeAllocs,
+			ceiling: answerEnvelopeAllocs,
 		},
 		{
 			name:    "a payload built whole",
-			resp:    NewResponse(StatusDone, sampleData{PeerCount: 3, Name: "core"}),
-			ceiling: 1,
+			resp:    builtPayloadResponse(),
+			ceiling: builtPayloadAllocs(t),
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			allocs, err := answerAllocs(t, io.Discard, id, tc.resp)
+			allocs, err := answerAllocs(t, io.Discard, tc.resp)
 			if err != nil {
 				t.Fatalf("WriteAnswer returned %v, want the answer to reach its terminator", err)
 			}
@@ -1634,8 +1698,6 @@ func TestWriteAnswerUsesPooledBuffer(t *testing.T) {
 // leak on an error path shows up as latency hours later, never as a failing
 // answer, which is why it is measured rather than reasoned about.
 func TestWriteAnswerReleasesBufferOnError(t *testing.T) {
-	const id = 42
-
 	tests := []struct {
 		name    string
 		writer  io.Writer
@@ -1648,28 +1710,28 @@ func TestWriteAnswerReleasesBufferOnError(t *testing.T) {
 			writer:  &answerCutTransport{failAt: 1},
 			resp:    NewResponse(StatusDone, Records{Key: "peers", Rows: benchmarkPeerRows(pooledAnswerRows)}),
 			wantErr: errTransportGone,
-			ceiling: 276,
+			ceiling: answerEnvelopeAllocs + answerWriteErrorAllocs,
 		},
 		{
 			name:    "the transport dies on a record",
 			writer:  &answerCutTransport{failAt: 3},
 			resp:    NewResponse(StatusDone, Records{Key: "peers", Rows: benchmarkPeerRows(pooledAnswerRows)}),
 			wantErr: errTransportGone,
-			ceiling: 276,
+			ceiling: answerEnvelopeAllocs + answerWriteErrorAllocs,
 		},
 		{
 			name:    "the transport dies on the terminator of a document",
 			writer:  &answerCutTransport{failAt: 3},
-			resp:    NewResponse(StatusDone, sampleData{PeerCount: 3, Name: "core"}),
+			resp:    builtPayloadResponse(),
 			wantErr: errTransportGone,
-			ceiling: 3,
+			ceiling: builtPayloadAllocs(t) + answerWriteErrorAllocs,
 		},
 		{
 			name:    "a row carries neither an item nor a fault",
 			writer:  io.Discard,
 			resp:    NewResponse(StatusDone, Records{Key: "rows", Rows: emptyRecordRows(pooledAnswerRows)}),
 			wantErr: rpc.ErrEmptyAnswerRecord,
-			ceiling: 17,
+			ceiling: answerEnvelopeAllocs,
 		},
 		{
 			name:    "a row does not fit the columns the head declares",
@@ -1679,16 +1741,24 @@ func TestWriteAnswerReleasesBufferOnError(t *testing.T) {
 			ceiling: 21,
 		},
 		{
+			// A row of 16 MB is APPENDED before its width is known, because a
+			// row states its width by writing itself and by nothing else
+			// (appendAnswerRow, pkg/plugin/rpc/answer_write.go). Growing a
+			// pooled buffer from 512 bytes to 16 MB costs the doublings, and
+			// the answer gives that buffer back to nobody: the pool drops one
+			// wider than 64 KB rather than holding it. Eight allocations on a
+			// producer's own defect is the price of a row type that no producer
+			// has to build twice, and the answer still reaches its terminator.
 			name:    "a record is wider than one wire message",
 			writer:  io.Discard,
-			resp:    NewResponse(StatusDone, Records{Key: "peers", Rows: oversizedRows(pooledAnswerRows, oversizedItem())}),
+			resp:    NewResponse(StatusDone, Records{Key: "peers", Rows: oversizedRows(pooledAnswerRows, rpc.RawRow(oversizedItem()))}),
 			wantErr: nil,
-			ceiling: 18,
+			ceiling: answerEnvelopeAllocs + 8,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			allocs, err := answerAllocs(t, tc.writer, id, tc.resp)
+			allocs, err := answerAllocs(t, tc.writer, tc.resp)
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("WriteAnswer returned %v, want %v: this test is not on the exit path it names", err, tc.wantErr)
 			}
@@ -1748,6 +1818,221 @@ func TestPooledLineCarriesNoResidue(t *testing.T) {
 	}
 }
 
+// appendSite is what one row was handed when the encoder asked it to append
+// itself: how many bytes that buffer already held, and how much room it had.
+type appendSite struct {
+	length   int
+	capacity int
+}
+
+// appendSiteRow is a row that records the buffer it is handed and then appends
+// its payload into it. It is ONE value for the whole walk, refilled by nothing:
+// the payload never changes, so what the sites say is where the encoder put
+// each row rather than what the row decided to write.
+type appendSiteRow struct {
+	payload string
+	sites   []appendSite
+}
+
+// AppendTo records the buffer and appends the payload to it.
+func (r *appendSiteRow) AppendTo(buf []byte) []byte {
+	r.sites = append(r.sites, appendSite{length: len(buf), capacity: cap(buf)})
+	return append(buf, r.payload...)
+}
+
+// appendSiteRows walks one appendSiteRow count times, which is what a producer
+// that hands back one Row value for every row of its walk does.
+func appendSiteRows(row *appendSiteRow, count int) iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
+		record := rpc.RowRecord{Item: row}
+		for range count {
+			if !yield(record) {
+				return
+			}
+		}
+	}
+}
+
+// TestRecordRowAppendsInPlace checks that a row is appended into a buffer the
+// ENCODER owns, rather than into a slice of its own that the encoder then
+// copies. That is the whole of A-1, and it is the reason Row is an appender. A
+// row that built its own slice puts one allocation on every row of every walk,
+// and no later work takes it back off.
+//
+// The method: one walk crosses the buffering threshold, so it exercises both
+// places a row lands. Each row records what it was handed. In the window the
+// encoder holds, row N+1 must be handed the buffer already carrying rows 1..N,
+// which is what "in place" means. An AppendTo(nil) for each row cannot produce
+// it. Once the answer streams, every row must be handed the same offset of
+// one reused line buffer.
+//
+// VALIDATES: A-1 and AC-1 of spec-record-answers-3-zero-alloc -- a row appends
+// into the encoder's buffer without the encoder knowing the row's type.
+// PREVENTS: the hop this phase removed, where the walk appended each row into a
+// fresh slice and handed the encoder the bytes (Records.wire, deleted).
+func TestRecordRowAppendsInPlace(t *testing.T) {
+	const rows = rpc.AnswerBufferThreshold + 4
+
+	row := &appendSiteRow{payload: `{"peer":"10.0.0.1"}`}
+	resp := NewResponse(StatusDone, Records{Key: "peers", Rows: appendSiteRows(row, rows)})
+	if err := WriteAnswer(io.Discard, 7, resp); err != nil {
+		t.Fatalf("WriteAnswer: %v", err)
+	}
+
+	if len(row.sites) != rows {
+		t.Fatalf("the walk appended %d rows, want %d", len(row.sites), rows)
+	}
+	for i, site := range row.sites {
+		if site.capacity == 0 {
+			t.Fatalf("row %d was handed a buffer of no capacity, so it was built into a slice of its own", i+1)
+		}
+	}
+
+	// The held window. Each row lands behind the rows already held, so the
+	// buffer it is handed grows by exactly one row every time.
+	for i := 1; i <= rpc.AnswerBufferThreshold; i++ {
+		want := row.sites[i-1].length + len(row.payload)
+		if row.sites[i].length != want {
+			t.Fatalf("held row %d was handed a buffer of %d bytes, want %d: the rows before it are not in it",
+				i+1, row.sites[i].length, want)
+		}
+	}
+
+	// The streamed rows. Each is written through one line buffer, so each is
+	// handed the same offset: the room the record line's prefix is written into
+	// once the row has stated its width.
+	prefix := row.sites[rpc.AnswerBufferThreshold+1].length
+	if prefix == 0 {
+		t.Fatal("a streamed row was handed an empty buffer, so its line has no room for the prefix in front of it")
+	}
+	for i := rpc.AnswerBufferThreshold + 1; i < rows; i++ {
+		if row.sites[i].length != prefix {
+			t.Errorf("streamed row %d was handed a buffer of %d bytes, want %d: the line buffer is not reused",
+				i+1, row.sites[i].length, prefix)
+		}
+	}
+}
+
+// TestWriteAnswerZeroAllocPerRow measures the allocation cost of ONE ROW, as
+// the difference between two answers of different lengths. The envelope around
+// the rows is the same for both, whatever it costs, so what the subtraction
+// leaves is the rows and nothing else.
+//
+// It is the assertion form of what the alloc gate reads from
+// BenchmarkRecordAnswerRows. Both are here because they fail differently: the
+// gate fails a push, and this fails the package's own suite, where a session
+// changing the record path meets it first.
+//
+// Both walks pass rpc.AnswerBufferThreshold, so both hold the same window and
+// stream the rest. A walk that ended inside the window would measure the
+// collapse instead, which holds every row by design.
+//
+// VALIDATES: AC-1 of spec-record-answers-3-zero-alloc -- the measured
+// allocation count per row is zero.
+// PREVENTS: a per-row allocation reappearing anywhere between the generator and
+// the wire, which is invisible in a total that grows with the walk.
+func TestWriteAnswerZeroAllocPerRow(t *testing.T) {
+	const shortWalk = rpc.AnswerBufferThreshold + 44
+	const longWalk = shortWalk + 1000
+
+	short, err := answerAllocs(t, io.Discard,
+		NewResponse(StatusDone, Records{Key: "peers", Rows: benchmarkPeerRows(shortWalk)}))
+	if err != nil {
+		t.Fatalf("the short walk returned %v, want the answer to reach its terminator", err)
+	}
+	long, err := answerAllocs(t, io.Discard,
+		NewResponse(StatusDone, Records{Key: "peers", Rows: benchmarkPeerRows(longWalk)}))
+	if err != nil {
+		t.Fatalf("the long walk returned %v, want the answer to reach its terminator", err)
+	}
+
+	// The two answers are held to the same count, with the slack the race
+	// detector's own bookkeeping earns: the full pass of ze-precommit-verify
+	// runs without it and reads the difference exactly, and one allocation for
+	// each row would be a thousand of them here whichever pass measured it.
+	t.Logf("%d rows allocate %.0f and %d rows allocate %.0f", shortWalk, short, longWalk, long)
+	if long > short+float64(answerAllocRaceOverhead) {
+		t.Errorf("%d more rows cost %.0f more allocations, want none: a row must append into the encoder's buffer",
+			longWalk-shortWalk, long-short)
+	}
+}
+
+// buildCountingRow is a row that counts how many times it is asked to append
+// itself. It is what proves a rejection costs no second build.
+type buildCountingRow struct {
+	payload string
+	builds  int
+}
+
+// AppendTo counts the build and appends the payload.
+func (r *buildCountingRow) AppendTo(buf []byte) []byte {
+	r.builds++
+	return append(buf, r.payload...)
+}
+
+// TestRejectedRowIsBuiltOnce checks that a row the encoder refuses is built
+// ONCE, whichever refusal it earns.
+//
+// A row states its width by writing itself, so the encoder cannot judge one
+// before it exists. What AC-9 forbids is judging it and then building it AGAIN:
+// the rejection would have moved the allocation rather than removed it, and a
+// 16 MB row would be copied twice on the way to being refused.
+//
+// Both refusals a produced row can earn are driven. A row wider than one wire
+// message is rejected in place, and the walk carries on to its terminator. A
+// row that disagrees with the columns the head declares ends the answer, which
+// is the refusal both renderings of that answer make
+// (TestRowArityIsRefusedOnBothPaths).
+//
+// VALIDATES: AC-9 of spec-record-answers-3-zero-alloc -- a rejected row costs
+// no second build.
+// PREVENTS: a width check or an arity check that measures a row by building it
+// into a scratch buffer and then building it again into the line.
+func TestRejectedRowIsBuiltOnce(t *testing.T) {
+	const id = 3
+
+	t.Run("a row wider than one wire message", func(t *testing.T) {
+		wide := &buildCountingRow{payload: string(oversizedItem())}
+		rows := func(yield func(rpc.RowRecord) bool) {
+			for record := range peerRows(rpc.AnswerBufferThreshold + 1) {
+				if !yield(record) {
+					return
+				}
+			}
+			yield(rpc.RowRecord{Item: wide})
+		}
+
+		var answer bytes.Buffer
+		if err := WriteAnswer(&answer, id, NewResponse(StatusDone, Records{Key: "peers", Rows: rows})); err != nil {
+			t.Fatalf("WriteAnswer: %v", err)
+		}
+		if wide.builds != 1 {
+			t.Errorf("the rejected row was built %d times, want once", wide.builds)
+		}
+		assertAnswerShape(t, readAnswer(t, answer.Bytes()), id, rpc.AnswerBufferThreshold+1, 1)
+	})
+
+	t.Run("a row that does not fit the columns the head declares", func(t *testing.T) {
+		short := &buildCountingRow{payload: `["10.0.0.1",65001]`}
+		rows := func(yield func(rpc.RowRecord) bool) {
+			for record := range columnRows(rpc.AnswerBufferThreshold + 1) {
+				if !yield(record) {
+					return
+				}
+			}
+			yield(rpc.RowRecord{Item: short})
+		}
+
+		records := Records{Key: "peers", Fields: peerColumns, Rows: rows}
+		if err := WriteAnswer(&bytes.Buffer{}, id, NewResponse(StatusDone, records)); !errors.Is(err, rpc.ErrRowArity) {
+			t.Fatalf("WriteAnswer returned %v, want %v", err, rpc.ErrRowArity)
+		}
+		if short.builds != 1 {
+			t.Errorf("the refused row was built %d times, want once", short.builds)
+		}
+	})
+}
+
 // VALIDATES: AC-1 of spec-record-answers-3-zero-alloc -- the allocation cost of
 //
 //	ONE ROW of a record answer, which the alloc gate holds to a ceiling of
@@ -1796,8 +2081,9 @@ func BenchmarkRecordAnswerRows(b *testing.B) {
 // (`ai/rules/evidence.md`). It prints beside the measured benchmark in
 // tmp/verify/alloc-gate-bench.txt, so the two numbers are read together.
 func BenchmarkRecordAnswerRowsHarness(b *testing.B) {
-	record := rpc.Record{Item: json.RawMessage(`{"peer":"10.0.0.1","state":"up"}`)}
-	var rows iter.Seq[rpc.Record] = func(yield func(rpc.Record) bool) {
+	row := &benchmarkPeerRow{peer: 1}
+	record := rpc.RowRecord{Item: row}
+	var rows iter.Seq[rpc.RowRecord] = func(yield func(rpc.RowRecord) bool) {
 		for range b.N {
 			if !yield(record) {
 				return
@@ -1824,33 +2110,40 @@ func BenchmarkRecordAnswerRowsHarness(b *testing.B) {
 // is stated rather than left at zero.
 const benchmarkAnswerID = 42
 
-// benchmarkRowCapacity is the byte capacity each benchmarked row is built into.
-// The widest row benchmarkPeerRows writes is 34 bytes, so the append never
-// grows the slice. The measured count is then one allocation for the row,
-// rather than one plus the growth of a slice that started too small.
-const benchmarkRowCapacity = 48
-
-// benchmarkPeerRows yields rows the cheapest way rpc.Record allows today. Each
-// row's JSON is appended into a slice of its own. That slice is what
-// rpc.Record's json.RawMessage fields force: the encoder holds a record's bytes
-// while later rows are produced, so a scratch reused across rows would rewrite
-// the rows it still holds (Records.wire, pkg/plugin/records.go).
+// benchmarkPeerRow is one row of the benchmarked walk: a peer address and a
+// state, appended into whatever buffer the encoder hands it.
 //
-// It is deliberately the FLOOR of the record path rather than a real handler.
-// The number the gate reads is then the cost the ENCODER cannot avoid, rather
-// than one handler's choice of payload. A handler pays more on top. The one
-// record generator in the tree today marshals a struct for each row
-// (yieldCompletion, internal/component/plugin/server/system.go), measured at 4
-// allocs/row on 2026-08-22, and marshaling a plugin.Map measured 12. Both sit
-// above this floor, so no cheaper producer can satisfy the gate.
-func benchmarkPeerRows(rows int) iter.Seq[rpc.Record] {
-	return func(yield func(rpc.Record) bool) {
+// It states the row the cheapest way the record path allows. Nothing is built
+// for the row and nothing is kept after it, so the count the gate reads is the
+// cost the ENCODER cannot avoid rather than one handler's choice of payload.
+type benchmarkPeerRow struct{ peer int }
+
+// AppendTo appends the row's JSON to buf and returns the extended slice. It
+// allocates nothing: every byte is written into the buffer the answer owns.
+func (r *benchmarkPeerRow) AppendTo(buf []byte) []byte {
+	buf = append(buf, `{"peer":"10.0.0.`...)
+	buf = strconv.AppendInt(buf, int64(r.peer), 10)
+	return append(buf, `","state":"up"}`...)
+}
+
+// benchmarkPeerRows yields rows the cheapest way the record path allows. ONE
+// row value carries the whole walk, refilled for each row: the encoder appends
+// it before the yield returns and keeps no reference to it (rpc.Row), so a walk
+// of any length allocates for none of its rows.
+//
+// It is deliberately the FLOOR of the record path rather than a real handler. A
+// handler pays its own payload on top. The one record generator in the tree
+// today marshals a struct for each row (yieldCompletion,
+// internal/component/plugin/server/system.go), measured at 4 allocs/row on
+// 2026-08-22, and marshaling a plugin.Map measured 12. Both sit above this
+// floor, so no cheaper producer can satisfy the gate.
+func benchmarkPeerRows(rows int) iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
+		row := &benchmarkPeerRow{}
+		record := rpc.RowRecord{Item: row}
 		for i := range rows {
-			row := make([]byte, 0, benchmarkRowCapacity)
-			row = append(row, `{"peer":"10.0.0.`...)
-			row = strconv.AppendInt(row, int64(i%256), 10)
-			row = append(row, `","state":"up"}`...)
-			if !yield(rpc.Record{Item: row}) {
+			row.peer = i % 256
+			if !yield(record) {
 				return
 			}
 		}

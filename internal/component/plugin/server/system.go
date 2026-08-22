@@ -401,17 +401,23 @@ func handleSystemCommandList(ctx *CommandContext, args []string) (*plugin.Respon
 // returns, so the rows describe the registry at the moment the answer is
 // written. Both getters copy under their own lock, so a plugin registering a
 // command mid-walk changes the next answer and not this one.
-func commandRows(dispatcher *Dispatcher, verbose bool) iter.Seq[rpc.Record] {
-	return func(yield func(rpc.Record) bool) {
+func commandRows(dispatcher *Dispatcher, verbose bool) iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
 		if dispatcher == nil {
 			return
 		}
+		// One row carries every row of the walk in turn. The encoder appends it
+		// before the yield returns and keeps no reference to it (rpc.Row), so
+		// the walk states each row through the same value instead of a value of
+		// its own.
+		var encoded rpc.RawRow
+
 		for _, cmd := range dispatcher.Commands() {
 			row := Completion{Value: cmd.Name, Help: cmd.Help}
 			if verbose {
 				row.Source = sourceBuiltin
 			}
-			if !yieldCompletion(yield, row) {
+			if !yieldCompletion(yield, &encoded, row) {
 				return
 			}
 		}
@@ -420,27 +426,43 @@ func commandRows(dispatcher *Dispatcher, verbose bool) iter.Seq[rpc.Record] {
 			if verbose {
 				row.Source = cmd.Process.Name()
 			}
-			if !yieldCompletion(yield, row) {
+			if !yieldCompletion(yield, &encoded, row) {
 				return
 			}
 		}
 	}
 }
 
-// yieldCompletion encodes one row and hands it to the walk, and reports whether
-// the walk wants another. A row that cannot be encoded is yielded as a rejected
-// row, so the answer names the command it could not report instead of being one
-// row shorter than the registry.
-func yieldCompletion(yield func(rpc.Record) bool, row Completion) bool {
-	encoded, err := json.Marshal(row)
+// yieldCompletion encodes one row into encoded and hands it to the walk, and
+// reports whether the walk wants another. A row that cannot be encoded is
+// yielded as a rejected row. The answer then names the command it cannot
+// report, instead of being one row shorter than the registry.
+//
+// The encoding happens HERE rather than inside the row's AppendTo, because a
+// row that cannot be encoded is a rejected row and an appender has no way to
+// say so. What the walk hands on is the appender over the bytes this produced
+// (rpc.RawRow), so the encoder copies them into its own buffer and allocates
+// nothing for the row.
+func yieldCompletion(yield func(rpc.RowRecord) bool, encoded *rpc.RawRow, row Completion) bool {
+	item, err := json.Marshal(row)
 	if err != nil {
-		fault, faultErr := json.Marshal(map[string]string{"command": row.Value, "message": err.Error()})
+		fault, faultErr := json.Marshal(completionFault{Command: row.Value, Message: err.Error()})
 		if faultErr != nil {
 			return false
 		}
-		return yield(rpc.Record{Fault: fault})
+		*encoded = fault
+		return yield(rpc.RowRecord{Fault: encoded})
 	}
-	return yield(rpc.Record{Item: encoded})
+	*encoded = item
+	return yield(rpc.RowRecord{Item: encoded})
+}
+
+// completionFault is the rejected row that stands in for a command whose row
+// cannot be encoded. Its fields are written in the order a reader meets
+// them, which is the order the map it replaces happened to sort into.
+type completionFault struct {
+	Command string `json:"command"`
+	Message string `json:"message"`
 }
 
 // handleSystemCommandHelp returns detailed help for a specific command.

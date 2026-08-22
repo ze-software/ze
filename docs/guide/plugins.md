@@ -830,8 +830,11 @@ p.OnExecuteCommand(func(serial, command string, args []string, peer string) (str
 
 `Key` names the envelope the rows belong under. `Rows` is an
 `iter.Seq[sdk.Record]`, and each record carries one `Item` the command produced
-or one `Fault` it rejected. A `Row` appends its own JSON, so a producer can hand
-back one row value for every row of the walk.
+or one `Fault` it rejected. A `Row` appends its own JSON into the buffer the
+writer owns, so a walk of a million rows allocates for none of them. The row is
+appended before the yield that carried it returns and nothing keeps a reference
+to it, so a producer can hand back one row value for every row of the walk and
+refill it in place.
 <!-- source: pkg/plugin/records.go -- Row, Record, Records -->
 
 Three rules bind a handler that answers this way.

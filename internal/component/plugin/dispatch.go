@@ -317,8 +317,13 @@ func documentAnswer(resp *Response, document json.RawMessage, count, faults uint
 // carried, which is the refusal the wire producer makes for the same row. It is
 // refused BEFORE the answer is handed out, so the producer is named by a
 // returned error rather than by a walk that stops half way.
+//
+// The consumer holds every record past the walk, so each row is appended into a
+// slice of its own (rpc.HeldRecords). The wire writer keeps none and appends
+// into its own buffers instead, which is why a streamed row costs nothing and
+// an in-process one costs this.
 func heldRecords(records Records) (held []rpc.Record, count, faults uint64, err error) {
-	for record := range records.rows() {
+	for record := range rpc.HeldRecords(records.rows()) {
 		switch {
 		case len(record.Fault) > 0:
 			faults++
@@ -369,7 +374,7 @@ func builtDocument(resp *Response) (json.RawMessage, error) {
 
 // noRecords is the empty row sequence. A command that produced nothing still
 // writes a head and a terminator, so its answer is complete rather than short.
-func noRecords(func(rpc.Record) bool) {}
+func noRecords(func(rpc.RowRecord) bool) {}
 
 // answerMessage is the operational text the terminator carries: why a walk
 // produced fewer records than it set out to, why it produced none at all, or

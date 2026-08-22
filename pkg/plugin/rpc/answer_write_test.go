@@ -34,7 +34,7 @@ func answerItemOfLineSize(t *testing.T, id uint64, size int) []byte {
 }
 
 // rejectedRow is one entry of the errors collection a buffered consumer reads,
-// as answerRecordTooLargeFault writes it.
+// as appendAnswerRecordTooLargeFault writes it.
 type rejectedRow struct {
 	Message      string `json:"message"`
 	Record       uint64 `json:"record"`
@@ -90,7 +90,7 @@ func TestRecordSizeBoundaryIsTheEncodedLine(t *testing.T) {
 // PREVENTS: a fault built from the record, which is the shape that turns one
 // wide row into a failed answer.
 func TestTheRejectedRowFitsTheLineTheRecordDidNot(t *testing.T) {
-	fault := answerRecordTooLargeFault(math.MaxUint64, math.MaxInt)
+	fault := appendAnswerRecordTooLargeFault(nil, math.MaxUint64, math.MaxInt)
 	if len(fault) > answerFaultCapacity {
 		t.Errorf("the widest rejected row is %d bytes and the builder reserves %d, so it grows its slice", len(fault), answerFaultCapacity)
 	}
@@ -120,7 +120,8 @@ func TestWriteRecordAnswerRefusesTheReservedEnvelope(t *testing.T) {
 	t.Parallel()
 
 	var wire bytes.Buffer
-	rows := func(yield func(Record) bool) { yield(Record{Item: []byte(`{"peer":"10.0.0.1"}`)}) }
+	row := RawRow(`{"peer":"10.0.0.1"}`)
+	rows := func(yield func(RowRecord) bool) { yield(RowRecord{Item: &row}) }
 
 	err := WriteRecordAnswer(&wire, 3, AnswerTail{Key: AnswerErrorsKey}, rows)
 	if err == nil {
@@ -270,20 +271,20 @@ const answerRecordTooLargeText = "answer record does not fit one wire message"
 // does not, so what the answer rejects is the DOCUMENT and never a row. That
 // distinction is the whole fixture: the encoder bounded the rows and nothing
 // bounded what they collapsed to.
-func answerRowsCollapsingPastTheLimit(t *testing.T, id uint64) iter.Seq[Record] {
+func answerRowsCollapsingPastTheLimit(t *testing.T, id uint64) iter.Seq[RowRecord] {
 	t.Helper()
 
 	// Three JSON strings of half the maximum each collapse to about one and a
 	// half lines, which leaves the fixture correct at either edge rather than
 	// resting on the collapse's own few bytes of envelope.
 	const rows = 3
-	row := json.RawMessage(`"` + strings.Repeat("x", MaxMessageSize/2) + `"`)
-	if size := AnswerRecordLineSize(id, Record{Item: row}); size > MaxMessageSize {
+	row := RawRow(`"` + strings.Repeat("x", MaxMessageSize/2) + `"`)
+	if size := AnswerRecordLineSize(id, Record{Item: json.RawMessage(row)}); size > MaxMessageSize {
 		t.Fatalf("fixture: one row's line is %d bytes, past the %d maximum, so the walk would reject a ROW", size, MaxMessageSize)
 	}
-	return func(yield func(Record) bool) {
+	return func(yield func(RowRecord) bool) {
 		for range rows {
-			if !yield(Record{Item: row}) {
+			if !yield(RowRecord{Item: &row}) {
 				return
 			}
 		}

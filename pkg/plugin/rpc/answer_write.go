@@ -48,7 +48,7 @@ import (
 //
 // A rejected row is written and the walk goes on, so one answer can report 97
 // rows applied and 3 rejected. A row too wide for one line is rejected the same
-// way (boundedRecord), because refusing one row must not cost the operator the
+// way (appendAnswerRow), because refusing one row must not cost the operator the
 // rows around it. A failed WRITE ends the walk: the transport is gone, and every
 // later row would be produced for nobody. Returning stops the generator, which
 // the range does by refusing the next yield.
@@ -58,11 +58,17 @@ import (
 // producer that named an envelope and yielded nothing, which is an empty
 // collection rather than a missing answer.
 //
-// One pooled buffer carries every line (AnswerLineBuffer), and the deferred
-// release covers the ways out that reach no terminator: a row this producer
-// refuses, a row that does not fit the columns the head declares, a collapse
-// that fails, and the transport dying under any line.
-func WriteRecordAnswer(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[Record]) error {
+// A row appends itself into a buffer this writer owns and is never kept, so a
+// streamed row costs no allocation at all: the encoder holds the row's LENGTH
+// and nothing else about it (Row, types.go).
+//
+// Two pooled buffers carry one answer (AnswerLineBuffer): the line every line
+// is written through, and the one the rows are held in until the threshold
+// decides the answer's type. The deferred releases cover the ways out that
+// reach no terminator: a row this producer refuses, a row that does not fit the
+// columns the head declares, a collapse that fails, and the transport dying
+// under any line.
+func WriteRecordAnswer(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[RowRecord]) error {
 	// The reserved envelope is refused before the first line, so a producer
 	// that names it is told rather than half-answered. The collapse refuses the
 	// same name (CollapseRecords), and a streamed answer never reaches it.
@@ -74,11 +80,14 @@ func WriteRecordAnswer(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[Re
 		return err
 	}
 	if rows == nil {
-		rows = noAnswerRecords
+		rows = noAnswerRows
 	}
 
 	line := AnswerLineBuffer()
 	defer ReleaseAnswerLineBuffer(line)
+
+	holding := AnswerLineBuffer()
+	defer ReleaseAnswerLineBuffer(holding)
 
 	var (
 		held      []Record
@@ -86,42 +95,55 @@ func WriteRecordAnswer(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[Re
 		faults    uint64
 		streaming bool
 	)
-	for record := range rows {
-		record = boundedRecord(id, count+faults+1, record)
-		switch {
-		case len(record.Fault) > 0:
-			faults++
-		case len(record.Item) > 0:
-			count++
-		default:
-			return ErrEmptyAnswerRecord
-		}
+	for row := range rows {
+		// The ordinal is the row's position in the walk, counted from one, and
+		// it is how a rejected row names the row it stands for.
+		ordinal := count + faults + 1
 
-		if !streaming && len(held) < AnswerBufferThreshold {
-			held = append(held, record)
+		if streaming {
+			kind, writeErr := writeAnswerRow(w, line, id, ordinal, row, head.Fields)
+			if writeErr != nil {
+				return writeErr
+			}
+			// A row the width refused is counted as a rejection whatever its
+			// producer said it was, because a rejection is what the wire
+			// carried.
+			if kind == AnswerKindFault {
+				faults++
+			} else {
+				count++
+			}
 			continue
 		}
-		if !streaming {
-			// This record is the one past the threshold, so the answer cannot
-			// be one document. The head opens the stream and the records
-			// already held go out ahead of it, in the order the walk produced
-			// them.
-			*line = AppendAnswerHead((*line)[:0], id, AnswerStreamType(head.Fields), head.Key, fields)
-			if err := writeAnswerLine(w, line); err != nil {
-				return err
-			}
-			for i := range held {
-				if err := writeRecordLine(w, line, id, held[i], head.Fields); err != nil {
-					return err
-				}
-			}
-			held = nil
-			streaming = true
+
+		record, kind, holdErr := holdAnswerRow(holding, id, ordinal, row)
+		if holdErr != nil {
+			return holdErr
+		}
+		if kind == AnswerKindFault {
+			faults++
+		} else {
+			count++
+		}
+		held = append(held, record)
+		if len(held) <= AnswerBufferThreshold {
+			continue
 		}
 
-		if err := writeRecordLine(w, line, id, record, head.Fields); err != nil {
+		// This record is the one past the threshold, so the answer cannot be
+		// one document. The head opens the stream and every record held goes
+		// out behind it, in the order the walk produced them.
+		*line = AppendAnswerHead((*line)[:0], id, AnswerStreamType(head.Fields), head.Key, fields)
+		if err := writeAnswerLine(w, line); err != nil {
 			return err
 		}
+		for i := range held {
+			if err := writeRecordLine(w, line, id, held[i], head.Fields); err != nil {
+				return err
+			}
+		}
+		held = nil
+		streaming = true
 	}
 
 	if !streaming {
@@ -239,6 +261,107 @@ func writeRecordLine(w io.Writer, line *[]byte, id uint64, record Record, fields
 	return writeAnswerLine(w, line)
 }
 
+// writeAnswerRow appends one row of a STREAMED answer into the line buffer and
+// writes the line it makes.
+//
+// The prefix states how many payload bytes follow, and a row states its width
+// only by appending itself, so the line is built back to front: the gap is
+// reserved, the row appends behind it, and the prefix is then written to END
+// exactly where the payload begins. The line therefore starts INSIDE the
+// buffer, and the bytes of the gap the prefix did not need are never written to
+// w. That is the skip-and-backfill of ai/rules/performance.md, right-aligned
+// because a decimal count has no fixed width.
+//
+// The row is built once and reaches the wire from where it was built. Nothing
+// copies it, and the width rejection does not rebuild it (appendAnswerRow).
+//
+// It reports which record the row turned out to be. The caller then counts a
+// rejected row as a rejection, whether the producer stated one or the width
+// did.
+func writeAnswerRow(w io.Writer, line *[]byte, id, ordinal uint64, row RowRecord, fields []string) (string, error) {
+	*line = append((*line)[:0], answerRecordGap[:]...)
+
+	appended, kind, err := appendAnswerRow(*line, id, ordinal, row)
+	*line = appended
+	if err != nil {
+		return "", err
+	}
+
+	payload := (*line)[answerRecordPrefixWidth:]
+	if kind == AnswerKindRecord {
+		if err := checkRowArity(payload, fields); err != nil {
+			return "", err
+		}
+	}
+
+	var scratch [answerRecordPrefixWidth]byte
+	prefix := appendAnswerRecordPrefix(scratch[:0], id, kind, uint64(len(payload)))
+	start := answerRecordPrefixWidth - len(prefix)
+	copy((*line)[start:], prefix)
+
+	return kind, writeAnswerLineFrom(w, line, start)
+}
+
+// holdAnswerRow appends one row into the buffer the answer holds its rows in
+// until the threshold decides its type, and reports the record those bytes are.
+//
+// The record's payload is a slice of that buffer, capped to its own length so
+// the row after it cannot be appended over it. It stays valid for the whole
+// answer: a later row that has to grow the buffer copies the rows already held
+// into the new array and leaves the old one where the records already handed
+// out still point.
+func holdAnswerRow(holding *[]byte, id, ordinal uint64, row RowRecord) (Record, string, error) {
+	start := len(*holding)
+
+	appended, kind, err := appendAnswerRow(*holding, id, ordinal, row)
+	*holding = appended
+	if err != nil {
+		return Record{}, "", err
+	}
+
+	end := len(*holding)
+	payload := (*holding)[start:end:end]
+	if kind == AnswerKindFault {
+		return Record{Fault: payload}, kind, nil
+	}
+	return Record{Item: payload}, kind, nil
+}
+
+// appendAnswerRow appends the bytes row writes into buf. It reports which
+// record line they make: the row the producer stated, or the rejection that
+// stands in for a row wider than one wire message.
+//
+// The row is built ONCE. A row too wide for a line is rejected in place, by
+// rewinding the buffer to where the row started and writing the rejection
+// there, so a rejection costs the walk the row it already built and never a
+// second one (AC-9 of spec-record-answers-3-zero-alloc). The buffer keeps the
+// width that row grew it to for the rest of the answer, and the pool drops it
+// afterwards rather than holding it (ReleaseAnswerLineBuffer).
+//
+// A row that appends nothing is refused by name: it reaches the wire as a line
+// with no value, which no consumer can decode, and reaches a buffered consumer
+// as null, which reads like a row the command produced.
+func appendAnswerRow(buf []byte, id, ordinal uint64, row RowRecord) ([]byte, string, error) {
+	start := len(buf)
+	kind := AnswerKindRecord
+	switch {
+	case row.Fault != nil:
+		kind = AnswerKindFault
+		buf = row.Fault.AppendTo(buf)
+	case row.Item != nil:
+		buf = row.Item.AppendTo(buf)
+	}
+	if len(buf) == start {
+		return buf, "", ErrEmptyAnswerRecord
+	}
+
+	size := answerRowLineSize(id, kind, len(buf)-start)
+	if size <= MaxMessageSize {
+		return buf, kind, nil
+	}
+	return appendAnswerRecordTooLargeFault(buf[:start], ordinal, size), AnswerKindFault, nil
+}
+
 // boundedRecord is record when its line fits one wire message, and the rejected
 // row that stands in for it when it does not. A record is one line, so a record
 // wider than MaxMessageSize has no wire form at all.
@@ -250,21 +373,20 @@ func writeRecordLine(w io.Writer, line *[]byte, id uint64, record Record, fields
 // instead reaches its terminator, which counts the rejection, and the
 // verdict derives to partial.
 //
-// It is measured before the line is built, so the row is never copied into a
-// line buffer that would be thrown away and left grown for the rest of the
-// answer.
+// It is measured from the record's bytes, which the caller already holds: this
+// runs over the DOCUMENT a short walk collapsed to, and over the payload a
+// producer built whole. A row on its way to a line of its own is measured from
+// what it appended instead (appendAnswerRow), because a row states its width by
+// writing itself and by nothing else.
 //
-// It runs before the answer type is known, so the rejection reaches both forms
-// the answer can take: the record's own line when the walk streams, and the
-// collapsed document when it does not. A buffered rendering writes no lines and
-// rejects nothing, so a record this wide is the one payload whose two renderings
-// differ, and they differ because one transport bounds a line and the other does
-// not.
+// A buffered rendering writes no lines and rejects nothing, so a record this
+// wide is the one payload whose two renderings differ, and they differ because
+// one transport bounds a line and the other does not.
 //
-// It runs a second time over that collapsed document (writeDocumentLines),
-// because the document is itself one line. Bounding the rows alone leaves 256
-// rows within the limit collapsing to a document past it, which no line can
-// carry either.
+// It runs over the collapsed document as well as over each row
+// (writeDocumentLines), because the document is itself one line. Bounding the
+// rows alone leaves 256 rows within the limit collapsing to a document past it,
+// which no line can carry either.
 //
 // ordinal is the record's position in the walk, counted from one, and it is how
 // the rejected row names the record it stands for. A document is the answer's
@@ -274,31 +396,37 @@ func boundedRecord(id, ordinal uint64, record Record) Record {
 	if size <= MaxMessageSize {
 		return record
 	}
-	return Record{Fault: answerRecordTooLargeFault(ordinal, size)}
+	fault := appendAnswerRecordTooLargeFault(make([]byte, 0, answerFaultCapacity), ordinal, size)
+	return Record{Fault: fault}
 }
 
-// answerFaultCapacity is the capacity answerRecordTooLargeFault builds into: 99
-// bytes of fixed text and three decimal numbers of at most 20 digits each, so
-// 192 holds every fault it can write without growing the slice.
+// answerFaultCapacity is the capacity a record-too-large fault needs: 99 bytes
+// of fixed text and three decimal numbers of at most 20 digits each, so 192
+// holds every fault appendAnswerRecordTooLargeFault can write without growing
+// the slice.
 const answerFaultCapacity = 192
 
-// answerRecordTooLargeFault is the rejected row that stands in for a record
-// wider than one wire message. It names the record by its position in the walk
-// and states the two sizes, so an operator can find the row that was rejected.
+// appendAnswerRecordTooLargeFault appends the rejected row that stands in for a
+// record wider than one wire message. It names the record by its position in
+// the walk and states the two sizes, so an operator can find the row that was
+// rejected.
 //
 // It quotes nothing of the record. A fault carrying the row it rejected would be
 // rejected for the same reason, and the row can be 16 MB. Its own length is
 // bounded by construction (answerFaultCapacity), so it always fits the line the
 // record did not.
-func answerRecordTooLargeFault(ordinal uint64, size int) json.RawMessage {
-	fault := make([]byte, 0, answerFaultCapacity)
-	fault = append(fault, `{"message":"answer record does not fit one wire message","record":`...)
-	fault = strconv.AppendUint(fault, ordinal, 10)
-	fault = append(fault, `,"encoded-bytes":`...)
-	fault = strconv.AppendInt(fault, int64(size), 10)
-	fault = append(fault, `,"limit-bytes":`...)
-	fault = strconv.AppendInt(fault, MaxMessageSize, 10)
-	return append(fault, '}')
+//
+// It appends rather than returning a slice because the row it replaces was
+// appended: the rejection is written where that row was built, over the bytes
+// the answer is about to forget.
+func appendAnswerRecordTooLargeFault(buf []byte, ordinal uint64, size int) []byte {
+	buf = append(buf, `{"message":"answer record does not fit one wire message","record":`...)
+	buf = strconv.AppendUint(buf, ordinal, 10)
+	buf = append(buf, `,"encoded-bytes":`...)
+	buf = strconv.AppendInt(buf, int64(size), 10)
+	buf = append(buf, `,"limit-bytes":`...)
+	buf = strconv.AppendInt(buf, MaxMessageSize, 10)
+	return append(buf, '}')
 }
 
 // writeAnswerLine frames the line already appended into the answer's buffer
@@ -310,8 +438,20 @@ func answerRecordTooLargeFault(ordinal uint64, size int) json.RawMessage {
 // the pool. w takes the bytes and keeps none: the buffer belongs to another
 // answer once this one releases it.
 func writeAnswerLine(w io.Writer, line *[]byte) error {
+	return writeAnswerLineFrom(w, line, 0)
+}
+
+// writeAnswerLineFrom writes the line that starts at start in the answer's
+// buffer, framed with its newline.
+//
+// A line starts at start rather than at zero when its prefix was written
+// backwards into a gap, which is how a record line is built around a row that
+// had to append itself before its width was known (writeAnswerRow). The bytes
+// in front of start are the part of that gap the prefix did not need, and they
+// are not part of any line.
+func writeAnswerLineFrom(w io.Writer, line *[]byte, start int) error {
 	*line = append(*line, '\n')
-	if _, err := w.Write(*line); err != nil {
+	if _, err := w.Write((*line)[start:]); err != nil {
 		return fmt.Errorf("write answer line: %w", err)
 	}
 	return nil
@@ -346,8 +486,8 @@ func AnswerStreamType(fields []string) string {
 	return AnswerTypeTable
 }
 
-// noAnswerRecords is the empty row sequence. A producer that names an envelope
-// and carries no generator produced an empty collection, which is what a command
+// noAnswerRows is the empty row sequence. A producer that names an envelope and
+// carries no generator produced an empty collection, which is what a command
 // that produced nothing answered with; ranging a nil iter.Seq panics instead of
 // saying so.
-func noAnswerRecords(func(Record) bool) {}
+func noAnswerRows(func(RowRecord) bool) {}

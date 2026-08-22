@@ -140,10 +140,16 @@ func writeExecAnswer(sess ssh.Session, frame *answerFrame, input string, formatO
 // twice would give a reader two facts that can disagree. The columns are named
 // on the same condition and for the same reason: they are how a positional row
 // is read, and a document has no positional rows in it.
+// The rows reach the rendering as bytes of their own (rpc.HeldRecords), because
+// the pipe chain behind it keeps what it is given: `| last 10` holds a ring of
+// rows and every rendering holds a window of them until the threshold decides
+// the answer's shape. A row that appends into a buffer the next row refills
+// cannot be kept, which is why the walk that WRITES an answer takes the rows
+// themselves and this one takes their bytes.
 func writeExecRecords(sess ssh.Session, frame *answerFrame, input string, records plugin.Records) error {
 	// An exec channel holds no per-session `set cli format` override, so the
 	// session format is empty and the configured default applies.
-	answer, err := command.RenderRecords(sess, input, "", records.Key, records.Fields, records.Rows)
+	answer, err := command.RenderRecords(sess, input, "", records.Key, records.Fields, rpc.HeldRecords(records.Rows))
 	if err != nil {
 		return err
 	}

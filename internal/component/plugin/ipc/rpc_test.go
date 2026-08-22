@@ -1200,12 +1200,14 @@ func newMuxEnginePluginConn(t *testing.T) (engineConn *PluginConn, pluginEnd *rp
 }
 
 // answerPeerRows is the walk a test plugin answers with: one self-describing row
-// for each of count peers, produced one at a time.
-func answerPeerRows(count int) iter.Seq[rpc.Record] {
-	return func(yield func(rpc.Record) bool) {
+// for each of count peers, produced one at a time. The walk states every row
+// through one value, which the writer appends before the yield returns.
+func answerPeerRows(count int) iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
+		var row rpc.RawRow
 		for i := range count {
-			row := json.RawMessage(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)
-			if !yield(rpc.Record{Item: row}) {
+			row = rpc.RawRow(`{"peer":"10.0.0.` + strconv.Itoa(i) + `"}`)
+			if !yield(rpc.RowRecord{Item: &row}) {
 				return
 			}
 		}

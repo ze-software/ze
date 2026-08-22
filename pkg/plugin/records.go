@@ -31,25 +31,23 @@ import (
 // AppendTo MUST append one valid JSON value, and MUST NOT write over the bytes
 // already in buf: those are the rows written before it.
 //
-// The SDK appends the row before the yield that carried it returns, so a
-// producer MAY hand back one Row value for every row of a walk. This is where
-// the appended form differs from rpc.Record, which holds each row's bytes and
-// therefore forbids a producer writing over them.
-type Row interface {
-	AppendTo(buf []byte) []byte
-}
+// The writer appends the row before the yield that carried it returns, so a
+// producer MAY hand back one Row value for every row of a walk and refill it in
+// place.
+//
+// It is rpc.Row under the name a plugin author reads, because one contract
+// serves both producers: a plugin's handler and the engine's own handlers write
+// their answers through the one writer (rpc.WriteRecordAnswer).
+type Row = rpc.Row
 
 // Record is one line of a record answer. Exactly one of Item and Fault is set:
 // Item is a row the command produced, Fault is a row it rejected while the walk
 // continued. The terminator counts the two separately, which is what lets one
 // answer report the rows applied beside the rows refused.
 //
-// It is the plugin-side twin of rpc.Record. The two carry the same two fields
-// for the same two meanings, and differ only in how a row states its bytes.
-type Record struct {
-	Item  Row
-	Fault Row
-}
+// It is rpc.RowRecord under the name a plugin author reads, and it is what the
+// engine's own handlers yield too.
+type Record = rpc.RowRecord
 
 // Records is what a command handler answers with when its walk produces rows.
 // The engine writes them as a head, one line for each record, and a terminator
@@ -112,7 +110,7 @@ type Records struct {
 // An answer naming rpc.AnswerErrorsKey is refused before its first line.
 func (r Records) WriteAnswer(w io.Writer, id uint64, message string) error {
 	head := rpc.AnswerTail{Message: message, Key: r.Key, Fields: r.Fields}
-	return rpc.WriteRecordAnswer(w, id, head, r.wire())
+	return rpc.WriteRecordAnswer(w, id, head, r.Rows)
 }
 
 // MarshalJSON renders the walk as the single document a buffered consumer
@@ -128,44 +126,17 @@ func (r Records) WriteAnswer(w io.Writer, id uint64, message string) error {
 // Rows is walked ONCE, here or by WriteAnswer, never by both: a second range
 // over a live registry yields a different answer, which is why Rows states the
 // walk as the answer being written rather than as a collection.
-func (r Records) MarshalJSON() ([]byte, error) {
-	return rpc.CollapseRecords(r.Key, r.Fields, r.wire())
-}
-
-// wire yields each row of the walk as the record the answer grammar carries: the
-// row's JSON, appended once, in the two fields rpc.Record states it in.
-//
-// The append is into a fresh slice for each row, and that slice is what
-// rpc.Record's two json.RawMessage fields force: a reader holds a record's bytes
-// while later rows are produced, so a scratch reused across rows would rewrite
-// the rows already held. A nil starting buffer also grows, so a wide row pays
-// for the growth as well as for the slice. Row is an appender so that
-// spec-record-answers-3-zero-alloc can take both off by changing what a record
-// holds; a Row that returned a fresh []byte itself could never be.
+// A collapse holds every row until the document is built, so each row is
+// appended into a slice of its own here (rpc.HeldRecords). That is the one
+// allocation the record path still pays for a row, and it is the price of
+// holding: the walk that WRITES an answer appends into the encoder's buffers
+// and pays none.
 //
 // A nil Rows is a handler that named an envelope and produced nothing, which is
-// an empty collection rather than a missing answer; ranging a nil iter.Seq
-// panics instead of saying so.
+// an empty collection rather than a missing answer.
 //
-// A record carrying neither an item nor a fault passes through as the empty
-// record, which both readers refuse by name (rpc.ErrEmptyAnswerRecord) rather
-// than reading as a row that carries nothing.
-func (r Records) wire() iter.Seq[rpc.Record] {
-	return func(yield func(rpc.Record) bool) {
-		if r.Rows == nil {
-			return
-		}
-		for record := range r.Rows {
-			var wire rpc.Record
-			switch {
-			case record.Fault != nil:
-				wire.Fault = record.Fault.AppendTo(nil)
-			case record.Item != nil:
-				wire.Item = record.Item.AppendTo(nil)
-			}
-			if !yield(wire) {
-				return
-			}
-		}
-	}
+// A record carrying neither an item nor a fault is refused by name
+// (rpc.ErrEmptyAnswerRecord) rather than read as a row that carries nothing.
+func (r Records) MarshalJSON() ([]byte, error) {
+	return rpc.CollapseRecords(r.Key, r.Fields, rpc.HeldRecords(r.Rows))
 }

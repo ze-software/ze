@@ -28,18 +28,112 @@ const (
 	StatusOK    = "ok"
 )
 
-// Record is one row of an answer. Exactly one of Item and Fault is set: Item is
-// a row the command produced, Fault is a row the command rejected while the
-// walk continued. Both hold the JSON the producer marshaled once, so a
-// consumer that forwards a record parses nothing.
+// Record is one row of an answer as BYTES: a row that has arrived, a row the
+// encoder is holding, or the document a short walk collapsed to. Exactly one of
+// Item and Fault is set: Item is a row the command produced, Fault is a row the
+// command rejected while the walk continued. Both hold JSON, so a consumer that
+// forwards a record parses nothing.
 //
-// A producer MUST NOT write over the bytes of a record it has yielded. The
-// encoder holds the records of a short answer until it knows whether they fit
-// in one document, so a generator that refilled one scratch buffer for every
-// row would see the earlier rows change under it.
+// A producer MUST NOT write over the bytes of a record it has yielded. A
+// consumer of this shape holds the record past the yield that carried it, so a
+// generator that refilled one scratch buffer for every row would see the
+// records already held change under it.
+//
+// It is what a row IS once somebody must keep it. A row on its way to the wire
+// is a Row instead, which appends into the encoder's buffer and is never kept,
+// and HeldRecords is the one hop between the two.
 type Record struct {
 	Item  json.RawMessage
 	Fault json.RawMessage
+}
+
+// Row is one row of an answer as the bytes it APPENDS, rather than as the bytes
+// it allocates. AppendTo appends the row's JSON to buf and returns the extended
+// slice, which is the buffer-ownership shape Ze uses wherever a value reaches a
+// wire: the caller owns the buffer and the row writes into it
+// (ai/rules/performance.md).
+//
+// A row type that returned a fresh []byte for each row would put one allocation
+// on every row of every walk, and no later work takes it back off. That is the
+// single reason this is an appender and not a []byte.
+//
+// AppendTo MUST append one valid JSON value, and MUST NOT write over the bytes
+// already in buf: those are the lines and the rows written before it.
+//
+// The encoder appends the row before the yield that carried it returns, and
+// keeps no reference to the Row afterwards, so a producer MAY hand back one Row
+// value for every row of a walk and refill it in place (R-2 of
+// spec-record-answers-3-zero-alloc). A CONSUMER that must keep a row takes the
+// bytes through HeldRecords instead.
+type Row interface {
+	AppendTo(buf []byte) []byte
+}
+
+// RowRecord is one line of an answer's body as its producer states it: exactly
+// one of Item and Fault is set, for the same two meanings Record carries. It is
+// what a walk yields, and Record is what that row becomes once the encoder has
+// appended it.
+//
+// The two shapes exist because a row is written once and held rarely. The
+// answer writer appends each row into a buffer it owns and writes the line, so
+// a streamed row costs no allocation at all (AC-1 of
+// spec-record-answers-3-zero-alloc), while a consumer that keeps records past
+// the walk needs bytes of their own.
+type RowRecord struct {
+	Item  Row
+	Fault Row
+}
+
+// RawRow is a Row whose bytes already exist: a record read off the wire and
+// forwarded, a payload a producer marshaled for itself, or a row a test states
+// literally. AppendTo copies them into the encoder's buffer, which is the copy
+// a record line has always made.
+//
+// A producer that forwards many rows SHOULD hold ONE RawRow and hand its
+// ADDRESS to every RowRecord, refilling it for each row. A pointer travels in
+// an interface without an allocation where the slice header itself would need
+// one, and the Row contract allows the reuse.
+type RawRow []byte
+
+// AppendTo appends the row's bytes to buf and returns the extended slice.
+func (r RawRow) AppendTo(buf []byte) []byte { return append(buf, r...) }
+
+// HeldRecords yields each row of rows as the record a consumer can HOLD: the
+// bytes that row appends, each into a slice of its own.
+//
+// The allocation is the price of holding, and it is the reason WriteRecordAnswer
+// does not take this route: the answer writer appends every row into buffers it
+// owns and keeps none past the line it writes, so a streamed row allocates
+// nothing. A consumer that keeps a record past the yield that carried it cannot
+// share a buffer the next row refills, because a producer MAY hand back one Row
+// value for every row of a walk.
+//
+// Three consumers must hold, and all three walk the answer whole by design: the
+// collapse into one document (CollapseRecords), the in-process answer
+// (AnswerFor, internal/component/plugin/dispatch.go), and the pipe chain a
+// rendered answer runs its rows through (RenderRecords,
+// internal/component/command/render_records.go).
+//
+// A nil rows is a producer that named an envelope and yielded nothing, which is
+// an empty collection rather than a missing answer.
+func HeldRecords(rows iter.Seq[RowRecord]) iter.Seq[Record] {
+	return func(yield func(Record) bool) {
+		if rows == nil {
+			return
+		}
+		for row := range rows {
+			var record Record
+			switch {
+			case row.Fault != nil:
+				record.Fault = row.Fault.AppendTo(nil)
+			case row.Item != nil:
+				record.Item = row.Item.AppendTo(nil)
+			}
+			if !yield(record) {
+				return
+			}
+		}
+	}
 }
 
 // Answer is a received answer: what its head declared, and the records that

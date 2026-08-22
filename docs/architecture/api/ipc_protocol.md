@@ -468,7 +468,7 @@ carried 16 MB would not fit the line either.
 |  +------------- kind bad: the record the encoder refused
 +---------------- correlation id 7
 ```
-<!-- source: pkg/plugin/rpc/answer_write.go -- boundedRecord, answerRecordTooLargeFault -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- appendAnswerRow, boundedRecord, appendAnswerRecordTooLargeFault -->
 
 The DOCUMENT a bounded answer carries is one line too, and it is measured the
 same way. A walk that ends inside the buffer threshold collapses into a single
