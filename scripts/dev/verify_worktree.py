@@ -15,8 +15,9 @@ no edit can invalidate it, and the working tree stays free for the next chunk.
 Usage:
     python3 scripts/dev/verify_worktree.py [--commit HEAD] [--keep]
 
-The worktree is removed on every exit path unless --keep is given. Exit status
-is the gate's own.
+The worktree is removed on every exit path unless --keep is given. A red run's
+stage logs are copied to `tmp/verify-worktree-logs/` first, so removing the
+worktree does not destroy the reason it went red. Exit status is the gate's own.
 """
 
 import argparse
@@ -40,29 +41,64 @@ def repo_root() -> Path:
 
 
 def resolve(commit: str) -> str:
-    out = run(["git", "rev-parse", "--verify", f"{commit}^{{commit}}"], capture_output=True)
+    out = run(
+        ["git", "rev-parse", "--verify", f"{commit}^{{commit}}"], capture_output=True
+    )
     if out.returncode != 0:
         sys.exit(f"verify-worktree: {commit} does not name a commit")
     return out.stdout.strip()
 
 
+def save_logs(root: Path, path: Path, name: str) -> Path | None:
+    """Copy a red run's stage logs out of the worktree before it is removed.
+
+    The gate writes its per-stage logs to `tmp/verify` inside the tree it runs
+    in (`stageLogDir`, scripts/status/verify_run.go), so a worktree run's logs
+    live inside the worktree and died with it. The run costs 25 to 53 minutes,
+    which made re-running the whole gate the only way to read why it went red,
+    and `--keep` could only help somebody who had already guessed it would.
+
+    A green run's logs are not saved. An hour of stage output nobody reads
+    changes nothing about what the operator does next, which is the same reason
+    a passing gate prints one line rather than its whole log.
+    """
+    src = path / "tmp" / "verify"
+    if not src.is_dir():
+        return None
+    dest = root / "tmp" / "verify-worktree-logs" / name
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.rmtree(dest, ignore_errors=True)
+    shutil.copytree(src, dest)
+    return dest
+
+
 def remove_worktree(root: Path, path: Path) -> None:
     """Drop the worktree and its registration, leaving no prunable entry."""
-    run(["git", "-C", str(root), "worktree", "remove", "--force", str(path)],
-        capture_output=True)
+    run(
+        ["git", "-C", str(root), "worktree", "remove", "--force", str(path)],
+        capture_output=True,
+    )
     if path.exists():
         # `worktree remove` refuses a directory it no longer recognises; the
         # registration still has to go, so clear both by hand.
         shutil.rmtree(path, ignore_errors=True)
-    run(["git", "-C", str(root), "worktree", "prune", "--expire", "now"],
-        capture_output=True)
+    run(
+        ["git", "-C", str(root), "worktree", "prune", "--expire", "now"],
+        capture_output=True,
+    )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--commit", default="HEAD", help="commit to verify (default HEAD)")
-    parser.add_argument("--target", default="ze-precommit-verify", help="make target to run")
-    parser.add_argument("--keep", action="store_true", help="leave the worktree in place")
+    parser.add_argument(
+        "--commit", default="HEAD", help="commit to verify (default HEAD)"
+    )
+    parser.add_argument(
+        "--target", default="ze-precommit-verify", help="make target to run"
+    )
+    parser.add_argument(
+        "--keep", action="store_true", help="leave the worktree in place"
+    )
     args = parser.parse_args()
 
     root = repo_root()
@@ -88,9 +124,15 @@ def main() -> int:
         result = run(["make", args.target], cwd=str(path), env=env)
         print(f"verify-worktree: {args.target} exit={result.returncode}")
         if result.returncode != 0:
-            print(f"verify-worktree: logs under {path}/tmp/verify/")
-            if not args.keep:
-                print("verify-worktree: re-run with --keep to inspect them")
+            saved = save_logs(root, path, path.name)
+            if saved is not None:
+                print(f"verify-worktree: logs saved to {saved}")
+            else:
+                print(
+                    "verify-worktree: the gate wrote no stage logs "
+                    f"({path}/tmp/verify/ is absent), so it went red before "
+                    "the first stage"
+                )
         return result.returncode
     finally:
         if args.keep:
