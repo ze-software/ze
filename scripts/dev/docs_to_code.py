@@ -122,9 +122,22 @@ def main() -> int:
     content = render(index)
 
     if check_mode:
-        current = (
-            output_file.read_text(encoding="utf-8") if output_file.exists() else ""
-        )
+        # The index is generated and gitignored (it stopped being tracked in
+        # c03dbe18a), so a clean checkout does not carry it: a verify worktree, a
+        # fresh clone and a from-scratch CI run all start without it. An index
+        # that never existed is not STALE, and reporting it as stale made
+        # ze-doc-verify fail on every clean checkout while passing for anyone who
+        # had run the generator. Write it and report success; staleness below
+        # keeps its meaning, which is an index that exists and disagrees.
+        if not output_file.exists():
+            output_file.write_text(content, encoding="utf-8")
+            print(
+                f"generated {output_file.relative_to(root)} "
+                f"({len(index)} design docs); it is derived and not tracked"
+            )
+            return 0
+
+        current = output_file.read_text(encoding="utf-8")
         if current != content:
             print(
                 f"WARNING: {output_file.relative_to(root)} is stale -- "

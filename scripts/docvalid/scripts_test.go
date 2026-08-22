@@ -17,6 +17,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	osexec "os/exec"
 	"path/filepath"
@@ -303,6 +304,24 @@ func TestCodeToDocsParsesSourceAnchorSeparators(t *testing.T) {
 func TestCodeToDocsCheckModeIsReadOnly(t *testing.T) {
 	root := repoRoot(t)
 	indexPath := filepath.Join(root, "ai", "CODE-TO-DOCS.md")
+
+	// The index is generated and gitignored (.gitignore), so a clean checkout
+	// does not carry it: a worktree, a fresh clone and a from-scratch CI run all
+	// start without it. Reading it directly made this test pass on a machine
+	// that had run the generator and fail everywhere else, which is a verdict
+	// about the checkout rather than about check mode. Generate it when it is
+	// absent, so the assertion below measures the same thing wherever it runs.
+	if _, err := os.Stat(indexPath); errors.Is(err, os.ErrNotExist) {
+		genCtx, genCancel := context.WithTimeout(context.Background(), scriptTimeout)
+		gen := osexec.CommandContext(genCtx, "python3", "scripts/dev/code_to_docs.py")
+		gen.Dir = root
+		genOut, genErr := gen.CombinedOutput()
+		genCancel()
+		if genErr != nil {
+			t.Fatalf("generate code-to-docs index: %v\n%s", genErr, genOut)
+		}
+	}
+
 	before, err := os.ReadFile(indexPath)
 	if err != nil {
 		t.Fatalf("read code-to-docs index before check: %v", err)
