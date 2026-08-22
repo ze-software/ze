@@ -6,18 +6,33 @@ greenness was structural rather than earned: nothing about the state of the
 product could have changed it.
 
 This is a sharper class than "vacuous test", because the mechanisms differ and
-only the consequence is shared. Four are known, and they fail at four different
-points. Where the stimulus never reaches the defect's path, the green says the
-test exercised something else. Where the assertion names a spelling the surface
-never emits, it says the test asserted nothing. Where the run never happened, it
-says the tool answered for a previous tree. Where the reason is produced and then
-discarded before a reader, the failure is real and merely unattributable, which
-is the one shape here that is not a false green.
+only the consequence is shared. Five are known, and they fail at five different
+points.
 
-The habit that catches all four is the same, and it is cheap: before trusting a
-green, break the thing it judges and watch it go red. A red you cannot produce on
-demand is a green you cannot rely on. Where the red cannot be produced at all,
-say so in the test rather than leaving the reader to assume coverage.
+Where the stimulus never reaches the defect's path, the green says the test
+exercised something else. Where the assertion names a spelling the surface never
+emits, it says the test asserted nothing. Where the run never happened, it says
+the tool answered for a previous tree. Where the reason is produced and then
+discarded before a reader, the failure is real and merely unattributable. That
+fourth one is the only shape here that is not a false green. Where the MUTATION
+never happened, nothing was tested at all, and the artifact of the attempt is
+byte-identical to success.
+
+The habit that catches the first four is the same, and it is cheap. Before you
+trust a green, break the thing it judges and watch it go red. A red you cannot
+produce on demand is a green you cannot rely on. Where no red can be produced at
+all, say so in the test. Do not leave the reader to assume coverage.
+
+**The fifth mechanism defeats that habit, which is why it is listed apart.** It
+is the habit itself failing silently. The break is attempted, the patch does not
+apply, the test runs against unmodified source, and it passes. The proof then
+reads exactly like a successful one.
+
+So the habit needs a guard of its own, and the guard is cheaper than the run it
+protects. VERIFY THAT THE MUTATION APPLIED. Use a diff that must be non-empty, or
+a grep for the mutated text, between the patch and the run. Everybody already
+saves a copy and restores it by hash, because the interesting moment feels like
+the run. Nobody confirms that the change landed.
 
 The header above names the consequence. One phrasing names the mechanism: a
 signal whose shape does not change when the thing it reports changes. Three
@@ -51,3 +66,4 @@ chose it for. Stabilizing it to save the checkout cost re-arms the class.
 | 2026-08-22 | - | `main` and the new `save_logs` (`scripts/dev/verify_worktree.py`) | The runner printed `verify-worktree: logs under <wt>/tmp/verify/` and then removed the worktree in its `finally` block, so the stage logs of a 25-to-53-minute red were destroyed before any reader reached them. The message named a path that no longer existed, and its advice to re-run with `--keep` only helps somebody who already knew the run would go red. Two sessions hit this on the same day, and one recovered stage detail only because it had redirected the whole run into its own scratchpad by hand. This is the same shape as the observer-relay row above rather than a false green: the reason is produced and then discarded, so the failure is real and merely unattributable | fixed. `save_logs` copies `tmp/verify` out to `tmp/verify-worktree-logs/<stamp>-<sha12>` before the removal, on red runs only, because an hour of stage output from a green run changes nothing about what the operator does next. A run that died before its first stage prints a distinct line, so an empty directory never reads as logs saved. Proven to discriminate rather than asserted: replacing the `save_logs` call with `None` failed exactly the end-to-end red test and nothing else, and the file was restored byte-identical afterwards. Covered by `scripts/dev/verify_worktree_test.py`, which `python_tests_test.go` globs into `make ze-unit-test` with no further wiring |
 | 2026-08-22 | - | `make ze-lint-changed` over a partially reclaimed `GOCACHE` | Sharper than the rest of this file, because the two channels actively DISAGREED rather than one being absent. The first bare run after a cache reclaim printed `0 issues.` on stdout and exited 7. golangci-lint's own index still referenced entries the clean had removed, so it emitted `typechecking error: open cache/go-cache/fc/fc408e...-a: no such file or directory` and then reported a clean count anyway. Every row above has a green that carried no information; this one has a green sitting beside a red, in the same output, from the same command, and only the exit code was true. Anything reading the printed count rather than the status would have recorded it as clean. The second half is why it is worth a row rather than a shrug: it HEALED on the next run, and a defect that heals is the one most likely to be dismissed as noise by whoever meets it next | not fixed, and it is upstream rather than ours. What is ours is the reading habit: a tool's printed summary is a claim, its exit status is the verdict, and a wrapper that judges one while reporting the other will pass a broken run. Anything in this repository that shells out to a checker takes the status. The related toolchain fault the same reclaim exposed IS fixed, by deriving `GOTOOLCHAIN` from the `go.mod` toolchain line in the `Makefile` rather than leaving each caller to pass it |
 | 2026-08-22 | fixit-ike-resource-lifetime-leaks | closure review, discrimination by source mutation | The MUTANT read green and that green carried no information, so it nearly became a vacuity BLOCKER against a test that is in fact sound. `TestStopWaitsForAPluginReleaseThatOutlastsItsReadLoop` (`internal/component/plugin/process/manager_stop_wait_test.go`) sleeps 700ms in its plugin engine and its comment says that is "longer than the 500ms this wait used to run for". The reviewer reverted by setting `pluginStopGrace` back to 500ms, the test passed, and the obvious reading was that the margin is fake. It is not. The fix ADDED a stage. `ProcessManager.Stop` had ONE wait of 500ms, and it now runs an engine wait of `pluginStopGrace` followed by that same 500ms group wait. Restoring the old constant leaves the new stage in place. The effective budget becomes 1000ms, which no 700ms release can exceed. The true revert is grace 0, where the effective budget is the residual 500ms, and the test reddens there in 0.50s | fixed in the reviewer rather than in the tree, because the test was already right. The general practice: when a fix adds a STAGE in front of an existing one, restoring its constant does not revert the change. The mutation must remove the stage, or drive the constant to the value that makes the stage inert. Name the effective budget before you pick the mutant. A mutation that cannot redden reports vacuity that is not there, and a false BLOCKER costs a closure as much as a missed one |
+| 2026-08-22 | - | a discrimination proof over `message_text` (`scripts/dev/commit_helper.py`) | The proof mutated nothing and reported a pass. The patch script raised `substring not found` from `str.index`, wrote no file, and exited before its own report line. The test then ran against UNMODIFIED source, passed, and the runner printed `probe exit=0`, which is byte-identical to what a real proof prints. This is worse than the stale-cache row above rather than another instance of it. A cached verdict at least ran once against real code. Here nothing was ever tested. It also defeats the habit this file prescribes for the other four, because the break WAS attempted and the attempt is what failed. Found only by reading the output rather than the exit code, and the tell was an unrelated traceback sitting above a green | fixed in the proof, not in a tool. The second attempt patched by slicing between two located anchors. It asserted the marker count was 1 before it ran the test. Exactly the two tests that assert the new content then failed, and the boundary test stayed green, which is the correct split. The guard is now in the header above: verify that the mutation APPLIED, with a non-empty diff or a grep for the mutated text, between the patch and the run. Nothing enforces it. Every session here saves a copy and restores by hash already, so the restore half is habit and the applied half is not |
