@@ -34,6 +34,14 @@ interface, the same one the ring-buffer tuning code in
 `internal/component/host` already uses, and the VPP data plane has its own
 offload mechanism that would need its own implementation.
 
+Bypassing `Backend` does not bypass the hardware selector. `applyOffloads` takes
+a device name. Its one caller is the apply's per-entry loop. That loop resolves
+the entry once and hands the same kernel device to every call. An entry bound by
+`mac/match` or aliased by `os-name` therefore gets its offloads on the device
+the selector names, as it gets its MTU.
+
+<!-- source: internal/component/iface/config_apply.go -- deviceFor, the Phase 2 entry loop -->
+
 ## Two ordering and lifetime constraints
 
 - `rps_sock_flow_entries` is a system-wide proc entry. Writing it per interface
