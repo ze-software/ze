@@ -16,7 +16,7 @@
                     <div class="nav-dropdown-panel" id="nav-panel-start">
                     <div class="nav-dropdown-col">
                         <span class="nav-dropdown-label">Install</span>
-                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__guides/quickstart/">
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="__ZE_SITE_ROOT__guides/quickstart/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🚀</span>
                             <span><strong>Quickstart</strong><small>Two BGP peers in under five minutes</small></span>
                         </a>
@@ -30,7 +30,11 @@
                         </a>
                     </div>
                     <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Learn the basics</span>
+                        <span class="nav-dropdown-label">Learn</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="__ZE_SITE_ROOT__architecture/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🏗️</span>
+                            <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
+                        </a>
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__features/bgp-configuration/">
                             <span class="nav-dropdown-icon" aria-hidden="true">⚙️</span>
                             <span><strong>BGP configuration</strong><small>Peer settings, validation, inheritance, and policy</small></span>
@@ -38,10 +42,6 @@
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__features/cli-commands/">
                             <span class="nav-dropdown-icon" aria-hidden="true">⌨️</span>
                             <span><strong>CLI basics</strong><small>Diff, commit, history, and operator commands</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__architecture/">
-                            <span class="nav-dropdown-icon" aria-hidden="true">🏗️</span>
-                            <span><strong>Architecture</strong><small>How the pieces fit together</small></span>
                         </a>
                     </div>
                     </div>
@@ -53,7 +53,7 @@
                     <div class="nav-dropdown-panel" id="nav-panel-evaluate">
                     <div class="nav-dropdown-col">
                         <span class="nav-dropdown-label">Capabilities and fit</span>
-                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__features/">
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="__ZE_SITE_ROOT__features/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🧩</span>
                             <span><strong>Features</strong><small>51 features, grouped by category</small></span>
                         </a>
@@ -68,7 +68,7 @@
                     </div>
                     <div class="nav-dropdown-col">
                         <span class="nav-dropdown-label">Evidence</span>
-                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__quality/">
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="__ZE_SITE_ROOT__quality/">
                             <span class="nav-dropdown-icon" aria-hidden="true">✓</span>
                             <span><strong>Code quality</strong><small>Tests, QEMU, fuzzing, and mutation checks</small></span>
                         </a>
@@ -97,14 +97,10 @@
                     </button>
                     <div class="nav-dropdown-panel" id="nav-panel-docs">
                     <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Core workflows</span>
+                        <span class="nav-dropdown-label">Operate</span>
                         <a class="nav-dropdown-item nav-dropdown-feature" href="__ZE_SITE_ROOT__docs/">
                             <span class="nav-dropdown-icon" aria-hidden="true">📚</span>
                             <span><strong>Documentation</strong><small>All docs, organised by what you want to do</small></span>
-                        </a>
-                        <a class="nav-dropdown-item nav-dropdown-feature" href="__ZE_SITE_ROOT__guides/">
-                            <span class="nav-dropdown-icon" aria-hidden="true">🧭</span>
-                            <span><strong>Guides</strong><small>Installation, configuration, operation, and troubleshooting</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__guides/production-diagnostics/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🩺</span>
@@ -118,9 +114,17 @@
                             <span class="nav-dropdown-icon" aria-hidden="true">🔄</span>
                             <span><strong>Lifecycle and rollback</strong><small>Start, reload, update, recover, and verify</small></span>
                         </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__guides/fleet-config/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🗂️</span>
+                            <span><strong>Fleet management</strong><small>Managed config, TLS hub, caching, and reconnect</small></span>
+                        </a>
                     </div>
                     <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Interfaces and extensions</span>
+                        <span class="nav-dropdown-label">Guides and interfaces</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="__ZE_SITE_ROOT__guides/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧭</span>
+                            <span><strong>Guides</strong><small>Installation, configuration, operation, and troubleshooting</small></span>
+                        </a>
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__guides/api/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🔌</span>
                             <span><strong>REST and gRPC</strong><small>Commands, config sessions, authentication, and streaming</small></span>
@@ -136,10 +140,6 @@
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__developers/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🧩</span>
                             <span><strong>Developer docs</strong><small>Build plugins and contribute to Ze</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__guides/fleet-config/">
-                            <span class="nav-dropdown-icon" aria-hidden="true">🗂️</span>
-                            <span><strong>Fleet management</strong><small>Managed config, TLS hub, caching, and reconnect</small></span>
                         </a>
                     </div>
                     </div>
@@ -230,8 +230,8 @@
                         </a>
                     </div>
                     <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Standards and migration</span>
-                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__reference/rfcs/">
+                        <span class="nav-dropdown-label">Standards and lookup</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="__ZE_SITE_ROOT__reference/rfcs/">
                             <span class="nav-dropdown-icon" aria-hidden="true">📜</span>
                             <span><strong>RFC status</strong><small>Implemented RFCs, partial support, and known gaps</small></span>
                         </a>
@@ -256,7 +256,7 @@
                     </button>
                     <div class="nav-dropdown-panel" id="nav-panel-project">
                     <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">Progress and updates</span>
+                        <span class="nav-dropdown-label">Progress and history</span>
                         <a class="nav-dropdown-item nav-dropdown-feature" href="__ZE_SITE_ROOT__project/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🧭</span>
                             <span><strong>Project overview</strong><small>Progress, history, talks, and contribution paths</small></span>
@@ -277,6 +277,17 @@
                             <span class="nav-dropdown-icon" aria-hidden="true">📈</span>
                             <span><strong>Activity</strong><small>A year of commits, at a glance</small></span>
                         </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__project/history/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🕰️</span>
+                            <span><strong>Project history</strong><small>How ExaBGP&#x27;s programmable model grew into Ze</small></span>
+                        </a>
+                    </div>
+                    <div class="nav-dropdown-col">
+                        <span class="nav-dropdown-label">Community and notes</span>
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="__ZE_SITE_ROOT__faq/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">?</span>
+                            <span><strong>FAQ</strong><small>Common questions before trying Ze</small></span>
+                        </a>
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__blog/">
                             <span class="nav-dropdown-icon" aria-hidden="true">✍</span>
                             <span><strong>Blog</strong><small>Project notes and release stories</small></span>
@@ -284,17 +295,6 @@
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__talks/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🎤</span>
                             <span><strong>Talks</strong><small>Talk slides and conference material</small></span>
-                        </a>
-                    </div>
-                    <div class="nav-dropdown-col">
-                        <span class="nav-dropdown-label">About and contribute</span>
-                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__faq/">
-                            <span class="nav-dropdown-icon" aria-hidden="true">?</span>
-                            <span><strong>FAQ</strong><small>Common questions before trying Ze</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__project/history/">
-                            <span class="nav-dropdown-icon" aria-hidden="true">🕰️</span>
-                            <span><strong>Project history</strong><small>How ExaBGP&#x27;s programmable model grew into Ze</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__contribute/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🤝</span>
