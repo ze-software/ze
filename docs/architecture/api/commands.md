@@ -1086,11 +1086,19 @@ The handler decides what it produces, and the wire decides how it travels.
 |---------------------|-------------|------------------------------|
 | a built value | the `doc` item type and one record carrying that value | `plugin.RawJSON`, unchanged |
 | a `plugin.Records` walk of 256 rows or fewer | the `doc` item type and one record carrying the collapsed document | `plugin.RawJSON` over that document |
-| a `plugin.Records` walk of more than 256 rows | the `map` item type and one record for each row | `plugin.Records` over the arriving rows |
+| a `plugin.Records` walk of more than 256 rows, declaring no columns | the `map` item type and one record for each row | `plugin.Records` over the arriving rows |
+| a `plugin.Records` walk of more than 256 rows, declaring its columns | the `tab` item type, the names on the head, and one positional record for each row | `plugin.Records` over the arriving rows, carrying the head's names |
 
 The dispatcher branches on the head's item type and never on what the handler
 returned. A bounded walk is therefore the document it has always been, and only a
 walk that streams reaches an operator as records.
+
+A `tab` answer reaches the operator as the same objects a `map` answer would
+have carried. The engine forwards the head's column names beside the rows, and
+the rendering zips each positional row against them. A command that declares a
+schema and one that does not therefore answer one document for the same data.
+<!-- source: internal/component/plugin/server/command.go -- streamedPluginResponse -->
+<!-- source: internal/component/command/render_records.go -- RenderRecords, answerDocument -->
 <!-- source: pkg/plugin/records.go -- Records.WriteAnswer -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, WriteDocumentAnswer -->
 <!-- source: internal/component/plugin/server/command.go -- routeToProcess, pluginAnswerRows -->

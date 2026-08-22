@@ -33,6 +33,55 @@ func commandRecords(count int, produced *int) iter.Seq[rpc.Record] {
 	}
 }
 
+// commandColumns is the schema commandColumnRecords produces its rows against.
+// The names are in column order rather than in alphabetical order, so a
+// rendering that sorted them would answer a different table.
+var commandColumns = []string{"value", "help"}
+
+// commandColumnRecords answers the rows commandRecords answers, as the
+// positional arrays a handler that declares commandColumns yields: the names
+// live on the head and each row carries values alone.
+func commandColumnRecords(count int, produced *int) iter.Seq[rpc.Record] {
+	return func(yield func(rpc.Record) bool) {
+		for i := range count {
+			var b textbuf.Buffer
+			b.Str(`["show cmd-`).Int(int64(i)).Str(`","row `).Int(int64(i)).Str(`"]`)
+			if produced != nil {
+				*produced++
+			}
+			if !yield(rpc.Record{Item: json.RawMessage(b.String())}) {
+				return
+			}
+		}
+	}
+}
+
+// rejectedRecord is the one rejected row a walk carries when a test needs an
+// answer that reports what it refused beside what it produced. A plugin's
+// forwarded answer produces one for a row that is not JSON (checkedRecord,
+// internal/component/plugin/server/command.go), so it reaches this renderer.
+var rejectedRecord = rpc.Record{Fault: json.RawMessage(`{"message":"row 3 is not JSON"}`)}
+
+// withRejection yields records and one rejected row after the first of them, so
+// the walk reports a refusal beside the rows it produced.
+func withRejection(records iter.Seq[rpc.Record]) iter.Seq[rpc.Record] {
+	return func(yield func(rpc.Record) bool) {
+		yielded := false
+		for record := range records {
+			if !yield(record) {
+				return
+			}
+			if yielded {
+				continue
+			}
+			yielded = true
+			if !yield(rejectedRecord) {
+				return
+			}
+		}
+	}
+}
+
 // renderedDocument is what the string path answers for the same rows: the
 // collapse the buffered surfaces read, put through the same chain. It is the
 // comparison every case below is judged against, built by a different route.
@@ -263,6 +312,126 @@ func TestABoundedChainStopsTheWalkAndAnswersOneDocument(t *testing.T) {
 				t.Errorf("the operator saw %q, want the whole-payload chain's %q", body, want)
 			}
 		})
+	}
+}
+
+// TestAPositionalAnswerRendersLikeItsSelfDescribingTwin is the control on the
+// column schema: an answer whose head declares its columns and whose rows carry
+// values alone renders exactly what the same rows render when each one carries
+// its own names.
+//
+// The method is to run one chain twice over the same data in its two wire
+// forms, and to compare the two renderings byte for byte. The self-describing
+// side is what an operator sees today, so it is the answer the positional side
+// owes. Neither side is built from the other.
+//
+// Both sides of the threshold are driven. Under it the answer is one document
+// and the zip happens in the collapse; over it the head declares `tab` and the
+// records reach the renderer as arrays.
+//
+// `| count` is in the list because it is the one operator that replaces the
+// command's rows with a document of its own. The column schema then describes
+// nothing the answer still carries, and a collapse that still read the records
+// against it would refuse `{"count":N}` as a row that is not positional.
+//
+// VALIDATES: AC-6 and AC-7 of spec-record-answers-3-zero-alloc -- a declared
+// schema reaches the operator as the same payload a schema-less answer does.
+// PREVENTS: `show ... | table` over a schema-declaring command answering a
+// different table from the same command's schema-less form, and `| count` over
+// one failing outright.
+func TestAPositionalAnswerRendersLikeItsSelfDescribingTwin(t *testing.T) {
+	t.Setenv("ze.cli.format", "text")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	for _, chain := range []string{
+		"system command list | json",
+		"system command list | table",
+		"system command list | text",
+		"system command list | yaml",
+		"system command list | ndjson",
+		"system command list | raw",
+		"system command list | display value | json",
+		"system command list | match cmd-1 | json",
+		"system command list | first 10 | json",
+		"system command list | count | json compact",
+	} {
+		for _, count := range []int{rpc.AnswerBufferThreshold - 1, rpc.AnswerBufferThreshold + 1} {
+			for _, rejects := range []bool{false, true} {
+				// `| ndjson` is the one rendering a schema-less answer writes
+				// as the records arrive, and a stream has no document to group
+				// the rejected rows under: it writes each one as its own line
+				// in walk order, where a buffered rendering files them under
+				// the errors envelope. That difference is between a STREAMED
+				// and a BUFFERED rendering rather than between the two row
+				// forms, and it is already there for an answer that declares
+				// no schema (writeRecordJSON, render_records.go).
+				if rejects && strings.Contains(chain, "ndjson") {
+					continue
+				}
+				name := chain + ", " + textbuf.StringInt(int64(count)) + " rows"
+				if rejects {
+					name += ", one rejected"
+				}
+				t.Run(name, func(t *testing.T) {
+					self := commandRecords(count, nil)
+					columns := commandColumnRecords(count, nil)
+					if rejects {
+						self, columns = withRejection(self), withRejection(columns)
+					}
+
+					var selfRendered bytes.Buffer
+					wantAnswer, err := RenderRecords(&selfRendered, chain, "", recordEnvelope, nil, self)
+					if err != nil {
+						t.Fatalf("RenderRecords over self-describing rows: %v", err)
+					}
+
+					var positional bytes.Buffer
+					gotAnswer, err := RenderRecords(&positional, chain, "", recordEnvelope, commandColumns, columns)
+					if err != nil {
+						t.Fatalf("RenderRecords over positional rows: %v", err)
+					}
+
+					if got, want := positional.String(), selfRendered.String(); got != want {
+						t.Errorf("the positional answer rendered\n%.400q\nwant the self-describing answer's\n%.400q", got, want)
+					}
+					if gotAnswer.Count != wantAnswer.Count || gotAnswer.Faults != wantAnswer.Faults {
+						t.Errorf("the positional answer counted %d records and %d rejections, want %d and %d",
+							gotAnswer.Count, gotAnswer.Faults, wantAnswer.Count, wantAnswer.Faults)
+					}
+				})
+			}
+		}
+	}
+}
+
+// TestADeclaredSchemaNamesTheTableType checks the fact the exec channel's frame
+// reads off the rendering: a walk that passed the threshold with a schema
+// declared is a table answer, and the same walk with no schema is a map answer.
+//
+// VALIDATES: AC-6 and AC-7 -- the item type follows the schema the handler
+// declared, and nothing else.
+// PREVENTS: the frame naming `map` for an answer whose rows are positional, so
+// a client reading it by position would read the values as an object.
+func TestADeclaredSchemaNamesTheTableType(t *testing.T) {
+	const rows = rpc.AnswerBufferThreshold + 1
+
+	var out bytes.Buffer
+	answer, err := RenderRecords(&out, "system command list | json", "", recordEnvelope, commandColumns, commandColumnRecords(rows, nil))
+	if err != nil {
+		t.Fatalf("RenderRecords: %v", err)
+	}
+	if answer.Type != rpc.AnswerTypeTable {
+		t.Errorf("a declared schema answered type %q, want %q", answer.Type, rpc.AnswerTypeTable)
+	}
+
+	out.Reset()
+	answer, err = RenderRecords(&out, "system command list | json", "", recordEnvelope, nil, commandRecords(rows, nil))
+	if err != nil {
+		t.Fatalf("RenderRecords: %v", err)
+	}
+	if answer.Type != rpc.AnswerTypeMap {
+		t.Errorf("a schema-less walk answered type %q, want %q", answer.Type, rpc.AnswerTypeMap)
 	}
 }
 

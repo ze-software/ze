@@ -367,6 +367,24 @@ func columnRows(count int) iter.Seq[rpc.RowRecord] {
 	}
 }
 
+// objectRows is a generator of the same count rows columnRows produces, as the
+// self-describing objects a handler that declares NO columns yields: each row
+// carries the names peerColumns holds, in the same order.
+//
+// The two generators are the same answer in the two forms a handler can produce
+// it, which is what lets a test compare them.
+func objectRows(count int) iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
+		var row rpc.RawRow
+		for i := range count {
+			row = rpc.RawRow(`{"peer":"10.0.0.` + strconv.Itoa(i) + `","as":6500` + strconv.Itoa(i%10) + `,"state":"established"}`)
+			if !yield(rpc.RowRecord{Item: &row}) {
+				return
+			}
+		}
+	}
+}
+
 // mixedRows is a generator of itemCount result records and faultCount rejected
 // ones, interleaved rather than arriving in two blocks. The walk ends when both
 // pools are empty, and each pass takes one row from one of them.
@@ -935,6 +953,122 @@ func TestTheThresholdChoosesTheAnswerType(t *testing.T) {
 		want := `{"peers":[{"peer":"10.0.0.0","as":65000,"state":"established"},{"peer":"10.0.0.1","as":65001,"state":"established"}]}`
 		if got := string(lines[1].tail.Item); got != want {
 			t.Errorf("the document is %s, want %s", got, want)
+		}
+	})
+}
+
+// TestStreamAnswerDeclaresFields is the wiring test for the column schema: what
+// a handler puts in Records.Fields reaches the head of the answer its walk
+// produces, and the rows then travel as values alone.
+//
+// The method is to answer the same peer table twice, from two handlers that
+// differ in one thing. One declares its columns and yields positional rows. The
+// other declares none and yields self-describing objects. Each answer is read
+// back off the wire and out of the in-process sibling. The two are compared
+// against each other rather than against a literal, because what an operator
+// receives must not depend on which form the handler chose.
+//
+// VALIDATES: AC-6 -- a handler that declares a column schema past the threshold
+// answers with the `tab` item type, the head carries the names in column order,
+// and every record is a positional array whose arity matches.
+// VALIDATES: AC-7 -- a handler that declares no schema past the threshold
+// answers with the `map` item type and rows that carry their own names.
+// PREVENTS: Records.Fields being a field nothing reads, which is what it was
+// before this spec: the `tab` item type would stay unreachable and every
+// streamed row would repeat its keys.
+func TestStreamAnswerDeclaresFields(t *testing.T) {
+	const rowCount = rpc.AnswerBufferThreshold + 1
+
+	t.Run("a declared schema answers a table", func(t *testing.T) {
+		records := Records{Key: "peers", Fields: peerColumns, Rows: columnRows(rowCount)}
+
+		var wire bytes.Buffer
+		if err := WriteAnswer(&wire, 9, NewResponse(StatusDone, records)); err != nil {
+			t.Fatalf("WriteAnswer: %v", err)
+		}
+		lines := readAnswer(t, wire.Bytes())
+		assertAnswerShape(t, lines, 9, rowCount, 0)
+
+		head := lines[0].tail
+		if head.Type != rpc.AnswerTypeTable {
+			t.Errorf("the head states type=%q, want %q", head.Type, rpc.AnswerTypeTable)
+		}
+		if !slices.Equal(head.Fields, peerColumns) {
+			t.Errorf("the head declares fields %q, want %q", head.Fields, peerColumns)
+		}
+		if head.Key != "peers" {
+			t.Errorf("the head names envelope %q, want peers", head.Key)
+		}
+		for i, record := range lines[1 : len(lines)-1] {
+			var values []json.RawMessage
+			if err := json.Unmarshal(record.tail.Item, &values); err != nil {
+				t.Fatalf("record %d is not a positional row: %v (%s)", i+1, err, record.tail.Item)
+			}
+			if len(values) != len(peerColumns) {
+				t.Fatalf("record %d carries %d values and the head declares %d fields", i+1, len(values), len(peerColumns))
+			}
+		}
+
+		// The in-process sibling declares the same schema, so a consumer that
+		// never meets the socket reads the answer the same way.
+		records.Rows = columnRows(rowCount)
+		answer, err := AnswerFor(NewResponse(StatusDone, records))
+		if err != nil {
+			t.Fatalf("AnswerFor: %v", err)
+		}
+		if answer.Type != rpc.AnswerTypeTable {
+			t.Errorf("the in-process answer states type=%q, want %q", answer.Type, rpc.AnswerTypeTable)
+		}
+		if !slices.Equal(answer.Fields, peerColumns) {
+			t.Errorf("the in-process answer declares fields %q, want %q", answer.Fields, peerColumns)
+		}
+	})
+
+	t.Run("no schema keeps the rows self-describing", func(t *testing.T) {
+		records := Records{Key: "peers", Rows: objectRows(rowCount)}
+
+		var wire bytes.Buffer
+		if err := WriteAnswer(&wire, 9, NewResponse(StatusDone, records)); err != nil {
+			t.Fatalf("WriteAnswer: %v", err)
+		}
+		lines := readAnswer(t, wire.Bytes())
+		assertAnswerShape(t, lines, 9, rowCount, 0)
+
+		head := lines[0].tail
+		if head.Type != rpc.AnswerTypeMap {
+			t.Errorf("the head states type=%q, want %q", head.Type, rpc.AnswerTypeMap)
+		}
+		if len(head.Fields) != 0 {
+			t.Errorf("the head declares fields %q, and a handler that declared none must carry none", head.Fields)
+		}
+		for i, record := range lines[1 : len(lines)-1] {
+			var row map[string]json.RawMessage
+			if err := json.Unmarshal(record.tail.Item, &row); err != nil {
+				t.Fatalf("record %d is not a self-describing row: %v (%s)", i+1, err, record.tail.Item)
+			}
+			for _, name := range peerColumns {
+				if _, carried := row[name]; !carried {
+					t.Fatalf("record %d carries no %q, so the row does not describe itself: %s", i+1, name, record.tail.Item)
+				}
+			}
+		}
+	})
+
+	t.Run("the operator reads one payload either way", func(t *testing.T) {
+		declared, err := ResponseJSON(NewResponse(StatusDone, Records{
+			Key: "peers", Fields: peerColumns, Rows: columnRows(rowCount),
+		}), nil)
+		if err != nil {
+			t.Fatalf("ResponseJSON over positional rows: %v", err)
+		}
+		bare, err := ResponseJSON(NewResponse(StatusDone, Records{
+			Key: "peers", Rows: objectRows(rowCount),
+		}), nil)
+		if err != nil {
+			t.Fatalf("ResponseJSON over self-describing rows: %v", err)
+		}
+		if declared != bare {
+			t.Errorf("the declared schema answered\n%.200q\nwant the self-describing answer's\n%.200q", declared, bare)
 		}
 	})
 }

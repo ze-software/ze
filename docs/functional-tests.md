@@ -1918,7 +1918,7 @@ plugin {
 }
 ```
 
-It registers four commands, and each one is one property of the record path.
+It registers six commands, and each one is one property of the record path.
 
 | Command | What it produces |
 |---------|------------------|
@@ -1926,9 +1926,17 @@ It registers four commands, and each one is one property of the record path.
 | `show test records fault` | 12 rows, one of them wider than any line can carry, so the answer reports 11 applied and 1 rejected |
 | `show test records document` | 2 rows that each fit one line and collapse into a document that does not, so the DOCUMENT is what the answer rejects |
 | `show test engine answer` | what the plugin read from the engine's own streamed answer to `system command list` |
-<!-- source: internal/test/cli/cmd_record_plugin.go -- cmdRecordPlugin, recordRows, engineAnswerReader -->
+| `show test records table` | 300 rows against a declared column schema, so the head says `tab` and each row is a positional array |
+| `show test records object` | the same 300 rows with no schema declared, so the head says `map` and each row carries its own names |
+<!-- source: internal/test/cli/cmd_record_plugin.go -- cmdRecordPlugin, recordRows, recordColumnRows, recordTableColumns, engineAnswerReader -->
 
-Five `.ci` files drive it from the operator's seat over `ze cli`.
+The last two are a PAIR, and neither means anything alone. They answer the same
+data through handlers that differ only in `plugin.Records.Fields`, so the
+document an operator receives from one is the document they receive from the
+other. That equality is what says the head carried the column names and the
+consumer zipped each positional row against them.
+
+Six `.ci` files drive it from the operator's seat over `ze cli`.
 
 | Test | Proves |
 |------|--------|
@@ -1937,6 +1945,7 @@ Five `.ci` files drive it from the operator's seat over `ze cli`.
 | `test/plugin/plugin-command-partial-fault.ci` | applied rows and rejected rows reach the operator together |
 | `test/plugin/plugin-command-document-too-wide.ci` | a collapsed document no line can carry is rejected by name, and the answer still reaches its terminator |
 | `test/plugin/answer-payload-unchanged.ci` | every row an operator receives, on both wire shapes, is byte for byte the bytes `recordRow.AppendTo` wrote |
+| `test/plugin/stream-answer-renders-table.ci` | a declared column schema reaches the head, the rows travel as values alone, and the operator renders them as a table |
 
 `answer-payload-unchanged.ci` is the one that reads the PAYLOAD rather than the
 frame. `recordRow.AppendTo` writes each row with no marshaler, so the test builds
@@ -1955,6 +1964,17 @@ message, and a row wider than one line, are the two payloads whose readings
 differ. A short walk whose rows each fit and whose collapse does not is the
 third, and it separates the bound on a row from the bound on the document.
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, boundedRecord -->
+
+How much of a walk a test READS is load-bearing too. The engine holds 256 answer
+lines for a consumer that has not been scheduled yet, and abandons the answer
+past that. A chain reading a whole streamed plugin answer is therefore at the
+mercy of the scheduler, and fails under load.
+
+`stream-answer-renders-table.ci` reads through `| first 100`, which stops inside
+the 256 the queue guarantees. It measures the column schema it was written for
+rather than the queue. The bound is recorded in
+`plan/journal/bound-too-small-for-its-own-burst.md`.
+<!-- source: pkg/plugin/rpc/mux.go -- answerQueueDepth, ErrAnswerQueueFull -->
 
 #### Reading the exec channel's answer frame
 

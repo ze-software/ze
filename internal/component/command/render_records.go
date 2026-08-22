@@ -68,6 +68,16 @@ func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []strin
 	answered := chainAnswersItsOwnDocument(chain)
 	ops = renderOps(chain, sessionFormat)
 
+	// A chain that answers a document of its own has replaced the command's
+	// rows, so the command's column schema describes nothing the answer still
+	// carries. `system command list | count` answers {"count":N}, which is not
+	// a positional row and would be refused as one by the collapse that zips
+	// them (rpc.CollapseRecords). The schema is dropped once, here, so the
+	// threshold, the item type and the collapse all read the same answer.
+	if answered {
+		fields = nil
+	}
+
 	// The chain runs over the records BEFORE the threshold is measured, so the
 	// threshold is measured over what the operator receives. `| first 10` and
 	// `| count` are therefore bounded answers however long the walk behind them

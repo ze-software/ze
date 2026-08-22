@@ -64,6 +64,13 @@ type Record = rpc.RowRecord
 // in that order, and the head carries the names once instead of every row
 // carrying them. A handler that declares none yields self-describing objects.
 //
+// A handler that declares fields MUST yield every row as a JSON array carrying
+// exactly one value for each name, in the same order. The engine reads the two
+// against each other by POSITION, so a short row would gain a column it never
+// carried and a long one would lose a value. Neither is repaired: the row is
+// refused here rather than at whichever consumer meets it
+// (rpc.ErrRowArity, rpc.ErrRowNotPositional).
+//
 // A Records is walked on the one goroutine serving the command. It is not safe
 // for concurrent use, and the walk starts no goroutine of its own: a row costs
 // an append, never a scheduler.

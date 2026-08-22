@@ -837,6 +837,28 @@ to it, so a producer can hand back one row value for every row of the walk and
 refill it in place.
 <!-- source: pkg/plugin/records.go -- Row, Record, Records -->
 
+`Fields` names the columns when every row of the walk shares one schema. Declare
+them and each row is a JSON array of values in that order, so the names travel
+once on the head instead of on every row:
+
+```go
+return "done", sdk.Records{
+	Key:    "sessions",
+	Fields: []string{"peer", "state", "uptime"},
+	Rows:   sessionColumnRows(),
+}, nil
+```
+
+An operator sees the same objects either way. The engine reads the names off the
+head and puts each value back under its own name. Declaring a schema therefore
+changes what the wire carries and never what the command answers.
+
+A row MUST then carry exactly one value for each name, in the same order. The two
+are read against each other by POSITION. A short row would gain a column it never
+carried, and a long one would lose a value, so such a row is refused rather than
+repaired.
+<!-- source: pkg/plugin/rpc/answer_row.go -- checkRowArity, zipRow -->
+
 Three rules bind a handler that answers this way.
 
 | Rule | Why |

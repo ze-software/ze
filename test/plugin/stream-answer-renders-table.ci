@@ -1,0 +1,260 @@
+# Test: a streamed answer whose head declares its columns renders as a table
+#
+# Flow:
+# 1. A shell script writes a config declaring one external Go SDK plugin
+# 2. The daemon starts, spawns `ze-test record-plugin`, and opens SSH
+# 3. `ze init` creates operator credentials
+# 4. `ze cli -c "show test records table | first 100 | raw"` reads the declaring
+#    command, and the same chain over `show test records object` reads its
+#    schema-less twin
+# 5. The two documents are compared byte for byte
+# 6. `show test records table | first 5 | table` renders the columns as a table
+#
+# The plugin answers ONE table through two handlers that differ in one thing.
+# `show test records table` sets plugin.Records.Fields, so the SDK writes a head
+# carrying the column names once and each row as an array of values
+# (WriteRecordAnswer, pkg/plugin/rpc/answer_write.go). `show test records object`
+# sets no Fields, so each of its rows carries the names itself. The engine reads
+# the head's names off the wire and forwards them (streamedPluginResponse,
+# internal/component/plugin/server/command.go), and the operator's channel zips
+# each positional row against them (CollapseRecords, pkg/plugin/rpc/collapse.go).
+#
+# Both walks are 300 rows, which passes the 256-record buffer threshold, and the
+# comparison is what says so. A walk inside that threshold is answered as ONE
+# document whose head declares no columns at all, so the declaring command's
+# rows would reach the operator as the bare arrays the plugin wrote and the
+# comparison would fail. Equal documents therefore mean the answer streamed, the
+# head carried the names, and the zip put each value under the name its column
+# declares.
+#
+# `| first` bounds what the operator READS, and it is load-bearing. The engine
+# holds 256 answer lines for a consumer that has not been scheduled yet and
+# abandons the answer past that
+# (plan/journal/bound-too-small-for-its-own-burst.md), so a chain that reads the
+# whole walk is at the mercy of the scheduler. Both chains here stop well inside
+# that bound, so this test measures the schema and never the queue.
+#
+# What makes the test discriminate is the twin. An answer of objects is what the
+# operator has always received, so the declaring command owes exactly those
+# bytes. Delete `Fields:` from the handler, or state the two column names in the
+# other order, and the rows reach the operator as a different document.
+#
+# VALIDATES: AC-6 of spec-record-answers-3-zero-alloc -- a handler that declares
+# a column schema past the threshold answers with the tab item type carrying the
+# column names, and each row is a positional array whose arity matches.
+# VALIDATES: AC-7 -- a handler that declares no schema answers with rows that
+# stay self-describing.
+# VALIDATES: user story 4 -- an operator renders a streamed answer as a table.
+# PREVENTS: Records.Fields staying a field nothing produces, which leaves the
+# tab item type unreachable and every streamed row repeating its keys.
+
+tmpfs=test-stream-answer-renders-table.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+# Signal test runner readiness
+touch daemon.ready
+
+cat > stream-answer-renders-table.conf << 'ZECONF'
+plugin {
+	external record-plugin {
+		run "ze-test record-plugin"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			profile [ admin ]
+		}
+	}
+	authorization {
+		profile admin {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action allow
+			}
+		}
+	}
+}
+
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port 0;
+		}
+	}
+}
+ZECONF
+
+# Use a PID-derived high port for BGP to avoid needing root for port 179
+export ze_test_bgp_port=$((10000 + ($$ % 50000)))
+
+ze start stream-answer-renders-table.conf 2>daemon.log &
+DAEMON_PID=$!
+trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+
+# Wait for the SSH server to report its listening address
+SSH_PORT=""
+for i in $(seq 1 50); do
+	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
+	if [ -n "$SSH_PORT" ]; then
+		break
+	fi
+	sleep 0.2
+done
+
+if [ -z "$SSH_PORT" ]; then
+	echo "FAIL: SSH server did not start (no address in daemon.log)" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+echo "SSH port: $SSH_PORT" >&2
+
+# Brief delay for postStartFunc to wire the authorizer
+sleep 0.5
+
+ADMIN_DIR=$(mktemp -d)
+trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
+
+# The plugin registers its commands at Stage 1, and the engine freezes the
+# registry after every plugin is ready. Wait for the name to be there rather
+# than for a duration.
+for i in $(seq 1 50); do
+	if ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" \
+		ze cli -c "system command list | raw" 2>/dev/null | grep -q 'show test records table'; then
+		break
+	fi
+	sleep 0.2
+done
+
+if ! ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" \
+	ze cli -c "system command list | raw" 2>/dev/null | grep -q 'show test records table'; then
+	echo "FAIL: the plugin never registered its schema-declaring command" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+
+# `| raw` is the identity rendering, so what reaches the operator is the
+# collapse itself. `| json` decodes and re-encodes through a Go map, which
+# alphabetizes the keys and hides the column order this test is about.
+for COMMAND in table object; do
+	if ! ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" \
+		ze cli -c "show test records $COMMAND | first 100 | raw" > "$COMMAND.json" 2> "$COMMAND-err.log"; then
+		echo "FAIL: show test records $COMMAND did not answer" >&2
+		cat "$COMMAND-err.log" >&2
+		exit 1
+	fi
+done
+
+# The two forms of one answer. The declaring command's rows travel as arrays and
+# the twin's carry their own names, and the operator receives one document.
+if ! cmp -s table.json object.json; then
+	echo "FAIL: the declared schema answered a different document from its schema-less twin" >&2
+	head -c 400 table.json >&2
+	echo >&2
+	head -c 400 object.json >&2
+	exit 1
+fi
+
+# The rendering an operator asks for by name.
+if ! ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" \
+	ze cli -c "show test records table | first 5 | table" > table.txt 2> table-err.log; then
+	echo "FAIL: the table rendering did not answer" >&2
+	cat table-err.log >&2
+	exit 1
+fi
+
+python3 - table.json table.txt << 'PYEOF'
+import json
+import sys
+
+READ = 100
+COLUMNS = ["index", "fill"]
+TABLE_ROWS = 5
+
+with open(sys.argv[1]) as handle:
+    answer = json.load(handle)
+
+# `| raw` carries the collapse itself, so the rows sit under the envelope the
+# head named and each object keeps the order the zip wrote it in.
+document = answer.get("rows") if isinstance(answer, dict) else None
+if not isinstance(document, list):
+    print(f"FAIL: the answer is {json.dumps(answer)[:200]}, want the rows envelope", file=sys.stderr)
+    sys.exit(1)
+
+if len(document) != READ:
+    print(f"FAIL: the answer carries {len(document)} rows, want the {READ} the chain asked for", file=sys.stderr)
+    sys.exit(1)
+
+for number, row in enumerate(document):
+    if not isinstance(row, dict):
+        print(
+            f"FAIL: row {number} reached the operator as {type(row).__name__}; "
+            "the head's column names never reached the zip",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    if list(row) != COLUMNS:
+        print(f"FAIL: row {number} carries {list(row)}, want {COLUMNS} in that order", file=sys.stderr)
+        sys.exit(1)
+    if row["index"] != number:
+        print(f"FAIL: row {number} carries index {row['index']}; the values landed under the wrong names", file=sys.stderr)
+        sys.exit(1)
+
+print(f"OK: {len(document)} positional rows reached the operator under the names the head declared", file=sys.stderr)
+
+with open(sys.argv[2]) as handle:
+    rendered = handle.read()
+
+for column in COLUMNS:
+    if column not in rendered:
+        print(f"FAIL: the table has no {column} column:\n{rendered[:400]}", file=sys.stderr)
+        sys.exit(1)
+
+for number in range(TABLE_ROWS):
+    if str(number) not in rendered:
+        print(f"FAIL: the table has no row {number}:\n{rendered[:600]}", file=sys.stderr)
+        sys.exit(1)
+
+print("OK: the streamed answer rendered as a table under its declared columns", file=sys.stderr)
+PYEOF
+
+echo "OK: the declared schema and its schema-less twin answered one document" >&2
+exit 0
+EOF_SH
+
+# Process orchestration
+cmd=foreground:seq=1:exec=./test-stream-answer-renders-table.sh:timeout=60s
+expect=exit:code=0
+expect=stderr:pattern=OK: [0-9]+ positional rows reached the operator under the names the head declared
+expect=stderr:pattern=OK: the streamed answer rendered as a table under its declared columns
+expect=stderr:pattern=OK: the declared schema and its schema-less twin answered one document
+reject=stderr:pattern=panic recovered

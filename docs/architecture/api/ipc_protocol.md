@@ -651,10 +651,31 @@ returns a built payload, which the encoder answers as one `doc` record.
 <!-- source: internal/component/plugin/server/system.go -- handleSystemCommandList, commandRows -->
 <!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->
 
-`Records.Fields` has no producer, so no command writes a `tab` answer today. The
-column order a renderer applies still lives in the separate registry
-`RegisterColumns` writes.
+`Records.Fields` is what makes an answer a `tab` one. A handler that sets it
+yields each row as a JSON array of values in column order, and the head carries
+the names once instead of every row carrying them. A handler that leaves it
+empty yields self-describing objects and the head says `map`. Which of the two a
+walk produces is the handler's, and whether that walk streams at all is still
+the encoder's, decided from the record count.
+
+The declaring producer in the tree is `ze-test record-plugin`, whose
+`show test records table` answers the same data its `show test records object`
+answers and differs only in the schema. `test/plugin/stream-answer-renders-table.ci`
+compares the two documents an operator receives, which is what says the names on
+the head reached the zip.
 <!-- source: internal/component/plugin/types.go -- Records.Fields -->
+<!-- source: internal/test/cli/cmd_record_plugin.go -- recordTableColumns, recordColumnRows -->
+
+A consumer never zips a row itself. `CollapseRecords` reads the head's names
+over each row's values, in column order, and that is the one place the two
+halves meet. An arity that disagrees with the schema is refused at the producer
+rather than repaired at the consumer, on the wire path and the buffered path
+alike.
+<!-- source: pkg/plugin/rpc/answer_row.go -- checkRowArity, zipRow, quoteFields -->
+
+The column order a RENDERER applies is a separate registry and stays separate:
+`RegisterColumns` orders columns for a person, and `Records.Fields` declares a
+schema for a program.
 <!-- source: internal/component/command/column_order.go -- RegisterColumns -->
 
 ---

@@ -41,6 +41,35 @@ const (
 	recordFaultCommand    = "show test records fault"
 	recordDocumentCommand = "show test records document"
 	recordEngineCommand   = "show test engine answer"
+	recordTableCommand    = "show test records table"
+	recordObjectCommand   = "show test records object"
+)
+
+// recordTableCommand and recordObjectCommand answer ONE table in the two forms
+// a handler can produce it, and the pair is what makes the difference
+// observable.
+//
+// recordTableCommand declares its columns, so its head carries the names once
+// and each row travels as an array of values. recordObjectCommand declares
+// none, so each of its rows carries the names itself. Both answer the same
+// data, and an operator receives the same document from either, which is what
+// says the schema changes the wire and never the payload.
+//
+// recordTableColumns is that schema, in column order. The names are not in
+// alphabetical order, so a consumer that sorted them would answer a different
+// table.
+var recordTableColumns = []string{"index", "fill"}
+
+// recordTableRows and recordTableRowBytes size the walk the pair produces.
+//
+// The row count passes rpc.AnswerBufferThreshold, so each answer streams rather
+// than collapsing to one document: only a streamed answer has a head that
+// states an item type, and the `tab` type is what recordTableCommand exists to
+// produce. The rows are narrow because what the pair measures is the SCHEMA.
+// The width of a walk is what recordWalkCommand measures.
+const (
+	recordTableRows     = 300
+	recordTableRowBytes = 48
 )
 
 // engineWalkCommand is the engine command the plugin reads as a streamed
@@ -128,6 +157,17 @@ func cmdRecordPlugin(_ []string) int {
 				Key:  "rows",
 				Rows: recordRows(recordDocumentRows, recordDocumentRowBytes, -1),
 			}, nil
+		case recordTableCommand:
+			return rpc.StatusDone, sdk.Records{
+				Key:    "rows",
+				Fields: recordTableColumns,
+				Rows:   recordColumnRows(recordTableRows, recordTableRowBytes),
+			}, nil
+		case recordObjectCommand:
+			return rpc.StatusDone, sdk.Records{
+				Key:  "rows",
+				Rows: recordRows(recordTableRows, recordTableRowBytes, -1),
+			}, nil
 		case recordEngineCommand:
 			return reader.answer()
 		}
@@ -149,6 +189,8 @@ func cmdRecordPlugin(_ []string) int {
 			{Name: recordFaultCommand, Description: "Walk with one row no line can carry"},
 			{Name: recordDocumentCommand, Description: "Walk whose collapsed document no line can carry"},
 			{Name: recordEngineCommand, Description: "What the plugin read from a streamed engine answer"},
+			{Name: recordTableCommand, Description: "Walk whose head declares its columns"},
+			{Name: recordObjectCommand, Description: "The same walk with no column schema"},
 		},
 	}
 	if runErr := p.Run(ctx, registration); runErr != nil {
@@ -197,6 +239,43 @@ func recordRows(rows, fill, wide int) iter.Seq[plugin.Record] {
 			if index == wide {
 				row.fill = wideFill
 			}
+			if !yield(plugin.Record{Item: row}) {
+				return
+			}
+		}
+	}
+}
+
+// recordColumnRow is one row of recordTableCommand's walk: the two values
+// recordRow carries, written as the positional array a declared schema asks
+// for. The names live on the head (recordTableColumns), so this row carries
+// values alone and states them in column order.
+type recordColumnRow struct {
+	index int
+	fill  string
+}
+
+// AppendTo appends the row's JSON to buf. The filler is ASCII letters only, so
+// nothing in it needs a JSON escape and the row can be written without a
+// marshaler, exactly as recordRow writes the same two values.
+func (r recordColumnRow) AppendTo(buf []byte) []byte {
+	buf = append(buf, '[')
+	buf = strconv.AppendInt(buf, int64(r.index), 10)
+	buf = append(buf, `,"`...)
+	buf = append(buf, r.fill...)
+	return append(buf, `"]`...)
+}
+
+// recordColumnRows returns a walk of rows positional rows, each carrying fill
+// bytes of filler, to be read against recordTableColumns.
+//
+// The filler is built once for the walk and shared by every row, which is what
+// the appender form of plugin.Row makes possible.
+func recordColumnRows(rows, fill int) iter.Seq[plugin.Record] {
+	return func(yield func(plugin.Record) bool) {
+		filler := strings.Repeat("x", fill)
+		for index := range rows {
+			row := recordColumnRow{index: index, fill: filler}
 			if !yield(plugin.Record{Item: row}) {
 				return
 			}

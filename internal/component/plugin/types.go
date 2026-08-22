@@ -178,6 +178,15 @@ func (r RawJSON) MarshalJSON() ([]byte, error) {
 // (WriteAnswer, dispatch.go). A handler that declares no fields yields
 // self-describing objects.
 //
+// A handler that declares fields MUST yield every row as a JSON array carrying
+// exactly one value for each name, in the same order. A consumer reads the two
+// against each other by POSITION, so a short row would gain a column it never
+// carried and a long one would lose a value. Neither is repaired: the row is
+// refused at the producer, on the wire path and on the buffered one alike
+// (rpc.ErrRowArity, rpc.ErrRowNotPositional). The names reach the operator
+// through the same zip on both, so the document a declared schema answers is
+// the document the same rows answer when each one carries its own names.
+//
 // A row appends its own JSON into the buffer the encoder owns (rpc.Row), so a
 // walk of a million rows costs no allocation for a row. A handler MAY hand back
 // one Row value for every row and refill it in place: the encoder appends it

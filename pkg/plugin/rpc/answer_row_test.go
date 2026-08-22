@@ -1,11 +1,162 @@
 package rpc
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 )
+
+// TestZipRowRoundTrip checks that a column schema and the values read against
+// it survive the journey the wire puts between them. The names are written once
+// on the head. Each row travels as values alone. A consumer rebuilds the object
+// the two halves make.
+//
+// The method is to take one answer in its two forms. A schema-declaring
+// producer writes the names on the head and each row as an array. A
+// schema-less producer writes each row as an object carrying its own names. The
+// two collapse to the same document.
+//
+// The declaring side reads its names back off the head BYTES rather than off
+// the slice the head was built from, so a head that carried the wrong names is
+// read here rather than assumed.
+//
+// The values name their own column, so a zip that paired name i with value j
+// would put "as-value" under "peer". Two of the four are the same JSON type. A
+// transposition between those two stays a well-formed row, so the comparison
+// catches it rather than a decode failure.
+//
+// VALIDATES: R-6 of spec-record-answers-3-zero-alloc -- the names and the
+// values round-trip, so a consumer zips the names the producer declared.
+// PREVENTS: the positional row and the head's column names drifting, which
+// checkRowArity cannot see: an arity that matches says nothing about which
+// value belongs to which name.
+func TestZipRowRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	const key = "peers"
+	fields := []string{"peer", "as", "state", "uptime"}
+	rows := [][]string{
+		{`"peer-value-1"`, `65001`, `"state-value-1"`, `11`},
+		{`"peer-value-2"`, `65002`, `"state-value-2"`, `22`},
+	}
+
+	// The head as it reaches the wire, and the names as a consumer reads them
+	// back off it.
+	encoded, err := marshalAnswerFields(fields)
+	if err != nil {
+		t.Fatalf("marshalAnswerFields: %v", err)
+	}
+	head := AppendAnswerHead(nil, 7, AnswerTypeTable, key, encoded)
+	_, kind, payload, err := ParseLine(head)
+	if err != nil {
+		t.Fatalf("ParseLine(%q): %v", head, err)
+	}
+	tail, err := ParseAnswerTail(kind, payload)
+	if err != nil {
+		t.Fatalf("ParseAnswerTail(%q): %v", head, err)
+	}
+	if tail.Type != AnswerTypeTable {
+		t.Fatalf("the head states type %q, want %q", tail.Type, AnswerTypeTable)
+	}
+	if !slices.Equal(tail.Fields, fields) {
+		t.Fatalf("the head carries fields %q, want %q", tail.Fields, fields)
+	}
+
+	// One row at a time: the names off the head over the values off the row.
+	names, err := quoteFields(tail.Fields)
+	if err != nil {
+		t.Fatalf("quoteFields: %v", err)
+	}
+	for i, row := range rows {
+		values := make([]json.RawMessage, len(row))
+		for j := range row {
+			values[j] = json.RawMessage(row[j])
+		}
+		object, zipErr := zipRow(names, values)
+		if zipErr != nil {
+			t.Fatalf("zipRow row %d: %v", i, zipErr)
+		}
+		if got, want := string(object), objectRow(fields, row); got != want {
+			t.Errorf("row %d zipped to %s, want %s", i, got, want)
+		}
+	}
+
+	// The whole answer: the two forms collapse to one document.
+	positional := make([]Record, len(rows))
+	selfDescribing := make([]Record, len(rows))
+	for i, row := range rows {
+		positional[i] = Record{Item: json.RawMessage(arrayRow(row))}
+		selfDescribing[i] = Record{Item: json.RawMessage(objectRow(fields, row))}
+	}
+	fromColumns, err := CollapseRecords(key, tail.Fields, slices.Values(positional))
+	if err != nil {
+		t.Fatalf("CollapseRecords over positional rows: %v", err)
+	}
+	fromObjects, err := CollapseRecords(key, nil, slices.Values(selfDescribing))
+	if err != nil {
+		t.Fatalf("CollapseRecords over self-describing rows: %v", err)
+	}
+	if !bytes.Equal(fromColumns, fromObjects) {
+		t.Errorf("the positional answer collapsed to\n%s\nwant\n%s", fromColumns, fromObjects)
+	}
+
+	// A row that does not agree with the schema is refused rather than zipped
+	// against the wrong names.
+	refused := []struct {
+		name string
+		row  []string
+		want error
+	}{
+		{name: "one value short", row: rows[0][:3], want: ErrRowArity},
+		{name: "one value long", row: append(slices.Clone(rows[0]), `"extra"`), want: ErrRowArity},
+		{name: "no array at all", row: nil, want: ErrRowNotPositional},
+	}
+	for _, tc := range refused {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			item := json.RawMessage(arrayRow(tc.row))
+			if tc.row == nil {
+				item = json.RawMessage(objectRow(fields, rows[0]))
+			}
+			_, err := CollapseRecords(key, fields, slices.Values([]Record{{Item: item}}))
+			if !errors.Is(err, tc.want) {
+				t.Errorf("CollapseRecords returned %v, want %v", err, tc.want)
+			}
+		})
+	}
+}
+
+// arrayRow spells one positional row: the values, in column order, and nothing
+// else.
+func arrayRow(values []string) string {
+	return "[" + strings.Join(values, ",") + "]"
+}
+
+// objectRow spells the same row as a self-describing producer writes it: each
+// value under its own name, in the same column order, which is the order zipRow
+// must answer in.
+func objectRow(fields, values []string) string {
+	var b strings.Builder
+	b.WriteByte('{')
+	for i := range fields {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		name, err := json.Marshal(fields[i])
+		if err != nil {
+			panic("BUG: a field name is not a JSON string: " + fields[i])
+		}
+		b.Write(name)
+		b.WriteByte(':')
+		b.WriteString(values[i])
+	}
+	b.WriteByte('}')
+	return b.String()
+}
 
 // TestJSONArrayLengthCountsTopLevelElements checks the count the arity guard is
 // built on. The method: arrays whose values hold the very bytes the scan looks
