@@ -45,7 +45,18 @@ timing that lets an attacker brute-force the derived key one byte at a time.
 **The engine emits SA lifecycle events.** `vpn-ipsec/sa-up` and
 `vpn-ipsec/sa-down` are registered at init time, so any component can subscribe.
 
+**The two events are a PAIR, and both owner loops produce both.** A path that
+emits `sa-up` for an IKE SA emits exactly one `sa-down` when that SA goes down.
+It emits that down on every way out, and never a second one for the same SA.
+
+`runInitiator` and `runResponder` each emit `sa-up` at establishment. Each then
+calls `emitSADown` when its `runEstablished` returns. Each also clears the
+session's SA at that point, so the operator teardown paths find nothing left to
+emit a second down for. Subscribers count the two against each other, so an
+unpaired emit drifts once per reconnect rather than once per process.
+
 <!-- source: internal/component/ike/engine/events.go -- SA lifecycle event registration -->
+<!-- source: internal/component/ike/engine/fsm.go -- runInitiator, runResponder, the emitSADown pair -->
 
 ## RFC obligations carried by this code
 

@@ -245,7 +245,7 @@ here.
 |----------|--------|
 | What breaks if this is wrong? | Nothing at run time. This changes lint configuration and build tooling only. A wrong generator change breaks `make generate` and the drift check, which is loud and immediate. |
 | How is it reverted? | Single commit revert. No config migration, no wire-visible change. |
-| Who else touches this path? | `ai/rules/plugins.md` governs the manifest; any spec adding a feature gate touches the same generator. `plan/spec-fixit-ike-resource-lifetime-leaks.md` adds integration-tagged tests that this gate would then cover. |
+| Who else touches this path? | `ai/rules/plugins.md` governs the manifest; any spec adding a feature gate touches the same generator. `spec-fixit-ike-resource-lifetime-leaks`, closed 2026-08-22, added the integration-tagged test `internal/component/ike/dataplane/xfrm_teardown_integration_linux_test.go` that this gate would then cover. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
