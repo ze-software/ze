@@ -63,6 +63,74 @@ func putFrameBuf(bp *[]byte) {
 	framePool.Put(bp)
 }
 
+// answerLineInitial is the initial capacity of a pooled answer line buffer. A
+// head, a terminator and most record lines fit it. A wider record grows the
+// slice once, and every later line of that answer reuses the grown one, as does
+// every answer that takes the buffer after it.
+const answerLineInitial = 512
+
+// answerLinePool holds the line buffers answers write through. It is framePool's
+// policy exactly, and a population of its own: a sync.Pool of *[]byte, grown by
+// append and dropped above frameBufMax, so one wide line cannot inflate what
+// every later one holds.
+//
+// The populations are apart because the two hold a buffer for different lengths
+// of time and at different widths. A request, response or event line takes one
+// and gives it back inside a single call, and an event line carries a whole
+// batch. An ANSWER holds one for its whole walk, which is one line for each row
+// and can be a million rows, and each of those lines carries one record.
+//
+// Shared, a walk that runs for a second would hold a buffer out of the
+// population every request line draws on. Each population would also be seeded
+// for the other's width.
+var answerLinePool = sync.Pool{
+	New: func() any {
+		buf := make([]byte, 0, answerLineInitial)
+		return &buf
+	},
+}
+
+// AnswerLineBuffer returns the buffer one answer writes every one of its lines
+// through: the head, each record and the terminator. It arrives empty, and each
+// line is written from the START of it. A line is therefore exactly as long as
+// it was written, and carries none of the bytes the line before it left there.
+//
+// The caller MUST return it with ReleaseAnswerLineBuffer on every path out of
+// the answer, the paths that end in an error included. A path that does not
+// costs the pool one buffer for each answer it writes.
+//
+// The buffer MUST NOT outlive the answer, and no line written into it may be
+// kept after the io.Writer call that took it. A writer that retains one reads
+// another answer's bytes once the buffer is reused.
+//
+// Both ends of the plugin connection take their answer line from here, and so
+// does the SSH exec channel's frame (answerFrame,
+// internal/component/ssh/answer.go). One answer holds one buffer whichever
+// channel carries it.
+func AnswerLineBuffer() *[]byte {
+	line, ok := answerLinePool.Get().(*[]byte)
+	if !ok {
+		buf := make([]byte, 0, answerLineInitial)
+		line = &buf
+	}
+	*line = (*line)[:0]
+	return line
+}
+
+// ReleaseAnswerLineBuffer returns an answer's line buffer to the pool. It MUST
+// be called exactly once for each AnswerLineBuffer, and the buffer MUST NOT be
+// written after it.
+//
+// A buffer that grew past frameBufMax is dropped rather than pooled, so one
+// wide answer cannot inflate what every later answer holds.
+func ReleaseAnswerLineBuffer(line *[]byte) {
+	if cap(*line) > frameBufMax {
+		return
+	}
+	*line = (*line)[:0]
+	answerLinePool.Put(line)
+}
+
 // MaxMessageSize is the maximum allowed message size (16 MB).
 const MaxMessageSize = 16 * 1024 * 1024
 

@@ -1434,6 +1434,320 @@ func TestFailedCommandStatesItsReasonOnTheTerminator(t *testing.T) {
 	})
 }
 
+// pooledAnswerRows is the row count the streamed measurements below walk. It is
+// the count the alloc gate walks too (ALLOC_GATE_BENCHTIME, mk/alloc-gate.mk),
+// so the number measured here and the number that gate reports describe one
+// walk.
+const pooledAnswerRows = 300
+
+// pooledAnswerRuns is how many answers one measurement averages over.
+// testing.AllocsPerRun truncates that average to an integer, so a stray
+// allocation from a garbage collection that emptied the pool between two runs
+// does not reach the number, and a per-answer allocation does.
+const pooledAnswerRuns = 200
+
+// answerEnvelopeAllocs is what one streamed answer costs BEYOND its rows: the
+// records it holds until the threshold decides the answer type, the loop
+// variables a range over a generator moves to the heap, and everything else
+// that is not a row. It is 17 with a pooled line buffer and was 19 with a
+// buffer of the answer's own, measured on 2026-08-22.
+//
+// It is a ceiling rather than a reading. The per-row cost is phase 3's of
+// spec-record-answers-3-zero-alloc and will fall, and every number under the
+// ceiling passes. What it pins is the line buffer: an answer that allocates one
+// of its own reads as two more, because the buffer is one allocation and the
+// slice header the loop moves to the heap beside it is the other.
+const answerEnvelopeAllocs = 17
+
+// answerAllocs reports the allocations one answer costs, and the error that
+// answer returned.
+//
+// testing.AllocsPerRun writes the answer once before it measures, so every
+// measured answer is written by a daemon that has answered before, which is the
+// state a pooled buffer exists for. It also pins GOMAXPROCS for the duration,
+// which is what makes a pooled buffer measurable at all: a sync.Pool is per-P,
+// so a goroutine the scheduler moves between two Ps reads a pool that is empty
+// through no fault of the writer. A test that calls this MUST NOT call
+// t.Parallel.
+func answerAllocs(t *testing.T, w io.Writer, id uint64, resp *Response) (float64, error) {
+	t.Helper()
+	var writeErr error
+	allocs := testing.AllocsPerRun(pooledAnswerRuns, func() {
+		writeErr = WriteAnswer(w, id, resp)
+	})
+	return allocs, writeErr
+}
+
+// assertAnswerAllocs checks one answer's allocation count against the ceiling
+// its exit path was measured at, and says what it read either way.
+//
+// The ceilings are exact WITHOUT the race detector, which is the pass that runs
+// over the whole tree on every push (stage 2 of ze-precommit-verify), and there
+// a buffer the answer allocates or fails to return reads as one more. The
+// changed-group pass runs with -race, whose own allocations are worth up to two
+// on these answers, so answerAllocRaceOverhead gives that pass the slack rather
+// than the ceiling being loosened for both.
+func assertAnswerAllocs(t *testing.T, allocs float64, ceiling int) {
+	t.Helper()
+	t.Logf("one answer allocates %.0f, against a ceiling of %d", allocs, ceiling+answerAllocRaceOverhead)
+	if allocs > float64(ceiling+answerAllocRaceOverhead) {
+		t.Errorf("one answer allocates %.0f, want at most %d: the line buffer must come from the pool and go back to it",
+			allocs, ceiling+answerAllocRaceOverhead)
+	}
+}
+
+// answerCutTransport reports a dead transport on the failAt-th line of EVERY
+// answer written to it. It resets its count when it fails, so a measurement
+// that writes one answer many times cuts each of them at the same line.
+//
+// It keeps nothing it accepted: these tests read the allocation count rather
+// than the bytes, and a buffer that grew across runs would put its own growth
+// into that count.
+type answerCutTransport struct {
+	failAt int
+	writes int
+}
+
+func (w *answerCutTransport) Write(line []byte) (int, error) {
+	w.writes++
+	if w.writes == w.failAt {
+		w.writes = 0
+		return 0, errTransportGone
+	}
+	return len(line), nil
+}
+
+// pooledRow, pooledPositionalRow and pooledShortRow are the rows the exit-path
+// measurements yield: a self-describing one, one read against peerColumns, and
+// one a value short of them. They are package-level values rather than rows
+// built inside a generator, because a row built for each yield allocates and
+// these measurements are about what the ANSWER costs around its rows.
+var (
+	pooledRow           = json.RawMessage(`{"peer":"10.0.0.1","state":"up"}`)
+	pooledPositionalRow = json.RawMessage(`["10.0.0.1",65001,"established"]`)
+	pooledShortRow      = json.RawMessage(`["10.0.0.1",65001]`)
+)
+
+// emptyRecordRows yields rows and then one record carrying neither an item nor
+// a fault, which is the refusal a producer earns after the answer has taken its
+// line buffer and written lines through it.
+func emptyRecordRows(before int) iter.Seq[rpc.Record] {
+	return func(yield func(rpc.Record) bool) {
+		for range before {
+			if !yield(rpc.Record{Item: pooledRow}) {
+				return
+			}
+		}
+		yield(rpc.Record{})
+	}
+}
+
+// shortColumnRows yields positional rows against peerColumns and then one row
+// carrying a value too few, which the wire writer refuses (checkRowArity). The
+// short row comes after the buffering threshold, so the refusal happens while
+// the answer is streaming and its line buffer is in hand.
+func shortColumnRows(before int) iter.Seq[rpc.Record] {
+	return func(yield func(rpc.Record) bool) {
+		for range before {
+			if !yield(rpc.Record{Item: pooledPositionalRow}) {
+				return
+			}
+		}
+		yield(rpc.Record{Item: pooledShortRow})
+	}
+}
+
+// oversizedRows yields rows with one record too wide for a line among them, so
+// the walk reaches the width rejection and carries on to its terminator.
+func oversizedRows(before int, wide json.RawMessage) iter.Seq[rpc.Record] {
+	return func(yield func(rpc.Record) bool) {
+		for i := range before {
+			if i == before/2 && !yield(rpc.Record{Item: wide}) {
+				return
+			}
+			if !yield(rpc.Record{Item: pooledRow}) {
+				return
+			}
+		}
+	}
+}
+
+// TestWriteAnswerUsesPooledBuffer checks that an answer takes its line buffer
+// from the pool and gives it back, rather than allocating one for each answer.
+// The method: one answer is written many times over, and the allocations of a
+// single one are counted against a ceiling that leaves no room for a buffer of
+// its own. A buffer that is taken and returned costs nothing; one that is
+// allocated, or taken and lost, costs the same either way.
+//
+// Both producers are driven, because each takes the buffer itself: a row
+// generator answers through rpc.WriteRecordAnswer and a payload the handler
+// built whole answers through rpc.WriteDocumentAnswer.
+//
+// VALIDATES: AC-2 of spec-record-answers-3-zero-alloc -- the line buffer comes
+// from the pool and goes back to it, so the answer after it allocates none.
+// PREVENTS: the fresh 512-byte make each answer carried, and the leak that
+// costs the same: a buffer that is never returned makes every later answer
+// allocate its own.
+func TestWriteAnswerUsesPooledBuffer(t *testing.T) {
+	const id = 42
+
+	tests := []struct {
+		name    string
+		resp    *Response
+		ceiling int
+	}{
+		{
+			name:    "a streamed walk",
+			resp:    NewResponse(StatusDone, Records{Key: "peers", Rows: benchmarkPeerRows(pooledAnswerRows)}),
+			ceiling: pooledAnswerRows + answerEnvelopeAllocs,
+		},
+		{
+			name:    "a payload built whole",
+			resp:    NewResponse(StatusDone, sampleData{PeerCount: 3, Name: "core"}),
+			ceiling: 1,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			allocs, err := answerAllocs(t, io.Discard, id, tc.resp)
+			if err != nil {
+				t.Fatalf("WriteAnswer returned %v, want the answer to reach its terminator", err)
+			}
+			assertAnswerAllocs(t, allocs, tc.ceiling)
+		})
+	}
+}
+
+// TestWriteAnswerReleasesBufferOnError checks that the line buffer goes back to
+// the pool on every way OUT of an answer, not only on the way that reaches a
+// terminator. The method: each exit is forced many times over, and one answer's
+// allocations are counted; a buffer that is not returned makes the answer after
+// it take a new one from the pool, which reads as one more.
+//
+// The width rejection is here as well, though it returns no error: a record too
+// wide for one wire message takes a branch of its own on the way to the
+// terminator, and a rejected row must not cost the pool a buffer either.
+//
+// VALIDATES: AC-2 and R-1 of spec-record-answers-3-zero-alloc -- every exit
+// path returns the line buffer.
+// PREVENTS: a pool that drains under the errors a daemon meets in production. A
+// leak on an error path shows up as latency hours later, never as a failing
+// answer, which is why it is measured rather than reasoned about.
+func TestWriteAnswerReleasesBufferOnError(t *testing.T) {
+	const id = 42
+
+	tests := []struct {
+		name    string
+		writer  io.Writer
+		resp    *Response
+		wantErr error
+		ceiling int
+	}{
+		{
+			name:    "the transport dies on the head",
+			writer:  &answerCutTransport{failAt: 1},
+			resp:    NewResponse(StatusDone, Records{Key: "peers", Rows: benchmarkPeerRows(pooledAnswerRows)}),
+			wantErr: errTransportGone,
+			ceiling: 276,
+		},
+		{
+			name:    "the transport dies on a record",
+			writer:  &answerCutTransport{failAt: 3},
+			resp:    NewResponse(StatusDone, Records{Key: "peers", Rows: benchmarkPeerRows(pooledAnswerRows)}),
+			wantErr: errTransportGone,
+			ceiling: 276,
+		},
+		{
+			name:    "the transport dies on the terminator of a document",
+			writer:  &answerCutTransport{failAt: 3},
+			resp:    NewResponse(StatusDone, sampleData{PeerCount: 3, Name: "core"}),
+			wantErr: errTransportGone,
+			ceiling: 3,
+		},
+		{
+			name:    "a row carries neither an item nor a fault",
+			writer:  io.Discard,
+			resp:    NewResponse(StatusDone, Records{Key: "rows", Rows: emptyRecordRows(pooledAnswerRows)}),
+			wantErr: rpc.ErrEmptyAnswerRecord,
+			ceiling: 17,
+		},
+		{
+			name:    "a row does not fit the columns the head declares",
+			writer:  io.Discard,
+			resp:    NewResponse(StatusDone, Records{Key: "peers", Fields: peerColumns, Rows: shortColumnRows(pooledAnswerRows)}),
+			wantErr: rpc.ErrRowArity,
+			ceiling: 21,
+		},
+		{
+			name:    "a record is wider than one wire message",
+			writer:  io.Discard,
+			resp:    NewResponse(StatusDone, Records{Key: "peers", Rows: oversizedRows(pooledAnswerRows, oversizedItem())}),
+			wantErr: nil,
+			ceiling: 18,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			allocs, err := answerAllocs(t, tc.writer, id, tc.resp)
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("WriteAnswer returned %v, want %v: this test is not on the exit path it names", err, tc.wantErr)
+			}
+			assertAnswerAllocs(t, allocs, tc.ceiling)
+		})
+	}
+}
+
+// TestPooledLineCarriesNoResidue checks that a pooled buffer hands the answer
+// after it none of the bytes the answer before it left in it. The method: one
+// answer states a long, distinctive message on its terminator, and the short
+// answer written next is read back BYTE by byte for those bytes.
+//
+// It asserts on the bytes rather than on the line lengths, because a line whose
+// stated width and whose content both grew by the same residue is
+// self-consistent and still carries one operator's data to another.
+//
+// VALIDATES: AC-13 and R-8 of spec-record-answers-3-zero-alloc -- a short line
+// written into a buffer that last held a long one carries none of it.
+// PREVENTS: the memory disclosure a shared buffer makes possible. Every line is
+// written from the start of the buffer, so a line is exactly as long as it was
+// written; dropping that one reslice sends one answer inside the next.
+func TestPooledLineCarriesNoResidue(t *testing.T) {
+	const id = 42
+	const marker = "RESIDUEMARKER"
+
+	// The first answer fails, so its terminator carries the message, and that
+	// terminator is the last line written into the buffer the pool then holds.
+	long := NewResponse(StatusError, nil)
+	long.Error = strings.Repeat(marker, 8)
+
+	var first bytes.Buffer
+	if err := WriteAnswer(&first, id, long); err != nil {
+		t.Fatalf("WriteAnswer for the long answer: %v", err)
+	}
+	if !bytes.Contains(first.Bytes(), []byte(marker)) {
+		t.Fatal("the first answer carries no marker, so the buffer it leaves behind holds nothing to leak")
+	}
+
+	var second bytes.Buffer
+	if err := WriteAnswer(&second, id, NewResponse(StatusDone, sampleData{PeerCount: 1, Name: "core"})); err != nil {
+		t.Fatalf("WriteAnswer for the short answer: %v", err)
+	}
+
+	if index := bytes.Index(second.Bytes(), []byte(marker)); index >= 0 {
+		t.Errorf("the second answer carries the first answer's bytes at offset %d: %q", index, second.String())
+	}
+	lines := readAnswer(t, second.Bytes())
+	assertAnswerShape(t, lines, id, 1, 0)
+
+	var payload sampleData
+	if err := json.Unmarshal([]byte(reassembleAnswer(t, second.Bytes())), &payload); err != nil {
+		t.Fatalf("read the second answer back: %v", err)
+	}
+	if payload.Name != "core" || payload.PeerCount != 1 {
+		t.Errorf("the second answer carries %+v, want the payload it was written with", payload)
+	}
+}
+
 // VALIDATES: AC-1 of spec-record-answers-3-zero-alloc -- the allocation cost of
 //
 //	ONE ROW of a record answer, which the alloc gate holds to a ceiling of

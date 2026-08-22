@@ -29,11 +29,6 @@ import (
 	"strconv"
 )
 
-// answerLineCapacity is the initial byte capacity of the one line buffer an
-// answer reuses for every line it writes. A longer record grows the slice once,
-// and every later line of that answer reuses the grown slice.
-const answerLineCapacity = 512
-
 // WriteRecordAnswer writes the answer rows produce, under id, to w.
 //
 // The head's type= is decided HERE, from the walk, and never by the producer.
@@ -62,6 +57,11 @@ const answerLineCapacity = 512
 // the answer or for a row (ai/rules/goroutine-lifecycle.md). A nil rows is a
 // producer that named an envelope and yielded nothing, which is an empty
 // collection rather than a missing answer.
+//
+// One pooled buffer carries every line (AnswerLineBuffer), and the deferred
+// release covers the ways out that reach no terminator: a row this producer
+// refuses, a row that does not fit the columns the head declares, a collapse
+// that fails, and the transport dying under any line.
 func WriteRecordAnswer(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[Record]) error {
 	// The reserved envelope is refused before the first line, so a producer
 	// that names it is told rather than half-answered. The collapse refuses the
@@ -77,7 +77,9 @@ func WriteRecordAnswer(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[Re
 		rows = noAnswerRecords
 	}
 
-	buf := make([]byte, 0, answerLineCapacity)
+	line := AnswerLineBuffer()
+	defer ReleaseAnswerLineBuffer(line)
+
 	var (
 		held      []Record
 		count     uint64
@@ -104,13 +106,12 @@ func WriteRecordAnswer(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[Re
 			// be one document. The head opens the stream and the records
 			// already held go out ahead of it, in the order the walk produced
 			// them.
-			buf, err = writeAnswerLine(w, AppendAnswerHead(buf[:0], id, AnswerStreamType(head.Fields), head.Key, fields))
-			if err != nil {
+			*line = AppendAnswerHead((*line)[:0], id, AnswerStreamType(head.Fields), head.Key, fields)
+			if err := writeAnswerLine(w, line); err != nil {
 				return err
 			}
 			for i := range held {
-				buf, err = writeRecordLine(w, buf, id, held[i], head.Fields)
-				if err != nil {
+				if err := writeRecordLine(w, line, id, held[i], head.Fields); err != nil {
 					return err
 				}
 			}
@@ -118,8 +119,7 @@ func WriteRecordAnswer(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[Re
 			streaming = true
 		}
 
-		buf, err = writeRecordLine(w, buf, id, record, head.Fields)
-		if err != nil {
+		if err := writeRecordLine(w, line, id, record, head.Fields); err != nil {
 			return err
 		}
 	}
@@ -129,11 +129,11 @@ func WriteRecordAnswer(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[Re
 		if collapseErr != nil {
 			return collapseErr
 		}
-		return writeDocumentLines(w, buf, id, head, document, count, faults)
+		return writeDocumentLines(w, line, id, head, document, count, faults)
 	}
 
-	_, err = writeAnswerLine(w, AppendAnswerTerminator(buf[:0], id, count, faults, head.Message))
-	return err
+	*line = AppendAnswerTerminator((*line)[:0], id, count, faults, head.Message)
+	return writeAnswerLine(w, line)
 }
 
 // WriteDocumentAnswer writes the answer of a producer that built its whole
@@ -149,18 +149,23 @@ func WriteRecordAnswer(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[Re
 // (writeDocumentLines).
 //
 // It is WriteRecordAnswer's sibling for the answer no walk produced, and the
-// two write the same three lines for the same document.
+// two write the same three lines for the same document, through a line buffer
+// from the same pool.
 func WriteDocumentAnswer(w io.Writer, id uint64, head AnswerTail, document json.RawMessage) error {
 	var count uint64
 	if len(document) > 0 {
 		count = 1
 	}
-	return writeDocumentLines(w, make([]byte, 0, answerLineCapacity), id, head, document, count, 0)
+
+	line := AnswerLineBuffer()
+	defer ReleaseAnswerLineBuffer(line)
+
+	return writeDocumentLines(w, line, id, head, document, count, 0)
 }
 
 // writeDocumentLines writes the head, the one item line and the terminator of
-// an answer that fits one document, and returns the line buffer's fate to the
-// caller through w alone.
+// an answer that fits one document, through the line buffer its caller took
+// from the pool and gives back.
 //
 // An empty document is a producer that answered with no data at all, and it
 // writes no item line: nothing is not the same answer as an empty collection.
@@ -185,7 +190,7 @@ func WriteDocumentAnswer(w io.Writer, id uint64, head AnswerTail, document json.
 // The counts then state what the wire carried rather than what the walk
 // produced. The rows the walk rejected traveled INSIDE that document, so
 // counting them would name rows no consumer received.
-func writeDocumentLines(w io.Writer, buf []byte, id uint64, head AnswerTail, document json.RawMessage, count, faults uint64) error {
+func writeDocumentLines(w io.Writer, line *[]byte, id uint64, head AnswerTail, document json.RawMessage, count, faults uint64) error {
 	// The document is the answer's first and only record, so it is the record
 	// boundedRecord names when it rejects one.
 	answerType, record := AnswerTypeDocument, Record{Item: document}
@@ -196,23 +201,22 @@ func writeDocumentLines(w io.Writer, buf []byte, id uint64, head AnswerTail, doc
 		answerType, count, faults = AnswerTypeMap, 0, 1
 	}
 
-	buf, err := writeAnswerLine(w, AppendAnswerHead(buf[:0], id, answerType, "", nil))
-	if err != nil {
+	*line = AppendAnswerHead((*line)[:0], id, answerType, "", nil)
+	if err := writeAnswerLine(w, line); err != nil {
 		return err
 	}
 	if len(document) > 0 {
-		buf, err = writeRecordLine(w, buf, id, record, nil)
-		if err != nil {
+		if err := writeRecordLine(w, line, id, record, nil); err != nil {
 			return err
 		}
 	}
-	_, err = writeAnswerLine(w, AppendAnswerTerminator(buf[:0], id, count, faults, head.Message))
-	return err
+	*line = AppendAnswerTerminator((*line)[:0], id, count, faults, head.Message)
+	return writeAnswerLine(w, line)
 }
 
-// writeRecordLine writes one record line and returns the line buffer for the
-// next one. Its caller has already refused a record carrying neither an item
-// nor a fault, so an item here is never empty.
+// writeRecordLine writes one record line through the answer's line buffer. Its
+// caller has already refused a record carrying neither an item nor a fault, so
+// an item here is never empty.
 //
 // It serves both shapes an answer takes: one line for each row of a streamed
 // answer, and the one line a collapsed answer's document occupies. Both write
@@ -223,14 +227,16 @@ func writeDocumentLines(w io.Writer, buf []byte, id uint64, head AnswerTail, doc
 // because the row reaches the wire unchanged and a consumer reading it by
 // position cannot tell a short row from a value it should have had. A document
 // declares none: it is one value rather than a positional row.
-func writeRecordLine(w io.Writer, buf []byte, id uint64, record Record, fields []string) ([]byte, error) {
+func writeRecordLine(w io.Writer, line *[]byte, id uint64, record Record, fields []string) error {
 	if len(record.Fault) > 0 {
-		return writeAnswerLine(w, AppendAnswerFault(buf[:0], id, record.Fault))
+		*line = AppendAnswerFault((*line)[:0], id, record.Fault)
+		return writeAnswerLine(w, line)
 	}
 	if err := checkRowArity(record.Item, fields); err != nil {
-		return buf, err
+		return err
 	}
-	return writeAnswerLine(w, AppendAnswerItem(buf[:0], id, record.Item))
+	*line = AppendAnswerItem((*line)[:0], id, record.Item)
+	return writeAnswerLine(w, line)
 }
 
 // boundedRecord is record when its line fits one wire message, and the rejected
@@ -295,15 +301,20 @@ func answerRecordTooLargeFault(ordinal uint64, size int) json.RawMessage {
 	return append(fault, '}')
 }
 
-// writeAnswerLine frames line with the newline that ends every wire message and
-// writes it in one call, so a reader never takes delivery of half a line. It
-// returns the framed slice, which the caller reuses for the next line.
-func writeAnswerLine(w io.Writer, line []byte) ([]byte, error) {
-	line = append(line, '\n')
-	if _, err := w.Write(line); err != nil {
-		return line, fmt.Errorf("write answer line: %w", err)
+// writeAnswerLine frames the line already appended into the answer's buffer
+// with the newline that ends every wire message, and writes it in one call, so
+// a reader never takes delivery of half a line.
+//
+// It writes back through the pointer, so the buffer a line grew is the buffer
+// the next line of that answer writes into and the buffer the answer returns to
+// the pool. w takes the bytes and keeps none: the buffer belongs to another
+// answer once this one releases it.
+func writeAnswerLine(w io.Writer, line *[]byte) error {
+	*line = append(*line, '\n')
+	if _, err := w.Write(*line); err != nil {
+		return fmt.Errorf("write answer line: %w", err)
 	}
-	return line, nil
+	return nil
 }
 
 // marshalAnswerFields encodes the column names a streamed answer's head

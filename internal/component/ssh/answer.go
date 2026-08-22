@@ -38,26 +38,36 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// answerFrameCapacity is the initial byte capacity of the one line buffer a
-// frame reuses. A head naming many columns grows it once, and the terminator
-// then reuses the grown slice.
-const answerFrameCapacity = 256
-
 // answerFrame writes the frame of one exec-channel answer.
 //
 // One answer owns the channel, so every line is written with rpc.AnswerNoID and
 // carries no #<id>. Everything after the verb is the grammar the plugin
 // connection uses, so a reader parses one tail whichever channel it came from.
+//
+// line is the pooled buffer every line of this frame is written through, taken
+// from the pool the plugin connection's answers take theirs from. One answer
+// holds one buffer on both channels, which is what AC-2 of
+// spec-record-answers-3-zero-alloc asks of the two.
 type answerFrame struct {
-	w   io.Writer
-	buf []byte
+	w    io.Writer
+	line *[]byte
 }
 
 // newAnswerFrame returns the frame for this session. Every session gets one:
 // the frame is what says how many records the answer holds and whether it
 // finished, and a client that cannot ask for it still needs to be told.
-func newAnswerFrame(sess ssh.Session) *answerFrame {
-	return &answerFrame{w: sess.Stderr(), buf: make([]byte, 0, answerFrameCapacity)}
+//
+// w is the session's stderr, which is the stream the frame travels on. The
+// caller MUST call release when the answer ends, on every path out of the
+// session, or the pool loses one buffer for each answer.
+func newAnswerFrame(w io.Writer) *answerFrame {
+	return &answerFrame{w: w, line: rpc.AnswerLineBuffer()}
+}
+
+// release returns the frame's line buffer to the pool. It MUST be called once
+// the answer has ended, and no line may be written through the frame after it.
+func (f *answerFrame) release() {
+	rpc.ReleaseAnswerLineBuffer(f.line)
 }
 
 // head writes the line that opens the answer: which shape the rendering on
@@ -77,13 +87,13 @@ func (f *answerFrame) head(answerType, key string, fields []string) error {
 	if err != nil {
 		return err
 	}
-	return f.write(rpc.AppendAnswerHead(f.buf[:0], rpc.AnswerNoID, answerType, key, encoded))
+	return f.write(rpc.AppendAnswerHead((*f.line)[:0], rpc.AnswerNoID, answerType, key, encoded))
 }
 
 // terminator writes the line that ends the answer. Its absence is what states
 // truncation, so nothing else may be written after it.
 func (f *answerFrame) terminator(count, faults uint64, message string) error {
-	return f.write(rpc.AppendAnswerTerminator(f.buf[:0], rpc.AnswerNoID, count, faults, message))
+	return f.write(rpc.AppendAnswerTerminator((*f.line)[:0], rpc.AnswerNoID, count, faults, message))
 }
 
 // notUnderstood writes the whole answer to a command text that names no
@@ -91,15 +101,16 @@ func (f *answerFrame) terminator(count, faults uint64, message string) error {
 // a client can offer completion here rather than reporting an operational
 // failure the daemon never attempted.
 func (f *answerFrame) notUnderstood(message string) error {
-	return f.write(rpc.AppendAnswerNotUnderstood(f.buf[:0], rpc.AnswerNoID, "", message))
+	return f.write(rpc.AppendAnswerNotUnderstood((*f.line)[:0], rpc.AnswerNoID, "", message))
 }
 
 // write frames one line with the newline that ends it and writes it in one
 // call, so a reader never takes delivery of half a line. The framed slice is
-// kept for the next line of this answer.
+// kept for the next line of this answer, and it is the slice release gives
+// back, so a line that grew the buffer keeps the growth for the pool.
 func (f *answerFrame) write(line []byte) error {
 	line = append(line, '\n')
-	f.buf = line
+	*f.line = line
 	_, err := f.w.Write(line)
 	return err
 }

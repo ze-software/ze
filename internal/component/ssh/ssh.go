@@ -838,7 +838,13 @@ func (s *Server) execMiddleware() wish.Middleware {
 				return
 			}
 
-			frame := newAnswerFrame(sess)
+			// The frame holds one pooled line buffer for the whole answer, and
+			// the session ends by every path below, so the release is deferred
+			// here rather than repeated at each of them.
+
+			frame := newAnswerFrame(sess.Stderr())
+			defer frame.release()
+
 			executor := factory(sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
 			result, err := executor(dispatched)
 			if err != nil {

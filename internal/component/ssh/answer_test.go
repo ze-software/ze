@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -455,4 +456,88 @@ func (r *cutRelay) relay(client net.Conn) {
 			return
 		}
 	}
+}
+
+// answerFrameRuns is how many frames one allocation measurement averages over.
+// testing.AllocsPerRun truncates that average to an integer, so a stray
+// allocation from a garbage collection that emptied the pool between two frames
+// does not reach the number, and a per-frame allocation does. It also pins
+// GOMAXPROCS for the duration, which is what makes a pooled buffer measurable:
+// a sync.Pool is per-P, so a goroutine the scheduler moves between two Ps reads
+// a pool that is empty through no fault of the frame.
+const answerFrameRuns = 200
+
+// answerFrameAllocs is what one frame costs with a pooled line buffer: the
+// frame value itself, which escapes to the writer it is given. Measured on
+// 2026-08-22, where a frame that allocated its own 256-byte buffer cost two.
+//
+// The ceiling is exact without the race detector, which is the pass that runs
+// over the whole tree on every push. answerFrameRaceOverhead gives the
+// changed-group pass the slack the detector's own allocations need.
+const answerFrameAllocs = 1
+
+// TestAnswerFrameUsesPooledBuffer checks that the exec channel's frame takes
+// its line buffer from the same pool the plugin connection's answers take
+// theirs from, and returns it when the answer ends. The method: one frame is
+// written and released many times over, and the allocations of a single one are
+// counted against a ceiling that leaves no room for a buffer of its own.
+//
+// The second half reads the bytes a frame writes after a frame that left a long
+// message in the buffer, because a buffer two answers share is a buffer one
+// answer can read the other out of.
+//
+// VALIDATES: AC-2 and AC-13 of spec-record-answers-3-zero-alloc -- the exec
+// channel's frame is pooled too, and it carries none of the frame before it.
+// PREVENTS: one channel being pooled and the other left allocating, and the
+// residue a shared buffer makes possible on the channel an operator reaches
+// with a bare `ssh <host> <command>`.
+func TestAnswerFrameUsesPooledBuffer(t *testing.T) {
+	t.Run("the frame allocates no line buffer of its own", func(t *testing.T) {
+		var writeErr error
+		allocs := testing.AllocsPerRun(answerFrameRuns, func() {
+			frame := newAnswerFrame(io.Discard)
+			if err := frame.head(rpc.AnswerTypeMap, "peers", nil); err != nil {
+				writeErr = err
+			}
+			if err := frame.terminator(2, 1, ""); err != nil {
+				writeErr = err
+			}
+			frame.release()
+		})
+		require.NoError(t, writeErr)
+
+		ceiling := float64(answerFrameAllocs + answerFrameRaceOverhead)
+		t.Logf("one frame allocates %.0f, against a ceiling of %.0f", allocs, ceiling)
+		assert.LessOrEqual(t, allocs, ceiling,
+			"the frame's line buffer must come from the pool and go back to it")
+	})
+
+	t.Run("a frame carries none of the frame before it", func(t *testing.T) {
+		const marker = "RESIDUEMARKER"
+		message := strings.Repeat(marker, 8)
+
+		var first bytes.Buffer
+		long := newAnswerFrame(&first)
+		require.NoError(t, long.head(rpc.AnswerTypeDocument, "", nil))
+		require.NoError(t, long.terminator(0, 0, message))
+		long.release()
+		require.Contains(t, first.String(), marker,
+			"the first frame carries no marker, so the buffer it leaves behind holds nothing to leak")
+
+		var second bytes.Buffer
+		short := newAnswerFrame(&second)
+		require.NoError(t, short.head(rpc.AnswerTypeDocument, "", nil))
+		require.NoError(t, short.terminator(1, 0, ""))
+		short.release()
+
+		assert.NotContains(t, second.String(), marker, "the second frame carries the first frame's bytes")
+		lines := strings.Split(strings.TrimSuffix(second.String(), "\n"), "\n")
+		require.Len(t, lines, 2, "a frame is a head and a terminator: %q", second.String())
+		for _, line := range lines {
+			kind, tail, err := rpc.ParseAnswerLine([]byte(line))
+			require.NoError(t, err, "line %q", line)
+			assert.NotEmpty(t, kind, "line %q states no kind", line)
+			assert.Empty(t, tail.Message, "the second frame states a message it was not given")
+		}
+	})
 }
