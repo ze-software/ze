@@ -180,7 +180,7 @@ After Stage 5: SDK wraps Socket A in `MuxConn` for concurrent RPCs. Engine dispa
 
 A command answer is a head, one line for each record, and a terminator. It is that in both directions, on every connection, and Stage 3 carries no wire shape to ask for another. A plugin MUST NOT be written to assume a single-line command frame.
 
-**The frame never follows the payload.** A plugin answers every `execute-command` with a head, its records and a terminator, a built value included. The VALUE is unchanged, byte for byte. The frame around it is not. A test peer written by hand MUST write and read that frame, or the engine takes a head line's tail for its result.
+**The frame never follows the payload.** A plugin answers every `execute-command` with a head, its records and a terminator, a built value included. The VALUE is unchanged, byte for byte. The frame around it is not. A test peer written by hand MUST write and read that frame, or the engine takes a head line's tail for its result. The field after the id names which line it is, in three bytes: `top` for the head, `row` and `bad` for a produced row and a rejected one, `end` for the terminator, and `nay` for a command text naming no command.
 
 A command handler MAY answer with a `plugin.Records` rather than a built value. `Records.Rows` is walked once, before the handler's call returns, and MUST NOT be stored.
 <!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, Stage 3 declare-capabilities -->

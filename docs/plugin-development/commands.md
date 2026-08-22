@@ -63,12 +63,14 @@ Commands are delivered to the plugin as `execute-command` RPCs over the MuxConn 
 
 The answer is a head, its records and a terminator, on every connection. The
 frame is the same whatever the payload is, so a handler that built one value
-takes the same three lines as a handler that walked a table.
+takes the same three lines as a handler that walked a table. The field after the
+id is a three-byte kind token saying which of the three a line is: `top`, `row`
+and `end`, with `bad` for a rejected row.
 
 ```
-#2:17 ok status=done type=json
-#2:17 ok item={"status":"running","uptime":3600}
-#2:17 ok count=1
+#2:17 top status=done type=json
+#2:17 row item={"status":"running","uptime":3600}
+#2:17 end count=1
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer -->
@@ -100,9 +102,9 @@ return "done", map[string]any{
 
 The SDK marshals this value once and sends it as the one record of the answer:
 ```
-#2:17 ok status=done type=json
-#2:17 ok item={"count":42,"items":["a","b"]}
-#2:17 ok count=1
+#2:17 top status=done type=json
+#2:17 row item={"count":42,"items":["a","b"]}
+#2:17 end count=1
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandOutput, executeCommandAnswer -->
 
@@ -115,8 +117,8 @@ return "done", nil, nil
 Response. A command that reported nothing writes no record, and the terminator
 says so. Nothing is not the same answer as an empty collection:
 ```
-#2:17 ok status=done type=json
-#2:17 ok count=0
+#2:17 top status=done type=json
+#2:17 end count=0
 ```
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer, writeDocumentLines -->
 
@@ -131,10 +133,10 @@ return "done", sdk.Records{Key: "sessions", Rows: sessionRows()}, nil
 ```
 
 ```
-#2:17 ok status=done type=ndjson key=sessions
-#2:17 ok item={"id":1,"peer":"10.0.0.1"}
-#2:17 ok item={"id":2,"peer":"10.0.0.2"}
-#2:17 ok count=2
+#2:17 top status=done type=ndjson key=sessions
+#2:17 row item={"id":1,"peer":"10.0.0.1"}
+#2:17 row item={"id":2,"peer":"10.0.0.2"}
+#2:17 end count=2
 ```
 
 `Key` names the envelope the rows belong under. A handler MUST NOT name it

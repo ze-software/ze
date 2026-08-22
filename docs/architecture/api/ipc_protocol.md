@@ -291,21 +291,53 @@ slot instead.
 <!-- source: internal/component/plugin/server/dispatch_registry.go -- serveEngineOpDirect -->
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.DispatchCommandAnswer -->
 
-The grammar is closed. `ParseAnswerTail` refuses a key it does not know, so a
-key added to a line makes that whole line unreadable to a peer built against the
-grammar without it.
-<!-- source: pkg/plugin/rpc/message.go -- ParseAnswerTail -->
+The grammar is closed. `ParseAnswerTail` refuses a kind it does not know and a
+key that belongs to another kind, so anything added to a line makes that whole
+line unreadable to a peer built against the grammar without it.
+<!-- source: pkg/plugin/rpc/message.go -- ParseAnswerTail, answerKeyMisplaced -->
+
+### The kind says what the line is
+
+The field after the id is a three-byte kind token, and it states what the line
+IS. A reader knows that before it reads one byte of the tail, so no consumer
+parses a payload to find out what it holds.
+
+| Kind | The line |
+|------|----------|
+| `top` | opens the answer and states how its records are read |
+| `row` | one row the command produced |
+| `bad` | one row the command rejected. The walk goes on |
+| `end` | ends the answer and carries its counts |
+| `nay` | the whole answer to a command text naming no command |
+<!-- source: pkg/plugin/rpc/message.go -- AnswerKindHead, AnswerKindRecord, AnswerKindFault, AnswerKindTerminator, AnswerKindNotUnderstood -->
+
+Every kind is three bytes, so a reader reaches it by arithmetic and searches no
+line for a separator. The offset differs per channel and is fixed within one:
+
+| Channel | The kind sits at |
+|---------|------------------|
+| plugin connection | `4 + <digits>`, where `<digits>` is the count the id's base-36 length character states |
+| SSH exec channel | offset zero, because that channel carries one answer and writes no `#<len>:<id>` |
+<!-- source: pkg/plugin/rpc/message.go -- answerKindWidth, answerKindAt, ParseAnswerLine -->
+
+Each kind is a whole word rather than a stump, because a person reads a captured
+session by eye, and byte 0 is distinct inside the set, so a machine switches on
+one load.
 
 ### Lines
 
-| Line | Verb | Required keys | Optional keys | Position |
+| Line | Kind | Required keys | Optional keys | Position |
 |------|------|---------------|---------------|----------|
-| head | `ok` | `status=`, `type=` | `key=`, and `fields=` when `type=stream` | first line for this id |
-| result record | `ok` | `item=` | - | between head and terminator |
-| error record | `ok` | `fault=` | - | between head and terminator |
-| terminator | `ok` | `count=` | `faults=`, `message=` | last line for this id |
-| not understood | `error` | `message=` | `code=` | the only line for this id |
-<!-- source: pkg/plugin/rpc/message.go -- AnswerTail, AnswerTail.IsTerminator, AppendAnswerNotUnderstood -->
+| head | `top` | `status=`, `type=` | `key=`, and `fields=` when `type=stream` | first line for this id |
+| result record | `row` | `item=` | - | between head and terminator |
+| error record | `bad` | `fault=` | - | between head and terminator |
+| terminator | `end` | `count=` | `faults=`, `message=` | last line for this id |
+| not understood | `nay` | `message=` | `code=` | the only line for this id |
+<!-- source: pkg/plugin/rpc/message.go -- AnswerTail, answerKeyMisplaced, AppendAnswerNotUnderstood -->
+
+A key reaches only the kind whose line carries it. `message=` is the one key two
+kinds carry, because the operational text of an aborted walk and the reason a
+command was not understood are the same field.
 
 `item=`, `fault=`, `message=` and `fields=` take the rest of the line verbatim,
 and each is written last. A JSON value that holds `=` or a space therefore needs
@@ -324,11 +356,16 @@ records after it still arrive, and the terminator counts the two collections
 separately:
 
 ```
-#1:7 ok status=done type=ndjson key=peers
-#1:7 ok item={"peer":"10.0.0.1","state":"established"}
-#1:7 ok fault={"path":"bgp/peer/10.0.0.2","message":"nexthop unreachable"}
-#1:7 ok count=1 faults=1
+#1:7 top status=done type=ndjson key=peers
+#1:7 row item={"peer":"10.0.0.1","state":"established"}
+#1:7 bad fault={"path":"bgp/peer/10.0.0.2","message":"nexthop unreachable"}
+#1:7 end count=1 faults=1
 ```
+<!-- source: pkg/plugin/rpc/message_test.go -- TestAnswerLineTableMatchesDoc -->
+
+`TestAnswerLineTableMatchesDoc` builds each of those lines with the shipped
+appenders and requires this file to carry it byte for byte, so the published
+grammar cannot drift from the writer.
 
 A record too wide for one line is rejected the same way. Every record is one
 line, and a line holds at most 16 MB, so a wider record has no wire form at all.
@@ -338,7 +375,7 @@ terminator. The rejected row quotes none of the record, because a row that
 carried 16 MB would not fit the line either.
 
 ```
-#1:7 ok fault={"message":"answer record does not fit one wire message","record":12,"encoded-bytes":16777300,"limit-bytes":16777216}
+#1:7 bad fault={"message":"answer record does not fit one wire message","record":12,"encoded-bytes":16777300,"limit-bytes":16777216}
 ```
 <!-- source: pkg/plugin/rpc/answer_write.go -- boundedRecord, answerRecordTooLargeFault -->
 
@@ -427,10 +464,14 @@ behind it is. The consumer stops the generator inside the buffering window.
 
 | The daemon | Answer |
 |-----------|--------|
-| did not understand the command | `#<len>:<id> error message=<text>`, with an optional `code=`. The only line for this id |
-| understood it and it failed | a head stating `status=error`, then a terminator carrying `message=` |
-<!-- source: pkg/plugin/rpc/message.go -- AppendAnswerNotUnderstood, AnswerVerbError -->
+| did not understand the command | a `nay` line carrying `message=`, with an optional `code=`. The only line for this id |
+| understood it and it failed | a `top` line stating `status=error`, then an `end` line carrying `message=` |
+<!-- source: pkg/plugin/rpc/message.go -- AppendAnswerNotUnderstood, AnswerKindNotUnderstood -->
 <!-- source: internal/component/ssh/answer.go -- writeExecFailure -->
+
+```
+#1:7 nay message=unknown command: shwo bgp peers
+```
 
 A client therefore offers completion for the first, and an operational message
 for the second.

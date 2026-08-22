@@ -1,4 +1,4 @@
-# Test: a command text that names no command answers the error verb
+# Test: a command text that names no command answers the nay kind
 #
 # Flow:
 # 1. Daemon starts with SSH and one configured BGP peer
@@ -7,14 +7,15 @@
 # 4. The client reports the daemon's message and exits non-zero, and nothing
 #    reaches stdout
 #
-# The verb says whether the conversation was valid and the command understood.
-# A typo earns `error message=<text>` and it is the WHOLE answer for that
-# command: there is no head, no record and no terminator, because nothing ran.
+# The kind says whether the conversation was valid and the command understood.
+# A typo earns a `nay` line carrying `message=<text>`, and it is the WHOLE answer
+# for that command: there is no head, no record and no terminator, because
+# nothing ran.
 # A client reads that apart from a command that ran and failed, which is what
 # lets it offer completion here rather than sending an operator to debug a
 # command that never existed (AppendAnswerNotUnderstood, pkg/plugin/rpc).
 #
-# VALIDATES: AC-4 -- verb error with message=, no status= key, and the answer is
+# VALIDATES: AC-4 -- kind nay with message=, no status= key, and the answer is
 # the only line.
 # PREVENTS: a typo reaching the operator as an operational failure, and an
 # unknown command being reported as an answer of no records.
@@ -137,7 +138,7 @@ grep -q "unknown command" err.log || {
 
 # The frame is the client's to read, never the operator's. A frame line
 # reaching the terminal would mean the client forwarded what it parsed.
-if grep -qE '^(ok|error) (status|count|message)=' err.log; then
+if grep -qE '^(top|row|bad|end|nay) ' err.log; then
 	echo "FAIL: a frame line reached the operator" >&2
 	cat err.log >&2
 	exit 1

@@ -70,6 +70,8 @@ func pendingKey(id uint64) string {
 // request dispatching on a single bidirectional connection.
 //
 // A background reader goroutine reads all incoming lines and routes them:
+//   - Answer lines (the field after the id is a three-byte kind token) are routed
+//     to the CallAnswer waiting on that #<len>:<id>.
 //   - Responses (verb is "ok" or "error") are routed to waiting CallRPC callers by #<len>:<id>.
 //   - Requests (verb is a method name) are pushed to the Requests() channel.
 //
@@ -85,8 +87,9 @@ type MuxConn struct {
 	// or by a caller that gives up.
 	pending sync.Map
 
-	// requestCh receives inbound requests from the remote side.
-	// The readLoop pushes requests here when the verb is not "ok" or "error".
+	// requestCh receives inbound requests from the remote side. The readLoop
+	// pushes requests here when the field after the id is neither an answer
+	// kind nor "ok" or "error".
 	requestCh chan *Request
 
 	// done is closed when the background reader exits.
@@ -117,7 +120,8 @@ func NewMuxConn(conn *Conn) *MuxConn {
 }
 
 // Requests returns a channel of inbound requests from the remote side.
-// Requests are lines where the verb is a method name (not "ok" or "error").
+// Requests are lines where the verb is a method name: not an answer kind, and
+// not "ok" or "error".
 // The caller should read from this channel in a dispatch loop.
 func (m *MuxConn) Requests() <-chan *Request {
 	return m.requestCh
@@ -217,9 +221,9 @@ func (m *MuxConn) closedErr() error {
 }
 
 // CallAnswer sends an RPC request and returns the answer the peer writes as a
-// head line, zero or more record lines, and a terminator. It is the call for a
-// peer that has negotiated the answer shape; CallRPC stays the call for one
-// that has not, and its wire is unchanged.
+// head line, zero or more record lines, and a terminator. Every peer writes
+// that sequence for the two dispatch ops; CallRPC stays the call for every
+// other method, whose answer is one line.
 //
 // It returns once the head has arrived, so the caller learns the answer's
 // status before its first record. The caller MUST then range over
@@ -293,19 +297,13 @@ func (m *MuxConn) awaitAnswerHead(ctx context.Context, idStr string, call *answe
 		if !open {
 			return AnswerTail{}, answerEndedErr(call)
 		}
-		if head.IsTerminator() {
+		// The line states its own kind. A first line that does not open an
+		// answer is refused by that token, never by a key inside its tail.
+		if head.Kind != AnswerKindHead {
 			m.pending.Delete(idStr)
-			return AnswerTail{}, fmt.Errorf("answer for id %s opens with its terminator", idStr)
+			return AnswerTail{}, fmt.Errorf("answer for id %s opens with a %s line, want %s", idStr, head.Kind, AnswerKindHead)
 		}
-		// The head states what a consumer renders the answer as, so a head that
-		// states nothing is refused rather than read as done.
-		switch head.Status {
-		case StatusDone, StatusError:
-			return head, nil
-		default:
-			m.pending.Delete(idStr)
-			return AnswerTail{}, fmt.Errorf("answer head for id %s states status=%q", idStr, truncate(head.Status, 40))
-		}
+		return head, nil
 	case <-ctx.Done():
 		m.pending.Delete(idStr)
 		return AnswerTail{}, ctx.Err()
@@ -347,7 +345,7 @@ func (m *MuxConn) answerRecords(ctx context.Context, idStr string, call *answerC
 					answer.err = answerEndedErr(call)
 					return
 				}
-				if line.IsTerminator() {
+				if line.Kind == AnswerKindTerminator {
 					terminator := line
 					answer.terminator = &terminator
 					return
@@ -412,12 +410,18 @@ func (m *MuxConn) readLoop() {
 			continue
 		}
 
-		// Determine if this is a response or an inbound request.
-		// Responses have verb "ok" or "error"; requests have a method name.
-		verb, _, _ := strings.Cut(body, " ")
-		isResponse := verb == StatusOK || verb == StatusError
+		// Decide what the line is. An answer line states a three-byte kind, so
+		// it is read at a fixed offset with no search. cutID returned
+		// everything past the space that closes the id field, and the kind is
+		// the token at the front of it (AC-3). A body that states no kind is a
+		// plain response or an inbound request. Only those two are cut at their
+		// first space, because only they carry a variable-width verb.
+		verb, isAnswer := answerKindAt(body)
+		if !isAnswer {
+			verb, _, _ = strings.Cut(body, " ")
+		}
 
-		if isResponse {
+		if isAnswer || verb == StatusOK || verb == StatusError {
 			if m.routeResponse(idStr, body, verb) {
 				return
 			}
@@ -464,18 +468,28 @@ func (m *MuxConn) badLine() bool {
 	return true
 }
 
-// routeResponse hands one response line to the call waiting on its id and
-// reports whether readLoop must close the connection.
+// bodyPayload returns what follows verb in body: everything past the one space
+// that separates them, and the empty string when the verb is the whole body.
+//
+// verb was taken off the front of body. Its length is therefore the offset the
+// payload starts at, and the line is not searched a second time.
+func bodyPayload(body, verb string) string {
+	if len(body) <= len(verb) {
+		return ""
+	}
+	return body[len(verb)+1:]
+}
+
+// routeResponse hands one response or answer line to the call waiting on its id
+// and reports whether readLoop must close the connection.
 //
 // The pending entry states which of the two calls is waiting. A CallRPC entry
-// answers on its first line and is removed as it is routed, which is the
-// unchanged path a peer that has not negotiated the answer shape takes. A
-// CallAnswer entry lives until its answer ends.
+// answers on its first line and is removed as it is routed. A CallAnswer entry
+// lives until its answer ends.
 func (m *MuxConn) routeResponse(idStr, body, verb string) bool {
 	val, found := m.pending.Load(idStr)
 	if !found {
-		_, payload, _ := strings.Cut(body, " ")
-		return m.discardOrphanResponse(idStr, payload)
+		return m.discardOrphanResponse(idStr, verb)
 	}
 
 	switch call := val.(type) {
@@ -487,8 +501,7 @@ func (m *MuxConn) routeResponse(idStr, body, verb string) bool {
 		call <- []byte(body)
 		return false
 	case *answerCall:
-		_, payload, _ := strings.Cut(body, " ")
-		return m.routeAnswerLine(idStr, call, verb, payload)
+		return m.routeAnswerLine(idStr, call, verb, bodyPayload(body, verb))
 	default:
 		// A pending value of an unknown type is this package's own defect, and
 		// leaving the entry would route every later line to it as well.
@@ -501,20 +514,24 @@ func (m *MuxConn) routeResponse(idStr, body, verb string) bool {
 // routeAnswerLine delivers one line of an answer to the CallAnswer waiting for
 // it and reports whether readLoop must close the connection.
 //
-// The answer ends at its terminator, at an error verb, at a line this build
-// cannot read, or at a queue its consumer fell behind. Each of those removes
-// the pending entry and closes the line queue, and nothing else closes it.
+// The answer ends at its terminator, at a line carrying a failure, at a line
+// this build cannot read, or at a queue its consumer fell behind. Each of those
+// removes the pending entry and closes the line queue, and nothing else closes
+// it.
 func (m *MuxConn) routeAnswerLine(idStr string, call *answerCall, verb, payload string) bool {
-	if verb == StatusError {
-		// Not understood is the whole answer: one error line, no terminator.
+	if verb == AnswerKindNotUnderstood || verb == StatusError {
+		// A command the peer did not understand, and an RPC that failed before
+		// the answer opened, are each the whole answer: one line, no terminator.
 		m.consecutiveBad = 0
 		m.endAnswer(idStr, call, parseRPCError([]byte(payload)))
 		return false
 	}
 
 	// The payload is copied out of the frame here, so a record the consumer
-	// forwards keeps referencing a buffer only that record owns.
-	tail, parseErr := ParseAnswerTail([]byte(payload))
+	// forwards keeps referencing a buffer only that record owns. A verb that is
+	// no answer kind is refused here rather than guessed at. An `ok` line for a
+	// CallAnswer id states none of what a kind states (AC-7).
+	tail, parseErr := ParseAnswerTail(verb, []byte(payload))
 	if parseErr != nil {
 		slog.Warn("mux conn: unreadable answer line", "id", idStr, "error", parseErr)
 		m.endAnswer(idStr, call, fmt.Errorf("answer line for id %s: %w", idStr, parseErr))
@@ -534,7 +551,7 @@ func (m *MuxConn) routeAnswerLine(idStr string, call *answerCall, verb, payload 
 		return false
 	}
 
-	if tail.IsTerminator() {
+	if tail.Kind == AnswerKindTerminator {
 		m.endAnswer(idStr, call, nil)
 	}
 	return false
@@ -578,16 +595,15 @@ func (m *MuxConn) endAnswer(idStr string, call *answerCall, cause error) {
 // discardOrphanResponse handles a response line whose id has no caller waiting
 // and reports whether readLoop must close the connection.
 //
-// A line that reads as an answer tail is a record of an answer whose consumer
-// has already gone: expected debris of a canceled or completed answer, and it
-// MUST NOT count toward the flood guard (AC-16, R-2). Every other unmatched
-// line still counts, so the guard narrows rather than weakens.
-func (m *MuxConn) discardOrphanResponse(idStr, payload string) bool {
-	if payload != "" {
-		if _, parseErr := ParseAnswerTail([]byte(payload)); parseErr == nil {
-			slog.Debug("mux conn: record for an answer nobody is waiting for", "id", idStr)
-			return false
-		}
+// A line stating an answer kind is a line of an answer whose consumer has
+// already gone: expected debris of a canceled or completed answer, and it MUST
+// NOT count toward the flood guard (AC-16, R-2). The kind says so on its own,
+// so nothing decodes the tail to find out. Every other unmatched line still
+// counts, so the guard narrows rather than weakens.
+func (m *MuxConn) discardOrphanResponse(idStr, verb string) bool {
+	if _, isAnswer := answerKindAt(verb); isAnswer {
+		slog.Debug("mux conn: answer line nobody is waiting for", "id", idStr, "kind", verb)
+		return false
 	}
 	slog.Warn("mux conn: orphaned response", "id", idStr)
 	return m.badLine()

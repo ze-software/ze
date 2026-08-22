@@ -1065,7 +1065,9 @@ At runtime, the engine dispatches commands to plugins via `execute-command`:
 **Plugin to Engine:** the answer is a head, its records and a terminator. Every
 plugin writes it. The frame is the same whatever the payload is, so a handler
 that built one value takes the same three lines as a handler that walked a
-table.
+table. Each line opens with a three-byte kind token after its id: `top` for the
+head, `row` and `bad` for a produced row and a rejected one, `end` for the
+terminator.
 
 A command that RAN and failed states `status=error` on its head. It is not an
 `error` response, because the RPC itself succeeded even when the command failed.
@@ -1077,9 +1079,9 @@ answer. The handler's status is on the head, and the record carries the value
 byte for byte:
 
 ```
-#1:5 ok status=done type=json
-#1:5 ok item={"running":true,"peers":1}
-#1:5 ok count=1
+#1:5 top status=done type=json
+#1:5 row item={"running":true,"peers":1}
+#1:5 end count=1
 ```
 
 A handler that answered with a `plugin.Records` walk of more than 256 rows
@@ -1087,9 +1089,9 @@ writes one line for each row. A walk over a large table therefore never becomes
 one 16 MB line. A shorter walk collapses to the `type=json` document above:
 
 ```
-#1:5 ok status=done type=ndjson key=peers
-#1:5 ok item={"address":"10.0.0.1","state":"established"}
-#1:5 ok count=1
+#1:5 top status=done type=ndjson key=peers
+#1:5 row item={"address":"10.0.0.1","state":"established"}
+#1:5 end count=1
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
 <!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->

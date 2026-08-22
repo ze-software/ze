@@ -33,17 +33,19 @@ func rowsFrom(items ...string) iter.Seq[Record] {
 
 // answerTails decodes every line of one written answer into the tail it
 // carries, so a test reads the wire rather than the writer that produced it.
-// Each line of an answer on the plugin connection is `#<len>:<id> ok` and a key=value
-// tail, which is what rpc.ParseLine cuts apart.
+// Each line of an answer on the plugin connection is `#<len>:<id> <kind>` and a
+// key=value tail, which is what rpc.ParseLine cuts apart.
 func answerTails(t *testing.T, id uint64, wire []byte) []rpc.AnswerTail {
 	t.Helper()
 	var tails []rpc.AnswerTail
 	for line := range bytes.SplitSeq(bytes.TrimSuffix(wire, []byte{'\n'}), []byte{'\n'}) {
-		lineID, verb, payload, err := rpc.ParseLine(line)
+		lineID, kind, payload, err := rpc.ParseLine(line)
 		require.NoError(t, err, "answer line %q", line)
 		require.Equal(t, id, lineID, "answer line %q", line)
-		require.Equal(t, rpc.AnswerVerbOK, verb, "answer line %q", line)
-		tail, tailErr := rpc.ParseAnswerTail(payload)
+		require.Contains(t, []string{
+			rpc.AnswerKindHead, rpc.AnswerKindRecord, rpc.AnswerKindFault, rpc.AnswerKindTerminator,
+		}, kind, "answer line %q states a kind a walk never writes", line)
+		tail, tailErr := rpc.ParseAnswerTail(kind, payload)
 		require.NoError(t, tailErr, "answer line %q", line)
 		tails = append(tails, tail)
 	}
@@ -90,7 +92,7 @@ func TestRecordsWriteAnswerFaultsARowNoLineCanCarry(t *testing.T) {
 	require.Len(t, tails, 3, "a walk under the threshold is a head, one document and a terminator")
 
 	terminator := tails[2]
-	require.True(t, terminator.IsTerminator(), "the last line must carry count=")
+	require.Equal(t, rpc.AnswerKindTerminator, terminator.Kind, "the last line must state the end kind")
 	assert.Equal(t, uint64(2), terminator.Count, "the two rows that fit are what the walk produced")
 	assert.Equal(t, uint64(1), terminator.Faults, "the row no line can carry is counted under faults")
 

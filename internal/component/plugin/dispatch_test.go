@@ -230,11 +230,11 @@ func TestGeneratorAnswerReachesTheEncoder(t *testing.T) {
 	}
 
 	want := map[int]string{
-		0:            "#1:7 ok status=done type=ndjson key=peers",
-		1:            `#1:7 ok item={"peer":"10.0.0.0"}`,
-		2:            `#1:7 ok item={"peer":"10.0.0.1"}`,
-		rowCount:     `#1:7 ok item={"peer":"10.0.0.` + strconv.Itoa(rowCount-1) + `"}`,
-		rowCount + 1: "#1:7 ok count=" + strconv.Itoa(rowCount),
+		0:            "#1:7 top status=done type=ndjson key=peers",
+		1:            `#1:7 row item={"peer":"10.0.0.0"}`,
+		2:            `#1:7 row item={"peer":"10.0.0.1"}`,
+		rowCount:     `#1:7 row item={"peer":"10.0.0.` + strconv.Itoa(rowCount-1) + `"}`,
+		rowCount + 1: "#1:7 end count=" + strconv.Itoa(rowCount),
 	}
 	for index, line := range want {
 		if got[index] != line {
@@ -243,13 +243,13 @@ func TestGeneratorAnswerReachesTheEncoder(t *testing.T) {
 	}
 }
 
-// answerLine is one line of an answer as a consumer holds it: the id and verb
+// answerLine is one line of an answer as a consumer holds it: the id and kind
 // rpc.ParseLine cut off, and the tail rpc.ParseAnswerTail decoded. The tests
 // below read an answer with the shipped reader rather than with string
 // matching, so a grammar change that breaks a consumer breaks them too.
 type answerLine struct {
 	id   uint64
-	verb string
+	kind string
 	tail rpc.AnswerTail
 }
 
@@ -262,15 +262,15 @@ func readAnswer(t *testing.T, wire []byte) []answerLine {
 	}
 	var lines []answerLine
 	for raw := range strings.SplitSeq(text, "\n") {
-		id, verb, payload, err := rpc.ParseLine([]byte(raw))
+		id, kind, payload, err := rpc.ParseLine([]byte(raw))
 		if err != nil {
 			t.Fatalf("ParseLine(%q): %v", raw, err)
 		}
-		tail, err := rpc.ParseAnswerTail(payload)
+		tail, err := rpc.ParseAnswerTail(kind, payload)
 		if err != nil {
 			t.Fatalf("ParseAnswerTail(%q): %v", raw, err)
 		}
-		lines = append(lines, answerLine{id: id, verb: verb, tail: tail})
+		lines = append(lines, answerLine{id: id, kind: kind, tail: tail})
 	}
 	return lines
 }
@@ -293,8 +293,8 @@ func assertAnswerShape(t *testing.T, lines []answerLine, wantID, wantItems, want
 		if lines[i].id != wantID {
 			t.Errorf("line %d carries id %d, want %d", i+1, lines[i].id, wantID)
 		}
-		if lines[i].verb != rpc.StatusOK {
-			t.Errorf("line %d carries verb %q, want %q", i+1, lines[i].verb, rpc.StatusOK)
+		if lines[i].kind == "" {
+			t.Errorf("line %d states no kind", i+1)
 		}
 	}
 
@@ -305,8 +305,8 @@ func assertAnswerShape(t *testing.T, lines []answerLine, wantID, wantItems, want
 	if head.Type == "" {
 		t.Error("the head states no type=, so a consumer cannot read the items that follow it")
 	}
-	if head.IsTerminator() {
-		t.Error("the head carries count=, so a reader cannot tell it from the terminator")
+	if head.Kind != rpc.AnswerKindHead {
+		t.Errorf("the answer opens with a %q line, so a reader cannot tell it from the terminator", head.Kind)
 	}
 	records := lines[1 : len(lines)-1]
 	for i := range records {
@@ -314,8 +314,8 @@ func assertAnswerShape(t *testing.T, lines []answerLine, wantID, wantItems, want
 		if len(tail.Item) == 0 && len(tail.Fault) == 0 {
 			t.Errorf("record %d carries neither item= nor fault=", i+1)
 		}
-		if tail.IsTerminator() {
-			t.Errorf("record %d carries count=, which only the terminator carries", i+1)
+		if tail.Kind != rpc.AnswerKindRecord && tail.Kind != rpc.AnswerKindFault {
+			t.Errorf("record %d states kind %q, which is no record kind", i+1, tail.Kind)
 		}
 		if tail.Status != "" {
 			t.Errorf("record %d carries status=, which only the head carries", i+1)
@@ -323,8 +323,8 @@ func assertAnswerShape(t *testing.T, lines []answerLine, wantID, wantItems, want
 	}
 
 	terminator := lines[len(lines)-1].tail
-	if !terminator.IsTerminator() {
-		t.Fatalf("the last line carries no count=, so the answer reads as truncated: %+v", terminator)
+	if terminator.Kind != rpc.AnswerKindTerminator {
+		t.Fatalf("the last line states kind %q, so the answer reads as truncated: %+v", terminator.Kind, terminator)
 	}
 	if terminator.Count != wantItems {
 		t.Errorf("the terminator states count=%d, want %d", terminator.Count, wantItems)
@@ -529,7 +529,7 @@ func TestTransportErrorEndsTheWalk(t *testing.T) {
 	}
 	written := readAnswer(t, transport.accepted.Bytes())
 	for i := range written {
-		if written[i].tail.IsTerminator() {
+		if written[i].tail.Kind == rpc.AnswerKindTerminator {
 			t.Errorf("line %d is a terminator, so a truncated answer claims to be complete", i+1)
 		}
 	}
@@ -1201,8 +1201,8 @@ func wireRecordsOf(t *testing.T, wire []byte) ([]string, rpc.AnswerTail, string)
 		t.Fatalf("answer has %d lines, want a head and a terminator at least", len(lines))
 	}
 	terminator := lines[len(lines)-1].tail
-	if !terminator.IsTerminator() {
-		t.Fatal("the last line carries no count=, so the answer never reached a terminator")
+	if terminator.Kind != rpc.AnswerKindTerminator {
+		t.Fatal("the last line is not a terminator, so the answer never reached one")
 	}
 	var rows []string
 	records := lines[1 : len(lines)-1]

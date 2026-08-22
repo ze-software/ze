@@ -5,7 +5,7 @@
 # 2. The plugin declares nothing at Stage 3, which is all a peer can do
 # 3. It dispatches `system command list`, whose rows are every command the
 #    daemon can dispatch: far more than the 256-record threshold
-# 4. It asserts the head names type=ndjson, that one item= line carries each
+# 4. It asserts the head states the top kind and type=ndjson, that one row line carries each
 #    record, and that the terminator counts them all
 #
 # The type is decided at RUN TIME from the output and never by the command
@@ -52,11 +52,15 @@ from ze_api import API, runtime_fail
 THRESHOLD = 256
 
 
-def tail_of(line, want_verb="ok"):
-    """Return the key=value tail of one answer line."""
+def tail_of(line, want_kind):
+    """Return the key=value tail of one answer line, checking its kind.
+
+    The field after the id is the three-byte kind token, and it is what says
+    what the line IS. The tail is never read to find that out.
+    """
     parts = line.split(" ", 2)
-    if len(parts) != 3 or parts[1] != want_verb:
-        runtime_fail(f"unexpected answer line: {line[:120]}")
+    if len(parts) != 3 or parts[1] != want_kind:
+        runtime_fail(f"unexpected answer line, want kind {want_kind!r}: {line[:120]}")
     return parts[2]
 
 
@@ -74,11 +78,11 @@ def main():
     if len(lines) < 3:
         runtime_fail(f"answer was {len(lines)} lines, want a head, records and a terminator: {lines}")
 
-    head = tail_of(lines[0])
+    head = tail_of(lines[0], "top")
     if head != "status=done type=ndjson key=commands":
         runtime_fail(f"head was {head!r}, want 'status=done type=ndjson key=commands'")
 
-    terminator = tail_of(lines[-1])
+    terminator = tail_of(lines[-1], "end")
     if not terminator.startswith("count="):
         runtime_fail(f"last line was {terminator!r}, want the terminator's count=")
     counted = int(terminator[len("count=") :])
@@ -95,7 +99,7 @@ def main():
     # No count reaches the peer before the terminator: nothing states a total
     # the records can contradict.
     for i, line in enumerate(records):
-        tail = tail_of(line)
+        tail = tail_of(line, "row")
         if not tail.startswith("item="):
             runtime_fail(f"record {i} was {tail[:120]!r}, want an item=")
         row = json.loads(tail[len("item=") :])

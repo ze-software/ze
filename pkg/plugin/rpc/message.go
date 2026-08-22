@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -234,8 +235,79 @@ func AppendError(buf []byte, id uint64, errPayload json.RawMessage) []byte {
 // Answer lines. Every answer is a head, zero or more records, and a
 // terminator, whatever its record count, so a reader follows one path and
 // nothing declares a shape the payload can contradict. Each line is
-// `#<len>:<id> ok <tail>`, and the tail is bare key=value pairs, so a reader
-// decides how to read the answer without a JSON decoder.
+// `#<len>:<id> <kind> <tail>`, where the kind states what the line IS and the
+// tail is bare key=value pairs, so a reader decides how to read the answer
+// without a JSON decoder.
+
+// Answer line kinds. The token after the id field states what the line is. A
+// reader knows that before it reads one byte of the tail, and derives it from
+// nothing.
+//
+// Every kind is a whole word rather than a stump, because a person reads a
+// captured session by eye. Byte 0 is distinct inside the set, so a machine
+// switches on one load. The two are not traded against each other.
+const (
+	// AnswerKindHead opens the answer and states how its records are read.
+	AnswerKindHead = "top"
+	// AnswerKindRecord carries one row the command produced.
+	AnswerKindRecord = "row"
+	// AnswerKindFault carries one row the command rejected. The walk goes on,
+	// which is what lets one answer report 97 rows applied and 3 rejected.
+	AnswerKindFault = "bad"
+	// AnswerKindTerminator ends the answer and carries its counts.
+	AnswerKindTerminator = "end"
+	// AnswerKindNotUnderstood is the whole answer to a command text naming no
+	// command: one line, no head and no terminator, because nothing ran.
+	AnswerKindNotUnderstood = "nay"
+)
+
+// answerKindWidth is the width of every kind token, and it is what makes the
+// field arithmetic. The id field ends at the space that closes it. The kind is
+// the three bytes after that space, and the tail starts one byte past the kind.
+// The exec channel writes no id, so the kind sits at offset zero there.
+const answerKindWidth = 3
+
+// answerKinds is every kind a line can state, in the order the line table
+// publishes them. answerKindAt reads it and a refusal names it, so the
+// vocabulary a reader accepts and the vocabulary an error reports are one list.
+var answerKinds = []string{
+	AnswerKindHead,
+	AnswerKindRecord,
+	AnswerKindFault,
+	AnswerKindTerminator,
+	AnswerKindNotUnderstood,
+}
+
+// answerKindWords spells the kinds for a refusal, derived from the list a
+// reader accepts rather than written out a second time beside it.
+var answerKindWords = strings.Join(answerKinds, ", ")
+
+// answerKindAt reads the kind token at the front of body and reports whether
+// body opens with one.
+//
+// The token is a fixed width, so it is taken by arithmetic. No line is searched
+// for a separator. The byte after the token MUST be the space that starts the
+// tail, or the token MUST be the whole body. Without that check a method name
+// opening with three kind bytes would be read as an answer line.
+//
+// It is the one reader of the token. The mux channel carries answers, plain
+// responses and inbound requests on one wire. A body this refuses is one of the
+// other two, so the caller falls through to the verb its family cuts (A-3). The
+// exec channel carries answers alone, so a refusal there ends the line rather
+// than routing it (R-5).
+func answerKindAt(body string) (string, bool) {
+	if len(body) < answerKindWidth {
+		return "", false
+	}
+	if len(body) > answerKindWidth && body[answerKindWidth] != ' ' {
+		return "", false
+	}
+	kind := body[:answerKindWidth]
+	if !slices.Contains(answerKinds, kind) {
+		return "", false
+	}
+	return kind, true
+}
 
 // Answer tail key names. The appenders below write these and ParseAnswerTail
 // reads them, so a key cannot be spelled one way on the wire and another way in
@@ -300,7 +372,7 @@ const AnswerBufferThreshold = 256
 const AnswerNoID uint64 = 0
 
 // AppendAnswerHead appends an answer head line
-// (#<len>:<id> ok status=<status> type=<answerType> [key=<key>] [fields=<fields>]) to
+// (#<len>:<id> top status=<status> type=<answerType> [key=<key>] [fields=<fields>]) to
 // buf and returns the extended slice. Newline is NOT appended.
 //
 // status is StatusDone or StatusError, and it states what the daemon knows when
@@ -317,7 +389,7 @@ const AnswerNoID uint64 = 0
 // is written last, because it runs to the end of the line, and the caller
 // leaves it empty for every other type.
 func AppendAnswerHead(buf []byte, id uint64, status, answerType, key string, fields json.RawMessage) []byte {
-	buf = appendAnswerPrefix(buf, id)
+	buf = appendAnswerPrefix(buf, id, AnswerKindHead)
 	buf = appendAnswerKey(buf, answerKeyStatus)
 	buf = append(buf, status...)
 	buf = appendAnswerKey(buf, answerKeyType)
@@ -335,24 +407,24 @@ func AppendAnswerHead(buf []byte, id uint64, status, answerType, key string, fie
 	return replaceNewlines(buf, start)
 }
 
-// AppendAnswerItem appends a result record line (#<len>:<id> ok item=<json>) to
+// AppendAnswerItem appends a result record line (#<len>:<id> row item=<json>)
 // and returns the extended slice. Newline is NOT appended. item takes the rest
 // of the line verbatim, so a JSON value holding `=` or a space needs no
 // quoting and no escaping.
 func AppendAnswerItem(buf []byte, id uint64, item json.RawMessage) []byte {
-	buf = appendAnswerPrefix(buf, id)
+	buf = appendAnswerPrefix(buf, id, AnswerKindRecord)
 	buf = appendAnswerKey(buf, answerKeyItem)
 	start := len(buf)
 	buf = append(buf, item...)
 	return replaceNewlines(buf, start)
 }
 
-// AppendAnswerFault appends an error record line (#<len>:<id> ok fault=<json>) to
+// AppendAnswerFault appends an error record line (#<len>:<id> bad fault=<json>)
 // and returns the extended slice. Newline is NOT appended. A fault records one
 // rejected row and does not end the walk, which is what lets an answer report
 // 97 rows applied and 3 rejected.
 func AppendAnswerFault(buf []byte, id uint64, fault json.RawMessage) []byte {
-	buf = appendAnswerPrefix(buf, id)
+	buf = appendAnswerPrefix(buf, id, AnswerKindFault)
 	buf = appendAnswerKey(buf, answerKeyFault)
 	start := len(buf)
 	buf = append(buf, fault...)
@@ -360,10 +432,10 @@ func AppendAnswerFault(buf []byte, id uint64, fault json.RawMessage) []byte {
 }
 
 // answerRecordPrefixMax is the capacity the record-line prefix is measured in:
-// the id field at its widest (idPrefixMax, 24 bytes), `ok`, one space, the
-// longest record key (answerKeyFault), and one `=`. That is 33 bytes, so the
-// scratch never grows.
-const answerRecordPrefixMax = idPrefixMax + 9
+// the id field at its widest (idPrefixMax, 24 bytes), the kind token
+// (answerKindWidth), one space, the longest record key (answerKeyFault), and
+// one `=`. That is 34 bytes, so the scratch never grows.
+const answerRecordPrefixMax = idPrefixMax + answerKindWidth + 7
 
 // AnswerRecordLineSize reports how many bytes the record line for record
 // occupies under id, its newline terminator excluded. It measures the line
@@ -379,25 +451,25 @@ const answerRecordPrefixMax = idPrefixMax + 9
 // producer refuses it on its own account (ErrEmptyAnswerRecord, collapse.go),
 // and an empty record fits every line.
 func AnswerRecordLineSize(id uint64, record Record) int {
-	key, value := answerKeyItem, record.Item
+	kind, key, value := AnswerKindRecord, answerKeyItem, record.Item
 	if len(record.Fault) > 0 {
-		key, value = answerKeyFault, record.Fault
+		kind, key, value = AnswerKindFault, answerKeyFault, record.Fault
 	}
 	var scratch [answerRecordPrefixMax]byte
-	return len(appendAnswerKey(appendAnswerPrefix(scratch[:0], id), key)) + len(value)
+	return len(appendAnswerKey(appendAnswerPrefix(scratch[:0], id, kind), key)) + len(value)
 }
 
 // AppendAnswerTerminator appends the terminator line
-// (#<len>:<id> ok count=<count> [faults=<faults>] [message=<message>]) to buf and
-// returns the extended slice. Newline is NOT appended. The terminator is the
-// line carrying count=, so head and terminator are told apart by a key rather
-// than by position. It states no status: the verdict is derived from the counts
-// it carries, which is one source of truth instead of two that can disagree.
-// count counts result records, faults counts rejected ones, and message states
-// that the walk aborted after count records. A faults of 0 and an empty message
-// write no key, so their absence is what states them.
+// (#<len>:<id> end count=<count> [faults=<faults>] [message=<message>]) to buf and
+// returns the extended slice. Newline is NOT appended. The kind says the line
+// ends the answer. Head and terminator are told apart by the token in front of
+// the tail rather than by a key inside it. It states no status: the verdict is
+// derived from the counts it carries, which is one source of truth instead of
+// two that can disagree. count counts result records, faults counts rejected
+// ones, and message states that the walk aborted after count records. A faults
+// of 0 and an empty message write no key, so their absence is what states them.
 func AppendAnswerTerminator(buf []byte, id, count, faults uint64, message string) []byte {
-	buf = appendAnswerPrefix(buf, id)
+	buf = appendAnswerPrefix(buf, id, AnswerKindTerminator)
 	buf = appendAnswerKey(buf, answerKeyCount)
 	buf = strconv.AppendUint(buf, count, 10)
 	if faults > 0 {
@@ -414,14 +486,13 @@ func AppendAnswerTerminator(buf []byte, id, count, faults uint64, message string
 }
 
 // AppendAnswerNotUnderstood appends the answer to a command the daemon did not
-// understand (#<len>:<id> error [code=<code>] message=<message>) to buf and returns
+// understand (#<len>:<id> nay [code=<code>] message=<message>) to buf and returns
 // the extended slice. Newline is NOT appended. It is the whole answer for its
-// id: the verb says the conversation was valid and the command was not, which
+// id: the kind says the conversation was valid and the command was not, which
 // is what lets a client offer completion here and an operational message for a
 // command that was understood and then failed.
 func AppendAnswerNotUnderstood(buf []byte, id uint64, code, message string) []byte {
-	buf = appendAnswerID(buf, id)
-	buf = append(buf, "error"...)
+	buf = appendAnswerPrefix(buf, id, AnswerKindNotUnderstood)
 	if code != "" {
 		buf = appendAnswerKey(buf, answerKeyCode)
 		buf = append(buf, code...)
@@ -432,10 +503,12 @@ func AppendAnswerNotUnderstood(buf []byte, id uint64, code, message string) []by
 	return replaceNewlines(buf, start)
 }
 
-// appendAnswerPrefix appends the `#<len>:<id> ok` every answer line opens with.
-func appendAnswerPrefix(buf []byte, id uint64) []byte {
+// appendAnswerPrefix appends the `#<len>:<id> <kind>` every answer line opens
+// with. It is the one writer of the kind token, and answerKindAt the one
+// reader, so no line spells a kind the reader does not know.
+func appendAnswerPrefix(buf []byte, id uint64, kind string) []byte {
 	buf = appendAnswerID(buf, id)
-	return append(buf, 'o', 'k')
+	return append(buf, kind...)
 }
 
 // appendAnswerID appends the `#<len>:<id> ` that names which answer a line
@@ -446,7 +519,8 @@ func appendAnswerPrefix(buf []byte, id uint64) []byte {
 //
 // The field is the one appendID writes for a request, so both directions of the
 // protocol spell an id the same way. Everything after it is the same grammar on
-// both channels, so a reader parses one tail whichever channel it came from.
+// both channels, so a reader parses one kind and one tail whichever channel it
+// came from.
 func appendAnswerID(buf []byte, id uint64) []byte {
 	if id == AnswerNoID {
 		return buf
@@ -487,13 +561,18 @@ const (
 	VerdictTruncated = "truncated"
 )
 
-// AnswerTail is one answer line's decoded key=value tail. A consumer reads it
-// without a JSON decoder, and it needs no state beyond "have I seen the head":
-// the line carrying count= is the terminator, whatever its position.
+// AnswerTail is one answer line: the kind the line stated, and its decoded
+// key=value tail. A consumer reads it without a JSON decoder and needs no
+// state at all, because the kind says what the line is before the tail is
+// touched.
 //
 // Item and Fault reference the payload they were parsed from rather than
 // copying it, so a consumer that forwards a record parses and copies nothing.
 type AnswerTail struct {
+	// Kind is the token the line opened with: AnswerKindHead through
+	// AnswerKindNotUnderstood. It is READ off the wire, never derived from the
+	// keys below, so no consumer parses a tail to learn what its line is.
+	Kind string
 	// Status is the head's status=: StatusDone or StatusError. A terminator
 	// states none.
 	Status string
@@ -521,24 +600,23 @@ type AnswerTail struct {
 	Message string
 	// Code is the not-understood answer's code=.
 	Code string
-
-	hasCount bool
 }
 
-// IsTerminator reports whether this line ends the answer. The terminator is the
-// line carrying count=, so a reader tells it from a head by a key rather than
-// by counting lines, and needs no lookahead.
-func (t AnswerTail) IsTerminator() bool { return t.hasCount }
-
-// ParseAnswerTail decodes the payload of an answer line into its keys. payload
-// is what ParseLine returns: everything after the verb.
+// ParseAnswerTail decodes the tail of an answer line of kind into its keys.
+// kind is the token the line opened with and payload is everything after it.
 //
-// It refuses an unknown key rather than skipping it, so a line this build
-// cannot fully read is reported instead of half-read, and it refuses a
-// terminator that states a status, which is what keeps the counts the single
-// source of the verdict.
-func ParseAnswerTail(payload []byte) (AnswerTail, error) {
-	var tail AnswerTail
+// An unknown kind is refused rather than guessed at, because the kind states
+// which payload follows and a guess reads a fault as a result (R-5, AC-7).
+//
+// A key belonging to another kind is refused too, and so is an unknown key. A
+// line this build cannot fully read is reported instead of half-read, and a
+// line stating two things is the disagreement the kind exists to remove.
+func ParseAnswerTail(kind string, payload []byte) (AnswerTail, error) {
+	if _, known := answerKindAt(kind); !known {
+		return AnswerTail{}, fmt.Errorf("answer line states kind %q, want one of %s", truncate(kind, answerKindWidth), answerKindWords)
+	}
+	tail := AnswerTail{Kind: kind}
+	counted := false
 
 	// Each pass consumes at least a key and its =, so the loop is bounded by
 	// the payload length, which the frame reader has already bounded.
@@ -549,6 +627,10 @@ func ParseAnswerTail(payload []byte) (AnswerTail, error) {
 			return AnswerTail{}, err
 		}
 		rest = remainder
+
+		if answerKeyMisplaced(name, kind) {
+			return AnswerTail{}, fmt.Errorf("answer %s line carries %q, a key of another kind", kind, truncate(string(name), 40))
+		}
 
 		switch string(name) {
 		case answerKeyStatus:
@@ -575,7 +657,7 @@ func ParseAnswerTail(payload []byte) (AnswerTail, error) {
 				return AnswerTail{}, fmt.Errorf("answer tail count=%q: %w", truncate(string(value), 40), countErr)
 			}
 			tail.Count = count
-			tail.hasCount = true
+			counted = true
 		case answerKeyFaults:
 			faults, faultsErr := strconv.ParseUint(string(value), 10, 64)
 			if faultsErr != nil {
@@ -587,72 +669,90 @@ func ParseAnswerTail(payload []byte) (AnswerTail, error) {
 		}
 	}
 
-	if tail.hasCount && tail.Status != "" {
-		return AnswerTail{}, fmt.Errorf("answer terminator states status=%q: its verdict derives from its counts", truncate(tail.Status, 40))
+	if kind == AnswerKindTerminator && !counted {
+		return AnswerTail{}, errors.New("answer terminator states no count=, so nothing states how far the walk got")
 	}
-	if len(tail.Item) > 0 && len(tail.Fault) > 0 {
-		return AnswerTail{}, errors.New("answer record carries both item= and fault=")
-	}
-	if err := checkAnswerType(&tail); err != nil {
+	if err := checkAnswerType(kind, &tail); err != nil {
 		return AnswerTail{}, err
 	}
 	return tail, nil
 }
 
-// AnswerVerbOK and AnswerVerbError are the two verbs an answer line opens with.
-// The verb says whether the conversation was valid and the command understood;
-// AnswerTail says what happened after that.
-const (
-	AnswerVerbOK    = "ok"
-	AnswerVerbError = "error"
-)
+// answerKeyMisplaced reports whether name is a key belonging to a kind other
+// than this line's. The kind states what the line is. A key of another kind is
+// one line stating two things, and the reader refuses it rather than reading
+// one of them.
+//
+// message= is the one key two kinds carry: the operational text of an aborted
+// walk and the reason a command was not understood are the same field.
+//
+// A name no kind claims is NOT misplaced. ParseAnswerTail refuses it as an
+// unknown key, which is the distinct failure of a line this build cannot read.
+func answerKeyMisplaced(name []byte, kind string) bool {
+	switch string(name) {
+	case answerKeyStatus, answerKeyType, answerKeyEnvelope, answerKeyFields:
+		return kind != AnswerKindHead
+	case answerKeyItem:
+		return kind != AnswerKindRecord
+	case answerKeyFault:
+		return kind != AnswerKindFault
+	case answerKeyCount, answerKeyFaults:
+		return kind != AnswerKindTerminator
+	case answerKeyCode:
+		return kind != AnswerKindNotUnderstood
+	case answerKeyMessage:
+		return kind != AnswerKindTerminator && kind != AnswerKindNotUnderstood
+	}
+	return false
+}
 
 // ParseAnswerLine reads one whole answer line from a channel that carries no
-// id (AnswerNoID), which is the SSH exec channel: the verb, then the tail every
-// answer line shares. It is the reader for what appendAnswerID writes nothing
-// in front of, so the grammar of that channel has one producer and one
-// consumer rather than a split rule each end keeps its own copy of.
+// id (AnswerNoID), which is the SSH exec channel: the kind at offset zero, then
+// the tail that kind carries. It is the reader for what appendAnswerID writes
+// nothing in front of. The grammar of that channel therefore has one producer
+// and one consumer, rather than a split rule each end keeps its own copy of.
 //
-// A line whose verb is neither AnswerVerbOK nor AnswerVerbError is refused, so
-// text that is not an answer at all is named rather than read as an empty one.
+// The kind is a fixed width, so it is taken by arithmetic and the line is
+// searched for nothing (AC-4). A line opening with anything else is refused.
+// Text that is not an answer at all is then named rather than read as an empty
+// one.
 func ParseAnswerLine(line []byte) (string, AnswerTail, error) {
-	verb, rest, found := bytes.Cut(line, []byte(" "))
-	if !found {
-		return "", AnswerTail{}, fmt.Errorf("answer line states no tail: %q", truncate(string(line), 40))
+	text := string(line)
+	kind, known := answerKindAt(text)
+	if !known {
+		return "", AnswerTail{}, fmt.Errorf("answer line states no kind this build knows, want one of %s: %q", answerKindWords, truncate(text, 40))
 	}
-	switch string(verb) {
-	case AnswerVerbOK, AnswerVerbError:
-	default:
-		return "", AnswerTail{}, fmt.Errorf("answer line opens with %q, want ok or error", truncate(string(verb), 40))
+	if len(text) == answerKindWidth {
+		return "", AnswerTail{}, fmt.Errorf("answer %s line carries no tail", kind)
 	}
-	tail, err := ParseAnswerTail(rest)
+	tail, err := ParseAnswerTail(kind, line[answerKindWidth+1:])
 	if err != nil {
 		return "", AnswerTail{}, err
 	}
-	return string(verb), tail, nil
+	return kind, tail, nil
 }
 
-// checkAnswerType refuses a line whose type= and fields= disagree with each
-// other, or with the line they sit on. Each of the five refusals is a line this
-// build cannot read the BODY of, so it is named rather than read with a default
-// filled in: a head with no type= would have its items guessed at, and a fields=
-// a reader ignored would leave a positional row decoding as data it is not.
+// checkAnswerType refuses a head whose type= and fields= disagree with each
+// other. Each refusal is a line this build cannot read the BODY of, so it is
+// named rather than read with a default filled in: a head with no type= would
+// have its items guessed at, and a fields= a reader ignored would leave a
+// positional row decoding as data it is not.
 //
-// A head is the line carrying status=, which is the same test IsTerminator
-// makes for count=, so this needs no state either.
-func checkAnswerType(tail *AnswerTail) error {
-	head := tail.Status != ""
-	if head && tail.Type == "" {
-		return errors.New("answer head states no type=, so a consumer cannot read the items that follow it")
+// Only a head states either key, and answerKeyMisplaced has already refused one
+// anywhere else, so this reads the kind rather than deriving a head from the
+// presence of status=.
+func checkAnswerType(kind string, tail *AnswerTail) error {
+	if kind != AnswerKindHead {
+		return nil
 	}
-	if !head && tail.Type != "" {
-		return fmt.Errorf("answer line states type=%q with no status=: type= belongs on the head", truncate(tail.Type, 40))
+	if tail.Type == "" {
+		return errors.New("answer head states no type=, so a consumer cannot read the items that follow it")
 	}
 
 	switch tail.Type {
-	case "", AnswerTypeJSON, AnswerTypeNDJSON:
+	case AnswerTypeJSON, AnswerTypeNDJSON:
 		if len(tail.Fields) > 0 {
-			return fmt.Errorf("answer line states fields= with type=%q: only type=%s reads its rows against them", truncate(tail.Type, 40), AnswerTypeStream)
+			return fmt.Errorf("answer head states fields= with type=%q: only type=%s reads its rows against them", truncate(tail.Type, 40), AnswerTypeStream)
 		}
 		return nil
 	case AnswerTypeStream:
@@ -702,11 +802,11 @@ func isOpenEndedKey(name []byte) bool {
 
 // Verdict derives an answer's outcome from its terminator, which is the only
 // place that outcome is stated: a terminator carries no status=, so nothing can
-// disagree with the counts. terminator is nil when none arrived, and a line
-// that is not a terminator is read the same way, because both mean the answer
-// stopped before it ended and a consumer must not read what it got as complete.
+// disagree with the counts. terminator is nil when none arrived, and a line of
+// any other kind is read the same way, because both mean the answer stopped
+// before it ended and a consumer must not read what it got as complete.
 func Verdict(terminator *AnswerTail) string {
-	if terminator == nil || !terminator.IsTerminator() {
+	if terminator == nil || terminator.Kind != AnswerKindTerminator {
 		return VerdictTruncated
 	}
 	if terminator.Message != "" {
@@ -764,7 +864,7 @@ func parseRPCError(payload []byte) *RPCCallError {
 	// A not-understood answer states its text as a key=value tail rather than as
 	// JSON, so the tail is read before the fallback below: without this the
 	// operator reads the whole tail, `message=` included, as the message.
-	if tail, tailErr := ParseAnswerTail(payload); tailErr == nil {
+	if tail, tailErr := ParseAnswerTail(AnswerKindNotUnderstood, payload); tailErr == nil {
 		if tail.Message != "" || tail.Code != "" {
 			return &RPCCallError{Code: tail.Code, Message: tail.Message}
 		}

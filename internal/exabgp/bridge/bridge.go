@@ -19,6 +19,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // startupProtocol handles the 5-stage ZeBGP plugin registration protocol.
@@ -521,12 +523,23 @@ func (b *Bridge) zebgpToPluginWithScanner(ctx context.Context, scanner *bufio.Sc
 		case "ze-plugin-callback:deliver-event":
 			b.handleDeliverEvent(id, payload, pluginW, zeOut)
 
-		case "ok": // response to a dispatch or flush we sent
+		case "ok": // response to a flush we sent
 			if !pending.signal(id, pendingResult{ok: true}) {
 				slog.Debug("zebgp->plugin: orphaned ok", "id", id)
 			}
 
-		case "error":
+		// A dispatch is answered by a head, its records and a terminator
+		// (rpc.WriteRecordAnswer). The bridge waits on one result per request,
+		// so the head releases the waiter and the lines after it are the debris
+		// of an answer nobody is still reading. Naming every kind here is what
+		// keeps them off the unknown-verb arm below, which would acknowledge a
+		// line ze never asked to have acknowledged.
+		case rpc.AnswerKindHead, rpc.AnswerKindRecord, rpc.AnswerKindFault, rpc.AnswerKindTerminator:
+			if !pending.signal(id, pendingResult{ok: true}) {
+				slog.Debug("zebgp->plugin: answer line nobody is waiting for", "id", id, "kind", verb)
+			}
+
+		case "error", rpc.AnswerKindNotUnderstood:
 			if !pending.signal(id, pendingResult{ok: false, errText: payload}) {
 				slog.Debug("zebgp->plugin: orphaned error", "id", id)
 			}

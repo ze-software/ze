@@ -261,16 +261,16 @@ func TestExecAnswerUnconditional(t *testing.T) {
 		if line == "" {
 			continue
 		}
-		verb, tail, parseErr := rpc.ParseAnswerLine([]byte(line))
+		kind, tail, parseErr := rpc.ParseAnswerLine([]byte(line))
 		require.NoError(t, parseErr, "every stderr line must be an answer line; got %q", line)
-		assert.Equal(t, rpc.AnswerVerbOK, verb)
+		assert.Equal(t, kind, tail.Kind, "the reader keeps the kind the wire stated")
 		frame = append(frame, tail)
 	}
 
 	require.Len(t, frame, 2, "an undeclared client must receive the head and the terminator; stderr was %q", stderr)
 	assert.Equal(t, plugin.StatusDone, frame[0].Status, "the first line is the head")
-	assert.False(t, frame[0].IsTerminator(), "the head is not the terminator")
-	require.True(t, frame[1].IsTerminator(), "the second line ends the answer")
+	assert.Equal(t, rpc.AnswerKindHead, frame[0].Kind, "the first line states the head kind")
+	require.Equal(t, rpc.AnswerKindTerminator, frame[1].Kind, "the second line ends the answer")
 	assert.Equal(t, uint64(rows), frame[1].Count, "the terminator counts the records the operator received")
 }
 

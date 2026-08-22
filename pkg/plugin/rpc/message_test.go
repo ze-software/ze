@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"math"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -364,26 +366,26 @@ func TestParseLineCarriesKeyValueTailWhole(t *testing.T) {
 	}{
 		{
 			name:        "head",
-			line:        "#1:7 ok status=done key=peers",
-			wantVerb:    "ok",
+			line:        "#1:7 top status=done key=peers",
+			wantVerb:    AnswerKindHead,
 			wantPayload: "status=done key=peers",
 		},
 		{
 			name:        "item holding = and spaces",
-			line:        `#1:7 ok item={"peer":"10.0.0.1","note":"a=b c"}`,
-			wantVerb:    "ok",
+			line:        `#1:7 row item={"peer":"10.0.0.1","note":"a=b c"}`,
+			wantVerb:    AnswerKindRecord,
 			wantPayload: `item={"peer":"10.0.0.1","note":"a=b c"}`,
 		},
 		{
 			name:        "terminator",
-			line:        "#1:7 ok count=97 faults=3",
-			wantVerb:    "ok",
+			line:        "#1:7 end count=97 faults=3",
+			wantVerb:    AnswerKindTerminator,
 			wantPayload: "count=97 faults=3",
 		},
 		{
 			name:        "not understood",
-			line:        "#1:7 error message=unknown command: shwo bgp peers",
-			wantVerb:    "error",
+			line:        "#1:7 nay message=unknown command: shwo bgp peers",
+			wantVerb:    AnswerKindNotUnderstood,
 			wantPayload: "message=unknown command: shwo bgp peers",
 		},
 	}
@@ -402,32 +404,33 @@ func TestParseLineCarriesKeyValueTailWhole(t *testing.T) {
 }
 
 // TestTailTokenizerNeedsNoJSONDecoder checks that a reader decides how to read
-// an answer from the tail's keys alone. The method: tails whose open-ended
-// value is not JSON at all are parsed, and the control keys are asserted.
+// an answer from the kind and the tail's keys alone. The method: tails whose
+// open-ended value is not JSON at all are parsed, and the control fields are
+// asserted.
 //
-// VALIDATES: the verdict is a key, never a payload field.
+// VALIDATES: the verdict is the kind and its keys, never a payload field.
 // PREVENTS: a consumer parsing a record payload to learn what the line is,
 // which is the whole-answer materialization this protocol exists to remove.
 func TestTailTokenizerNeedsNoJSONDecoder(t *testing.T) {
 	t.Parallel()
 
-	head, err := ParseAnswerTail([]byte("status=error type=ndjson key=peers"))
+	head, err := ParseAnswerTail(AnswerKindHead, []byte("status=error type=ndjson key=peers"))
 	require.NoError(t, err)
 	assert.Equal(t, StatusError, head.Status)
 	assert.Equal(t, AnswerTypeNDJSON, head.Type)
 	assert.Equal(t, "peers", head.Key)
-	assert.False(t, head.IsTerminator())
+	assert.Equal(t, AnswerKindHead, head.Kind)
 
-	record, err := ParseAnswerTail([]byte("item=<<this is not json>>"))
+	record, err := ParseAnswerTail(AnswerKindRecord, []byte("item=<<this is not json>>"))
 	require.NoError(t, err)
 	assert.Equal(t, "<<this is not json>>", string(record.Item))
-	assert.False(t, record.IsTerminator())
+	assert.Equal(t, AnswerKindRecord, record.Kind)
 
-	terminator, err := ParseAnswerTail([]byte("count=97 faults=3"))
+	terminator, err := ParseAnswerTail(AnswerKindTerminator, []byte("count=97 faults=3"))
 	require.NoError(t, err)
 	assert.Equal(t, uint64(97), terminator.Count)
 	assert.Equal(t, uint64(3), terminator.Faults)
-	assert.True(t, terminator.IsTerminator())
+	assert.Equal(t, AnswerKindTerminator, terminator.Kind)
 }
 
 // TestOpenEndedKeyRunsToEndOfLine checks that item=, fault= and message= take
@@ -479,28 +482,32 @@ func TestOpenEndedKeyRunsToEndOfLine(t *testing.T) {
 	})
 }
 
-// TestTerminatorIsTheLineCarryingCount checks that a reader tells the head from
-// the terminator by a key rather than by position. The method: a head and a
-// terminator are written and parsed, and each is asked what it is with no other
-// line in hand.
+// TestTerminatorIsTheLineStatingTheEndKind checks that a reader tells the head
+// from the terminator by the kind token rather than by a key or by position.
+// The method: a head, a record and a terminator are written and parsed, and
+// each is asked what it is with no other line in hand.
 //
 // VALIDATES: the first of the four structural rules -- a reader needs no
-// lookahead and no state beyond "have I seen the head".
-// PREVENTS: a reader buffering the answer to find out where it ends.
-func TestTerminatorIsTheLineCarryingCount(t *testing.T) {
+// lookahead and no state at all, because each line says what it is.
+// PREVENTS: a reader buffering the answer to find out where it ends, and a
+// reader deriving the terminator from count= after the key names leave.
+func TestTerminatorIsTheLineStatingTheEndKind(t *testing.T) {
 	t.Parallel()
 
 	head := parseAnswerLine(t, AppendAnswerHead(nil, 7, StatusDone, AnswerTypeNDJSON, "peers", nil))
-	assert.False(t, head.IsTerminator())
+	assert.Equal(t, AnswerKindHead, head.Kind)
 	assert.Equal(t, StatusDone, head.Status)
 	assert.Equal(t, AnswerTypeNDJSON, head.Type)
 	assert.Equal(t, "peers", head.Key)
 
 	record := parseAnswerLine(t, AppendAnswerItem(nil, 7, json.RawMessage(`{"peer":"10.0.0.1"}`)))
-	assert.False(t, record.IsTerminator())
+	assert.Equal(t, AnswerKindRecord, record.Kind)
+
+	fault := parseAnswerLine(t, AppendAnswerFault(nil, 7, json.RawMessage(`{"message":"nexthop unreachable"}`)))
+	assert.Equal(t, AnswerKindFault, fault.Kind)
 
 	terminator := parseAnswerLine(t, AppendAnswerTerminator(nil, 7, 2, 0, ""))
-	assert.True(t, terminator.IsTerminator())
+	assert.Equal(t, AnswerKindTerminator, terminator.Kind)
 	assert.Equal(t, uint64(2), terminator.Count)
 }
 
@@ -574,9 +581,9 @@ func TestTerminatorCarriesNoStatusKey(t *testing.T) {
 		assert.NotContains(t, string(shape), answerKeyStatus+"=", "terminator states a status")
 	}
 
-	_, err := ParseAnswerTail([]byte("count=2 status=done"))
+	_, err := ParseAnswerTail(AnswerKindTerminator, []byte("count=2 status=done"))
 	require.Error(t, err, "a terminator stating a status must be refused")
-	assert.Contains(t, err.Error(), "derives")
+	assert.Contains(t, err.Error(), "a key of another kind")
 }
 
 // TestAnswerTerminatorCountBoundaries checks the numeric edges of the
@@ -592,17 +599,20 @@ func TestAnswerTerminatorCountBoundaries(t *testing.T) {
 
 	lowest := parseAnswerLine(t, AppendAnswerTerminator(nil, 7, 0, 0, ""))
 	assert.Equal(t, uint64(0), lowest.Count)
-	assert.True(t, lowest.IsTerminator())
+	assert.Equal(t, AnswerKindTerminator, lowest.Kind)
 
 	highest := parseAnswerLine(t, AppendAnswerTerminator(nil, 7, math.MaxUint64, math.MaxUint64, ""))
 	assert.Equal(t, uint64(math.MaxUint64), highest.Count)
 	assert.Equal(t, uint64(math.MaxUint64), highest.Faults)
 
-	_, err := ParseAnswerTail([]byte("count=18446744073709551616"))
+	_, err := ParseAnswerTail(AnswerKindTerminator, []byte("count=18446744073709551616"))
 	require.Error(t, err, "a count past max uint64 must be refused")
 
-	_, err = ParseAnswerTail([]byte("count=-1"))
+	_, err = ParseAnswerTail(AnswerKindTerminator, []byte("count=-1"))
 	require.Error(t, err, "a negative count must be refused")
+
+	_, err = ParseAnswerTail(AnswerKindTerminator, []byte(""))
+	require.Error(t, err, "a terminator stating no count at all must be refused")
 }
 
 // TestParseRPCErrorReadsMessageKey checks that a not-understood answer's text
@@ -674,21 +684,22 @@ func TestHeadStatesHowItsItemsAreRead(t *testing.T) {
 
 	refused := []struct {
 		name string
+		kind string
 		tail string
 	}{
-		{name: "a head with no type", tail: "status=done key=peers"},
-		{name: "a head stating a type nobody implements", tail: "status=done type=protobuf"},
-		{name: "a type on a line that is not a head", tail: "type=json item=[1]"},
-		{name: "fields with a type that does not read them", tail: `status=done type=ndjson fields=["peer"]`},
-		{name: "a stream with no schema to read against", tail: "status=done type=stream"},
-		{name: "a stream with an empty schema", tail: "status=done type=stream fields=[]"},
-		{name: "a schema that is not an array of names", tail: `status=done type=stream fields={"peer":1}`},
+		{name: "a head with no type", kind: AnswerKindHead, tail: "status=done key=peers"},
+		{name: "a head stating a type nobody implements", kind: AnswerKindHead, tail: "status=done type=protobuf"},
+		{name: "a type on a line that is not a head", kind: AnswerKindRecord, tail: "type=json item=[1]"},
+		{name: "fields with a type that does not read them", kind: AnswerKindHead, tail: `status=done type=ndjson fields=["peer"]`},
+		{name: "a stream with no schema to read against", kind: AnswerKindHead, tail: "status=done type=stream"},
+		{name: "a stream with an empty schema", kind: AnswerKindHead, tail: "status=done type=stream fields=[]"},
+		{name: "a schema that is not an array of names", kind: AnswerKindHead, tail: `status=done type=stream fields={"peer":1}`},
 	}
 	for _, tt := range refused {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := ParseAnswerTail([]byte(tt.tail))
+			_, err := ParseAnswerTail(tt.kind, []byte(tt.tail))
 			require.Error(t, err, "the reader accepted %q", tt.tail)
 		})
 	}
@@ -789,15 +800,15 @@ func TestAppendRequestLengthPrefixedID(t *testing.T) {
 				"the request line opens with %q", tt.idField)
 
 			ok := string(AppendOK(nil, tt.id))
-			assert.Equal(t, AnswerVerbOK, strings.TrimPrefix(ok, tt.idField),
+			assert.Equal(t, StatusOK, strings.TrimPrefix(ok, tt.idField),
 				"the ok line opens with %q", tt.idField)
 
 			failure := string(AppendError(nil, tt.id, nil))
-			assert.Equal(t, AnswerVerbError, strings.TrimPrefix(failure, tt.idField),
+			assert.Equal(t, StatusError, strings.TrimPrefix(failure, tt.idField),
 				"the error line opens with %q", tt.idField)
 
 			record := string(AppendAnswerItem(nil, tt.id, json.RawMessage(`{"peer":"10.0.0.1"}`)))
-			assert.Equal(t, `ok item={"peer":"10.0.0.1"}`, strings.TrimPrefix(record, tt.idField),
+			assert.Equal(t, `row item={"peer":"10.0.0.1"}`, strings.TrimPrefix(record, tt.idField),
 				"the record line opens with the same %q the request line does", tt.idField)
 		})
 	}
@@ -869,7 +880,7 @@ func TestAnswerIDMaxUint64(t *testing.T) {
 		"the widest id writes a length of K, the base-36 spelling of 20")
 
 	record := string(AppendAnswerItem(nil, math.MaxUint64, json.RawMessage(`{"peer":"10.0.0.1"}`)))
-	assert.Equal(t, `ok item={"peer":"10.0.0.1"}`, strings.TrimPrefix(record, maxIDField),
+	assert.Equal(t, `row item={"peer":"10.0.0.1"}`, strings.TrimPrefix(record, maxIDField),
 		"an answer line spells the widest id the same way")
 
 	readID, verb, _, err := ParseLine([]byte(request))
@@ -922,14 +933,248 @@ func TestAnswerIDLengthCharacterRejected(t *testing.T) {
 }
 
 // parseAnswerLine takes one written answer line back through the frame layer
-// and the tail reader, which is the route every consumer takes.
+// and the tail reader, which is the route every consumer takes. The verb the
+// frame layer cuts off IS the kind, so the tail reader is handed the token the
+// writer put there rather than one the test names itself.
 func parseAnswerLine(t *testing.T, line []byte) AnswerTail {
 	t.Helper()
 
-	_, _, payload, err := ParseLine(line)
+	_, kind, payload, err := ParseLine(line)
 	require.NoError(t, err)
 
-	tail, err := ParseAnswerTail(payload)
+	tail, err := ParseAnswerTail(kind, payload)
 	require.NoError(t, err)
 	return tail
+}
+
+// answerKindLines writes one line of every kind under id, in the order the
+// published line table lists them. The tests below read the wire the shipped
+// writers produce rather than a spelling of their own.
+func answerKindLines(id uint64) map[string]string {
+	return map[string]string{
+		AnswerKindHead:          string(AppendAnswerHead(nil, id, StatusDone, AnswerTypeNDJSON, "peers", nil)),
+		AnswerKindRecord:        string(AppendAnswerItem(nil, id, json.RawMessage(`{"peer":"10.0.0.1","state":"established"}`))),
+		AnswerKindFault:         string(AppendAnswerFault(nil, id, json.RawMessage(`{"path":"bgp/peer/10.0.0.2","message":"nexthop unreachable"}`))),
+		AnswerKindTerminator:    string(AppendAnswerTerminator(nil, id, 1, 1, "")),
+		AnswerKindNotUnderstood: string(AppendAnswerNotUnderstood(nil, id, "", "unknown command: shwo bgp peers")),
+	}
+}
+
+// TestParseAnswerLineFixedOffsets checks that every kind puts its token at the
+// same offset, on both channels, and that a reader reaches it by arithmetic.
+// The method: one line of each kind is written under three id widths and under
+// AnswerNoID, and the token is read by computing the offset from the id's digit
+// count rather than by searching the line for a space.
+//
+// VALIDATES: AC-3 -- on the mux channel the kind is reached from the id's
+// length byte with one addition, identically for all five kinds.
+// VALIDATES: AC-4 -- on the exec channel the kind starts at offset zero.
+// PREVENTS: a reader scanning for the first space to find what a line is, which
+// is the scan the fixed-width token exists to remove.
+func TestParseAnswerLineFixedOffsets(t *testing.T) {
+	t.Parallel()
+
+	for _, id := range []uint64{7, 1234567890, math.MaxUint64} {
+		// The id field is `#`, the length character, `:`, the digits, and the
+		// space that closes it, so the kind starts at that width and nothing is
+		// searched for.
+		want := 4 + len(strconv.FormatUint(id, 10))
+		for kind, line := range answerKindLines(id) {
+			require.Greater(t, len(line), want+answerKindWidth, "line %q is shorter than its own prefix", line)
+			assert.Equal(t, kind, line[want:want+answerKindWidth],
+				"id %d: the %s line does not put its kind at offset %d", id, kind, want)
+			assert.Equal(t, byte(' '), line[want+answerKindWidth],
+				"id %d: the %s line does not close its kind with a space", id, kind)
+
+			readID, readKind, payload, err := ParseLine([]byte(line))
+			require.NoError(t, err, "line %q does not read back", line)
+			assert.Equal(t, id, readID)
+			assert.Equal(t, kind, readKind, "line %q reaches the wrong field after the id", line)
+
+			tail, tailErr := ParseAnswerTail(readKind, payload)
+			require.NoError(t, tailErr, "line %q carries a tail its kind refuses", line)
+			assert.Equal(t, kind, tail.Kind, "the tail reader keeps the kind the wire stated")
+		}
+	}
+
+	for kind, line := range answerKindLines(AnswerNoID) {
+		assert.Equal(t, kind, line[:answerKindWidth],
+			"the exec channel does not put the %s token at offset zero: %q", kind, line)
+		assert.Equal(t, byte(' '), line[answerKindWidth],
+			"the exec channel does not close the %s token with a space: %q", kind, line)
+
+		readKind, tail, err := ParseAnswerLine([]byte(line))
+		require.NoError(t, err, "line %q does not read back", line)
+		assert.Equal(t, kind, readKind)
+		assert.Equal(t, kind, tail.Kind)
+	}
+}
+
+// TestParseAnswerLineUnknownKind checks that a reader refuses a kind it does
+// not know rather than guessing one from the tail. The method: lines whose
+// token is not a kind, and lines whose token merely starts with one, are fed to
+// both readers.
+//
+// VALIDATES: AC-7 -- an unknown three-byte kind is refused with a named error,
+// and the error names the vocabulary rather than echoing the line.
+// PREVENTS: a reader falling back on the tail to decide what a line is, which
+// would read a rejected row as a result once the keys leave the wire (R-5).
+func TestParseAnswerLineUnknownKind(t *testing.T) {
+	t.Parallel()
+
+	refused := []struct {
+		name string
+		line string
+	}{
+		{name: "a token no kind claims", line: "xyz status=done type=json"},
+		{name: "the verb an answer line used to open with", line: "ok status=done type=json"},
+		{name: "the error verb", line: "error message=unknown command"},
+		{name: "a token whose tail would name a terminator", line: "xyz count=2"},
+		{name: "a kind spelled in upper case", line: "END count=2"},
+		{name: "a longer word opening with a kind", line: "topple status=done type=json"},
+		{name: "a kind with no space after it", line: "endcount=2"},
+		// Each of these carries a tail its kind would accept, so the byte that
+		// refuses it is the one the token must be closed with and nothing else.
+		{name: "a terminator tail behind a separator that is not a space", line: "endXcount=2"},
+		{name: "a record tail behind a separator that is not a space", line: `rowXitem={"peer":"10.0.0.1"}`},
+		{name: "a head tail behind a separator that is not a space", line: "top:status=done type=json"},
+		{name: "a kind and no tail", line: "end"},
+		{name: "a line shorter than one kind", line: "en"},
+		{name: "an empty line", line: ""},
+	}
+
+	for _, tt := range refused {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, _, err := ParseAnswerLine([]byte(tt.line))
+			require.Error(t, err, "the exec reader accepted %q", tt.line)
+		})
+	}
+
+	_, err := ParseAnswerTail("xyz", []byte("count=2"))
+	require.Error(t, err, "the tail reader accepted an unknown kind")
+	assert.Contains(t, err.Error(), answerKindWords, "the refusal names the kinds a reader accepts")
+}
+
+// TestAnswerLineTableMatchesDoc checks that the line table published in
+// docs/architecture/api/ipc_protocol.md is the table the writers write. The
+// method: one line of every kind is built by the shipped appenders and the
+// document is required to carry each of them byte for byte.
+//
+// VALIDATES: the published grammar cannot drift from the writer
+// (ai/rules/evidence.md), and every kind is a whole word with a distinct first
+// byte (AC-16).
+// PREVENTS: an operator reading a captured session against a line table that
+// stopped being true, which is the whole cost of positional fields.
+func TestAnswerLineTableMatchesDoc(t *testing.T) {
+	t.Parallel()
+
+	seen := make(map[byte]string, len(answerKinds))
+	for _, kind := range answerKinds {
+		require.Len(t, kind, answerKindWidth, "kind %q is not %d bytes", kind, answerKindWidth)
+		assert.Equal(t, strings.ToLower(kind), kind, "kind %q is not lower case", kind)
+		if other, clash := seen[kind[0]]; clash {
+			t.Errorf("kinds %q and %q share their first byte, so a machine cannot switch on one load", other, kind)
+		}
+		seen[kind[0]] = kind
+	}
+
+	published, err := os.ReadFile(filepath.Join("..", "..", "..", "docs", "architecture", "api", "ipc_protocol.md"))
+	require.NoError(t, err)
+
+	for kind, line := range answerKindLines(7) {
+		assert.Contains(t, string(published), line,
+			"the published line table carries no %s line spelled the way the writer spells one", kind)
+	}
+}
+
+// TestAnswerKeyBelongsToOneKind checks that a key reaches only the kind whose
+// line carries it. The method: every key is offered to a kind that does not own
+// it and the reader is required to refuse, then each key is offered to its own
+// kind and the reader is required to take it.
+//
+// VALIDATES: AC-13 -- the kind states what the line is, so a line stating two
+// things is refused rather than half-read.
+// PREVENTS: the checks that used to derive the kind from the tail (a
+// terminator carrying status=, a record carrying both item= and fault=) being
+// dropped rather than moved onto the token.
+func TestAnswerKeyBelongsToOneKind(t *testing.T) {
+	t.Parallel()
+
+	refused := []struct {
+		name string
+		kind string
+		tail string
+	}{
+		{name: "a status on a terminator", kind: AnswerKindTerminator, tail: "count=2 status=done"},
+		{name: "a status on a record", kind: AnswerKindRecord, tail: `status=done item={"peer":"10.0.0.1"}`},
+		{name: "an envelope on a terminator", kind: AnswerKindTerminator, tail: "count=2 key=peers"},
+		{name: "a schema on a record", kind: AnswerKindRecord, tail: `fields=["peer"]`},
+		{name: "an item on a fault line", kind: AnswerKindFault, tail: `item={"peer":"10.0.0.1"}`},
+		{name: "a fault on a record line", kind: AnswerKindRecord, tail: `fault={"message":"no"}`},
+		{name: "a count on a head", kind: AnswerKindHead, tail: "status=done type=json count=2"},
+		{name: "faults on a record", kind: AnswerKindRecord, tail: "faults=3"},
+		{name: "a code on a terminator", kind: AnswerKindTerminator, tail: "count=0 code=unknown-command"},
+		{name: "a message on a head", kind: AnswerKindHead, tail: "status=done type=json message=late"},
+		{name: "a key no kind claims", kind: AnswerKindTerminator, tail: "count=2 shape=table"},
+	}
+	for _, tt := range refused {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := ParseAnswerTail(tt.kind, []byte(tt.tail))
+			require.Error(t, err, "the %s reader accepted %q", tt.kind, tt.tail)
+		})
+	}
+
+	accepted := []struct {
+		name string
+		kind string
+		tail string
+	}{
+		{name: "a head names its type and envelope", kind: AnswerKindHead, tail: "status=done type=ndjson key=peers"},
+		{name: "a record carries its item", kind: AnswerKindRecord, tail: `item={"peer":"10.0.0.1"}`},
+		{name: "a fault line carries its fault", kind: AnswerKindFault, tail: `fault={"message":"no"}`},
+		{name: "a terminator carries its counts and message", kind: AnswerKindTerminator, tail: "count=97 faults=3 message=rib snapshot expired"},
+		{name: "a not-understood answer carries its code and message", kind: AnswerKindNotUnderstood, tail: "code=unknown-command message=shwo bgp peers"},
+	}
+	for _, tt := range accepted {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tail, err := ParseAnswerTail(tt.kind, []byte(tt.tail))
+			require.NoError(t, err, "the %s reader refused its own keys: %q", tt.kind, tt.tail)
+			assert.Equal(t, tt.kind, tail.Kind)
+		})
+	}
+}
+
+// TestAnswerRecordLineSizeAllocatesNothing checks that measuring a record line
+// costs no allocation, which is what answerRecordPrefixMax is for. The method:
+// the widest prefix the encoder can write (the widest id, the longer of the two
+// record keys) is measured under testing.AllocsPerRun.
+//
+// VALIDATES: the record path stays allocation-free after the kind token widened
+// the prefix (ai/rules/performance.md).
+// PREVENTS: answerRecordPrefixMax being left behind by a wider prefix, which
+// makes the stack scratch grow into the heap once per record of every walk.
+func TestAnswerRecordLineSizeAllocatesNothing(t *testing.T) {
+	item := Record{Item: json.RawMessage(`{"peer":"10.0.0.1","state":"established"}`)}
+	fault := Record{Fault: json.RawMessage(`{"path":"bgp/peer/10.0.0.2","message":"nexthop unreachable"}`)}
+
+	// The prefix the scratch must hold whole: the widest id, and the longer of
+	// the two record keys.
+	widest := len(AppendAnswerFault(nil, math.MaxUint64, nil))
+	require.LessOrEqual(t, widest, answerRecordPrefixMax,
+		"the widest record prefix is %d bytes and the scratch holds %d", widest, answerRecordPrefixMax)
+
+	for _, record := range []Record{item, fault} {
+		allocs := testing.AllocsPerRun(100, func() {
+			if AnswerRecordLineSize(math.MaxUint64, record) == 0 {
+				t.Error("the measured line is empty")
+			}
+		})
+		assert.Zero(t, allocs, "measuring a record line allocated %v times", allocs)
+	}
 }

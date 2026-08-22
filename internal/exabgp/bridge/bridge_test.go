@@ -1492,6 +1492,89 @@ func TestMuxConnDispatchResponseIgnored(t *testing.T) {
 	assert.Empty(t, zeBuf.String())
 }
 
+// TestMuxConnAnswerLinesAreNotAcknowledged checks that the lines of a record
+// answer reach the waiter that asked for it and are never acknowledged back to
+// ze. The method: a head, one record and a terminator arrive under the id of a
+// registered waiter, and the test reads what the bridge wrote to ze and to the
+// plugin.
+//
+// A dispatch the bridge sends is answered by that sequence, so every kind has
+// to be named on the response arm. On the unknown-verb arm each line would earn
+// an `ok` line ze never asked for, and the dispatch would wait for a result
+// that already went past.
+//
+// VALIDATES: the bridge speaks the answer grammar rather than a second copy of
+// it, and a kind token is a response and not an unknown verb.
+// PREVENTS: the bridge acknowledging the daemon's own answer lines, which puts
+// unrequested responses on the wire and stalls every dispatch it sends.
+func TestMuxConnAnswerLinesAreNotAcknowledged(t *testing.T) {
+	answer := strings.Join([]string{
+		`#1:6 top status=done type=ndjson key=peers`,
+		`#1:6 row item={"peer":"10.0.0.1"}`,
+		`#1:6 end count=1`,
+	}, "\n")
+	scanner := bufio.NewScanner(strings.NewReader(answer + "\n"))
+
+	var pluginBuf strings.Builder
+	var zeBuf strings.Builder
+	zeOut := &syncWriter{w: &zeBuf}
+
+	b := NewBridge([]string{"echo"})
+	b.running = true
+
+	pending := newPendingResponses()
+	waiter := pending.register(6)
+
+	ctx := context.Background()
+	b.zebgpToPluginWithScanner(ctx, scanner, &pluginBuf, zeOut, pending)
+
+	assert.Empty(t, zeBuf.String(), "an answer line needs no acknowledgement")
+	assert.Empty(t, pluginBuf.String(), "an answer line is not an event to translate")
+
+	select {
+	case result := <-waiter:
+		assert.True(t, result.ok, "the answer released the dispatch that asked for it")
+	default:
+		t.Fatal("the answer never released the waiter, so a dispatch would block until its context expired")
+	}
+}
+
+// TestMuxConnNotUnderstoodAnswerFailsTheWaiter checks that a command text the
+// daemon did not understand fails the dispatch that sent it. The method: one
+// nay line arrives under the id of a registered waiter, and the test reads what
+// the waiter received.
+//
+// VALIDATES: the nay kind carries a failure, so a bridge dispatch of a command
+// that does not exist is reported rather than reported as success.
+// PREVENTS: a typo reaching ExaBGP as a command that ran.
+func TestMuxConnNotUnderstoodAnswerFailsTheWaiter(t *testing.T) {
+	line := `#1:6 nay message=unknown command: shwo bgp peers`
+	scanner := bufio.NewScanner(strings.NewReader(line + "\n"))
+
+	var pluginBuf strings.Builder
+	var zeBuf strings.Builder
+	zeOut := &syncWriter{w: &zeBuf}
+
+	b := NewBridge([]string{"echo"})
+	b.running = true
+
+	pending := newPendingResponses()
+	waiter := pending.register(6)
+
+	ctx := context.Background()
+	b.zebgpToPluginWithScanner(ctx, scanner, &pluginBuf, zeOut, pending)
+
+	assert.Empty(t, zeBuf.String(), "a nay line needs no acknowledgement")
+
+	select {
+	case result := <-waiter:
+		assert.False(t, result.ok, "a command the daemon did not understand is a failure")
+		assert.Contains(t, result.errText, "unknown command")
+	default:
+		t.Fatal("the nay line never released the waiter")
+	}
+}
+
 // TestMuxConnMultipleBatchEvents verifies multiple events in a single batch.
 //
 // VALIDATES: All events in a deliver-batch are translated and forwarded.

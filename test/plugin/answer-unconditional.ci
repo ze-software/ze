@@ -44,11 +44,15 @@ from ze_api import API, runtime_fail
 MARKER = "silent-answer.txt"
 
 
-def tail_of(line, want_verb="ok"):
-    """Return the key=value tail of one answer line."""
+def tail_of(line, want_kind):
+    """Return the key=value tail of one answer line, checking its kind.
+
+    The field after the id is the three-byte kind token, and it is what says
+    what the line IS. The tail is never read to find that out.
+    """
     parts = line.split(" ", 2)
-    if len(parts) != 3 or parts[1] != want_verb:
-        runtime_fail(f"unexpected answer line: {line[:120]}")
+    if len(parts) != 3 or parts[1] != want_kind:
+        runtime_fail(f"unexpected answer line, want kind {want_kind!r}: {line[:120]}")
         return ""
     return parts[2]
 
@@ -59,16 +63,16 @@ def answer_item(api, command):
     if len(lines) != 3:
         runtime_fail(f"{command} answered {len(lines)} lines, want head, record, terminator: {lines}")
         return ""
-    head = tail_of(lines[0])
+    head = tail_of(lines[0], "top")
     # type=json says the one item carries the whole answer as one document,
     # which is what a payload the handler built whole always was.
     if head != "status=done type=json":
         runtime_fail(f"{command} head was {head!r}, want 'status=done type=json'")
-    record = tail_of(lines[1])
+    record = tail_of(lines[1], "row")
     if not record.startswith("item="):
         runtime_fail(f"{command} record line was {record[:120]!r}, want an item=")
         return ""
-    terminator = tail_of(lines[2])
+    terminator = tail_of(lines[2], "end")
     if terminator != "count=1":
         runtime_fail(f"{command} terminator was {terminator!r}, want 'count=1'")
     return record[len("item=") :]
@@ -139,11 +143,15 @@ def wait_for_silent(timeout=10.0):
         return handle.read()
 
 
-def tail_of(line, want_verb="ok"):
-    """Return the key=value tail of one answer line."""
+def tail_of(line, want_kind):
+    """Return the key=value tail of one answer line, checking its kind.
+
+    The field after the id is the three-byte kind token, and it is what says
+    what the line IS. The tail is never read to find that out.
+    """
     parts = line.split(" ", 2)
-    if len(parts) != 3 or parts[1] != want_verb:
-        runtime_fail(f"unexpected answer line: {line[:120]}")
+    if len(parts) != 3 or parts[1] != want_kind:
+        runtime_fail(f"unexpected answer line, want kind {want_kind!r}: {line[:120]}")
         return ""
     return parts[2]
 
@@ -165,18 +173,18 @@ def main():
     if len(lines) != 3:
         runtime_fail(f"answer was {len(lines)} lines, want head, record, terminator: {lines}")
 
-    head = tail_of(lines[0])
+    head = tail_of(lines[0], "top")
     if head != "status=done type=json":
         runtime_fail(f"head was {head!r}, want 'status=done type=json'")
 
-    record = tail_of(lines[1])
+    record = tail_of(lines[1], "row")
     if not record.startswith("item="):
         runtime_fail(f"record line was {record[:120]!r}, want an item=")
     item = record[len("item=") :]
     if item != silent:
         runtime_fail(f"record carries {item[:120]!r}, the first peer got {silent[:120]!r}")
 
-    terminator = tail_of(lines[2])
+    terminator = tail_of(lines[2], "end")
     if terminator != "count=1":
         runtime_fail(f"terminator was {terminator!r}, want 'count=1'")
 

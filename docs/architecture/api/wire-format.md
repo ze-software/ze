@@ -92,14 +92,20 @@ declaration can set a different wire method for command dispatch.
 Three methods have a second success form, and every peer uses it. The engine
 writes it for `dispatch-command` and `dispatch-command-args`, and the plugin
 writes it for `execute-command`: one encoding covers both directions. The answer
-is a head, zero or more records, and a terminator, and each line carries a bare
-`key=value` tail instead of JSON:
+is a head, zero or more records, and a terminator. The field after the id is a
+three-byte kind token stating what the line IS, and each line then carries a
+bare `key=value` tail instead of JSON:
 
 ```
-#2:42 ok status=done type=ndjson key=peers
-#2:42 ok item={"address":"10.0.0.1","state":"established"}
-#2:42 ok count=1
+#2:42 top status=done type=ndjson key=peers
+#2:42 row item={"address":"10.0.0.1","state":"established"}
+#2:42 end count=1
 ```
+
+`top` opens the answer, `row` and `bad` carry a produced row and a rejected one,
+`end` ends it, and `nay` is the whole answer to a command text naming no
+command. Every token is three bytes, so a reader reaches it by arithmetic from
+the id's length character rather than by searching the line for a space.
 
 The head's `type=` says how to take each `item=`. The terminator states no
 status: the verdict is derived from `count=` and `faults=`, and a missing
@@ -107,7 +113,7 @@ terminator means the answer was truncated. The frame is the same whatever the
 payload is, so a handler that built one value answers with the same three lines
 and `type=json`. The grammar is in
 [ipc_protocol.md](ipc_protocol.md), "Answer Protocol".
-<!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerItem, AppendAnswerTerminator, ParseAnswerTail, Verdict -->
+<!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerItem, AppendAnswerTerminator, ParseAnswerTail, Verdict, AnswerKindHead, AnswerKindTerminator -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, WriteDocumentAnswer -->
 
 ## Error Response

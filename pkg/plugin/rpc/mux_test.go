@@ -636,10 +636,10 @@ func TestMuxConnDeliversEveryRecordToOneCaller(t *testing.T) {
 			return
 		}
 		answer := []string{
-			wireLine(req.ID, "ok status=done type=ndjson key=peers\n"),
-			wireLine(req.ID, "ok item={\"peer\":\"10.0.0.1\"}\n"),
-			wireLine(req.ID, "ok item={\"peer\":\"10.0.0.2\"}\n"),
-			wireLine(req.ID, "ok count=2\n"),
+			wireLine(req.ID, "top status=done type=ndjson key=peers\n"),
+			wireLine(req.ID, "row item={\"peer\":\"10.0.0.1\"}\n"),
+			wireLine(req.ID, "row item={\"peer\":\"10.0.0.2\"}\n"),
+			wireLine(req.ID, "end count=2\n"),
 		}
 		for _, line := range answer {
 			if _, writeErr := engineEnd.Write([]byte(line)); writeErr != nil {
@@ -668,6 +668,15 @@ func TestMuxConnDeliversEveryRecordToOneCaller(t *testing.T) {
 		"every record line of the answer must reach the one caller waiting on that id")
 	assert.Equal(t, VerdictDone, received.Verdict(), "the terminator carried count=2 faults=0")
 	assert.NoError(t, received.Err(), "an answer that reached its terminator ended with no fault")
+
+	// The terminator releases the entry. readLoop sends the terminator to the
+	// consumer before it removes the entry, so the consumer can return first.
+	// What must not happen is the entry outliving the answer, which leaves
+	// every completed answer registered for the life of the connection.
+	require.Eventually(t, func() bool {
+		_, found := mux.pending.Load(pendingKey(1))
+		return !found
+	}, 2*time.Second, time.Millisecond, "the terminator must release the answer's pending entry")
 }
 
 // writeLines writes each line to conn and stops at the first write error, which
@@ -727,12 +736,13 @@ func TestSingleResponseCallRPCPathUnchanged(t *testing.T) {
 }
 
 // TestVerbPredicateUnchangedForResponses checks that readLoop still splits
-// responses from requests on the verb alone. The method: the peer sends a line
-// whose verb is a method name under the id of a call that is waiting, and the
-// test asserts it arrives as an inbound request while the call keeps waiting.
+// responses from requests on the verb. The method: the peer sends a line whose
+// verb is a method name under the id of a call that is waiting, and the test
+// asserts it arrives as an inbound request while the call keeps waiting.
 //
-// VALIDATES: readLoop's isResponse predicate is still verb == StatusOK ||
-// verb == StatusError, so no plugin's inbound dispatch moved.
+// VALIDATES: the kind token reader runs FIRST and claims nothing it should not:
+// a method name is still an inbound request and `ok` still answers a CallRPC,
+// so no plugin's inbound dispatch moved.
 // PREVENTS: an answer-shape reader claiming a line by its id and swallowing a
 // request the plugin was meant to serve.
 func TestVerbPredicateUnchangedForResponses(t *testing.T) {
@@ -805,7 +815,7 @@ func TestOrphanRecordDoesNotCloseConnection(t *testing.T) {
 			return
 		}
 		for i := range orphans {
-			line := wireLine(999, fmt.Sprintf("ok item={\"row\":%d}\n", i))
+			line := wireLine(999, fmt.Sprintf("row item={\"row\":%d}\n", i))
 			if _, writeErr := engineEnd.Write([]byte(line)); writeErr != nil {
 				return
 			}
@@ -900,14 +910,14 @@ func TestSlowConsumerDoesNotStallReadLoop(t *testing.T) {
 		if err != nil {
 			return
 		}
-		writeLines(engineEnd, wireLine(slow.ID, "ok status=done type=ndjson key=peers\n"))
+		writeLines(engineEnd, wireLine(slow.ID, "top status=done type=ndjson key=peers\n"))
 		for i := range records {
-			line := wireLine(slow.ID, fmt.Sprintf("ok item={\"row\":%d}\n", i))
+			line := wireLine(slow.ID, fmt.Sprintf("row item={\"row\":%d}\n", i))
 			if _, writeErr := engineEnd.Write([]byte(line)); writeErr != nil {
 				return
 			}
 		}
-		writeLines(engineEnd, wireLine(slow.ID, fmt.Sprintf("ok count=%d\n", records)))
+		writeLines(engineEnd, wireLine(slow.ID, fmt.Sprintf("end count=%d\n", records)))
 
 		other, err := engineConn.ReadRequest(ctx)
 		if err != nil {
@@ -965,8 +975,8 @@ func TestAnswerWithoutTerminatorReportsTruncation(t *testing.T) {
 			return
 		}
 		writeLines(engineEnd,
-			wireLine(req.ID, "ok status=done type=ndjson key=peers\n"),
-			wireLine(req.ID, "ok item={\"peer\":\"10.0.0.1\"}\n"),
+			wireLine(req.ID, "top status=done type=ndjson key=peers\n"),
+			wireLine(req.ID, "row item={\"peer\":\"10.0.0.1\"}\n"),
 		)
 		if closeErr := engineEnd.Close(); closeErr != nil {
 			return
@@ -993,9 +1003,9 @@ func TestAnswerWithoutTerminatorReportsTruncation(t *testing.T) {
 	assert.Error(t, cut.Err(), "the consumer is told why the answer stopped")
 }
 
-// TestNotUnderstoodAnswerReachesTheCaller checks that the error verb ends an
+// TestNotUnderstoodAnswerReachesTheCaller checks that the nay kind ends an
 // answer as an error rather than as an empty result. The method: a peer answers
-// a CallAnswer with one #<len>:<id> error message= line, and the test asserts the
+// a CallAnswer with one #<len>:<id> nay message= line, and the test asserts the
 // call fails with that message.
 //
 // VALIDATES: AC-4 -- the not-understood answer is the only line for its id, and
@@ -1017,7 +1027,7 @@ func TestNotUnderstoodAnswerReachesTheCaller(t *testing.T) {
 		if err != nil {
 			return
 		}
-		writeLines(engineEnd, wireLine(req.ID, "error message=unknown command: shwo bgp peers\n"))
+		writeLines(engineEnd, wireLine(req.ID, "nay message=unknown command: shwo bgp peers\n"))
 	}()
 
 	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
@@ -1173,11 +1183,11 @@ func TestMuxReadLoopSeparatesAnswerFromResponse(t *testing.T) {
 		}
 		answerID, rpcID := ids[answerMethod], ids[rpcMethod]
 		writeLines(engineEnd,
-			wireLine(answerID, "ok status=done type=ndjson key=peers\n"),
-			wireLine(answerID, "ok item={\"peer\":\"10.0.0.1\"}\n"),
+			wireLine(answerID, "top status=done type=ndjson key=peers\n"),
+			wireLine(answerID, "row item={\"peer\":\"10.0.0.1\"}\n"),
 			wireLine(rpcID, "ok {\"peers\":1}\n"),
-			wireLine(answerID, "ok item={\"peer\":\"10.0.0.2\"}\n"),
-			wireLine(answerID, "ok count=2\n"),
+			wireLine(answerID, "row item={\"peer\":\"10.0.0.2\"}\n"),
+			wireLine(answerID, "end count=2\n"),
 		)
 	}()
 
@@ -1219,4 +1229,75 @@ func TestMuxReadLoopSeparatesAnswerFromResponse(t *testing.T) {
 	assert.Equal(t, []string{`{"peer":"10.0.0.1"}`, `{"peer":"10.0.0.2"}`}, got.items,
 		"both records reach the CallAnswer caller, with the other id's response between them")
 	assert.Equal(t, VerdictDone, got.verdict, "the answer reached its terminator")
+}
+
+// TestAwaitAnswerHeadValidatesByKind checks that the guard on an answer's first
+// line reads the kind token rather than the status inside its tail. The method:
+// a peer opens an answer with each kind in turn, and the test requires the four
+// kinds that do not open an answer to be refused by name and the head to be
+// accepted.
+//
+// VALIDATES: AC-15 -- a reader that meets a line whose kind is not top where a
+// head belongs refuses the answer, and it does so from the token rather than
+// from status=.
+// PREVENTS: the head guard staying on the status vocabulary, which phase 5
+// deletes. The check would then pass for every line, and an answer would be
+// able to open with its own terminator.
+func TestAwaitAnswerHeadValidatesByKind(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		first string
+		want  string
+	}{
+		{name: "a head opens the answer", first: "top status=done type=json"},
+		{name: "a terminator does not", first: "end count=0", want: "opens with a end line"},
+		{name: "a result record does not", first: `row item={"peer":"10.0.0.1"}`, want: "opens with a row line"},
+		{name: "a rejected record does not", first: `bad fault={"message":"no"}`, want: "opens with a bad line"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			pluginEnd, engineEnd := net.Pipe()
+			defer closePipe(t, "pluginEnd", pluginEnd)
+			defer closePipe(t, "engineEnd", engineEnd)
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			go func() {
+				engineConn := NewConn(engineEnd, engineEnd)
+				req, err := engineConn.ReadRequest(ctx)
+				if err != nil {
+					return
+				}
+				writeLines(engineEnd,
+					wireLine(req.ID, tt.first+"\n"),
+					wireLine(req.ID, "end count=0\n"),
+				)
+			}()
+
+			mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
+			defer func() {
+				if err := mux.Close(); err != nil {
+					t.Logf("mux close: %v", err)
+				}
+			}()
+
+			answer, err := mux.CallAnswer(ctx, MethodDispatchCommand, nil)
+			if tt.want == "" {
+				require.NoError(t, err, "a top line opens the answer")
+				require.NotNil(t, answer)
+				for range answer.Records {
+					t.Error("a head followed by a terminator carries no record")
+				}
+				return
+			}
+			require.Error(t, err, "a %s line must not open an answer", tt.first[:answerKindWidth])
+			assert.Contains(t, err.Error(), tt.want, "the refusal names the kind it read")
+		})
+	}
 }

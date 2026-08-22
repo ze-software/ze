@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -650,5 +651,39 @@ func TestResolveDBPath_HonorsConfigDirEnv(t *testing.T) {
 
 	if got, want := ResolveDBPath(), filepath.Join(dir, "database.zefs"); got != want {
 		t.Errorf("ResolveDBPath() = %q, want %q", got, want)
+	}
+}
+
+// TestReadAnswerFrameTakesItsCountsFromTheTerminator checks that the exec
+// client reads the answer's outcome from the line whose kind says it ends the
+// answer, and from no other line. The method: a frame carrying a head, its
+// terminator and one more head is read, and the counts and verdict are compared
+// with the terminator's.
+//
+// VALIDATES: the reader takes the kind directly rather than deriving it, so a
+// line that is not the terminator moves nothing.
+// PREVENTS: a stray frame line resetting the counts an operator's tooling acts
+// on, which would report a complete answer as truncated.
+func TestReadAnswerFrameTakesItsCountsFromTheTerminator(t *testing.T) {
+	frame := strings.Join([]string{
+		"top status=done type=ndjson key=peers",
+		"end count=2 faults=1",
+		"top status=done type=json",
+		"",
+	}, "\n")
+
+	answer, text := readAnswerFrame(strings.NewReader(frame))
+
+	if answer.Count != 2 {
+		t.Errorf("the frame reports count %d, want the terminator's 2", answer.Count)
+	}
+	if answer.Faults != 1 {
+		t.Errorf("the frame reports faults %d, want the terminator's 1", answer.Faults)
+	}
+	if answer.Verdict != rpc.VerdictPartial {
+		t.Errorf("the frame reports verdict %q, want %q from the terminator's counts", answer.Verdict, rpc.VerdictPartial)
+	}
+	if text != "" {
+		t.Errorf("every line of the frame parsed as an answer line, so none is operator text; got %q", text)
 	}
 }

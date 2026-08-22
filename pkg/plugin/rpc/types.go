@@ -168,9 +168,9 @@ func terminatedRecords(answer *Answer, terminator AnswerTail, rows iter.Seq[Reco
 				}
 			}
 		}
-		// hasCount is what makes the line a terminator, and it is set here
+		// The kind is what makes the line a terminator, and it is set here
 		// rather than by the producer so no caller can hand back a head.
-		terminator.hasCount = true
+		terminator.Kind = AnswerKindTerminator
 		answer.terminator = &terminator
 	}
 }

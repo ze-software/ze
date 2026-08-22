@@ -142,18 +142,22 @@ def _is_shutdown_dispatch(method: str, params: Any) -> bool:
     return command.strip() in _SHUTDOWN_COMMANDS
 
 
-# _ANSWER_TAIL_KEYS are every key a record-shaped answer line can open with.
-# The list is the reader's whole grammar: a tail that opens with none of them
-# is not a record-shaped line.
-_ANSWER_TAIL_KEYS = (
-    "status=",
-    "key=",
-    "item=",
-    "fault=",
-    "count=",
-    "faults=",
-    "message=",
-    "code=",
+# Answer line kinds. The field after the id states what an answer line IS, in
+# three bytes, so a reader knows that before it reads one byte of the tail. They
+# are the tokens appendAnswerPrefix writes and answerKindAt reads
+# (pkg/plugin/rpc/message.go).
+_ANSWER_KIND_HEAD = "top"
+_ANSWER_KIND_RECORD = "row"
+_ANSWER_KIND_FAULT = "bad"
+_ANSWER_KIND_TERMINATOR = "end"
+_ANSWER_KIND_NOT_UNDERSTOOD = "nay"
+
+_ANSWER_KINDS = (
+    _ANSWER_KIND_HEAD,
+    _ANSWER_KIND_RECORD,
+    _ANSWER_KIND_FAULT,
+    _ANSWER_KIND_TERMINATOR,
+    _ANSWER_KIND_NOT_UNDERSTOOD,
 )
 
 
@@ -196,7 +200,7 @@ def _cut_id(line: str) -> tuple[int, str]:
 
 
 def _split_wire_line(line: str) -> tuple[int, str, str]:
-    """Split `#<len>:<id> <verb> [<tail>]` and leave the tail undecoded.
+    """Split `#<len>:<id> <verb-or-kind> [<tail>]` and leave the tail undecoded.
 
     `API._parse_line` json.loads the tail, which a record-shaped answer line
     is not. This one keeps the bytes, so a test can assert on them.
@@ -206,19 +210,14 @@ def _split_wire_line(line: str) -> tuple[int, str, str]:
     return req_id, verb, tail
 
 
-def _ends_answer(verb: str, tail: str) -> bool:
+def _ends_answer(kind: str) -> bool:
     """Report whether this line is the last one of its answer.
 
-    An answer in the original shape is one line, so any tail that is not a
-    key=value tail ends it. So does the error verb, which carries a
-    not-understood answer on its only line. An answer in the record shape ends
-    at the terminator, which is the line carrying count=.
+    The kind says so, and nothing reads the tail to find out. An answer ends at
+    its terminator, and a command the daemon did not understand is answered by
+    one `nay` line, with no head and no terminator because nothing ran.
     """
-    if verb == "error":
-        return True
-    if not tail.startswith(_ANSWER_TAIL_KEYS):
-        return True
-    return tail.startswith("count=")
+    return kind in (_ANSWER_KIND_TERMINATOR, _ANSWER_KIND_NOT_UNDERSTOOD)
 
 
 # _ANSWER_TRAILING_KEYS are the keys whose value runs to the end of the line.
@@ -251,7 +250,7 @@ def _answer_tail_fields(tail: str) -> dict[str, str]:
     return fields
 
 
-def _collapse_answer(tails: list[str]) -> dict:
+def _collapse_answer(lines: list[tuple[str, str]]) -> dict:
     """Rebuild the {status, data, error} result a record answer carries.
 
     It is the Python mirror of the reader both Go ends use (CollapseAnswer and
@@ -260,22 +259,25 @@ def _collapse_answer(tails: list[str]) -> dict:
     is a walk past the buffering threshold, and its records go under the
     envelope the head names, with the rejected rows beside them.
 
+    Each line arrives as its kind and its tail, so what a line holds is read
+    from the kind rather than from the keys inside it.
+
     The terminator's message is the command's own failure text, which the
     single-line frame carried in error=, so a caller reads one field either way.
     """
-    head = _answer_tail_fields(tails[0]) if tails else {}
+    head = _answer_tail_fields(lines[0][1]) if lines else {}
     names = json.loads(head["fields"]) if "fields" in head else None
 
     items: list[Any] = []
     faults: list[Any] = []
     message = ""
-    for tail in tails[1:]:
+    for kind, tail in lines[1:]:
         parsed = _answer_tail_fields(tail)
-        if "item" in parsed:
+        if kind == _ANSWER_KIND_RECORD:
             items.append(json.loads(parsed["item"]))
-        elif "fault" in parsed:
+        elif kind == _ANSWER_KIND_FAULT:
             faults.append(json.loads(parsed["fault"]))
-        elif "count" in parsed:
+        elif kind == _ANSWER_KIND_TERMINATOR:
             message = parsed.get("message", "")
 
     result: dict[str, Any] = {"status": head.get("status", "")}
@@ -593,7 +595,7 @@ class API:
         # lines are gathered here and collapsed once the terminator arrives.
         # Every other method answers on one line.
         records = method in _ANSWER_RECORD_METHODS
-        answer: list[str] = []
+        answer: list[tuple[str, str]] = []
 
         # Read lines until we get the response for our request.
         while True:
@@ -607,13 +609,20 @@ class API:
                 raise RuntimeError(f"no response for {method}")
 
             if records:
-                resp_id, verb, tail = _split_wire_line(line)
-                if self._tls_mode and verb not in ("ok", "error"):
+                resp_id, kind, tail = _split_wire_line(line)
+                if self._tls_mode and kind not in _ANSWER_KINDS and kind not in ("ok", "error"):
                     self._pending_requests.append(self._parse_line(line))
                     continue
-                if verb == "ok":
-                    answer.append(tail)
-                    if not _ends_answer(verb, tail):
+                if kind == _ANSWER_KIND_NOT_UNDERSTOOD:
+                    # The whole answer to a command text naming no command: one
+                    # line, no head and no terminator, because nothing ran.
+                    named = _answer_tail_fields(tail)
+                    raise RuntimeError(
+                        f"RPC error from {method}: {named.get('message', tail)}"
+                    )
+                if kind in _ANSWER_KINDS:
+                    answer.append((kind, tail))
+                    if not _ends_answer(kind):
                         continue
                     return {"result": _collapse_answer(answer)}
                 # The error verb keeps the single-line JSON frame: a dispatch
@@ -669,14 +678,14 @@ class API:
             status = "done"
 
         prefix = _id_field(req_id)
-        lines = [f"{prefix}ok status={status} type=json\n"]
+        lines = [f"{prefix}{_ANSWER_KIND_HEAD} status={status} type=json\n"]
         if "data" in result and result["data"] is not None:
             document = json.dumps(result["data"], separators=(",", ":"))
-            lines.append(f"{prefix}ok item={document}\n")
+            lines.append(f"{prefix}{_ANSWER_KIND_RECORD} item={document}\n")
             count = 1
         else:
             count = 0
-        lines.append(f"{prefix}ok count={count}\n")
+        lines.append(f"{prefix}{_ANSWER_KIND_TERMINATOR} count={count}\n")
 
         payload = "".join(lines).encode("utf-8")
         if self._tls_mode:
@@ -1376,8 +1385,8 @@ class API:
                 line = self._read_line(self._engine_fd, "_engine_buf", timeout=wait)
             if line is None:
                 return lines
-            line_id, verb, tail = _split_wire_line(line)
-            if verb not in ("ok", "error"):
+            line_id, kind, _tail = _split_wire_line(line)
+            if kind not in _ANSWER_KINDS and kind not in ("ok", "error"):
                 # An engine-initiated request muxed onto this connection.
                 # Queue it for _serve_one rather than drop it, exactly as
                 # _call_engine does.
@@ -1389,7 +1398,7 @@ class API:
             lines.append(line)
             if answered:
                 return lines
-            answered = _ends_answer(verb, tail)
+            answered = _ends_answer(kind)
 
     def dispatch_until(
         self,

@@ -121,7 +121,9 @@ runtime request, see the gotcha below.
     one record of a `type=json` answer (`rpc.WriteDocumentAnswer`, `pkg/plugin/rpc/answer_write.go`).
     A handler error still replies `#<len>:<id> error {...}` through `Conn.SendError`
     (`pkg/plugin/rpc/conn.go`).
-13. **Response routing back.** The engine-side `readLoop` sees verb `ok`/`error`, looks up the
+13. **Response routing back.** The engine-side `readLoop` reads the field after the id: a
+    three-byte answer kind (`top`, `row`, `bad`, `end`, `nay`) taken by arithmetic, or the
+    verb `ok`/`error` cut at the first space. Either way it looks up the
     pending channel by id and delivers the raw body (`pkg/plugin/rpc/mux.go`); `interpretResponse`
     (`pkg/plugin/rpc/mux.go`) splits verb from payload and returns `json.RawMessage` (success) or an
     `*RPCCallError` (`pkg/plugin/rpc/message.go`) built by `parseRPCError`. That path serves every

@@ -121,20 +121,20 @@ func readAnswerFrame(stderr io.Reader) (Answer, string) {
 		if len(line) == 0 {
 			continue
 		}
-		verb, tail, err := rpc.ParseAnswerLine(line)
+		kind, tail, err := rpc.ParseAnswerLine(line)
 		if err != nil {
 			text.Str(strings.TrimSpace(string(line)))
 			text.Byte('\n')
 			continue
 		}
-		if verb == rpc.AnswerVerbError {
+		if kind == rpc.AnswerKindNotUnderstood {
 			// The command named no command. It is the whole answer, so there
 			// is no terminator to wait for and none to miss.
 			answer.Verdict = rpc.VerdictError
 			answer.Message = tail.Message
 			continue
 		}
-		if !tail.IsTerminator() {
+		if kind != rpc.AnswerKindTerminator {
 			continue
 		}
 		answer.Count = tail.Count

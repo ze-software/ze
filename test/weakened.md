@@ -89,3 +89,4 @@ that row is where you say which of the two happened.
 
 | Test | Reason |
 |------|--------|
+| TestTerminatorIsTheLineCarryingCount | Renamed to TestTerminatorIsTheLineStatingTheEndKind, in place, because the terminator is now told from the head by the `end` kind token rather than by the `count=` key its old name states. No coverage left the suite: the new test makes every assertion the old one made, over the same three written lines, and adds a fourth line (a `bad` fault record) and a kind assertion for each. The detector reports a deleted func because a rename is a delete plus an add in one hunk. |
