@@ -273,8 +273,92 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                 <div>
                     <aside class="hero-start-panel" aria-label="Start with Ze">
                         <div class="hero-start-intro">
-                            <div class="hero-start-brand">
+                            <div class="hero-start-copy">
+                                <h1 id="hero-title" class="hero-start-title">Ze, an OpenNOS</h1>
+                                <p class="hero-start-points" aria-label="Key capabilities">
+                                    <span>Plugin extensible</span>
+                                    <span>Appliance option</span>
+                                    <span>ExaBGP compatible</span>
+                                </p>
+                                <p class="hero-start-lead">
+                                    Ze speaks <a href="guides/bgp/"><strong>BGP</strong></a>,
+                                    <a href="guides/isis/"><strong>ISIS</strong></a>,
+                                    <a href="guides/ospf/"><strong>OSPF</strong></a>,
+                                    manages <a href="features/interfaces/"><strong>interfaces</strong></a> and tunnels
+                                    (<a href="guides/ipsec/"><strong>IPsec VPN</strong></a>, <a href="features/interfaces/#wireguard-configuration"><strong>WireGuard</strong></a>),
+                                    programs the <a href="reference/plugins/fib-kernel/"><strong>FIB</strong></a>, and exposes one
+                                    <a href="features/bgp-configuration/"><strong>YANG</strong></a>-modeled configuration
+                                    through builtin SSH, a <a href="features/web-interface/"><strong>web</strong></a>
+                                    interface, <a href="features/api-commands/"><strong>APIs</strong></a>
+                                    (<a href="guides/api/#rest-endpoints"><strong>REST</strong></a>, <a href="guides/api/#grpc-services"><strong>gRPC</strong></a>,
+                                    <a href="guides/gnmi/"><strong>gNMI</strong></a>), <a href="features/cli-commands/"><strong>CLI</strong></a>, and
+                                    <a href="features/mcp-integration/"><strong>MCP</strong></a>.
+                                </p>
+                                <p class="hero-start-lead">
+                                    It is built on a configuration and protocol
+                                    engine that runs as a daemon or immutable
+                                    appliance.
+                                </p>
+                            </div>
+                            <figure class="hero-product-demo" aria-labelledby="hero-demo-title">
+                                <div class="hero-product-frame">
+                                    <div class="hero-product-bar" aria-hidden="true">
+                                        <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
+                                        <span>cli-dashboard.terminal</span>
+                                        <span>WEBM</span>
+                                    </div>
+                                    <video
+                                        class="hero-product-video"
+                                        controls
+                                        muted
+                                        playsinline
+                                        preload="metadata"
+                                        poster="assets/demos/cli-dashboard.png?v=5595195ace"
+                                        aria-label="Operate BGP from the live dashboard demonstration"
+                                    >
+                                        <source src="assets/demos/cli-dashboard.webm?v=56620f9bd0" type="video/webm" />
+                                        Your browser cannot play WebM video.
+                                        <a href="assets/demos/cli-dashboard.webm?v=56620f9bd0">Download the recording</a>.
+                                    </video>
+                                </div>
+                                <figcaption>
+                                    <strong id="hero-demo-title">Live BGP dashboard</strong>
+                                    <span>Replayable Ze terminal lab</span>
+                                    <a href="demos/terminal/#live-bgp-dashboard">Read transcript</a>
+                                </figcaption>
+                            </figure>
+                        </div>
+                        <div class="hero-action-row">
+                            <nav class="hero-primary-actions" aria-label="Start with Ze">
+                                <a class="hero-start-action" href="project/why-ze/">
+                                    <strong>Why Ze exists</strong>
+                                    <small>Learn how Ze came to be.</small>
+                                </a>
+                                <a class="hero-start-action" href="demos/terminal/#web-configuration-commit">
+                                    <strong>Watch a demo</strong>
+                                    <small>Discover the web interface.</small>
+                                </a>
                                 <a
+                                    class="hero-start-action search-trigger"
+                                    href="search/"
+                                    aria-expanded="false"
+                                    ><strong>Search the site</strong
+                                    ><small>Docs and commands. <span class="search-shortcut-hint" aria-hidden="true"><kbd>⌘K</kbd><span>or</span><kbd>⌘/</kbd></span></small
+                                    ></a
+                                >
+                                <a
+                                    class="hero-start-action"
+                                    href="https://discord.gg/T8s7CjPDne"
+                                    target="_blank"
+                                    rel="noopener"
+                                    ><strong>Join Discord</strong
+                                    ><small>Ask questions, get help.</small
+                                    ></a
+                                >
+                            </nav>
+                            <div class="hero-release-callout">
+                                <a
+                                    class="hero-release-speaker"
                                     href="zeledon/"
                                     aria-label="Meet Zeledon, the Ze mascot"
                                 >
@@ -286,176 +370,42 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                                         height="134"
                                     />
                                 </a>
-                            </div>
-                            <div class="hero-start-copy">
-                                <div
-                                    class="tagline-carousel"
-                                    data-tagline-carousel
-                                >
-                                    <h1
-                                        id="hero-title"
-                                        class="hero-start-title"
-                                    >
-                                        <span data-tagline-text
-                                            >Open routing for white-label
-                                            hardware</span
-                                        >
-                                    </h1>
-                                    <template data-tagline-options>
-                                        <span
-                                            >Open routing for white-label
-                                            hardware</span
-                                        >
-                                        <span
-                                            >Internet Configuration and Protocol
-                                            Engine</span
-                                        >
-                                        <span>Immutable Linux appliance</span>
-                                    </template>
-                                    <div
-                                        class="tagline-carousel-controls"
-                                        aria-label="Choose a Ze tagline"
-                                    >
-                                        <button
-                                            class="tagline-carousel-arrow"
-                                            type="button"
-                                            data-tagline-prev
-                                            aria-label="Previous tagline"
-                                        >
-                                            <span aria-hidden="true">←</span>
-                                        </button>
-                                        <div
-                                            class="tagline-carousel-dots"
-                                            data-tagline-dots
-                                        ></div>
-                                        <button
-                                            class="tagline-carousel-arrow"
-                                            type="button"
-                                            data-tagline-next
-                                            aria-label="Next tagline"
-                                        >
-                                            <span aria-hidden="true">→</span>
-                                        </button>
-                                        <span
-                                            class="sr-only"
-                                            data-tagline-status
-                                            aria-live="polite"
-                                        ></span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="hero-start-lead-wrap">
-                                <p class="hero-start-lead">
-                                    Ze starts with a small core: a supervisor,
-                                    message bus, config provider, and plugin
-                                    manager.
-                                </p>
-                                <p class="hero-start-lead">
-                                    Protocols and services register themselves
-                                    with <strong class="hl blue">YANG</strong>.
-                                    <strong class="hl blue">BGP</strong>,
-                                    interface management, FIB programming,
-                                    <strong class="hl blue">CLI</strong>, web,
-                                    API, and <strong class="hl blue">MCP</strong>
-                                    then share the same model.
-                                </p>
-                                <p class="hero-release-badge">
-                                    Expected Initial release: Q4 2026
+                                <p>
+                                    Expected initial release: Q4 2026.<br />
+                                    No stable release yet.
                                 </p>
                             </div>
                         </div>
-                        <nav
-                            class="hero-start-actions"
-                            aria-label="Start with Ze shortcuts"
-                        >
-                            <a
-                                class="hero-start-action"
-                                href="labs/bgp-interop/"
-                                ><strong>Run a BGP lab</strong
-                                ><small
-                                    >Exercise Ze against FRR, BIRD, and GoBGP in
-                                    Docker.</small
-                                ></a
-                            >
-                            <a
-                                class="hero-start-action"
-                                href="guides/quickstart/"
-                                ><strong>Quickstart</strong
-                                ><small
-                                    >Bring up two BGP peers in under five
-                                    minutes.</small
-                                ></a
-                            >
-                            <a
-                                class="hero-start-action search-trigger"
-                                href="search/"
-                                aria-expanded="false"
-                                ><strong>Search the site</strong
-                                ><small
-                                    >Find commands, labs, guides, and generated
-                                    references. <span class="search-shortcut-hint" aria-hidden="true"><kbd>⌘K</kbd><span>or</span><kbd>⌘/</kbd></span></small
-                                ></a
-                            >
-                            <a
-                                class="hero-start-action"
-                                href="https://github.com/ze-software/ze"
-                                target="_blank"
-                                rel="noopener"
-                                ><strong>GitHub</strong
-                                ><small
-                                    >Read the source, issues, tests, and release
-                                    work.</small
-                                ></a
-                            >
-                            <a
-                                class="hero-start-action hero-start-action-primary"
-                                href="https://discord.gg/T8s7CjPDne"
-                                target="_blank"
-                                rel="noopener"
-                                ><strong>Join Discord</strong
-                                ><small
-                                    >Ask before spending a weekend on a
-                                    build.</small
-                                ></a
-                            >
-                            <a
-                                class="hero-start-action"
-                                href="guides/ze-install/"
-                                ><strong>Install Ze</strong
-                                ><small
-                                    >Run it on Linux or as a bootable
-                                    appliance.</small
-                                ></a
-                            >
-                        </nav>
+                        <div class="hero-outcome-links" aria-label="Ze product map">
+                            <a href="architecture/">Protocol-agnostic core</a>
+                            <a href="reference/configuration/">YANG per subsystem</a>
+                            <a href="features/#routing">BGP, interfaces, FIB</a>
+                            <a href="features/ai-first/">CLI, SSH, web, API, MCP</a>
+                            <a href="reference/plugins/">Compiled or external plugins</a>
+                            <a href="license/">AGPLv3 source</a>
+                        </div>
                     </aside>
                 </div>
             </section>
 
-            <section class="outcome-strip reveal" aria-label="Ze product map">
-                <a href="architecture/">Protocol-agnostic core</a>
-                <a href="reference/configuration/">YANG per subsystem</a>
-                <a href="features/#routing">BGP, interfaces, FIB</a>
-                <a href="features/ai-first/">CLI, SSH, web, API, MCP</a>
-                <a href="reference/plugins/">Compiled or external plugins</a>
-                <a href="license/">AGPLv3 source</a>
-            </section>
-
 {whats_new}
+
+
+
 
             <section id="proof" class="home-proof-block reveal" aria-labelledby="proof-title">
                 <div class="home-proof-head">
                     <div>
-                        <h2 id="proof-title">Tests, fuzzing, and interop before release claims.</h2>
+                        <h2 id="proof-title">Release claims stay checkable.</h2>
                         <p>
-                            These counts show what backs Ze before you spend
-                            time on a lab.<br />The interop list names the peer
-                            daemons used in the protocol checks.
+                            Every homepage number links to the page where you can
+                            inspect the test layer, transcript, peer list, RFC
+                            gate, or generated source evidence behind it.
                         </p>
                     </div>
                     <div class="home-proof-actions">
-                        <a class="button primary" href="labs/bgp-interop/">Run a BGP lab</a>
                         <a class="button" href="quality/">Read the evidence map</a>
+                        <a class="button" href="demos/terminal/">Watch product demos</a>
                     </div>
                 </div>
                 <div class="proof-strip" aria-label="Project evidence">
@@ -468,6 +418,18 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                             <li>Config, FSM, plugins</li>
                             <li>gomu mutates code to check assertions</li>
                         </ul>
+                        <span class="proof-check">Local test, fuzz, and mutation evidence.</span>
+                    </a>
+                    <a class="proof" href="quality/rfc-compliance/">
+                        <strong
+                            >2,950 <span class="label">RFC MUST checks</span></strong
+                        >
+                        <ul>
+                            <li>168 RFCs inspected</li>
+                            <li>Gaps disclosed before claims</li>
+                            <li>Tests tied to requirement IDs</li>
+                        </ul>
+                        <span class="proof-check">RFC requirement ledger.</span>
                     </a>
                     <a class="proof" href="quality/functional-ci/">
                         <strong
@@ -479,6 +441,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                             <li>Editor, commits, reloads</li>
                             <li>Commands checked as operators run them</li>
                         </ul>
+                        <span class="proof-check">Functional transcript format and rerun path.</span>
                     </a>
                     <a class="proof" href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">
                         <strong>{fuzz_targets} <span class="label">fuzz targets</span></strong>
@@ -487,6 +450,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                             <li>Wire formats, config files</li>
                             <li>Saved crashes become regression cases</li>
                         </ul>
+                        <span class="proof-check">Fuzz crashes kept as regression cases.</span>
                     </a>
                     <a class="proof" href="quality/qemu-interop-release/#docker-interop">
                         <strong
@@ -497,6 +461,7 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                             <li>BGP sessions in Docker</li>
                             <li>Routes checked by peer CLIs</li>
                         </ul>
+                        <span class="proof-check">Docker interop peer list.</span>
                     </a>
                 </div>
                 <div class="interop-strip" aria-label="Tested BGP peer implementations">
@@ -512,40 +477,28 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                 </div>
             </section>
 
-            <section class="home-section-panel home-section-panel-run" aria-labelledby="run-title">
-                <div class="section-head reveal tone-teal">
-                    <h2 id="run-title">
-                        Run it as a lab,<br />daemon, or appliance.
-                    </h2>
-                    <p>
-                        The same binary and configuration support each path,
-                        from a <a href="labs/netlab/">netlab topology</a>
-                        or BGP interop lab to spare hardware.
-                    </p>
-                </div>
-                <div class="audience run-path-grid reveal">
-{run_cards}
-                </div>
-            </section>
 
             <section id="why-ze" class="home-section-panel home-section-panel-why" aria-labelledby="why-title">
                 <div class="section-head reveal tone-sky">
-                    <h2 id="why-title">Why Ze.</h2>
+                    <h2 id="why-title"><a href="project/why-ze/">Why Ze?</a></h2>
                     <p>
-                        Ze keeps the core protocol-agnostic. Subsystems bring
-                        their own YANG, and the CLI, web editor, validation,
-                        generated references, and MCP tools are derived from the
-                        resulting schema.
+                        Ze is a network operating system, and more: a routing
+                        daemon, appliance runtime, lab router, and protocol
+                        engine that brings policy data, generated references,
+                        APIs, MCP tools, and product evidence into one operator
+                        workflow.
                     </p>
                 </div>
+
                 <div class="cards usp-grid reveal" aria-label="Ze architectural arguments">
                     <article class="card usp-card tone-mint">
-                        <span class="cat">Model</span>
-                        <h3><a href="reference/configuration/">One model feeds every interface</a></h3>
+                        <span class="cat">Decision</span>
+                        <h3><a href="project/why-ze/">Reasons to consider Ze</a></h3>
                         <p>
-                            Each subsystem declares YANG. The config tree,
-                            validation, CLI completion, web editor, API, MCP,
-                            docs, audit, and diagnostics read that model.
+                            Start here for the selling points: powerful CLI,
+                            operator protocols, in-engine IRR filtering,
+                            PeeringDB data, looking glass APIs, one YANG model,
+                            and when to choose another NOS instead.
                         </p>
                     </article>
                     <article class="card usp-card cat-platform">
@@ -576,6 +529,21 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                             model through <code>ze schema</code>.
                         </p>
                     </article>
+                </div>
+            </section>
+            <section class="home-section-panel home-section-panel-run" aria-labelledby="run-title">
+                <div class="section-head reveal tone-teal">
+                    <h2 id="run-title">
+                        Run it as a lab,<br />daemon, or appliance.
+                    </h2>
+                    <p>
+                        The same binary and configuration support each path,
+                        from a <a href="labs/netlab/">netlab topology</a>
+                        or BGP interop lab to spare hardware.
+                    </p>
+                </div>
+                <div class="audience run-path-grid reveal">
+{run_cards}
                 </div>
             </section>
 
@@ -653,20 +621,6 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                             <a href="features/ai-first/"
                                 >AI-assisted operations
                                 <span>MCP exposes Ze commands to tools</span></a
-                            >
-                        </div>
-                        <div class="link-list home-secondary-routes">
-                            <a href="faq/"
-                                >FAQ <span>answers before you try Ze</span></a
-                            >
-                            <a href="roadmap/"
-                                >Project status
-                                <span>what works and what may change</span></a
-                            >
-                            <a
-                                href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener"
-                                >Ask on Discord
-                                <span>talk to the project before a lab build</span></a
                             >
                         </div>
                     </div>
@@ -785,7 +739,7 @@ def render(data):
     change_topics = change_topics_by_slug()
     blog_teaser_cards = "\n".join(
         render_blog_teaser_card(p, i, change_topics.get(p["slug"], []))
-        for i, p in enumerate(sitelib.latest_blog_posts(4))
+        for i, p in enumerate(sitelib.latest_blog_posts(3))
     )
     whats_new = render_whats_new(
         models.validate_whats_new(json.loads(WHATS_NEW_DATA.read_text()))
