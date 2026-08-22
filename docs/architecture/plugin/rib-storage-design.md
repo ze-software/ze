@@ -1056,6 +1056,39 @@ RIB manages pool handle lifecycle. See "Reverse Index" section above for full In
 **RIB owns the lifecycle.** Callers pass bytes, never handles. Pool refcount matches RIB entries exactly.
 <!-- source: internal/component/bgp/attrpool/pool.go -- Intern, Release refcounting -->
 
+### Reading the RIB for an Answer
+
+A show command walks the RIB and writes what it finds to a socket. Two locks are
+in play and neither one covers what a reader needs for the whole walk.
+
+| Lock | What it protects |
+|------|------------------|
+| `RIBManager.peerMu` | the peer-keyed maps, and nothing inside a `PeerRIB` |
+| `PeerRIB.mu` | that peer's routes, including the pool handles each entry holds |
+
+`PeerRIB.Lookup` returns a COPY of the entry and gives its lock back, so the
+handles in that copy are safe to HOLD and unsafe to READ once the lock is gone:
+`FamilyRIB.Remove` releases them under `PeerRIB.mu` alone, a released slot goes
+on its shard free list, and a release build re-interns that slot with other
+bytes. A reader that dereferences one afterwards reads another route's
+attributes rather than an error.
+
+**`PeerRIB.LookupRetained` is the read for a walk that must not hold a lock.** It
+takes a reference to the entry's handles inside the read lock, so the caller
+dereferences them with no lock held, and the caller MUST call `Release` on the
+entry exactly once.
+
+The best-path walk is built on it. `bestPipeline` reads the peer maps under
+`peerMu` to build its item list, gives that lock back, and then hands its rows
+over one at a time; `bestSource.Next` retains each item's entry when the item is
+pulled and gives the reference back on the next pull. So no socket write happens
+while `peerMu` is held, which matters because `handleReceivedStructured` takes
+`peerMu.Lock` for every UPDATE it processes: a walk that held the read side
+across its writes would stall UPDATE processing for as long as an operator's
+terminal took to drain a full table.
+<!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- LookupRetained -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_best.go -- bestPipeline, bestPathRows, bestSource -->
+
 ### Example: IPv4 Unicast
 
 ```

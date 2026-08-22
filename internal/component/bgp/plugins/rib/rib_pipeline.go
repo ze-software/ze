@@ -1,7 +1,7 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — iterator pipeline for RIB show commands
 // RFC: rfc/short/rfc4271.md -- route attributes surfaced by show pipelines
 // Overview: rib.go — RIB plugin core types and event handlers
-// Related: rib_pipeline_best.go — best-path pipeline (bestSource, bestPipeline, bestJSONTerminal)
+// Related: rib_pipeline_best.go — best-path pipeline (bestSource, bestPipeline, bestPathRows)
 // Related: rib_topology.go — graph terminal for AS path topology rendering
 // Related: rib_commands.go — command handling and JSON responses
 // Related: rib_attr_format.go — attribute formatting for show enrichment
@@ -115,8 +115,13 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 		s.items = s.items[:0]
 		s.itemIdx = 0
 
+		// The ADD-PATH flags are read BEFORE the iteration. IterateSorted runs
+		// its callback under the PeerRIB read lock and IsAddPath takes that same
+		// lock, so asking inside the callback deadlocks against any writer that
+		// arrives between the two (PeerRIB.IsAddPath).
+		addPath := ref.peerRIB.AddPathFamilies()
 		ref.peerRIB.IterateSorted(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
-			prefixStr := formatNLRIAsPrefix(fam, nlriBytes, ref.peerRIB.IsAddPath(fam))
+			prefixStr := formatNLRIAsPrefix(fam, nlriBytes, addPath[fam])
 			s.items = append(s.items, RouteItem{
 				Peer:       ref.peer,
 				Family:     fam,
@@ -183,8 +188,12 @@ func (s *protocolInboundSource) Next() (RouteItem, bool) {
 			continue
 		}
 
+		// Read the ADD-PATH flags before the iteration, for the reason
+		// PeerRIB.IsAddPath states: asking inside the callback takes the read
+		// lock the iteration already holds.
+		addPath := peerRIB.AddPathFamilies()
 		peerRIB.IterateSorted(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
-			prefixStr := formatNLRIAsPrefix(fam, nlriBytes, peerRIB.IsAddPath(fam))
+			prefixStr := formatNLRIAsPrefix(fam, nlriBytes, addPath[fam])
 			s.items = append(s.items, RouteItem{
 				Peer:       peer,
 				Family:     fam,

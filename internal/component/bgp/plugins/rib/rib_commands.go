@@ -8,7 +8,7 @@
 // Related: bestpath.go — best-path selection (extractCandidate, gatherCandidates, SelectBest)
 // Related: rib_commands_community.go — community attach/delete operations
 // Related: rib_pipeline.go — iterator pipeline for show commands (scope, filters, terminals)
-// Related: rib_pipeline_best.go — best-path pipeline (bestSource, bestPipeline, bestJSONTerminal)
+// Related: rib_pipeline_best.go — best-path pipeline (bestSource, bestPipeline, bestPathRows)
 package rib
 
 import (

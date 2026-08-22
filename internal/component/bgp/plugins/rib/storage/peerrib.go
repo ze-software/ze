@@ -3,6 +3,7 @@
 package storage
 
 import (
+	"maps"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
@@ -29,10 +30,32 @@ func NewPeerRIB(peerAddr string) *PeerRIB {
 }
 
 // IsAddPath returns whether ADD-PATH is configured for a family.
+//
+// It takes this type's read lock, so it MUST NOT be called from inside an
+// Iterate or Modify callback, which run with that lock already held. A Go
+// RWMutex is not reentrant: a writer arriving between the two acquisitions
+// blocks the second one, and the iteration then waits for a lock the writer
+// cannot get because the iteration still holds the first. Read the flags before
+// the walk starts, with AddPathFamilies.
 func (r *PeerRIB) IsAddPath(fam family.Family) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.addPath[fam]
+}
+
+// AddPathFamilies reports the ADD-PATH state of every family this RIB has been
+// told about, as a copy the caller owns.
+//
+// It exists so a walk can read the flags BEFORE it starts iterating. Reading
+// them one at a time from inside the iteration is the deadlock IsAddPath names,
+// and it is reachable from a show command running beside a withdrawal.
+func (r *PeerRIB) AddPathFamilies() map[family.Family]bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	families := make(map[family.Family]bool, len(r.addPath))
+	maps.Copy(families, r.addPath)
+	return families
 }
 
 // SetAddPath configures ADD-PATH for a family.
@@ -81,7 +104,9 @@ func (r *PeerRIB) Remove(fam family.Family, nlriBytes []byte) bool {
 
 // Lookup finds the RouteEntry for an NLRI.
 // Returns (entry, true) if found, (zero RouteEntry, false) otherwise.
-// The returned entry is a copy -- safe for read-only use.
+// The returned entry is a copy, and its pool handles are NOT retained: they
+// stay live only while this RIB still holds the route. A caller that
+// dereferences them after this returns MUST use LookupRetained instead.
 func (r *PeerRIB) Lookup(fam family.Family, nlriBytes []byte) (RouteEntry, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -91,6 +116,46 @@ func (r *PeerRIB) Lookup(fam family.Family, nlriBytes []byte) (RouteEntry, bool)
 		return RouteEntry{}, false
 	}
 	return rib.lookupEntry(nlriBytes)
+}
+
+// LookupRetained finds the RouteEntry for an NLRI and takes a reference to its
+// pool handles before this lock is given back, so the caller MAY dereference
+// those handles afterwards.
+//
+// The caller MUST call Release on the returned entry, exactly once, whatever it
+// does with it. An unreleased entry holds pool slots for the life of the
+// process, so the acquisition and the release belong in one function with the
+// release deferred.
+//
+// It exists because Lookup's copy is safe to HOLD and unsafe to READ once the
+// lock is gone. Remove releases an entry's handles under this lock alone
+// (FamilyRIB.Remove), a released slot goes on its shard's free list, and a
+// release build re-interns that slot with other bytes (attrpool, slotReuseEnabled
+// in validate_release.go). So a reader that dereferences a handle after the lock
+// is given back can read another route's attributes rather than an error, and
+// no lock outside this type prevents it: RIBManager.peerMu protects the
+// peer-keyed maps and not the routes inside a PeerRIB.
+//
+// This is the read for a walk that must not hold a lock across a socket write.
+func (r *PeerRIB) LookupRetained(fam family.Family, nlriBytes []byte) (RouteEntry, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	rib, exists := r.families[fam]
+	if !exists {
+		return RouteEntry{}, false
+	}
+	entry, found := rib.lookupEntry(nlriBytes)
+	if !found {
+		return RouteEntry{}, false
+	}
+	if err := entry.AddRef(); err != nil {
+		// The pool is shut down or the handle is already dead. Reporting no
+		// entry is what the caller can act on; handing back one whose handles
+		// nothing retains would be the read this method exists to refuse.
+		return RouteEntry{}, false
+	}
+	return entry, true
 }
 
 // Len returns the total number of NLRIs across all families.
@@ -119,6 +184,10 @@ func (r *PeerRIB) FamilyLen(fam family.Family) int {
 
 // Iterate calls fn for each NLRI with its family and RouteEntry.
 // Stops if fn returns false.
+//
+// fn runs with this type's read lock held, so it MUST NOT call a method that
+// takes that lock again: IsAddPath states the deadlock the second acquisition
+// reaches.
 func (r *PeerRIB) Iterate(fn func(fam family.Family, nlriBytes []byte, entry RouteEntry) bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -137,6 +206,9 @@ func (r *PeerRIB) Iterate(fn func(fam family.Family, nlriBytes []byte, entry Rou
 
 // IterateSorted is like Iterate but CIDR families are visited in sorted
 // prefix order. Use for user-facing output; Iterate for internal processing.
+//
+// fn runs with this type's read lock held, and owes it the same obligation
+// Iterate states.
 func (r *PeerRIB) IterateSorted(fn func(fam family.Family, nlriBytes []byte, entry RouteEntry) bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

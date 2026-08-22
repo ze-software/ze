@@ -25,7 +25,7 @@ import (
 // newTestRIBManager creates a RIBManager with closed SDK connections for unit testing.
 // The SDK plugin is initialized but connections are closed, so RPC calls (updateRoute)
 // will fail silently. This is appropriate for testing internal state changes.
-func newTestRIBManager(t *testing.T) *RIBManager {
+func newTestRIBManager(t testing.TB) *RIBManager {
 	t.Helper()
 	registerBuiltinCommands() // includes LLGR commands
 	pluginEnd, remoteEnd := net.Pipe()
