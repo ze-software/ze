@@ -446,7 +446,18 @@ def message_text(subject: str, body: list[str]) -> str:
     if "\n" in cleaned_subject:
         raise UsageError("--subject must be a single line")
     if len(cleaned_subject) > COMMIT_MESSAGE_WIDTH:
-        raise UsageError(f"--subject must be at most {COMMIT_MESSAGE_WIDTH} characters")
+        # The overage and the subject itself, not just the limit. A create call
+        # carries a multi-paragraph --body, so a refusal here costs the caller a
+        # full re-invocation of a very long command; two sessions reported that
+        # cost independently on 2026-08-22. Naming the limit alone leaves them
+        # counting characters by hand to find a subject that fits, which is a
+        # second retry. Naming the overage makes the next attempt the last one.
+        over = len(cleaned_subject) - COMMIT_MESSAGE_WIDTH
+        raise UsageError(
+            f"--subject is {len(cleaned_subject)} characters, "
+            f"{over} over the {COMMIT_MESSAGE_WIDTH} limit. "
+            f"Cut {over} character{'s' if over > 1 else ''} from: {cleaned_subject}"
+        )
     parts = [cleaned_subject]
     cleaned_body = wrap_commit_body(body)
     if cleaned_body:

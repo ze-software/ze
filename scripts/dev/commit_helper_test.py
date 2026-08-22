@@ -5386,5 +5386,35 @@ class TestDebtClearRunsOverTheCommit(unittest.TestCase):
             self.assertIn("UNRUNNABLE", out.getvalue())
 
 
+class TestSubjectLengthRefusal(unittest.TestCase):
+    """A refused subject must cost ONE retry, not two.
+
+    `create` carries a multi-paragraph `--body`, so a refusal makes the caller
+    re-issue a very long command. Two sessions reported that cost independently
+    on 2026-08-22. An error naming only the limit leaves them counting
+    characters by hand to find a subject that fits, which is the second retry.
+    """
+
+    def test_the_refusal_names_the_length_the_overage_and_the_subject(self) -> None:
+        subject = "x" * (ch.COMMIT_MESSAGE_WIDTH + 5)
+        with self.assertRaises(ch.UsageError) as caught:
+            ch.message_text(subject, ["body"])
+        msg = str(caught.exception)
+        self.assertIn(str(ch.COMMIT_MESSAGE_WIDTH + 5), msg, "actual length missing")
+        self.assertIn("5 over", msg, "overage missing")
+        self.assertIn(subject, msg, "the subject itself is missing")
+
+    def test_one_character_over_says_character_not_characters(self) -> None:
+        with self.assertRaises(ch.UsageError) as caught:
+            ch.message_text("x" * (ch.COMMIT_MESSAGE_WIDTH + 1), ["body"])
+        self.assertIn("Cut 1 character from:", str(caught.exception))
+
+    def test_a_subject_exactly_at_the_limit_is_accepted(self) -> None:
+        """The other edge. A limit that refused its own boundary value would
+        send callers hunting for an off-by-one that is not there."""
+        subject = "x" * ch.COMMIT_MESSAGE_WIDTH
+        self.assertIn(subject, ch.message_text(subject, ["body"]))
+
+
 if __name__ == "__main__":
     unittest.main()
