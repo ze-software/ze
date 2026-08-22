@@ -18,6 +18,21 @@
 
 # This test programs nftables, so it needs CAP_NET_ADMIN, not merely Linux.
 option=needs-linux:caps=net-admin
+# Serialize against every other firewall-irr test. The nftables ruleset is
+# NODE-WIDE, and the table names these tests program cannot be varied from a
+# .ci: ifaceTableName is the Go constant "ze_irr_iface"
+# (internal/component/firewall/plugins/irr/sets.go) and the config-derived names
+# collide as ze_wan and ze_lan. Apply
+# (internal/plugins/firewall/nft/backend_linux.go) lists the node's tables and
+# deletes every ze_* table it is about to program, so one daemon removes a
+# sibling's live table and the sibling reads back terms it never wrote. The
+# persisted prefix store is shared too: DefaultConfigDir
+# (internal/core/paths/paths.go) derives it from the binary path, so every
+# daemon in the run opens one database.zefs, and a sibling that fetches AS-TEST
+# destroys the cold-cache precondition firewall-irr-cold-cache-recovers asserts
+# on its first line. MEASURED 2026-08-22 in one privileged container: run in
+# parallel 2 of 12 failed, run serially 12 of 12 pass.
+option=exclusive:group=firewall-irr-nft
 option=env:var=ze.log.firewall.irr:value=debug
 option=timeout:value=20s
 

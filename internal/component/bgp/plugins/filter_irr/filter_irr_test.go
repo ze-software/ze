@@ -576,6 +576,52 @@ func TestFilterWaitsForFirstResolution(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-1 at the BGP consumer -- an IRR server that answers "key not
+// found" leaves this filter enforcing the prefixes it already had, so the peer's
+// UPDATEs keep being evaluated on their merits.
+// PREVENTS: an empty answer emptying a live filter. refreshASNCtx keeps st.list
+// only on its error branch, so the property depends on store.Refresh reporting
+// ErrNoPrefixes for an answer that learned nothing
+// (internal/component/resolve/irr/store/store.go). Without that error the list
+// is replaced with an empty one, handleFilterUpdate finds no entries, and every
+// UPDATE from the peer is rejected.
+func TestRefreshEmptyAnswerKeepsFilterList(t *testing.T) {
+	good := fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"})
+	plug := &irrPlugin{
+		byASN:       map[uint32]*asnState{65001: newASNState(65001, "AS-TEST")},
+		prefixStore: store.New(irr.NewIRR(good), nil, ""),
+		stopCh:      make(chan struct{}),
+	}
+	plug.refreshASN(65001)
+	seeded := plug.byASN[65001].list
+	if seeded == nil || len(seeded.entries) != 1 {
+		t.Fatalf("seed refresh did not populate the list: %+v", seeded)
+	}
+
+	// The same AS-SET, answered now by a server that holds no key for it. A new
+	// store and a new client, because the client caches a non-empty answer for an
+	// hour and would replay the seed.
+	plug.prefixStore = store.New(irr.NewIRR(fakeIRRv4(t, nil)), nil, "")
+	plug.refreshASN(65001)
+
+	st := plug.byASN[65001]
+	if st.list != seeded {
+		t.Fatalf("the empty answer replaced the prefix list: %+v", st.list)
+	}
+	if st.lastErr == "" {
+		t.Error("a refresh that learned nothing must be recorded, not reported as success")
+	}
+
+	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
+		Filter: "bgp-filter-irr:65001",
+		Peer:   "127.0.0.1",
+		Update: "ipv4/unicast announce nlri ipv4/unicast add 10.0.0.0/24",
+	})
+	if out.Action != sdk.FilterAccept {
+		t.Errorf("action = %v, want FilterAccept: the peer's prefix is still in the last-known-good list", out.Action)
+	}
+}
+
 // VALIDATES: the firstDone wait does NOT turn a genuinely-empty resolution into
 // an indefinite hang. When the first resolution completes but yields nothing
 // (IRR unreachable, no cached data), it closes firstDone with an empty list; the

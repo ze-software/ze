@@ -85,10 +85,27 @@ func TestBuildSetsEmptyV6(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-3 -- an entry with no prefixes produces no set AND no table, so
+// nothing empty reaches the kernel through the table-term consumer.
+// PREVENTS: buildSets emitting an empty set for a family that answered nothing.
+// An empty nftables set matches no packet, so an accept term naming one accepts
+// nothing. The set would also RESOLVE, so dropTablesMissingAProvidedSet
+// (internal/component/firewall/registry.go) would stop holding the operator's
+// table back and would program a term that filters everything out. The zero-set
+// answer is what keeps that table out of the kernel until prefixes arrive.
 func TestBuildSetsEmptyBoth(t *testing.T) {
 	sets := buildSets("AS13335", nil, nil)
 	if len(sets) != 0 {
 		t.Errorf("expected 0 sets for empty prefix lists, got %d", len(sets))
+	}
+
+	// The consumer, not just the builder: a term naming an entry with no
+	// prefixes must yield no table at all.
+	ps := store.New(nil, nil, "")
+	ps.Put("AS13335", nil, nil)
+	tables := buildIRRTables(ps, []irrRef{{Name: "AS13335", TableName: "ze_wan"}})
+	if len(tables) != 0 {
+		t.Fatalf("an entry with no prefixes produced %d table(s): %+v", len(tables), tables)
 	}
 }
 

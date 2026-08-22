@@ -5,10 +5,10 @@
 | Status | in-progress |
 | Scope | plugin |
 | Depends | - |
-| Phase | - |
+| Phase | 6/6 |
 | Deferral shard | - |
 | Handoff | - |
-| Updated | 2026-08-19 |
+| Updated | 2026-08-22 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -132,7 +132,7 @@ last-known-good persistence, which is the property this defect breaks.
 | A-1 | An emptied entry bound to an interface blackholes that interface | `buildIfaceTables` gates accept terms on a non-empty list and emits the drop term unconditionally | The interface consumer is safe and only the table consumer needs fixing | A test that builds interface tables from an emptied entry and asserts no drop-everything table is produced | confirmed -- `TestBuildIfaceTablesNeverBlackholes` failed against the unfixed builder with `term "iface_eth1_drop" drops every packet on eth1 with no accept term to precede it` |
 | A-2 | The IRR reply markers for not-found, ok-empty and server error are all reachable from real servers, not only from the fakes | the fakes send the not-found marker; the parser cannot distinguish any of them | Only one marker matters and the guard can be narrower | Capture the three reply shapes in the fake server and assert the client distinguishes them | confirmed for the PROTOCOL: RPSL answers a `!` query with one status line, `C`, `D`, `E` or `F <message>`, and `parseReply` now reads it. `TestLookupPrefixesDistinguishesEmptyFromData` drives all four plus a truncated reply. NOT exercised against a live IRR server: no test in this repository reaches one |
 | A-3 | Keeping the previous data on an empty answer cannot strand a genuinely deregistered AS-SET forever | the operator can still remove the binding or force a purge | A deregistered AS-SET keeps being enforced after it should stop | The chosen design must offer an explicit purge, proven by a test | confirmed -- `PrefixStore.Purge` plus `clear firewall irr asn|as-set`, proven by `TestPurgeRemovesEntry` and `TestClearFirewallIRRPurgesEntry` |
-| A-4 | The BGP IRR filter consumer has the same root cause and can be fixed by the same store-level guard | it reads the same store and replaces its list with the empty one | The BGP side needs its own guard and this spec's scope is short by one file | Read the BGP filter's load path during Phase 1 and record the answer here | confirmed -- `refreshASN` (`internal/component/bgp/plugins/filter_irr/filter_irr.go`) reads `entry, err := ps.Refresh(...)` and returns on `err != nil` without touching `st.list`, so `ErrNoPrefixes` puts it on the branch that keeps the previous prefix list. No edit to `filter_irr` was needed |
+| A-4 | The BGP IRR filter consumer has the same root cause and can be fixed by the same store-level guard | it reads the same store and replaces its list with the empty one | The BGP side needs its own guard and this spec's scope is short by one file | Read the BGP filter's load path during Phase 1 and record the answer here | confirmed -- `refreshASNCtx` (`internal/component/bgp/plugins/filter_irr/filter_irr.go`) reads `entry, err := ps.Refresh(...)` and returns on `err != nil` without touching `st.list`, so `ErrNoPrefixes` puts it on the branch that keeps the previous prefix list. `loadFromStore` (`internal/component/bgp/plugins/filter_irr/cache.go`) seeds that list from the persisted last-known-good before the first refresh runs, so a cold start is covered too. No edit to `filter_irr` was needed, and `TestRefreshEmptyAnswerKeepsFilterList` now pins it: red with the store guard reverted, on `the empty answer replaced the prefix list: &{entries:[]}` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -171,7 +171,7 @@ last-known-good persistence, which is the property this defect breaks.
 | AC-5 | An operator runs the IRR show command after an empty refresh | The entry reports its staleness and the age of the data being enforced |
 | AC-6 | An AS-SET is genuinely deregistered and the operator wants the prefixes gone | An explicit path removes them, and it is documented |
 | AC-7 | A table term references an IRR set whose data is stale | The reconcile still applies; the term enforces the last-known-good set rather than failing the whole apply |
-| AC-8 | An operator runs `update firewall irr as-set X` within an hour of the last fetch | The command queries the server. `IRR.LookupPrefixes` (`internal/component/resolve/irr/client.go`) serves a non-empty result from its `cacheTTL = time.Hour` cache, so the one command an operator has to force a refresh answers from memory and never reaches the server. This is what keeps `firewall-irr-empty-answer-keeps-last-good.ci` and `firewall-irr-iface-no-blackhole.ci` red: each logs one `configured` and two `firewall-irr: refreshed ... ipv4=3 ipv6=1`, so the second refresh never saw the server that answers nothing, and the observer reports `a refresh that learned nothing reported success`. Measured 2026-08-19 under `unshare -Urn`. Routed here by the review of `plan/spec-fixit-firewall-irr-term-fails-validation.md` |
+| AC-8 | An operator runs `update firewall irr as-set X` within an hour of the last fetch | The command queries the server. Fixed: `IRR.RefreshPrefixes` (`internal/component/resolve/irr/client.go`) never reads the `cacheTTL = time.Hour` cache, and `PrefixStore.resolve` (`internal/component/resolve/irr/store/store.go`) calls it rather than `LookupPrefixes`. Before that split, the one command an operator had to force a refresh answered from memory and never reached the server, which kept both new `.ci` files red on `a refresh that learned nothing reported success`. Both now pass on Linux (see Functional Tests). Routed here by the review of `plan/spec-fixit-firewall-irr-term-fails-validation.md` |
 
 ## End-to-End User Stories
 
@@ -196,6 +196,8 @@ last-known-good persistence, which is the property this defect breaks.
 | `TestRefreshFailureKeepsLastGood` | `internal/component/firewall/plugins/irr/irr_test.go` | rewrite of the existing vacuous test so it actually refreshes and asserts retention | pass |
 | `TestBuildIfaceTablesNeverBlackholes` | `internal/component/firewall/plugins/irr/sets_test.go` | AC-3, validates A-1 | pass, red before |
 | `TestBuildIfaceTablesKeepsDropWhenPopulated` | `internal/component/firewall/plugins/irr/sets_test.go` | AC-3 control: the whitelist still closes | pass |
+| `TestBuildSetsEmptyBoth` | `internal/component/firewall/plugins/irr/sets_test.go` | AC-3 through the table-term consumer: an entry with no prefixes yields no set AND no table, so nothing empty is programmed. Strengthened rather than deleted; the original asserted only the zero-set half | pass, red with `buildSets` emitting a set per family |
+| `TestRefreshEmptyAnswerKeepsFilterList` | `internal/component/bgp/plugins/filter_irr/filter_irr_test.go` | AC-1 at the third consumer: an empty answer leaves the BGP filter's prefix list intact and its peer's UPDATEs accepted | pass, red with the store guard reverted |
 | `TestShowIRRReportsStaleEntry` | `internal/component/firewall/plugins/irr/command_test.go` | AC-5 | pass |
 | `TestRefreshOutcomeCountsEmptyDistinctly` | `internal/component/firewall/plugins/irr/irr_test.go` | AC-4 | pass |
 | `TestRefreshOutcomeCountsSuccess` | `internal/component/firewall/plugins/irr/irr_test.go` | AC-4 control | pass |
@@ -214,8 +216,8 @@ last-known-good persistence, which is the property this defect breaks.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `firewall-irr-empty-answer-keeps-last-good` | `test/plugin/firewall-irr-empty-answer-keeps-last-good.ci` | the mock IRR server answers not-found after a good refresh, and the interface keeps accepting the previously learned prefixes | red on `a refresh that learned nothing reported success`, which is AC-8: the second refresh is answered by the client's hour cache |
-| `firewall-irr-iface-no-blackhole` | `test/plugin/firewall-irr-iface-no-blackhole.ci` | an interface bound to an AS-SET with no data does not drop everything | red for the same reason as the row above |
+| `firewall-irr-empty-answer-keeps-last-good` | `test/plugin/firewall-irr-empty-answer-keeps-last-good.ci` | the mock IRR server answers not-found after a good refresh, and the interface keeps accepting the previously learned prefixes | pass on Linux 2026-08-22; red with the Phase 3 guard reverted, on `ZE-OBSERVER-FAIL: a refresh that learned nothing reported success` |
+| `firewall-irr-iface-no-blackhole` | `test/plugin/firewall-irr-iface-no-blackhole.ci` | an interface bound to an AS-SET with no data does not drop everything | pass on Linux 2026-08-22; red with the Phase 3 guard reverted, with the same observer failure |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -353,7 +355,7 @@ last-known-good persistence, which is the property this defect breaks.
 ## Known Limitations
 - Enforcement continues on last-known-good data for as long as the upstream stays unhelpful. That is the intended trade against a blackhole, and the staleness surface is what makes it a choice rather than a surprise.
 - The BGP IRR filter consumer is fixed only if A-4 holds; if it needs its own guard, that lands in this spec's Phase 3 or gets its own spec, decided in Phase 1 and recorded here. A-4 HOLDS: `filter_irr` takes its existing error branch on `ErrNoPrefixes` and leaves `st.list` untouched, so no edit to that plugin was needed.
-- The two functional `.ci` files are written and the runner discovers them, but every firewall IRR `.ci` declares `option=needs-linux:caps=net-admin` and they all SKIP on an unprivileged host. Their observer logic has not executed. The behaviour each asserts is unit-proven through the plugin's own command handlers.
+- Every firewall IRR `.ci` declares `option=needs-linux:caps=net-admin`, so all of them SKIP on darwin. The two new files were executed on Linux on 2026-08-22 in a privileged container, and all 12 firewall IRR `.ci` files pass there. The command is in the handoff. Two conditions the runner does not enforce: the daemon binary MUST sit outside the checkout, because `paths.ConfigDirFromBinary` derives the config dir from the binary path and a binary in `<repo>/bin` reads and writes the developer's `<repo>/etc/ze/database.zefs`, which warms the IRR cache that `firewall-irr-cold-cache-recovers` needs cold; and the suite MUST run serially, because every test programs the one node-wide nftables ruleset the container shares.
 
 ## Checklist
 
@@ -380,6 +382,177 @@ last-known-good persistence, which is the property this defect breaks.
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
-- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
-- [ ] **Commit A:** code + tests + docs + spec + learned summary
+- [ ] Lesson written as a row in `plan/journal/<class>.md` (`plan/learned/NNN-<name>.md` no longer exists as a destination)
+- [ ] **Commit A:** code + tests + spec + journal rows
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Phases 1 to 6 landed in five earlier commits (`f67afd0e1`, `20ad3ebb6`, `a96912e24`, `7f7b74995`, `15821cf9e`). The audit phase re-read every producer against the tree, closed two test gaps, and obtained the functional proof. No production Go was edited in the audit phase or in this closure.
+- The audit phase added the consumer half of `TestBuildSetsEmptyBoth` (`internal/component/firewall/plugins/irr/sets_test.go`) and `TestRefreshEmptyAnswerKeepsFilterList` (`internal/component/bgp/plugins/filter_irr/filter_irr_test.go`), the third consumer's regression pin.
+- This closure added a fifth cluster to `TestContendingFunctionalTestsDeclareExclusiveGroup` (`internal/test/runner/exclusive_group_test.go`) and `option=exclusive:group=firewall-irr-nft` to all 12 `test/plugin/firewall-irr-*.ci` files, so the runner enforces the isolation the suite previously got from an operator remembering `-p 1`.
+- This closure recorded the `ConfigDirFromBinary` condition as a HARNESS NOTE in `test/plugin/firewall-irr-cold-cache-recovers.ci`, the test whose first assertion it breaks.
+
+### Bugs Found/Fixed
+- AC-8, fixed in an earlier phase: `update firewall irr as-set X` answered from the one-hour client cache and never reached the server, so the empty-answer branch was unreachable from the surface an operator drives. `IRR.RefreshPrefixes` (`internal/component/resolve/irr/client.go`) now queries the server and never reads that cache. Covered by both new `.ci` files, which were red on exactly this.
+- The exclusive-group ratchet's population excluded the firewall-irr cluster. Fixed in this closure; the ratchet is red without the declarations and names all 12 files.
+- The functional runner gives every daemon the same binary-derived config dir, so all 690 tests share one `database.zefs` and it is the developer's own. Recorded, not fixed: the repair is a per-test config dir in the runner's process model.
+
+### Documentation Updates
+- `docs/guide/irr-filtering.md` and `docs/architecture/firewall/firewall-irr.md` carry the staleness surface, the per-family retention, the purge path, and the troubleshooting rows. Landed in the earlier phase commits, re-verified here by grep against the producing functions.
+- `docs/guide/firewall.md` documents the `error` and `empty` labels of `ze_firewall_irr_refresh_outcomes_total`.
+- `docs/functional-tests.md` gained the fifth exclusive-group cluster with three source anchors, and its stale plugin-suite count was corrected from 530 to 690. WRITTEN BUT NOT COMMITTED: see NOTE-4 in the Review Gate.
+- `make ze-doc-verify` exit 0, `make ze-doc-links-check` exit 0, `make ze-repository-check` exit 0.
+
+### Deviations from Plan
+- The Closure checklist asked for `plan/learned/NNN-<name>.md`. That destination no longer exists; the lesson is three rows under `plan/journal/`.
+- Phases 1 to 6 were implemented by earlier sessions rather than in one pass. The audit phase verified each producer instead of re-implementing.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The closure considered adding `option=env:var=ze.config.dir:value=.` to the 12 `.ci` files, to give each test a private prefix store | That patches 12 files of 690 and leaves the same exposure everywhere else, and it changes test semantics: `PrefixStore.persist` returns early when the zefs file does not exist, so an empty tmpfs makes the store in-memory only | Reading `DefaultConfigDir` (`internal/core/paths/paths.go`) and `PrefixStore.persist` (`internal/component/resolve/irr/store/store.go`) | Abandoned. The root cause is the runner's process model, recorded in `plan/journal/suite-shares-one-persistent-store.md` |
+| approach | The first discrimination mutant deleted the `Empty()` branch from `PrefixStore.Refresh` outright | That leaves `fmt` unused and the package fails to BUILD, so every test reads as red for the wrong reason and the measurement says nothing | the run answered `"fmt" imported and not used` and `[build failed]` rather than an assertion | Re-cut the mutant as a condition that compiles and never fires, so the reds are assertion failures rather than build failures |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| An empty answer stops overwriting a populated entry | Done | `PrefixStore.Refresh`, `commit`, `markStale` (`internal/component/resolve/irr/store/store.go`) | `Refresh` returns `ErrNoPrefixes` and calls `markStale`; `commit` keeps the cached prefixes of any family that answered nothing |
+| An empty answer stops being cached as if it were data | Done | `IRR.queryPrefixes` (`internal/component/resolve/irr/client.go`) | caches only when `!result.Empty()` |
+| An emptied or stale entry stops producing a blackhole table | Done | `buildIfaceTables` (`internal/component/firewall/plugins/irr/sets.go`) | a binding with no accept term emits no term and logs a WARN |
+| A refresh that learned nothing is reported as such | Done | `refreshAllNow`, `refreshName` (`internal/component/firewall/plugins/irr/irr.go`) | `incRefreshOutcome("empty")`, `logEmptyRefresh`, and `markRefreshLearned` only on a learn |
+| The three reply shapes are distinguishable | Done | `parseReply` (`internal/component/resolve/irr/client.go`) | exact status-letter match; a reply with no status line reports `replyFailed` |
+| The third consumer shares the fix | Done | `refreshASNCtx` (`internal/component/bgp/plugins/filter_irr/filter_irr.go`), `loadFromStore` (`internal/component/bgp/plugins/filter_irr/cache.go`) | the error branch returns without touching `st.list`; `loadFromStore` skips an entry that yields no entries |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `PrefixStore.Refresh` | `TestRefreshKeepsLastGoodOnEmptyAnswer`, `TestRefreshStoresNothingOnFirstEmptyAnswer`, `TestRefreshFailureKeepsLastGood`, `TestRefreshEmptyAnswerKeepsFilterList`, `firewall-irr-empty-answer-keeps-last-good.ci` |
+| AC-2 | Done | `IRR.queryPrefixes` | `TestLookupPrefixesDoesNotCacheEmptyAnswer` |
+| AC-3 | Done | `buildIfaceTables`, `buildIRRTables` | `TestBuildIfaceTablesNeverBlackholes`, `TestBuildSetsEmptyBoth`, `firewall-irr-iface-no-blackhole.ci` |
+| AC-4 | Done | `refreshAllNow`, `refreshName` | `TestRefreshOutcomeCountsEmptyDistinctly`, `TestRefreshOutcomeCountsSuccess` |
+| AC-5 | Done | the show handler in `internal/component/firewall/plugins/irr/command.go`, and `CachedEntry.Stale` | `TestShowIRRReportsStaleEntry`, `TestDoctorReportsStaleIRRData` |
+| AC-6 | Done | `PrefixStore.Purge` | `TestPurgeRemovesEntry`, `TestClearFirewallIRRPurgesEntry` |
+| AC-7 | Done | `dropTablesMissingAProvidedSet` (`internal/component/firewall/registry.go`) | `firewall-irr-cold-cache-recovers.ci`, `firewall-irr-table-term-uncached-reject.ci` |
+| AC-8 | Done | `IRR.RefreshPrefixes`, called by `PrefixStore.resolve` | both new `.ci` files, red on this exact symptom before the split |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every unit test in the TDD table | Done | the four IRR packages | `./internal/component/resolve/irr`, `./internal/component/resolve/irr/store`, `./internal/component/firewall/plugins/irr`, `./internal/component/bgp/plugins/filter_irr` all exit 0 |
+| `TestLookupPrefixesEmpty` replaced | Done | `internal/component/resolve/irr/client_test.go` | the name resolves nowhere in the tree; `TestLookupPrefixesDistinguishesEmptyFromData` drives all four reply states |
+| `TestRefreshFailureKeepsLastGood` rewritten | Done | `internal/component/firewall/plugins/irr/irr_test.go` | refreshes twice and asserts retention plus staleness; red against the neutered guard on `a refresh that learned nothing must report it, not report success` |
+| `TestBuildSetsEmptyBoth` strengthened | Done | `internal/component/firewall/plugins/irr/sets_test.go` | both halves red against the `buildSets` mutant, the builder on `expected 0 sets for empty prefix lists, got 1` and the new consumer half on `an entry with no prefixes produced 1 table(s)` |
+| The two `.ci` files | Done | `test/plugin/` | 12 of 12 firewall IRR `.ci` pass on Linux |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| The six production files in Files to Modify | Done | all six carry the change; verified by reading each producer in this closure |
+| The three test files in Files to Modify | Done | one replaced, one rewritten, one strengthened |
+| `docs/guide/irr-filtering.md`, `docs/architecture/firewall/firewall-irr.md` | Done | staleness, per-family retention, purge, troubleshooting |
+| The two files in Files to Create | Done | both exist and both pass on Linux |
+| `internal/test/runner/exclusive_group_test.go`, the 12 `.ci` | Changed | added by this closure, outside the original plan; recorded in `plan/journal/gate-excludes-part-of-its-population.md` |
+
+### Audit Summary
+- **Total items:** 8 AC, 6 task requirements, 5 test groups, 5 file groups
+- **Done:** 23
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (the exclusive-group cluster, added beyond the plan)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A transient IRR answer never blackholes a physical port | functional | `test/plugin/firewall-irr-iface-no-blackhole.ci` passes on Linux and is red with the Phase 3 guard reverted, on `ZE-OBSERVER-FAIL: a refresh that learned nothing reported success`. Unit control: `TestBuildIfaceTablesNeverBlackholes` reds with the empty-accept guard neutered, on `term "iface_eth1_drop" drops every packet on eth1 with no accept term to precede it` |
+| A populated entry survives an unhelpful upstream, in memory and on disk | functional | `test/plugin/firewall-irr-empty-answer-keeps-last-good.ci` passes on Linux, red with the guard reverted. Unit control: neutering `PrefixStore.Refresh`'s `Empty()` branch reds 8 tests across three packages, `TestRefreshKeepsLastGoodOnEmptyAnswer` and `TestRefreshFailureKeepsLastGood` among them |
+| The table-term consumer programs nothing empty | unit, driven from the consumer | `TestBuildSetsEmptyBoth` asserts through `buildIRRTables`, not only `buildSets`. Both halves red against the mutant: `expected 0 sets for empty prefix lists, got 1` and `an entry with no prefixes produced 1 table(s)` |
+| The BGP IRR filter keeps accepting the peer's UPDATEs | unit, driven from the filter's entry point | `TestRefreshEmptyAnswerKeepsFilterList` refreshes twice and then drives `handleFilterUpdate`, asserting `FilterAccept`. Red against the mutant on `the empty answer replaced the prefix list: &{entries:[]}` |
+| An operator can see that enforcement runs on stale data | functional and unit | `TestShowIRRReportsStaleEntry` (red against the mutant on `expected the empty answer to be reported`), `TestDoctorReportsStaleIRRData`, and the show output documented in `docs/guide/irr-filtering.md` |
+| A deregistered AS-SET can still be removed | unit through the command surface | `TestPurgeRemovesEntry`, `TestClearFirewallIRRPurgesEntry` |
+| The suite that proves all of this is reproducible without an operator remembering a flag | ratchet | `TestContendingFunctionalTestsDeclareExclusiveGroup` red naming all 12 files before the declarations, green after |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none | done | The spec's metadata names no deferral shard, and `plan/deferrals/` holds no `fixit-irr-empty-answer-clears-set.md`. Nothing to remove and no foreign shard emptied by this closure |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-irr-empty-answer-clears-set-ebf5d9b3-b158-40df-bba0-32a51591883e.md` |
+| `review_gate.py check` | clean, 15 code files, hashes match |
+| Rounds | 1. Round 1 reported 0 BLOCKER and 0 ISSUE, so the loop terminated there |
+| Reviewer lenses used | logic+wiring, security+edge-cases, gate/ratchet risk. All three because the diff changes a ratchet and the tests that pin a guard |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | NOTE only | No BLOCKER and no ISSUE were found. Four NOTEs sit in the artifact: a cross-suite table-name overlap tested and refuted at `run_suite`; the deliberate fail-open of `buildIfaceTables`; the BGP consumer's coarse `error` counter label, which AC-4 does not cover and which `st.lastErr` already distinguishes for an operator; and the exclusion of `docs/functional-tests.md` from the commit | `mk/test-functional.mk`, `internal/component/firewall/plugins/irr/sets.go`, `internal/component/bgp/plugins/filter_irr/filter_irr.go`, `docs/functional-tests.md` | Not applicable: NOTEs do not block |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/firewall-irr-empty-answer-keeps-last-good.ci` | Yes | `ls -la` reports `5.0K Aug 22 15:20` |
+| `test/plugin/firewall-irr-iface-no-blackhole.ci` | Yes | `ls -la` reports `4.5K Aug 22 15:20` |
+| All 12 `test/plugin/firewall-irr-*.ci` | Yes | `ze-test bgp plugin -l` lists them as records 252 to 263 of 690 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | the previous prefixes are kept | read `Refresh`: `entry.PrefixList().Empty()` returns `markStale` plus `ErrNoPrefixes`. Neutering it reds `TestRefreshKeepsLastGoodOnEmptyAnswer`, `TestRefreshStoresNothingOnFirstEmptyAnswer`, `TestRefreshQueriesServerWithinCacheTTL` and `TestRefreshClearsStaleness` |
+| AC-2 | nothing empty enters the prefix cache | read `queryPrefixes`: it sets the cache only inside `if !result.Empty()` |
+| AC-3 | no blackhole table | read `buildIfaceTables`: a binding with no accept term logs and continues. Neutered, `TestBuildIfaceTablesNeverBlackholes` reds |
+| AC-4 | the empty outcome is counted apart | read `refreshAllNow`: `errors.Is(err, store.ErrNoPrefixes)` takes `incRefreshOutcome("empty")`, and `markRefreshLearned()` runs only when something was learned |
+| AC-5 | staleness is visible | read the show handler: `entry.Stale()` emits `"status":"stale"` and `"stale-since"`. Neutering the store guard reds `TestShowIRRReportsStaleEntry` |
+| AC-6 | an explicit removal path exists | read `Purge`: it refuses an invalid name, deletes in memory and on disk, and reports whether anything was there |
+| AC-7 | a stale set does not fail the whole apply | read `dropTablesMissingAProvidedSet`: the unit held back is one TABLE, and its supplier's own `ApplyAll` programs it later |
+| AC-8 | the force refresh reaches the server | read `RefreshPrefixes`: it calls `queryPrefixes` directly and never reads `prefixCache`; `resolve` calls it rather than `LookupPrefixes` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| An IRR server answers with the not-found marker | unit at the client | `TestLookupPrefixesDistinguishesEmptyFromData`; `parseReply` matches the status letter exactly rather than by prefix |
+| A refresh returns nothing while a populated entry exists | `test/plugin/firewall-irr-empty-answer-keeps-last-good.ci` | read the file: it drives `update firewall irr as-set AS-TEST` against the mock server's empty-after-first mode and asserts the prefixes survive |
+| An emptied entry reaches the interface table builder | `test/plugin/firewall-irr-iface-no-blackhole.ci` | read the file: it configures `interface eth1 { source-as-set AS-TEST }` and asserts no drop-only table |
+| An operator asks for IRR status after an empty refresh | unit at the command | `TestShowIRRReportsStaleEntry` |
+| A running daemon gets an empty answer | both new `.ci` | 12 of 12 firewall IRR `.ci` pass on Linux, serially |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestBuildIfaceTablesNeverBlackholes` reds against the unfixed builder with `term "iface_eth1_drop" drops every packet on eth1 with no accept term to precede it`, re-measured in this closure |
+| A-2 | confirmed for the protocol | `parseReply` reads the RPSL status line; `TestLookupPrefixesDistinguishesEmptyFromData` drives C, D, E, F and a truncated reply. Not exercised against a live IRR server: no test in this repository reaches one |
+| A-3 | confirmed | `PrefixStore.Purge` plus the `clear firewall irr` verbs, proven by `TestPurgeRemovesEntry` and `TestClearFirewallIRRPurgesEntry` |
+| A-4 | confirmed, re-derived at the producer in this closure | `refreshASNCtx` sets `st.lastErr`, signals, unlocks and RETURNS on a non-nil error, never reaching the `st.list` assignment; `loadFromStore` skips an entry whose `prefixListFromIRR` yields no entries, so a cold start installs no empty list. `TestRefreshEmptyAnswerKeepsFilterList` reds against the mutant |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/irr-filtering.md` last-known-good and staleness claims | grep shows the `stale`, `stale-since` and `data-age-seconds` rows; `CachedEntry.Stale` and the show handler produce them | Yes |
+| `docs/guide/irr-filtering.md` purge instructions | both `clear firewall irr` forms are documented; `PrefixStore.Purge` and the command handler produce them | Yes |
+| `docs/architecture/firewall/firewall-irr.md` empty-answer design | the page states the per-family retention and the operator-action removal, which `commit` and `Purge` implement | Yes |
+| `docs/guide/firewall.md` metric labels | documents `error` and `empty` for `ze_firewall_irr_refresh_outcomes_total`; `incRefreshOutcome` emits both | Yes |
+| `docs/functional-tests.md` exclusive-group clusters | the fifth cluster is written with three source anchors, and the stale suite count is corrected | Written, not committed (NOTE-4) |
+| RFC status | No: IRR is not RFC-gated in this repository's ledger, and the diff touches no wire protocol | Yes |
+| Doctor checks | No new runtime dependency in this closure; the IRR doctor check and its diagnostic codes landed with AC-5 and are covered by `TestDoctorCodesAreRegistered` | Yes |
+
+## Core Insight
+
+A guard is only as reachable as the surface an operator can drive to it. The
+store guard was correct from Phase 3 and both functional tests stayed red,
+because the one command an operator has to force a refresh answered from a
+one-hour client cache and never reached the server that would have produced the
+empty answer. Every unit test of the guard was green throughout. The proof that
+mattered was the one driven from the operator's command, not from the function.
