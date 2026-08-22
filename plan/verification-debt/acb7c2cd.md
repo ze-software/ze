@@ -27,3 +27,4 @@ is open.
 | 2026-08-22 | acb7c2cd | rules: three points so today's lessons bind the next session | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-22 | acb7c2cd | plan: repair the citations closing specs left dangling | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-22 | acb7c2cd | test(rib): the best-path walk .ci reads back what it asserts | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-22 | acb7c2cd | test(runner): the debt-clear fixture repos carry a commit | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |

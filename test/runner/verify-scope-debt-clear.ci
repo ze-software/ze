@@ -13,6 +13,17 @@
 # one the debt row owes. One exits 0 and one exits 3, so the pass reads a real
 # exit code from a real process and the live ledger is never touched.
 #
+# Each fixture repo carries a COMMIT, because the pass runs every owed gate in a
+# throwaway worktree at HEAD (`clear_debt`, `scripts/dev/commit_helper.py`). A
+# repo with no HEAD materializes nothing and the pass exits 1 with UNWORKTREED,
+# which is the honest answer: a gate run over the shared working tree would judge
+# other sessions' uncommitted files.
+#
+# The pass repo's working tree then DIVERGES from that commit: the committed
+# Makefile is green and the working-tree one exits 3 and says a different word.
+# So a pass that ever went back to running the working tree would print that word
+# and clear nothing.
+#
 # If clearing ever trusted the row instead of the gate, the red repo's row would
 # clear and seq=3 would fail.
 
@@ -57,6 +68,20 @@ printf 'ze-precommit-verify:\n\t@echo fixture-gate-said-why\n\t@exit 3\n' > "$ba
 	echo '| 2026-08-19 | fixture | a commit | ze-precommit-verify (not FRESH-green) | the gate had not run | open |'
 } > "$base/red/plan/verification-debt/fixture.md"
 
+# Each repo needs a HEAD: the pass materializes one worktree at it and runs every
+# owed gate there.
+for name in pass red; do
+	cd "$base/$name"
+	git add -A
+	git commit -q -m base
+	cd "$base"
+done
+
+# The pass repo's working tree now says something else. A gate run against the
+# tree instead of the commit would print `fixture-gate-ran-from-the-working-tree`
+# and exit 3, so nothing would clear.
+printf 'ze-precommit-verify:\n\t@echo fixture-gate-ran-from-the-working-tree\n\t@exit 3\n' > "$base/pass/Makefile"
+
 echo debt-fixtures-ready
 EOF_SETUP
 
@@ -89,6 +114,15 @@ case "$out" in
 *fixture-gate-ran-green*) ;;
 *)
 	echo "AC-6: the owed gate did not run" >&2
+	exit 1
+	;;
+esac
+
+# It ran over the COMMIT. The working tree's Makefile says another word, so this
+# is what tells a worktree run from a working-tree one.
+case "$out" in
+*fixture-gate-ran-from-the-working-tree*)
+	echo "the gate ran over the working tree, not the commit" >&2
 	exit 1
 	;;
 esac
