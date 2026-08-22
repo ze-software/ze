@@ -257,6 +257,38 @@ and merges the response into the base map. Proxy enrichers are cleaned up via
 <!-- source: pkg/plugin/rpc/types.go -- EnricherDecl -->
 <!-- source: internal/component/plugin/server/enricher.go -- registerProxyEnrichers, validateEnricherDecls -->
 
+**Pipe Alias Declaration (Stage 1):**
+
+A plugin CAN include a `pipes` list in its `declare-registration` to name a CLI
+pipe alias for one of its own commands. An alias is the word an operator types
+after the pipe character, and it stands for an operator chain. The daemon
+resolves it, because the daemon runs the chain.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `pipes[].command` | string | Command path the alias sits on. MUST be one of this plugin's own declared commands |
+| `pipes[].name` | string | The word an operator types after the pipe character (kebab-case, 1-64 chars) |
+| `pipes[].description` | string | The line completion and `command help` show beside the name |
+| `pipes[].expansion` | string | The operator chain the name stands for, as an operator would type it |
+
+`validatePipeDecls` reads the shape and the ownership before any conversion.
+`registerPluginPipes` then writes the accepted set into the alias registry under
+`startupRegistrationMu`, between the registry row and the runtime families. One
+bad entry refuses the whole list and fails the plugin's startup, with a message
+naming the plugin, the command path and the alias name.
+`UnregisterPluginAliases` takes the declaration back when the plugin stops or
+its startup is rolled back, which is what lets a stopped plugin start again.
+
+A pipe alias SELECTS and re-sequences an answer. It renames nothing, sums
+nothing and counts nothing, so a command that wants one MUST emit the aggregate
+fields beside the detail rows. The full contract, both collision rules and the
+derived inheritance barrier are in `docs/architecture/api/commands.md`.
+
+<!-- source: pkg/plugin/rpc/types.go -- PipeDecl -->
+<!-- source: pkg/plugin/sdk/sdk_types.go -- PipeDecl -->
+<!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes -->
+<!-- source: internal/component/command/alias.go -- RegisterPluginAliases, UnregisterPluginAliases -->
+
 ### Tier-Ordered Startup
 
 Plugins are grouped into dependency tiers before handshake begins. All processes

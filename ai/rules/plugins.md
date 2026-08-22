@@ -388,6 +388,51 @@ Filter Text Protocol" for the full contract and
 `internal/component/bgp/reactor/filter_format.go` (`isCIDRFamily`,
 `formatMPBlock`) for the implementation.
 
+## Runtime Pipe Alias Declaration (stage 1 wire protocol)
+
+External plugins can name a CLI pipe alias for their own commands at stage 1 via
+`declare-registration`. An alias is the word an operator types after the pipe
+character, and it stands for an operator chain. The engine parses the expansion
+once, at registration, and the daemon resolves it. `RegisterPluginAliases`
+(`internal/component/command/alias.go`) reports a bad declaration as an error
+rather than a panic, because the strings arrived over a socket.
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `pipes[].command` | string | Command path the alias sits on. MUST be one of this plugin's own declared commands |
+| `pipes[].name` | string | The word an operator types after the pipe character (kebab-case, 1-64 chars) |
+| `pipes[].description` | string | The line completion and `command help` show beside the name |
+| `pipes[].expansion` | string | The operator chain the name stands for, as an operator would type it |
+
+**A pipe alias SELECTS and re-sequences an answer. It renames no key, adds no
+numbers and counts no matching rows.** So a command that wants an alias MUST
+emit the aggregate fields beside the detail rows, as siblings at one level.
+`show bgp rpki` is the worked example: `overviewCommand` writes both halves into
+one record, and `| summary` selects the first half. A command whose second view
+needs computed data stays a subcommand, and so does one that takes a value.
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, appendSummaryFields, summaryFieldNames -->
+
+**Three holders refuse a declared alias name:**
+
+- a built-in pipe operator that carries the name.
+- a pipe filter on an OVERLAPPING command path that carries it.
+- an alias on the EXACT same command path that carries it.
+
+The two populations differ because the two resolution rules differ. A filter
+wins its whole subtree, and a longer alias path deliberately shadows a shorter
+one. A plugin MUST NOT name a command path it did not declare in the same
+message. One refusal fails the whole stage 1 registration, and the daemon log is
+where an operator reads it.
+
+**A declared alias resolves over the SSH exec channel and in the daemon-hosted
+interactive session. It does NOT resolve in `ze cli` with no command argument.**
+That process runs its own copy of the interactive model and expands the chain
+before it sends anything, and no plugin alias is registered there. An operator
+reads `pipe error: unknown pipe operator: <name>`, and Tab offers the name
+nowhere. The repair is a channel that carries the daemon's alias table to the
+client, and it is not built. `cliClient.StreamMonitor` has the same gap.
+<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
+
 ## Modification-Accumulator Buffer Arity (BLOCKING for filter plugin authors)
 
 - **An egress filter records attribute modifications with `filterapi.ModAccumulator.Op(code, action, buf)`. For an attribute whose value is a LIST of fixed-width wire values, `buf` MUST hold a whole number of those values, concatenated.** Several values in ONE operation is allowed and means "every one of them"; splitting them across operations is allowed too. A buffer that is not a whole number of values is what is forbidden.

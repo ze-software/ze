@@ -235,11 +235,33 @@ An alias is fixed at registration, which keeps it readable:
 
 - It takes no argument. `| peers established` is refused by name.
 - It never stands for another alias, so what you see is one substitution.
-- It is expanded in the CLI, before the command runs, so `| json`, `| text` and
-  every other format carry it.
+- It is expanded before the command runs, so `| json`, `| text` and every other
+  format carry it.
 
-<!-- source: internal/component/command/alias.go -- RegisterAliases, AliasesForCommand -->
+A plugin names an alias for its own commands too. The BGP RPKI plugin declares
+`summary` on `show bgp rpki`, so the counters come back without the cache server
+rows:
+
+```
+show bgp rpki             # the counters and one row for each cache server
+show bgp rpki | summary   # the counters alone
+```
+
+`command help "show bgp rpki"` lists the aliases a command answers to, with the
+chain each one stands for.
+
+A plugin's alias is registered in the daemon, and one client does not read it.
+`ze cli` with no command argument runs its own copy of the interactive model and
+expands the chain itself. A plugin's alias comes back there as
+`pipe error: unknown pipe operator: summary`, and Tab does not offer it. Use
+`ze cli -c "show bgp rpki | summary"`, or the interactive session a plain ssh
+client reaches. The aliases built into Ze itself, `| summary` and `| peers` on
+`show bgp`, resolve in every client.
+
+<!-- source: internal/component/command/alias.go -- RegisterAliases, RegisterPluginAliases, AliasesForCommand -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerAliases -->
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
+<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
 
 ### Command-specific filters
 

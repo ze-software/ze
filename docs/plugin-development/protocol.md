@@ -116,8 +116,27 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `filters` | `[]FilterDecl` | Named route filters the plugin provides |
 | `doctor-checks` | `[]DoctorCheckDecl` | Doctor checks the plugin provides |
 | `enrichers` | `[]EnricherDecl` | Show enrichers the plugin provides |
+| `pipes` | `[]PipeDecl` | CLI pipe aliases the plugin names for its own commands |
 | `claims` | `[]string` | Exclusive runtime roles the plugin takes over |
 
+
+Each `PipeDecl` has these fields:
+<!-- source: pkg/plugin/rpc/types.go -- PipeDecl -->
+<!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `command` | `string` | Command path the alias sits on. MUST be one of this plugin's own declared commands |
+| `name` | `string` | The word an operator types after the pipe character (kebab-case, 1-64 chars) |
+| `description` | `string` | The line completion and `command help` show beside the name |
+| `expansion` | `string` | The operator chain the name stands for, as an operator would type it |
+
+A pipe alias SELECTS and re-sequences the answer the command already returned.
+It renames no key, sums no numbers and counts no rows, so the command MUST emit
+the aggregate fields beside the detail rows. One bad entry refuses the whole
+list and fails the plugin's startup. Read
+`docs/architecture/api/commands.md` for the collision rules and the payload
+obligation.
 
 Each `FamilyDecl` has these fields:
 <!-- source: pkg/plugin/rpc/types.go -- FamilyDecl -->

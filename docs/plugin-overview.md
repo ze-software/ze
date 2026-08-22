@@ -125,7 +125,7 @@ plugin list. The groups below mirror the current registrations in
 | `bgp-gr` | Graceful Restart (RFC 4724) + Long-Lived GR (RFC 9494) |
 | `bgp-route-refresh` | Route Refresh handling (RFC 2918, RFC 7313) |
 | `bgp-role` | BGP Role enforcement (RFC 9234) |
-| `bgp-rpki` | RPKI origin validation (RFC 6811, RFC 8210) |
+| `bgp-rpki` | RPKI origin validation (RFC 6811, RFC 8210). Declares `show bgp rpki` and the `summary` pipe alias over it |
 | `bgp-rpki-decorator` | Merged UPDATE + RPKI events |
 | `bgp-aigp` | Accumulated IGP Metric (RFC 7311) |
 | `bgp-bmp` | BMP receiver and sender (RFC 7854, RFC 8671) |

@@ -88,6 +88,12 @@ runtime-filter-declaration-planned-stage-1-wire-protocol ## Runtime Filter Decla
   non-cidr-families-blocking-for-filter-plugin-authors
   what-each-family-set-emits-to-a-filter
   pointer-to-the-non-cidr-filter-contract
+runtime-pipe-alias-declaration-stage-1-wire-protocol ## Runtime Pipe Alias Declaration (stage 1 wire protocol)
+  declare-a-pipe-alias-at-stage-1
+  the-pipe-alias-declaration-fields
+  a-pipe-alias-reshapes-an-answer-it-cannot-produce-one
+  what-refuses-a-declared-alias-name
+  where-a-declared-alias-resolves-and-where-it-does-not
 modification-accumulator-buffer-arity ## Modification-Accumulator Buffer Arity (BLOCKING for filter plugin authors)
   pass-a-whole-number-of-wire-values
   what-one-op-may-carry-per-list-attribute

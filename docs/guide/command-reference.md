@@ -1304,6 +1304,15 @@ column order of its own, on a longer path than the branch root, so it keeps it.
 `show bgp rpki` declares an alias of its own the same way, so
 `show bgp rpki | summary` answers the RPKI counters and not the peer aggregates.
 
+That bare command answers the seven validation counters and one row for each
+cache server, as siblings. That shape is what leaves `| summary` a half to
+select. The RPKI plugin declares the alias over the plugin Stage 1 channel
+rather than in Go. So `ze help command --json` and `make ze-command-list` do not
+list it: both read the compiled tree in their own process and start no plugin.
+The full RPKI command list is in `docs/guide/rpki.md`.
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
+<!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
+
 `show bgp summary` was a second spelling of this command until 2026-08. It is
 removed, not aliased, so it answers an unknown-command error. `show bgp` gives
 the ordered table, and `show bgp | summary` gives the aggregate fields that
@@ -2398,12 +2407,23 @@ Inside `ze cli`:
 | Pipe: fill the rest back | `show bgp peer list \| display state \| fill alpha` |
 | Pipe: every column by name | `show bgp peer list \| fill alpha` |
 | Pipe: disable paging | `show bgp peer list \| no-more` |
+| Pipe: named alias | `show bgp \| summary`, `show bgp \| peers` |
 | Set default format | `set cli format json` (session override) |
 | Show current format | `set cli format` (no argument) |
 | Tab completion | Contextual command/argument completion |
 <!-- source: internal/component/cli/client/main.go -- pipe operators, interactive model -->
 <!-- source: internal/component/command/pipe.go -- pipe operator definitions -->
 <!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat -->
+
+`ze cli` with no command argument runs the interactive model in the CLIENT
+process and expands the pipe chain there. Only the aliases compiled into Ze
+itself are registered in that process, so an alias a PLUGIN declares, such as
+`show bgp rpki | summary`, comes back as
+`pipe error: unknown pipe operator: summary`. It resolves over
+`ze cli -c "<command>"` and in the interactive session a plain ssh client
+reaches, where the daemon expands the chain.
+<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
+<!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
 
 ---
 

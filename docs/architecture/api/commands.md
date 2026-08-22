@@ -1458,13 +1458,13 @@ An alias is a name an operator types in the operator slot, standing for a chain
 they would otherwise retype. `show bgp | peers` says what
 `show bgp | display peers` says.
 
-`RegisterAliases` declares them. It writes to two tables, and which one it
-writes to is what the command list says:
+Two callers declare one, and both write the same registry.
 
 | Registration | Table | Resolved |
 |--------------|-------|----------|
-| `RegisterAliases([]string{"show bgp"}, ...)` | `aliasRegistry`, the same `commandRegistry[T]` the two registries above use | by the longest command path that is a prefix of the command |
-| `RegisterAliases(nil, ...)` | `globalAliases`, a table of its own | for every command, when the per-command lookup carries no alias of that name |
+| `RegisterAliases([]string{"show bgp"}, ...)`, from Go compiled into the daemon | `aliasRegistry`, the same `commandRegistry[T]` the two registries above use | by the longest command path that is a prefix of the command |
+| `RegisterAliases(nil, ...)`, from the same Go | `globalAliases`, a table of its own | for every command, when the per-command lookup carries no alias of that name |
+| `RegisterPluginAliases(owner, commands, declared)`, from a plugin's Stage 1 message | `aliasRegistry`, on the command paths that plugin declared | the same longest-prefix rule. A plugin reaches no global table |
 
 The global table is separate rather than a registration on the empty command
 path. `commandRegistry.register` skips an empty path, and
@@ -1473,8 +1473,8 @@ so such a registration would match nothing and report nothing.
 
 `expandAliases` runs between `ParsePipe` and `foldFilters`, so classification
 only ever sees operators the parser already knows. It is ONE pass, and four
-properties are what make one pass enough. Each is refused at REGISTRATION, with
-a `panic("BUG:")` naming both sides:
+properties are what make one pass enough. `checkAlias` is the one reading of all
+four, so the two callers can never disagree about which declarations are sound:
 
 - An alias MUST NOT name another alias. Its expansion parses to pipe operators
   alone.
@@ -1488,21 +1488,224 @@ a `panic("BUG:")` naming both sides:
 - An alias takes no argument. A word after the name is refused when the chain
   runs, rather than dropped.
 
-An alias never enters the payload. It is expanded in the client, so a command
-handler cannot tell an alias from the chain it stands for.
+The two callers differ in the ANSWER, not in the checks. `checkedAlias` turns a
+refusal into `panic("BUG:")`. Only Go in this repository reaches
+`RegisterAliases`, so a bad registration there is a Ze defect the compiler
+cannot see. `RegisterPluginAliases` returns the refusal as an error, because the
+strings it reads arrived over a socket.
 
-`show bgp` registers the two that exist. Both are a selection among
-sibling keys, because that answer carries its aggregates and its `peers` array
-at the same level:
+An alias never enters the payload. `expandAliases` replaces the name with the
+operators before the chain runs, so a command handler cannot tell an alias from
+the chain it stands for. The chain is expanded in the process that PARSES it,
+and for a plugin's alias that process MUST be the daemon. Read "Where an alias
+resolves, and where it does not" below.
+
+`show bgp` registers the two in-tree aliases that exist. Both are a selection
+among sibling keys, because that answer carries its aggregates and its `peers`
+array at the same level:
 
 | Alias | Expands to |
 |-------|-----------|
 | `summary` | `display router-id local-as uptime peers-configured peers-established` |
 | `peers` | `display peers` |
 
-<!-- source: internal/component/command/alias.go -- RegisterAliases, lookupAlias, AliasesForCommand -->
+The BGP RPKI plugin declares a third, `summary` on `show bgp rpki`, over the
+Stage 1 channel the next section describes.
+
+<!-- source: internal/component/command/alias.go -- RegisterAliases, RegisterPluginAliases, checkAlias, checkedAlias, lookupAlias, AliasesForCommand -->
 <!-- source: internal/component/command/pipe.go -- parsePipeChain, expandAliases, parsePipeOps -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerAliases -->
+
+### A plugin declares a pipe alias in its Stage 1 message
+
+`DeclareRegistrationInput.Pipes` is a list of `PipeDecl`, beside the lists that
+carry families, commands, filters, doctor checks and enrichers. The SDK
+re-exports the type, so an external author imports one package. Each entry
+carries four strings, and the engine parses the expansion once, at registration.
+
+| Field | Meaning |
+|-------|---------|
+| `command` | The command path the alias sits on. It MUST be one of the commands this plugin declares in the same message |
+| `name` | The word an operator types after the pipe character. Lowercase kebab-case, one word |
+| `description` | The line completion and `command help` show beside the name |
+| `expansion` | The operator chain the name stands for, written the way an operator would type it |
+
+`validatePipeDecls` reads the shape and the ownership, in the position where
+Stage 1 already validates doctor checks and enrichers, before it converts
+anything. `registerPluginPipes` then writes the accepted set under
+`startupRegistrationMu`, between the registry row and the runtime families. Each
+later failure unwinds what the steps above it wrote.
+
+A plugin names only a path it declared itself. It cannot name an ancestor, which
+belongs to whoever owns the shorter path, and it reaches no global table. One
+plugin's naming choice therefore never reaches a command it does not own.
+
+<!-- source: pkg/plugin/rpc/types.go -- PipeDecl, DeclareRegistrationInput -->
+<!-- source: pkg/plugin/sdk/sdk_types.go -- PipeDecl -->
+<!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes, commandPathKey -->
+
+#### Collision has two populations, because there are two resolution rules
+
+Reading collision as "any overlapping path" refuses the case the channel exists
+for. `show bgp` carries an alias named `summary`, and every `show bgp *` path
+overlaps `show bgp`, so that reading refuses `show bgp rpki | summary` before it
+is written.
+
+| Pair | Collides when | Why |
+|------|---------------|-----|
+| Alias against alias | the two sit on the SAME normalized command path | `lookupAlias` reads the set on the longest registered prefix and never falls back to a shorter one. A longer path SHADOWS a shorter one, and that is how `show bgp rpki` answers `summary` while `show bgp` answers one of its own |
+| Alias against pipe filter | their command paths OVERLAP | `foldFilters` resolves a command's own filter for the whole subtree the filter covers, so an overlapping filter makes the alias unreachable |
+| Alias against a built-in operator name | always | `ParsePipe` reads the built-in name first, so the alias is never reached |
+
+`aliasOnPath` is the exact-path reading and `filterShadowing` is the overlapping
+one. A declaration is also refused when one name appears twice on one path in
+one message. A declaration naming a command path the plugin did not declare is
+refused too.
+
+A refusal fails the whole Stage 1 registration, and the plugin does not start.
+Nothing is registered when any one declaration is refused, so a plugin never has
+to undo a partial registration. The message names the plugin, the command path
+and the alias name. The daemon log is where an operator reads it, because the
+engine stops a refused plugin before it can report anything itself.
+
+<!-- source: internal/component/command/alias.go -- aliasOnPath, filterShadowing, RegisterPluginAliases -->
+
+#### A declaration ADDS to a path. It never replaces what the path holds
+
+`commandRegistry.register` stores one value for each path, so writing a declared
+set straight into the registry drops every alias that path already answered to.
+`show bgp rpki` already carries the empty declaration the in-tree BGP command
+plugin puts on every child of `show bgp`. A plugin therefore declares onto an
+occupied path in the ordinary case. `mergedAliases` adds the declared names to
+what the path holds. Every declared name is checked against that same set first,
+so nothing merged this way replaces anything.
+
+Removal is by ENTRY for the same reason. `UnregisterPluginAliases` takes back the
+names one owner registered, and leaves the in-tree names and other owners' names
+in place. A path the owner created from nothing goes once its last entry is gone.
+Without removal a plugin that stops cannot start again, because the exact-path
+check then refuses it its own name.
+
+Two call sites remove it, and they are the two that remove the registry row and
+the runtime families. `rollbackStartupProcess` is both the failed-startup path
+and the config-reload stop path. The other is the family-conflict unwind inside
+`onRegistration`.
+
+<!-- source: internal/component/command/alias.go -- mergedAliases, UnregisterPluginAliases, pluginAliasPath -->
+<!-- source: internal/component/plugin/server/startup.go -- rollbackStartupProcess, engineStartupSink -->
+
+#### The engine derives the barrier that stops an alias below its command
+
+An alias on `show bgp rpki` is inherited by `show bgp rpki roa`, because `roa`
+registers nothing of its own and the lookup resolves the longest registered
+prefix. That offers the name on a leaf whose answer cannot carry it.
+
+`aliasBarriers` derives the answer from the plugin's own command list. It reads
+every command the plugin declared that sits strictly below a path carrying one
+of its aliases. Each such command that declares no alias itself gets an empty
+declaration. The in-tree form of the same barrier is written by hand in
+`peer.go`, over `cmdBgpChildren`. A plugin author writes nothing and does not
+have to know the resolution rule.
+
+<!-- source: internal/component/command/alias.go -- aliasBarriers -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- cmdBgpChildren -->
+
+#### The pipe layer selects and re-sequences. It cannot compute
+
+This is the obligation every command that wants an alias owes, and it is a
+property of the PAYLOAD rather than of the pipe layer.
+
+`display` keeps the named keys and drops the rest. `fill` re-sequences what
+`display` did not name. `count` replaces the answer with a number. `first` and
+`last` cut the item list. `match` keeps the rendered lines that match a pattern.
+The format operators render one payload a different way.
+
+None of them renames a key, adds two numbers, counts the rows whose field holds
+a given value, or asks the handler for anything. So a command whose second view
+is a pipe alias MUST EMIT the aggregate fields beside the detail rows, as
+siblings at one level. `show bgp` has always done this, and `show bgp rpki` now
+does it too: `overviewCommand` writes `appendSummaryFields` and
+`appendCacheServers` into one record, and `| summary` selects the first half.
+
+Four of the seven RPKI aggregate fields are computed. `vrp-count` sums the two
+family counts, `sessions-established` counts the sessions in one state,
+`sessions-total` renames what `show bgp rpki status` calls `sessions`, and
+`validation-enabled` is a constant. The command computes them, and the alias
+only selects them.
+
+The expansion is a second copy of the field names, and `display` names keys and
+reports no miss. A field added to the payload and not to the expansion is
+therefore dropped from the alias in silence. A conversion owes three things:
+
+- one authored list of the field names.
+- an expansion built from that list rather than repeating it.
+- a test holding the list against the bytes the writer produces.
+
+RPKI does this with `summaryFieldNames` and `buildSummaryAliasExpansion`.
+
+Two questions send a candidate back to being a subcommand. Would the operator
+have to supply a value? An alias takes no argument. Does the answer need data the
+parent's payload does not carry? An alias reshapes what was returned.
+
+`show bgp rpki roa 192.0.2.0/24` fails both and stays a subcommand.
+`show bgp rpki cache` fails the second one: it reports `preference`,
+`session-id`, `serial` and three intervals that the bare answer does not carry.
+
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, appendSummaryFields, appendCacheServers, summaryFieldNames, buildSummaryAliasExpansion -->
+
+#### Where an alias resolves, and where it does not
+
+The chain is resolved in the process that parses it, and a plugin's alias lives
+in the daemon's registry alone.
+
+| Surface | Parses the chain | A plugin's alias works |
+|---------|------------------|------------------------|
+| `ze cli -c "<command>"`, and any SSH exec channel | the daemon, in `execMiddleware` | Yes |
+| The TUI a plain ssh client with a pty reaches | the daemon, which hosts the Bubble Tea model | Yes |
+| `ze cli` with no command argument | the CLIENT process, in `executeOperationalCommand` | No |
+| `cliClient.StreamMonitor`, for a streaming monitor command | the CLIENT process | No |
+
+On the two client-side rows the operator reads
+`pipe error: unknown pipe operator: <name>`, and Tab offers the name nowhere.
+The aliases compiled into the client resolve there, which is what hid the gap.
+Tab after the pipe character on `show bgp` offers `summary` and `peers` in the
+same client. The repair is a wire surface that carries the daemon's alias table
+to the client at session start, and it is NOT built.
+
+<!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
+<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
+
+#### Discovery: the running daemon is the only source
+
+A surface that reads the compiled tree in its own process starts no plugin, so
+it never sees a plugin's Stage 1 message.
+
+| Surface | Reads | Reports a plugin's alias |
+|---------|-------|--------------------------|
+| `command help "<name>"` | the running daemon's registries | Yes, as a `pipe-aliases` list beside `pipe-filters` |
+| Tab completion in the daemon-hosted TUI | the running daemon's registries | Yes |
+| `make ze-command-list` | the compiled tree in its own process | No, and it cannot |
+| `ze help command --json`, and the wiki catalog built from it | the compiled tree in its own process | No, and it cannot |
+
+`command help` lists an in-tree alias and a declared one the same way, and it
+listed neither before 2026-08. It reports the expansion beside the description.
+An alias takes no argument and names no other alias, so the chain it stands for
+is the whole of what the name does.
+
+<!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp, handleBgpCommandHelp -->
+<!-- source: scripts/inventory/commands.go -- main -->
+<!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
+
+#### A plugin cannot declare a column order
+
+`completeDisplayFields` reads the column registry, and only Go compiled into the
+daemon writes it. So `| display <partial>` over a plugin command offers no field
+names, and `| table` sorts a plugin answer's keys alphabetically. The alias
+itself works and its NAME completes, because that name comes from the alias
+registry. `show bgp rpki`, `show bgp rpki summary` and `show bgp rpki | summary`
+therefore render one identical record in three different orders.
+
+<!-- source: internal/component/command/completer.go -- completeDisplayFields, completePipeForCommand -->
 
 ### The chain over a row generator
 

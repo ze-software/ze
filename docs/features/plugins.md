@@ -42,7 +42,7 @@ Three filter categories:
 |--------|-------------|
 | bgp-gr | Graceful Restart (RFC 4724) and Long-Lived GR (RFC 9494) state machine |
 | bgp-aigp | Accumulated IGP Metric (RFC 7311) |
-| bgp-rpki | RPKI origin validation via RTR protocol (RFC 6811, RFC 8210). [Guide](../guide/rpki.md) |
+| bgp-rpki | RPKI origin validation via RTR protocol (RFC 6811, RFC 8210). Declares `show bgp rpki` and the `summary` pipe alias over it. [Guide](../guide/rpki.md) |
 | bgp-rpki-decorator | Correlates UPDATE + RPKI events into merged update-rpki events |
 | bgp-route-refresh | Route Refresh handling (RFC 2918, RFC 7313) |
 | bgp-role | BGP Role capability enforcement (RFC 9234) |

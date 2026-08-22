@@ -232,6 +232,57 @@ Commands are declared with these fields:
 | `Args` | []string | No | Expected argument names (for help/completion) |
 | `Completable` | bool | No | Whether the command supports tab completion |
 
+## Naming a Pipe Alias for Your Command
+
+A pipe alias is the word an operator types after the pipe character, standing
+for an operator chain they would otherwise type in full. Declare one in the
+`Pipes` list of the same `Registration`:
+<!-- source: pkg/plugin/sdk/sdk_types.go -- PipeDecl, Registration -->
+
+```go
+err := p.Run(ctx, sdk.Registration{
+    Commands: []sdk.CommandDecl{
+        {Name: "my-plugin status", Description: "Show current status"},
+    },
+    Pipes: []sdk.PipeDecl{{
+        Command:     "my-plugin status",
+        Name:        "totals",
+        Description: "The counters, without the per-session rows",
+        Expansion:   "display sessions-total sessions-established",
+    }},
+})
+```
+
+| Field | Type | Required | Purpose |
+|-------|------|----------|---------|
+| `Command` | string | Yes | Command path the alias sits on. MUST be one of your own declared commands |
+| `Name` | string | Yes | The word typed after the pipe character (kebab-case) |
+| `Description` | string | No | The line completion and `command help` show beside the name |
+| `Expansion` | string | Yes | The operator chain the name stands for |
+
+Three rules decide whether your command CAN have an alias.
+<!-- source: internal/component/command/alias.go -- RegisterPluginAliases, checkAlias -->
+
+- **The pipe layer selects. It does not compute.** `display` keeps named keys and
+  drops the rest, and no operator renames a key, adds two numbers, or counts
+  matching rows. Your handler MUST emit the aggregate fields beside the detail
+  rows, as siblings at one level. `show bgp rpki` is the worked example.
+- **The name MUST be free.** It cannot be a built-in operator name, a pipe filter
+  name on an overlapping command path, or an alias name the exact same command
+  path already carries. One refusal fails your whole Stage 1 registration.
+- **The alias takes no argument, and names no other alias.** Its expansion parses
+  to built-in operators alone.
+
+The engine stops the alias reaching a command below the one it sits on. Declare
+`my-plugin status detail` in the same message and it inherits nothing.
+
+`ze cli` with no command argument expands the chain in the client process, where
+your alias is not registered, so it answers
+`pipe error: unknown pipe operator: totals` there. It resolves over
+`ze cli -c "<command>"` and in the interactive session a plain ssh client
+reaches.
+<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
+
 ## Complex Responses
 
 Return structured JSON data for API consumers:

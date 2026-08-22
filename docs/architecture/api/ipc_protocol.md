@@ -40,7 +40,15 @@ startup subscriptions in `ze-plugin-engine:ready`.
 Plugins register command paths in `ze-plugin-engine:declare-registration`.
 The engine command dispatcher invokes the registered callback.
 
-Engine provides reactor methods; plugins register commands that use them.
+Engine provides reactor methods, and plugins register commands that use them.
+
+The same message carries a `pipes` list. Each `PipeDecl` names a CLI pipe alias
+for one of that plugin's own commands, with the command path, the alias name,
+its description and the operator chain the name stands for. The engine parses
+the expansion once, at registration, and refuses the whole list when one entry
+is wrong.
+<!-- source: pkg/plugin/rpc/types.go -- PipeDecl, DeclareRegistrationInput -->
+<!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes -->
 
 ### Message Cache
 

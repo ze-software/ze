@@ -89,10 +89,19 @@ Named update windows for atomic route changes:
 
 | Command | Description |
 |---------|-------------|
+| `show bgp rpki` | Validation counters with one row for each cache server |
 | `show bgp rpki status` | RTR session count and VRP counts |
 | `show bgp rpki cache` | Cache server connection details |
 | `show bgp rpki roa` | ROA table summary |
 | `show bgp rpki summary` | Validation statistics |
+| `show bgp rpki aspa` | ASPA cache, or the providers for a customer AS |
+| `request bgp rpki validate <prefix> <origin-asn>` | Validate one prefix against the ROA cache |
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- handleCommand, overviewCommand -->
+
+`show bgp rpki | summary` answers the counters without the cache server rows,
+through a pipe alias the plugin declares. It resolves over `ze cli -c "..."` and
+over ssh, and NOT inside `ze cli` with no command argument
+(`docs/guide/rpki.md`).
 
 ## Daemon Control
 

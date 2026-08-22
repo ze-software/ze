@@ -1847,6 +1847,27 @@ reads today's single line, which is what every other `.ci` does.
 <!-- source: test/scripts/ze_api.py -- capability_done, dispatch_wire_lines -->
 <!-- source: pkg/plugin/rpc/types.go -- ProtocolRecordAnswers -->
 
+#### Declaring a pipe alias
+
+`ze_api.declare_pipe(command, name, expansion, description="")` adds one entry to
+the `pipes` list of the Stage 1 message. It names a CLI pipe alias over one of
+this plugin's own commands, so call it after `declare_command` for that command
+and before `declare_done`.
+
+The alias only SELECTS among the keys the command answers with, so the fake
+plugin must answer with a payload that carries them. Register the answer with
+`api.on_execute_command(handler)`. Type the alias with `ze cli -c`, which is
+where the daemon resolves the chain. `ze cli` with no command argument resolves
+it in the client process, where no declared alias is registered.
+
+A bad declaration fails the plugin's whole Stage 1 registration. The engine then
+stops the plugin before it can report the refusal, so assert it in the daemon
+log.
+`test/plugin/plugin-pipe-alias.ci` drives the accepted path, and
+`test/plugin/plugin-pipe-alias-collision.ci` drives the refusal.
+<!-- source: test/scripts/ze_api.py -- declare_pipe, on_execute_command -->
+<!-- source: pkg/plugin/rpc/types.go -- PipeDecl -->
+
 #### Writing a record answer: the Go SDK test plugin
 
 `ze-test record-plugin` is a Go SDK plugin whose command handlers answer with a

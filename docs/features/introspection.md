@@ -32,13 +32,23 @@ unregistered access (`env.MustRegister()`).
 | `ze help ai` | Machine-readable command reference generated from live binary |
 | `ze help ai api` | Daemon API endpoints (`ze-show:*`, `ze-set:*`, ...) with parameters |
 
+One registration is out of reach of both catalogs. `ze help command --json` and
+`make ze-command-list` read the compiled command tree in their own process, and
+they start no plugin. Neither reports a pipe alias a plugin declared in its
+Stage 1 message. The running daemon answers that question, through
+`command help "<name>"` and through Tab completion in the interactive session.
+The wiki catalog built from the JSON therefore lists a plugin's commands without
+its aliases.
+<!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
+<!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp -->
+
 ## Build-Time Verification
 
 | Make target | What it does |
 |-------------|--------------|
 | `make ze-inventory` | Full project inventory: plugins, YANG modules, RPCs, families, tests, packages |
 | `make ze-inventory-json` | Same as above, machine-readable JSON |
-| `make ze-command-list` | Every CLI command with wire method, help text, read-only flag, source |
+| `make ze-command-list` | Every CLI command of the compiled tree, with wire method, help text, read-only flag, source |
 | `make ze-command-contract-check` | Cross-check YANG command tree against registered handlers |
 | `make ze-doc-drift-check` | Detect documentation that no longer matches code |
 

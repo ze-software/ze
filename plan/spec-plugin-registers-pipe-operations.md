@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | plugin |
 | Depends | - |
-| Phase | 5/6 |
+| Phase | 6/6 |
 | Deferral shard | `plan/deferrals/plugin-registers-pipe-operations.md` |
 | Handoff | - |
 | Updated | 2026-08-22 |
@@ -189,8 +189,12 @@ end.
 - `command help "<name>"` reports the pipe aliases a command answers to, beside
   the pipe filters it already reports.
 - The RPKI plugin declares a bare `show bgp rpki` command whose payload carries
-  the aggregate fields and the detail as siblings, and declares `summary` and
-  `cache` as pipe aliases over it.
+  the aggregate fields and the detail as siblings, and declares `summary` as a
+  pipe alias over it. CORRECTED in phase 5: this line said `summary` and `cache`.
+  `cache` cannot be an alias. `cacheCommand` reports `preference`, `session-id`,
+  `serial` and three intervals that the bare payload does not carry, so a `cache`
+  alias would answer a DIFFERENT record from the `cache` subcommand under one
+  word. `show bgp rpki cache` stays a subcommand.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -331,7 +335,7 @@ end.
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | Runs `show bgp rpki \| summary` and reads the aggregate counters | SSH exec, ProcessPipes, expandAliases, dispatcher, RPKI plugin answer, ApplyPipes | `test/plugin/rpki-pipe-summary.ci` |
-| 2 | Types `show bgp rpki \| ` and reads the names on offer | Interactive CLI completer, `pipeExtras`, `AliasesForCommand` | `test/ui/plugin-pipe-alias-completion.ci` | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+| 2 | Types `show bgp rpki \| ` and reads the names on offer | Interactive CLI completer, `pipeExtras`, `AliasesForCommand` | `test/ui/plugin-pipe-alias-completion.ci` | <!-- doc-links: ignore (fixture never written: no client in the tree drives the daemon-hosted TUI, and no daemon-side completion surface offers a pipe operator) -->
 | 3 | Runs `command help "show bgp rpki"` and reads which pipe names the command answers to | Meta command plugin, `AliasesForCommand` | `test/plugin/plugin-pipe-alias-help.ci` | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 | 4 | Starts a plugin whose alias name is already taken and reads why it refused | Stage 1 validation, relayed error, daemon log | `test/plugin/plugin-pipe-alias-collision.ci` | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 | 5 | Runs `show bgp rpki roa 192.0.2.0/24` and gets the covering VRPs | Dispatcher argument folding, RPKI plugin lookup | Existing RPKI coverage, unchanged by this spec |
@@ -376,7 +380,7 @@ end.
 | `plugin-pipe-alias-collision` | `test/plugin/plugin-pipe-alias-collision.ci` | A second plugin declares a name that is already taken, fails to start, and the first plugin keeps answering | | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 | `plugin-pipe-alias-namespaced` | `test/plugin/plugin-pipe-alias-namespaced.ci` | The alias is offered on the declaring plugin's command and refused on an unrelated command | | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 | `plugin-pipe-alias-help` | `test/plugin/plugin-pipe-alias-help.ci` | `command help` lists the alias with its description | done, phase 4. It asserts the in-tree half beside the declared one |
-| `plugin-pipe-alias-completion` | `test/ui/plugin-pipe-alias-completion.ci` | The interactive CLI offers the plugin's alias name in the operator slot | BLOCKED, phase 4. `ze cli` runs its model in the CLIENT process, so no declared alias is offered or resolvable there. See the Phase 4 Record | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+| `plugin-pipe-alias-completion` | `test/ui/plugin-pipe-alias-completion.ci` | The interactive CLI offers the plugin's alias name in the operator slot | BLOCKED, phase 4. `ze cli` runs its model in the CLIENT process, so no declared alias is offered or resolvable there. See the Phase 4 Record | <!-- doc-links: ignore (fixture never written: no client in the tree drives the daemon-hosted TUI, and no daemon-side completion surface offers a pipe operator) -->
 | `rpki-pipe-summary` | `test/plugin/rpki-pipe-summary.ci` | `show bgp rpki \| summary` answers the aggregate half, and `show bgp rpki summary` is unchanged | done, phase 5 |
 
 ### Interop Tests (Scope: protocol)
@@ -428,7 +432,7 @@ CLI pipe alias.
 - `test/plugin/plugin-pipe-alias-namespaced.ci` - the scope boundary <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 - `test/plugin/plugin-pipe-alias-help.ci` - the help listing <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 - `test/plugin/rpki-pipe-summary.ci` - the converted consumer
-- `test/ui/plugin-pipe-alias-completion.ci` - the completion offer <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+- `test/ui/plugin-pipe-alias-completion.ci` - the completion offer <!-- doc-links: ignore (fixture never written: no client in the tree drives the daemon-hosted TUI, and no daemon-side completion surface offers a pipe operator) -->
 
 ### Integration Checklist
 
@@ -502,7 +506,7 @@ CLI pipe alias.
 
 4. **Phase: Discovery** - completion and help report the name
    - Tests: `TestAliasesForCommandListsPluginAliases`,
-     `test/ui/plugin-pipe-alias-completion.ci`, <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+     `test/ui/plugin-pipe-alias-completion.ci`, <!-- doc-links: ignore (fixture never written: no client in the tree drives the daemon-hosted TUI, and no daemon-side completion surface offers a pipe operator) -->
      `test/plugin/plugin-pipe-alias-help.ci` <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
    - Files: `internal/plugins/meta/cmd/help.go`
    - Verify: AC-10 and AC-11 pass. Completion already reads the registry, so the
@@ -547,7 +551,7 @@ CLI pipe alias.
 | No plugin input reaches a panic | `grep -n "panic" internal/component/command/alias.go` and confirm every remaining one is on the in-tree path only |
 | Removal by owner exists and is called twice | `grep -rn "UnregisterPluginAliases" internal/` returns the rollback call site and the stop call site |
 | The Python plugin client can declare one | `grep -n "declare_pipe" test/scripts/ze_api.py` |
-| Every functional test exists | `ls test/plugin/plugin-pipe-alias*.ci test/plugin/rpki-pipe-summary.ci test/ui/plugin-pipe-alias-completion.ci` |
+| Every functional test exists | `ls test/plugin/plugin-pipe-alias*.ci test/plugin/rpki-pipe-summary.ci`. `test/ui/plugin-pipe-alias-completion.ci` is NOT among them, for the reason the Phase 4 Record gives | <!-- doc-links: ignore (fixture never written: no client in the tree drives the daemon-hosted TUI, and no daemon-side completion surface offers a pipe operator) -->
 | The RPKI conversion works | `make ze-functional-plugin-test` covering `rpki-pipe-summary.ci` |
 | The gate is green | `make ze-precommit-verify` |
 
@@ -1006,7 +1010,7 @@ interactive clients cannot see the registry the alias lives in.
 | Finding | Consequence |
 |---------|-------------|
 | `handleBgpCommandHelp` read `Dispatcher().Lookup`, the BUILTIN table alone. `show command help "<any plugin command>"` answered `unknown command`, so the surface that owes the alias listing could not describe the commands the listing is for. `lookupCommandHelp` in the `system` namespace already read the plugin registry, so the two help surfaces disagreed about which commands exist | The handler reads the plugin command registry after the builtins. Recorded in `plan/journal/unwired-feature.md` |
-| `ze cli` with no command argument runs its Bubble Tea model in the CLIENT process, and that model resolves the pipe chain before it sends anything. A declared alias is therefore neither offered by Tab nor resolvable there, and the operator reads `pipe error: unknown pipe operator`. The compiled-in aliases work in the same client, which is what hid it: Tab after the pipe character on `show bgp` offers `summary` and `peers` | AC-10 has no end-to-end test and `test/ui/plugin-pipe-alias-completion.ci` is not written. The two surfaces that answer are the SSH exec channel and the daemon-hosted TUI. The repair is a new channel and a design decision, recorded in `plan/journal/unwired-feature.md` |
+| `ze cli` with no command argument runs its Bubble Tea model in the CLIENT process, and that model resolves the pipe chain before it sends anything. A declared alias is therefore neither offered by Tab nor resolvable there, and the operator reads `pipe error: unknown pipe operator`. The compiled-in aliases work in the same client, which is what hid it: Tab after the pipe character on `show bgp` offers `summary` and `peers` | AC-10 has no end-to-end test and `test/ui/plugin-pipe-alias-completion.ci` is not written. The two surfaces that answer are the SSH exec channel and the daemon-hosted TUI. The repair is a new channel and a design decision, recorded in `plan/journal/unwired-feature.md` | <!-- doc-links: ignore (fixture never written: no client in the tree drives the daemon-hosted TUI, and no daemon-side completion surface offers a pipe operator) -->
 | `system command complete` and `show command complete` complete command NAMES only. Neither offers a pipe operator, so no daemon-side surface answers a completion question about a pipe segment | There is no client-independent way to assert AC-10 end to end today |
 | `AliasesForCommand` resolves by longest prefix, so a command inherits what its nearest declared ancestor holds. The help listing inherits with it, which is the same answer completion gives and the same answer the parser gives | The listing needs no rule of its own |
 
@@ -1052,3 +1056,40 @@ record `show bgp rpki summary` answers. AC-12 and AC-13 are met.
 | Retiring `show bgp rpki summary` | Two commands answer the same record, and a third spelling, `show bgp rpki \| summary`, answers it too | `plan/audit-command-pipe-vs-subcommand.md`, which owns the consumer list. Behavior to preserve holds the subcommand working |
 | A column order for `show bgp rpki` | The bare command and the subcommand render alphabetically | The column-order declaration channel, a separate spec |
 | The documentation checklist | The channel and the new command are described in the spec and in one corrected sentence of the command reference | Phase 6 |
+
+## Phase 6 Record: Documentation (2026-08-22)
+
+The channel, its two collision rules, the payload obligation and both known gaps
+are written where the next author looks. Every Documentation Update Checklist row
+answered Yes is done.
+
+| # | Row | Where it landed |
+|---|-----|-----------------|
+| 1 | New user-facing feature | `docs/features.md` "Plugin-Declared Pipe Aliases" |
+| 3 | CLI command added/changed | `docs/guide/command-reference.md` `### show bgp` and `## Interactive CLI Features`, `docs/guide/cli.md` `## RPKI Commands` |
+| 4 | API/RPC added/changed | `docs/architecture/api/commands.md` `### A plugin declares a pipe alias in its Stage 1 message` and its six subsections |
+| 5 | Plugin added/changed | `docs/guide/plugins.md` `### Naming a pipe alias for your own command`, `docs/plugin-development/commands.md` `## Naming a Pipe Alias for Your Command` |
+| 6 | Has a user guide page | `docs/guide/rpki.md` `## CLI Commands` |
+| 8 | Plugin SDK/protocol changed | `ai/rules/plugins.md` `## Runtime Pipe Alias Declaration`, rendered from five new point files. `docs/architecture/api/process-protocol.md` "Pipe Alias Declaration (Stage 1)". `docs/architecture/api/ipc_protocol.md` `### Plugin-Provided Commands`. `docs/plugin-development/protocol.md` Stage 1 field table plus the `PipeDecl` sub-table |
+| 10 | Test infrastructure changed | `docs/functional-tests.md` `#### Declaring a pipe alias` |
+| 12 | Internal architecture changed | Same as row 4 |
+| 15 | Registered plugin or command changed | `docs/plugin-overview.md` and `docs/features/plugins.md`, both `bgp-rpki` rows |
+| 16 | Source anchors on changed files | `python3 scripts/dev/spec_doc_anchors.py plan/spec-plugin-registers-pipe-operations.md` exits 0. The four declared owners were already named in Files to Modify |
+| 17 | Existing examples for this area | `docs/guide/rpki.md` command table gained the three commands it never listed, and the seven counter names were read from `summaryFieldNames` |
+
+### What phase 6 measured that the plan did not say
+
+| Finding | Consequence |
+|---------|-------------|
+| Two documents stated that an alias is expanded in the CLIENT. `docs/architecture/api/commands.md` said "It is expanded in the client, so a command handler cannot tell an alias from the chain it stands for", and `docs/features/formatting.md` said "It is expanded in the CLI, before the command runs" | Both are corrected. The chain is expanded in the process that PARSES it, and for a plugin's alias that process MUST be the daemon. The false sentence is also the reason the client gap went unseen until phase 4 |
+| `docs/architecture/plugin/rib-storage-design.md` is the declared design document of `rpki.go` and carries no RPKI content at all | Nothing was added there. Filing the RPKI command surface under a RIB storage design would put it where no reader looks. The spec names the file, which is what `spec_doc_anchors.py` asks for, and the RPKI command surface is documented in `docs/guide/rpki.md` and `docs/architecture/api/commands.md` |
+| `docs/guide/cli.md` carries a second RPKI command table, a duplicate of the one in `docs/guide/rpki.md`. Neither listed the bare command, `show bgp rpki aspa` or `request bgp rpki validate` | Both tables now list the seven commands. The alias is described once, in `docs/guide/rpki.md`, and `docs/guide/cli.md` points at it |
+| `docs/architecture/cli/command-completion.md` says nothing about pipe operators at all. It covers command-path completion alone | Left as it is. The alias completion story is one cut, and it is made in `docs/architecture/api/commands.md` "Discovery" beside the surfaces it compares |
+| `plan/journal/gate-verdict-depends-on-the-machine.md:35` carries a dead path reference that `make ze-doc-links-check` reports. It belongs to another session and is not part of this spec | Not carried. Reported to the owner instead |
+
+### What phase 6 deliberately does not do
+
+| Left | Consequence today | Owner |
+|------|-------------------|-------|
+| Closure: the review gate, the learned summary, and the two closing commits | The spec stays `in-progress` with every phase implemented | `/ze-close` |
+| A daemon-backed source for the wiki command catalog | The published catalog lists a plugin's commands without its aliases, and the two catalogs now say so | The deferral shard |

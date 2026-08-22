@@ -854,6 +854,47 @@ of a walk over a large table. `Plugin.DispatchCommand` reads the same answer as
 one document for a caller that wants the whole payload.
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.DispatchCommandAnswer, Plugin.DispatchCommand -->
 
+### Naming a pipe alias for your own command
+
+A plugin declares a CLI pipe alias in the `Pipes` list of the same
+`Registration`. An alias is the word an operator types after the pipe character,
+and it stands for an operator chain. The BGP RPKI plugin declares `summary` on
+`show bgp rpki`, so `show bgp rpki | summary` answers the counters without the
+cache server rows.
+
+```go
+Pipes: []sdk.PipeDecl{{
+	Command:     "my-plugin status",
+	Name:        "totals",
+	Description: "The counters, without the per-session rows",
+	Expansion:   "display sessions-total sessions-established",
+}},
+```
+<!-- source: pkg/plugin/sdk/sdk_types.go -- PipeDecl, Registration -->
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
+
+The pipe layer selects and re-sequences. It renames no key, adds no numbers and
+counts no matching rows. So your handler MUST emit the aggregate fields beside
+the detail rows, as siblings at one level. A command whose second view needs
+computed data stays a subcommand, and so does one that takes a value.
+
+`Command` MUST be one of the commands you declare in the same message. Three
+holders refuse the name:
+
+- a built-in pipe operator that carries it.
+- a pipe filter on an overlapping command path that carries it.
+- an alias on the exact same command path that carries it.
+
+One refusal fails your whole startup, and the daemon log names the plugin, the
+path and the name.
+
+A declared alias resolves over `ze cli -c "<command>"` and in the interactive
+session a plain ssh client reaches. It does NOT resolve in `ze cli` with no
+command argument, which expands the chain in the client process and answers
+`pipe error: unknown pipe operator: totals`.
+<!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes -->
+<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
+
 ## Dependencies
 
 Plugins can declare dependencies on other plugins. The engine starts plugins in dependency order and delivers state/EOR events to dependents first.
