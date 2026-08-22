@@ -274,12 +274,12 @@ end.
 
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The pipe chain for a plugin command is resolved in the daemon process, so a registry the engine writes is the registry the resolver reads | `internal/component/ssh/ssh.go` `execMiddleware` calls `command.ProcessPipesDefaultFormatChecked` before dispatch, and the interactive CLI is a Bubble Tea model the SSH server hosts | The alias would have to be shipped to the client process as well, which is a much larger change | `test/plugin/plugin-pipe-alias.ci` typing the alias over the exec channel | unvalidated |
-| A-2 | `aliasRegistry.lookup` returns only the longest matching prefix and never falls back to a shorter one, so any registration on a path stops inheritance for that path and everything below it | `commandRegistry.lookup` and `lookupAlias` in `internal/component/command/column_order.go` and `internal/component/command/alias.go` | The derived barrier would be unnecessary, or a different barrier would be needed | `TestPluginAliasDoesNotLeakToSiblingLeaf` | unvalidated |
-| A-3 | In-tree `init()` registration always completes before any external plugin reaches Stage 1 | Go initializes every imported package before `main` runs, and plugin startup is driven from `main` | An in-tree alias could lose to a plugin, which the collision rule assumes cannot happen | `TestPluginAliasRefusedOnSamePathAsBuiltin` plus reading the startup order in `internal/component/plugin/server/` | unvalidated |
-| A-4 | A pipe alias cannot reproduce the current `show bgp rpki summary` payload from the current `show bgp rpki status` payload | `summaryCommand` computes `vrp-count` as the sum of two counts, `sessions-established` as a count of rows matching a state, and spells `sessions-total` where `status` spells `sessions` | The RPKI conversion would be a pure alias with no payload work, and the payload obligation stated below would be unnecessary | Reading both handlers in `internal/component/bgp/plugins/rpki/rpki.go`, then the `.ci` that compares both answers | unvalidated |
-| A-5 | Stage 1 refusal tears the plugin process down and leaves no partial registration behind | `onRegistration` returns an error the driver relays, and the comment on it names `rollbackStartupProcess` | A refused plugin could leave aliases in the registry and block its own restart | `test/plugin/plugin-pipe-alias-collision.ci` asserting the daemon still answers and the name is unregistered | unvalidated | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
-| A-6 | No pipe filter in the tree carries a name a converted consumer wants | `filterShadowing` refuses the pair, and `registerAliases` in `peer.go` records that no filter carries `summary` or `peers` today | A converted consumer would be refused and would need a different alias name | A grep of every `RegisterPipeFilters` call at implementation time | unvalidated |
+| A-1 | The pipe chain for a plugin command is resolved in the daemon process, so a registry the engine writes is the registry the resolver reads | `internal/component/ssh/ssh.go` `execMiddleware` calls `command.ProcessPipesDefaultFormatChecked` before dispatch, and the interactive CLI is a Bubble Tea model the SSH server hosts | The alias would have to be shipped to the client process as well, which is a much larger change | `test/plugin/plugin-pipe-alias.ci` typing the alias over the exec channel | confirmed. The `.ci` passes, and `ze cli -c` reaches `execMiddleware`. CORRECTED in phase 4: the daemon-hosted TUI holds too, and `ze cli` interactive does not |
+| A-2 | `aliasRegistry.lookup` returns only the longest matching prefix and never falls back to a shorter one, so any registration on a path stops inheritance for that path and everything below it | `commandRegistry.lookup` and `lookupAlias` in `internal/component/command/column_order.go` and `internal/component/command/alias.go` | The derived barrier would be unnecessary, or a different barrier would be needed | `TestPluginAliasDoesNotLeakToSiblingLeaf` | confirmed. `commandRegistry.lookup` takes the longest matching prefix and returns it alone |
+| A-3 | In-tree `init()` registration always completes before any external plugin reaches Stage 1 | Go initializes every imported package before `main` runs, and plugin startup is driven from `main` | An in-tree alias could lose to a plugin, which the collision rule assumes cannot happen | `TestRegisterPluginAliasesRefusesSameNameOnSamePath`, which is the test that was written for it, plus the startup order: in-tree `RegisterAliases` runs in `init()`, `loadBuiltinsWithAliases` runs in `NewServer`, and both complete before `runPluginPhase` | confirmed |
+| A-4 | A pipe alias cannot reproduce the current `show bgp rpki summary` payload from the current `show bgp rpki status` payload | `summaryCommand` computes `vrp-count` as the sum of two counts, `sessions-established` as a count of rows matching a state, and spells `sessions-total` where `status` spells `sessions` | The RPKI conversion would be a pure alias with no payload work, and the payload obligation stated below would be unnecessary | Reading both handlers in `internal/component/bgp/plugins/rpki/rpki.go`, then `test/plugin/rpki-pipe-summary.ci` comparing both answers | confirmed. Four of the seven fields are computed, which is why phase 5 built the payload rather than writing a pure alias |
+| A-5 | Stage 1 refusal tears the plugin process down and leaves no partial registration behind | `onRegistration` returns an error the driver relays, and the comment on it names `rollbackStartupProcess` | A refused plugin could leave aliases in the registry and block its own restart | `TestOnRegistrationRollsBackPipesOnLaterFailure`, which drives the unwind the `.ci` cannot reach, beside `test/plugin/plugin-pipe-alias-collision.ci` | confirmed | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+| A-6 | No pipe filter in the tree carries a name a converted consumer wants | `filterShadowing` refuses the pair, and `registerAliases` in `peer.go` records that no filter carries `summary` or `peers` today | A converted consumer would be refused and would need a different alias name | A grep of every `RegisterPipeFilters` call: the three in `internal/component/bgp/plugins/cmd/rib/rib.go` carry advertised, community, count, family, first, graph, histogram, last, match, path, peer, prefix, reason and received, and none of them is `summary` | confirmed |
 
 ### Risks
 
@@ -290,7 +290,7 @@ end.
 | R-3 | A plugin restart collides with its own previous registration, because nothing removes an alias when a plugin stops | The second start of a plugin fails where the first succeeded | Removal by owner is part of this spec, not a follow-up. The rollback path and the stop path both call it |
 | R-4 | Two plugins want the same alias name on the same path, and which one fails depends on tier and startup order | An operator sees a plugin fail to start with a message naming another plugin | The refusal names both plugins, both paths and the name, so the operator can change one. Startup order dependence is accepted, because the alternative is silent replacement, which the owner refused |
 | R-5 | An alias is registered for a command whose payload cannot answer it, so the operator gets an empty or whole record instead of the half they asked for | `| display` on a name the payload does not carry leaves the record whole, which reads as the alias doing nothing | The payload obligation below is an acceptance criterion of any consumer conversion, and the RPKI conversion proves it |
-| R-6 | A plugin declares a pipe alias whose name a pipe filter later takes on an overlapping path, and the alias goes dark with nothing reporting it | No signal at all, which is why `aliasShadowing` exists | A plugin cannot declare a pipe filter today. If that channel is ever added, it runs the same overlap check from its side. Recorded in the deferral shard |
+| R-6 | A plugin declares a pipe alias whose name a pipe filter later takes on an overlapping path, and the alias goes dark with nothing reporting it | No signal at all, which is why `aliasShadowing` exists | A plugin cannot declare a pipe filter today. If that channel is ever added, it runs the same overlap check from its side. CORRECTED by the Review Gate: no row was owed and none was written. Nothing is deferred here, because the channel does not exist and this spec does not add one. Known Limitations carries the obligation for whoever adds it |
 | R-7 | `cliClient.StreamMonitor` resolves pipes in the client process, where a plugin's alias is unknown, so an alias typed on a streaming monitor command is reported as an unknown operator | An operator sees "unknown pipe operator" for a name completion offered | Scoped out below, with the reason. No plugin declares a streaming monitor command that wants an alias today |
 
 ## Blast Radius
@@ -346,21 +346,21 @@ end.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRegisterPluginAliasesReturnsErrorNotPanic` | `internal/component/command/alias_test.go` | The plugin-facing entry point reports every bad registration as an error, for each of the refusal cases the in-tree path panics on | |
-| `TestRegisterPluginAliasesRefusesBuiltinOperatorName` | `internal/component/command/alias_test.go` | AC-2 | |
-| `TestRegisterPluginAliasesRefusesFilterNameOnOverlappingPath` | `internal/component/command/alias_test.go` | AC-3, and that the population for this check is overlapping paths | |
-| `TestRegisterPluginAliasesAllowsSameNameOnLongerPath` | `internal/component/command/alias_test.go` | R-1. `summary` on `show bgp rpki` is accepted while `show bgp` carries `summary` | |
-| `TestRegisterPluginAliasesRefusesSameNameOnSamePath` | `internal/component/command/alias_test.go` | AC-4, and that the population for this check is the exact path | |
-| `TestRegisterPluginAliasesRefusesExpansionNamingAnAlias` | `internal/component/command/alias_test.go` | AC-6 | |
-| `TestRegisterPluginAliasesRefusesUnknownOperatorInExpansion` | `internal/component/command/alias_test.go` | AC-5 | |
-| `TestRegisterPluginAliasesRefusesDuplicateNameInOneBatch` | `internal/component/command/alias_test.go` | AC-15 | |
-| `TestRegisterPluginAliasesIsAllOrNothing` | `internal/component/command/alias_test.go` | A batch with one bad entry registers none of its entries | |
-| `TestUnregisterPluginAliasesRemovesOnlyThatOwner` | `internal/component/command/alias_test.go` | AC-9, and that an in-tree registration on the same path survives | |
-| `TestPluginAliasDoesNotLeakToSiblingLeaf` | `internal/component/command/alias_test.go` | AC-8 and A-2 | |
+| `TestRegisterPluginAliasesReturnsErrorNotPanic` | `internal/component/command/alias_test.go` | The plugin-facing entry point reports every bad registration as an error, for each of the refusal cases the in-tree path panics on | done, phase 1 |
+| `TestRegisterPluginAliasesRefusesBuiltinOperatorName` | `internal/component/command/alias_test.go` | AC-2 | done, phase 2 |
+| `TestRegisterPluginAliasesRefusesFilterNameOnOverlappingPath` | `internal/component/command/alias_test.go` | AC-3, and that the population for this check is overlapping paths | done, phase 2. It drives a filter on a SHORTER path and one on a LONGER path, so the overlap reading is pinned in both directions |
+| `TestRegisterPluginAliasesAllowsSameNameOnLongerPath` | `internal/component/command/alias_test.go` | R-1. `summary` on `show bgp rpki` is accepted while `show bgp` carries `summary` | done, phase 2 |
+| `TestRegisterPluginAliasesRefusesSameNameOnSamePath` | `internal/component/command/alias_test.go` | AC-4, and that the population for this check is the exact path | done, phase 2 |
+| `TestRegisterPluginAliasesRefusesExpansionNamingAnAlias` | `internal/component/command/alias_test.go` | AC-6 | done, phase 2 |
+| `TestRegisterPluginAliasesRefusesUnknownOperatorInExpansion` | `internal/component/command/alias_test.go` | AC-5 | done, phase 2 |
+| `TestRegisterPluginAliasesRefusesDuplicateNameInOneBatch` | `internal/component/command/alias_test.go` | AC-15 | done, phase 2 |
+| `TestRegisterPluginAliasesIsAllOrNothing` | `internal/component/command/alias_test.go` | A batch with one bad entry registers none of its entries | done, phase 2 |
+| `TestUnregisterPluginAliasesRemovesOnlyThatOwner` | `internal/component/command/alias_test.go` | AC-9, and that an in-tree registration on the same path survives | done, phase 3. A second owner's entry on the same path survives too |
+| `TestPluginAliasDoesNotLeakToSiblingLeaf` | `internal/component/command/alias_test.go` | AC-8 and A-2 | done, phase 3 |
 | `TestOnRegistrationRegistersPluginPipes` | `internal/component/plugin/server/startup_test.go` | The Stage 1 wiring, and that validation runs before any conversion | done, phase 1. The refusal half is `TestOnRegistrationRefusesMalformedPluginPipe`, beside it |
-| `TestOnRegistrationRefusesPipeOnUndeclaredCommand` | `internal/component/plugin/server/startup_test.go` | AC-7 | |
-| `TestOnRegistrationRollsBackPipesOnLaterFailure` | `internal/component/plugin/server/startup_test.go` | A-5. A family conflict after the pipe registration leaves no alias behind | |
-| `TestPluginPipesRemovedOnPluginStop` | `internal/component/plugin/server/startup_test.go` | AC-9 | |
+| `TestOnRegistrationRefusesPipeOnUndeclaredCommand` | `internal/component/plugin/server/startup_test.go` | AC-7 | done, phase 2 |
+| `TestOnRegistrationRollsBackPipesOnLaterFailure` | `internal/component/plugin/server/startup_test.go` | A-5. A family conflict after the pipe registration leaves no alias behind | done, phase 3 |
+| `TestPluginPipesRemovedOnPluginStop` | `internal/component/plugin/server/startup_test.go` | AC-9 | done, phase 3. It stops the plugin through `rollbackStartupProcess` and starts it again |
 | `TestAliasesForCommandListsPluginAliases` | `internal/component/command/alias_test.go` | The completion and help sources see a plugin's aliases | done, phase 4. It asserts `completePipeForCommand` too, which is the completer contract AC-10 rests on |
 | `TestPipeAliasArgumentRefused` | `internal/component/command/pipe_test.go` | AC-14 for a plugin-registered alias | done, phase 4 |
 | `TestPipeAliasHelp` | `internal/plugins/meta/cmd/help_test.go` | The help renderer, beside `TestPipeFilterHelp` | done, phase 4 |
@@ -377,8 +377,8 @@ end.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `plugin-pipe-alias` | `test/plugin/plugin-pipe-alias.ci` | An external Python plugin declares a command and an alias over it, and the operator gets the expansion's answer | done, phase 1 |
-| `plugin-pipe-alias-collision` | `test/plugin/plugin-pipe-alias-collision.ci` | A second plugin declares a name that is already taken, fails to start, and the first plugin keeps answering | | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
-| `plugin-pipe-alias-namespaced` | `test/plugin/plugin-pipe-alias-namespaced.ci` | The alias is offered on the declaring plugin's command and refused on an unrelated command | | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+| `plugin-pipe-alias-collision` | `test/plugin/plugin-pipe-alias-collision.ci` | A second plugin declares a name that is already taken, fails to start, and the first plugin keeps answering | done, phase 2. CORRECTED: two plugins cannot reach one path, so the refused declaration is a plugin against the IN-TREE aliases on `show bgp` | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
+| `plugin-pipe-alias-namespaced` | `test/plugin/plugin-pipe-alias-namespaced.ci` | The alias is offered on the declaring plugin's command and refused on an unrelated command | done, phase 3. It asserts the plugin's own leaf below the alias too | <!-- doc-links: ignore (fixture this spec will create; it is not implemented yet) -->
 | `plugin-pipe-alias-help` | `test/plugin/plugin-pipe-alias-help.ci` | `command help` lists the alias with its description | done, phase 4. It asserts the in-tree half beside the declared one |
 | `plugin-pipe-alias-completion` | `test/ui/plugin-pipe-alias-completion.ci` | The interactive CLI offers the plugin's alias name in the operator slot | BLOCKED, phase 4. `ze cli` runs its model in the CLIENT process, so no declared alias is offered or resolvable there. See the Phase 4 Record | <!-- doc-links: ignore (fixture never written: no client in the tree drives the daemon-hosted TUI, and no daemon-side completion surface offers a pipe operator) -->
 | `rpki-pipe-summary` | `test/plugin/rpki-pipe-summary.ci` | `show bgp rpki \| summary` answers the aggregate half, and `show bgp rpki summary` is unchanged | done, phase 5 |
@@ -682,9 +682,12 @@ replacement, which the owner refused.
 
 "Namespaced to its own commands" is per COMMAND PATH in effect, and per PLUGIN in
 authority. A plugin may name a path only when that path is one of the commands it
-declared in the same message. It cannot name an ancestor, because an ancestor
-belongs to whoever owns the shorter path. It cannot reach the global alias table
-at all.
+declared in the same message. It cannot reach the global alias table at all.
+CORRECTED by the Review Gate: a path another PLUGIN declared is refused by
+`PluginRegistry.Register` a step earlier, so that half holds. A path the DAEMON
+serves itself is not refused, because the check reads the plugin's own command
+list and the builtins are in neither registry it consults. Finding R-8 records
+what that leaves, and it is additive only.
 
 That leaves the inheritance question. An alias on `show bgp rpki` is inherited by
 `show bgp rpki roa`, because `roa` registers nothing of its own and the lookup
@@ -842,7 +845,19 @@ surface is scoped out and recorded in Known Limitations.
   check from its side, exactly as `RegisterPipeFilters` does today.
 - Two plugins wanting the same alias name on the same path get an outcome that
   depends on tier and startup order. The refusal names both, and the operator
-  resolves it by renaming one.
+  resolves it by renaming one. Measured in phase 2 and unreachable in practice:
+  `PluginRegistry.Register` refuses a command another plugin declared, and it
+  runs before the alias write.
+- The ownership check confirms that a plugin DECLARED the command path, not that
+  the daemon routes that path to it. A plugin that declares a name the daemon
+  serves itself passes Stage 1, and the dispatcher's own registry rejects that
+  command entry later as a builtin conflict while the plugin keeps running. Its
+  alias then sits on a command path the daemon answers. It can only ADD a name
+  there, never take one, and the name leaves with the plugin. Found by the
+  Review Gate as R-8 and reproduced from `onRegistration`; tightening the check
+  would remove the only reachable exact-path collision, which is what the merge
+  protection and `test/plugin/plugin-pipe-alias-collision.ci` both rest on, so
+  it is the owner's call rather than the reviewer's.
 - Only the RPKI consumer is converted here. `plan/audit-command-pipe-vs-subcommand.md`
   is the source of the full consumer list, and each remaining conversion is its
   own change against this mechanism.
@@ -884,6 +899,88 @@ untouched, and only the shape of the command that reports them changes.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-plugin-registers-pipe-operations.md` only (commit A preserves the spec in history)
+
+## Review Gate
+
+Independent pass over `91203b8aa..de0f8c040` plus `2d244b186`, run by a context
+that wrote none of it. Every lens was run by this one context, and no reader was
+spawned (`ai/rules/planning.md`, "Independence is a property of the CONTEXT").
+
+### Round scope, written before each round ran
+
+| Round | Scope |
+|-------|-------|
+| 1 | The whole diff: six phase commits, the audit row, every changed Go file, every `.ci`, every doc, the deferral shard and the two journal rows |
+| 2 | Only the prose round 1 corrected: `docs/architecture/api/commands.md`, this spec, the deferral shard. Re-run `make ze-doc-verify` |
+
+Round 2 found nothing further, and every round-1 finding below is either fixed
+or recorded with its owner. The loop ends there: a round whose findings are all
+record defects is the last round.
+
+### What was run, not narrated
+
+| Check | Result |
+|-------|--------|
+| `make ze-functional-plugin-test` | 686/686 PASS. The five tests this spec owns pass: `plugin-pipe-alias`, `plugin-pipe-alias-collision`, `plugin-pipe-alias-help`, `plugin-pipe-alias-namespaced`, `rpki-pipe-summary` |
+| `make ze-unit-pkg-test` over `command`, `plugin/server`, `bgp/plugins/rpki`, `plugins/meta/cmd` | green |
+| `make ze-repository-check` | all checks passed |
+| `make ze-doc-verify` | passed, before and after the round-1 doc correction |
+| `python3 scripts/dev/audit-test-relaxation.py 91203b8aa^` | clean, 13 test files examined |
+| `python3 scripts/dev/spec_doc_anchors.py` | exit 0 |
+
+### Mutations run by this review, not trusted from a Phase Record
+
+Each one was applied to the tree, the named test was run, the tree was restored
+from a saved copy.
+
+| Mutation | Test that went red |
+|----------|--------------------|
+| `mergedAliases` returns the declared set instead of merging | `TestRegisterPluginAliasesKeepsWhatThePathAlreadyCarries`, and `TestUnregisterPluginAliasesRemovesOnlyThatOwner` lost `show bgp` its `summary` |
+| `UnregisterPluginAliases` removes the PATH instead of the owner's entries | the in-tree aliases and the second owner's alias both stopped answering |
+| `aliasOnPath` reads `lookup` (longest prefix) instead of `get` (exact path) | `TestRegisterPluginAliasesAllowsSameNameOnLongerPath`: `show bgp rpki` was refused `summary` |
+| `filterShadowing` narrowed from overlapping paths to the exact path | `TestRegisterPluginAliasesRefusesFilterNameOnOverlappingPath` in BOTH directions, and `TestAliasRegistrationRefusesFilterCollision` |
+| `rollbackStartupProcess` stops removing the owner's aliases | `TestPluginPipesRemovedOnPluginStop`: the second start failed with `pipe alias totals is already registered on that command path`, which is exactly the hole phase 3 exists to close |
+| a counter added to `appendSummaryFields` and not to `summaryFieldNames` | `TestSummaryFieldNamesMatchTheWrittenPayload` |
+
+Both collision populations are therefore pinned independently: EXACT path for
+alias against alias, OVERLAPPING paths for alias against filter.
+
+### Findings
+
+| # | Severity | Finding | Disposition |
+|---|----------|---------|-------------|
+| R-8 | ISSUE | `docs/architecture/api/commands.md` stated "One plugin's naming choice therefore never reaches a command it does not own". It does. `validatePipeDecls` (`internal/component/plugin/server/startup.go`) confirms the plugin DECLARED the path, and `PluginRegistry.Register` (`internal/component/plugin/registration.go`) never consults the builtin set, so a plugin that declares `show bgp` gets its alias on `show bgp`. Reproduced from `onRegistration` in a throwaway test: the call returned nil and `show bgp` then answered `[peers summary wide]`. The dispatcher's own `CommandRegistry.Register` rejects the plugin's command entry later as a builtin conflict, and logs a warning while the plugin keeps running | FIXED as a false safety claim. The paragraph now states what the check confirms and what it leaves. The BEHAVIOR is unchanged and is the owner's to rule on: a tightening was written and reverted, because refusing a builtin path removes the only reachable exact-path alias collision, which is the scenario `mergedAliases` was built for and the one `test/plugin/plugin-pipe-alias-collision.ci` drives. Named in Known Limitations |
+| N-1 | NOTE | Every A-N still read `unvalidated` after all six phases, while the Goal Gates ask for none | FIXED. Each row carries its evidence. A-3's named test does not exist under that name and the row now names the test that was written |
+| N-2 | NOTE | Sixteen Status cells in the TDD Test Plan and the Functional Tests table were blank for tests that exist and pass | FIXED |
+| N-3 | NOTE | R-6's mitigation said the missing pipe-FILTER channel is "Recorded in the deferral shard". No row existed, and none was owed: nothing is deferred, the channel does not exist | FIXED, the claim is corrected |
+| N-4 | NOTE | Known Limitations and the Phase 6 Record both name the deferral shard as the home for a daemon-backed command catalog. The shard carried one row, for the column order | FIXED, the row is written |
+| N-5 | NOTE | `check_cross_package_wiring` reports `ColumnsForCommand` (`internal/component/command/column_order.go`) has no cross-package non-test caller, because this spec touched that file. It has two in-package callers, `render_records.go` and `completer.go`, so it is not dead. Pre-existing and outside `ze-precommit-verify`, the same class the Phase 1 Record recorded for `AliasesForCommand` | not fixed. Unexporting it is a separate edit with its own callers to check |
+| N-6 | NOTE | `audit-test-relaxation.py origin/main` reports one WEAKENED file, `internal/component/bgp/reactor/peer_initial_sync_test.go`, carrying RFC 2545 and RFC 4724 tags. `git log` charges it to `478dd21a5`, which is not in this spec's range. Scoped to `91203b8aa^` the audit is clean | not fixed. It belongs to the session that wrote `478dd21a5`, and reported to the owner |
+| N-7 | NOTE | `handleBgpCommandComplete` (`internal/plugins/meta/cmd/help.go`) still reads `Dispatcher().Commands()`, the builtin table alone, so `show command complete` offers no command any plugin declares. Phase 4 fixed exactly this for `handleBgpCommandHelp` beside it and left the completer | not fixed. Pre-existing, and the phase that owns discovery recorded the surface gap it did close |
+| N-8 | NOTE | `overviewCommand` always writes `"cache-servers":[]`, while `statusCommand` omits the key when no session exists. The two answers disagree about how "no cache server" is spelled | not fixed. `\| summary` drops the key either way, and no test pins either spelling |
+
+0 BLOCKER, 0 ISSUE open. R-8's reviewable half is fixed; its residual is a
+behavior the owner decided and it is now written down rather than denied.
+
+### What was verified against source and a run, item by item
+
+| Asked | Answer |
+|-------|--------|
+| Every AC-1..AC-15 has an implementation at file and symbol, and a discriminating test | Yes, with one exception. AC-10 is met at `completePipeForCommand` (`TestAliasesForCommandListsPluginAliases`) and has no end-to-end test. The Phase 4 Record says so and the reason holds: `test/ui/display-fill-completion.ci` is the one pty harness in the tree and it drives `ze cli`, whose model runs in the CLIENT process, and `handleBgpCommandComplete` offers command names alone |
+| The two collision rules | Both pinned, and both mutations went red. See the mutation table |
+| Merge, not replace | `mergedAliases` verified, and a plugin declaration cannot destroy `show bgp`'s `summary` or `peers`. The `.ci` asserts both still answer after the refusal |
+| Removal is entry-scoped | `UnregisterPluginAliases` filters by NAME and removes a path only when the owner created it and its last entry is gone. In-tree names and a second owner's names both survive |
+| Restart | `TestPluginPipesRemovedOnPluginStop` stops the plugin through `rollbackStartupProcess` and starts it again. The mutation proves the hole is real. A CRASH still reaches neither call site, which the Phase 3 Record states and which `PluginRegistry.Register` already blocks a respawn on, for the command row before the alias |
+| AC-13 | `show bgp rpki summary` writes the same seven keys in the same order through `appendSummaryFields`, `TestSummaryCommand` still pins it, and `rpki-pipe-summary.ci` asserts the subcommand and the pipe form answer the identical record |
+| The payload obligation | `summaryAliasExpansion` is built from `summaryFieldNames`, and `TestSummaryFieldNamesMatchTheWrittenPayload` holds that list against the bytes `summaryCommand` writes. Adding a counter to the writer alone turns it red |
+
+### The three known gaps, judged
+
+| Gap | Judgement |
+|-----|-----------|
+| A plugin's alias does not resolve in `ze cli` interactive | Honestly recorded, and documented well enough. Five documents name the exact string an operator sees, `pipe error: unknown pipe operator: <name>`, say why, and name the two surfaces that work: `docs/guide/rpki.md`, `docs/guide/command-reference.md`, `docs/features/formatting.md`, `docs/guide/plugins.md`, `docs/plugin-development/commands.md`, and `docs/architecture/api/commands.md` carries the table. The producing function is `executeOperationalCommand`, read and confirmed |
+| A plugin cannot declare a column order | Honestly recorded in the deferral shard with a destination, and the cost is stated correctly: `\| display <partial>` offers no field names, the alias name still completes |
+| `validation-enabled` is a literal | The call is right. Both literals predate this spec, the journal row names the producing functions and the conditional state, and AC-13 pins the payload. What this spec did change is the SURFACE: the literal now also appears in the bare `show bgp rpki` answer, and it could not be left out without breaking AC-13. Fixing it is a payload change that belongs to whoever retires `show bgp rpki summary` |
 
 ## Phase 1 Record: Wiring (2026-08-21)
 

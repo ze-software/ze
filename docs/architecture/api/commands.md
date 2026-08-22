@@ -1536,11 +1536,24 @@ anything. `registerPluginPipes` then writes the accepted set under
 `startupRegistrationMu`, between the registry row and the runtime families. Each
 later failure unwinds what the steps above it wrote.
 
-A plugin names only a path it declared itself. It cannot name an ancestor, which
-belongs to whoever owns the shorter path, and it reaches no global table. One
-plugin's naming choice therefore never reaches a command it does not own.
+A plugin names only a path it declared itself, and it reaches no global table.
+A path another PLUGIN declared is refused a step earlier: `PluginRegistry.Register`
+runs before the alias write and rejects a command name another plugin holds, so
+the second plugin fails on the COMMAND and never reaches its alias.
+
+What the check confirms is that the plugin DECLARED the path, not that the
+daemon routes that path to it. A plugin that declares a name the daemon serves
+itself, `show bgp` for one, passes here. The dispatcher's own registry rejects
+that command entry later as a builtin conflict, and the plugin keeps running, so
+its alias sits on a command path the daemon answers. It can only ADD a name
+there, never take one: the exact-path check refuses a name the path already
+carries, `mergedAliases` keeps what the path held, and the name leaves with the
+plugin. Declaring a name a builtin already serves is a plugin defect, and the
+daemon logs it as `command registration rejected ... conflicts with builtin`.
 
 <!-- source: pkg/plugin/rpc/types.go -- PipeDecl, DeclareRegistrationInput -->
+<!-- source: internal/component/plugin/registration.go -- PluginRegistry.Register -->
+<!-- source: internal/component/plugin/server/command_registry.go -- CommandRegistry.Register, AddBuiltin -->
 <!-- source: pkg/plugin/sdk/sdk_types.go -- PipeDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes, commandPathKey -->
 
