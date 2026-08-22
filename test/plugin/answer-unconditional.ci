@@ -39,7 +39,7 @@ tmpfs=answer-silent.run:mode=755:terminator=EOF_SILENT
 import os
 import sys
 
-from ze_api import API, runtime_fail
+from ze_api import API, answer_record_payload, runtime_fail
 
 MARKER = "silent-answer.txt"
 
@@ -80,7 +80,9 @@ def answer_item(api, command):
         runtime_fail(f"{command} head was {head!r}, want {WANT_HEAD!r}")
     if "=" in head:
         runtime_fail(f"{command} head carries a key=value pair: {head!r}")
-    record = tail_of(lines[1], "row")
+    # The record's payload states its own byte count, so it is taken by that
+    # count and the line is searched for nothing.
+    record = answer_record_payload(tail_of(lines[1], "row"))
     terminator = tail_of(lines[2], "end")
     if terminator != WANT_TERMINATOR:
         runtime_fail(f"{command} terminator was {terminator!r}, want {WANT_TERMINATOR!r}")
@@ -126,7 +128,7 @@ tmpfs=answer-second.run:mode=755:terminator=EOF_SECOND
 import os
 import sys
 
-from ze_api import API, runtime_fail, wait_until
+from ze_api import API, answer_record_payload, runtime_fail, wait_until
 
 MARKER = "silent-answer.txt"
 
@@ -196,7 +198,7 @@ def main():
     if "=" in head:
         runtime_fail(f"head carries a key=value pair: {head!r}")
 
-    item = tail_of(lines[1], "row")
+    item = answer_record_payload(tail_of(lines[1], "row"))
     if item != silent:
         runtime_fail(f"record carries {item[:120]!r}, the first peer got {silent[:120]!r}")
 

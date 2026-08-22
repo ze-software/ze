@@ -105,6 +105,12 @@ const idLengthAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 // The id field is a counted number under a `#` sigil, closed by the space that
 // separates it from the field after it (appendID, cutID).
 
+// countedNumberMax is the widest counted number: the base-36 length character,
+// the colon that closes it, and the twenty decimal digits a uint64 occupies. It
+// is what makes the record line's prefix arithmetic rather than a guess
+// (answerRecordPrefixWidth).
+const countedNumberMax = 2 + idDigitsMax
+
 // appendCountedNumber appends the `<len>:<digits>` field carrying value.
 //
 // The digits are formatted once and the length is read off the very bytes that
@@ -133,32 +139,52 @@ func appendCountedBytes(buf, value []byte) []byte {
 	return append(buf, value...)
 }
 
+// countedDigits reads the `<len>:` a counted field opens with and reports how
+// many decimal digits follow it.
+//
+// It is the one place a malformed length is refused, and both readers of the
+// shape call it: cutCountedDigits, which works on the string a caller keys its
+// pending answers by, and cutCountedBytes, which works on the bytes a record's
+// payload is sliced out of. Neither keeps its own copy of the rule.
+//
+// length is the base-36 length character, separator the byte that MUST close
+// it, and available how many bytes the field has left for its digits. The
+// caller quotes the field it read them from, because only the caller knows how
+// to bound that quotation.
+func countedDigits(length, separator byte, available int) (int, error) {
+	count, known := idLengthValue(length)
+	if !known {
+		return 0, fmt.Errorf("counted field length %q is not one base-36 character, 0 to 9 then A to Z", string(rune(length)))
+	}
+	if count == 0 {
+		return 0, errors.New("counted field states a length of zero digits")
+	}
+	if count > idDigitsMax {
+		return 0, fmt.Errorf("counted field states %d digits, past the %d a uint64 occupies", count, idDigitsMax)
+	}
+	if separator != ':' {
+		return 0, errors.New("counted field length is not followed by ':'")
+	}
+	if available < count {
+		return 0, fmt.Errorf("counted field of %d digits runs past the end of the line", count)
+	}
+	return count, nil
+}
+
 // cutCountedDigits takes a counted number off the front of line and returns its
 // decimal digits and everything after the field.
 //
-// It is the one reader of the shape appendCountedNumber writes, and every
-// refusal a malformed length earns is stated here rather than at each field.
+// It is the one reader of the shape appendCountedNumber writes for a value held
+// as a string, and cutCountedBytes is its twin for one held as bytes.
 func cutCountedDigits(line string) (digits, rest string, err error) {
 	if len(line) < 2 {
 		return "", "", fmt.Errorf("counted field states no length: %q", truncate(line, 80))
 	}
-	count, known := idLengthValue(line[0])
-	if !known {
-		return "", "", fmt.Errorf("counted field length %q is not one base-36 character, 0 to 9 then A to Z", line[0:1])
-	}
-	if count == 0 {
-		return "", "", fmt.Errorf("counted field states a length of zero digits: %q", truncate(line, 80))
-	}
-	if count > idDigitsMax {
-		return "", "", fmt.Errorf("counted field states %d digits, past the %d a uint64 occupies", count, idDigitsMax)
-	}
-	if line[1] != ':' {
-		return "", "", fmt.Errorf("counted field length is not followed by ':': %q", truncate(line, 80))
+	count, err := countedDigits(line[0], line[1], len(line)-2)
+	if err != nil {
+		return "", "", fmt.Errorf("%w: %q", err, truncate(line, 80))
 	}
 	end := 2 + count
-	if len(line) < end {
-		return "", "", fmt.Errorf("counted field of %d digits runs past the end of the line: %q", count, truncate(line, 80))
-	}
 	return line[2:end], line[end:], nil
 }
 
@@ -193,6 +219,43 @@ func cutCountedText(line string) (text, rest string, err error) {
 	rest = rest[1:]
 	if uint64(len(rest)) < size {
 		return "", "", fmt.Errorf("counted text of %d bytes runs past the end of the line: %q", size, truncate(line, 80))
+	}
+	return rest[:size], rest[size:], nil
+}
+
+// cutCountedBytes takes a counted text off the front of field and returns its
+// bytes and everything after it, both referencing field rather than copying it.
+//
+// It is cutCountedText for a value held as bytes, and it exists for the reason
+// appendCountedBytes does: a record's payload reaches and leaves the wire
+// without being copied into a string, on the line that repeats. The refusals
+// are countedDigits's, so the two readers cannot disagree about what a
+// malformed length is.
+//
+// The stated byte count is checked against what arrived BEFORE the slice, so a
+// line claiming more bytes than it carries is refused rather than panicking the
+// reader.
+func cutCountedBytes(field []byte) (value, rest []byte, err error) {
+	if len(field) < 2 {
+		return nil, nil, fmt.Errorf("counted field states no length: %q", truncateBytes(field, 80))
+	}
+	count, err := countedDigits(field[0], field[1], len(field)-2)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: %q", err, truncateBytes(field, 80))
+	}
+	end := 2 + count
+	size, err := strconv.ParseUint(string(field[2:end]), 10, 64)
+	if err != nil {
+		return nil, nil, fmt.Errorf("counted number %q: %w", field[2:end], err)
+	}
+
+	rest = field[end:]
+	if len(rest) == 0 || rest[0] != ':' {
+		return nil, nil, fmt.Errorf("counted text length is not followed by ':': %q", truncateBytes(field, 80))
+	}
+	rest = rest[1:]
+	if uint64(len(rest)) < size {
+		return nil, nil, fmt.Errorf("counted text of %d bytes runs past the end of the line: %q", size, truncateBytes(field, 80))
 	}
 	return rest[:size], rest[size:], nil
 }
@@ -507,35 +570,65 @@ func AppendAnswerHead(buf []byte, id uint64, answerType, key string, columns jso
 	return replaceNewlines(buf, start)
 }
 
-// AppendAnswerItem appends a result record line (#<len>:<id> row <json>) and
-// returns the extended slice. Newline is NOT appended. The kind states that the
-// payload is a produced row, so no key name sits in front of it, and the payload
-// takes the rest of the line verbatim.
+// appendAnswerRecordPrefix appends everything a record line writes in FRONT of
+// its payload bytes: the id field, the kind token, the space that closes it,
+// and the counted number stating how many payload bytes follow.
+//
+// It is the one writer of that prefix, so AppendAnswerItem, AppendAnswerFault
+// and AnswerRecordLineSize spell the record line once between them and a
+// measured line cannot drift from a written one.
+func appendAnswerRecordPrefix(buf []byte, id uint64, kind string, size uint64) []byte {
+	buf = appendAnswerPrefix(buf, id, kind)
+	buf = append(buf, ' ')
+	buf = appendCountedNumber(buf, size)
+	return append(buf, ':')
+}
+
+// AppendAnswerItem appends a result record line
+// (#<len>:<id> row <len>:<n>:<json>) and returns the extended slice. Newline is
+// NOT appended.
+//
+// The kind states that the payload is a produced row, so no key name sits in
+// front of it, and the payload states its own byte count, so a reader slices it
+// by arithmetic and never searches the line for where it stops.
+//
+// The payload is appended VERBATIM. It is the line that repeats, so no pass is
+// made over its bytes. A newline inside it is the one byte that has no wire
+// form, because the frame reader ends a line at the first one it meets: such a
+// line is refused by the count it states (parseAnswerRecord) rather than
+// rewritten, so a producer that writes one is told instead of half-read.
 func AppendAnswerItem(buf []byte, id uint64, item json.RawMessage) []byte {
-	buf = appendAnswerPrefix(buf, id, AnswerKindRecord)
-	buf = append(buf, ' ')
-	start := len(buf)
-	buf = append(buf, item...)
-	return replaceNewlines(buf, start)
+	buf = appendAnswerRecordPrefix(buf, id, AnswerKindRecord, uint64(len(item)))
+	return append(buf, item...)
 }
 
-// AppendAnswerFault appends an error record line (#<len>:<id> bad <json>) and
-// returns the extended slice. Newline is NOT appended. A fault records one
-// rejected row and does not end the walk, which is what lets an answer report
-// 97 rows applied and 3 rejected.
+// AppendAnswerFault appends an error record line
+// (#<len>:<id> bad <len>:<n>:<json>) and returns the extended slice. Newline is
+// NOT appended. A fault records one rejected row and does not end the walk,
+// which is what lets an answer report 97 rows applied and 3 rejected.
+//
+// Its payload is counted and appended verbatim, exactly as AppendAnswerItem's
+// is, so one reader serves both record kinds.
 func AppendAnswerFault(buf []byte, id uint64, fault json.RawMessage) []byte {
-	buf = appendAnswerPrefix(buf, id, AnswerKindFault)
-	buf = append(buf, ' ')
-	start := len(buf)
-	buf = append(buf, fault...)
-	return replaceNewlines(buf, start)
+	buf = appendAnswerRecordPrefix(buf, id, AnswerKindFault, uint64(len(fault)))
+	return append(buf, fault...)
 }
 
-// answerRecordPrefixMax is the capacity the record-line prefix is measured in:
-// the id field at its widest (idPrefixMax, 24 bytes), the kind token
-// (answerKindWidth), and the one space that separates the kind from the
-// payload. That is 28 bytes, so the scratch never grows.
-const answerRecordPrefixMax = idPrefixMax + answerKindWidth + 1
+// answerRecordPrefixWidth is the EXACT width of the widest record-line prefix,
+// and it is the scratch AnswerRecordLineSize measures one in. Every part of it
+// states its own bound, so it is arithmetic rather than a guess:
+//
+//	idPrefixMax        the id field at its widest, 24 bytes
+//	answerKindWidth    the kind token, 3 bytes
+//	1                  the space that closes the kind
+//	countedNumberMax   the counted number stating the payload's byte count
+//	1                  the colon that closes that count
+//
+// That is 51 bytes, and it is what appendAnswerRecordPrefix writes for the
+// widest id and the widest count, neither more nor less
+// (TestAnswerRecordLineSizeExact). A looser constant would cost nothing a test
+// can see, which is why the test states equality rather than a bound.
+const answerRecordPrefixWidth = idPrefixMax + answerKindWidth + 1 + countedNumberMax + 1
 
 // AnswerRecordLineSize reports how many bytes the record line for record
 // occupies under id, its newline terminator excluded. It measures the line
@@ -543,9 +636,9 @@ const answerRecordPrefixMax = idPrefixMax + answerKindWidth + 1
 // writes for a rejected one, so a producer can refuse a record wider than
 // MaxMessageSize before it builds the line rather than after.
 //
-// The prefix is measured by the appenders that write it, and the value reaches
-// the wire byte for byte (replaceNewlines overwrites in place and changes no
-// length), so this size is the line's size rather than an estimate of it.
+// The prefix is built by the appender that writes it and the payload reaches
+// the wire byte for byte, so this size IS the line's size rather than an
+// estimate of it.
 //
 // A record carrying neither an item nor a fault measures as an empty item. Its
 // producer refuses it on its own account (ErrEmptyAnswerRecord, collapse.go),
@@ -555,10 +648,8 @@ func AnswerRecordLineSize(id uint64, record Record) int {
 	if len(record.Fault) > 0 {
 		kind, value = AnswerKindFault, record.Fault
 	}
-	var scratch [answerRecordPrefixMax]byte
-	// The one space is what appendAnswerPrefix leaves to the payload's own
-	// appender, so it is counted here rather than measured a second time.
-	return len(appendAnswerPrefix(scratch[:0], id, kind)) + 1 + len(value)
+	var scratch [answerRecordPrefixWidth]byte
+	return len(appendAnswerRecordPrefix(scratch[:0], id, kind, uint64(len(value)))) + len(value)
 }
 
 // AppendAnswerTerminator appends the terminator line
@@ -724,16 +815,40 @@ func ParseAnswerTail(kind string, payload []byte) (AnswerTail, error) {
 	switch kind {
 	case AnswerKindHead:
 		return parseAnswerHead(payload)
-	case AnswerKindRecord:
-		return AnswerTail{Kind: kind, Item: payload}, nil
-	case AnswerKindFault:
-		return AnswerTail{Kind: kind, Fault: payload}, nil
+	case AnswerKindRecord, AnswerKindFault:
+		return parseAnswerRecord(kind, payload)
 	case AnswerKindTerminator:
 		return parseAnswerTerminator(payload)
 	case AnswerKindNotUnderstood:
 		return parseAnswerNotUnderstood(payload)
 	}
 	return AnswerTail{}, fmt.Errorf("answer line states kind %q, want one of %s", truncate(kind, answerKindWidth), answerKindWords)
+}
+
+// parseAnswerRecord reads a record line's one field: the counted payload the
+// kind states is a produced row (AnswerKindRecord) or a rejected one
+// (AnswerKindFault).
+//
+// The payload is sliced out of the bytes it arrived in rather than copied, so a
+// consumer that forwards a record copies nothing.
+//
+// The line MUST end where the payload ends. That check is what the stated count
+// buys: a line carrying more is a line nobody can read whole, and a line
+// carrying less is one the frame reader ended early, which is what a raw
+// newline inside a value and a `\r\n` terminator each do. Both are refused here
+// rather than half-read (AC-20).
+func parseAnswerRecord(kind string, payload []byte) (AnswerTail, error) {
+	value, rest, err := cutCountedBytes(payload)
+	if err != nil {
+		return AnswerTail{}, fmt.Errorf("answer %s payload: %w", kind, err)
+	}
+	if len(rest) > 0 {
+		return AnswerTail{}, fmt.Errorf("answer %s line carries %d bytes past its payload: %q", kind, len(rest), truncateBytes(rest, 40))
+	}
+	if kind == AnswerKindFault {
+		return AnswerTail{Kind: kind, Fault: value}, nil
+	}
+	return AnswerTail{Kind: kind, Item: value}, nil
 }
 
 // parseAnswerHead reads the head's three fields: the item type, the envelope
@@ -982,4 +1097,14 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + "..."
+}
+
+// truncateBytes is truncate for a value held as bytes. It bounds the slice
+// BEFORE it converts, so a refusal over a 16 MB line builds 80 bytes of string
+// rather than 16 MB of it.
+func truncateBytes(value []byte, n int) string {
+	if len(value) > n {
+		value = value[:n+1]
+	}
+	return truncate(string(value), n)
 }

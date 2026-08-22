@@ -22,8 +22,7 @@ import (
 // builds one the frame refuses, which the newline in each direction makes easy
 // to get wrong by one.
 func TestAnswerRecordLineAtTheSizeLimitCrossesTheFrame(t *testing.T) {
-	prefix := AnswerRecordLineSize(AnswerNoID, Record{})
-	item := bytes.Repeat([]byte{'x'}, MaxMessageSize-prefix)
+	item := answerItemOfLineSize(t, AnswerNoID, MaxMessageSize)
 
 	line := AppendAnswerItem(nil, AnswerNoID, item)
 	if len(line) != MaxMessageSize {

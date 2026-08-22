@@ -229,11 +229,16 @@ func TestGeneratorAnswerReachesTheEncoder(t *testing.T) {
 		t.Fatalf("answer has %d lines, want %d: a head, %d records and a terminator", len(got), rowCount+2, rowCount)
 	}
 
+	// The record payload states its own byte count, so each line is spelled by
+	// the shipped appender rather than by a second copy of the grammar here.
+	recordLine := func(peer string) string {
+		return string(rpc.AppendAnswerItem(nil, 7, json.RawMessage(`{"peer":"`+peer+`"}`)))
+	}
 	want := map[int]string{
 		0:            "#1:7 top map 1:5:peers 1:0:",
-		1:            `#1:7 row {"peer":"10.0.0.0"}`,
-		2:            `#1:7 row {"peer":"10.0.0.1"}`,
-		rowCount:     `#1:7 row {"peer":"10.0.0.` + strconv.Itoa(rowCount-1) + `"}`,
+		1:            recordLine("10.0.0.0"),
+		2:            recordLine("10.0.0.1"),
+		rowCount:     recordLine("10.0.0." + strconv.Itoa(rowCount-1)),
 		rowCount + 1: "#1:7 " + string(rpc.AppendAnswerTerminator(nil, rpc.AnswerNoID, uint64(rowCount), 0, "")),
 	}
 	for index, line := range want {

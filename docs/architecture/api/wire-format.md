@@ -98,7 +98,7 @@ positional rather than JSON and carry no key name:
 
 ```
 #2:42 top map 1:5:peers 1:0:
-#2:42 row {"address":"10.0.0.1","state":"established"}
+#2:42 row 2:44:{"address":"10.0.0.1","state":"established"}
 #2:42 end 1:1 1:0 1:0:
 ```
 

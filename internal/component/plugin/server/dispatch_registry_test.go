@@ -180,7 +180,7 @@ func TestEngineOpJSONAndDirectMatch(t *testing.T) {
 	// what the socket writes as the answer's one item.
 	assert.Equal(t, []string{
 		"#1:5 top doc 1:0: 1:0:",
-		`#1:5 row ` + string(projected.Data),
+		string(rpc.AppendAnswerItem(nil, 5, projected.Data)),
 		"#1:5 end 1:1 1:0 1:0:",
 	}, strings.Split(strings.TrimSuffix(wire.String(), "\n"), "\n"))
 }
@@ -349,9 +349,12 @@ func TestDispatchCommandAlwaysAnswersRecords(t *testing.T) {
 	// list, so this is the state every caller is in.
 	caller := process.NewProcess(plugin.PluginConfig{Name: "unconditional"})
 
+	// The record payload states its own byte count, so the record line is
+	// spelled by the shipped appender rather than by a second copy of the
+	// grammar here.
 	wantLines := []string{
 		"#1:7 top doc 1:0: 1:0:",
-		`#1:7 row {"version":"3"}`,
+		string(rpc.AppendAnswerItem(nil, 7, json.RawMessage(`{"version":"3"}`))),
 		"#1:7 end 1:1 1:0 1:0:",
 	}
 

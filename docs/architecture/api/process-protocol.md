@@ -1079,7 +1079,7 @@ The head states no outcome, and the record carries the value byte for byte:
 
 ```
 #1:5 top doc 1:0: 1:0:
-#1:5 row {"running":true,"peers":1}
+#1:5 row 2:26:{"running":true,"peers":1}
 #1:5 end 1:1 1:0 1:0:
 ```
 
@@ -1089,7 +1089,7 @@ one 16 MB line. A shorter walk collapses to the `doc` document above:
 
 ```
 #1:5 top map 1:5:peers 1:0:
-#1:5 row {"address":"10.0.0.1","state":"established"}
+#1:5 row 2:44:{"address":"10.0.0.1","state":"established"}
 #1:5 end 1:1 1:0 1:0:
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->

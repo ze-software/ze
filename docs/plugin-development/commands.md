@@ -69,14 +69,15 @@ and `end`, with `bad` for a rejected row.
 
 ```
 #2:17 top doc 1:0: 1:0:
-#2:17 row {"status":"running","uptime":3600}
+#2:17 row 2:34:{"status":"running","uptime":3600}
 #2:17 end 1:1 1:0 1:0:
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer -->
 
-The engine reads that sequence back into one `ExecuteCommandOutput`: the head's
-`status=` is its `status`, and the record is its `data`.
+The engine reads that sequence back into one `ExecuteCommandOutput`: the record
+is its `data`, and its `status` is derived from the terminator, which is the one
+line an answer states an outcome on.
 <!-- source: internal/component/plugin/ipc/rpc.go -- ExecuteCommandValue -->
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
 
@@ -103,7 +104,7 @@ return "done", map[string]any{
 The SDK marshals this value once and sends it as the one record of the answer:
 ```
 #2:17 top doc 1:0: 1:0:
-#2:17 row {"count":42,"items":["a","b"]}
+#2:17 row 2:30:{"count":42,"items":["a","b"]}
 #2:17 end 1:1 1:0 1:0:
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandOutput, executeCommandAnswer -->
@@ -134,8 +135,8 @@ return "done", sdk.Records{Key: "sessions", Rows: sessionRows()}, nil
 
 ```
 #2:17 top map 1:8:sessions 1:0:
-#2:17 row {"id":1,"peer":"10.0.0.1"}
-#2:17 row {"id":2,"peer":"10.0.0.2"}
+#2:17 row 2:26:{"id":1,"peer":"10.0.0.1"}
+#2:17 row 2:26:{"id":2,"peer":"10.0.0.2"}
 #2:17 end 1:2 1:0 1:0:
 ```
 

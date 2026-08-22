@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -419,7 +420,7 @@ func TestTailTokenizerNeedsNoJSONDecoder(t *testing.T) {
 	assert.Equal(t, "peers", head.Key)
 	assert.Equal(t, AnswerKindHead, head.Kind)
 
-	record, err := ParseAnswerTail(AnswerKindRecord, []byte("<<this is not json>>"))
+	record, err := ParseAnswerTail(AnswerKindRecord, []byte("2:20:<<this is not json>>"))
 	require.NoError(t, err)
 	assert.Equal(t, "<<this is not json>>", string(record.Item))
 	assert.Equal(t, AnswerKindRecord, record.Kind)
@@ -896,7 +897,7 @@ func TestAppendRequestLengthPrefixedID(t *testing.T) {
 				"the error line opens with %q", tt.idField)
 
 			record := string(AppendAnswerItem(nil, tt.id, json.RawMessage(`{"peer":"10.0.0.1"}`)))
-			assert.Equal(t, `row {"peer":"10.0.0.1"}`, strings.TrimPrefix(record, tt.idField),
+			assert.Equal(t, fmt.Sprintf("row %s", countedTextFixture(`{"peer":"10.0.0.1"}`)), strings.TrimPrefix(record, tt.idField),
 				"the record line opens with the same %q the request line does", tt.idField)
 		})
 	}
@@ -968,7 +969,7 @@ func TestAnswerIDMaxUint64(t *testing.T) {
 		"the widest id writes a length of K, the base-36 spelling of 20")
 
 	record := string(AppendAnswerItem(nil, math.MaxUint64, json.RawMessage(`{"peer":"10.0.0.1"}`)))
-	assert.Equal(t, `row {"peer":"10.0.0.1"}`, strings.TrimPrefix(record, maxIDField),
+	assert.Equal(t, fmt.Sprintf("row %s", countedTextFixture(`{"peer":"10.0.0.1"}`)), strings.TrimPrefix(record, maxIDField),
 		"an answer line spells the widest id the same way")
 
 	readID, verb, _, err := ParseLine([]byte(request))
@@ -1183,8 +1184,9 @@ func TestAnswerLineTableMatchesDoc(t *testing.T) {
 // `=` at all; then each retired key name is offered to the reader and refused.
 //
 // The record kinds set their payload aside because a JSON value may hold an `=`
-// inside a string. What is asserted for them is that the payload starts
-// immediately after the kind and its space, so nothing sits between the two.
+// inside a string. What is asserted for them is that the tail is the count and
+// the payload and nothing else, so no key name sits between the kind and the
+// count.
 //
 // VALIDATES: AC-13 and AC-14 -- every field is positional, and ParseAnswerTail
 // dispatches on no key name.
@@ -1203,8 +1205,8 @@ func TestAnswerLineCarriesNoKeyNames(t *testing.T) {
 		require.NotEqual(t, line, tail, "the %s line does not open with its id and kind: %q", kind, line)
 
 		if payload, carried := payloads[kind]; carried {
-			assert.Equal(t, payload, tail,
-				"the %s line puts something between its kind and its payload: %q", kind, line)
+			assert.Equal(t, countedTextFixture(payload), tail,
+				"the %s line puts something between its kind and its counted payload: %q", kind, line)
 			continue
 		}
 		assert.NotContains(t, tail, "=", "the %s line carries a key=value pair: %q", kind, line)
@@ -1275,17 +1277,18 @@ func TestEnvelopeKeyLengthPrefixed(t *testing.T) {
 //
 // VALIDATES: the record path stays allocation-free after the kind token widened
 // the prefix (ai/rules/performance.md).
-// PREVENTS: answerRecordPrefixMax being left behind by a wider prefix, which
+// PREVENTS: answerRecordPrefixWidth being left behind by a wider prefix, which
 // makes the stack scratch grow into the heap once per record of every walk.
 func TestAnswerRecordLineSizeAllocatesNothing(t *testing.T) {
 	item := Record{Item: json.RawMessage(`{"peer":"10.0.0.1","state":"established"}`)}
 	fault := Record{Fault: json.RawMessage(`{"path":"bgp/peer/10.0.0.2","message":"nexthop unreachable"}`)}
 
 	// The prefix the scratch must hold whole: the widest id, the kind token,
-	// and the space that separates the kind from the payload.
-	widest := len(AppendAnswerFault(nil, math.MaxUint64, nil))
-	require.LessOrEqual(t, widest, answerRecordPrefixMax,
-		"the widest record prefix is %d bytes and the scratch holds %d", widest, answerRecordPrefixMax)
+	// the space that closes it, and the counted number stating the payload's
+	// byte count at its widest.
+	widest := len(appendAnswerRecordPrefix(nil, math.MaxUint64, AnswerKindFault, math.MaxUint64))
+	require.LessOrEqual(t, widest, answerRecordPrefixWidth,
+		"the widest record prefix is %d bytes and the scratch holds %d", widest, answerRecordPrefixWidth)
 
 	for _, record := range []Record{item, fault} {
 		allocs := testing.AllocsPerRun(100, func() {
@@ -1294,5 +1297,169 @@ func TestAnswerRecordLineSizeAllocatesNothing(t *testing.T) {
 			}
 		})
 		assert.Zero(t, allocs, "measuring a record line allocated %v times", allocs)
+	}
+}
+
+// TestAppendAnswerRecordNoKey checks that a record line carries its payload
+// straight after the kind, behind nothing but the count that says how wide it
+// is. The method: a result record and a rejected one are written under three id
+// widths, each line is rebuilt from the grammar and compared byte for byte, the
+// payload is reached by adding the widths the line states, and a line carrying
+// one byte past its payload is offered to the reader.
+//
+// VALIDATES: AC-5 -- the payload's byte count follows the kind token and the
+// payload follows the count, with no key between them and no separator searched
+// for at either end.
+// PREVENTS: a key creeping back onto the line that repeats, and a reader
+// looking for the newline to find where the payload stops, which is the last
+// scan the counted payload removes.
+func TestAppendAnswerRecordNoKey(t *testing.T) {
+	t.Parallel()
+
+	appenders := map[string]func(uint64, json.RawMessage) []byte{
+		AnswerKindRecord: func(id uint64, value json.RawMessage) []byte { return AppendAnswerItem(nil, id, value) },
+		AnswerKindFault:  func(id uint64, value json.RawMessage) []byte { return AppendAnswerFault(nil, id, value) },
+	}
+	payloads := map[string]json.RawMessage{
+		AnswerKindRecord: json.RawMessage(`{"peer":"10.0.0.1","state":"established"}`),
+		AnswerKindFault:  json.RawMessage(`{"path":"bgp/peer/10.0.0.2","message":"nexthop = unreachable"}`),
+	}
+
+	for _, id := range []uint64{AnswerNoID, 7, math.MaxUint64} {
+		for kind, appender := range appenders {
+			payload := payloads[kind]
+			line := string(appender(id, payload))
+
+			// The whole line, spelled from the grammar rather than read off the
+			// writer, so a key between the kind and the payload has to be added
+			// in both places to pass.
+			want := fmt.Sprintf("%s%s %s:%s", idFieldFixture(id), kind, countedNumberFixture(len(payload)), payload)
+			require.Equal(t, want, line, "id %d: the %s line is not its prefix and its payload", id, kind)
+
+			// The payload is reached by adding the widths the line states, and
+			// the line is searched for nothing.
+			start := recordPayloadStart(t, id, line)
+			assert.Equal(t, string(payload), line[start:start+len(payload)],
+				"id %d: the %s payload does not sit where the counted prefix says", id, kind)
+			assert.Len(t, line, start+len(payload),
+				"id %d: the %s line carries bytes past its payload", id, kind)
+
+			// Nothing sits between the kind and the count that says how wide the
+			// payload is.
+			assert.NotContains(t, line[:start], "=",
+				"id %d: the %s line carries a key in front of its payload: %q", id, kind, line)
+
+			read := readAnswerLine(t, id, line)
+			assert.Equal(t, kind, read.Kind)
+			carried := read.Item
+			if kind == AnswerKindFault {
+				carried = read.Fault
+			}
+			assert.Equal(t, string(payload), string(carried), "id %d: the %s payload does not read back", id, kind)
+		}
+	}
+
+	// The count is what says where the payload stops, so a byte past it is a
+	// line this build cannot read whole rather than a payload one byte longer.
+	overrun := AppendAnswerItem(nil, 7, json.RawMessage(`{"peer":"10.0.0.1"}`))
+	_, _, payload, err := ParseLine(append(overrun, 'X'))
+	require.NoError(t, err)
+	_, err = ParseAnswerTail(AnswerKindRecord, payload)
+	require.Error(t, err, "a record line carrying a byte past its counted payload was read rather than refused")
+}
+
+// readAnswerLine takes one written answer line back through the reader of the
+// channel it was written for: the mux channel carries an id and the exec
+// channel carries none, so each has its own entry point.
+func readAnswerLine(t *testing.T, id uint64, line string) AnswerTail {
+	t.Helper()
+
+	if id != AnswerNoID {
+		return parseAnswerLine(t, []byte(line))
+	}
+	_, tail, err := ParseAnswerLine([]byte(line))
+	require.NoError(t, err)
+	return tail
+}
+
+// idFieldFixture spells the `#<len>:<id> ` an answer line opens with, and
+// nothing for the exec channel's AnswerNoID. It is written out here rather than
+// read from appendID, so a change to the field has to be made in both places.
+func idFieldFixture(id uint64) string {
+	if id == AnswerNoID {
+		return ""
+	}
+	digits := strconv.FormatUint(id, 10)
+	return fmt.Sprintf("#%s ", countedDigitsFixture(digits))
+}
+
+// countedNumberFixture spells the `<len>:<digits>` a counted number is written
+// as, from the alphabet fixture rather than from the writer's own.
+func countedNumberFixture(value int) string {
+	return countedDigitsFixture(strconv.Itoa(value))
+}
+
+// countedTextFixture spells the `<len>:<n>:<bytes>` a counted text is written
+// as, from the alphabet fixture rather than from the writer's own.
+func countedTextFixture(text string) string {
+	return fmt.Sprintf("%s:%s", countedNumberFixture(len(text)), text)
+}
+
+// countedDigitsFixture puts the base-36 length character in front of digits, so
+// a change to the alphabet has to be made here as well as in the writer.
+func countedDigitsFixture(digits string) string {
+	return fmt.Sprintf("%s:%s", idLengthAlphabetFixture[len(digits):len(digits)+1], digits)
+}
+
+// recordPayloadStart returns the offset a record line's payload starts at,
+// computed from the widths the line states and from no search of the line: the
+// id field, the three-byte kind and the space that closes it, then the counted
+// number stating the payload's byte count and the colon that closes it.
+func recordPayloadStart(t *testing.T, id uint64, line string) int {
+	t.Helper()
+
+	at := len(idFieldFixture(id)) + answerKindWidth + 1
+	count, known := idLengthValue(line[at])
+	require.True(t, known, "the payload count of %q states no readable length", line)
+	require.Equal(t, byte(':'), line[at+1], "the payload count of %q does not close its length", line)
+	require.Equal(t, byte(':'), line[at+2+count], "the payload count of %q does not close its digits", line)
+	return at + 2 + count + 1
+}
+
+// TestAnswerRecordLineSizeExact checks that the size a producer refuses a record
+// by is EXACTLY the size of the line the appender writes, and that the scratch
+// constant it measures in is exactly the widest prefix. The method: the widest
+// prefix is built and compared with the constant; then, for payload widths
+// either side of every count that gains a digit, the measured size is compared
+// with the length of the written line under four id widths.
+//
+// VALIDATES: the phase-6 deliverable -- the measured size equals the written
+// size, and the prefix constant is exact rather than a maximum.
+// PREVENTS: a size that forgot the counted header, which would let a record
+// through that the transport then refuses; and a constant left loose, which
+// costs nothing a running test can see and is why this states equality rather
+// than a bound.
+func TestAnswerRecordLineSizeExact(t *testing.T) {
+	t.Parallel()
+
+	widest := len(appendAnswerRecordPrefix(nil, math.MaxUint64, AnswerKindFault, math.MaxUint64))
+	assert.Equal(t, answerRecordPrefixWidth, widest,
+		"the widest record prefix is %d bytes and the constant states %d", widest, answerRecordPrefixWidth)
+
+	for _, width := range []int{0, 1, 9, 10, 99, 100, 999, 1000, 9999, 10000} {
+		value := json.RawMessage(strings.Repeat("v", width))
+		for _, id := range []uint64{AnswerNoID, 1, 7, 1234567890, math.MaxUint64} {
+			item := AppendAnswerItem(nil, id, value)
+			assert.Equal(t, len(item), AnswerRecordLineSize(id, Record{Item: value}),
+				"id %d: a %d-byte item line is %d bytes and its size reads %d", id, width, len(item), AnswerRecordLineSize(id, Record{Item: value}))
+			if width == 0 {
+				// A record carrying neither an item nor a fault measures as an
+				// empty item, which the case above already covers.
+				continue
+			}
+			fault := AppendAnswerFault(nil, id, value)
+			assert.Equal(t, len(fault), AnswerRecordLineSize(id, Record{Fault: value}),
+				"id %d: a %d-byte fault line is %d bytes and its size reads %d", id, width, len(fault), AnswerRecordLineSize(id, Record{Fault: value}))
+		}
 	}
 }

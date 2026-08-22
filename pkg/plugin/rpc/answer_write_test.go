@@ -7,6 +7,28 @@ import (
 	"testing"
 )
 
+// answerItemOfLineSize returns the item whose record line under id is exactly
+// size bytes.
+//
+// The payload's byte count is itself a field of the line, so the prefix widens
+// with the payload and a fixed subtraction misses it by the width of that
+// count. Correcting by the difference converges wherever the count's digit
+// width is stable, which it is at every size this suite asks for.
+func answerItemOfLineSize(t *testing.T, id uint64, size int) []byte {
+	t.Helper()
+
+	item := bytes.Repeat([]byte{'x'}, size-AnswerRecordLineSize(id, Record{}))
+	for range 4 {
+		delta := size - AnswerRecordLineSize(id, Record{Item: item})
+		if delta == 0 {
+			return item
+		}
+		item = bytes.Repeat([]byte{'x'}, len(item)+delta)
+	}
+	t.Fatalf("no item makes a record line of exactly %d bytes under id %d", size, id)
+	return nil
+}
+
 // rejectedRow is one entry of the errors collection a buffered consumer reads,
 // as answerRecordTooLargeFault writes it.
 type rejectedRow struct {
@@ -29,9 +51,8 @@ type rejectedRow struct {
 func TestRecordSizeBoundaryIsTheEncodedLine(t *testing.T) {
 	const id = 7
 
-	prefix := AnswerRecordLineSize(id, Record{})
-	overLimit := bytes.Repeat([]byte{'x'}, MaxMessageSize+1-prefix)
-	atLimit := overLimit[:len(overLimit)-1]
+	atLimit := answerItemOfLineSize(t, id, MaxMessageSize)
+	overLimit := answerItemOfLineSize(t, id, MaxMessageSize+1)
 
 	kept := boundedRecord(id, 1, Record{Item: atLimit})
 	if len(kept.Fault) > 0 {

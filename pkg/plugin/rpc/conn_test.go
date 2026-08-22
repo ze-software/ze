@@ -31,6 +31,14 @@ func wireLine(id uint64, rest string) string {
 	return string(append(appendID(nil, id), rest...))
 }
 
+// answerRowTail spells the tail of one result-record line, newline included:
+// the kind, and the payload behind the counted number stating its byte count. A
+// test that is not about the record grammar states the payload it cares about
+// and leaves the count to this one helper.
+func answerRowTail(payload string) string {
+	return fmt.Sprintf("%s %s\n", AnswerKindRecord, countedTextFixture(payload))
+}
+
 // closeConn closes an RPC Conn and logs failures.
 func closeConn(t *testing.T, c *Conn) {
 	t.Helper()

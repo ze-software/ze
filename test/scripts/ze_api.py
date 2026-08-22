@@ -328,17 +328,32 @@ def _answer_not_understood_fields(tail: str) -> tuple[str, str]:
     return code, message
 
 
-def _answer_payload(kind: str, tail: str) -> Any:
-    """Decode one record line's payload, naming the line when it is not JSON.
+def answer_record_payload(tail: str) -> str:
+    """Return the payload bytes of one record line's tail.
 
-    The payload is the whole tail: the kind states which payload follows, so no
-    key name sits in front of it. A bare ``json.loads`` here would report only
-    that column 1 held no value, which says nothing about the line it came from.
+    The kind states which payload follows, so no key name sits in front of it,
+    and the payload is a counted text: it states its own byte count, so a reader
+    slices it by arithmetic and never looks for the end of the line. The line
+    MUST end where the payload ends, which is what the stated count buys
+    (parseAnswerRecord, pkg/plugin/rpc/message.go).
     """
+    payload, rest = _cut_counted_text(tail)
+    if rest:
+        raise RuntimeError(f"answer record line carries bytes past its payload: {rest[:40]!r}")
+    return payload
+
+
+def _answer_payload(kind: str, tail: str) -> Any:
+    """Decode one record line's counted payload, naming the line when it is not JSON.
+
+    A bare ``json.loads`` here would report only that column 1 held no value,
+    which says nothing about the line it came from.
+    """
+    payload = answer_record_payload(tail)
     try:
-        return json.loads(tail)
+        return json.loads(payload)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(f"answer {kind} line carries no JSON payload: {tail[:120]!r}") from exc
+        raise RuntimeError(f"answer {kind} line carries no JSON payload: {payload[:120]!r}") from exc
 
 
 def _collapse_answer(lines: list[tuple[str, str]]) -> dict:
@@ -351,8 +366,8 @@ def _collapse_answer(lines: list[tuple[str, str]]) -> dict:
     names, with the rejected rows beside them.
 
     Each line arrives as its kind and its tail, so what a line holds is read
-    from the KIND. No key name reaches the wire, so a record's payload is the
-    whole tail and a head's fields are positional.
+    from the KIND. No key name reaches the wire, so a record's payload sits
+    behind the count that states its width and a head's fields are positional.
 
     The terminator's message is the command's own failure text, and the only
     place an answer states its outcome: the head states none.
@@ -775,7 +790,7 @@ class API:
         count = 0
         if not message and "data" in result and result["data"] is not None:
             document = json.dumps(result["data"], separators=(",", ":"))
-            lines.append(f"{prefix}{_ANSWER_KIND_RECORD} {document}\n")
+            lines.append(f"{prefix}{_ANSWER_KIND_RECORD} {_counted_text(document)}\n")
             count = 1
         terminator = (
             f"{_ANSWER_KIND_TERMINATOR} {_counted_number(count)} "

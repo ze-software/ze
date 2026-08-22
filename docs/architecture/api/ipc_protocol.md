@@ -334,7 +334,7 @@ by arithmetic and searches no line for a separator.
 |-------------|-----------|---------|
 | word | three bytes, no length | the kind, and the head's item type |
 | counted number | `<len>:<digits>`, `<len>` one base-36 character | the id, and the terminator's two counts |
-| counted text | `<len>:<n>:<bytes>`, where `<len>:<n>` is a counted number stating the byte count | the envelope name, the column names, every message, and the error code |
+| counted text | `<len>:<n>:<bytes>`, where `<len>:<n>` is a counted number stating the byte count | the envelope name, the column names, every message, the error code, and the record payload |
 <!-- source: pkg/plugin/rpc/message.go -- appendCountedNumber, appendCountedText, cutCountedNumber, cutCountedText -->
 
 A counted field of length zero is present and empty, never omitted, so the field
@@ -347,14 +347,17 @@ a counted text carries a value of any length.
 | Line | Kind | Fields, in order | Position |
 |------|------|------------------|----------|
 | head | `top` | item type, envelope name, column names | first line for this id |
-| result record | `row` | the row the command produced | between head and terminator |
-| error record | `bad` | the row the command rejected | between head and terminator |
+| result record | `row` | the row the command produced, counted | between head and terminator |
+| error record | `bad` | the row the command rejected, counted | between head and terminator |
 | terminator | `end` | records produced, rows rejected, message | last line for this id |
 | not understood | `nay` | error code, message | the only line for this id |
 <!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerItem, AppendAnswerFault, AppendAnswerTerminator, AppendAnswerNotUnderstood -->
 
-A record's payload takes the rest of the line verbatim, and every other value is
-counted, so a JSON value that holds `=` or a space needs no escaping.
+EVERY value is counted, the record payload included, so a JSON value that holds
+`=` or a space needs no escaping and a reader never looks for the newline to
+find where a payload stops. The count is the payload's own byte count and never
+the whole line's: the prefix in front of it differs per channel, and a payload
+count is the same number on both.
 
 **The head states no outcome.** The terminator carries the whole outcome, and two
 lines stating one outcome can disagree. The head is written AFTER the body on the
@@ -369,8 +372,8 @@ separately:
 
 ```
 #1:7 top map 1:5:peers 1:0:
-#1:7 row {"peer":"10.0.0.1","state":"established"}
-#1:7 bad {"path":"bgp/peer/10.0.0.2","message":"nexthop unreachable"}
+#1:7 row 2:41:{"peer":"10.0.0.1","state":"established"}
+#1:7 bad 2:60:{"path":"bgp/peer/10.0.0.2","message":"nexthop unreachable"}
 #1:7 end 1:1 1:1 1:0:
 ```
 <!-- source: pkg/plugin/rpc/message_test.go -- TestAnswerLineTableMatchesDoc -->
@@ -387,7 +390,7 @@ terminator. The rejected row quotes none of the record, because a row that
 carried 16 MB would not fit the line either.
 
 ```
-#1:7 bad {"message":"answer record does not fit one wire message","record":12,"encoded-bytes":16777300,"limit-bytes":16777216}
+#1:7 bad 3:117:{"message":"answer record does not fit one wire message","record":12,"encoded-bytes":16777300,"limit-bytes":16777216}
 ```
 <!-- source: pkg/plugin/rpc/answer_write.go -- boundedRecord, answerRecordTooLargeFault -->
 

@@ -44,7 +44,7 @@ tmpfs=answer-records.run:mode=755:terminator=EOF_RECORDS
 import json
 import sys
 
-from ze_api import API, runtime_fail
+from ze_api import API, answer_record_payload, runtime_fail
 
 # THRESHOLD is rpc.AnswerBufferThreshold (pkg/plugin/rpc/message.go). It is the
 # number of records the encoder holds while it decides the type, so an answer
@@ -105,14 +105,16 @@ def main():
         )
 
     # No count reaches the peer before the terminator: nothing states a total
-    # the records can contradict.
+    # the records can contradict. Each record's payload states its own byte
+    # count, so it is taken by that count rather than by reading to the end of
+    # the line.
     for i, line in enumerate(records):
-        tail = tail_of(line, "row")
-        row = json.loads(tail)
+        payload = answer_record_payload(tail_of(line, "row"))
+        row = json.loads(payload)
         if "value" not in row:
-            runtime_fail(f"record {i} carries no command name: {tail[:120]!r}")
+            runtime_fail(f"record {i} carries no command name: {payload[:120]!r}")
         if "commands" in row:
-            runtime_fail(f"record {i} carries the envelope; the head names it: {tail[:120]!r}")
+            runtime_fail(f"record {i} carries the envelope; the head names it: {payload[:120]!r}")
 
     print(f"OK: {counted} records streamed, one line each", file=sys.stderr)
 
