@@ -44,10 +44,9 @@ plugin-boundary-naming-blocking ## Plugin Boundary Naming (BLOCKING)
 5-stage-protocol ## 5-Stage Protocol
   the-startup-handshake-stages
   what-happens-after-the-handshake-completes
-  the-sdk-declares-record-answers-at-stage-3
-  the-sdk-sets-the-protocol-name-for-every-plugin
-  the-record-answer-name-is-symmetric
-  the-frame-follows-the-declaration-never-the-payload
+  one-command-answer-encoding-blocking
+  a-command-answer-is-always-a-record-sequence
+  the-frame-never-follows-the-payload
   a-command-handler-may-answer-with-rows
 onstarted-vs-onallpluginsready-blocking ## OnStarted vs OnAllPluginsReady (BLOCKING)
   plugins-load-across-several-phases

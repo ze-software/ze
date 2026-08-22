@@ -1835,17 +1835,18 @@ predicate grammar `expect=output:matches=<regexp>` / `absent=<substr>` /
 
 #### Reading a record answer
 
-A fake plugin declares the record answer shape with
-`capability_done(protocol=["record-answers"])`. After that, every
-`dispatch-command` answer is a sequence of lines, so `api.dispatch` and
-`_call_engine` are unusable for a dispatched command: they read one JSON payload.
-Use `api.dispatch_wire_lines(command)`, which returns the head, the records, and
-the terminator as raw lines. Send the test's `request shutdown` through it too.
+Every `dispatch-command` answer is a sequence of lines, and `capability_done()`
+takes no argument because nothing declares that shape. `api.dispatch` and
+`_call_engine` are therefore unusable for a dispatched command: they read one
+JSON payload. Use `api.dispatch_wire_lines(command)`, which returns the head,
+the records, and the terminator as raw lines. Send the test's `request shutdown`
+through it too.
 
-A plugin that calls `capability_done()` with no argument declares nothing and
-reads today's single line, which is what every other `.ci` does.
-<!-- source: test/scripts/ze_api.py -- capability_done, dispatch_wire_lines -->
-<!-- source: pkg/plugin/rpc/types.go -- ProtocolRecordAnswers -->
+A fake plugin writes the same sequence for its own `execute-command`. Register
+the handler with `api.on_execute_command(handler)`, and `ze_api` turns the
+result dict into the head, the item, and the terminator.
+<!-- source: test/scripts/ze_api.py -- capability_done, dispatch_wire_lines, _respond_answer -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer -->
 
 #### Declaring a pipe alias
 

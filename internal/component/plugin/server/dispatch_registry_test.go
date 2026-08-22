@@ -315,19 +315,6 @@ func TestEngineOpBatchValidateJSONFallback(t *testing.T) {
 	assert.Equal(t, 1, out.Rejected)
 }
 
-// TestUndeclaredPeerReadsAsUnnegotiated verifies the state a peer starts in: a
-// process whose Stage 3 has not run reports that it negotiated nothing.
-//
-// VALIDATES: AC-13 -- an unknown capability state fails closed to the original
-// frame (ai/rules/evidence.md).
-// PREVENTS: a peer receiving the record shape in the window between its
-// connection and its declaration.
-func TestUndeclaredPeerReadsAsUnnegotiated(t *testing.T) {
-	t.Parallel()
-
-	assert.False(t, (&process.Process{}).RecordAnswers())
-}
-
 // TestDispatchCommandAlwaysAnswersRecords drives both dispatch ops with a peer
 // that named no protocol at Stage 3, and reads the bytes it is answered with.
 //

@@ -51,11 +51,10 @@ var ErrAnswerTruncated = errors.New("answer ended before its terminator")
 // ExecCommandStream runs a command over the SSH exec channel and copies the
 // daemon's rendering to body as it arrives.
 //
-// It declares rpc.ProtocolRecordAnswers, so the daemon frames the answer on
-// stderr. A daemon that does not know the shape writes no frame, and the answer
-// then reads as truncated; that is the correct verdict for a peer that cannot
-// say when it has finished, and a caller that wants the old behavior calls
-// ExecCommand.
+// The daemon frames every exec-channel answer on stderr, so nothing is declared
+// and no environment is set up. A peer that writes no frame leaves the answer
+// reading as truncated, which is the correct verdict for one that cannot say
+// when it has finished.
 //
 // The returned error is the command's failure, the connection's, or
 // ErrAnswerTruncated. Bytes may already have reached body when it is non-nil:
@@ -72,10 +71,6 @@ func ExecCommandStream(creds Credentials, command string, body io.Writer) (Answe
 		return Answer{}, fmt.Errorf("create session: %w", err)
 	}
 	defer session.Close() //nolint:errcheck // best-effort cleanup
-
-	if err := session.Setenv(rpc.AnswerProtocolEnv, rpc.ProtocolRecordAnswers); err != nil {
-		return Answer{}, fmt.Errorf("declare answer protocol: %w", err)
-	}
 
 	stdout, err := session.StdoutPipe()
 	if err != nil {

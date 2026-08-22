@@ -226,8 +226,8 @@ func execUndeclared(t *testing.T, srv *Server, command string) (string, string) 
 // so the frame is now written for every session and no code reads an
 // environment variable to decide.
 //
-// VALIDATES: AC-2 -- a client that sets no ZE_ANSWER_PROTOCOL receives the
-// head and the terminator, and the records between them.
+// VALIDATES: AC-2 -- a client that requests no environment receives the head
+// and the terminator, and the records between them.
 // PREVENTS: the declaration returning as the condition on the frame, which
 // would leave a peer unable to tell a complete answer from a truncated one
 // unless it knew to ask.

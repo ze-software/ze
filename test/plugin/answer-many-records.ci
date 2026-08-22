@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. Daemon starts with one external plugin on one BGP peer
-# 2. The plugin declares "record-answers" at Stage 3
+# 2. The plugin declares nothing at Stage 3, which is all a peer can do
 # 3. It dispatches `system command list`, whose rows are every command the
 #    daemon can dispatch: far more than the 256-record threshold
 # 4. It asserts the head names type=ndjson, that one item= line carries each
@@ -36,10 +36,10 @@ option=timeout:value=25s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Negotiated plugin: it names record-answers, so every answer is a sequence.
+# The plugin: every answer it receives is a sequence, declared or not.
 tmpfs=answer-records.run:mode=755:terminator=EOF_RECORDS
 #!/usr/bin/env python3
-"""A negotiated peer reading a long answer record by record."""
+"""A peer reading a long answer record by record."""
 
 import json
 import sys
@@ -64,8 +64,8 @@ def main():
     api = API()
     api.declare_done()
     api.wait_for_config()
-    # Stage 3 naming the wire shape this peer reads.
-    api.capability_done(protocol=["record-answers"])
+    # Stage 3 names no wire shape: one answer has one encoding.
+    api.capability_done()
     api.wait_for_registry()
     api.ready()
     api.wait_for_post_startup(timeout=5.0)

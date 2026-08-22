@@ -18,7 +18,6 @@ package rpc
 import (
 	"encoding/json"
 	"iter"
-	"slices"
 )
 
 // Status constants for plugin API responses.
@@ -411,58 +410,14 @@ type ConfigureInput struct {
 	Claims []string `json:"claims,omitempty"`
 }
 
-// ProtocolRecordAnswers is the wire-shape name a peer declares to say it reads
-// AND writes an answer as a head carrying status=, one line for each record,
-// and a terminator carrying count= (AppendAnswerHead and its siblings in
-// message.go). A peer that does not declare it reads and writes
-// `#<id> ok [<json>]`, unchanged.
-//
-// The name covers BOTH directions, and one declaration is what states them.
-// The engine writes this shape for an answer the peer asked for
-// (answerResult, internal/component/plugin/server/dispatch_registry.go), and it
-// reads this shape for the answer the peer gives to a command the engine asked
-// it to run (PluginConn.SendExecuteCommand,
-// internal/component/plugin/ipc/rpc.go). No message travels engine to plugin
-// carrying a protocol list, and none is needed: the peer's own Stage 3
-// declaration is the whole negotiation, and a peer that names the shape must
-// speak it in the direction it writes as well as the one it reads (A-2 of
-// spec-record-answers-1-sdk-path).
-//
-// The shape is decided by the DECLARATION and never by what a payload turns out
-// to be. A declaring peer's answer is a head, its records and a terminator
-// whether the payload was a walk or one value the handler built, because the
-// reader must know which frame is arriving before it reads its first line.
-//
-// A later shape earns a NEW name here rather than a new key on this one.
-// ParseAnswerTail refuses a key it does not know, so a key added under an
-// agreed name would make the whole line unreadable to the peer that agreed to
-// the older spelling.
-const ProtocolRecordAnswers = "record-answers"
-
 // DeclareCapabilitiesInput is the input for ze-plugin-engine:declare-capabilities (Stage 3).
+//
+// It names no wire shape. One answer has one encoding, so a command answer is a
+// head, its records and a terminator on every connection in both directions
+// (WriteRecordAnswer, answer_write.go), and there is nothing left for a peer to
+// ask for.
 type DeclareCapabilitiesInput struct {
 	Capabilities []CapabilityDecl `json:"capabilities"`
-
-	// Protocol names the wire shapes this peer understands, one name for each
-	// (ProtocolRecordAnswers is the only one today). Stage 3 is where the
-	// engine learns them, so every answer after the stage-3 barrier is written
-	// in a shape the peer agreed to.
-	//
-	// An absent or empty list is a peer that named none, and that is the
-	// fail-closed reading rather than a silent default: every plugin written
-	// before a shape existed sends no name, so it keeps the frame it was
-	// written against (ai/rules/evidence.md).
-	Protocol []string `json:"protocol,omitempty"`
-}
-
-// Understands reports whether the peer declared the named wire shape. A nil
-// input, an absent list and an unknown name all read false, so a shape is used
-// only where the peer asked for it by name.
-func (d *DeclareCapabilitiesInput) Understands(name string) bool {
-	if d == nil {
-		return false
-	}
-	return slices.Contains(d.Protocol, name)
 }
 
 // CapabilityDecl declares a BGP capability for OPEN injection.

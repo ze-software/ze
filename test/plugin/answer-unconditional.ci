@@ -1,26 +1,26 @@
-# Test: every peer receives the record answer, whatever it declared
+# Test: every peer receives the record answer, and no peer can ask for another
 #
 # Flow:
 # 1. Daemon starts with two external plugins on one BGP peer
-# 2. answer-silent declares NO protocol name at Stage 3, then dispatches commands
-# 3. answer-records declares "record-answers" at Stage 3, then dispatches the
-#    same command
+# 2. answer-silent completes Stage 3 and dispatches commands
+# 3. answer-second completes Stage 3 and dispatches the same command
 # 4. Each plugin asserts the frame it received, on the bytes, not on a decoded
 #    payload, and the two frames are compared byte for byte
 #
-# One answer has one encoding. The two plugins share one daemon, one dispatcher
-# and one command, and differ only in what they declared at Stage 3, so a
-# difference between the bytes they receive would be a negotiation that survived.
-# Both must receive a head, one record line and a terminator, and the record
-# lines must carry the SAME data bytes.
+# One answer has one encoding. Stage 3 carries no wire shape to declare, so the
+# two plugins share one daemon, one dispatcher and one command and have nothing
+# left to differ in. Both must receive a head, one record line and a terminator,
+# and the record lines must carry the SAME data bytes.
 #
 # `system version api` is the compared command because its answer is constant
 # (handleSystemVersionAPI, internal/component/plugin/server/system.go), so a
 # byte comparison across two dispatches is a comparison of the frames rather
 # than of two moments in time.
 #
-# VALIDATES: AC-1 -- a plugin that completes Stage 3 declaring no protocol name
-# receives the record answer sequence.
+# VALIDATES: AC-1 -- a plugin that completes Stage 3 receives the record answer
+# sequence, having declared no protocol name because there is none to declare.
+# VALIDATES: AC-10 -- the protocol list has left the Stage 3 message, so a peer
+# cannot ask for another encoding.
 # PREVENTS: the negotiation returning, which would leave two encodings of one
 # answer on the wire and let a peer read either.
 
@@ -31,10 +31,10 @@ option=timeout:value=25s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Silent plugin: it names no protocol, and it receives the records anyway.
+# The first plugin: it names no protocol, because there is none to name.
 tmpfs=answer-silent.run:mode=755:terminator=EOF_SILENT
 #!/usr/bin/env python3
-"""Silent peer: it names no protocol at Stage 3, and still reads records."""
+"""The first peer: it names no protocol at Stage 3, and reads records."""
 
 import os
 import sys
@@ -78,8 +78,8 @@ def main():
     api = API()
     api.declare_done()
     api.wait_for_config()
-    # Stage 3 with no protocol list: this peer names no wire shape and is
-    # answered with records regardless.
+    # Stage 3 carries capabilities and nothing else. There is no protocol
+    # list to put a wire shape in.
     api.capability_done()
     api.wait_for_registry()
     api.ready()
@@ -90,7 +90,7 @@ def main():
     if '"peers"' not in peers:
         runtime_fail(f"show bgp peer list lost its envelope: {peers[:120]}")
 
-    print("OK: the peer that declared nothing received the record shape", file=sys.stderr)
+    print("OK: the first peer received the record shape", file=sys.stderr)
 
     # Hand the answer bytes to the other peer. Written to a temporary name and
     # renamed, so the reader never opens a half-written file.
@@ -105,10 +105,10 @@ if __name__ == "__main__":
     main()
 EOF_SILENT
 
-# Declaring plugin: it names record-answers, and receives the same bytes.
-tmpfs=answer-records.run:mode=755:terminator=EOF_RECORDS
+# The second plugin: a separate peer, on the same daemon, given the same bytes.
+tmpfs=answer-second.run:mode=755:terminator=EOF_SECOND
 #!/usr/bin/env python3
-"""Declaring peer: it names record-answers, and reads the same answer."""
+"""The second peer: it reads the same answer, byte for byte."""
 
 import os
 import sys
@@ -119,7 +119,7 @@ MARKER = "silent-answer.txt"
 
 
 def wait_for_silent(timeout=10.0):
-    """Return the bytes the silent peer received for the same command.
+    """Return the bytes the first peer received for the same command.
 
     The other peer writes this file from its own process, so a file appearing has
     no event to wait on and the wait is a bounded poll. The poll INTERVAL lives in
@@ -133,7 +133,7 @@ def wait_for_silent(timeout=10.0):
         attempts=max(1, int(timeout / interval)),
         delay=interval,
     ):
-        runtime_fail(f"the silent peer wrote no answer within {timeout}s")
+        runtime_fail(f"the first peer wrote no answer within {timeout}s")
         return ""
     with open(MARKER, encoding="utf-8") as handle:
         return handle.read()
@@ -152,9 +152,9 @@ def main():
     api = API()
     api.declare_done()
     api.wait_for_config()
-    # Stage 3 naming the wire shape. It changes nothing: the name is what this
-    # test proves has stopped deciding the frame.
-    api.capability_done(protocol=["record-answers"])
+    # Stage 3, exactly as the first peer sent it. Nothing distinguishes the
+    # two declarations, because a declaration carries no wire shape.
+    api.capability_done()
     api.wait_for_registry()
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
@@ -174,13 +174,13 @@ def main():
         runtime_fail(f"record line was {record[:120]!r}, want an item=")
     item = record[len("item=") :]
     if item != silent:
-        runtime_fail(f"record carries {item[:120]!r}, the silent peer got {silent[:120]!r}")
+        runtime_fail(f"record carries {item[:120]!r}, the first peer got {silent[:120]!r}")
 
     terminator = tail_of(lines[2])
     if terminator != "count=1":
         runtime_fail(f"terminator was {terminator!r}, want 'count=1'")
 
-    print("OK: the peer that declared the shape received the same bytes", file=sys.stderr)
+    print("OK: the second peer received the same bytes", file=sys.stderr)
 
     # Every dispatch answer is a sequence, so the shutdown goes out the same
     # way. api.dispatch parses the answer as one JSON payload and would fail on
@@ -191,7 +191,7 @@ def main():
 
 if __name__ == "__main__":
     main()
-EOF_RECORDS
+EOF_SECOND
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
@@ -200,8 +200,8 @@ plugin {
 		run ./answer-silent.run
 		encoder json
 	}
-	external answer-records {
-		run ./answer-records.run
+	external answer-second {
+		run ./answer-second.run
 		encoder json
 	}
 }
@@ -241,7 +241,7 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
 expect=exit:code=0
-expect=stderr:contains=OK: the peer that declared nothing received the record shape
-expect=stderr:contains=OK: the peer that declared the shape received the same bytes
+expect=stderr:contains=OK: the first peer received the record shape
+expect=stderr:contains=OK: the second peer received the same bytes
 reject=stderr:pattern=ZE-OBSERVER-FAIL
 reject=stderr:pattern=panic recovered

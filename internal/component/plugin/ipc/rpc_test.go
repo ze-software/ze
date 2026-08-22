@@ -642,12 +642,20 @@ func TestEngineDecodeCapability(t *testing.T) {
 
 // TestEngineExecuteCommand verifies execute-command RPC from engine to plugin.
 //
-// VALIDATES: Engine sends execute-command, plugin returns status + data.
+// It runs over a multiplexed connection, which is how production wires every
+// plugin (Process.attachConn): an answer is many lines routed by id, and only
+// MuxConn routes them.
+//
+// VALIDATES: Engine sends execute-command, plugin answers with a head, an item
+// and a terminator, and the engine reads the status and the data out of it.
 // PREVENTS: execute-command not being available on engine side.
 func TestEngineExecuteCommand(t *testing.T) {
 	t.Parallel()
 
-	engineConn, pluginConn := newTestPluginConn(t)
+	engineConn, pluginEnd := newMuxEnginePluginConn(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	done := make(chan struct {
 		output *rpc.ExecuteCommandOutput
@@ -655,14 +663,14 @@ func TestEngineExecuteCommand(t *testing.T) {
 	}, 1)
 	go func() {
 		input := &rpc.ExecuteCommandInput{Serial: "abc123", Command: "show-routes", Args: []string{"ipv4"}, Peer: "10.0.0.1"}
-		out, err := engineConn.SendExecuteCommand(context.Background(), input, false)
+		out, err := engineConn.SendExecuteCommand(ctx, input)
 		done <- struct {
 			output *rpc.ExecuteCommandOutput
 			err    error
 		}{out, err}
 	}()
 
-	req, err := pluginConn.ReadRequest(context.Background())
+	req, err := pluginEnd.ReadRequest(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, "ze-plugin-callback:execute-command", req.Method)
 
@@ -673,8 +681,9 @@ func TestEngineExecuteCommand(t *testing.T) {
 	assert.Equal(t, []string{"ipv4"}, input.Args)
 	assert.Equal(t, "10.0.0.1", input.Peer)
 
-	result := &rpc.ExecuteCommandOutput{Status: rpc.StatusDone, Data: json.RawMessage(`{"routes":[]}`)}
-	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, result))
+	head := rpc.AnswerTail{Status: rpc.StatusDone}
+	require.NoError(t, rpc.WriteDocumentAnswer(pluginEnd.AnswerWriter(ctx), req.ID, head,
+		json.RawMessage(`{"routes":[]}`)))
 
 	r := <-done
 	require.NoError(t, r.err)
@@ -716,7 +725,7 @@ func TestEngineExecuteCommandDirectBridge(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	input := &rpc.ExecuteCommandInput{Serial: "abc123", Command: "show-routes", Args: args, Peer: "peer selector"}
-	out, err := engineConn.SendExecuteCommand(ctx, input, false)
+	out, err := engineConn.SendExecuteCommand(ctx, input)
 	require.NoError(t, err)
 	require.NotNil(t, out)
 	assert.Equal(t, rpc.StatusDone, out.Status)
@@ -1203,19 +1212,16 @@ func answerPeerRows(count int) iter.Seq[rpc.Record] {
 	}
 }
 
-// TestSendExecuteCommandReadsRecords checks that the frame the engine reads for
-// one execute-command is the frame this peer's Stage 3 declaration named, and
-// never a frame guessed from what arrives. The method: one plugin end declares
-// the record shape and writes the answer sequence, and a second declares nothing
-// and writes the single-line result; the engine reads each with the declaration
-// that peer made.
+// TestSendExecuteCommandReadsRecords checks that the engine reads one frame for
+// every execute-command answer, whatever the peer declared and whatever the
+// payload turns out to be. The method: one plugin end writes a long walk and a
+// second writes one built document, and the engine reads both as the sequence.
 //
-// VALIDATES: AC-8 of spec-record-answers-1-sdk-path -- a plugin that declared
-// record-answers has its execute-command answer read as a record sequence, and a
-// plugin that declared nothing gets the value frame it gets today.
-// VALIDATES: A-2 -- one protocol name covers both directions, so the peer's own
-// declaration is the whole negotiation and the engine reads a record result ONLY
-// for a peer that made it.
+// VALIDATES: AC-1 in the plugin-to-engine direction -- a peer that names no
+// wire shape has its execute-command answer read as a head, its records and a
+// terminator.
+// VALIDATES: AC-8 of spec-record-answers-1-sdk-path -- the document a bounded
+// answer carries reaches the engine byte for byte.
 // PREVENTS: the engine taking a head line's key=value tail for an
 // execute-command result, which is what a single-frame read does to an answer
 // sequence (R-1).
@@ -1224,7 +1230,7 @@ func TestSendExecuteCommandReadsRecords(t *testing.T) {
 
 	input := &rpc.ExecuteCommandInput{Serial: "s-1", Command: "show peers", Peer: "10.0.0.1"}
 
-	t.Run("a peer that declared reads a record sequence", func(t *testing.T) {
+	t.Run("a long walk reads as a record sequence", func(t *testing.T) {
 		t.Parallel()
 
 		// Past the buffer threshold, so the answer is streamed rather than
@@ -1250,7 +1256,7 @@ func TestSendExecuteCommandReadsRecords(t *testing.T) {
 			served <- rpc.WriteRecordAnswer(pluginConn.AnswerWriter(ctx), req.ID, head, answerPeerRows(rows))
 		}()
 
-		answer, err := engineConn.SendExecuteCommandAnswer(ctx, input, true)
+		answer, err := engineConn.SendExecuteCommandAnswer(ctx, input)
 		require.NoError(t, err)
 		require.NotNil(t, answer)
 		assert.Equal(t, rpc.StatusDone, answer.Status)
@@ -1271,7 +1277,7 @@ func TestSendExecuteCommandReadsRecords(t *testing.T) {
 		require.NoError(t, <-served)
 	})
 
-	t.Run("a peer that declared nothing reads the value frame", func(t *testing.T) {
+	t.Run("a built document reads as a record sequence", func(t *testing.T) {
 		t.Parallel()
 
 		engineConn, pluginConn := newMuxEnginePluginConn(t)
@@ -1285,16 +1291,17 @@ func TestSendExecuteCommandReadsRecords(t *testing.T) {
 				served <- readErr
 				return
 			}
-			out := &rpc.ExecuteCommandOutput{Status: rpc.StatusDone, Data: json.RawMessage(`{"peers":[]}`)}
-			served <- pluginConn.SendResult(ctx, req.ID, out)
+			head := rpc.AnswerTail{Status: rpc.StatusDone}
+			served <- rpc.WriteDocumentAnswer(pluginConn.AnswerWriter(ctx), req.ID, head,
+				json.RawMessage(`{"peers":[]}`))
 		}()
 
-		out, err := engineConn.SendExecuteCommand(ctx, input, false)
+		out, err := engineConn.SendExecuteCommand(ctx, input)
 		require.NoError(t, err)
 		require.NotNil(t, out)
 		assert.Equal(t, rpc.StatusDone, out.Status)
 		assert.Equal(t, `{"peers":[]}`, string(out.Data),
-			"an undeclared peer's result reaches the engine as the bytes it always did")
+			"the document a bounded answer carries reaches the engine as the bytes it always did")
 
 		require.NoError(t, <-served)
 	})

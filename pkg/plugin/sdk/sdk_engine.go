@@ -230,15 +230,6 @@ func (p *Plugin) DispatchCommandArgs(ctx context.Context, command string, args [
 	return p.dispatchCommandValue(ctx, rpc.MethodDispatchCommandArgs, input, "dispatch-command-args")
 }
 
-// errRecordAnswersNotDeclared is what an answer-returning call returns before
-// its plugin has told the engine it can read one. The engine writes the record
-// sequence only to a peer that named rpc.ProtocolRecordAnswers at Stage 3
-// (answerResult, internal/component/plugin/server/dispatch_registry.go), so a
-// call made without that declaration would read a single-line result as an
-// answer head and take its tail for the result.
-var errRecordAnswersNotDeclared = errors.New(
-	"dispatch-command answer: this plugin declared no record-answers protocol at stage 3")
-
 // DispatchCommandAnswer dispatches a command through the engine's command
 // dispatcher and returns the answer as the engine writes it: a head stating how
 // each record is read, the records the walk produced, and a terminator carrying
@@ -249,15 +240,11 @@ var errRecordAnswersNotDeclared = errors.New(
 // deliberately, and MUST read Answer.Verdict, Answer.Err and Answer.Message
 // after the range has returned (Answer, pkg/plugin/rpc/types.go).
 //
-// It replaces the single-line dispatch RESULT rather than joining it: after
-// Stage 3 the engine writes one shape for this plugin, and DispatchCommand
-// reads that same shape and holds it (dispatchCommandValue). The two are one
-// answer with one wire and two readings, not two answers
-// (ai/rules/no-layering.md).
+// It replaces the single-line dispatch RESULT rather than joining it: the
+// engine writes one shape for every peer, and DispatchCommand reads that same
+// shape and holds it (dispatchCommandValue). The two are one answer with one
+// wire and two readings, not two answers (ai/rules/no-layering.md).
 func (p *Plugin) DispatchCommandAnswer(ctx context.Context, command string) (*rpc.Answer, error) {
-	if !p.recordAnswers.Load() {
-		return nil, errRecordAnswersNotDeclared
-	}
 	// The bridge replaced the pipe at Stage 5, so once it is ready it is the
 	// only transport this plugin has. Ask it even when its answer slot is
 	// empty: its own refusal names the missing slot, where the closed mux would
@@ -271,16 +258,14 @@ func (p *Plugin) DispatchCommandAnswer(ctx context.Context, command string) (*rp
 // dispatchCommandValue sends one dispatch RPC and returns the value the command
 // answered with. label names the RPC in an error.
 //
-// Which frame carries that value is the engine's decision, and this reads the
-// one the engine writes. On the socket the engine writes the record sequence to
-// a peer that named rpc.ProtocolRecordAnswers at Stage 3 and the single-line
-// result to one that has not yet (answerResult,
-// internal/component/plugin/server/dispatch_registry.go), so the branch here is
-// the same branch: a peer reading the wrong frame takes a head line's tail for
-// its result (R-1 of spec-record-answers-1-sdk-path). The single-line arm goes
-// when child 2 of that family deletes the frame it reads.
+// On the socket the engine writes the record sequence for every peer, so this
+// reads the answer and collapses it. A ready DirectBridge is an in-process call
+// with no line to carry a record on, and serveEngineOpDirect hands back the
+// built {status, data, error} projection instead
+// (internal/component/plugin/server/dispatch_registry.go), so that transport
+// keeps its own reading.
 func (p *Plugin) dispatchCommandValue(ctx context.Context, method string, input any, label string) (string, json.RawMessage, error) {
-	if p.readsRecordAnswers() {
+	if !p.bridgeReady() {
 		answer, err := p.engineMux.CallAnswer(ctx, method, input)
 		if err != nil {
 			return "", nil, err
@@ -299,23 +284,10 @@ func (p *Plugin) dispatchCommandValue(ctx context.Context, method string, input 
 	return dispatchCommandResult(out, nil)
 }
 
-// readsRecordAnswers reports whether the engine's next dispatch answer arrives
-// as a record sequence.
-//
-// Two facts decide it. The plugin must have named the shape at Stage 3, which
-// is what the engine reads before it chooses a frame. And the answer must come
-// over the wire: a ready DirectBridge is an in-process call with no line to
-// carry a record on, so serveEngineOpDirect hands back the built
-// {status, data, error} projection whatever the peer declared
-// (internal/component/plugin/server/dispatch_registry.go).
-func (p *Plugin) readsRecordAnswers() bool {
-	if !p.recordAnswers.Load() {
-		return false
-	}
-	if p.bridge == nil {
-		return true
-	}
-	return !p.bridge.Ready()
+// bridgeReady reports whether the in-process bridge has replaced the pipe, so
+// the next engine call is a function call rather than a line on the wire.
+func (p *Plugin) bridgeReady() bool {
+	return p.bridge != nil && p.bridge.Ready()
 }
 
 // answerValue walks answer to its end and rebuilds the value its command

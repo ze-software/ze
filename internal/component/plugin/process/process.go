@@ -85,11 +85,6 @@ type Process struct {
 	stageCh      chan struct{}              // Signals stage completion
 	stageMu      sync.Mutex                 // Protects stage transitions
 
-	// recordAnswers is what this peer declared at Stage 3 about the answer
-	// shape it reads. The startup goroutine writes it once and every dispatch
-	// goroutine reads it for each answer, so it is atomic.
-	recordAnswers atomic.Bool
-
 	// startupFail records WHY the 5-stage handshake stopped before
 	// StageRunning, so the engine can report the cause instead of only the
 	// stage it stopped at. See SetStartupError.
@@ -234,24 +229,6 @@ func (p *Process) Registration() *plugin.PluginRegistration {
 // Capabilities returns the plugin capability declarations (Stage 3).
 func (p *Process) Capabilities() *plugin.PluginCapabilities {
 	return p.capabilities
-}
-
-// RecordAnswers reports whether this peer declared rpc.ProtocolRecordAnswers at
-// Stage 3, so its command answers are written as a record sequence rather than
-// as one `#<id> ok <json>` line.
-//
-// A peer that declared nothing reads false, and so does a peer whose Stage 3
-// has not arrived yet. Both are the same answer to the same question: nobody
-// has asked for the new shape, so nobody gets it (ai/rules/evidence.md).
-func (p *Process) RecordAnswers() bool {
-	return p.recordAnswers.Load()
-}
-
-// SetRecordAnswers records what the peer declared at Stage 3 about the answer
-// shape it reads. SetCapabilities is the sibling call, and the engine makes
-// both from one declare-capabilities input.
-func (p *Process) SetRecordAnswers(declared bool) {
-	p.recordAnswers.Store(declared)
 }
 
 // Running returns true if the process is running.

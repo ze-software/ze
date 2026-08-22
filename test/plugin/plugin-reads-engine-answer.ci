@@ -26,8 +26,8 @@
 # passes the threshold, receives every row in walk order, and holds no row.
 # VALIDATES: user story 2 -- a plugin reads a streamed engine answer and acts on
 # it.
-# PREVENTS: a plugin that declares record-answers and cannot read one, which
-# takes a head line's tail for its result (R-1).
+# PREVENTS: a plugin that cannot read the one answer encoding, which takes a
+# head line's tail for its result (R-1).
 
 tmpfs=test-plugin-reads-engine-answer.sh:mode=755:terminator=EOF_SH
 #!/bin/sh

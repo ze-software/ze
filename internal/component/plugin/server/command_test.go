@@ -419,7 +419,7 @@ func TestDispatchSubsystemUsesCommandContextContext(t *testing.T) {
 	t.Cleanup(func() { _ = subsystemSide.Close() })
 
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-subsystem"})
-	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
+	proc.SetConn(muxPluginConn(t, engineSide))
 	markProcessRunning(t, proc)
 
 	handler := &SubsystemHandler{proc: proc}
@@ -470,7 +470,7 @@ func TestRouteToProcessUsesParentContextTimeout(t *testing.T) {
 	t.Cleanup(func() { _ = pluginSide.Close() })
 
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-plugin"})
-	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
+	proc.SetConn(muxPluginConn(t, engineSide))
 	markProcessRunning(t, proc)
 
 	cmd := &RegisteredCommand{
@@ -714,7 +714,7 @@ func TestForwardToPluginUsesParentContext(t *testing.T) {
 	t.Cleanup(func() { _ = pluginSide.Close() })
 
 	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-rib"})
-	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
+	proc.SetConn(muxPluginConn(t, engineSide))
 	markProcessRunning(t, proc)
 
 	d := NewDispatcher()
@@ -2268,7 +2268,6 @@ func startRecordAnsweringPlugin(t *testing.T, ctx context.Context, key string, r
 	proc := process.NewProcess(plugin.PluginConfig{Name: "record-plugin"})
 	proc.SetConn(ipc.NewMuxPluginConn(mux))
 	markProcessRunning(t, proc)
-	proc.SetRecordAnswers(true)
 
 	peer := &recordAnsweringPlugin{
 		proc:    proc,
@@ -2347,12 +2346,11 @@ func peerRows(count int) iter.Seq[rpc.Record] {
 
 // TestRouteToProcessBuildsRecords checks that a plugin answer the peer streamed
 // reaches the dispatcher as a row generator rather than as one flattened
-// payload. The method: the plugin end declares the record shape and writes a
-// walk past the buffer threshold, holding every record behind a gate until the
-// test releases it, so what routeToProcess returned with can be read before a
-// single record exists.
+// payload. The method: the plugin end writes a walk past the buffer threshold,
+// holding every record behind a gate until the test releases it, so what
+// routeToProcess returned with can be read before a single record exists.
 //
-// VALIDATES: AC-8 of spec-record-answers-1-sdk-path -- a declaring plugin's
+// VALIDATES: AC-8 of spec-record-answers-1-sdk-path -- a plugin's
 // execute-command answer is read as a record sequence.
 // VALIDATES: AC-4's other half -- the engine never holds the whole collection
 // for a streamed plugin answer: routeToProcess returns on the head, and the

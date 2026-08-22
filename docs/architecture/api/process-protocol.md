@@ -24,7 +24,7 @@ Internal plugins get a performance optimization via `DirectBridge` after startup
 ## Wire Format
 
 Every message is a single newline-terminated line:
-<!-- source: pkg/plugin/rpc/message.go -- FormatRequest, FormatResult, FormatError -->
+<!-- source: pkg/plugin/rpc/message.go -- AppendRequest, AppendResult, AppendError -->
 
 | Message type | Format | Example |
 |-------------|--------|---------|
@@ -32,15 +32,15 @@ Every message is a single newline-terminated line:
 | Success | `#<id> ok [<json>]\n` | `#1 ok {"peers-affected":2}` |
 | Error | `#<id> error [<json>]\n` | `#1 error {"code":"error","message":"..."}` |
 
-A command answer has a second form, and a plugin that names `record-answers` at
-Stage 3 both reads it and writes it. The engine answers that plugin's
-`dispatch-command` and `dispatch-command-args` with a head, zero or more
-records, and a terminator. The plugin answers the engine's `execute-command` the
-same way. Each line is `#<id> ok <key=value tail>`. Every other request, and
-every plugin that named nothing, keeps the single line above. The grammar is in
+A command answer has a second form, and every peer reads it and writes it. The
+engine answers a plugin's `dispatch-command` and `dispatch-command-args` with a
+head, zero or more records, and a terminator. The plugin answers the engine's
+`execute-command` the same way. Each line is `#<id> ok <key=value tail>`. Every
+other request keeps the single line above. The grammar is in
 [ipc_protocol.md](ipc_protocol.md), "Answer Protocol".
 <!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerTerminator -->
-<!-- source: internal/component/plugin/server/dispatch_registry.go -- answerResult -->
+<!-- source: internal/component/plugin/server/dispatch_registry.go -- recordAnswer, opDispatchCommand -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.SendExecuteCommandAnswer -->
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- Plugin.answerExecuteCommand -->
 
 - `<id>` is a monotonically increasing `uint64` correlation ID
@@ -129,28 +129,19 @@ Tier-Ordered Startup below).
 |-------|-----------|-----------|------------|
 | 1. Registration | Plugin to Engine | `ze-plugin-engine:declare-registration` | `DeclareRegistrationInput` |
 | 2. Config | Engine to Plugin | `ze-plugin-callback:configure` | `ConfigureInput` |
-| 3. Capability | Plugin to Engine | `ze-plugin-engine:declare-capabilities` | `DeclareCapabilitiesInput` (see `protocol` below) |
+| 3. Capability | Plugin to Engine | `ze-plugin-engine:declare-capabilities` | `DeclareCapabilitiesInput` |
 | 4. Registry | Engine to Plugin | `ze-plugin-callback:share-registry` | `ShareRegistryInput` |
 | 5. Ready | Plugin to Engine | `ze-plugin-engine:ready` | `ReadyInput` |
 | Post | Engine to Plugin | `ze-plugin-callback:post-startup` | (empty) |
 
-**Wire shape negotiation (Stage 3).** `DeclareCapabilitiesInput` carries an
-optional `protocol` list. It names the wire shapes the peer speaks.
-`record-answers` is the only name today, and it is symmetric. The plugin READS
-the record answer form of `dispatch-command` and `dispatch-command-args`, and it
-WRITES that form for `execute-command`. No engine-to-plugin message carries a
-protocol list, so this one line is where both facts come from.
-
-The Go SDK sends the name for every plugin built on it, and a plugin author sets
-no field to get it. A peer that speaks the protocol by hand chooses for itself.
+**Stage 3 names no wire shape.** `DeclareCapabilitiesInput` carries the BGP
+capabilities the plugin injects into OPEN and nothing else. A command answer has
+one encoding on every connection, so a plugin READS the record answer form of
+`dispatch-command` and `dispatch-command-args`, and it WRITES that form for
+`execute-command`, without asking for either.
+<!-- source: pkg/plugin/rpc/types.go -- DeclareCapabilitiesInput, CapabilityDecl -->
 <!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, Stage 3 declare-capabilities -->
-
-The engine records the declaration before the capability injector runs. Every
-answer after the Stage 3 barrier is therefore written in a shape the peer agreed
-to. An absent list, an empty list, and an unknown name all read false.
-<!-- source: pkg/plugin/rpc/types.go -- DeclareCapabilitiesInput.Understands, ProtocolRecordAnswers -->
 <!-- source: internal/component/plugin/server/startup.go -- engineStartupSink -->
-<!-- source: internal/component/plugin/process/process.go -- Process.SetRecordAnswers -->
 
 **Timeout:** Each stage has a 5-second timeout (configurable via `stage-timeout` in plugin config).
 If any plugin fails to complete a stage, startup aborts for all plugins.
@@ -400,7 +391,7 @@ site.
 |--------|-------|----------|-------------|
 | `deliver-event` | `{"event":"<json>"}` | `ok` | Single event |
 | `deliver-batch` | `{"events":[...]}` | `ok` | Batched events |
-| `execute-command` | `ExecuteCommandInput` | `ExecuteCommandOutput`, or a record answer from a plugin that named `record-answers` | Command execution |
+| `execute-command` | `ExecuteCommandInput` | a record answer, read as one value into `ExecuteCommandOutput` | Command execution |
 | `config-verify` | `ConfigVerifyInput` | `ConfigVerifyOutput` | Validate candidate config |
 | `config-apply` | `ConfigApplyInput` | `ConfigApplyOutput` | Apply config changes |
 | `config-rollback` | `{"transaction-id":"..."}` | `ok` | Undo changes for a config transaction |
@@ -1071,25 +1062,19 @@ At runtime, the engine dispatches commands to plugins via `execute-command`:
 #5 ze-plugin-callback:execute-command {"serial":"abc","command":"rib adjacent status","args":[],"peer":"*"}
 ```
 
-**Plugin to Engine, a plugin that named nothing at Stage 3:**
-```
-#5 ok {"status":"done","data":{"running":true,"peers":1}}
-#5 ok {"status":"error","data":"component not found"}
-```
+**Plugin to Engine:** the answer is a head, its records and a terminator. Every
+plugin writes it. The frame is the same whatever the payload is, so a handler
+that built one value takes the same three lines as a handler that walked a
+table.
 
-Command execution results are sent as `ok` responses with a `status` field.
-They are not sent as `error` responses, because the RPC itself succeeded even
-when the command failed.
-
-**Plugin to Engine, a plugin that named `record-answers` at Stage 3:** the
-answer is a head, its records and a terminator. Every plugin built on the Go SDK
-is in this group. The frame follows that declaration and never the payload. A
-handler that built one value therefore takes the same three lines as a handler
-that walked a table.
+A command that RAN and failed states `status=error` on its head. It is not an
+`error` response, because the RPC itself succeeded even when the command failed.
+The `error` verb is kept for a handler that returned a Go error, where the RPC
+itself did not succeed.
 
 A handler that built one value writes it as the one record of a `type=json`
-answer. The `data` member above is what that record carries, byte for byte. The
-handler's status moves to the head:
+answer. The handler's status is on the head, and the record carries the value
+byte for byte:
 
 ```
 #5 ok status=done type=json
@@ -1118,7 +1103,6 @@ Plugins can dispatch commands to other plugins via the external-compatible strin
 
 ```
 #4 ze-plugin-engine:dispatch-command {"command":"rib adjacent inbound show"}
-#4 ok {"status":"done","data":{...}}
 ```
 
 Internal plugins that already know the exact registered command should use the
@@ -1129,20 +1113,21 @@ peer selector separately, so runtime values are not split by the command tokeniz
 
 ```
 #4 ze-plugin-engine:dispatch-command-args {"command":"request bgp adj-rib-in replay","args":["peer key with spaces","0"],"peer":"*"}
-#4 ok {"status":"done","data":{"last-index":7,"replayed":3}}
 ```
 
-Both APIs return `DispatchCommandOutput` to a peer that negotiated nothing. The
-`data` field carries raw JSON (single-decode). On error, the response uses a
-separate `error` field: `{"status":"error","error":"message"}`.
-<!-- source: pkg/plugin/rpc/types.go -- DispatchCommandOutput -->
-
-A peer that named `record-answers` at Stage 3 receives the same two answers as a
-head, records, and a terminator instead. The document a bounded answer carries in
-its one `item=` equals the `data` the line above carries. See
+Both APIs answer with a head, records, and a terminator. See
 [ipc_protocol.md](ipc_protocol.md), "Answer Protocol".
-<!-- source: internal/component/plugin/server/dispatch_registry.go -- answerResult, recordAnswer -->
+<!-- source: internal/component/plugin/server/dispatch_registry.go -- recordAnswer, opDispatchCommand, opDispatchCommandArgs -->
 <!-- source: internal/component/plugin/dispatch.go -- WriteAnswer -->
+
+A caller that reads that answer as one value gets `DispatchCommandOutput`. Its
+`data` field carries raw JSON (single-decode) and holds the document a bounded
+answer puts in its one `item=`. On error the value uses a separate `error`
+field: `{"status":"error","error":"message"}`. The in-process `DirectBridge`
+carries that value directly, because it has no line to put a record on.
+<!-- source: pkg/plugin/rpc/types.go -- DispatchCommandOutput -->
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.dispatchCommandValue, answerValue -->
+<!-- source: internal/component/plugin/server/dispatch_registry.go -- serveEngineOpDirect -->
 
 The string API routes by normal dispatcher parsing and remains the compatibility
 surface for CLI and external plugin callers. The typed args API routes by exact

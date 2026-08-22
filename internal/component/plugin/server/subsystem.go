@@ -217,19 +217,13 @@ func (hs *hubStartupSink) deliverConfig(ctx context.Context) error {
 	return nil
 }
 
-// onCapabilities records the wire shapes this subsystem declared. The BGP
-// capability declarations are dropped, because the hub has no capability
-// injector to give them to. The PROTOCOL declaration is kept, because it is what
-// decides the frame the hub reads this subsystem's command answers in
-// (SendExecuteCommand, internal/component/plugin/ipc/rpc.go): a subsystem that
-// declared the record shape writes one, and a hub that had not recorded the
-// declaration would read the head line as the whole result.
-//
-// It is the same store the engine's own startup sink makes for a plugin
-// (engineStartupSink.onCapabilities, startup.go), so one declaration is read the
-// same way whichever side of the daemon accepted it.
-func (hs *hubStartupSink) onCapabilities(input *rpc.DeclareCapabilitiesInput) error {
-	hs.h.proc.SetRecordAnswers(input.Understands(rpc.ProtocolRecordAnswers))
+// onCapabilities accepts Stage 3 and keeps nothing from it. The BGP capability
+// declarations are dropped, because the hub has no capability injector to give
+// them to, and the message names no wire shape: one answer has one encoding, so
+// the hub reads this subsystem's command answers as a head, its records and a
+// terminator whatever the subsystem declared (SendExecuteCommand,
+// internal/component/plugin/ipc/rpc.go).
+func (hs *hubStartupSink) onCapabilities(*rpc.DeclareCapabilitiesInput) error {
 	return nil
 }
 
@@ -300,7 +294,7 @@ func (h *SubsystemHandler) Handle(ctx context.Context, command string) (*plugin.
 		return nil, ErrSubsystemConnectionClosed
 	}
 	input := &rpc.ExecuteCommandInput{Command: command}
-	out, err := conn.SendExecuteCommand(ctx, input, proc.RecordAnswers())
+	out, err := conn.SendExecuteCommand(ctx, input)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 	}

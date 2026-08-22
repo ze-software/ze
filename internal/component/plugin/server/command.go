@@ -1286,13 +1286,12 @@ func (d *Dispatcher) dispatchPlugin(ctx *CommandContext, input, lowerInput, peer
 
 // routeToProcess sends a command request to a plugin process via synchronous RPC.
 //
-// The plugin's answer arrives as a sequence when the peer declared
-// rpc.ProtocolRecordAnswers and as the single-line result otherwise, and one
-// call reads both (PluginConn.SendExecuteCommandAnswer). A streamed answer
-// becomes a plugin.Records payload, so the engine forwards the rows a consumer
-// reads and never holds the collection (AC-4 and AC-8 of
-// spec-record-answers-1-sdk-path). Every other answer is one document and
-// becomes the plugin.RawJSON payload it has always been.
+// The plugin's answer always arrives as a sequence: a head, its records and a
+// terminator (PluginConn.SendExecuteCommandAnswer). A streamed answer becomes a
+// plugin.Records payload, so the engine forwards the rows a consumer reads and
+// never holds the collection (AC-4 and AC-8 of spec-record-answers-1-sdk-path).
+// Every other answer is one document and becomes the plugin.RawJSON payload it
+// has always been.
 func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredCommand, args []string, peerSelector string) (*plugin.Response, error) {
 	proc := cmd.Process
 	if proc == nil || !proc.Running() {
@@ -1316,7 +1315,7 @@ func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredComma
 	rpcCtx, cancel := context.WithTimeout(parentCtx, cmd.Timeout)
 
 	input := &rpc.ExecuteCommandInput{Command: cmd.Name, Args: args, Peer: peerSelector}
-	answer, err := conn.SendExecuteCommandAnswer(rpcCtx, input, proc.RecordAnswers())
+	answer, err := conn.SendExecuteCommandAnswer(rpcCtx, input)
 	if err != nil {
 		cancel()
 		var tb textbuf.Buffer

@@ -83,19 +83,16 @@ runtime request, see the gotcha below.
 
 9. **Wire call.** `routeToProcess` (`internal/component/plugin/server/command.go`) gets the target plugin's
    `PluginConn` (`proc.Conn()`, `internal/component/plugin/server/command.go`) and calls
-   `conn.SendExecuteCommandAnswer(rpcCtx, input, proc.RecordAnswers())`
-   (`internal/component/plugin/server/command.go`). The declaration is a PARAMETER because
-   `Process` is the one store of it (`Process.RecordAnswers`, `internal/component/plugin/process/process.go`).
+   `conn.SendExecuteCommandAnswer(rpcCtx, input)`
+   (`internal/component/plugin/server/command.go`). No flag rides along: one answer has
+   one encoding, so the engine reads the sequence for every plugin.
 10. **SendExecuteCommandAnswer** (`internal/component/plugin/ipc/rpc.go`): an in-process
     plugin with an active `DirectBridge` and `HasExecuteCommand()` takes
     `bridge.ExecuteCommand` directly (`internal/component/plugin/ipc/rpc.go`, no serialization,
     no wire I/O, see `plugin-transport.md`). The one value it returns is wrapped as a
     one-record answer (`valueAnswer`, `internal/component/plugin/ipc/rpc.go`).
-    Every other plugin is sent `ze-plugin-callback:execute-command`.
-    A plugin that declared `record-answers` at Stage 3
-    has its answer read as a SEQUENCE through `MuxConn.CallAnswer` (`pkg/plugin/rpc/mux.go`).
-    A plugin that declared nothing has its single `#<id> ok {...}` result read as the
-    value it always was (`executeCommandValue`, `internal/component/plugin/ipc/rpc.go`).
+    Every other plugin is sent `ze-plugin-callback:execute-command`, and its answer is
+    read as a SEQUENCE through `MuxConn.CallAnswer` (`pkg/plugin/rpc/mux.go`).
     `SendExecuteCommand` is the buffered sibling: the same call, collapsed to one
     `rpc.ExecuteCommandOutput` through `ExecuteCommandValue`.
 11. **CallRPC routing.** `PluginConn.CallRPC` (`internal/component/plugin/ipc/rpc.go`) tries bridge, then `MuxConn`, then
@@ -118,9 +115,8 @@ runtime request, see the gotcha below.
     (`pkg/plugin/rpc/mux.go`); since the verb is a method name (not `ok`/`error`) it is an inbound
     request, pushed non-blocking onto `Requests()` (`pkg/plugin/rpc/mux.go`, channel defined `:44`). The
     plugin SDK's event loop reads it and runs the plugin's registered command handler
-    (`Plugin.answerExecuteCommand`, `pkg/plugin/sdk/sdk_dispatch.go`). The SDK declared
-    `record-answers` at Stage 3, so the reply is an ANSWER SEQUENCE written through
-    `Conn.AnswerWriter` (`pkg/plugin/rpc/conn.go`). A `plugin.Records` payload becomes one line
+    (`Plugin.answerExecuteCommand`, `pkg/plugin/sdk/sdk_dispatch.go`). The reply is an
+    ANSWER SEQUENCE written through `Conn.AnswerWriter` (`pkg/plugin/rpc/conn.go`). A `plugin.Records` payload becomes one line
     for each row (`Records.WriteAnswer`, `pkg/plugin/records.go`). A built value becomes the
     one record of a `type=json` answer (`rpc.WriteDocumentAnswer`, `pkg/plugin/rpc/answer_write.go`).
     A handler error still replies `#<id> error {...}` through `Conn.SendError`
@@ -128,8 +124,8 @@ runtime request, see the gotcha below.
 13. **Response routing back.** The engine-side `readLoop` sees verb `ok`/`error`, looks up the
     pending channel by id and delivers the raw body (`pkg/plugin/rpc/mux.go`); `interpretResponse`
     (`pkg/plugin/rpc/mux.go`) splits verb from payload and returns `json.RawMessage` (success) or an
-    `*RPCCallError` (`pkg/plugin/rpc/message.go`) built by `parseRPCError`. That path serves a plugin that
-    declared nothing. For a declaring plugin the lines are the answer sequence.
+    `*RPCCallError` (`pkg/plugin/rpc/message.go`) built by `parseRPCError`. That path serves every
+    method except the three that answer with records; for those the lines are the answer sequence.
     `MuxConn.CallAnswer` (`pkg/plugin/rpc/mux.go`) then hands `routeToProcess` an `*rpc.Answer`
     whose `Records` are pulled as the consumer reads them.
     `routeToProcess` wraps a streamed answer into

@@ -34,7 +34,6 @@ import (
 	"io"
 	"net"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
@@ -94,17 +93,6 @@ type Plugin struct {
 
 	// Capabilities to declare during Stage 3.
 	capabilities []CapabilityDecl
-
-	// recordAnswers states whether the declare-capabilities this plugin sent at
-	// Stage 3 named rpc.ProtocolRecordAnswers. It is written from that message
-	// once the engine has accepted it, and read by every answer-returning call,
-	// so what the plugin asked the engine to write and what the plugin is
-	// prepared to read cannot disagree (R-1 of spec-record-answers-1-sdk-path).
-	//
-	// It is false before Stage 3 completes, which is the fail-closed reading: an
-	// answer-returning call made from a Stage 2 handler would meet an engine
-	// that has learned nothing about this peer.
-	recordAnswers atomic.Bool
 
 	// claims holds the exclusive runtime roles claimed by other plugins in this
 	// daemon, as delivered by the engine on the Stage-2 configure callback.
@@ -385,26 +373,16 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 
 	// Stage 3: declare-capabilities
 	//
-	// The protocol list names the wire shapes this SDK reads. Every plugin
-	// built on it reads a record answer, because DispatchCommand and
-	// DispatchCommandAnswer are both built on MuxConn.CallAnswer, so the name
-	// is declared for every plugin rather than left to a per-plugin setting.
+	// It names no wire shape. A command answer is a head, its records and a
+	// terminator in both directions, on every connection, so there is nothing
+	// for a plugin to ask for and nothing for the engine to record.
 	p.mu.Lock()
-	caps := &DeclareCapabilitiesInput{
-		Capabilities: p.capabilities,
-		Protocol:     []string{rpc.ProtocolRecordAnswers},
-	}
+	caps := &DeclareCapabilitiesInput{Capabilities: p.capabilities}
 	p.mu.Unlock()
 
 	if err := p.callEngine(ctx, "ze-plugin-engine:declare-capabilities", caps); err != nil {
 		return fmt.Errorf("stage 3 (declare-capabilities): %w", err)
 	}
-
-	// Read back from the message that was sent rather than setting a second
-	// flag beside it. The engine derives what it writes from this same list
-	// (onCapabilities, internal/component/plugin/server/startup.go), so reading
-	// it here is what keeps the two sides of the negotiation one fact.
-	p.recordAnswers.Store(caps.Understands(rpc.ProtocolRecordAnswers))
 
 	// Stage 4: wait for share-registry from engine
 	if err := p.serveOne(ctx, "ze-plugin-callback:share-registry", p.handleShareRegistry); err != nil {

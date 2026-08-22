@@ -1075,10 +1075,8 @@ a built payload, and none of these keys appears for it.
 ### A plugin command answers with records
 
 `execute-command` is the callback the engine sends for a command a plugin
-registered. Its result gained a record form. A plugin that named
-`record-answers` at Stage 3 answers with a head, its records and a terminator
-rather than one `ExecuteCommandOutput` line. Every plugin built on the Go SDK
-names it.
+registered. Every plugin answers it with a head, its records and a terminator,
+and the engine reads that sequence for every plugin.
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- Plugin.answerExecuteCommand -->
 <!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.SendExecuteCommandAnswer -->
 

@@ -286,10 +286,9 @@ func (p *Plugin) OnDecodeCapability(fn DecodeCapabilityHandler) {
 // built value. The callback registered here is the transport whose result is
 // one marshaled value: the direct bridge, where a walk collapses to the
 // document the record path would have carried (Records.MarshalJSON). The socket
-// event loop reaches the same code with an answer writer, and once this plugin
-// has declared rpc.ProtocolRecordAnswers every answer it writes there is a
-// head, its records and a terminator (Plugin.answerExecuteCommand,
-// sdk_dispatch.go).
+// event loop reaches the same code with an answer writer, and every answer it
+// writes there is a head, its records and a terminator
+// (Plugin.answerExecuteCommand, sdk_dispatch.go).
 func (p *Plugin) OnExecuteCommand(fn ExecuteCommandHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -302,19 +301,17 @@ func (p *Plugin) OnExecuteCommand(fn ExecuteCommandHandler) {
 // executeCommandAnswer answers one execute-command callback and reports the
 // result the caller must send.
 //
-// answer is non-nil for a transport that carries a line for each record, and it
-// is offered only once this plugin has declared rpc.ProtocolRecordAnswers. On
-// that transport EVERY answer is the SEQUENCE: a walk writes its rows, and a
-// value the handler built writes as the one document a bounded walk collapses
-// to. The returned result is then nil, because the answer is already on the wire
-// and nothing may follow it, and that is the only case where both the result and
-// the error are nil.
+// answer is non-nil for a transport that carries a line for each record, which
+// is every wire connection. On that transport EVERY answer is the SEQUENCE: a
+// walk writes its rows, and a value the handler built writes as the one document
+// a bounded walk collapses to. The returned result is then nil, because the
+// answer is already on the wire and nothing may follow it, and that is the only
+// case where both the result and the error are nil.
 //
-// The frame follows the DECLARATION and never the payload, because the engine
-// must know which frame is arriving before it reads the first line
-// (rpc.ProtocolRecordAnswers). A frame chosen from the payload would leave the
-// reader guessing, and a reader that guesses wrong takes a head line's tail for
-// its result (R-1 of spec-record-answers-1-sdk-path).
+// The frame never follows the payload, because the engine must know which frame
+// is arriving before it reads the first line. A frame chosen from the payload
+// would leave the reader guessing, and a reader that guesses wrong takes a head
+// line's tail for its result (R-1 of spec-record-answers-1-sdk-path).
 //
 // answer is nil for a transport whose result is one marshaled value, which is
 // the direct bridge, and id is then unread. That result is the answer this

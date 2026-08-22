@@ -18,8 +18,7 @@ import (
 // executeCommand asks a running plugin to run one command and returns the value
 // the engine rebuilds from its answer.
 //
-// A plugin that completed Stage 3 has declared rpc.ProtocolRecordAnswers, so
-// every execute-command answer it writes is a head, its records and a
+// Every execute-command answer a plugin writes is a head, its records and a
 // terminator. This reads it the way the engine reads it
 // (PluginConn.SendExecuteCommand, internal/component/plugin/ipc/rpc.go): read
 // the answer, collapse it, and take the head's status. The engine tree cannot be
@@ -424,12 +423,11 @@ type executeCommandEntry struct {
 // same value, because a golden the code under test computes agrees with that
 // code whatever it does.
 //
-// The FRAME around those bytes is the negotiated one: this plugin declared
-// rpc.ProtocolRecordAnswers at Stage 3, so its answer is a head, one item= line
-// and a terminator, whether the handler built a value or produced rows. The
-// declaration and not the payload decides the frame, because the engine must
-// know which one is arriving before it reads the first line (AC-8, and
-// rpc.ProtocolRecordAnswers). What AC-5 holds fixed is the VALUE inside it.
+// The FRAME around those bytes is the only frame there is: this plugin's answer
+// is a head, one item= line and a terminator, whether the handler built a value
+// or produced rows. Nothing chooses it from the payload, because the engine must
+// know which frame is arriving before it reads the first line (AC-8). What AC-5
+// holds fixed is the VALUE inside it.
 //
 // VALIDATES: AC-5 of spec-record-answers-1-sdk-path -- a handler answering with
 // a built value is unchanged from today, byte for byte.

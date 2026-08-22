@@ -64,20 +64,27 @@ func registerExecuteCommandTarget(
 	t.Cleanup(func() { _ = engineSide.Close() })
 	t.Cleanup(func() { _ = pluginSide.Close() })
 
+	// Wired the way production wires a plugin (Process.attachConn): an answer
+	// is many lines routed by id, and only MuxConn routes them.
+	engineMux := rpc.NewMuxConn(rpc.NewConn(engineSide, engineSide))
+	t.Cleanup(func() { _ = engineMux.Close() })
+
 	proc := process.NewProcess(plugin.PluginConfig{Name: "target-plugin"})
-	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
+	proc.SetConn(ipc.NewMuxPluginConn(engineMux))
 	proc.SetRunning(true)
 
 	results := d.Registry().Register(proc, []CommandDef{{Name: command, Description: "target command"}})
 	require.Len(t, results, 1)
 	require.True(t, results[0].OK, results[0].Error)
 
+	pluginMux := rpc.NewMuxConn(rpc.NewConn(pluginSide, pluginSide))
+	t.Cleanup(func() { _ = pluginMux.Close() })
+
 	done := make(chan error, 1)
 	go func() {
-		pluginConn := rpc.NewConn(pluginSide, pluginSide)
 		for i := range calls {
 			readCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			req, err := pluginConn.ReadRequest(readCtx)
+			req, err := readMuxRequest(readCtx, pluginMux)
 			cancel()
 			if err != nil {
 				done <- err
@@ -103,8 +110,12 @@ func registerExecuteCommandTarget(
 				out = &rpc.ExecuteCommandOutput{Status: plugin.StatusDone}
 			}
 
+			// The target declares no wire shape and answers with the sequence
+			// every peer answers with: the head, the one item its handler
+			// built, and the terminator.
 			writeCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			err = pluginConn.SendResult(writeCtx, req.ID, out)
+			head := rpc.AnswerTail{Status: out.Status}
+			err = rpc.WriteDocumentAnswer(pluginMux.AnswerWriter(writeCtx), req.ID, head, out.Data)
 			cancel()
 			if err != nil {
 				done <- err
@@ -114,6 +125,22 @@ func registerExecuteCommandTarget(
 		done <- nil
 	}()
 	return done
+}
+
+// readMuxRequest takes the next request the engine sent over mux, or the
+// context's error when none arrives.
+func readMuxRequest(ctx context.Context, mux *rpc.MuxConn) (*rpc.Request, error) {
+	select {
+	case req, ok := <-mux.Requests():
+		if !ok {
+			return nil, rpc.ErrMuxConnClosed
+		}
+		return req, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-mux.Done():
+		return nil, rpc.ErrMuxConnClosed
+	}
 }
 
 type captureAuthorizer struct {

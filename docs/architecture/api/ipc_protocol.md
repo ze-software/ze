@@ -207,23 +207,24 @@ Events are only sent to plugins that have subscribed.
 
 Every plugin RPC request has a `#<uint64>` correlation ID. The peer returns a
 response with the same ID. Most requests receive exactly one response line.
-Three carry a command answer. Each of those receives a sequence of lines when
-the plugin declared the shape: `dispatch-command` and `dispatch-command-args`
-from the engine, and `execute-command` from the plugin. See Answer Protocol
-below.
+Three carry a command answer, and each of those receives a sequence of lines:
+`dispatch-command` and `dispatch-command-args` from the engine, and
+`execute-command` from the plugin. See Answer Protocol below.
 <!-- source: pkg/plugin/rpc/message.go -- ParseLine, AppendRequest, AppendResult, AppendError -->
 
-The command dispatcher is a payload protocol inside plugin RPC. For a peer that
-negotiated nothing:
+The command dispatcher is a payload protocol inside plugin RPC:
 
 ```
 #1 ze-plugin-engine:dispatch-command {"command":"show bgp peer * detail"}
-#1 ok {"status":"done","data":{"peers":[]}}
 ```
 
-The outer `ok` is the plugin RPC response verb. The inner `status` and `data`
-members belong to `DispatchCommandOutput`. They do not change RPC framing.
+The request line is the plugin RPC frame, and the `command` member inside it
+belongs to `DispatchCommandInput`. The answer arrives as the sequence Answer
+Protocol describes, and a caller that reads that sequence as one value gets the
+`status` and `data` members of `DispatchCommandOutput`. The payload does not
+change RPC framing.
 <!-- source: pkg/plugin/rpc/types.go -- DispatchCommandInput, DispatchCommandOutput -->
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.dispatchCommandValue, answerValue -->
 <!-- source: internal/core/ipc/message.go -- MapResponse -->
 
 ---
@@ -241,42 +242,29 @@ channel there is no `#<id>`: one command owns the channel, so nothing needs to b
 told apart.
 <!-- source: pkg/plugin/rpc/message.go -- AnswerNoID, ParseAnswerLine -->
 
-### Negotiation
+### One encoding, both directions
 
-The default is off. A peer receives the sequence only after it names
-`record-answers` in the `protocol` list of its Stage 3 `declare-capabilities`:
+A command answer has one encoding on every connection, and nothing declares it.
+The engine writes the head, the records and the terminator to every peer, and it
+reads that same sequence back from every plugin. Stage 3
+`declare-capabilities` carries the BGP capabilities a plugin injects into OPEN
+and names no wire shape:
 
 ```
-#2 ze-plugin-engine:declare-capabilities {"capabilities":[],"protocol":["record-answers"]}
+#2 ze-plugin-engine:declare-capabilities {"capabilities":[]}
 #2 ok
 ```
+<!-- source: pkg/plugin/rpc/types.go -- DeclareCapabilitiesInput, CapabilityDecl -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, WriteDocumentAnswer -->
+<!-- source: internal/component/plugin/server/dispatch_registry.go -- recordAnswer, opDispatchCommand, opDispatchCommandArgs -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.SendExecuteCommandAnswer -->
 
-The Go SDK sends that line for every plugin built on it, and a plugin author
-sets no field to get it. A peer that speaks the protocol by hand chooses for
-itself, and the Python test client does so with `capability_done(protocol=...)`.
-<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, Stage 3 declare-capabilities -->
-<!-- source: test/scripts/ze_api.py -- capability_done -->
-
-**One declaration covers both directions.** `record-answers` says that this peer
-reads a record answer and also writes one. No engine-to-plugin message carries a
-protocol list, so the plugin's Stage 3 line is where both facts come from. The
-engine reads that line twice. It reads it to WRITE the answer to a command the
-plugin dispatched, and to READ the answer to a command the plugin ran.
-<!-- source: pkg/plugin/rpc/types.go -- ProtocolRecordAnswers, DeclareCapabilitiesInput.Understands -->
-<!-- source: internal/component/plugin/process/process.go -- Process.RecordAnswers -->
-<!-- source: internal/component/plugin/server/dispatch_registry.go -- answerResult -->
-<!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.SendExecuteCommandAnswer, readsRecordAnswers -->
-
-**The frame follows the declaration, never the payload.** A declaring peer
-answers all three methods below with a head, its records and a terminator, a
-built value included. A reader must know which frame is arriving before it reads
-the first line, so the payload cannot choose it. A payload built whole is the one
-document a bounded walk collapses to, and the terminator states `count=1`.
+**The frame is the same whatever the payload is.** All three methods below
+answer with a head, their records and a terminator, a built value included. A
+reader knows which frame is arriving before it reads the first line, so the
+payload cannot choose it. A payload built whole is the one document a bounded
+walk collapses to, and the terminator states `count=1`.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
-
-The guard fails closed. An absent list, an empty list, an unknown name, and a
-peer whose Stage 3 has not run all read false. A plugin written before this
-shape existed therefore receives `#<id> ok [<json>]` exactly as before.
 
 Three methods take this path:
 
@@ -285,16 +273,23 @@ Three methods take this path:
 | `ze-plugin-engine:dispatch-command` | the plugin | `WriteAnswer`, `internal/component/plugin/dispatch.go` |
 | `ze-plugin-engine:dispatch-command-args` | the plugin | the same writer |
 | `ze-plugin-callback:execute-command` | the engine | `Records.WriteAnswer`, `pkg/plugin/records.go` |
-<!-- source: internal/component/plugin/server/dispatch_registry.go -- answerResult, opDispatchCommand, opDispatchCommandArgs -->
+<!-- source: internal/component/plugin/server/dispatch_registry.go -- serveEngineOpJSON, recordAnswer.write -->
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- Plugin.answerExecuteCommand -->
 
-Every other engine op returns its own typed output, and the startup RPCs keep
-the single-line frame whatever the peer declared. That is what lets Stage 3
-itself be answered before the shape is known.
+Every other engine op returns its own typed output on one line, and so does
+every startup RPC.
 
-A later shape earns a NEW name in `protocol`. `ParseAnswerTail` refuses a key it
-does not know. A key added under an agreed name would make the whole line
-unreadable to the peer that agreed to the older spelling.
+The in-process `DirectBridge` is the one transport with no line to carry a
+record on. It replaces the pipe for an internal plugin, so its dispatch result
+is the single marshaled `DispatchCommandOutput` value the answer collapses to.
+An in-process caller that wants the records themselves takes the typed answer
+slot instead.
+<!-- source: internal/component/plugin/server/dispatch_registry.go -- serveEngineOpDirect -->
+<!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.DispatchCommandAnswer -->
+
+The grammar is closed. `ParseAnswerTail` refuses a key it does not know, so a
+key added to a line makes that whole line unreadable to a peer built against the
+grammar without it.
 <!-- source: pkg/plugin/rpc/message.go -- ParseAnswerTail -->
 
 ### Lines
@@ -469,17 +464,16 @@ cannot travel inside an `item=`, which is one line by construction.
 | Stream | Carries | When |
 |--------|---------|------|
 | stdout | the rendering, written as the records arrive | always |
-| stderr | head, terminator, or the `error` verb line | only for a client that declared the shape |
+| stderr | head, terminator, or the `error` verb line | always |
 <!-- source: internal/component/ssh/answer.go -- answerFrame, writeExecAnswer, writeExecRecords, writeExecDocument -->
 
 Here the head's `type=` describes what the ANSWER turned out to be. It does not
 describe the rendering on stdout, which the operator's chain decides.
 
-A client declares the shape by setting `ZE_ANSWER_PROTOCOL=record-answers` in an
-SSH env request. A plain `ssh <host> <command>` declares nothing and its bytes
-are what they always were.
-<!-- source: pkg/plugin/rpc/message.go -- AnswerProtocolEnv -->
-<!-- source: internal/component/ssh/answer.go -- declaresRecordAnswers -->
+Every session gets the frame. A plain `ssh <host> <command>` receives it on
+stderr with no env request and no setup, and a client that reads only stdout
+takes the rendering and ignores it.
+<!-- source: internal/component/ssh/answer.go -- newAnswerFrame -->
 <!-- source: internal/core/ssh/client/answer.go -- ExecCommandStream, readAnswerFrame, ErrAnswerTruncated -->
 
 The head is written after the body, because the type is read from the walk. The

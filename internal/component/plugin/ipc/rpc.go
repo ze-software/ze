@@ -289,7 +289,7 @@ func (pc *PluginConn) sendDecodeCapability(ctx context.Context, code uint8, hex 
 // plugin registered. Spelled once because two readings of its answer send it.
 const methodExecuteCommand = "ze-plugin-callback:execute-command"
 
-// errRecordAnswerNeedsMux refuses a record answer on a connection with no
+// errRecordAnswerNeedsMux refuses an answer on a connection with no
 // multiplexer. An answer is many lines routed by id, and only MuxConn routes
 // them; a direct Conn reads one frame for one call and would take the head line
 // for the whole result. Production wires every plugin through NewMuxPluginConn
@@ -301,17 +301,14 @@ var errRecordAnswerNeedsMux = errors.New(
 // answer: the head that states how each record is read, the records the walk
 // produced, and the terminator carrying the counts.
 //
-// recordAnswers is what this peer declared at Stage 3
-// (Process.RecordAnswers). It, and not the payload, decides which frame the
-// answer arrives in: a declaring peer writes a head, its records and a
-// terminator for EVERY answer, and every other peer writes the single-line
-// result it always wrote (rpc.ProtocolRecordAnswers). A reader that guessed
-// from what arrived would take a head line's tail for its result (R-1 of
-// spec-record-answers-1-sdk-path).
+// Every peer on the wire writes that sequence, for EVERY answer, and nothing is
+// declared: one answer has one encoding, so the reader knows which frame is
+// arriving before it reads the first line rather than guessing from what
+// arrived (R-1 of spec-record-answers-1-sdk-path).
 //
-// A transport whose result is one marshaled value -- the direct bridge, and the
-// socket before a peer declares -- answers the same shape through rpc.NewAnswer,
-// so one caller reads one shape whichever transport carried it.
+// The direct bridge is the one transport that carries no line, so its result is
+// one marshaled value. It answers the same shape through rpc.NewAnswer, so one
+// caller reads one shape whichever transport carried it.
 //
 // What the engine holds for an answer is bounded by the reader and never by the
 // plugin: MuxConn queues at most answerQueueDepth lines for one answer and ends
@@ -324,19 +321,28 @@ var errRecordAnswerNeedsMux = errors.New(
 // The caller MUST range over Answer.Records to its end, or stop that range
 // deliberately, and MUST read Answer.Verdict, Answer.Err and Answer.Message
 // after the range has returned (rpc.Answer).
-func (pc *PluginConn) SendExecuteCommandAnswer(ctx context.Context, input *rpc.ExecuteCommandInput, recordAnswers bool) (*rpc.Answer, error) {
-	if pc.bridge != nil && pc.bridge.HasExecuteCommand() {
+func (pc *PluginConn) SendExecuteCommandAnswer(ctx context.Context, input *rpc.ExecuteCommandInput) (*rpc.Answer, error) {
+	if pc.bridge != nil {
+		return pc.bridgeAnswer(ctx, input)
+	}
+	if pc.mux == nil {
+		return nil, errRecordAnswerNeedsMux
+	}
+	return pc.mux.CallAnswer(ctx, methodExecuteCommand, input)
+}
+
+// bridgeAnswer runs one command over the in-process bridge and returns its
+// value as an answer. The bridge replaced the pipe, so there is no line to
+// carry a record on and no frame to read: the typed slot answers a built value,
+// and a bridge that has no such slot yet reaches the same handler through the
+// generic callback path.
+func (pc *PluginConn) bridgeAnswer(ctx context.Context, input *rpc.ExecuteCommandInput) (*rpc.Answer, error) {
+	if pc.bridge.HasExecuteCommand() {
 		out, err := pc.bridge.ExecuteCommand(ctx, input.Serial, input.Command, input.Args, input.Peer)
 		if err != nil {
 			return nil, err
 		}
 		return valueAnswer(out), nil
-	}
-	if pc.readsRecordAnswers(recordAnswers) {
-		if pc.mux == nil {
-			return nil, errRecordAnswerNeedsMux
-		}
-		return pc.mux.CallAnswer(ctx, methodExecuteCommand, input)
 	}
 	out, err := pc.executeCommandValue(ctx, input)
 	if err != nil {
@@ -353,8 +359,8 @@ func (pc *PluginConn) SendExecuteCommandAnswer(ctx context.Context, input *rpc.E
 // wire carries the answer and this one holds it, so a caller that must bound its
 // memory takes the other (routeToProcess,
 // internal/component/plugin/server/command.go).
-func (pc *PluginConn) SendExecuteCommand(ctx context.Context, input *rpc.ExecuteCommandInput, recordAnswers bool) (*rpc.ExecuteCommandOutput, error) {
-	answer, err := pc.SendExecuteCommandAnswer(ctx, input, recordAnswers)
+func (pc *PluginConn) SendExecuteCommand(ctx context.Context, input *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
+	answer, err := pc.SendExecuteCommandAnswer(ctx, input)
 	if err != nil {
 		return nil, err
 	}
@@ -390,24 +396,8 @@ func ExecuteCommandValue(answer *rpc.Answer) (*rpc.ExecuteCommandOutput, error) 
 	return &rpc.ExecuteCommandOutput{Status: answer.Status, Data: document}, nil
 }
 
-// readsRecordAnswers reports whether this peer's next execute-command answer
-// arrives as a record sequence.
-//
-// Two facts decide it, and they are the two the plugin's own read side consults
-// (readsRecordAnswers, pkg/plugin/sdk/sdk_engine.go). The peer must have named
-// the shape at Stage 3, which declared is. And the answer must come over the
-// wire: a bridge replaced the pipe with an in-process call, which has no line to
-// carry a record on and answers one marshaled value whatever the peer declared.
-func (pc *PluginConn) readsRecordAnswers(declared bool) bool {
-	if !declared {
-		return false
-	}
-	return pc.bridge == nil
-}
-
-// executeCommandValue sends one execute-command and reads the single-line result
-// a peer that declared no answer shape writes. It is the frame this RPC has
-// always carried, unmarshaled whole.
+// executeCommandValue sends one execute-command over the bridge's generic
+// callback path and reads the one marshaled value it answers with.
 func (pc *PluginConn) executeCommandValue(ctx context.Context, input *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
 	result, err := pc.CallRPC(ctx, methodExecuteCommand, input)
 	if err != nil {

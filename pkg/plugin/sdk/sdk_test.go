@@ -1149,9 +1149,9 @@ func TestSDKDispatchCommand(t *testing.T) {
 	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:dispatch-command", req.Method)
 
-	// Answer it as the engine answers a peer that named record-answers at
-	// stage 3: a head, the one document this bounded walk collapsed to, and the
-	// terminator. The plugin still sees the value byte for byte.
+	// Answer it as the engine answers every peer: a head, the one document this
+	// bounded walk collapsed to, and the terminator. The plugin still sees the
+	// value byte for byte.
 	require.NoError(t, writeAnswerLines(ctx, engine.mux, documentAnswerLines(req.ID, `{"last-index":42}`, 1, 0)))
 
 	require.NoError(t, <-dispatchDone)
@@ -2672,20 +2672,29 @@ func TestSDKOnAllPluginsReadyNoHandlerIsNoop(t *testing.T) {
 	shutdownPlugin(t, ctx, engine, errCh)
 }
 
-// TestPluginRunDeclaresRecordAnswers checks that an SDK plugin tells the engine
-// it can read a record answer. The method: drive the five-stage startup against
-// a fake engine and read the protocol list off the Stage 3 message the plugin
-// sent.
+// TestPluginAnswersRecordsWithoutDeclaringAShape checks that an SDK plugin
+// writes the record sequence with nothing negotiated. The method: drive the
+// five-stage startup against a fake engine, read the Stage 3 message and check
+// it names no wire shape, then ask the running plugin to run one command and
+// read the answer it writes.
 //
-// VALIDATES: AC-1 -- declare-capabilities names record-answers in protocol,
-// which is the single input Process.RecordAnswers reads for this peer
-// (onCapabilities, internal/component/plugin/server/startup.go).
-// PREVENTS: every SDK plugin taking the single-line branch of answerResult
-// forever, which is what keeps the record sequence a frame no Go plugin speaks.
-func TestPluginRunDeclaresRecordAnswers(t *testing.T) {
+// The two halves belong in one test because the second is what the first is
+// for. A Stage 3 message carrying no protocol key proves only that a field
+// left the wire; the answer that follows it is what proves nothing was
+// negotiated away with it.
+//
+// VALIDATES: AC-1 in the plugin-to-engine direction -- a plugin that declares
+// no protocol name still answers execute-command with a head, its records and a
+// terminator.
+// PREVENTS: the negotiation returning as a per-plugin setting, which would put
+// two encodings of one answer back on the wire and let the engine read either.
+func TestPluginAnswersRecordsWithoutDeclaringAShape(t *testing.T) {
 	t.Parallel()
 
 	p, engine := newTestPair(t)
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+		return rpc.StatusDone, map[string]any{"peers": 5}, nil
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -2709,14 +2718,9 @@ func TestPluginRunDeclaresRecordAnswers(t *testing.T) {
 	// Stage 3: the declaration under test.
 	req = readEngineRequest(t, ctx, engine.mux)
 	require.Equal(t, "ze-plugin-engine:declare-capabilities", req.Method)
-
-	var caps DeclareCapabilitiesInput
-	require.NoError(t, json.Unmarshal(req.Params, &caps))
+	assert.NotContains(t, string(req.Params), "protocol",
+		"stage 3 names no wire shape: one answer has one encoding")
 	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
-
-	assert.True(t, caps.Understands(rpc.ProtocolRecordAnswers),
-		"stage 3 must name %q in protocol, or the engine writes every answer as one line",
-		rpc.ProtocolRecordAnswers)
 
 	// Stage 4: share-registry.
 	registryInput := struct {
@@ -2728,6 +2732,23 @@ func TestPluginRunDeclaresRecordAnswers(t *testing.T) {
 	req = readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:ready", req.Method)
 	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+
+	// The answer this plugin writes, having declared nothing.
+	answer, err := engine.mux.CallAnswer(ctx, "ze-plugin-callback:execute-command",
+		rpc.ExecuteCommandInput{Command: "show peers"})
+	require.NoError(t, err)
+	assert.Equal(t, rpc.StatusDone, answer.Status)
+	assert.Equal(t, rpc.AnswerTypeJSON, answer.Type)
+
+	items := make([]string, 0, 1)
+	for record := range answer.Records {
+		require.Empty(t, record.Fault)
+		items = append(items, string(record.Item))
+	}
+	require.NoError(t, answer.Err(), "the answer must reach its terminator")
+	assert.Equal(t, rpc.VerdictDone, answer.Verdict())
+	require.Len(t, items, 1)
+	assert.JSONEq(t, `{"peers":5}`, items[0])
 
 	shutdownPlugin(t, ctx, engine, errCh)
 }

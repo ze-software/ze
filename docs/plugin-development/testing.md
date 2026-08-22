@@ -195,11 +195,10 @@ func TestCommandHandler(t *testing.T) {
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
 
-`CallRPC` cannot read this answer. The SDK names `record-answers` at Stage 3 for
-every plugin, so a plugin that completed startup answers `execute-command` with a
-head, its records and a terminator. A test that reads one JSON result takes the
-head line's tail for its payload. Read the answer with `CallAnswer` and collapse
-it, which is the engine's own three steps:
+`CallRPC` cannot read this answer. A plugin answers `execute-command` with a
+head, its records and a terminator, so a test that reads one JSON result takes
+the head line's tail for its payload. Read the answer with `CallAnswer` and
+collapse it, which is the engine's own three steps:
 
 ```go
 func executeCommand(t *testing.T, ctx context.Context, mux *rpc.MuxConn, input any) *rpc.ExecuteCommandOutput {

@@ -275,17 +275,13 @@ func (p *Plugin) eventLoop(ctx context.Context) error {
 }
 
 // answerExecuteCommand answers one execute-command request from the socket
-// event loop: the answer sequence once this plugin has declared the record
-// shape, one result line while it has not, and one error line when the handler
-// failed.
+// event loop: the answer sequence, or one error line when the handler failed.
 //
-// The answer writer is offered only once this plugin has told the engine it
-// speaks the record shape, which is the SAME declaration the read side consults
-// before it expects one (readsRecordAnswers, sdk_engine.go). One declaration
-// governs both directions, so a plugin cannot write a frame it has not said it
-// speaks (R-1 of spec-record-answers-1-sdk-path), and the engine reads the
-// frame that declaration names rather than guessing from what arrives
-// (PluginConn.SendExecuteCommand, internal/component/plugin/ipc/rpc.go).
+// The answer writer is offered for every request. One answer has one encoding,
+// so the engine reads a head, its records and a terminator, and a plugin that
+// wrote a single-line result here would hand it a head line's tail for the
+// whole result (R-1 of spec-record-answers-1-sdk-path,
+// PluginConn.SendExecuteCommandAnswer, internal/component/plugin/ipc/rpc.go).
 //
 // An error AFTER the answer opened still travels as an error line: a mid-walk
 // refusal, a row that disagrees with the declared columns among them, ends the
@@ -296,10 +292,7 @@ func (p *Plugin) answerExecuteCommand(ctx context.Context, req *rpc.Request) err
 	fn := p.onExecuteCommand
 	p.mu.Unlock()
 
-	var answer io.Writer
-	if p.recordAnswers.Load() {
-		answer = p.engineMux.AnswerWriter(ctx)
-	}
+	answer := p.engineMux.AnswerWriter(ctx)
 
 	result, err := executeCommandAnswer(fn, req.Params, answer, req.ID)
 	if err != nil {

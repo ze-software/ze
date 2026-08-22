@@ -50,7 +50,7 @@ p.OnExecuteCommand(func(serial, command string, args []string, peer string) (sta
 ## Wire Format
 
 Commands are delivered to the plugin as `execute-command` RPCs over the MuxConn connection. The wire format uses `#<id> <verb> [<json>]` framing.
-<!-- source: pkg/plugin/rpc/message.go -- FormatRequest, FormatResult, FormatError -->
+<!-- source: pkg/plugin/rpc/message.go -- AppendRequest, AppendResult, AppendError -->
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput, ExecuteCommandOutput -->
 
 ### Request (engine to plugin)
@@ -61,10 +61,9 @@ Commands are delivered to the plugin as `execute-command` RPCs over the MuxConn 
 
 ### Success Response (plugin to engine)
 
-The SDK names `record-answers` at Stage 3 for every plugin, so the answer is a
-head, its records and a terminator. The frame follows that declaration and never
-the payload. A handler that built one value therefore takes the same three lines
-as a handler that walked a table.
+The answer is a head, its records and a terminator, on every connection. The
+frame is the same whatever the payload is, so a handler that built one value
+takes the same three lines as a handler that walked a table.
 
 ```
 #17 ok status=done type=json
@@ -74,12 +73,9 @@ as a handler that walked a table.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer -->
 
-A peer that speaks the protocol by hand and declares nothing gets the single
-line instead:
-
-```
-#17 ok {"status":"done","data":{"status":"running","uptime":3600}}
-```
+The engine reads that sequence back into one `ExecuteCommandOutput`: the head's
+`status=` is its `status`, and the record is its `data`.
+<!-- source: internal/component/plugin/ipc/rpc.go -- ExecuteCommandValue -->
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
 
 ### Error Response (plugin to engine)

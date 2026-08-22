@@ -107,8 +107,12 @@ func startTestHandler(t *testing.T, name string, mock *mockPluginCommands) *Subs
 						return
 					}
 					status, data := mock.handler(input.Command)
-					out := &rpc.ExecuteCommandOutput{Status: status, Data: json.RawMessage(data)}
-					if err := pluginMux.SendResult(ctx, req.ID, out); err != nil {
+					// The mock's Stage 3 above declares nothing, and it
+					// still answers with the head, the item and the
+					// terminator: one answer has one encoding.
+					head := rpc.AnswerTail{Status: status}
+					answer := pluginMux.AnswerWriter(ctx)
+					if err := rpc.WriteDocumentAnswer(answer, req.ID, head, json.RawMessage(data)); err != nil {
 						return
 					}
 				case <-ctx.Done():
@@ -155,8 +159,13 @@ func TestSubsystemRPCProtocol(t *testing.T) {
 
 // TestSubsystemRPCCommand verifies command execution through the RPC protocol.
 //
-// VALIDATES: After completing 5-stage protocol, commands are routed and return responses.
-// PREVENTS: Command routing failures after protocol completion.
+// The mock subsystem declares no wire shape at Stage 3 and answers with the
+// record sequence anyway, which is what the hub must read for every peer.
+//
+// VALIDATES: AC-1 at the hub's own command path -- a peer that declares nothing
+// has its answer read as a head, its records and a terminator.
+// PREVENTS: SubsystemHandler.Handle taking a head line's tail for a command
+// result, which is what a single-frame read does to an answer sequence.
 func TestSubsystemRPCCommand(t *testing.T) {
 	t.Parallel()
 
@@ -479,32 +488,4 @@ func TestSubsystemManagerConcurrentGet(t *testing.T) {
 	for range 100 {
 		<-done
 	}
-}
-
-// TestHubStartupSinkRecordsTheProtocolDeclaration checks that a forked
-// subsystem's Stage 3 protocol declaration is stored where the hub reads it. The
-// method: drive the hub's own startup sink with each declaration and read back
-// what the process holds.
-//
-// The hub drops the BGP capability declarations, having no injector for them,
-// and dropping the protocol declaration with them would leave the hub reading a
-// subsystem's record answer as a single-line result.
-//
-// VALIDATES: AC-8 of spec-record-answers-1-sdk-path at the hub's own startup
-// path -- the frame the engine reads follows the peer's declaration.
-// PREVENTS: SubsystemHandler.Handle taking a head line's tail for a command
-// result because the declaration was never recorded.
-func TestHubStartupSinkRecordsTheProtocolDeclaration(t *testing.T) {
-	t.Parallel()
-
-	proc := process.NewProcess(plugin.PluginConfig{Name: "subsystem-cache"})
-	sink := &hubStartupSink{h: &SubsystemHandler{proc: proc}}
-
-	require.NoError(t, sink.onCapabilities(&rpc.DeclareCapabilitiesInput{
-		Protocol: []string{rpc.ProtocolRecordAnswers},
-	}))
-	assert.True(t, proc.RecordAnswers(), "a subsystem that named the shape reads and writes it")
-
-	require.NoError(t, sink.onCapabilities(&rpc.DeclareCapabilitiesInput{}))
-	assert.False(t, proc.RecordAnswers(), "a subsystem that named nothing keeps the value frame")
 }

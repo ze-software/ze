@@ -594,7 +594,7 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 		rpcCtx, cancel := context.WithTimeout(context.Background(), CompletionTimeout)
 		defer cancel()
 		input := &rpc.ExecuteCommandInput{Serial: serial, Command: cmd.Name, Args: completedArgs, Peer: partial}
-		rpcOut, rpcErr := conn.SendExecuteCommand(rpcCtx, input, proc.RecordAnswers())
+		rpcOut, rpcErr := conn.SendExecuteCommand(rpcCtx, input)
 		switch {
 		case rpcErr != nil: // The empty result is the answer to a failed call.
 		case rpcOut != nil && rpcOut.Status == plugin.StatusError:

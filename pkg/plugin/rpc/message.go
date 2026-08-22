@@ -208,19 +208,6 @@ const (
 // to prefer.
 const AnswerBufferThreshold = 256
 
-// AnswerProtocolEnv is the SSH environment variable a client sets to ask the
-// daemon for the answer frame on the exec channel's stderr. Its value is the
-// comma-separated list of shapes the client understands, which is the same
-// vocabulary a plugin declares at Stage 3 (DeclareCapabilitiesInput.Protocol):
-// one name for one shape, so a client and a plugin never disagree about what a
-// name means.
-//
-// It is opt-in and it fails closed. An unset variable, an empty list and an
-// unknown name all leave the client with the bytes it received before the shape
-// existed. It is spelled here because the daemon reads it and the client writes
-// it, and the two are in different trees.
-const AnswerProtocolEnv = "ZE_ANSWER_PROTOCOL"
-
 // AnswerNoID is the id of an answer on a channel that carries exactly one
 // answer, which is the SSH exec channel: one command owns the channel, so
 // nothing needs to be told apart and no #<id> is written. Every other answer
@@ -655,12 +642,6 @@ func Verdict(terminator *AnswerTail) string {
 // hot-path senders should use AppendRequest with a pool buffer.
 func FormatRequest(id uint64, method string, params json.RawMessage) []byte {
 	return AppendRequest(make([]byte, 0, 2+20+1+len(method)+1+len(params)), id, method, params)
-}
-
-// FormatResult returns a success response in a freshly-allocated slice.
-// Retained for tests; hot-path senders should use AppendResult.
-func FormatResult(id uint64, result json.RawMessage) []byte {
-	return AppendResult(make([]byte, 0, 2+20+4+len(result)), id, result)
 }
 
 // FormatOK returns an empty success response in a freshly-allocated

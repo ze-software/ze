@@ -619,6 +619,38 @@ class API:
         else:
             os.write(self._callback_fd, line)
 
+    def _respond_answer(self, req_id: int, result: dict | None) -> None:
+        """Answer one execute-command with the sequence every peer writes.
+
+        It is the Python mirror of the one Go writer (WriteDocumentAnswer,
+        pkg/plugin/rpc/answer_write.go): a head naming the status and the json
+        item type, the one document the handler built, and a terminator counting
+        it. Nothing is declared and nothing is negotiated, so a handler that
+        answers with a value writes the same three lines a walk collapses to.
+
+        An absent or empty data value writes no item line and a count of zero:
+        nothing is not the same answer as an empty collection.
+        """
+        result = result or {}
+        status = result.get("status", "done")
+        if status != "error":
+            status = "done"
+
+        lines = [f"#{req_id} ok status={status} type=json\n"]
+        if "data" in result and result["data"] is not None:
+            document = json.dumps(result["data"], separators=(",", ":"))
+            lines.append(f"#{req_id} ok item={document}\n")
+            count = 1
+        else:
+            count = 0
+        lines.append(f"#{req_id} ok count={count}\n")
+
+        payload = "".join(lines).encode("utf-8")
+        if self._tls_mode:
+            self._tls_sock.sendall(payload)
+        else:
+            os.write(self._callback_fd, payload)
+
     def _handle_callback(self, req_id: int, method: str, params: dict | None) -> None:
         """Handle an inbound callback RPC, respond, and buffer any events.
 
@@ -696,9 +728,9 @@ class API:
                 result = self._execute_command_handler(
                     params.get("command", ""), params.get("args", []) or []
                 )
-                self._respond_result(req_id, result)
+                self._respond_answer(req_id, result)
             else:
-                self._respond_ok(req_id)
+                self._respond_answer(req_id, None)
         elif method == "ze-plugin-callback:post-startup":
             self._post_startup_received = True
             self._respond_ok(req_id)
@@ -1024,20 +1056,16 @@ class API:
             }
         )
 
-    def capability_done(self, protocol: list[str] | None = None) -> None:
+    def capability_done(self) -> None:
         """Signal Stage 3 capability declaration complete.
 
         Sends ze-plugin-engine:declare-capabilities RPC.
 
-        Args:
-            protocol: Wire shapes this plugin understands, by name
-                ("record-answers" is the only one). Omitting it declares none,
-                which is what every plugin written before a shape existed
-                sends, and the engine answers it in the original shape.
+        The message names no wire shape. One answer has one encoding, so a
+        command answer is a head, its records and a terminator in both
+        directions, and there is nothing for a peer to ask for.
         """
         params: dict[str, Any] = {"capabilities": self._capabilities}
-        if protocol:
-            params["protocol"] = protocol
         self._call_engine("ze-plugin-engine:declare-capabilities", params)
 
     # ==================================================================
@@ -2619,9 +2647,9 @@ def declare_capability(code: int, payload: str, encoding: str = "b64") -> None:
     _get_api().declare_capability(code, payload, encoding)
 
 
-def capability_done(protocol: list[str] | None = None) -> None:
+def capability_done() -> None:
     """Signal Stage 3 capability declaration complete."""
-    _get_api().capability_done(protocol)
+    _get_api().capability_done()
 
 
 def wait_for_registry(timeout: float = 10.0) -> dict:

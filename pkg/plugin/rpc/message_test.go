@@ -88,34 +88,6 @@ func TestFormatRequest(t *testing.T) {
 	}
 }
 
-// TestFormatResult verifies success response formatting: #<id> ok [<json>]
-//
-// VALIDATES: FormatResult produces correct wire format for success responses.
-// PREVENTS: Malformed ok responses on the wire.
-func TestFormatResult(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name   string
-		id     uint64
-		result json.RawMessage
-		want   string
-	}{
-		{"with result", 1, json.RawMessage(`{"data":"value"}`), `#1 ok {"data":"value"}`},
-		{"nil result", 2, nil, "#2 ok"},
-		{"null result", 3, json.RawMessage("null"), "#3 ok"},
-		{"empty result", 4, json.RawMessage(""), "#4 ok"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got := FormatResult(tt.id, tt.result)
-			assert.Equal(t, tt.want, string(got))
-		})
-	}
-}
-
 // TestFormatOK verifies empty success response formatting: #<id> ok
 //
 // VALIDATES: FormatOK produces correct wire format.
@@ -336,7 +308,7 @@ func TestParseLineFormatRoundTrip(t *testing.T) {
 	t.Run("ok round-trip", func(t *testing.T) {
 		t.Parallel()
 		result := json.RawMessage(`{"status":"done"}`)
-		line := FormatResult(7, result)
+		line := AppendResult(nil, 7, result)
 
 		id, verb, payload, err := ParseLine(line)
 		require.NoError(t, err)
