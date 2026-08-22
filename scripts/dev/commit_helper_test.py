@@ -2690,15 +2690,21 @@ class TestJournalRowIsAClosureSignal(unittest.TestCase):
             self.assertIsNone(stem, "a closed spec cannot be closing again")
 
     # VALIDATES: the control -- the same edit-only shape on a spec still OPEN on
-    # disk still names it, so the gate keeps firing where it should.
+    # disk, and CLAIMED by this session, still names it, so the gate keeps
+    # firing where it should.
     # PREVENTS: the drop widening into "a journal row never closes anything",
     # which would take the review gate off every journal-borne closure.
-    def test_an_edit_only_commit_on_an_open_spec_still_yields_its_stem(self):
+    # The claim is what the ownership test reads
+    # (`_spec_belongs_to_another_session`): an open spec this session neither
+    # claims nor carries is another session's, and the sibling test below pins
+    # that half.
+    def test_an_edit_only_commit_on_an_open_claimed_spec_still_yields_its_stem(self):
         with tempfile.TemporaryDirectory() as tmp:
             root, path = self._journal_repo(tmp)
             (root / "plan" / "spec-old-spec.md").write_text("# Spec: old-spec\n")
             _git(root, "add", "-A")
             _git(root, "commit", "-q", "-m", "spec old-spec is open")
+            self._claim(root, "spec-old-spec.md")
             path.write_text(self._EDIT_ONLY)
             stem = ch.spec_closure_stem(("plan/journal/some-class.md",), (), root)
             self.assertEqual(stem, "old-spec")
@@ -2737,16 +2743,34 @@ class TestJournalRowIsAClosureSignal(unittest.TestCase):
     # PREVENTS: the filter widening into "a journal row never nudges", which
     # would drop the guard against the orphaned in-progress spec the two-commit
     # closure exists to avoid.
-    def test_closure_reminder_still_fires_for_a_spec_open_on_disk(self):
+    def test_closure_reminder_still_fires_for_a_claimed_spec_open_on_disk(self):
         with tempfile.TemporaryDirectory() as tmp:
             root, path = self._journal_repo(tmp)
             (root / "plan" / "spec-old-spec.md").write_text("# Spec: old-spec\n")
             _git(root, "add", "-A")
             _git(root, "commit", "-q", "-m", "spec old-spec is open")
+            self._claim(root, "spec-old-spec.md")
             path.write_text(self._EDIT_ONLY)
             note = ch.closure_reminder(("plan/journal/some-class.md",), (), root)
             self.assertIsNotNone(note)
             self.assertIn("closure-reminder", note or "")
+
+    # VALIDATES: the reminder applies the same ownership test as
+    # `spec_closure_stem`, so landing another session's row nudges nobody to
+    # prepare a commit B for a spec they are not closing.
+    # PREVENTS: the two readers of `_journal_added_spec_stems` disagreeing about
+    # what a closure is. That already happened once with the closed-spec filter,
+    # and nothing failed because this function had no test at all.
+    def test_closure_reminder_is_silent_on_another_sessions_row(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            self._open_spec(root, "their-spec")
+            path.write_text(
+                self._JOURNAL_HEAD
+                + "| 2026-08-22 | their-spec | gate | second time | fixed |\n"
+            )
+            note = ch.closure_reminder(("plan/journal/some-class.md",), (), root)
+            self.assertIsNone(note, "their closure is not this commit's to nudge")
 
     # VALIDATES: the Pre-Commit Verification gate fires on the closure row even
     # when an older row is edited in the same commit.
@@ -2813,6 +2837,124 @@ class TestJournalRowIsAClosureSignal(unittest.TestCase):
             )
             stem = ch.spec_closure_stem(("plan/journal/some-class.md",), (), root)
             self.assertEqual(stem, "new-spec")
+
+    # --- Whose row is it -----------------------------------------------------
+    #
+    # A class file is shared. `spec_closure_stem` reads a row it ADDS as this
+    # commit's closure signal, and the review artifact is keyed on the
+    # COMMITTING session, so a foreign row asks for a path only its own author
+    # can write (`plan/journal/gate-fires-outside-its-population.md`).
+
+    def _open_spec(self, root: Path, stem: str) -> None:
+        """Commit plan/spec-<stem>.md: the state an OPEN spec is in."""
+        (root / "plan" / f"spec-{stem}.md").write_text(f"# Spec: {stem}\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", f"spec {stem} is open")
+
+    def _refusing_review_gate(self, root: Path) -> None:
+        """A review_gate.py that always refuses, so a DEMAND is visible."""
+        (root / "scripts" / "dev" / "review_gate.py").write_text(
+            "import sys\nprint('no artifact', file=sys.stderr)\nsys.exit(1)\n"
+        )
+
+    # VALIDATES: a row naming an OPEN spec this session neither claims nor
+    # carries is another session's closure, so it is not this commit's.
+    # PREVENTS: the measured block -- two rows in a shared class file named
+    # another session's specs, and the gate asked this session for
+    # tmp/review/<their-stem>-<my-session>.md, which only they can write. No
+    # other session could land the file.
+    def test_a_row_naming_another_sessions_open_spec_is_not_this_closure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            self._open_spec(root, "their-spec")
+            path.write_text(
+                self._JOURNAL_HEAD
+                + "| 2026-08-22 | their-spec | gate | second time | fixed |\n"
+            )
+            stem = ch.spec_closure_stem(("plan/journal/some-class.md",), (), root)
+            self.assertIsNone(stem, "another session's row closes nothing here")
+
+    # VALIDATES: the narrowing stops at the file boundary -- this session's own
+    # row, naming the spec it claims, is still a closure.
+    # PREVENTS: the fix disabling the gate it was asked to narrow.
+    def test_a_row_naming_this_sessions_claimed_spec_still_closes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            self._open_spec(root, "my-spec")
+            self._claim(root, "spec-my-spec.md")
+            path.write_text(
+                self._JOURNAL_HEAD
+                + "| 2026-08-22 | my-spec | gate | second time | fixed |\n"
+            )
+            stem = ch.spec_closure_stem(("plan/journal/some-class.md",), (), root)
+            self.assertEqual(stem, "my-spec")
+
+    # VALIDATES: commit A of a closure carries plan/spec-<stem>.md, and that
+    # alone attributes the row to this session.
+    # PREVENTS: the claim being the only test. `ze-close` step 6b releases the
+    # claim BEFORE step 6d prepares the commit, so at closure there is no claim
+    # to match and a claim-only test would take the review gate off the one
+    # commit that carries the code.
+    def test_a_closure_commit_carrying_its_spec_still_closes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            self._open_spec(root, "my-spec")
+            path.write_text(
+                self._JOURNAL_HEAD
+                + "| 2026-08-22 | my-spec | gate | second time | fixed |\n"
+            )
+            stem = ch.spec_closure_stem(
+                ("plan/journal/some-class.md", "plan/spec-my-spec.md"), (), root
+            )
+            self.assertEqual(stem, "my-spec")
+
+    # VALIDATES: a REWRITTEN row is read the same way as an added one. It reads
+    # as added in a diff against HEAD, and the attribution is what separates it.
+    # PREVENTS: the sharpest measured case -- a third session rewrote a row of a
+    # shared class file, this session added prose and no row, and the gate
+    # demanded the artifact of whichever session committed the file first.
+    def test_a_rewritten_row_naming_a_foreign_open_spec_is_not_this_closure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            self._open_spec(root, "old-spec")
+            path.write_text(self._EDIT_ONLY + "\nProse this session added.\n")
+            stem = ch.spec_closure_stem(("plan/journal/some-class.md",), (), root)
+            self.assertIsNone(stem, "the rewrite belongs to the other session")
+
+    # VALIDATES: the gate itself, not the stem reader -- a foreign row leaves
+    # review_gate_problems() with nothing to demand.
+    # PREVENTS: a stem reader that is right while the gate still refuses.
+    def test_a_foreign_row_demands_no_review_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            self._open_spec(root, "their-spec")
+            self._refusing_review_gate(root)
+            path.write_text(
+                self._JOURNAL_HEAD
+                + "| 2026-08-22 | their-spec | gate | second time | fixed |\n"
+            )
+            problems = ch.review_gate_problems(
+                root, ("plan/journal/some-class.md",), ()
+            )
+            self.assertEqual(problems, [])
+
+    # VALIDATES: the control at the same entry point -- this session's own
+    # closure is still refused without an artifact.
+    def test_this_sessions_closure_still_demands_a_review_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, path = self._journal_repo(tmp)
+            self._open_spec(root, "my-spec")
+            self._claim(root, "spec-my-spec.md")
+            self._refusing_review_gate(root)
+            path.write_text(
+                self._JOURNAL_HEAD
+                + "| 2026-08-22 | my-spec | gate | second time | fixed |\n"
+            )
+            problems = ch.review_gate_problems(
+                root, ("plan/journal/some-class.md", "scripts/dev/a.py"), ()
+            )
+            self.assertTrue(problems, "a closure with no artifact must be refused")
+            self.assertIn("INDEPENDENT critical review", problems[0])
 
     # VALIDATES: a Spec cell the parser cannot read BLOCKS the commit.
     # PREVENTS: the fail-open half of the same fix. `_journal_added_spec_stems`

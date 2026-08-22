@@ -483,6 +483,12 @@ def closure_reminder(
     reason `spec_closure_stem` filters it: editing an old row is not closing the
     spec it names. Without the filter this nudge tells the caller to prepare a
     commit B for a spec whose file git removed months ago.
+
+    A row naming an OPEN spec this session neither claims nor carries is another
+    session's row (`_spec_belongs_to_another_session`), and this commit closes
+    nothing by landing it. Both readers of `_journal_added_spec_stems` apply both
+    filters: one that landed in `spec_closure_stem` alone is how these two last
+    disagreed about what a closure is.
     """
     has_learned = bool(learned_paths(add_paths))
     has_journal = bool(
@@ -491,6 +497,7 @@ def closure_reminder(
             stem
             for stem in _journal_added_spec_stems(repo, add_paths, remove_paths)
             if not _spec_closed_earlier(repo, stem)
+            and not _spec_belongs_to_another_session(repo, stem, add_paths)
         ]
     )
     if not has_learned and not has_journal:
@@ -3567,6 +3574,38 @@ def _spec_closed_earlier(repo: Path, stem: str) -> bool:
     return res.returncode == 0 and res.stdout.strip() != ""
 
 
+def _spec_belongs_to_another_session(
+    repo: Path, stem: str, add_paths: tuple[str, ...]
+) -> bool:
+    """Whether plan/spec-<stem>.md is an OPEN spec this session is not working on.
+
+    A journal class file is shared. Several sessions append to it, and the row
+    one of them adds names the spec THAT session closes. `review_gate.py` keys
+    its artifact on the committing session, so reading a foreign row as this
+    commit's closure asks for `tmp/review/<their-stem>-<my-session>.md`, a path
+    only the closing session can write. The file then cannot be landed by anyone
+    else, and the session it blocks can be one that added no row at all.
+
+    Two facts say the spec is this session's, and BOTH are needed. The claim
+    (`claimed_spec`) covers every commit made while the work is in flight. The
+    `--file` list covers closure itself: `ze-close` step 6b releases the claim
+    BEFORE step 6d prepares the commit, so at closure the claim is already gone
+    and what remains is commit A carrying `plan/spec-<stem>.md` to preserve its
+    edits (ai/rules/planning.md, "Spec Closure").
+
+    A stem with no spec file at all is NOT another session's: it is a typo, or a
+    spec not yet written, and it stays a closure signal so a misspelled Spec cell
+    on a real closure commit still fails closed. A stem whose spec closed
+    earlier is dropped before this by `_spec_closed_earlier`.
+    """
+    spec = f"plan/spec-{stem}.md"
+    if not (repo / spec).is_file():
+        return False
+    if spec in add_paths:
+        return False
+    return stem != spec_stem(claimed_spec(repo))
+
+
 # --- Verification debt -------------------------------------------------------
 #
 # A row says "this gate did not run green over this commit, and the commit was
@@ -4047,13 +4086,18 @@ def spec_closure_stem(
     still fails CLOSED (every learned path counts) rather than silently letting a
     real closure through unreviewed.
 
-    One commit CAN add rows naming two specs (an edit to an older row beside the
-    closure row, or two classes touched at once), and only then is this session's
-    claim consulted: the artifact says a closure happened, the claim says which
-    one is this session's. It is a tie-break and never an override, because a
-    commit prepared with no claim, or by a session claiming another spec, must
-    still be recognised as the closure it is. With no claim among the stems the
-    first still answers, so the gate fires on SOMETHING rather than nothing.
+    A journal row counts only when it is THIS session's row
+    (`_spec_belongs_to_another_session`). A class file collects rows from many
+    sessions, so an added row can name a spec another session is closing, and a
+    rewritten row reads as an added row in a diff against HEAD. The detection was
+    right in both measured cases and the attribution was wrong: the gate demanded
+    `tmp/review/<their-stem>-<my-session>.md`, which only the closing session can
+    write, so a shared class file became unlandable by anyone else
+    (`plan/journal/gate-fires-outside-its-population.md`, 2026-08-22).
+
+    One commit CAN still add two rows this session owns, and only then is the
+    claim consulted as a tie-break: the row says a closure happened, the claim
+    says which one is this session's.
 
     A stem whose spec CLOSED EARLIER is dropped before any of that
     (`_spec_closed_earlier`). The claim tie-break only runs on two stems or more,
@@ -4090,6 +4134,7 @@ def spec_closure_stem(
             stem
             for stem in _journal_added_spec_stems(repo, add_paths, remove_paths)
             if not _spec_closed_earlier(repo, stem)
+            and not _spec_belongs_to_another_session(repo, stem, add_paths)
         ]
         if len(stems) > 1:
             claimed = spec_stem(claimed_spec(repo))
