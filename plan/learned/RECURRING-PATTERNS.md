@@ -313,6 +313,43 @@ unsigned form; add the boundary test case.
 
 ---
 
+### A bound that adds before it compares is defeated by the value it bounds
+
+**Symptom.** A guard reads a length or a count out of untrusted input, adds a
+header or an offset to it, and compares the sum against a maximum. Every ordinary
+input is refused correctly. One input near the top of the integer's range wraps
+the sum to a small number, passes the comparison, and the guard is inoperative
+for exactly the value it exists to refuse.
+
+**Cause.** The arithmetic runs before the bound does. `answerFieldWidth`
+(`pkg/plugin/rpc/message.go`) returned `uint64(header) + size` for a counted text
+whose `size` came off the wire, so `answerLineWidth` reported a small width for a
+huge stated count and `scanStatedLine` never reached its refusal. Measured:
+`#7 row 18446744073709551595:x` stated a width of 7. The sibling of the
+signed-subtraction entry above, and the same root: a value that wraps is judged
+after the wrap, not before it.
+
+**Evidence.** spec-record-answers-2-only-encoding, 2026-08-22, Review Gate ISSUE
+1. Reachable from any peer on the plugin mux connection and from the SSH exec
+channel. It was found in the NEWEST layer of the change, by the independent
+review, and not in the parts three phases had already reversed and re-read.
+
+**Avoid it by.** Bounding the value the input STATES, before any arithmetic
+touches it, and returning it unmodified once it fails. `answerFieldWidth` now
+returns the stated count when that count alone passes `MaxMessageSize` and never
+adds the header to it, and `answerLineWidth` returns that width rather than
+`at + width`, which is the second place the same sum can wrap. Then check the
+whole expression: one guarded addition proves nothing if a caller adds an offset
+to the result. Write the test at the type's limit, not at a plausible large
+number: the case that fails is `MaxUint64` minus a header, and nothing smaller
+reproduces it.
+
+**Recover if you hit it.** Grep the guard's own arithmetic for `+` on anything
+the caller did not produce. Every sum over a wire-stated number is a candidate,
+including the ones in the caller.
+
+---
+
 ### The zero value as a valid-looking answer
 
 **Symptom.** A guard passes, a loop exits, or a branch is skipped, and the
@@ -784,6 +821,21 @@ peers alias on ROA output. Measured with `AliasesForCommand` and
 `ColumnsForCommand`, not argued. The class file
 `plan/journal/gate-excludes-part-of-its-population.md` held 54 rows that day.
 
+**A spec's own file list is an inventory, and it goes stale as the spec's phases
+land (2026-08-22, spec-record-answers-2-only-encoding).** Files to Modify is
+written before the work, from what the author saw, and it is then read for
+eight phases as though it were the population. Every phase of that spec found a
+file the list omitted, and two of them were load-bearing SPEAKERS of the wire
+being rewritten: `test/scripts/ze_api.py`, the harness reader 156 fixtures reach,
+and `internal/exabgp/bridge`. Neither appears anywhere in the list. The tell is
+the same as above: the list is a record of a search, and the population is
+whoever the runtime actually routes through. Derive it from the seam rather than
+from the plan. For a wire, that is `grep -rn` for the writer and the reader
+across EVERY language in the tree, the test harnesses included, not the Go files
+the spec happened to open. A phase that finds a missing file should widen the
+list in the same commit, which is what that spec did, rather than treating the
+find as a one-off.
+
 **Avoid it by.** Deriving the population from what the RUNTIME resolves, never
 from an inventory. Then registering at the SHALLOWEST path of each branch rather
 than at each leaf. A branch root prefixes every leaf under it, the leaves nobody
@@ -1021,6 +1073,47 @@ current APIs (the old code's dependencies may have changed). The
 restoration is usually straightforward because the feature's runtime
 dependencies survive the refactor -- only the entry point and glue
 are deleted.
+
+### A design premise nobody measured, built on for three phases
+
+**Symptom.** A spec justifies a shape with a performance claim. Phases land on
+top of it. Somebody finally measures, the claim is false, and the reversal has to
+unpick every later phase that assumed the shape.
+
+**Cause.** The claim reads like a fact because it is written in the same voice as
+the constraints around it, and nothing in the workflow asks for its measurement.
+A design rationale is evidence for the reader exactly as much as a doc comment
+defending a symbol is (`ai/rules/evidence.md`): it records what its author
+believed. The measurement was as available before phase 3 as after it. It took
+two minutes.
+
+**Evidence.** spec-record-answers-2-only-encoding, 2026-08-22. The spec specified
+a length-prefixed answer id, `#<len>:<id>`, so a reader reaches the next field
+by arithmetic rather than by scanning. Measured, it was SLOWER: 8.1 to 9.2 ns
+against 3.2 to 3.5 ns for a fused digit loop over plain `#42 `, zero allocations
+either way, and two bytes wider on every line of a million-row walk. The reader
+still had to check the space that closes the field and still had to call
+`ParseUint` on the slice it had just measured, which IS the cost of the simple
+form. Phases 3, 4 and 5 had built on it; the owner measured it and reversed it in
+phase 6 (`9313b7d5e`), and the same premise had to be unpicked again from every
+counted field (`50468ee34`).
+
+**Avoid it by.** Treating a performance rationale in a spec as an ASSUMPTION with
+an A-N row, not as a constraint. Where the claim decides a shape that later phases
+will build on, the benchmark is the FIRST phase, before the shape exists: write
+both forms as two functions in a scratch `_test.go`, run `go test -bench`, and put
+the numbers in the spec. The cost of measuring is minutes; the cost of not
+measuring is every phase that inherits the shape. The general form: **the earlier
+a claim sits in a dependency chain, the cheaper it is to check and the more
+expensive it is to leave.**
+
+**Recover if you hit it.** Reverse at the layer that states the shape, not at the
+call sites. Then re-read every LATER phase for the same premise spreading under
+another name: the base-36 outer length on every counted field was the id's
+rationale applied to a second population, and it survived the first reversal by a
+commit.
+
+---
 
 ### A phase runs the suites its files sit in, not the suites its change reaches
 

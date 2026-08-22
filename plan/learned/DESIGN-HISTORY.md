@@ -867,6 +867,29 @@ built and then deleted (see Abandoned approaches).
   entirely: about 2500 lines across 9 files, once the single
   `#<id> <verb> [<json>]\n` framing replaced both protocols. None of those
   types exists in the tree today. Do not read auto-detection as live.
+- **A negotiated command-answer shape** (spec-record-answers-2-only-encoding,
+  2026-08-22): `Process.RecordAnswers()` on the plugin connection and
+  `ZE_ANSWER_PROTOCOL` on the SSH exec channel each selected between two
+  encodings of one answer. Deleted rather than defaulted, because Ze has never
+  been released and a negotiation exists only to carry a shape somebody else
+  already speaks. `ProtocolRecordAnswers`, `AnswerProtocolEnv`,
+  `declaresRecordAnswers`, `RecordAnswers`, `SetRecordAnswers` and
+  `FormatResult` are all absent from the tree.
+- **A length-prefixed answer id, and a base-36 outer length on every counted
+  field** (spec-record-answers-2-only-encoding, 2026-08-22): designed so a
+  reader reaches the kind token by arithmetic, built by phase 3
+  (`326ce6e96`) and extended to every field by phase 5 (`46c4d0e1e`), then
+  measured and deleted by phase 6 (`9313b7d5e`, `50468ee34`). The measurement is
+  the whole entry: a counted id costs 8.1 to 9.2 ns against 3.2 to 3.5 ns for a
+  fused digit loop over plain `#42 `, zero allocations either way, and it is two
+  bytes wider on every line of every walk. The count bought nothing because the
+  reader still had to check the space that closes the field and still had to
+  parse the digits, which IS the cost of the plain form. What replaced it is a
+  rule rather than a spelling: **a count belongs on a field whose value CAN hold
+  the delimiter, and nowhere else.** An id is a bounded digit run and a space
+  closes it unambiguously, because a digit cannot be a space. A record payload
+  is arbitrary operator bytes and can hold anything, which is why the payload,
+  which the spec had left uncounted, is the field that gained the count.
 - **Keeping Graceful Restart inside the RIB plugin** (128): rejected. GR
   is capability injection, not route storage. Embedding GR in the reactor
   had been tried before that and rejected as a boundary violation (353).
@@ -965,7 +988,8 @@ built and then deleted (see Abandoned approaches).
 | Every error path in the plugin server must call `PluginFailed()` and `proc.Stop()` | plugin server error returns | The startup coordinator is a barrier, so one path returning without signalling leaves it waiting forever, with no error and no coordinator-level timeout. (172) |
 | The engine must wire the bridge's `DispatchRPC` BEFORE sending the Stage-5 OK | `wireBridgeDispatch` call site | The SDK calls `SetReady()` at the end of Stage 5, so wiring after the loop leaves a window where a ready plugin dispatches into a nil bridge. (294) |
 | RPC multiplexing works only if BOTH sides dispatch concurrently | `pkg/plugin/rpc/mux.go` plus per-request dispatch | A multiplexing client against a sequential server just moves the queue into the socket buffer. The symptom is unchanged: silent route drops under load from one heavy peer. (276) |
-| The plugin wire format is newline-framed, and that is safe ONLY because every payload is compact `json.Marshal` output | `pkg/plugin/rpc/conn.go` | Compact JSON has no unescaped newline, so pretty-printed JSON silently corrupts framing. Newline was chosen over NUL so `cat`, `grep` and `tail -f` work on a live stream. (397) |
+| The plugin wire format is newline-framed, and that is safe ONLY because every payload is compact `json.Marshal` output | `pkg/plugin/rpc/conn.go` | Compact JSON has no unescaped newline, so pretty-printed JSON silently corrupts framing. Newline was chosen over NUL so `cat`, `grep` and `tail -f` work on a live stream. (397). AMENDED 2026-08-22 by spec-record-answers-2-only-encoding: this still holds for REQUEST lines, and no longer for ANSWER lines. An answer line is framed by the width its own fields state (`answerLineWidth`, `pkg/plugin/rpc/framing.go`), so a counted payload carries a raw `\n` or a trailing `\r` byte for byte. Before that, the uncounted payload forced `replaceNewlines` to rewrite both to spaces INSIDE operator data, silently. `TestCountedValuesCarryNewlinesAndCarriageReturns` holds the round trip. Two consequences a reader must keep: a stated width is attacker-supplied arithmetic and every sum over it can wrap, and the width framing belongs ONLY on the stream that carries answer lines, never on the daemon's rendering |
+| An answer line no longer explains itself, so the DOCUMENT owes what the line stopped saying | `docs/architecture/api/process-protocol.md` and `ipc_protocol.md` against `pkg/plugin/rpc/message.go` | Optimizing a wire for parsing spends the legibility it used to carry. `#42 ok status=done type=ndjson key=peers` needed no documentation, because the key names WERE the explanation; `#42 top map 5:peers 0:` is opaque to anyone without the field order. The legibility did not disappear, it MOVED, and the debt was noticed only when the owner asked for it at phase 8. The repayment is a standing rule for this wire: every wire example in an API document carries an in-place decode naming each field, adjacent to the bytes rather than in prose nearby; every count is stated as a BYTE count; every three-letter word is given its meaning where a reader first meets it; and no API page delegates its own subject to another page. `TestAnswerLineTableMatchesDoc` pins the table to the writers. (spec-record-answers-2-only-encoding, owner directive 2026-08-22) |
 | Command authorization is fail-OPEN by construction and needs ONE chokepoint covering EVERY dispatch path | `plugin/server/command.go`, where `d.authorizer == nil` allows all | The first implementation checked only when a builtin matched, so subsystem and plugin dispatch bypassed RBAC entirely. Unknown commands are treated as writes. The same guard shape now appears in the gRPC and REST servers. (390) |
 | Replay on reconnect must be selective, never bulk | bgp-watchdog `AnnounceInitial` versus `AnnouncePool` | Announcing the whole pool re-announces routes the operator explicitly withdrew. Pool state flips while the peer is down, so the selective set is the correct one at reconnect. (360) |
 

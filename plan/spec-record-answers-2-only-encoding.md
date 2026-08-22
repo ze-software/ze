@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | spec-record-answers-1-sdk-path |
-| Phase | 8 of 8, Review Gate |
+| Phase | 8 of 8, closing |
 | Deferral shard | `plan/deferrals/record-answers.md` |
 | Handoff | - |
 | Updated | 2026-08-22 |
@@ -252,10 +252,10 @@ payload length no reader can verify.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine ↔ Plugin (mux connection) | `#<id> ` field, three-byte kind, keyless counted record payload | No |
-| Daemon ↔ SSH exec client | no id on the channel, so the kind is at offset zero | No |
-| Answer line ↔ request line | both carry `#<id>`, so the id width changes for both | No |
-| Engine ↔ in-process plugin (`DirectBridge`) | no wire involved; the bridge must produce the same rows | No |
+| Engine ↔ Plugin (mux connection) | `#<id> ` field, three-byte kind, keyless counted record payload | Yes. `TestParseAnswerLineFixedOffsets`, and `test/plugin/answer-unconditional.ci` compares the frames two plugins receive |
+| Daemon ↔ SSH exec client | no id on the channel, so the kind is at offset zero | Yes. `AnswerNoID` (`pkg/plugin/rpc/message.go:667`) and `test/plugin/exec-answer-unconditional.ci`, which drives OpenSSH itself |
+| Answer line ↔ request line | both carry `#<id>`, so the id encoding changes for both | Yes. `TestAppendRequestSpellsTheSameIDField` |
+| Engine ↔ in-process plugin (`DirectBridge`) | no wire involved; the bridge must produce the same rows | Yes. `test/plugin/answer-payload-unchanged.ci` compares every row against the bytes its producer writes, on both the collapsed and the streamed leg |
 
 ### Integration Points
 - `appendAnswerPrefix` and `appendAnswerID` (`pkg/plugin/rpc/message.go`) - the two writers of the prefix this spec fixes.
@@ -267,11 +267,11 @@ payload length no reader can verify.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | Every answer line is written by the `AppendAnswer*` family in `pkg/plugin/rpc/message.go` and read by `ParseAnswerLine`. `internal/exabgp/bridge` was routed through `rpc.ParseLine` in phase 3 rather than keeping a reader of its own |
+| No unintended coupling (components stay isolated) | Yes | The reader takes its prefix width from its channel, set once at construction. Nothing infers a channel per line, and no consumer reads the frame to learn which transport it is on |
+| No duplicated functionality (extends existing, does not recreate) | Yes | Phase 2 deleted the second encoding rather than adding a third: `responseToDispatchOutput` stopped being a command-answer encoder, and `FormatResult` is gone. `ScanAnswerLines` falls back through `ScanLinesKeepingReturns`, so one copy of the splitting code serves both streams |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | The counted payload is appended verbatim by `AppendAnswerItem` and sliced back out by arithmetic. `replaceNewlines`, which rewrote the payload on its way to the wire, is deleted |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | Nothing is registered by this spec and one thing is DEREGISTERED: the `record-answers` protocol name left the capability list, so a peer declares no wire shape and the core offers no per-peer branch to select one |
 
 ## Risks & Assumptions
 
@@ -636,6 +636,19 @@ Independent reviewer, 2026-08-22. One context ran every lens itself and spawned
 no readers (`ai/rules/planning.md`, "Critical Review Is the Central Deliverable").
 The reviewer wrote none of this spec's thirteen commits.
 
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/record-answers-2-only-encoding-7e4e9f00-6a89-4b80-b4c1-573d6037cfc6.md`, 104 files pinned by hash |
+| `review_gate.py check` | clean. Re-run at closure and it passes; this closure commit carries no code file |
+| Rounds | 2. Round 2 read only round 1's fixes and found one ISSUE inside that scope, which round 1's own fix had created |
+| Reviewer lenses used | wiring and deletion completeness, frame arithmetic and bounds, the two channels and the three speakers of the wire, every AC against its producing function, the style pass, and the two questions the owner asked |
+
+Fifteen of the pinned files have since been edited by the sessions working on
+`spec-record-answers-3-zero-alloc` and on the website, so a re-record today would
+attest to code this review never read. The artifact is left as recorded: it is the
+record of the review of THIS spec's thirteen commits, and the closure commit
+carries no code file for the gate to cover.
+
 ### Scope of each round, written before it ran
 
 | Round | Scope |
@@ -660,7 +673,7 @@ The reviewer wrote none of this spec's thirteen commits.
 | 11 | NOTE | `TestAnswerLineTableMatchesDoc` binds only `ipc_protocol.md`. The nine decoded examples on `wire-format.md`, `process-protocol.md`, `plugin-development/commands.md` and `plugin-development/protocol.md` are pinned by nothing | Not fixed. Every byte count in all nine was re-derived by hand in this review and all are correct |
 | 12 | NOTE | `process-protocol.md` named the five kinds and not the field ORDER of `bad` and `nay`, so a reader on that one page could split a `nay` line's fields and not name them | FIXED. Its kind table gained a "fields, in order" column |
 | 13 | NOTE | `capability_done()` (`test/scripts/ze_api.py`) is the one public helper whose signature changed, in phase 2. Its `protocol` argument named the negotiation this spec deletes, so removing it is correct rather than compat-shimmable, and no caller in this checkout passes one | Not fixed, and nothing to fix. Recorded because the phase 2 record does not name it as a break |
-| 14 | NOTE | Two tests reddened once each under parallel load and neither reproduces alone: `TestSendExecuteCommandReadsRecords/a long walk reads as a record sequence` with `answer queue full`, and `test/plugin/rfc7606-54-bgpls-override-propagates` at 60s against a 36s barrier | Recorded, not fixed. Row in `plan/journal/gate-verdict-depends-on-the-machine.md`. Reproduction was attempted for both: 30 of 30 solo runs green, the 23-package set green at exit 0, and the functional test green alone in 3.9s |
+| 14 | NOTE | Two tests reddened once each under parallel load and neither reproduces alone: `TestSendExecuteCommandReadsRecords/a long walk reads as a record sequence` with `answer queue full`, and `test/plugin/rfc7606-54-bgpls-override-propagates.ci` at 60s against a 36s barrier | Recorded, not fixed. Row in `plan/journal/gate-verdict-depends-on-the-machine.md`. Reproduction was attempted for both: 30 of 30 solo runs green, the 23-package set green at exit 0, and the functional test green alone in 3.9s |
 | 15 | NOTE | A frame-level refusal is terminal for the mux connection. `ScanAnswerLines` errors, `FrameReader.Read` propagates, `readLoop` stores it and exits, so `maxConsecutiveBadLines` never counts that line | Not fixed. It is the correct answer, because a wrong stated width leaves the stream position unknown and no reader can resynchronize on it, but nothing in the code says so |
 
 ### Round 2
@@ -723,28 +736,294 @@ byte by byte: every stated count is correct.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-20 all demonstrated, or retired here with the commit that retired them (AC-18 only)
-- [ ] Every user story has a working path and a passing test
-- [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
-- [ ] Feature code integrated (`internal/*`, `pkg/*`), not library-only
-- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
-- [ ] Architectural Verification table filled, including registration over hardcoding
-- [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
-- [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
+- [x] AC-1..AC-20 all demonstrated, or retired here with the commit that retired them (AC-18 only)
+- [x] Every user story has a working path and a passing test
+- [x] Wiring Test table complete: every row a concrete test name, none deferred
+- [x] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [x] Feature code integrated (`internal/*`, `pkg/*`), not library-only
+- [x] Integration and Documentation checklists answered Yes/No/N-A with evidence
+- [x] Architectural Verification table filled, including registration over hardcoding
+- [x] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
+- [x] Every A-N confirmed or broken, none `unvalidated`
+- [x] Deferral shard resolved: no live row without a destination
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
-- [ ] Boundary tests for all numeric inputs
-- [ ] Functional `.ci` tests for end-to-end behavior
-- [ ] Interop tests for protocol features (or N-A with a reason)
+- [x] Tests written
+- [x] Tests FAIL (paste output)
+- [x] Tests PASS (paste output)
+- [x] Boundary tests for all numeric inputs
+- [x] Functional `.ci` tests for end-to-end behavior
+- [x] Interop tests for protocol features (or N-A with a reason)
 
 ### Closure
-- [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
-- [ ] Learned summary written to `plan/learned/NNN-record-answers-only-encoding.md`
-- [ ] **Commit A:** code + tests + docs + spec + learned summary
-- [ ] **Commit B:** `git rm plan/spec-record-answers-2-only-encoding.md` only
+- [x] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
+- [x] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [x] Learned summary written into the aggregates: `plan/learned/RECURRING-PATTERNS.md` and `plan/learned/DESIGN-HISTORY.md`
+- [x] **Commit A:** spec + journal rows + learned summary. The code landed in the thirteen commits above
+- [x] **Commit B:** the spec is removed, and the deferral shard is NOT, because it still holds a live row
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+Thirteen commits: eight phases, plus three changes the phases and the review
+produced.
+
+| Commit | What landed |
+|--------|-------------|
+| `c08252e0a` | Phase 1, wiring. Every peer receives the record answer, and the fixture whose premise was the branch is renamed to `test/plugin/answer-unconditional.ci` |
+| `66328ee04` | Phase 2. One command-answer encoding. `ProtocolRecordAnswers`, `AnswerProtocolEnv`, `declaresRecordAnswers`, `RecordAnswers`, `SetRecordAnswers` and `FormatResult` all leave the tree |
+| `326ce6e96` | Phase 3, REVERSED by phase 6. Every line stated the width of its id |
+| `e10356285` | Phase 4. The line states what it is: `top`, `row`, `bad`, `end`, `nay` |
+| `46c4d0e1e` | Phase 5. The key names leave the wire, and the head stops stating an outcome |
+| `0faf5e3a9`, `9313b7d5e`, `b05b62864`, `f7aebaab1` | Phase 6. The record payload states its own byte count, the id goes back to a digit run a space closes, and a line is framed by the width it states |
+| `370364c28` | Phase 7. The one line a bounded answer's document occupies is measured before it is built |
+| `50468ee34` | The counted-length alphabet is deleted. A number is digits, a text states its bytes |
+| `6257cf3fd` | Phase 8. The reframed fixtures, and fifteen documents restated against the wire that shipped |
+| `c5d0544c0` | `test/plugin/exec-answer-unconditional.ci` reads the exec channel's answer frame rather than its rendering |
+| `7c58d7487` | The review gate's fixes: a stated width cannot wrap past the bound that reads it |
+
+### Bugs Found/Fixed
+
+- **A stated byte count defeated the bound that reads it, by wrapping.** `answerFieldWidth` (`pkg/plugin/rpc/message.go`) returned `uint64(header) + size` for a counted text whose `size` was unbounded, so a count near the range of a uint64 wrapped the sum small and passed `MaxMessageSize`. Reachable from any peer on the mux connection and from the exec channel. Fixed in `7c58d7487`; `TestCountedTextPastTheMaximumDoesNotWrapItsWidth` (`pkg/plugin/rpc/framing_test.go`) is the regression, mutation-verified.
+- **The answer framer went onto a stream that carries no answer lines.** `rpc.ScanAnswerLines` was put on `StreamCommand`'s stdout (`internal/core/ssh/client/client.go`), which carries the daemon's rendering. A rendering line whose shape the reader accepts is measured by the width its fields state, and the byte the arithmetic lands on refuses the whole stream. Fixed in `7c58d7487` by `ScanLinesKeepingReturns` (`pkg/plugin/rpc/framing.go`); `TestPlainTextIsFramedByItsNewlineAlone` is the regression.
+- **`replaceNewlines` corrupted operator data silently.** The uncounted payload had to be delimiter-safe, so a `\n` or `\r` inside a record was rewritten to a space and nothing was recorded. Phase 6 (`0faf5e3a9`) deleted the function with the need for it; `TestCountedValuesCarryNewlinesAndCarriageReturns` holds the round trip.
+- **A failing probe answered with an outcome and no reason.** `handleAS112Health` (`internal/plugins/as112/health.go`) returned `StatusError` with an empty `Error`, which the head's `status=` used to carry and the terminator cannot. Phase 5 repaired the producer and made `answerMessage` substitute `rpc.AnswerFailureUnstated` for any producer that names none. Row in `plan/journal/zero-value-as-valid-answer.md`.
+- **A bounded answer's document was never measured.** The bound landed on the record line alone, so 256 rows collapsing to one over-wide document reached the writer whole and the consumer derived a truncation. Phase 7 (`370364c28`) runs `boundedRecord` over the collapsed document too. Row in `plan/journal/gate-excludes-part-of-its-population.md`.
+- **`test/scripts/ze_api.py` counted a counted text in characters where the wire counts bytes.** Found when `show bgp rib graph` reddened three fixtures on box-drawing glyphs. Fixed inside `9313b7d5e`; `TestCountedTextIsCountedInBytes` (`test/scripts/ze_api_test.py`) states the byte count of a value the two readings disagreed about.
+- **The fleet hub auth reader still strips a carriage return.** Found while making the payload survive one; recorded in `f7aebaab1` rather than fixed, because it is another surface's defect.
+
+### Documentation Updates
+
+Fifteen documents were restated in phase 8 (`6257cf3fd`), and `process-protocol.md`
+gained a field-order column in the review (`7c58d7487`). The primary pages:
+
+| Document | What it now carries |
+|----------|--------------------|
+| `docs/architecture/api/ipc_protocol.md` | The Negotiation section is gone. The line table, the five kinds, the three item types, both field shapes, and an in-place decode of the four-line rejecting answer, the over-wide record and the `nay` line |
+| `docs/architecture/api/process-protocol.md` | Stage 3 negotiates no answer shape. The five kind words with their meanings and their field order, the three item types, and a decode under every line of both worked answers |
+| `docs/architecture/api/wire-format.md` | The id spelling for every line that carries one, and the grammar itself rather than a delegation to another page |
+| `docs/architecture/api/commands.md` | The answer frame of `dispatch-command` and `dispatch-command-args` |
+| `docs/guide/plugins.md`, `ai/rules/plugins.md` | A plugin declares no answer shape |
+| `docs/features/plugins.md` | The `record-answers` protocol name leaves the inventory |
+| `docs/functional-tests.md` | Four `.ci` files added, one deleted, four reframed |
+
+`TestAnswerLineTableMatchesDoc` pins `ipc_protocol.md` against the writers, so the
+published table cannot drift from the code. The nine decoded examples on the other
+four pages are pinned by no test; every byte count in all nine was re-derived by
+hand during the review and all are correct (Review Gate, NOTE 11).
+
+This closure commit changes no document. `make ze-repository-check` was re-run at
+exit 0 after the review's fixes, and `make ze-spec-citation-check` is green at
+closure.
+
+### Deviations from Plan
+
+- **Phase 3 and half of phase 5 were reversed by phase 6.** The length-prefixed id
+  and the base-36 outer length on every counted field were built, measured, and
+  deleted. Both Key Design Decisions rows carry the measurement and the ruling.
+- **A-5 was BROKEN, not confirmed.** The head's `status=` did carry one fact the
+  terminator could not: a failure whose producer stated no message. Phase 5 made
+  the assumption true rather than assuming it.
+- **AC-3 was amended by the review** to describe the design that shipped, and AC-18
+  was retired by phase 6 with the one-character length form it capped.
+- **The Files to Modify list was incomplete at every phase.** `test/scripts/ze_api.py`,
+  reached by 156 fixtures, and `internal/exabgp/bridge` are load-bearing speakers of
+  this wire and the list named neither.
+- **Two commits sit outside the phase numbering.** `50468ee34` finished the reversal
+  phase 6 started, and `c5d0544c0` repaired the exec fixture to read the frame rather
+  than its rendering.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5 assumed the head's `status=` carries nothing the terminator does not, and phase 5 was to delete it | It carried exactly one fact: a response that failed with no message. `answerStatus` was the only line stating it, and `handleAS112Health` was a live producer of that state | The phase 5 audit read `responseFailure` and `answerStatus` against their producers rather than against the spec | Phase 5 repaired the producer and made the frame state the failure for any producer that names none. AC-11 was proven BEFORE the field was deleted |
+| approach | The id was to be length-prefixed, `#<len>:<id>`, so a reader could reach the kind by arithmetic. Phases 3, 4 and 5 were written on top of it | Measured, it is SLOWER: 8.1 to 9.2 ns against 3.2 to 3.5 ns for a fused digit loop over the plain form, zero allocations either way, and two bytes wider on every line. `cutID` still had to check the closing space and still had to parse the digits | The owner measured it on 2026-08-22, three phases after it landed | Phase 6 (`9313b7d5e`) reversed it and `50468ee34` deleted the same premise where phase 5 had spread it. The rule the reversal states: a count belongs on a field whose value CAN hold the delimiter |
+| approach | `answerFieldWidth` computed a field's width as `header + size` and returned it for the caller to bound | The value the caller bounds is attacker-supplied, so the addition wraps before the comparison runs and the bound reads a small number | Independent review, round 1, on the newest layer rather than the reversed ones | Fixed in `7c58d7487`: a count past `MaxMessageSize` is reported as stated and the header is never added to it |
+| approach | The spec's Files to Modify list was treated as the population of this wire's speakers | It was an inventory written before the work. `test/scripts/ze_api.py` and `internal/exabgp/bridge` speak the wire and appear nowhere in it | Each phase found its own missing file when a fixture or a package went red | Every phase widened the list rather than trusting it. Recorded in `plan/learned/RECURRING-PATTERNS.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The frame is not negotiated, and the negotiation is deleted rather than defaulted | Done | `internal/component/plugin/server/dispatch_registry.go`, `internal/component/ssh/answer.go`, `pkg/plugin/rpc/types.go` | AC-10's search returns nothing across `pkg internal cmd scripts test docs ai` |
+| Every field is reached by arithmetic | Done | `ParseAnswerLine`, `cutID` (`pkg/plugin/rpc/message.go`) | `TestParseAnswerLineFixedOffsets` |
+| No line states a fact another line can contradict | Done | `AppendAnswerHead`, `Verdict` (`pkg/plugin/rpc/message.go`) | The head states no outcome; `TestHeadStatesNoStatus`, `TestVerdictTellsFailedFromAbortedFromPartial` |
+| One field vocabulary: a three-byte word, a counted number, a counted text | Done | `answerFieldWidth` (`pkg/plugin/rpc/message.go:1369`) | `TestAnswerLineCarriesNoKeyNames`, `TestAnswerLineWidthMatchesTheWriters` |
+| The document a bounded answer carries is one line too | Done | `writeDocumentLines` (`pkg/plugin/rpc/answer_write.go`) | `TestWriteDocumentAnswerBounded` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestDispatchCommandAlwaysAnswersRecords`, `test/plugin/answer-unconditional.ci` | Two plugins, one dispatcher, frames compared byte for byte |
+| AC-2 | Done | `TestExecAnswerUnconditional`, `test/plugin/exec-answer-unconditional.ci` | The driver is OpenSSH, not `ze cli` |
+| AC-3 | Done (AMENDED) | `TestParseAnswerLineFixedOffsets` | Restated by the review against `cutID`, which walks the digits to the space that closes them |
+| AC-4 | Done | `AnswerNoID` (`pkg/plugin/rpc/message.go:667`), `appendAnswerID` appends nothing for it | The exec channel carries one answer, so the kind is at offset zero |
+| AC-5 | Done | `TestAppendAnswerRecordNoKey` | No key, and the payload is sliced by its count |
+| AC-6 | Done | `TestAnswerIDRoundTrip`, `TestAnswerIDMaxUint64`, `TestAnswerIDFieldRejected` | Each refusal asserts the message it earns |
+| AC-7 | Done | `TestParseAnswerLineUnknownKind` | Refused by name, never guessed from the tail |
+| AC-8 | Done | `test/plugin/answer-payload-unchanged.ci` | Both legs driven in the review: a payload byte rewritten with the count unchanged reddens the collapsed leg at 85 bytes and the streamed leg at 60021 bytes |
+| AC-9 | Done | `TestWriteDocumentAnswerBounded`, `test/plugin/plugin-command-document-too-wide.ci` | The over-wide document earns the fault an over-wide record earns |
+| AC-10 | Done | grep over `pkg internal cmd scripts test docs ai` returns nothing for all six symbols and for `ZE_ANSWER_PROTOCOL` | Re-run at closure |
+| AC-11 | Done | `TestVerdictTellsFailedFromAbortedFromPartial` | Proven before the head's status was deleted, per R-4 |
+| AC-12 | Done | `TestAppendAnswerRecordNoKey`, `test/plugin/answer-first-bounds-long-walk.ci` | The million-row scale is not run; the criterion under it is covered at 407 records through the daemon (Review Gate, NOTE 10) |
+| AC-13 | Done | `TestAnswerLineCarriesNoKeyNames`, `answerFieldWidth` | Three shapes and no fourth: a shape nobody thought of refuses the line |
+| AC-14 | Done | grep of `pkg/plugin/rpc/message.go` for the ten key names returns nothing | `ParseAnswerTail` dispatches on no key |
+| AC-15 | Done | `TestHeadStatesNoStatus`, `TestAwaitAnswerHeadValidatesByKind` | The head guard reads the kind |
+| AC-16 | Done | `TestAnswerLineTableMatchesDoc`; constants at `pkg/plugin/rpc/message.go:452-462` and `:618-620` | `top` `row` `bad` `end` `nay`, `doc` `map` `tab`, every one a whole word |
+| AC-17 | Done | `TestEnvelopeKeyLengthPrefixed` | An absent name writes `0:`, so the field count never varies |
+| AC-18 | Retired | Retired by phase 6 (`0faf5e3a9`) with the one-character length form it capped | `envelopeKeyMax` exists nowhere in the tree |
+| AC-19 | Done | `TestCountedValuesCarryNewlinesAndCarriageReturns` | A payload holding `\n` and one ending `\r` both round-trip byte for byte |
+| AC-20 | Done | `TestFrameRefusesWhatIsNotOneNewline`, `TestAnswerLineWidthMatchesTheWriters` | A stated width that disagrees with what arrived refuses the line |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestParseAnswerLineFixedOffsets` | Done | `pkg/plugin/rpc/message_test.go` | PASS |
+| `TestAppendAnswerRecordNoKey` | Done | `pkg/plugin/rpc/message_test.go` | PASS |
+| `TestAppendRequestSpellsTheSameIDField` | Done | `pkg/plugin/rpc/message_test.go` | PASS |
+| `TestAnswerIDRoundTrip` | Done | `pkg/plugin/rpc/message_test.go` | PASS |
+| `TestAnswerIDMaxUint64` | Done | `pkg/plugin/rpc/message_test.go` | PASS |
+| `TestAnswerIDFieldRejected` | Done | `pkg/plugin/rpc/message_test.go` | PASS. Asserts the message each refusal earns |
+| `TestParseAnswerLineUnknownKind` | Done | `pkg/plugin/rpc/message_test.go` | PASS |
+| `TestAnswerRecordLineSizeExact` | Done | `pkg/plugin/rpc/message_test.go` | PASS |
+| `TestDispatchCommandAlwaysAnswersRecords` | Done | `internal/component/plugin/server/dispatch_registry_test.go` | PASS |
+| `TestWriteDocumentAnswerBounded` | Changed | `pkg/plugin/rpc/answer_write_test.go` | PASS. It sits beside the writer child 1 moved to `pkg`, not in `internal/component/plugin` where the plan put it |
+| `TestExecAnswerUnconditional` | Done | `internal/component/ssh/answer_test.go` | PASS |
+| `TestMuxReadLoopSeparatesAnswerFromResponse` | Done | `pkg/plugin/rpc/mux_test.go` | PASS. A-3 is answered by it |
+| `TestAnswerLineTableMatchesDoc` | Done | `pkg/plugin/rpc/message_test.go` | PASS |
+| `TestAnswerLineCarriesNoKeyNames` | Done | `pkg/plugin/rpc/message_test.go` | PASS |
+| `TestHeadStatesNoStatus` | Done | `pkg/plugin/rpc/message_test.go` | PASS |
+| `TestAwaitAnswerHeadValidatesByKind` | Done | `pkg/plugin/rpc/mux_test.go` | PASS |
+| `TestVerdictTellsFailedFromAbortedFromPartial` | Done | `pkg/plugin/rpc/message_test.go` | PASS |
+| `TestEnvelopeKeyLengthPrefixed` | Done | `pkg/plugin/rpc/message_test.go` | PASS |
+| `TestEnvelopeKeyOverLimitRefused` | Retired | none | Retired with AC-18 by phase 6: a counted text carries a value of any length |
+| `TestCountedValuesCarryNewlinesAndCarriageReturns` | Changed | `pkg/plugin/rpc/framing_test.go` | Added for AC-19, which the plan listed with no test of its own. PASS |
+| `TestFrameRefusesWhatIsNotOneNewline` | Changed | `pkg/plugin/rpc/framing_test.go` | Added for AC-20. PASS |
+| `TestCountedTextPastTheMaximumDoesNotWrapItsWidth` | Changed | `pkg/plugin/rpc/framing_test.go` | Added by the review gate. PASS |
+| `TestPlainTextIsFramedByItsNewlineAlone` | Changed | `pkg/plugin/rpc/framing_test.go` | Added by the review gate. PASS |
+| `TestCountedTextIsCountedInBytes` | Changed | `test/scripts/ze_api_test.py` | Added inside phase 6 for the harness half of the wire. 57 tests OK |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `pkg/plugin/rpc/message.go` | Done | Kind tokens, counted fields, the exact prefix width, `FormatResult` deleted |
+| `pkg/plugin/rpc/types.go` | Done | `ProtocolRecordAnswers` and `AnswerProtocolEnv` deleted |
+| `pkg/plugin/rpc/mux.go` | Done | `readLoop` takes the id through `cutID`; `awaitAnswerHead` validates by kind; `Answer` lost its `Status` |
+| `pkg/plugin/rpc/conn.go` | Done | The id writer shared with requests |
+| `internal/component/plugin/dispatch.go` | Done | `WriteAnswer` unconditional |
+| `internal/component/plugin/server/dispatch_registry.go` | Done | `answerResult` lost its branch |
+| `internal/component/plugin/server/dispatch.go` | Done | No second encoding of a command answer |
+| `internal/component/plugin/process/process.go` | Done | `RecordAnswers` and `SetRecordAnswers` deleted |
+| `internal/component/plugin/server/startup.go` | Done | Stage 3 reads no protocol list |
+| `internal/component/ssh/answer.go` | Done | `declaresRecordAnswers` deleted, `writeExecAnswer` unconditional |
+| `internal/core/ssh/client/answer.go` | Done | No env var, fixed prefix |
+| `internal/component/command/render_records.go` | Done | Reads the kind rather than deriving it |
+| `pkg/plugin/rpc/framing.go` | Changed | Not in the plan. It owns the line splitters and the stated-width framing |
+| `pkg/plugin/rpc/answer_write.go` | Changed | Not in the plan. Child 1 moved both answer writers here, so phase 7's bound landed here |
+| `test/scripts/ze_api.py` | Changed | **Not in the plan.** The harness reader that 156 fixtures reach |
+| `internal/exabgp/bridge/` | Changed | **Not in the plan.** Phase 3 routed it through `rpc.ParseLine`, so one writer and one reader serve it |
+| `internal/plugins/as112/health.go` | Changed | Not in the plan. The one live producer of a failure with no message |
+| `docs/architecture/api/ipc_protocol.md`, `process-protocol.md`, `wire-format.md`, `commands.md` | Done | Rewritten in phase 8 |
+| `test/plugin/answer-single-record.ci`, `answer-many-records.ci`, `answer-truncation-detected.ci`, `answer-unknown-command.ci` | Done | Reframed in phase 8 |
+| `test/plugin/exec-answer-unconditional.ci`, `answer-unconditional.ci`, `answer-first-bounds-long-walk.ci`, `plugin-command-document-too-wide.ci`, `answer-payload-unchanged.ci` | Done | All five created and present |
+| The fixture whose premise was the branch | Done | Deleted by phase 1, which renamed it to `answer-unconditional.ci` |
+
+### Audit Summary
+- **Total items:** 20 acceptance criteria, 24 tests, 21 file groups
+- **Done:** 19 AC (AC-18 retired), 18 planned tests, every planned file
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** AC-3 amended by the review; AC-18 and `TestEnvelopeKeyOverLimitRefused` retired with the mechanism they described; `TestWriteDocumentAnswerBounded` sits in `pkg/plugin/rpc`; five tests and five files were added that the plan never named (all recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| One encoding, with the negotiation deleted rather than defaulted | functional + grep | `test/plugin/answer-unconditional.ci` compares the frames two plugins receive byte for byte, and the six negotiation symbols exist nowhere in `pkg internal cmd scripts test docs ai` |
+| A reader reaches every field by arithmetic | unit | `TestParseAnswerLineFixedOffsets` and `TestAnswerLineWidthMatchesTheWriters`; `answerFieldWidth` refuses a shape it does not know rather than defaulting one |
+| No line states a fact another line can contradict | unit | `TestHeadStatesNoStatus` plus `TestVerdictTellsFailedFromAbortedFromPartial`: the head states no outcome and the terminator alone tells failed from aborted from partial |
+| The operator's bytes are unchanged by the reframe | functional, mutation-proven | `test/plugin/answer-payload-unchanged.ci` goes RED on one payload byte rewritten with the count unchanged, separately on the collapsed leg (85 bytes) and the streamed leg (60021 bytes), and stays GREEN under a real frame change that reddens six tests in `pkg/plugin/rpc` |
+| The wire is faster to read, not just narrower | benchmark | The owner's measurement, recorded in Key Design Decisions: a fused digit loop over `#<id> ` costs 3.2 to 3.5 ns against 8.1 to 9.2 ns for the counted form, zero allocations either way. It is why phase 3 was reversed |
+| A person can still decode a capture | documentation | `docs/architecture/api/process-protocol.md` carries every kind, every item type, both field shapes and an in-place decode under every line of two worked answers. `TestAnswerLineTableMatchesDoc` pins `ipc_protocol.md` to the writers |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| 2026-08-20, converting the payload handlers outside the two RIB walks (`plan/deferrals/record-answers.md`) | deferred | Sourced by `spec-record-answers-3-zero-alloc`, not by this spec. It stays live, so the shard is NOT removed at this closure |
+| Record-level streaming for REST, gRPC, web, MCP and the looking glass (`plan/deferrals/streaming-answer-protocol.md`) | deferred | Sourced by the closed `spec-streaming-answer-protocol`. Untouched here and named in Known Limitations |
+| `table` and `text` rendering buffering whatever the wire does (`plan/deferrals/streaming-answer-protocol.md`) | accepted | A permanent limit. A column width needs every row |
+
+No row in `plan/deferrals/` names this spec as a Destination, so no row dangles when
+the spec is removed. `plan/deferrals/record-answers.md` still holds one live row and
+therefore outlives this closure.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/exec-answer-unconditional.ci` | Yes | `ls -la` at closure, 22K |
+| `test/plugin/answer-unconditional.ci` | Yes | `ls -la` at closure, 9.3K |
+| `test/plugin/answer-first-bounds-long-walk.ci` | Yes | `ls -la` at closure, 7.4K |
+| `test/plugin/plugin-command-document-too-wide.ci` | Yes | `ls -la` at closure, 8.0K |
+| `test/plugin/answer-payload-unchanged.ci` | Yes | `ls -la` at closure, 11K |
+| The fixture phase 1 renamed | No, and correctly | `ls` reports no such file; it was renamed, not adjusted |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-10 | The six negotiation symbols and the env var are absent | `grep -rn "ProtocolRecordAnswers\|AnswerProtocolEnv\|declaresRecordAnswers\|SetRecordAnswers\|FormatResult\|ZE_ANSWER_PROTOCOL" pkg internal cmd scripts test docs ai` returns nothing, run at closure |
+| AC-14 | No tail key name survives | `grep -n "answerKeyStatus\|answerKeyType\|answerKeyEnvelope\|answerKeyFields\|answerKeyItem\|answerKeyFault\|answerKeyCount\|answerKeyFaults\|answerKeyMessage\|answerKeyCode" pkg/plugin/rpc/message.go` returns nothing, run at closure |
+| AC-16 | Every token is a whole word | `pkg/plugin/rpc/message.go:452-462` gives `top` `row` `bad` `end` `nay`; `:618-620` gives `doc` `map` `tab` |
+| AC-18 | Nothing caps a counted text by its own encoding | `grep -rn "envelopeKeyMax\|countedLengthAlphabet" pkg internal cmd scripts test docs ai` returns nothing, run at closure |
+| AC-3, AC-5, AC-6, AC-7, AC-11, AC-13, AC-15, AC-17, AC-19, AC-20 | The reader and writer hold the frame | 17 named tests re-run at closure with `GOFLAGS=-count=1`, all PASS, `ok github.com/ze-software/ze/pkg/plugin/rpc 0.234s` |
+| AC-1, AC-2 | The answer is unconditional on both channels | `TestDispatchCommandAlwaysAnswersRecords` PASS and `TestExecAnswerUnconditional` PASS, re-run at closure |
+| AC-9 | The document line is bounded | `TestWriteDocumentAnswerBounded` PASS, re-run at closure |
+| The harness half | `test/scripts/ze_api.py` reads the same grammar | `python3 test/scripts/ze_api_test.py`: 57 tests, OK, run at closure |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Operator runs `ssh ze "<command>"` with nothing configured | `test/plugin/exec-answer-unconditional.ci` | Yes. Read at closure: it generates an ed25519 pair, runs four commands through OpenSSH itself rather than `ze cli`, keeps each RAW stderr, and reads the frame by the grammar with `frame-check.py` |
+| A plugin that declares nothing runs a command | `test/plugin/answer-unconditional.ci` | Yes. Read at closure: two external plugins on one daemon assert the bytes they received, and the two frames are compared byte for byte |
+| A pipe bounds a walk past the buffering threshold | `test/plugin/answer-first-bounds-long-walk.ci` | Yes. Read at closure: it measures that `system command list` passes 256 records, then compares the ten records of `first 10` against the unbounded walk |
+| A bounded answer's document exceeds one message | `test/plugin/plugin-command-document-too-wide.ci` | Yes. Read at closure: two rows that each fit collapse to a document that does not, and the answer carries the rejection standing in for it |
+| The payload survives the reframe | `test/plugin/answer-payload-unchanged.ci` | Yes. Read at closure: it drives the collapsed and the streamed shapes and compares every row against the bytes `recordRow.AppendTo` writes |
+| A reader takes a record line | `TestParseAnswerLineFixedOffsets` | Yes, PASS at closure |
+| A request line is written | `TestAppendRequestSpellsTheSameIDField` | Yes, PASS at closure |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Owner directive recorded in the Task section: Ze has never been released, and `ai/rules/go-standards.md` permits no compat path. The negotiation was deleted in phase 2 and nothing outside this tree speaks the wire |
+| A-2 | retired | The mechanism it was about was deleted by phase 6. `cutID` refuses an id past twenty digits and one past the range of a uint64; `TestAnswerIDMaxUint64` and `TestAnswerIDFieldRejected` |
+| A-3 | confirmed | `TestMuxReadLoopSeparatesAnswerFromResponse` PASS: one reader takes both line families and tells them apart at a fixed offset |
+| A-4 | confirmed | Five kinds exist and each is three bytes: `pkg/plugin/rpc/message.go:452-462`. `TestParseAnswerLineUnknownKind` refuses a sixth by name rather than guessing |
+| A-5 | **broken** | The head's `status=` carried one fact the terminator could not. Mistake Log row above; repaired in phase 5 before the field was deleted, and `TestVerdictTellsFailedFromAbortedFromPartial` holds the replacement |
+| A-6 | confirmed, with a price | The review read the published table against real captured answers and could decode them. The price is recorded in Known Limitations and paid in `process-protocol.md`, which decodes every line in place |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Wire format and internal architecture (rows 7 and 12) | `TestAnswerLineTableMatchesDoc` pins the `ipc_protocol.md` table against the writers | Yes, PASS at closure |
+| API/RPC, plugin SDK and plugin guide (rows 4, 5, 8) | `grep -c "record-answers\|ZE_ANSWER_PROTOCOL\|status=done\|type=ndjson"` over `commands.md`, `guide/plugins.md`, `ai/rules/plugins.md`, `process-protocol.md`, `wire-format.md`, `ipc_protocol.md` returns 0 for every file | Yes, run at closure |
+| Registered inventory (row 15) | `docs/features/plugins.md` names no `record-answers` protocol | Yes, run at closure |
+| Test infrastructure (row 10) | `docs/functional-tests.md` carries the reframed fixtures and names the kind words | Yes, run at closure |
+| Rows answered No (1, 2, 3, 6, 11, 13, 14) | No config leaf, no verb, no flag, no rendering change, no route metadata, no counter. The operator reads the same data through the same commands | Yes |
+| Row 9, RFC behavior | No RFC governs this wire. RFC 4254 governs the SSH transport beneath the exec channel and is untouched: the answer travels as channel data | Yes |
+
+## Core Insight
+
+**A count belongs on a field whose value can hold the delimiter, and nowhere else.**
+The spec put one on the id and left the payload uncounted, which is exactly
+backwards: a digit cannot be a space, so a space closes an id unambiguously, while
+arbitrary operator bytes CAN hold a newline. The uncounted payload is what forced
+`replaceNewlines` to rewrite `\n` and `\r` inside operator data, and the counted id
+bought nothing at a measured cost of two extra bytes and roughly 5 ns a line. Both
+halves of that error were invisible until somebody measured one of them.
