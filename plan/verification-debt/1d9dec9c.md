@@ -31,3 +31,5 @@ is open.
 | 2026-08-22 | 1d9dec9c | fix(ike): install the selectors a child rekey answered, on both roles | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-22 | 1d9dec9c | fix(ike): install the selectors a child rekey answered, on both roles | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
 | 2026-08-22 | 1d9dec9c | chore(plan): close fixit-child-rekey-answer-vs-installed-selectors | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-22 | 1d9dec9c | test(ci): remove a reject that outlived the refusal it named | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-22 | 1d9dec9c | chore(plan): close fixit-vacuous-functional-tests | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |

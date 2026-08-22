@@ -160,6 +160,20 @@ reject=stderr:pattern=code \-32021
 reject=stderr:pattern=code \-32602
 reject=stderr:pattern=unknown tool
 # The forbidden command was not quietly refused instead of run, and it really
-# reached its plugin rather than dying on an unregistered-command error.
-reject=stderr:pattern=does not support task\-augmented calls
+# reached its plugin rather than dying on an unregistered-command error. The
+# live spelling is the dispatcher's own, `plugin command %q not registered
+# (plugin may not be running)` (internal/component/plugin/server/command.go),
+# which the line below matches.
+#
+# `reject=stderr:pattern=does not support task-augmented calls` stood here and
+# cannot fire on this build. It was live once: a 2026-07-29 build refused a
+# task-augmented call to ze_clear_bgp with that exact text. The cutover this
+# header describes replaced that refusal with a revert (D-2). callTool
+# (internal/component/mcp/streamable_tools.go) now reads lookupTaskSupport only
+# for TaskSupportRequired, and carries no TaskSupportForbidden branch at all.
+# The phrase survives in one doc comment (TaskSupportLevel,
+# internal/component/mcp/tools.go) and in no format string, so no build can put
+# it on either stream. What CAN fail is the positive pair above: the probe
+# answers code=ok with a result, and that result spells "resultType":"complete"
+# and no taskId.
 reject=stderr:pattern=not registered
