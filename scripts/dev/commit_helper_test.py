@@ -2974,6 +2974,112 @@ class TestJournalRowIsAClosureSignal(unittest.TestCase):
             self.assertIn("names no spec stem", problems[0])
 
 
+class TestASpecMoveIsNotAClosure(unittest.TestCase):
+    """`git rm plan/spec-<stem>.md` closes a spec only when nothing puts it back.
+
+    `plan/future/README.md` sends real work that does not block the first
+    release to `plan/future/`, and that commit removes `plan/spec-<stem>.md`
+    and adds `plan/future/spec-<stem>.md`. The spec is not closed, no review was
+    run, and `review_gate.py` keys its artifact on the stem, so reading the move
+    as a closure demands an artifact that cannot exist
+    (`plan/journal/gate-fires-outside-its-population.md`).
+    """
+
+    _SPEC = "plan/spec-a-spec.md"
+    _FUTURE = "plan/future/spec-a-spec.md"
+
+    def _repo(self, tmp: str) -> Path:
+        """A tree whose review_gate.py always refuses, so a DEMAND is visible.
+
+        No git: with no journal path in the file list `spec_closure_stem` runs
+        no diff, and `review_gate_problems` only needs to exec the gate.
+        """
+        root = Path(tmp)
+        (root / "scripts" / "dev").mkdir(parents=True)
+        (root / "scripts" / "dev" / "review_gate.py").write_text(
+            "import sys\nprint('no artifact', file=sys.stderr)\nsys.exit(1)\n"
+        )
+        return root
+
+    # VALIDATES: a commit that removes the spec and adds it under plan/future/
+    # is not a closure, so the review gate demands nothing of it.
+    # PREVENTS: the measured refusal -- a move to plan/future/ was told to
+    # produce tmp/review/<stem>-<session>.md for a spec that is still open, and
+    # the only escapes were an owner-only override or two commits that each
+    # leave the tree inconsistent.
+    def test_a_move_to_future_is_not_a_closure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self.assertIsNone(
+                ch.spec_closure_stem((self._FUTURE,), (self._SPEC,), root)
+            )
+            self.assertEqual(
+                ch.review_gate_problems(root, (self._FUTURE,), (self._SPEC,)), []
+            )
+
+    # VALIDATES: the control -- a removal with nothing put back is still commit B
+    # of a closure, and still owes its independent review.
+    # PREVENTS: the narrowing widening into "a removal never closes anything",
+    # which would take the review gate off every closure commit B.
+    def test_a_removal_that_adds_nothing_still_closes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            self.assertEqual(ch.spec_closure_stem((), (self._SPEC,), root), "a-spec")
+            problems = ch.review_gate_problems(root, (), (self._SPEC,))
+            self.assertTrue(problems, "a closure with no artifact must be refused")
+            self.assertIn("INDEPENDENT critical review", problems[0])
+
+    # VALIDATES: the exemption keys on the SAME stem reappearing. A commit that
+    # removes one spec and adds a DIFFERENT one under plan/future/ closed the
+    # first, and still owes its review.
+    # PREVENTS: the cheapest fail-open -- any added path under plan/future/
+    # disarming the gate, which would let a real closure ride along with an
+    # unrelated relocation.
+    def test_a_removal_beside_another_specs_move_still_closes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            other = "plan/future/spec-other.md"
+            self.assertEqual(
+                ch.spec_closure_stem((other,), (self._SPEC,), root), "a-spec"
+            )
+            problems = ch.review_gate_problems(root, (other,), (self._SPEC,))
+            self.assertTrue(problems, "the other spec's move closes nothing")
+            self.assertIn("INDEPENDENT critical review", problems[0])
+
+    # VALIDATES: the removed path itself is excluded from the search for where
+    # the file went. Adding and removing one path is contradictory, not a move.
+    # PREVENTS: a `--file`/`--remove` list naming the same path taking the review
+    # gate off a real closure.
+    def test_the_removed_path_is_not_its_own_destination(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            stem = ch.spec_closure_stem((self._SPEC,), (self._SPEC,), root)
+            self.assertEqual(stem, "a-spec")
+
+    # VALIDATES: `closure_reminder` reads a removal through the same filter, so a
+    # commit that moves a spec and adds a closure artifact is still nudged to
+    # prepare the commit B that artifact is waiting for.
+    # PREVENTS: the two readers of a removal disagreeing about what a closure is.
+    # A filter that landed in one of them alone is how they last diverged.
+    def test_closure_reminder_still_nudges_beside_a_move(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            note = ch.closure_reminder(
+                ("plan/learned/001-other.md", self._FUTURE), (self._SPEC,), root
+            )
+            self.assertIsNotNone(note, "the move is no commit B for the summary")
+            self.assertIn("removes no spec", note)
+
+    # VALIDATES: the control for the reminder -- a real commit B silences it.
+    def test_closure_reminder_is_silent_after_a_real_removal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            note = ch.closure_reminder(
+                ("plan/learned/001-other.md",), (self._SPEC,), root
+            )
+            self.assertIsNone(note, "the spec was removed, so commit B happened")
+
+
 class TestScriptPathIsUniquePerPreparedCommit(unittest.TestCase):
     """A prepared commit owns its own script path.
 

@@ -469,9 +469,6 @@ def learned_paths(paths: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(path for path in paths if LEARNED_RE.match(path))
 
 
-SPEC_PATH_RE = re.compile(r"^plan/spec-.+\.md$")
-
-
 def closure_reminder(
     add_paths: tuple[str, ...],
     remove_paths: tuple[str, ...],
@@ -500,6 +497,10 @@ def closure_reminder(
     nothing by landing it. Both readers of `_journal_added_spec_stems` apply both
     filters: one that landed in `spec_closure_stem` alone is how these two last
     disagreed about what a closure is.
+
+    The removal is read through `_spec_closing_removals` for the same reason. A
+    commit that MOVES a spec to `plan/future/` removes `plan/spec-<stem>.md` and
+    adds the file again, so it is no commit B and it silences no nudge.
     """
     has_learned = bool(learned_paths(add_paths))
     has_journal = bool(
@@ -513,7 +514,7 @@ def closure_reminder(
     )
     if not has_learned and not has_journal:
         return None
-    if any(SPEC_PATH_RE.match(path) for path in remove_paths):
+    if _spec_closing_removals(add_paths, remove_paths):
         return None
     return (
         "closure-reminder: this commit adds a closure artifact but removes no "
@@ -3585,6 +3586,47 @@ def _spec_closed_earlier(repo: Path, stem: str) -> bool:
     return res.returncode == 0 and res.stdout.strip() != ""
 
 
+def _spec_closing_removals(
+    add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+) -> list[str]:
+    """The stems of the specs this commit removes and does NOT put back.
+
+    `git rm plan/spec-<stem>.md` is commit B of the two-commit spec closure
+    (`ai/rules/planning.md`, "Spec Closure"), so a removal states which spec
+    closed. A MOVE removes the same path and adds the file again elsewhere:
+    `plan/future/spec-<stem>.md` is where real work that does not block the first
+    release goes (`plan/future/README.md`). Nothing closed there, so no review
+    was run and none is owed, and `review_gate.py` keys its artifact on the stem
+    of a spec that is still open -- a path nobody can write. The only escapes
+    were an owner-only override or two commits that each leave the tree
+    inconsistent (`plan/journal/gate-fires-outside-its-population.md`).
+
+    So a removal is evidence of intent only when nothing else in the same commit
+    contradicts it. The re-added path is matched on its BASENAME, because the
+    destination is not fixed: what makes it the same spec is that
+    `spec-<stem>.md` still exists somewhere for the next reader to find.
+
+    The removed path itself is excluded from that search. A commit naming one
+    path in both lists is contradictory rather than a move, and reading it as a
+    move would take the review gate off a real closure.
+
+    Both readers of a removal come through here: `spec_closure_stem` arms the
+    review gate, and `closure_reminder` nudges for the commit B a closure
+    artifact is waiting for. A filter that lands in one reader alone is how those
+    two last disagreed about what a closure is.
+    """
+    stems: list[str] = []
+    for path in remove_paths:
+        match = _SPEC_STEM_RE.match(path)
+        if match is None:
+            continue
+        moved_to = f"spec-{match.group('stem')}.md"
+        if any(p != path and p.rsplit("/", 1)[-1] == moved_to for p in add_paths):
+            continue
+        stems.append(match.group("stem"))
+    return stems
+
+
 def _spec_belongs_to_another_session(
     repo: Path, stem: str, add_paths: tuple[str, ...]
 ) -> bool:
@@ -4085,6 +4127,9 @@ def spec_closure_stem(
     Commit B carries no code and often carries a journal edit; reading the
     journal first made it derive the wrong spec.
 
+    A removal whose file the same commit puts back elsewhere is a MOVE and says
+    nothing about a closure (`_spec_closing_removals`).
+
     NEW is the load-bearing word, and `repo` is what makes it checkable. A commit
     may carry a learned summary for a reason that is not a closure: repointing a
     dead `## Files` path, correcting a citation, a sweep over many summaries at
@@ -4136,10 +4181,9 @@ def spec_closure_stem(
         m = _LEARNED_STEM_RE.match(p)
         if m and (repo is None or not _tracked_at_head(repo, p)):
             return m.group("stem")
-    for p in remove_paths:
-        m = _SPEC_STEM_RE.match(p)
-        if m:
-            return m.group("stem")
+    removed = _spec_closing_removals(add_paths, remove_paths)
+    if removed:
+        return removed[0]
     if repo is not None:
         stems = [
             stem

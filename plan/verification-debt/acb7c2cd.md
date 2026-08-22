@@ -30,3 +30,4 @@ is open.
 | 2026-08-22 | acb7c2cd | test(runner): the debt-clear fixture repos carry a commit | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-22 | acb7c2cd | docs(journal): the row names the file, not the file minus its suffix | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-22 | acb7c2cd | rules: a discrimination proof verifies its mutation applied | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-22 | acb7c2cd | fix(tools): a spec move is not a spec closure | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
