@@ -15,8 +15,8 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
 - Current generated counts: 51 shipped or experimental feature cards, 4 roadmap cards, 395 CLI commands, 36 config sections, 96 plugin registrations, 42 direct Go dependencies, 36 weekly change entries.
-- Test evidence counts: 23,100+ unit tests, 78 fuzz targets, 1,600+ end-to-end transcript steps, 128 interop scenarios across 9 target implementations.
-- Generated date: 2026-08-19.
+- Test evidence counts: 23,100+ unit tests, 78 fuzz targets, 1,600+ end-to-end transcript steps, 147 interop scenarios across 9 target implementations.
+- Generated date: 2026-08-22.
 
 ## Quality and verification model
 
@@ -29,7 +29,7 @@ Ze uses layered proof because bugs appear at different boundaries.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
-- Interop: 128 scenarios against 9 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
+- Interop: 147 scenarios against 9 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
 - Verify workflow: `make ze-precommit-verify` takes a shared lock, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `make ze-precommit-verify-changed` and `make ze-repository-check` are narrower handoff gates.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
@@ -700,7 +700,7 @@ Curated vendor command equivalents joined with the live Ze command catalog gener
 Updated: 2026-07-04.
 Vendors: Junos MX (object-rooted), IOS XR (family-rooted-for-routing), SR OS (instance-rooted), VyOS (family-rooted-for-routing).
 
-- BGP: BGP session summary. Ze: `show bgp summary`. Junos MX: `show bgp summary` (operational, verified). IOS XR: `show bgp summary` (operational, verified); `show bgp ipv4 unicast summary` (operational, verified). SR OS: `show router bgp summary` (operational, verified). VyOS: `show bgp ipv4 summary` (operational, verified); `show ip bgp summary` (operational, legacy).
+- BGP: BGP session summary. Ze: `show bgp`. Junos MX: `show bgp summary` (operational, verified). IOS XR: `show bgp summary` (operational, verified); `show bgp ipv4 unicast summary` (operational, verified). SR OS: `show router bgp summary` (operational, verified). VyOS: `show bgp ipv4 summary` (operational, verified); `show ip bgp summary` (operational, legacy).
 - BGP: BGP peer list. Ze: `show bgp peer list`.
 - BGP: Detailed BGP peer state. Ze: `show bgp peer detail`.
 - BGP: Negotiated BGP capabilities for a peer. Ze: `show bgp peer capabilities`.

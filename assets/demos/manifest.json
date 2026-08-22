@@ -394,25 +394,25 @@
     "zefs-config": {
       "assets": {
         "poster": {
-          "bytes": 108572,
+          "bytes": 121486,
           "path": "zefs-config.png",
-          "sha256": "9e82166aac02c31e63a5d24177abaff73337f827b9685815b320c254bb5bd585"
+          "sha256": "395cc5eb0c852043fb708b0e42bb559d07dd3543024854cc9c1b84caef385851"
         },
         "transcript": {
-          "bytes": 1796,
+          "bytes": 2399,
           "path": "zefs-config.txt",
-          "sha256": "cf435951c82678c271749d67853ca802f49b3048f0f573de5acc5e1fc62e9c7c"
+          "sha256": "061ef7a0066be50cfb4997d76519124f1814f19b8f50ce477c82c10c13a20d4a"
         },
         "video": {
-          "bytes": 925010,
+          "bytes": 1229009,
           "path": "zefs-config.webm",
-          "sha256": "9651a7e3dfe2b0bdb0e33b337ad2c7c97f68473d8cdc0732caa1bfcaea20980f"
+          "sha256": "e1f065f59815824a9c6e61fa961294b4a6810ca1478920a2c07dba9782cb02ba"
         }
       },
-      "binary_sha256": "df457f352110b470cfaaeb402a220a98cce451ca8daf67614a27be6baea7185c",
-      "definition_sha256": "d90cd8112a247c0278496d2c47cda394ca9c067c72e90aed6a6c45e835a7ce05",
-      "release": "26.08.19",
-      "source_sha256": "8a3d265f580fed937054aa9e61181e34e42bbed8b65f8e82654527f3c8c7a695"
+      "binary_sha256": "53bc922c00bfc27c02c820468a34cc09202b84c6d8ebba29a5cc574f95c1c583",
+      "definition_sha256": "5fe2b244983f8f1a4af71c8940d7f4acbb18fe55857aa4af30dd0d15049a962f",
+      "release": "26.08.21",
+      "source_sha256": "e9dab3b01e1884caa130f7ee754e2addd118e05c8309d51501ddab7dc1ca767e"
     }
   },
   "renderer": {

@@ -8,15 +8,15 @@
     "core_experimental": 51,
     "planned": 4
   },
-  "generated_at": "2026-08-19",
-  "github_stars": 46,
+  "generated_at": "2026-08-22",
+  "github_stars": 50,
   "interop": {
-    "scenario_dirs_raw": 128,
-    "scenarios": 128,
+    "scenario_dirs_raw": 148,
+    "scenarios": 147,
     "target_display": "9",
     "targets": 9
   },
-  "published_at": "2026-08-19T03:49:01+00:00",
+  "published_at": "2026-08-21T23:20:25+00:00",
   "tests": {
     "e2e": 1657,
     "e2e_display": "1,600+",

@@ -223,6 +223,9 @@
     <loc>https://ze-software.net/docs/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/docs/why-ze-or-not/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/faq/</loc>
   </url>
   <url>
@@ -323,6 +326,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/guides/bgp-role/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/guides/bgp/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/guides/bmp/</loc>
@@ -545,6 +551,12 @@
   </url>
   <url>
     <loc>https://ze-software.net/project/history/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/history/why-ze/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/why-ze-or-not/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/project/why-ze/</loc>
@@ -2123,6 +2135,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/use-cases/transit-edge-rpki/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/why-ze-or-not/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/zeledon/</loc>
