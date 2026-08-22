@@ -258,6 +258,37 @@ document.addEventListener("DOMContentLoaded", function () {
         return frontendVocabPromise;
     }
 
+    function lookupFact(facts, key) {
+        var value = facts;
+        String(key || "").split(".").forEach(function (part) {
+            if (value && Object.prototype.hasOwnProperty.call(value, part)) {
+                value = value[part];
+            } else {
+                value = null;
+            }
+        });
+        return value;
+    }
+
+    function initRepoStats() {
+        var nodes = slice(document.querySelectorAll("[data-ze-stat]"));
+        if (!nodes.length || !window.fetch) return;
+        fetch(siteRootFromScript() + "data/site-facts.json")
+            .then(function (response) {
+                if (!response.ok) throw new Error("site facts");
+                return response.json();
+            })
+            .then(function (facts) {
+                nodes.forEach(function (node) {
+                    var value = lookupFact(facts, node.getAttribute("data-ze-stat"));
+                    if (value !== null && value !== undefined) {
+                        node.textContent = String(value);
+                    }
+                });
+            })
+            .catch(function () {});
+    }
+
 
     function debounce(fn, ms) {
         var timer;
@@ -1763,4 +1794,5 @@ document.addEventListener("DOMContentLoaded", function () {
     observeAutomaticTableColumnSelectors();
     initSourceLinks();
     initCodeCopyButtons();
+    initRepoStats();
 });

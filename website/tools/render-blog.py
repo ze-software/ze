@@ -55,7 +55,8 @@ def rfc822(iso):
 
 
 def render_article(a):
-    body_html = markdown.markdown(a["body"], extensions=["tables", "fenced_code", "sane_lists"])
+    body = sitelib.substitute_number_tokens(a["body"], html_spans=True)
+    body_html = markdown.markdown(body, extensions=["tables", "fenced_code", "sane_lists"])
     bits = []
     if a["date"]:
         bits.append('<time datetime="%s">%s</time>' % (a["date"], a["date"]))
@@ -92,7 +93,7 @@ def render_article_markdown(a):
     if byline:
         parts.append("*%s*" % byline)
         parts.append("")
-    parts.append(a["body"].strip())
+    parts.append(sitelib.substitute_number_tokens(a["body"]).strip())
     return "\n".join(parts).strip() + "\n"
 
 

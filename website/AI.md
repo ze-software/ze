@@ -220,14 +220,17 @@ and per-step failures.
   Never reintroduce a per-page version query: it rewrites every page on any
   asset change.
 - **Prose number tokens.** Website-owned page sources (e.g. `compare/*.md`) may
-  embed `{{ze:<name>}}` tokens (`unit-tests`, `e2e-tests`, `fuzz-targets`,
-  `interop-targets`, `interop-scenarios`, `cli-commands`, `config-sections`,
-  `dependencies`, `features`, `changes`) that `tools/render-doc.py` resolves <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
-  from `data/site-facts.json` at render time, so counts can never silently
-  drift from the live facts. Use tokens only where the source path differs from
-  its published path (compare pages qualify; `use-cases/*/index.md`, whose
-  source is its own publish target, and imported `../docs/*.md`, which
-  render raw on the code host, must use literal numbers).
+  embed `{{ze:<name>}}` tokens (`unit-tests`, `e2e-tests`, `editor-tests`,
+  `fuzz-targets`, `interop-targets`, `interop-scenarios`, `cli-commands`,
+  `config-sections`, `dependencies`, `features`, `changes`, `rfc-gated-must`,
+  `rfc-enrolled`, `rfc-summaries`, `repo-go-packages`,
+  `repo-design-comments`, `repo-detail-comments`) that `website/tools/render-doc.py`
+  resolves from `data/site-facts.json` at render time. HTML output carries a
+  `data-ze-stat` marker for build verification; Markdown mirrors get plain
+  text. Use tokens only where the source path differs from its published path
+  (compare pages qualify; `use-cases/*/index.md`, whose source is its own
+  publish target, and imported `../docs/*.md`, which render raw on the code
+  host, must use literal numbers or link to a generated stats page).
 - **Verification commands.** Use targeted commands, not a project-wide build,
   while editing architecture scripts:
   `python3 -m py_compile tools/page_registry.py tools/build.py tools/render-docs.py tools/check-page-links.py`,

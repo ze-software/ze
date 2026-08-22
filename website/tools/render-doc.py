@@ -532,10 +532,11 @@ def render(
 ):
     source_text = source.read_text()
     metadata, md_text = parse_front_matter(source_text)
-    # Resolve {{ze:...}} number tokens once, before rendering, so both the HTML
-    # and its index.md sibling carry the live count rather than the placeholder.
-    md_text = sitelib.substitute_number_tokens(md_text)
-    title = metadata.get("title") or first_h1(md_text)
+    # Resolve {{ze:...}} number tokens from site-facts twice: marked spans for
+    # HTML verification, plain text for the Markdown mirror.
+    md_text_plain = sitelib.substitute_number_tokens(md_text)
+    md_text_html = sitelib.substitute_number_tokens(md_text, html_spans=True)
+    title = metadata.get("title") or first_h1(md_text_plain)
     description = desc or metadata.get("description") or "Ze documentation."
     category = cat or metadata.get("category")
     if category and category not in PAGE_CATEGORIES:
@@ -546,13 +547,13 @@ def render(
     table_columns = metadata_bool(metadata, "table-columns", True)
 
     md = markdown.Markdown(extensions=["tables", "fenced_code", "sane_lists", "toc"])
-    body_html = md.convert(md_text)
+    body_html = md.convert(md_text_html)
     toc_html = render_doc_toc(md.toc_tokens)
-    md_out = md_text
+    md_out = md_text_plain
     if manifest is not None:
         body_html = rewrite_doc_links(body_html, doc_rel, manifest, dest_rel_dir)
-        md_out = rewrite_doc_links_markdown(md_text, doc_rel, manifest, dest_rel_dir)
-    if sitelib.contains_block_html(md_text):
+        md_out = rewrite_doc_links_markdown(md_text_plain, doc_rel, manifest, dest_rel_dir)
+    if sitelib.contains_block_html(md_text_html):
         md_out = sitelib.html_to_markdown(
             body_html,
             base_url=markdown_base_url(dest),

@@ -5,7 +5,7 @@ author: Thomas Mangin
 description: AI coding needs more than a capable model. The repository must carry its architecture, relationships, tests and checks in a form the agent can discover and the project can enforce.
 ---
 
-Ze is a network operating system spread over 623 Go packages. A model can open any one of them in under a second and still have no idea which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. Nothing in the repository tells it.
+Ze is a network operating system spread over {{ze:repo-go-packages}} Go packages. A model can open any one of them in under a second and still have no idea which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. Nothing in the repository tells it.
 
 The harness supplies the general abilities: read a file, search the tree, edit code, run a program, keep track of a task and report a failure. The project has to supply the meaning. A developer who misreads a convention usually notices, and a reviewer notices for them when they do not. An agent produces something plausible and moves on.
 
@@ -21,9 +21,9 @@ Ze carries that meaning in several layers.
 
 `ai/INDEX.md` is a task-oriented entrance. It answers questions such as where to start when adding a plugin, changing configuration, implementing an RFC or adding a command, so the agent does not have to search hundreds of packages to find the first document.
 
-`ai/PACKAGE-MAP.md` gives one short description for each of those 623 packages, and that saves a great deal of blind exploration.
+`ai/PACKAGE-MAP.md` gives one short description for each of those {{ze:repo-go-packages}} packages, and that saves a great deal of blind exploration.
 
-Production Go files carry a `// Design:` line near their top, so opening the implementation reveals the document explaining why it exists. Closely connected files also point to each other with `// Detail:`, `// Overview:` and `// Related:` comments. There are around 3,400 of the first kind and 2,900 of the second.
+Production Go files carry a `// Design:` line near their top, so opening the implementation reveals the document explaining why it exists. Closely connected files also point to each other with `// Detail:`, `// Overview:` and `// Related:` comments. There are {{ze:repo-design-comments}} of the first kind and {{ze:repo-detail-comments}} of the second.
 
 The documents point back into the source through `<!-- source: ... -->` markers. Small programs generate the two reverse indexes, `ai/CODE-TO-DOCS.md` and `ai/DOCS-TO-CODE.md`:
 
@@ -115,7 +115,7 @@ All of that is ordinary engineering judgement, and judgement is the part an agen
 | A configuration reload | a scenario driven by SIGHUP | `test/reload/` |
 | Plugin behaviour | a scenario exercising the plugin API | `test/plugin/` |
 
-The rule continues in the same way for interoperability, editor behaviour, fleet management and cross-component work. Unit tests on their own are accepted for genuinely internal logic, and the rule lists those cases so the exception cannot be invented on the spot. Everything else owes both kinds. Around 1,600 `.ci` scenarios and 160 editor `.et` scenarios are what that produces, next to the Go unit tests.
+The rule continues in the same way for interoperability, editor behaviour, fleet management and cross-component work. Unit tests on their own are accepted for genuinely internal logic, and the rule lists those cases so the exception cannot be invented on the spot. Everything else owes both kinds. Around {{ze:e2e-tests}} `.ci` scenarios and {{ze:editor-tests}} editor `.et` scenarios are what that produces, next to the Go unit tests.
 
 The test comes first and has to fail before the implementation is written. Each one carries `VALIDATES:` and `PREVENTS:` comments, so a later reader learns what the test proves and which regression it was written against.
 

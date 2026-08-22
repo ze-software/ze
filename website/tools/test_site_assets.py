@@ -4,6 +4,7 @@ sitelib / page_registry -- the pure string/path functions that the asset and
 number-accuracy work added, which are trivial to test and easy to regress."""
 
 import importlib.util
+import json
 import pathlib
 import sys
 
@@ -13,6 +14,7 @@ sys.path.insert(0, str(HERE))
 import page_registry  # noqa: E402
 import sitefacts  # noqa: E402
 import sitelib  # noqa: E402
+import check_site_stats  # noqa: E402
 
 SEO_SPEC = importlib.util.spec_from_file_location("render_seo", HERE / "render-seo.py")
 render_seo = importlib.util.module_from_spec(SEO_SPEC)
@@ -92,6 +94,56 @@ def test_substitute_known_number_token():
     out = sitelib.substitute_number_tokens("Backed by {{ze:unit-tests}} tests.")
     assert "{{ze:unit-tests}}" not in out
     assert tokens["unit-tests"] in out
+
+
+def test_substitute_known_number_token_as_marked_span():
+    tokens = sitelib.number_tokens()
+    if "unit-tests" not in tokens:
+        return
+    out = sitelib.substitute_number_tokens(
+        "Backed by {{ze:unit-tests}} tests.", html_spans=True
+    )
+    assert 'data-ze-stat="tests.unit_display"' in out
+    assert tokens["unit-tests"] in out
+
+
+def test_stat_marker_check_matches_site_facts(tmp_path):
+    facts = {"tests": {"unit_display": "23,100+"}}
+    old_facts_path = sitefacts.FACTS_PATH
+    try:
+        sitefacts.FACTS_PATH = tmp_path / "site-facts.json"
+        sitefacts.FACTS_PATH.write_text(json.dumps(facts))
+        page = tmp_path / "index.html"
+        page.write_text('<span data-ze-stat="tests.unit_display">23,100+</span>')
+        assert check_site_stats.check_html_stat_markers(tmp_path) == []
+        page.write_text('<span data-ze-stat="tests.unit_display">23,000+</span>')
+        assert check_site_stats.check_html_stat_markers(tmp_path)
+    finally:
+        sitefacts.FACTS_PATH = old_facts_path
+
+
+def test_update_html_stat_markers_rewrites_stale_values(tmp_path):
+    facts = {
+        "tests": {"unit_display": "23,100+"},
+        "rfc": {"gated_must_display": "2,966"},
+    }
+    page = tmp_path / "index.html"
+    page.write_text(
+        '<strong><span data-ze-stat="tests.unit_display">old</span></strong>\\n'
+        "<span data-ze-stat='rfc.gated_must_display'>2,900</span>\\n"
+    )
+
+    errors, pages, markers = check_site_stats.update_html_stat_markers(
+        tmp_path, facts
+    )
+
+    assert errors == []
+    assert pages == [page]
+    assert markers == 2
+    text = page.read_text()
+    assert 'data-ze-stat="tests.unit_display">23,100+</span>' in text
+    assert "data-ze-stat='rfc.gated_must_display'>2,966</span>" in text
+    assert check_site_stats.check_html_stat_markers(tmp_path, facts) == []
 
 
 def test_substitute_leaves_non_ze_braces_untouched():

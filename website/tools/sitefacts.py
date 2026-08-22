@@ -5,12 +5,14 @@ import json
 import os
 import pathlib
 import re
+import subprocess
 import sys
 import urllib.request
 from datetime import date, datetime, timezone
 
 import sitelib
 import sitepaths
+import zebinary
 
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
@@ -21,6 +23,13 @@ FACTS_PATH = DATA_DIR / "site-facts.json"
 GITHUB_REPO = "ze-software/ze"
 GITHUB_STARS_FALLBACK = 46
 _github_stars_cache = None
+
+RFC_LEDGER = MAIN_REPO / "ai" / "RFC-REQUIREMENTS.md"
+RFC_ENROLLED = MAIN_REPO / "rfc" / "enrolled.txt"
+RFC_LEDGER_SUMMARY_RE = re.compile(
+    r"(?P<requirements>\d+) requirements across (?P<summaries>\d+) summaries\. "
+    r"(?P<must>\d+) are MUST-level; (?P<gated>\d+) of those are enrolled and gated"
+)
 
 GO_REQUIRE_BLOCK_RE = re.compile(r"require\s*\(([^)]*)\)", re.DOTALL)
 GO_REQUIRE_LINE_RE = re.compile(r"^\s*(\S+)\s+\S+(\s*//\s*indirect)?\s*$")
@@ -103,11 +112,39 @@ def count_features():
     return {"core_experimental": core, "planned": planned}
 
 
+def ze_json(args):
+    binary = zebinary.resolve(MAIN_REPO)
+    if not binary.exists():
+        return None
+    try:
+        result = subprocess.run(
+            [str(binary), *args],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        return json.loads(result.stdout)
+    except (
+        OSError,
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+        ValueError,
+    ):
+        return None
+
+
 def count_cli_commands():
+    commands = ze_json(["help", "command", "--json"])
+    if commands is not None:
+        return len(commands)
     return len(load_json(DATA_DIR / "cli-commands.json", []))
 
 
 def count_config_sections():
+    roots = ze_json(["yang", "tree", "--json", "--config"])
+    if roots is not None:
+        return len(roots)
     return len(load_json(DATA_DIR / "yang-config-tree.json", {}))
 
 
@@ -122,6 +159,111 @@ def count_direct_dependencies():
             if match and not match.group(2):
                 total += 1
     return total
+
+
+def fmt_exact(n):
+    return f"{n:,}"
+
+
+def tracked_paths(*patterns):
+    if not MAIN_REPO.exists():
+        return []
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(MAIN_REPO), "ls-files", *patterns],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return []
+    return [
+        MAIN_REPO / line
+        for line in result.stdout.splitlines()
+        if line and (MAIN_REPO / line).is_file()
+    ]
+
+
+def count_go_packages():
+    if not MAIN_REPO.exists():
+        return 0
+    try:
+        result = subprocess.run(
+            ["go", "list", "./..."],
+            cwd=MAIN_REPO,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        sitelib.warn(
+            "sitefacts: unable to count Go packages with `go list ./...` (%s)" % exc
+        )
+        return 0
+    return len([line for line in result.stdout.splitlines() if line.strip()])
+
+
+def count_repo_annotations():
+    design = 0
+    detail = 0
+    paths = tracked_paths("*.go")
+    if not paths and MAIN_REPO.exists():
+        paths = [
+            path
+            for path in MAIN_REPO.rglob("*.go")
+            if not under_skip_dir(path, MAIN_REPO) and path.is_file()
+        ]
+    for path in paths:
+        text = path.read_text(errors="ignore")
+        design += text.count("// Design:")
+        detail += (
+            text.count("// Detail:")
+            + text.count("// Overview:")
+            + text.count("// Related:")
+        )
+    return {
+        "design_comments": design,
+        "design_comments_display": fmt_exact(design),
+        "detail_comments": detail,
+        "detail_comments_display": fmt_exact(detail),
+    }
+
+
+def count_rfc_requirements():
+    result = {
+        "requirements": 0,
+        "summaries": 0,
+        "must": 0,
+        "gated_must": 0,
+        "enrolled": 0,
+    }
+    if RFC_LEDGER.exists():
+        match = RFC_LEDGER_SUMMARY_RE.search(RFC_LEDGER.read_text())
+        if match:
+            result.update(
+                {
+                    "requirements": int(match.group("requirements")),
+                    "summaries": int(match.group("summaries")),
+                    "must": int(match.group("must")),
+                    "gated_must": int(match.group("gated")),
+                }
+            )
+        else:
+            sitelib.warn(
+                "sitefacts: %s summary line changed; RFC public counts unavailable"
+                % RFC_LEDGER
+            )
+    if RFC_ENROLLED.exists():
+        result["enrolled"] = sum(
+            1
+            for line in RFC_ENROLLED.read_text().splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        )
+    for key, value in list(result.items()):
+        result[key + "_display"] = fmt_exact(value)
+    return result
 
 
 def inventory_counts():
@@ -199,6 +341,18 @@ def count_e2e_files():
     )
 
 
+def count_editor_files():
+    counts = inventory_counts()
+    if counts is not None and "et_files" in counts:
+        return counts["et_files"]
+    test_dir = MAIN_REPO / "test"
+    if not test_dir.exists():
+        return 0
+    return sum(
+        1 for path in test_dir.rglob("*.et") if not under_skip_dir(path, MAIN_REPO)
+    )
+
+
 def count_interop_targets():
     interop_dir = MAIN_REPO / "test" / "interop"
     if not interop_dir.exists():
@@ -258,7 +412,10 @@ def build_facts():
     tests = count_go_tests()
     scenarios = count_interop_scenarios()
     e2e = count_e2e_files()
+    editor = count_editor_files()
     targets = count_interop_targets()
+    go_packages = count_go_packages()
+    repo_annotations = count_repo_annotations()
     facts = {
         "generated_at": date.today().isoformat(),
         "published_at": published_at(),
@@ -274,6 +431,8 @@ def build_facts():
             "unit_display": fmt_int(tests["unit"]),
             "e2e": e2e,
             "e2e_display": fmt_int(e2e),
+            "editor": editor,
+            "editor_display": fmt_int(editor),
             "fuzz": tests["fuzz"],
             "fuzz_display": fmt_int(tests["fuzz"]),
         },
@@ -282,6 +441,21 @@ def build_facts():
             "target_display": fmt_int(targets),
             "scenarios": scenarios["visible"],
             "scenario_dirs_raw": scenarios["raw"],
+        },
+        "rfc": count_rfc_requirements(),
+        "repo": {
+            "go_packages": go_packages,
+            "go_packages_display": fmt_exact(go_packages),
+            **repo_annotations,
+        },
+        "_sources": {
+            "tests": "../main/test/health/latest.json",
+            "interop.targets": "../main/test/interop/Dockerfile.*",
+            "interop.scenarios": "../main/test/interop/scenarios/",
+            "rfc": "../main/ai/RFC-REQUIREMENTS.md",
+            "rfc.enrolled": "../main/rfc/enrolled.txt",
+            "repo.go_packages": "go list ./...",
+            "repo.annotations": "git ls-files *.go",
         },
     }
     return facts
@@ -295,7 +469,7 @@ def write_facts(path=FACTS_PATH):
         # publishing zeros. The site-data-derived counts (features, cli,
         # config, changes, blog) come from local data and stay accurate.
         previous = json.loads(path.read_text())
-        for key in ("dependencies", "tests", "interop"):
+        for key in ("dependencies", "tests", "interop", "rfc", "repo"):
             if key in previous:
                 facts[key] = previous[key]
     path.write_text(json.dumps(facts, indent=2, sort_keys=True) + "\n")

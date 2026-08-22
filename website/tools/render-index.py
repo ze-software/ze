@@ -22,7 +22,6 @@ import pathlib
 
 import models
 import sitelib
-import sitefacts
 
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
@@ -31,27 +30,23 @@ CHANGES_DATA = GH_PAGES / "data" / "changes.json"
 WHATS_NEW_DATA = GH_PAGES / "data" / "whats-new.json"
 DEST = GH_PAGES / "index.html"
 
-# Homepage proof-strip numbers are regenerated from ../main whenever the
-# homepage is rendered. The fallback is only for a damaged or unavailable
-# source tree.
-PROOF_STATS_FALLBACK = {
-    "unit_tests": "17,300+",
-    "e2e_tests": "1,300+",
-    "fuzz_targets": "65+",
-    "interop_targets": "7",
+# Homepage proof-strip numbers come from data/site-facts.json. The build writes
+# that JSON before rendering and then re-checks every data-ze-stat span, so a
+# stale hand-edited number fails the build.
+PROOF_STAT_KEYS = {
+    "unit_tests": "tests.unit_display",
+    "e2e_tests": "tests.e2e_display",
+    "fuzz_targets": "tests.fuzz_display",
+    "interop_targets": "interop.target_display",
+    "rfc_must_checks": "rfc.gated_must_display",
+    "rfc_enrolled": "rfc.enrolled_display",
 }
 
 
 def proof_stats():
-    try:
-        facts = sitefacts.write_facts()
-    except (OSError, KeyError, ValueError):
-        return PROOF_STATS_FALLBACK
     return {
-        "unit_tests": facts["tests"]["unit_display"],
-        "e2e_tests": facts["tests"]["e2e_display"],
-        "fuzz_targets": facts["tests"]["fuzz_display"],
-        "interop_targets": facts["interop"]["target_display"],
+        name: sitelib.stat_span(key)
+        for name, key in PROOF_STAT_KEYS.items()
     }
 
 
@@ -422,10 +417,10 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                     </a>
                     <a class="proof" href="quality/rfc-compliance/">
                         <strong
-                            >2,950 <span class="label">RFC MUST checks</span></strong
+                            >{rfc_must_checks} <span class="label">RFC MUST checks</span></strong
                         >
                         <ul>
-                            <li>168 RFCs inspected</li>
+                            <li>{rfc_enrolled} RFCs inspected</li>
                             <li>Gaps disclosed before claims</li>
                             <li>Tests tied to requirement IDs</li>
                         </ul>

@@ -85,6 +85,7 @@ sys.path.insert(0, str(HERE))
 import page_registry  # noqa: E402
 import sitefacts  # noqa: E402
 import sitelib  # noqa: E402
+import check_site_stats  # noqa: E402
 import sitepaths  # noqa: E402
 
 STEPS = [
@@ -648,46 +649,13 @@ def check_markdown_mirrors():
             )
 
 
-def check_homepage_proof_drift():
-    """index.html's proof strip quotes four evidence numbers (unit tests, end
-    to end tests, fuzz targets, interop targets). render-index.py generates
-    them from data/site-facts.json, but the numbers are also the site's most
-    load-bearing trust claim, so this guard re-reads the rendered page and
-    fails the build if any of the four no longer matches the facts snapshot --
-    catching a render bug or a hand-edit before it ships a stale headline
-    number. Same drift class as check_performance_stat_drift."""
-    import json
-    import re
-
-    facts_path = GH_PAGES / "data" / "site-facts.json"
-    page_path = GH_PAGES / "index.html"
-    if not facts_path.exists() or not page_path.exists():
-        return
-
-    facts = json.loads(facts_path.read_text())
-    page = page_path.read_text()
-
-    # label as it appears in the proof strip -> its facts display value
-    expected = {
-        "unit tests": facts["tests"]["unit_display"],
-        "end to end tests": facts["tests"]["e2e_display"],
-        "fuzz targets": facts["tests"]["fuzz_display"],
-        "interop targets": facts["interop"]["target_display"],
-    }
-
-    for label, want in expected.items():
-        match = re.search(
-            r"<strong\s*>\s*([\d,]+\+?)\s*<span class=\"label\">%s</span>"
-            % re.escape(label),
-            page,
-        )
-        got = match.group(1).strip() if match else None
-        if got != want:
-            sitelib.warn(
-                "index.html proof strip shows %r for %r but data/site-facts.json "
-                "says %r -- rerun tools/build.py --only index" % (got, label, want)
-            )
-
+def check_site_stat_drift():
+    """Validate every declared repo statistic against data/site-facts.json and
+    reject new hardcoded current-stat prose in website-owned sources."""
+    for message in check_site_stats.check_source_tokens():
+        sitelib.warn(message)
+    for message in check_site_stats.check_html_stat_markers():
+        sitelib.warn(message)
 
 def check_performance_stat_drift():
     """performance/index.html's status-row (convergence/throughput/withdrawal)
@@ -741,9 +709,7 @@ def main():
 
     # One build publishes one time. Stamped before the first step so every
     # renderer agrees, subprocesses included -- they inherit it. Reading the
-    # clock per renderer split one build across two minutes; reading it from
-    # data/site-facts.json is worse, because the `facts` step runs after most
-    # page renderers and would give them the PREVIOUS build's time.
+    # clock per renderer split one build across two minutes.
     os.environ.setdefault(sitefacts.PUBLISHED_AT_ENV, sitefacts.published_at())
 
     steps = args.only.split(",") if args.only else STEPS
@@ -784,27 +750,24 @@ def main():
     # the loop skips them and runs them once here.
     TAIL = ["redirects", "nav", "search", "links", "linkcheck", "seo", "llms"]
 
+    # Generate public statistics before any renderer can substitute a
+    # {{ze:...}} token. Regenerate them again before the tail steps because
+    # earlier steps may have refreshed generated data such as the CLI catalog.
+    run_step("facts", always="facts" not in steps or steps[0] != "facts")
+
     for step in steps:
-        if step in TAIL:
+        if step in TAIL or step == "facts":
             continue
         run_step(step)
 
-    # facts stays in the loop at its STEPS position for full builds (so content
-    # renderers that follow it read fresh counts); a partial build that omits it
-    # still refreshes the one public snapshot the menus read.
-    if "facts" not in steps:
-        run_step("facts", always=True)
+    run_step("facts", always=True)
 
     for step in TAIL:
         run_step(step, always=step not in steps)
 
     check_markdown_mirrors()
     check_llms_md_siblings()
-    # Runs after the steps so it validates the freshly rendered homepage (and
-    # freshly written site-facts) rather than the pre-build copy -- a full
-    # build that corrects the number must not still fail on the stale one, and
-    # a partial build that moved the facts without rebuilding index must fail.
-    check_homepage_proof_drift()
+    check_site_stat_drift()
 
     # Drift warnings (sitelib.warn) fail the build here, at the very end, so
     # the whole site is still generated but the build goes red until every one

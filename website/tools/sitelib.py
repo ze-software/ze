@@ -343,6 +343,53 @@ def live_counts():
 _NUMBER_TOKEN_RE = re.compile(r"\{\{ze:([a-z0-9-]+)\}\}")
 
 
+def fact_value(facts, key):
+    value = facts
+    for part in key.split("."):
+        if not isinstance(value, dict) or part not in value:
+            return None
+        value = value[part]
+    return value
+
+
+def stat_span(key, value=None):
+    if value is None:
+        try:
+            value = fact_value(sitefacts.load_facts(), key)
+        except (OSError, KeyError, ValueError):
+            value = None
+    if value is None:
+        value = ""
+    return '<span data-ze-stat="%s">%s</span>' % (
+        html.escape(key, quote=True),
+        html.escape(str(value)),
+    )
+
+
+def number_token_specs():
+    """Map prose token names to ``data/site-facts.json`` paths."""
+    return {
+        "unit-tests": "tests.unit_display",
+        "e2e-tests": "tests.e2e_display",
+        "editor-tests": "tests.editor_display",
+        "fuzz-targets": "tests.fuzz_display",
+        "interop-targets": "interop.target_display",
+        "interop-scenarios": "interop.scenarios",
+        "cli-commands": "cli_commands",
+        "config-sections": "config_sections",
+        "dependencies": "dependencies",
+        "features": "features.core_experimental",
+        "changes": "changes",
+        "rfc-gated-must": "rfc.gated_must_display",
+        "rfc-enrolled": "rfc.enrolled_display",
+        "rfc-summaries": "rfc.summaries_display",
+        "rfc-requirements": "rfc.requirements_display",
+        "repo-go-packages": "repo.go_packages_display",
+        "repo-design-comments": "repo.design_comments_display",
+        "repo-detail-comments": "repo.detail_comments_display",
+    }
+
+
 def number_tokens():
     """Display strings for the ``{{ze:...}}`` prose number tokens, sourced from
     the live counts in data/site-facts.json (computed from ../main each build).
@@ -353,41 +400,26 @@ def number_tokens():
     unit tests" while the homepage said "19,900+". Imported ../main/docs pages
     must NOT use them: those files also render raw on the code host, where a
     literal ``{{ze:...}}`` would show through.
-
-    Substitution happens at render time (render-doc reads the fresh facts), so
-    in steady state a single build is correct; a build immediately after a
-    ../main count change may lag one build, which the check_*_drift guards
-    catch and a rebuild resolves."""
+    """
     try:
         facts = sitefacts.load_facts()
     except (OSError, KeyError, ValueError):
         return {}
-    tests = facts.get("tests", {})
-    interop = facts.get("interop", {})
-    features = facts.get("features", {})
     raw = {
-        "unit-tests": tests.get("unit_display"),
-        "e2e-tests": tests.get("e2e_display"),
-        "fuzz-targets": tests.get("fuzz_display"),
-        "interop-targets": interop.get("target_display"),
-        "interop-scenarios": interop.get("scenarios"),
-        "cli-commands": facts.get("cli_commands"),
-        "config-sections": facts.get("config_sections"),
-        "dependencies": facts.get("dependencies"),
-        "features": features.get("core_experimental"),
-        "changes": facts.get("changes"),
+        name: fact_value(facts, key) for name, key in number_token_specs().items()
     }
     return {name: str(value) for name, value in raw.items() if value is not None}
 
 
-def substitute_number_tokens(text):
+def substitute_number_tokens(text, html_spans=False):
     """Replace ``{{ze:<name>}}`` tokens with live site-facts numbers.
 
-    An unknown token is left in place and raised as build drift, so a typo
-    (``{{ze:unit-test}}``) fails the build instead of shipping a literal
-    placeholder. The ``ze:`` namespace keeps the pattern from colliding with
-    template syntax (Go/Jinja ``{{ ... }}``) in documentation code samples."""
+    HTML renderers pass ``html_spans=True`` so each generated number carries a
+    ``data-ze-stat`` marker that the build can verify against site-facts.json.
+    Markdown mirrors keep plain text.
+    """
     tokens = number_tokens()
+    specs = number_token_specs()
     if not tokens:
         # No facts snapshot yet (e.g. a first build before site-facts.json
         # exists): leave tokens untouched rather than guess.
@@ -396,6 +428,8 @@ def substitute_number_tokens(text):
     def repl(match):
         name = match.group(1)
         if name in tokens:
+            if html_spans:
+                return stat_span(specs[name], tokens[name])
             return tokens[name]
         warn(
             "unknown site number token {{ze:%s}} -- valid tokens: %s"
