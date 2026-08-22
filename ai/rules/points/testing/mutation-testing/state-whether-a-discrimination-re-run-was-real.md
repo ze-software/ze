@@ -26,6 +26,21 @@ Which category a proof falls into decides what it owes:
 
 The tell in the output is a bare `ok` with no duration. A real run reports one.
 
+**A real re-run is only half of it. You MUST also verify that the MUTATION
+APPLIED, between the patch and the run, with a diff that MUST come back non-empty
+or a grep for the mutated text.** A patch that fails to apply leaves the test
+running against unmodified source, so it passes, and the artifact of that attempt
+is byte-identical to a successful proof. This is the worse half: a stale cached
+verdict at least ran once against real code, while an unapplied mutation means
+nothing was ever tested.
+
+It defeats the habit that catches every other shape. Break it and watch it go red
+fails silently when the break never landed, and the report then says truthfully
+that the re-run was real while the proof is worth nothing. Everybody already
+saves a copy of the file and restores it by hash, because the interesting moment
+feels like the run. Confirming the change landed costs one command, and it is the
+only thing that makes the run mean anything.
+
 **Applying `-count=1` everywhere is not the answer and MUST NOT be treated as
 one.** It disables the cache for every test in the run, and a gate that already
 costs tens of minutes pays that in full. The obligation is to know which category
