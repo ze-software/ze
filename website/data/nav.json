@@ -6,15 +6,15 @@
             "columns": [
                 [
                     {"label_only": "Install"},
-                    {"href": "guides/quickstart/", "icon": "🚀", "title": "Quickstart", "desc": "Two BGP peers in under five minutes"},
+                    {"href": "guides/quickstart/", "icon": "🚀", "title": "Quickstart", "desc": "Two BGP peers in under five minutes", "feature": true},
                     {"href": "guides/ze-install/", "icon": "💿", "title": "Install Ze", "desc": "Run Ze on Linux or as a bootable appliance"},
                     {"href": "guides/ubuntu-build-install/", "icon": "🐧", "title": "Ubuntu build", "desc": "Compile Ze, install it, create zefs, and start SSH"}
                 ],
                 [
-                    {"label_only": "Learn the basics"},
+                    {"label_only": "Learn"},
+                    {"href": "architecture/", "icon": "🏗️", "title": "Architecture", "desc": "How the pieces fit together", "feature": true},
                     {"href": "features/bgp-configuration/", "icon": "⚙️", "title": "BGP configuration", "desc": "Peer settings, validation, inheritance, and policy"},
-                    {"href": "features/cli-commands/", "icon": "⌨️", "title": "CLI basics", "desc": "Diff, commit, history, and operator commands"},
-                    {"href": "architecture/", "icon": "🏗️", "title": "Architecture", "desc": "How the pieces fit together"}
+                    {"href": "features/cli-commands/", "icon": "⌨️", "title": "CLI basics", "desc": "Diff, commit, history, and operator commands"}
                 ]
             ]
         },
@@ -23,13 +23,13 @@
             "columns": [
                 [
                     {"label_only": "Capabilities and fit"},
-                    {"href": "features/", "icon": "🧩", "title": "Features", "desc": "%(features)s features, grouped by category"},
+                    {"href": "features/", "icon": "🧩", "title": "Features", "desc": "%(features)s features, grouped by category", "feature": true},
                     {"href": "compare/", "icon": "⚖️", "title": "Compare", "desc": "Compare Ze with BIRD, FRR, VyOS, and more"},
                     {"href": "performance/", "icon": "⚡", "title": "Performance", "desc": "Measured BGP benchmarks and reports"}
                 ],
                 [
                     {"label_only": "Evidence"},
-                    {"href": "quality/", "icon": "✓", "title": "Code quality", "desc": "Tests, QEMU, fuzzing, and mutation checks"},
+                    {"href": "quality/", "icon": "✓", "title": "Code quality", "desc": "Tests, QEMU, fuzzing, and mutation checks", "feature": true},
                     {"href": "quality/health/", "icon": "📈", "title": "Testing health", "desc": "Measured test state and how it moves over time"},
                     {"href": "quality/rfc-compliance/", "icon": "🤖", "title": "RFC compliance gate", "desc": "RFC requirements, tests, gaps, and public claims checked by AI"},
                     {"href": "reference/dependencies/", "icon": "📦", "title": "Dependencies", "desc": "%(dependencies)s direct packages, generated from go.mod"},
@@ -41,20 +41,20 @@
             "label": "Docs",
             "columns": [
                 [
-                    {"label_only": "Core workflows"},
+                    {"label_only": "Operate"},
                     {"href": "docs/", "icon": "📚", "title": "Documentation", "desc": "All docs, organised by what you want to do", "feature": true},
-                    {"href": "guides/", "icon": "🧭", "title": "Guides", "desc": "Installation, configuration, operation, and troubleshooting", "feature": true},
                     {"href": "guides/production-diagnostics/", "icon": "🩺", "title": "Production diagnostics", "desc": "Start from symptoms and debug safely"},
                     {"href": "guides/monitoring/", "icon": "📈", "title": "Monitoring", "desc": "Metrics, health, and operational visibility"},
-                    {"href": "guides/lifecycle/", "icon": "🔄", "title": "Lifecycle and rollback", "desc": "Start, reload, update, recover, and verify"}
+                    {"href": "guides/lifecycle/", "icon": "🔄", "title": "Lifecycle and rollback", "desc": "Start, reload, update, recover, and verify"},
+                    {"href": "guides/fleet-config/", "icon": "🗂️", "title": "Fleet management", "desc": "Managed config, TLS hub, caching, and reconnect"}
                 ],
                 [
-                    {"label_only": "Interfaces and extensions"},
+                    {"label_only": "Guides and interfaces"},
+                    {"href": "guides/", "icon": "🧭", "title": "Guides", "desc": "Installation, configuration, operation, and troubleshooting", "feature": true},
                     {"href": "guides/api/", "icon": "🔌", "title": "REST and gRPC", "desc": "Commands, config sessions, authentication, and streaming"},
                     {"href": "guides/gnmi/", "icon": "🧬", "title": "gNMI", "desc": "YANG Get, Set, Subscribe, TLS, and metrics"},
                     {"href": "guides/web-interface/", "icon": "🖥️", "title": "Web interface", "desc": "Configuration workbench, commands, and live state"},
-                    {"href": "developers/", "icon": "🧩", "title": "Developer docs", "desc": "Build plugins and contribute to Ze"},
-                    {"href": "guides/fleet-config/", "icon": "🗂️", "title": "Fleet management", "desc": "Managed config, TLS hub, caching, and reconnect"}
+                    {"href": "developers/", "icon": "🧩", "title": "Developer docs", "desc": "Build plugins and contribute to Ze"}
                 ]
             ]
         },
@@ -92,8 +92,8 @@
                     {"href": "reference/plugins/", "icon": "🔌", "title": "Plugin catalogue", "desc": "Find runtime plugins by purpose, config, or dependency"}
                 ],
                 [
-                    {"label_only": "Standards and migration"},
-                    {"href": "reference/rfcs/", "icon": "📜", "title": "RFC status", "desc": "Implemented RFCs, partial support, and known gaps"},
+                    {"label_only": "Standards and lookup"},
+                    {"href": "reference/rfcs/", "icon": "📜", "title": "RFC status", "desc": "Implemented RFCs, partial support, and known gaps", "feature": true},
                     {"href": "reference/command-equivalents/", "icon": "↔️", "title": "Command equivalents", "desc": "Search Ze commands across Junos MX, IOS XR, SR OS, and VyOS"},
                     {"href": "reference/deprecations/", "icon": "🗑️", "title": "Deprecated options", "desc": "Removed configuration syntax and replacements"},
                     {"href": "reference/glossary/", "icon": "📖", "title": "Glossary", "desc": "Routing, policy, configuration, and test terms"}
@@ -104,19 +104,19 @@
             "label": "Project",
             "columns": [
                 [
-                    {"label_only": "Progress and updates"},
+                    {"label_only": "Progress and history"},
                     {"href": "project/", "icon": "🧭", "title": "Project overview", "desc": "Progress, history, talks, and contribution paths", "feature": true},
                     {"href": "project/roadmap/", "icon": "🗺️", "title": "Roadmap", "desc": "What works today and what remains before the first release"},
                     {"href": "project/changes/", "icon": "🧾", "title": "Changes", "desc": "What shipped, week by week"},
                     {"href": "project/milestones/", "icon": "🏁", "title": "Milestones", "desc": "Landmark features, oldest to newest"},
                     {"href": "project/activity/", "icon": "📈", "title": "Activity", "desc": "A year of commits, at a glance"},
-                    {"href": "blog/", "icon": "✍", "title": "Blog", "desc": "Project notes and release stories"},
-                    {"href": "talks/", "icon": "🎤", "title": "Talks", "desc": "Talk slides and conference material"}
+                    {"href": "project/history/", "icon": "🕰️", "title": "Project history", "desc": "How ExaBGP's programmable model grew into Ze"}
                 ],
                 [
-                    {"label_only": "About and contribute"},
-                    {"href": "faq/", "icon": "?", "title": "FAQ", "desc": "Common questions before trying Ze"},
-                    {"href": "project/history/", "icon": "🕰️", "title": "Project history", "desc": "How ExaBGP's programmable model grew into Ze"},
+                    {"label_only": "Community and notes"},
+                    {"href": "faq/", "icon": "?", "title": "FAQ", "desc": "Common questions before trying Ze", "feature": true},
+                    {"href": "blog/", "icon": "✍", "title": "Blog", "desc": "Project notes and release stories"},
+                    {"href": "talks/", "icon": "🎤", "title": "Talks", "desc": "Talk slides and conference material"},
                     {"href": "contribute/", "icon": "🤝", "title": "Contribute", "desc": "How to send code, reports, and interop results"},
                     {"href": "contribute/testing/", "icon": "✅", "title": "Contributor testing", "desc": "How to choose and run the right test layer"}
                 ]
