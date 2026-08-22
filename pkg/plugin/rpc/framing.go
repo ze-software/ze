@@ -7,6 +7,7 @@ package rpc
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -68,18 +69,84 @@ const MaxMessageSize = 16 * 1024 * 1024
 // initialBufSize is the initial read buffer size (64 KB).
 const initialBufSize = 64 * 1024
 
-// FrameReader reads newline-delimited messages from an io.Reader.
+// FrameReader reads one wire line at a time from an io.Reader.
+//
+// A line ends with exactly one `\n` and never with `\r\n`. An answer line
+// states its own width, so it is taken by that count and a value inside it may
+// hold a raw `\n` or `\r`; every other line ends at its newline
+// (ScanAnswerLines).
 type FrameReader struct {
 	scanner *bufio.Scanner
 }
 
-// NewFrameReader creates a FrameReader that reads newline-delimited messages.
+// NewFrameReader creates a FrameReader that reads one wire line at a time.
 func NewFrameReader(r io.Reader) *FrameReader {
 	scanner := bufio.NewScanner(r)
-	// MaxMessageSize+1 because bufio.Scanner's max is exclusive (token must be < max)
+	// MaxMessageSize+1 because bufio.Scanner's max is exclusive (token must be
+	// < max), and a line of exactly MaxMessageSize needs its newline held too.
 	scanner.Buffer(make([]byte, initialBufSize), MaxMessageSize+1)
-	// Default split func is bufio.ScanLines (splits on \n, strips \r\n)
+	scanner.Split(ScanAnswerLines)
 	return &FrameReader{scanner: scanner}
+}
+
+// ScanAnswerLines is the bufio.SplitFunc every reader of this protocol frames
+// with. It replaces bufio.ScanLines, which is wrong here twice over.
+//
+// An answer line states its own width: every variable-width field carries its
+// byte count, so this takes exactly that many bytes and REQUIRES the byte after
+// them to be the newline that ends the line. No payload is searched for one, so
+// a raw `\n` inside a value is DATA rather than a frame boundary and no writer
+// has to rewrite it before it reaches the wire.
+//
+// And a line ends with exactly one `\n`, never with `\r\n`. bufio.ScanLines
+// strips a trailing `\r`, which is right for a text file and wrong here: it
+// would leave a stated count disagreeing with the bytes that arrived, and it
+// would take a `\r` a producer put INSIDE a counted value. Nothing is stripped
+// here, and a `\r` where the newline belongs is refused by name.
+//
+// A line that states no width -- a request, a response, an operator's plain
+// text -- is framed by its newline, which is the one place this genuinely scans
+// and it uses bytes.IndexByte to do it.
+func ScanAnswerLines(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	switch width, state := answerLineWidth(data); state {
+	case answerLineStated:
+		return scanStatedLine(data, atEOF, width)
+	case answerLinePartial:
+		if atEOF {
+			return 0, nil, fmt.Errorf("answer line states a field wider than the %d bytes that arrived before the stream ended", len(data))
+		}
+		return 0, nil, nil
+	case answerLineOther:
+		// Framed by its newline, below.
+	}
+
+	if end := bytes.IndexByte(data, '\n'); end >= 0 {
+		return end + 1, data[:end], nil
+	}
+	if atEOF && len(data) > 0 {
+		return len(data), data, nil
+	}
+	return 0, nil, nil
+}
+
+// scanStatedLine frames one answer line by the width it states. The count is
+// bounded BEFORE anything is sliced, so a count an attacker chose cannot become
+// a buffer this reader grows to hold.
+func scanStatedLine(data []byte, atEOF bool, width uint64) (int, []byte, error) {
+	if width > MaxMessageSize {
+		return 0, nil, fmt.Errorf("answer line states %d bytes, past the %d-byte maximum", width, MaxMessageSize)
+	}
+	end := int(width)
+	if len(data) <= end {
+		if atEOF {
+			return 0, nil, fmt.Errorf("answer line states %d bytes and %d arrived before the stream ended", end, len(data))
+		}
+		return 0, nil, nil
+	}
+	if data[end] != '\n' {
+		return 0, nil, fmt.Errorf("answer line of %d bytes is terminated by %q, want exactly one newline", end, string(rune(data[end])))
+	}
+	return end + 1, data[:end], nil
 }
 
 // Read returns the next newline-delimited message.

@@ -116,6 +116,11 @@ func readAnswerFrame(stderr io.Reader) (Answer, string) {
 
 	scanner := bufio.NewScanner(stderr)
 	scanner.Buffer(make([]byte, 0, answerScanInitial), answerScanMax)
+	// The frame states its own widths, so a line is taken by them and never by
+	// searching for a newline. A counted value may hold a raw newline or a
+	// carriage return, and bufio.ScanLines would split on the first and strip
+	// the second (rpc.ScanAnswerLines).
+	scanner.Split(rpc.ScanAnswerLines)
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		if len(line) == 0 {

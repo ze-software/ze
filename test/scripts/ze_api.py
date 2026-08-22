@@ -195,6 +195,128 @@ def _cut_id(line: str) -> tuple[int, str]:
     return int(digits), line[end + 1 :]
 
 
+# _ANSWER_LINE_OTHER, _ANSWER_LINE_PARTIAL and _ANSWER_LINE_STATED are what
+# _answer_line_width could tell about the bytes it read. They mirror
+# answerLineState (pkg/plugin/rpc/message.go).
+_ANSWER_LINE_OTHER = 0
+_ANSWER_LINE_PARTIAL = 1
+_ANSWER_LINE_STATED = 2
+
+# _ANSWER_LINE_SHAPES is the field order of every kind: "word" for a
+# three-letter token, "number" for a counted number, "text" for a counted text.
+# It mirrors answerLineShapes (pkg/plugin/rpc/message.go).
+_ANSWER_LINE_SHAPES = {
+    _ANSWER_KIND_HEAD: ("word", "text", "text"),
+    _ANSWER_KIND_RECORD: ("text",),
+    _ANSWER_KIND_FAULT: ("text",),
+    _ANSWER_KIND_TERMINATOR: ("number", "number", "text"),
+    _ANSWER_KIND_NOT_UNDERSTOOD: ("text", "text"),
+}
+
+# _COUNTED_NUMBER_MAX is the widest counted number: the length character, its
+# colon, and the twenty decimal digits a uint64 occupies.
+_COUNTED_NUMBER_MAX = 22
+
+
+def _id_field_end(data: bytes) -> int:
+    """Return the offset just past the space closing `#<id> `, or -1."""
+    for at in range(1, min(len(data), 22)):
+        if data[at : at + 1] == b" ":
+            return -1 if at == 1 else at + 1
+        if not b"0" <= data[at : at + 1] <= b"9":
+            return -1
+    return -1
+
+
+def _counted_field_width(data: bytes, counted_text: bool) -> tuple[int, int]:
+    """Return the byte width of one counted field at the front of data."""
+    if len(data) < 2:
+        return 0, _ANSWER_LINE_PARTIAL
+    count = _COUNTED_LENGTH_ALPHABET.find(data[0:1].decode("latin-1"))
+    if count <= 0 or count > 20 or data[1:2] != b":":
+        return 0, _ANSWER_LINE_OTHER
+    width = 2 + count
+    if len(data) < width:
+        return 0, _ANSWER_LINE_PARTIAL
+    if not counted_text:
+        return width, _ANSWER_LINE_STATED
+    if len(data) <= width:
+        return 0, _ANSWER_LINE_PARTIAL
+    if data[width : width + 1] != b":":
+        return 0, _ANSWER_LINE_OTHER
+    return width + 1 + int(data[2:width]), _ANSWER_LINE_STATED
+
+
+def _answer_line_width(data: bytes) -> tuple[int, int]:
+    """Return how many bytes the answer line opening data occupies.
+
+    Every variable-width field states its own byte count, so a whole line's
+    width is the sum of what its fields state and nothing is searched for. That
+    is what lets a counted value hold a raw newline: it sits inside the count,
+    and no reader frames on it (answerLineWidth, pkg/plugin/rpc/message.go).
+    """
+    at = 0
+    if data[:1] == b"#":
+        end = _id_field_end(data)
+        if end < 0:
+            return 0, _ANSWER_LINE_OTHER
+        at = end
+
+    if len(data) - at < 4:
+        return 0, _ANSWER_LINE_OTHER
+    kind = data[at : at + 3].decode("latin-1")
+    if kind not in _ANSWER_LINE_SHAPES or data[at + 3 : at + 4] != b" ":
+        return 0, _ANSWER_LINE_OTHER
+    at += 4
+
+    for index, shape in enumerate(_ANSWER_LINE_SHAPES[kind]):
+        if index > 0:
+            if at >= len(data):
+                return 0, _ANSWER_LINE_PARTIAL
+            if data[at : at + 1] != b" ":
+                return 0, _ANSWER_LINE_OTHER
+            at += 1
+        if shape == "word":
+            if len(data) - at < 3:
+                return 0, _ANSWER_LINE_PARTIAL
+            at += 3
+            continue
+        width, state = _counted_field_width(data[at:], shape == "text")
+        if state != _ANSWER_LINE_STATED:
+            return 0, state
+        at += width
+    return at, _ANSWER_LINE_STATED
+
+
+def _cut_frame(buf: bytes) -> tuple[bytes, bytes] | None:
+    """Take one whole wire line off the front of buf, its newline removed.
+
+    An answer line is taken by the width it states, and the byte after it MUST
+    be exactly one newline: a `\r\n` termination is refused rather than
+    stripped, and a raw newline inside a counted value is data. Every other line
+    ends at its newline (ScanAnswerLines, pkg/plugin/rpc/framing.go).
+
+    Returns None when the line has not fully arrived.
+    """
+    width, state = _answer_line_width(buf)
+    if state == _ANSWER_LINE_PARTIAL:
+        return None
+    if state == _ANSWER_LINE_STATED:
+        if len(buf) <= width:
+            return None
+        if buf[width : width + 1] != b"\n":
+            raise RuntimeError(
+                f"answer line of {width} bytes is terminated by "
+                f"{buf[width:width + 1]!r}, want exactly one newline"
+            )
+        return buf[:width], buf[width + 1 :]
+
+    end = buf.find(b"\n")
+    if end < 0:
+        return None
+    return buf[:end], buf[end + 1 :]
+
+
 def _split_wire_line(line: str) -> tuple[int, str, str]:
     """Split `#<id> <verb-or-kind> [<tail>]` and leave the tail undecoded.
 
@@ -558,10 +680,9 @@ class API:
     def _read_tls_line(self, timeout: float | None = None) -> str | None:
         """Read a newline-terminated line from the TLS socket."""
         while True:
-            nl_pos = self._read_buf.find(b"\n")
-            if nl_pos >= 0:
-                line_bytes = self._read_buf[:nl_pos]
-                self._read_buf = self._read_buf[nl_pos + 1 :]
+            framed = _cut_frame(self._read_buf)
+            if framed is not None:
+                line_bytes, self._read_buf = framed
                 return line_bytes.decode("utf-8")
 
             if timeout is not None:
@@ -638,11 +759,12 @@ class API:
         buf = getattr(self, buf_attr)
 
         while True:
-            # Check buffer for complete line
-            nl_pos = buf.find(b"\n")
-            if nl_pos >= 0:
-                line_bytes = buf[:nl_pos]
-                setattr(self, buf_attr, buf[nl_pos + 1 :])
+            # Take one whole line by the width it states, never by searching for
+            # a newline a counted value may hold.
+            framed = _cut_frame(buf)
+            if framed is not None:
+                line_bytes, buf = framed
+                setattr(self, buf_attr, buf)
                 return line_bytes.decode("utf-8")
 
             # Wait for data

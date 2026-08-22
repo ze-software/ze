@@ -592,8 +592,12 @@ func (m *MuxConn) endAnswer(idStr string, call *answerCall, cause error) {
 // NOT count toward the flood guard (AC-16, R-2). The kind says so on its own,
 // so nothing decodes the tail to find out. Every other unmatched line still
 // counts, so the guard narrows rather than weakens.
+//
+// verb here is the kind ALREADY cut off its line, so the space that closes a
+// three-letter word is gone with the rest of it and the word compare has
+// nothing to load. This is the one caller that asks the vocabulary directly.
 func (m *MuxConn) discardOrphanResponse(idStr, verb string) bool {
-	if _, isAnswer := answerKindAt(verb); isAnswer {
+	if answerKindKnown(verb) {
 		slog.Debug("mux conn: answer line nobody is waiting for", "id", idStr, "kind", verb)
 		return false
 	}

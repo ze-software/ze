@@ -472,14 +472,20 @@ func TestAnswerValuesNeedNoEscaping(t *testing.T) {
 		assert.Equal(t, "rib snapshot expired: age = 4h", tail.Message)
 	})
 
-	t.Run("newline in a value stays on one line", func(t *testing.T) {
+	t.Run("a newline in a value is data, not a boundary", func(t *testing.T) {
 		t.Parallel()
 
-		line := AppendAnswerTerminator(nil, 7, 0, 0, "peer rejected\nthe route")
-		assert.NotContains(t, string(line), "\n")
+		// The message states its own byte count, so the newline inside it is
+		// part of the value the count names. It reaches the wire unchanged and
+		// reads back unchanged, which is what deleting the rewriting pass over
+		// operator data buys.
+		const message = "peer rejected\nthe route"
+
+		line := AppendAnswerTerminator(nil, 7, 0, 0, message)
+		assert.Contains(t, string(line), message, "the newline was rewritten on the way to the wire")
 
 		tail := parseAnswerLine(t, line)
-		assert.Equal(t, "peer rejected the route", tail.Message)
+		assert.Equal(t, message, tail.Message)
 	})
 }
 
@@ -1472,4 +1478,102 @@ func TestAnswerRecordLineSizeExact(t *testing.T) {
 				"id %d: a %d-byte fault line is %d bytes and its size reads %d", id, width, len(fault), AnswerRecordLineSize(id, Record{Fault: value}))
 		}
 	}
+}
+
+// TestAnswerWordsComeFromTheirTokens checks that the integer a reader compares
+// a three-letter word against is the word its token spells. The method: every
+// kind's and every item type's constant is rebuilt here from its own string and
+// its closing space, and compared with the one the package derived.
+//
+// VALIDATES: the tokens and the integers cannot drift apart, which is the whole
+// risk a single-load compare takes on.
+// PREVENTS: a hand-typed constant that silently disagrees with its token, which
+// passes review and refuses a well-formed line in production.
+func TestAnswerWordsComeFromTheirTokens(t *testing.T) {
+	t.Parallel()
+
+	words := map[string]answerWord{
+		AnswerKindHead:          answerWordHead,
+		AnswerKindRecord:        answerWordRecord,
+		AnswerKindFault:         answerWordFault,
+		AnswerKindTerminator:    answerWordTerminator,
+		AnswerKindNotUnderstood: answerWordNotUnderstood,
+		AnswerTypeDocument:      answerWordTypeDocument,
+		AnswerTypeMap:           answerWordTypeMap,
+		AnswerTypeTable:         answerWordTypeTable,
+	}
+
+	seen := make(map[answerWord]string, len(words))
+	for token, word := range words {
+		// Rebuilt byte by byte rather than through answerWordOf, so the writer
+		// of the constants is not also the judge of them.
+		spelled := token + " "
+		want := answerWord(spelled[0]) |
+			answerWord(spelled[1])<<8 |
+			answerWord(spelled[2])<<16 |
+			answerWord(spelled[3])<<24
+		assert.Equal(t, want, word, "the word of %q is not the word %q spells", token, spelled)
+
+		if other, clash := seen[word]; clash {
+			t.Errorf("tokens %q and %q share one word, so one compare cannot tell them apart", other, token)
+		}
+		seen[word] = token
+
+		kind, known := answerKindOfWord(word)
+		itemType, typed := answerTypeOfWord(word)
+		assert.True(t, known || typed, "the word of %q is read back as neither a kind nor an item type", token)
+		if known {
+			assert.Equal(t, token, kind)
+		}
+		if typed {
+			assert.Equal(t, token, itemType)
+		}
+	}
+}
+
+// TestEveryThreeLetterWordIsSpaceClosed checks the grammar's MUST: a
+// three-letter word on an answer line is always followed by a space, and never
+// by the line terminator. The method: one line of every kind is built by the
+// shipped appenders, under an id and without one, and the byte after each word
+// is required to be a space; then a word sitting last on a line is offered to
+// both readers.
+//
+// VALIDATES: the rule that makes a four-byte load unconditionally safe, so no
+// reader needs a bounds case for a word that ends a line.
+// PREVENTS: a writer putting a token last on a line, which would make every
+// word compare in the protocol a special case, and a reader accepting one and
+// loading a byte the line does not carry.
+func TestEveryThreeLetterWordIsSpaceClosed(t *testing.T) {
+	t.Parallel()
+
+	for _, id := range []uint64{AnswerNoID, 7, math.MaxUint64} {
+		for kind, line := range answerKindLines(id) {
+			at := len(idFieldFixture(id))
+			require.Greater(t, len(line), at+answerKindWidth,
+				"id %d: the %s line ends at its kind: %q", id, kind, line)
+			assert.Equal(t, byte(' '), line[at+answerKindWidth],
+				"id %d: the %s line does not close its kind with a space: %q", id, kind, line)
+
+			if kind != AnswerKindHead {
+				continue
+			}
+			// The head's item type is the same shape and carries the same rule.
+			at += answerWordWidth
+			require.Greater(t, len(line), at+answerTypeWidth,
+				"id %d: the head ends at its item type: %q", id, line)
+			assert.Equal(t, byte(' '), line[at+answerTypeWidth],
+				"id %d: the head does not close its item type with a space: %q", id, line)
+		}
+	}
+
+	// A word sitting last on a line is not a line this build reads.
+	for _, kind := range answerKinds {
+		_, known := answerKindAt(kind)
+		assert.False(t, known, "the kind %q was read with no space after it", kind)
+
+		_, _, err := ParseAnswerLine([]byte(kind))
+		require.Error(t, err, "an answer line that is nothing but the kind %q was read", kind)
+	}
+	_, err := ParseAnswerTail(AnswerKindHead, []byte(AnswerTypeMap))
+	require.Error(t, err, "a head whose item type ends the line was read")
 }

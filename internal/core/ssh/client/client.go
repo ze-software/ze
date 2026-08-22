@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/paths"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -178,6 +179,11 @@ func StreamCommand(creds Credentials, command string, callback func(line string)
 	}
 
 	scanner := bufio.NewScanner(stdout)
+	// A line ends with exactly one newline and never with `\r\n`. This stream
+	// carries the daemon's rendering rather than answer lines, so nothing here
+	// states a width; what the split function buys is that a carriage return an
+	// operator's data holds reaches the caller (rpc.ScanAnswerLines).
+	scanner.Split(rpc.ScanAnswerLines)
 	for scanner.Scan() {
 		if err := callback(scanner.Text()); err != nil {
 			return err

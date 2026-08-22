@@ -537,6 +537,50 @@ class TestCountedTextIsCountedInBytes(unittest.TestCase):
             ze_api._cut_counted_text("2:99:short")  # noqa: SLF001
 
 
+class TestFrameIsTakenByTheWidthItStates(unittest.TestCase):
+    """A line is framed by the width it states, never by a newline inside it.
+
+    VALIDATES: AC-19 and AC-20 in the harness -- a counted value carrying a raw
+    newline or a carriage return round-trips, and a `\\r\\n` termination is
+    refused rather than stripped.
+    PREVENTS: the harness splitting a record payload on a newline the daemon
+    meant as data, which reads as a malformed second line and reports the
+    answer as broken.
+    """
+
+    def test_a_payload_holding_a_newline_is_one_line(self):
+        payload = '{"note":"one\\ntwo"}'.replace("\\n", "\n")
+        wire = f"#7 row {ze_api._counted_text(payload)}\n".encode("utf-8")  # noqa: SLF001
+        framed = ze_api._cut_frame(wire)  # noqa: SLF001
+        self.assertIsNotNone(framed)
+        line, rest = framed
+        self.assertEqual(b"", rest)
+        _, kind, tail = ze_api._split_wire_line(line.decode("utf-8"))  # noqa: SLF001
+        self.assertEqual("row", kind)
+        self.assertEqual(payload, ze_api.answer_record_payload(tail))
+
+    def test_a_payload_ending_in_a_carriage_return_survives(self):
+        payload = '{"note":"x"}\r'
+        wire = f"#7 row {ze_api._counted_text(payload)}\n".encode("utf-8")  # noqa: SLF001
+        line, rest = ze_api._cut_frame(wire)  # noqa: SLF001
+        self.assertEqual(b"", rest)
+        _, _, tail = ze_api._split_wire_line(line.decode("utf-8"))  # noqa: SLF001
+        self.assertEqual(payload, ze_api.answer_record_payload(tail))
+
+    def test_a_crlf_termination_is_refused(self):
+        wire = f"#7 row {ze_api._counted_text('{}')}\r\n".encode("utf-8")  # noqa: SLF001
+        with self.assertRaises(RuntimeError):
+            ze_api._cut_frame(wire)  # noqa: SLF001
+
+    def test_a_line_that_states_no_width_ends_at_its_newline(self):
+        line, rest = ze_api._cut_frame(b"#7 ok {\"a\":1}\n#8 ok\n")  # noqa: SLF001
+        self.assertEqual(b'#7 ok {"a":1}', line)
+        self.assertEqual(b"#8 ok\n", rest)
+
+    def test_a_line_that_has_not_arrived_is_not_framed(self):
+        self.assertIsNone(ze_api._cut_frame(b"#7 row 2:40:{\"peer\""))  # noqa: SLF001
+
+
 class TestPostStartupSurvivesTheQueuedPath(unittest.TestCase):
     """The post-startup callback usually arrives while an RPC is in flight.
 

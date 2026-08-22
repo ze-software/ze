@@ -314,6 +314,14 @@ parses a payload to find out what it holds.
 | `nay` | the whole answer to a command text naming no command |
 <!-- source: pkg/plugin/rpc/message.go -- AnswerKindHead, AnswerKindRecord, AnswerKindFault, AnswerKindTerminator, AnswerKindNotUnderstood -->
 
+**A three-letter word MUST be followed by a space, and MUST NOT be followed by
+the line terminator.** That holds for the kind token and for the head's item
+type alike. It is what makes the four bytes of a word always present, so a
+reader loads them as one integer and one compare proves three things: the token
+is one this build knows, it is closed by a space, and no longer word merely
+opening with those three letters is read as it.
+<!-- source: pkg/plugin/rpc/message.go -- answerWordOf, answerKindOfWord, answerTypeOfWord -->
+
 Every kind is three bytes, so a reader reaches it by arithmetic and searches no
 line for a separator. The offset differs per channel and is fixed within one:
 
@@ -339,6 +347,25 @@ by arithmetic and searches no line for a separator.
 | counted number | `<len>:<digits>`, `<len>` one base-36 character | the terminator's two counts |
 | counted text | `<len>:<n>:<bytes>`, where `<len>:<n>` is a counted number stating the byte count | the envelope name, the column names, every message, the error code, and the record payload |
 <!-- source: pkg/plugin/rpc/message.go -- appendCountedNumber, appendCountedText, cutCountedNumber, cutCountedText -->
+
+### A line ends at exactly one newline
+
+An answer line states its own width: every variable-width field carries its byte
+count, so a reader sums what the fields state and takes the line by that number.
+The byte after it MUST be exactly one `\n`.
+
+That is what lets a value carry a raw newline or a carriage return. Neither is a
+frame boundary, so neither is rewritten on the way to the wire, and an operator's
+data reaches a consumer byte for byte. A terminator message spelled over two
+lines arrives as two lines.
+
+A line MUST NOT be terminated by `\r\n`, and a reader MUST NOT strip a trailing
+`\r`: a stripped byte would leave a stated count disagreeing with what arrived,
+and it would take a `\r` a producer meant as data. A `\r` where the newline
+belongs is refused by name, and so is a count that disagrees with the bytes
+behind it or one past the 16 MB maximum.
+<!-- source: pkg/plugin/rpc/framing.go -- ScanAnswerLines, scanStatedLine -->
+<!-- source: pkg/plugin/rpc/message.go -- answerLineWidth, answerLineShapes -->
 
 A counted field of length zero is present and empty, never omitted, so the field
 count of a kind never varies. A uint64 occupies 20 decimal digits at most, so one

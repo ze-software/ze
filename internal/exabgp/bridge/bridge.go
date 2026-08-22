@@ -428,7 +428,13 @@ func (b *Bridge) Stop() {
 func (b *Bridge) Run(ctx context.Context) error {
 	// Create a single scanner for os.Stdin - used for both startup and MuxConn events.
 	// This prevents data loss from buffered reads.
+	//
+	// An answer line states its own width, so it is taken by that width rather
+	// than by searching for a newline: a record payload may hold a raw newline,
+	// and bufio.ScanLines would split the line on it and strip a trailing
+	// carriage return besides (rpc.ScanAnswerLines).
 	stdinScanner := bufio.NewScanner(os.Stdin)
+	stdinScanner.Split(rpc.ScanAnswerLines)
 
 	// Stage 1-5: Complete startup protocol with ZeBGP (raw text, no MuxConn)
 	sp := newStartupProtocol(stdinScanner, os.Stdout)

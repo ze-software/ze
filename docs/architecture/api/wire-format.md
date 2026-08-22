@@ -2,8 +2,15 @@
 
 ## Transport
 
-Messages are UTF-8 lines terminated by a newline byte (0x0A).
-Compact JSON never contains unescaped newlines, making newline an unambiguous frame delimiter.
+Messages are UTF-8 lines terminated by exactly one newline byte (0x0A). A line
+MUST NOT be terminated by `\r\n`, and a reader MUST NOT strip a trailing `\r`.
+
+A line that states its own width is taken by that width, and the byte after it
+MUST be the newline. Every variable-width field of an answer line carries its
+byte count, so a value inside one MAY hold a raw newline or a carriage return:
+neither is a frame boundary and neither is rewritten on the way to the wire.
+Every other line ends at its newline.
+<!-- source: pkg/plugin/rpc/framing.go -- ScanAnswerLines, scanStatedLine -->
 
 ```
 #1 ze-bgp:peer-list {"selector":"10.0.0.1"}
