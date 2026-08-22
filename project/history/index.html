@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Project History - Ze</title>
-        <meta name="description" content="Project history and reasons to consider Ze: ExaBGP origin, appliance lessons, Go and YANG choices, lab-friendly install, netlab support, operator CLI, BGP workflow, and proof links." />
+        <meta name="description" content="Ze documentation: history.md" />
         <meta property="og:title" content="Project History - Ze" />
-        <meta property="og:description" content="Project history and reasons to consider Ze: ExaBGP origin, appliance lessons, Go and YANG choices, lab-friendly install, netlab support, operator CLI, BGP workflow, and proof links." />
+        <meta property="og:description" content="Ze documentation: history.md" />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,12 +15,15 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Project History - Ze" />
-        <meta name="twitter:description" content="Project history and reasons to consider Ze: ExaBGP origin, appliance lessons, Go and YANG choices, lab-friendly install, netlab support, operator CLI, BGP workflow, and proof links." />
+        <meta name="twitter:description" content="Ze documentation: history.md" />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap" rel="stylesheet" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
         <link rel="canonical" href="https://ze-software.net/project/history/" />
         <meta property="og:url" content="https://ze-software.net/project/history/" />
         <link rel="stylesheet" href="../../assets/site.css" />
@@ -36,233 +39,47 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
             </noscript>
         </div>
 
-        <main id="top" class="has-page-sidebar" tabindex="-1">
-            <section class="md-content reveal cat-platform">
+        <main id="top" tabindex="-1">
+            <section class="md-content reveal">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">Project history</span>
+    <span class="journey-eyebrow">Documentation</span>
     <h1 id="project-history">Project History</h1>
-    <p>Ze is an open-source network operating system, and more: a Linux routing daemon, an appliance runtime, a lab router, and a configuration and protocol engine that can absorb work normally left to scripts around the router. It is meant to be easy to try: one binary for local installs, appliance paths for bootable systems, and netlab support for throwaway topologies.</p>
+    <p>Ze grew from the operational lessons of ExaBGP. ExaBGP made BGP programmable by treating routes and protocol events as input and output for ordinary processes. That model proved that a routing tool did not need to imitate a traditional router CLI to be useful.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
-<li><a href="#the-short-version">The short version</a></li>
-<li><a href="#replace-sidecar-automation">Replace sidecar automation</a></li>
-<li><a href="#make-external-data-operational">Make external data operational</a></li>
-<li><a href="#one-model-many-surfaces">One model, many surfaces</a></li>
-<li><a href="#operate-as-a-product">Operate as a product</a></li>
-<li><a href="#why-ze-was-created">Why Ze was created</a></li>
-<li><a href="#when-to-choose-something-else">When to choose something else</a></li>
+<li><a href="#from-exabgp-to-ze">From ExaBGP to Ze</a></li>
+<li><a href="#the-first-development-period">The first development period</a></li>
+<li><a href="#what-remained-familiar">What remained familiar</a></li>
+<li><a href="#why-the-architecture-changed">Why the architecture changed</a></li>
+<li><a href="#current-state">Current state</a></li>
 </ol></nav>
-
-<blockquote>
-<p>Ze is pre-release software. Use this page to decide whether Ze is worth a lab, not as a production stability claim.</p>
-</blockquote>
-
-<h2 id="the-short-version">The short version</h2>
-<p>Ze is built to make routing work easier to operate. The value is the user experience around the pieces operators already maintain: IRR and PeeringDB data, generated prefix lists, looking glass views, operator commands, web and API access, lab topologies, generated docs, and evidence. Keeping those pieces in one model avoids a second system of scripts, dashboards, and private glue.</p>
-<div class="cards usp-grid">
-    <article class="card usp-card cat-operate">
-        <span class="cat">Operate</span>
-        <h3><a href="../../features/cli-commands/">Powerful network-operator CLI</a></h3>
-        <p>Ze's SSH CLI includes commit, rollback, diff, completion, live BGP dashboards, ping, traceroute, structured filters, and shell-like output pipes.</p>
-    </article>
-    <article class="card usp-card cat-routing">
-        <span class="cat">Protocols</span>
-        <h3><a href="../../features/">Network operator protocols</a></h3>
-        <p>BGP, BFD, OSPF, IS-IS, IPsec VPN, L2TP, PPPoE, WireGuard interfaces, MPLS, SRv6, and VPP fit into one operator model.</p>
-    </article>
-    <article class="card usp-card cat-routing">
-        <span class="cat">Routing</span>
-        <h3><a href="../../features/bgp-protocol/">BGP plus the surrounding workflow</a></h3>
-        <p>Ze speaks BGP, manages Linux interfaces, programs the FIB, and exposes operator actions through SSH, web, API, CLI, and MCP.</p>
-    </article>
-    <article class="card usp-card cat-platform">
-        <span class="cat">Labs</span>
-        <h3><a href="../../labs/netlab/">Easy labs and appliance bootstrap</a></h3>
-        <p>Install one <code>ze</code> binary locally, build bootable or appliance images, or run Ze as a netlab daemon inside containerlab.</p>
-    </article>
-    <article class="card usp-card cat-secure">
-        <span class="cat">Policy</span>
-        <h3><a href="../../guides/irr-filtering/">IRR filtering without a bgpq4 job</a></h3>
-        <p>The <code>bgp-filter-irr</code> plugin resolves AS-SET data, persists prefix lists, and rejects routes inside the BGP import chain.</p>
-    </article>
-    <article class="card usp-card cat-observe">
-        <span class="cat">Data</span>
-        <h3><a href="../../features/bgp-configuration/#prefix-limits">PeeringDB and lookup data in the CLI</a></h3>
-        <p>Ze can query PeeringDB for max-prefix values, warn on stale data, and enrich output with resolver and origin pipe operators.</p>
-    </article>
-    <article class="card usp-card cat-operate">
-        <span class="cat">Observe</span>
-        <h3><a href="../../features/looking-glass/">Looking glass built in</a></h3>
-        <p>Routes, peers, AS-path search, topology graphs, and a Birdwatcher-compatible API are served by Ze instead of a separate stack.</p>
-    </article>
-</div>
-
-<h2 id="replace-sidecar-automation">Replace sidecar automation</h2>
-<p>Traditional routing deployments often grow a shell around the daemon: cron jobs run <code>bgpq4</code>, scripts query PeeringDB, static prefix lists are pushed into config, and separate viewers poll route state. Ze's reason to exist is to pull those pieces into the router's own model when they affect routing behavior.</p>
-<table>
-<thead><tr><th>External job today</th><th>Ze path</th><th>Why it matters</th></tr></thead>
-<tbody>
-<tr><td>Run <code>bgpq4</code>, generate prefix lists, deploy them separately</td><td><a href="../../guides/irr-filtering/">IRR Route Filtering</a></td><td>Ze resolves the AS-SET, keeps last-known-good data, persists it in ZeFS, and applies it in the import filter chain.</td></tr>
-<tr><td>Look up PeeringDB prefix counts and copy limits into peer config</td><td><a href="../../features/bgp-configuration/#prefix-limits"><code>resolve peeringdb max-prefix &lt;asn&gt;</code></a></td><td>Ze can update prefix maximums automatically, add a configurable margin, and warn when data is stale.</td></tr>
-<tr><td>Expose BGP state with a separate looking glass service</td><td><a href="../../features/looking-glass/">Built-in Looking Glass</a></td><td>Ze serves peer state, route lookup, AS-path search, topology graphs, HTMX UI, and a Birdwatcher-compatible REST API.</td></tr>
-<tr><td>Write one-off scripts to inspect route data</td><td><a href="../../features/formatting/">Command filters and output pipes</a></td><td>Server-side filters can count or narrow routes before serializing rows, and output can be formatted as table, JSON, YAML, NDJSON, text, or raw.</td></tr>
-<tr><td>Build a lab router image or write ad hoc lab glue</td><td><a href="../../guides/ze-install/">Installation</a> and <a href="../../labs/netlab/">netlab</a></td><td>Ze can be copied as one binary for local installs, packaged as an appliance, or rendered by netlab as a daemon node with BGP, OSPF, IS-IS, BFD, and routing modules.</td></tr>
-</tbody>
-</table>
-
-<h2 id="make-external-data-operational">Make external data operational</h2>
-<p>Ze does not treat third-party data as comments beside the router. It turns that data into checked state the operator can inspect.</p>
-<ul>
-<li><strong>IRR and PeeringDB for filtering.</strong> If a peer has an AS-SET, Ze can resolve it through IRR, fall back through PeeringDB when configured, and apply the generated prefix list per peer.</li>
-<li><strong>Last-known-good behavior.</strong> A failed or empty IRR refresh does not silently replace a useful allow-list with nothing. Ze keeps the previous list, marks it stale, and reports the reason.</li>
-<li><strong>PeeringDB for max-prefix.</strong> Prefix limits can be refreshed from PeeringDB with a configurable margin and private mirror URL.</li>
-<li><strong>Output enrichment.</strong> The built-in resolver supports <code>| resolve</code> and <code>| origin</code> pipe operators, so command output can include DNS and ASN context without a second terminal workflow.</li>
-</ul>
-
-<h2 id="one-model-many-surfaces">One model, many surfaces</h2>
-<p>Each subsystem brings YANG. The same model feeds configuration validation, CLI completion, the web editor, API output, generated docs, audit, diagnostics, and MCP tools. That matters most for network-operator protocols such as BGP, BFD, OSPF, IS-IS, IPsec, L2TP, PPPoE, WireGuard, MPLS, and SRv6, because each feature should show up through the same commit, diff, validation, and troubleshooting workflow. Adding a plugin should not mean inventing a second command tree, a second web model, and a separate AI tool contract.</p>
-<div class="quality-flow">
-  <article class="quality-stage">
-    <span class="quality-stage-number">1</span>
-    <h3>Declare the model</h3>
-    <p>A subsystem or plugin declares configuration and operational commands.</p>
-  </article>
-  <article class="quality-stage">
-    <span class="quality-stage-number">2</span>
-    <h3>Use it everywhere</h3>
-    <p>The CLI, web UI, API, MCP, generated references, and validation share that model.</p>
-  </article>
-  <article class="quality-stage">
-    <span class="quality-stage-number">3</span>
-    <h3>Prove it as users see it</h3>
-    <p>Functional transcripts, browser tests, demos, interop, and generated evidence check the visible behavior.</p>
-  </article>
-</div>
-
-<h2 id="operate-as-a-product">Operate as a product</h2>
-<p>Ze is useful when you want the router, lab, and documentation to agree. The site links product claims to runnable demos, netlab support, and evidence instead of only listing features.</p>
-<ul>
-<li><a href="../../demos/terminal/#live-bgp-dashboard">Live BGP dashboard demo</a>: connect over SSH, sort peers, and inspect one session.</li>
-<li><a href="../../demos/terminal/#web-configuration-commit">Web configuration commit demo</a>: see the browser workflow instead of a static screenshot.</li>
-<li><a href="../../labs/netlab/">netlab guide</a>: start Ze as a daemon node in a generated containerlab topology.</li>
-<li><a href="../../quality/">Quality evidence map</a>: unit tests, functional transcripts, fuzzing, mutation checks, QEMU, interop, and release evidence.</li>
-<li><a href="../../use-cases/">Use cases</a>: route server, transit edge with RPKI, FlowSpec injection, AS112, ExaBGP migration, and looking-glass topology pages.</li>
-</ul>
-
-<h2 id="why-ze-was-created">Why Ze was created</h2>
-<p>Ze exists because ExaBGP worked.</p>
-<p>ExaBGP proved that BGP could be programmable without pretending to be a router CLI. It let routes and protocol events become input and output for normal processes. That idea was useful, and it still is. I did not start Ze because I thought ExaBGP had failed. I started Ze because I wanted to keep the useful idea and stop carrying the limits around it.</p>
-<p>ExaBGP was written for the job I needed at the time. Ze is written for the job I need now.</p>
-<h3 id="python-was-the-wrong-base-for-the-next-step">Python was the wrong base for the next step</h3>
-<p>Python was a good choice for ExaBGP. It made it easy to express protocol work, glue processes together, and let operators script behaviour around BGP. It also made ExaBGP approachable.</p>
-<p>The next system needed a different base.</p>
-<p>Python is slow for the kind of work I wanted Ze to do. BGP can produce a lot of state, and once you start adding policy, route storage, filtering, APIs, web views, telemetry, and appliance behaviour around it, the cost of the runtime matters. More important than speed, Python is interpreted. Too many mistakes are found when a path runs, not when the program builds. That is not what I want for a system that validates configuration, manages routing state, and may run as the main software on a box.</p>
-<p>I wanted more mistakes to be found before anything boots.</p>
-<h3 id="exacube-was-the-appliance-lesson">ExaCube was the appliance lesson</h3>
-<p>At Exa Networks we had already built an appliance before Ze. ExaCube was our content filtering appliance.</p>
-<p>It was useful, but it also showed how much effort disappears into packaging, updates, and recovery when the appliance base is not the product architecture. An appliance is not just software installed on a box. Once you ship one, you own boot, upgrades, recovery, configuration, observability, support, and every strange state the customer can leave it in.</p>
-<p>I also wanted more control over the management experience. The web management features were not where I wanted them to be, and adding a product on top of someone else's appliance shape leaves you working around decisions that were made for a different product.</p>
-<p>I did not want to repeat that for SurfProtect.</p>
-<h3 id="surfprotect-needed-the-same-base">SurfProtect needed the same base</h3>
-<p>SurfProtect needed an appliance base I could trust and maintain. I did not want to build another private stack of scripts, packaging, configuration glue, upgrade logic, and web pages around a daemon. That would have moved the product forward for a while, but it would also have created another system only I could understand.</p>
-<p>Ze is the base I wanted for that work.</p>
-<p>By making Ze open source, the useful infrastructure is not trapped inside SurfProtect. The protocol engine, YANG model, plugin system, CLI, web interface, APIs, generated documentation, tests, and appliance work can improve in the open. SurfProtect can use that foundation and still remain a product with its own purpose.</p>
-<p>This is how I can move the business forward without hiding the base. I get the appliance foundation I need, and the community gets the part that should not have been proprietary in the first place.</p>
-<h3 id="gokrazy-made-the-appliance-shape-clearer">Gokrazy made the appliance shape clearer</h3>
-<p>I had wanted an appliance base for a while. Finding gokrazy made the shape concrete.</p>
-<p>Gokrazy builds small appliances from one or more Go programs. It uses a minimal Go userland instead of a normal Linux distribution, runs without a default shell or OpenSSH, keeps the root filesystem read-only, and updates by replacing the system image. That was close to what I wanted for Ze: not a routing daemon surrounded by packaging scripts, but a bootable system where the process model, updates, configuration, and recovery path are part of the design.</p>
-<p>It changed the question from how do I install a daemon to what should the whole box look like if Ze is the main program running on it.</p>
-<p>That also reinforced the Go choice. A Go program can sit at the appliance boundary in a way that feels natural instead of forced.</p>
-<h3 id="why-go">Why Go</h3>
-<p>Most of my serious work is now in Go. That matters. I know how to build, profile, debug, and maintain Go systems. The language is small enough that the code remains readable months later, and the toolchain is excellent.</p>
-<p>Go also works well with how I now develop software with AI assistance. The compiler catches many classes of mistakes. The formatter removes arguments about style. The profiler is practical. The debugger works. Cross-compilation and static builds are boring. Boring is good when the result may become an appliance.</p>
-<p>I do not write Go as if it were Python with braces. We write Go much more like C than Python. We care about allocations, buffers, explicit data flow, and predictable hot paths. Go gives enough control over memory for the way we write network code without making every change a fight with the language.</p>
-<p>I want the code to be easy to inspect. I want the fast path to be visible. I want a profiler trace to point at something I can fix.</p>
-<h3 id="why-not-rust-zig-odin-or-v">Why not Rust, Zig, Odin, or V</h3>
-<p>I looked at Rust, Zig, Odin, and V. I did more than read their websites. I built prototypes in those languages to see how the code would feel once there was a parser, a daemon, a configuration path, and some real state to move around. I might even have tried Jai if it had been publicly available.</p>
-<p>V was the nicest to write. Zig gave the most control. Odin felt the most rounded. Rust was the most opinionated, and probably the best language for AI-assisted development if you only look at the compiler. Its strictness is useful when a model changes code, because the compiler catches a lot before the program runs.</p>
-<p>I still picked Go because it was the best all-round choice for Ze. The ecosystem is large, the third-party libraries are good, the toolchain is boring, and the language has a lot of high-quality public code for AI systems to learn from. Since Ze is being written with AI assistance, the language, tooling, compiler, profiler, debugger, libraries, and training corpus mattered more than my personal enjoyment of the syntax.</p>
-<h3 id="clean-room-not-a-port">Clean room, not a port</h3>
-<p>Ze is not ExaBGP translated to Go.</p>
-<p>I wanted a clean-room reimplementation. The useful lessons from ExaBGP remain: programmable routing, process integration, and a migration path for existing ExaBGP users. The internals are new because the scope is different.</p>
-<p>ExaBGP was a programmable BGP speaker. Ze needs to be a configuration and protocol engine, a daemon, a lab router, and an appliance base. It needs a native BGP engine, route storage, policy, Linux interface management, FIB programming, operator access, APIs, a web interface, MCP, telemetry, generated documentation, tests, and release evidence.</p>
-<p>That cannot be added cleanly by continuing to grow the old shape.</p>
-<h3 id="why-yang">Why YANG</h3>
-<p>The other important decision was YANG.</p>
-<p>I wanted one model. The CLI, web UI, API, generated documentation, validation, diagnostics, and AI tooling should not each invent their own view of configuration. Each subsystem should declare what it owns, and the rest of the system should use that declaration.</p>
-<p>That is why Ze is YANG-based. It gives the project a schema before it gives users another interface. It also makes plugins cleaner. A plugin should not have to invent a command tree, a web model, and an API contract separately.</p>
-<p>This is part of the appliance idea as well. If the system is going to boot, validate, commit, roll back, expose state, and recover from mistakes, the model has to be shared.</p>
-<h3 id="what-ze-keeps">What Ze keeps</h3>
-<p>Ze keeps the part of ExaBGP that mattered: routing should be programmable by operators, not only configured through a vendor-shaped CLI.</p>
-<p>It also keeps the migration path. Existing ExaBGP configurations and process scripts should have a way forward. Compatibility is there to reduce the cost of moving, not because Ze is an ExaBGP clone.</p>
-<p>The difference is that Ze is built for the system I want now: compiled, inspectable, appliance-ready, YANG-modeled, open source, and designed so the product and the evidence can be checked from the same source tree.</p>
-<h3 id="the-first-development-period">The first development period</h3>
+<h2 id="from-exabgp-to-ze">From ExaBGP to Ze</h2>
+<p>ExaBGP remained deliberately focused on BGP and process integration. Over time, operators needed the surrounding system as well: a validated configuration model, route storage, policy, interface and FIB management, health, telemetry, secure operator access, and a consistent way to expose every command to automation.</p>
+<p>Ze keeps the programmable event model and builds those surrounding responsibilities into one system. Its native BGP engine, YANG configuration, plugin registry, CLI, web interface, APIs, MCP server, Looking Glass, telemetry, and optional dataplane integrations share the same runtime state and command dispatcher.</p>
+<h2 id="the-first-development-period">The first development period</h2>
 <p>The first tracked development week began in December 2025 with the BGP wire engine, capability negotiation, path attributes, address families, RIB work, session state, and ExaBGP interop. The project then expanded through configuration and plugin architecture, route server and reflector paths, policy, operator surfaces, interfaces, FIB backends, routing protocols, access services, security, diagnostics, packaging, and interoperability.</p>
-<p>The <a href="https://ze-software.net/changes/">weekly changes</a> retain the detailed chronological record. <a href="https://ze-software.net/milestones/">Milestones</a> selects the larger product changes, while the <a href="https://ze-software.net/roadmap/">roadmap</a> describes what remains before a stable release.</p>
-
-<h2 id="when-to-choose-something-else">When to choose something else</h2>
-<p>Use FRR, BIRD, OpenBGPd, GoBGP, or a vendor NOS when production mileage matters more than integration, when you need a feature Ze does not have, or when AGPL is a blocker. Ze is a good candidate for netlab labs, migration experiments, programmable routing workflows, appliances, and networks that want routing plus surrounding operational data in one system.</p>
-<p>For the full trade-off list, read <a href="../why-ze-or-not/">Why Ze / Why Not Ze</a>.</p>
+<p>The <a href="https://ze-software.net/project/changes/">weekly changes</a> retain the detailed chronological record. <a href="https://ze-software.net/project/milestones/">Milestones</a> selects the larger product changes, while the <a href="https://ze-software.net/project/roadmap/">roadmap</a> describes what remains before a stable release.</p>
+<h2 id="what-remained-familiar">What remained familiar</h2>
+<p>The ExaBGP migration path preserves two useful ideas:</p>
+<ul>
+<li>Existing ExaBGP configuration can be converted into Ze's configuration model.</li>
+<li>Existing process scripts can continue through the compatibility bridge before being ported to the native plugin SDK.</li>
+</ul>
+<p>This allows a routing-engine migration and an application rewrite to happen separately. The <a href="https://ze-software.net/use-cases/exabgp-migration/">ExaBGP migration example</a> documents that path.</p>
+<h2 id="why-the-architecture-changed">Why the architecture changed</h2>
+<p>Ze needs to support both a small programmable speaker and a more complete Linux network system. Plugins provide that boundary. BGP, policy, RIB storage, interfaces, FIB backends, routing protocols, services, and operator features register what they own. A deployment loads only the components selected by configuration and build tags.</p>
+<p>The shared registration model also keeps operator surfaces aligned. A command registered by a component can be discovered and dispatched through the CLI, web interface, REST, gRPC, and MCP without each surface building a separate implementation.</p>
+<h2 id="current-state">Current state</h2>
+<p>Ze remains pre-release. Capability and maturity claims are generated from current source and evidence where possible. Use the <a href="https://ze-software.net/features/">feature inventory</a>, <a href="../../reference/rfcs/">RFC status</a>, <a href="https://ze-software.net/quality/">quality evidence</a>, and <a href="https://ze-software.net/project/roadmap/">roadmap</a> for current decisions rather than treating this history as a readiness statement.</p>
             </section>
-            <aside class="page-sidebar" aria-label="Related page links">
-                <p class="page-sidebar-eyebrow">Why Ze?</p>
-                <nav class="page-sidebar-nav" aria-label="Related links">
-                <section class="page-sidebar-group">
-                    <h2>Selling points</h2>
-                    <a class="page-sidebar-link" href="../../features/cli-commands/">
-                        <span class="page-sidebar-link-label">Powerful CLI</span>
-                        <small>Commit, rollback, diff, live dashboards, filters, and output pipes.</small>
-                    </a>
-                    <a class="page-sidebar-link" href="../../features/">
-                        <span class="page-sidebar-link-label">Operator protocols</span>
-                        <small>BGP, OSPF, IS-IS, VPN, WireGuard, MPLS, SRv6, and adjacent services.</small>
-                    </a>
-                    <a class="page-sidebar-link" href="../../labs/netlab/">
-                        <span class="page-sidebar-link-label">netlab lab router</span>
-                        <small>Run Ze as a daemon node in generated containerlab topologies.</small>
-                    </a>
-                    <a class="page-sidebar-link" href="../../guides/irr-filtering/">
-                        <span class="page-sidebar-link-label">IRR filtering</span>
-                        <small>Replace bgpq4 jobs with in-engine prefix-list generation.</small>
-                    </a>
-                    <a class="page-sidebar-link" href="../../features/bgp-configuration/#prefix-limits">
-                        <span class="page-sidebar-link-label">PeeringDB max-prefix</span>
-                        <small>Use third-party peer data without copy-paste config drift.</small>
-                    </a>
-                    <a class="page-sidebar-link" href="../../features/looking-glass/">
-                        <span class="page-sidebar-link-label">Looking Glass</span>
-                        <small>Read-only BGP views, topology, and Birdwatcher API.</small>
-                    </a>
-                    <a class="page-sidebar-link" href="../../features/ai-first/">
-                        <span class="page-sidebar-link-label">MCP and AI tools</span>
-                        <small>Expose the same command catalogue to tools.</small>
-                    </a>
-                </section>
-                <section class="page-sidebar-group">
-                    <h2>Decision support</h2>
-                    <a class="page-sidebar-link" href="../why-ze-or-not/">
-                        <span class="page-sidebar-link-label">Why Ze / Why Not Ze</span>
-                        <small>Honest limitations and trade-offs.</small>
-                    </a>
-                    <a class="page-sidebar-link" href="../../compare/">
-                        <span class="page-sidebar-link-label">Comparisons</span>
-                        <small>Compare Ze with adjacent routing tools.</small>
-                    </a>
-                    <a class="page-sidebar-link" href="../../quality/">
-                        <span class="page-sidebar-link-label">Evidence map</span>
-                        <small>Check the proof behind public claims.</small>
-                    </a>
-                </section>
-                </nav>
-            </aside>
         </main>
 
         <script src="../../assets/site.js" defer></script>
@@ -271,7 +88,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

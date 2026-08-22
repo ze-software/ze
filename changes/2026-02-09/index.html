@@ -1,135 +1,14 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>Week of 2026-02-09 - Ze</title>
-        <meta name="description" content="A new chaos-testing tool, matured config reload, RFC 7606 enforcement, and a hot-path allocation cleanup." />
-        <meta property="og:title" content="Week of 2026-02-09 - Ze" />
-        <meta property="og:description" content="A new chaos-testing tool, matured config reload, RFC 7606 enforcement, and a hot-path allocation cleanup." />
-        <meta property="og:type" content="website" />
-        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Week of 2026-02-09 - Ze" />
-        <meta name="twitter:description" content="A new chaos-testing tool, matured config reload, RFC 7606 enforcement, and a hot-path allocation cleanup." />
-        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
-        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
-            rel="stylesheet"
-        />
-        <link rel="canonical" href="https://ze-software.net/changes/2026-02-09/" />
-        <meta property="og:url" content="https://ze-software.net/changes/2026-02-09/" />
-        <link rel="stylesheet" href="../../assets/site.css" />
-        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
-    </head>
-    <body>
-        <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
-            <noscript>
-                <nav class="site-header-fallback" aria-label="Site navigation">
-                    <a class="brand" href="../../#top">Ze</a>
-                    <a href="../../#top">Home</a>
-                    <a href="../../docs/">Docs</a>
-                    <a href="../../features/">Features</a>
-                    <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
-                    <a href="../../faq/">FAQ</a>
-                    <a href="../../contribute/">Contribute</a>
-                </nav>
-            </noscript>
-        </div>
-
-        <main id="top" class="has-page-sidebar" tabindex="-1">
-            <section class="blog-post" aria-labelledby="post-title">
-                <div class="journey-hero reveal">
-                    <span class="journey-eyebrow">Weekly update</span>
-                    <h1 id="post-title">Week of 2026-02-09</h1>
-                    <p>A new chaos-testing tool, matured config reload, RFC 7606 enforcement, and a hot-path allocation cleanup.</p>
-                </div>
-                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
-            </section>
-            <section class="blog-post reveal">
-                <div class="blog-grid">
-                    <div class="blog-block" aria-label="🌪️ Chaos testing tool">
-                        <div class="md-content">
-                            <h2>🌪️ Chaos testing tool</h2>
-                            <p>A new dedicated tool, <code>ze-bgp-chaos</code>, landed this week: a seed-based fault-injection harness for exercising Ze's BGP route propagation. It grew from a single-peer session driver into a multi-peer validation framework with scripted chaos events (drops, resets, malformed messages) and coverage for seven address families (IPv4/IPv6 unicast, IPv4/IPv6 VPN, EVPN, IPv4/IPv6 FlowSpec).</p>
-                        </div>
-                    </div>
-                    <div class="blog-block" aria-label="🔁 Config reload">
-                        <div class="md-content">
-                            <h2>🔁 Config reload</h2>
-                            <p>Live reload now runs through the hub/orchestrator architecture: plugins get a verify pass before an apply pass, and the reload coordinator is hardened so a crashing plugin can't corrupt the process (any plugin that dies mid-reload aborts the reload cleanly instead of applying a partial config). Committing in the config editor now triggers a live daemon reload over the API socket directly. A new <code>ze signal</code> command plus PID-file locking makes it possible to reload, stop, or query a running daemon without hunting down its PID, and prevents two instances from starting against the same config.</p>
-                        </div>
-                    </div>
-                    <div class="blog-block" aria-label="🛰️ Protocol correctness">
-                        <div class="md-content">
-                            <h2>🛰️ Protocol correctness</h2>
-                            <ul>
-<li>Malformed UPDATE messages are now handled per RFC 7606: depending on the error, Ze treats the route as withdrawn, discards just the bad attribute, or resets the session, instead of one blunt response for every case</li>
-<li>Early support for RFC 9234 BGP Roles: peers can declare a role, and the engine validates role pairs on OPEN, sending a NOTIFICATION on mismatch (OTC handling is still to come)</li>
-<li><code>local-address</code> is now mandatory for every peer; leaving it unset made TCP source IP selection OS-dependent and produced inconsistent next-hop-self behaviour</li>
-</ul>
-                        </div>
-                    </div>
-                    <div class="blog-block" aria-label="🔄 ExaBGP migration">
-                        <div class="md-content">
-                            <h2>🔄 ExaBGP migration</h2>
-                            <p>The migration tool now passes all 37 compatibility test configs, with L2VPN/VPLS migration completed and ExaBGP watchdog processes bridged through Ze's API socket.</p>
-                        </div>
-                    </div>
-                    <div class="blog-block" aria-label="⚡ Performance">
-                        <div class="md-content">
-                            <h2>⚡ Performance</h2>
-                            <p>The BGP UPDATE encoding path had its remaining heap allocations eliminated: attribute writes, SRv6 TLVs, withdrawals, and RIB NLRI paths all now write into pooled buffers instead of allocating per message.</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            <aside class="page-sidebar" aria-label="Related page links">
-                <p class="page-sidebar-eyebrow">Change note</p>
-                <nav class="page-sidebar-nav" aria-label="Related links">
-                <section class="page-sidebar-group">
-                    <h2>More context</h2>
-                    <a class="page-sidebar-link" href="../../changes/">
-                        <span class="page-sidebar-link-label">All changes</span>
-                        <small>Return to the weekly update index.</small>
-                    </a>
-                    <a class="page-sidebar-link" href="../../milestones/">
-                        <span class="page-sidebar-link-label">Milestones</span>
-                        <small>See which changes became landmarks.</small>
-                    </a>
-                    <a class="page-sidebar-link" href="../../roadmap/">
-                        <span class="page-sidebar-link-label">Roadmap</span>
-                        <small>Map this week to the release plan.</small>
-                    </a>
-                    <a class="page-sidebar-link" href="../../activity/">
-                        <span class="page-sidebar-link-label">Activity</span>
-                        <small>View commit cadence around this week.</small>
-                    </a>
-                </section>
-                </nav>
-            </aside>
-        </main>
-
-        <script src="../../assets/site.js" defer></script>
-
-        <footer>
-            <div class="footer-inner">
-                <div class="footer-bottom">
-                    <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
-                </div>
-            </div>
-        </footer>
-    </body>
+<head>
+    <meta charset="utf-8">
+    <meta name="robots" content="noindex">
+    <meta http-equiv="refresh" content="0; url=/project/changes/2026-02-09/">
+    <link rel="canonical" href="https://ze-software.net/project/changes/2026-02-09/">
+    <title>Page moved - Ze</title>
+    <script>location.replace("/project/changes/2026-02-09/" + location.search + location.hash);</script>
+</head>
+<body>
+    <p>This page moved to <a href="https://ze-software.net/project/changes/2026-02-09/">https://ze-software.net/project/changes/2026-02-09/</a>.</p>
+</body>
 </html>

@@ -39,8 +39,8 @@
                     <a href="../../../docs/">Docs</a>
                     <a href="../../../features/">Features</a>
                     <a href="../../../compare/">Compare</a>
-                    <a href="../../../roadmap/">Roadmap</a>
-                    <a href="../../../changes/">Changes</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
                     <a href="../../../faq/">FAQ</a>
                     <a href="../../../contribute/">Contribute</a>
                 </nav>
@@ -67,12 +67,14 @@
 <ol>
 <li><a href="#success-with-data">Success with Data</a></li>
 <li><a href="#success-without-data">Success without Data</a></li>
+<li><a href="#success-with-rows">Success with Rows</a></li>
 <li><a href="#handler-error">Handler Error</a></li>
 </ol></li>
 <li><a href="#executecommandinput-fields">ExecuteCommandInput Fields</a></li>
 <li><a href="#naming-conventions">Naming Conventions</a></li>
 <li><a href="#command-arguments">Command Arguments</a></li>
 <li><a href="#commanddecl-fields">CommandDecl Fields</a></li>
+<li><a href="#naming-a-pipe-alias-for-your-command">Naming a Pipe Alias for Your Command</a></li>
 <li><a href="#complex-responses">Complex Responses</a></li>
 <li><a href="#dispatching-commands-to-other-plugins">Dispatching Commands to Other Plugins</a></li>
 <li><a href="#help-text">Help Text</a></li>
@@ -119,15 +121,31 @@
 </code></pre>
 <h2 id="wire-format">Wire Format</h2>
 <p>Commands are delivered to the plugin as <code>execute-command</code> RPCs over the MuxConn connection. The wire format uses <code>#&lt;id&gt; &lt;verb&gt; [&lt;json&gt;]</code> framing.</p>
-<!-- source: pkg/plugin/rpc/message.go -- FormatRequest, FormatResult, FormatError -->
+<!-- source: pkg/plugin/rpc/message.go -- AppendRequest, AppendResult, AppendError -->
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput, ExecuteCommandOutput -->
 
 <h3 id="request-engine-to-plugin">Request (engine to plugin)</h3>
 <pre><code>#17 ze-plugin-callback:execute-command {&quot;serial&quot;:&quot;abc123&quot;,&quot;command&quot;:&quot;my-plugin status&quot;,&quot;args&quot;:[],&quot;peer&quot;:&quot;&quot;}
 </code></pre>
 <h3 id="success-response-plugin-to-engine">Success Response (plugin to engine)</h3>
-<pre><code>#17 ok {&quot;status&quot;:&quot;done&quot;,&quot;data&quot;:{&quot;status&quot;:&quot;running&quot;,&quot;uptime&quot;:3600}}
+<p>The answer is a head, its records and a terminator, on every connection. The
+frame is the same whatever the payload is, so a handler that built one value
+takes the same three lines as a handler that walked a table. The field after the
+id is a three-byte kind token saying which of the three a line is: <code>top</code>, <code>row</code>
+and <code>end</code>, with <code>bad</code> for a rejected row.</p>
+<pre><code>#17 top doc 1:0: 1:0:
+#17 row 2:34:{&quot;status&quot;:&quot;running&quot;,&quot;uptime&quot;:3600}
+#17 end 1:1 1:0 1:0:
 </code></pre>
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer -->
+
+<p>The engine reads that sequence back into one <code>ExecuteCommandOutput</code>: the record
+is its <code>data</code>, and its <code>status</code> is derived from the terminator, which is the one
+line an answer states an outcome on.</p>
+<!-- source: internal/component/plugin/ipc/rpc.go -- ExecuteCommandValue -->
+<!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
+
 <h3 id="error-response-plugin-to-engine">Error Response (plugin to engine)</h3>
 <pre><code>#17 error {&quot;message&quot;:&quot;execute-command not supported&quot;}
 </code></pre>
@@ -141,18 +159,47 @@
     &quot;items&quot;: []string{&quot;a&quot;, &quot;b&quot;},
 }, nil
 </code></pre>
-<p>The SDK marshals this value into <code>ExecuteCommandOutput.Data</code> and sends:</p>
-<pre><code>#17 ok {&quot;status&quot;:&quot;done&quot;,&quot;data&quot;:{&quot;count&quot;:42,&quot;items&quot;:[&quot;a&quot;,&quot;b&quot;]}}
+<p>The SDK marshals this value once and sends it as the one record of the answer:</p>
+<pre><code>#17 top doc 1:0: 1:0:
+#17 row 2:30:{&quot;count&quot;:42,&quot;items&quot;:[&quot;a&quot;,&quot;b&quot;]}
+#17 end 1:1 1:0 1:0:
 </code></pre>
-<!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandOutput, executeCommandAnswer -->
 
 <h3 id="success-without-data">Success without Data</h3>
 <pre><code class="language-go">return &quot;done&quot;, nil, nil
 </code></pre>
-<p>Response:</p>
-<pre><code>#17 ok {&quot;status&quot;:&quot;done&quot;}
+<p>Response. A command that reported nothing writes no record, and the terminator
+says so. Nothing is not the same answer as an empty collection:</p>
+<pre><code>#17 top doc 1:0: 1:0:
+#17 end 1:0 1:0 1:0:
 </code></pre>
-<!-- source: pkg/plugin/rpc/message.go -- FormatResult, FormatOK -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer, writeDocumentLines -->
+
+<h3 id="success-with-rows">Success with Rows</h3>
+<p>A command that walks a large collection returns an <code>sdk.Records</code> rather than a
+built value. The SDK writes one line for each row, so neither the plugin nor the
+engine holds the whole answer:</p>
+<pre><code class="language-go">return &quot;done&quot;, sdk.Records{Key: &quot;sessions&quot;, Rows: sessionRows()}, nil
+</code></pre>
+<pre><code>#17 top map 1:8:sessions 1:0:
+#17 row 2:26:{&quot;id&quot;:1,&quot;peer&quot;:&quot;10.0.0.1&quot;}
+#17 row 2:26:{&quot;id&quot;:2,&quot;peer&quot;:&quot;10.0.0.2&quot;}
+#17 end 1:2 1:0 1:0:
+</code></pre>
+<p><code>Key</code> names the envelope the rows belong under. A handler MUST NOT name it
+<code>errors</code>, because that name holds the rows the walk rejected. <code>Rows</code> is walked
+once, before the handler's call returns. A handler MUST NOT store the sequence,
+and MUST keep whatever it reads alive until then. A row that no wire message can
+carry is reported as a rejected row, and the walk continues.</p>
+<p>A walk of 256 rows or fewer collapses to one <code>doc</code> record, which is the
+JSON the command answered with before it produced rows at all. The encoder
+decides that from the walk, and the handler states nothing about the wire. That
+document is one line as well, so rows that each fit and collapse into something
+no line can carry earn the same rejected row, and the head then states <code>map</code>.</p>
+<!-- source: pkg/plugin/records.go -- Row, Record, Records, Records.WriteAnswer -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, boundedRecord -->
+<!-- source: pkg/plugin/rpc/collapse.go -- CollapseRecords, AnswerErrorsKey -->
 
 <h3 id="handler-error">Handler Error</h3>
 <p>If the handler returns a non-nil error, the SDK sends an error response:</p>
@@ -296,6 +343,83 @@
 </tr>
 </tbody>
 </table>
+<h2 id="naming-a-pipe-alias-for-your-command">Naming a Pipe Alias for Your Command</h2>
+<p>A pipe alias is the word an operator types after the pipe character, standing
+for an operator chain they would otherwise type in full. Declare one in the
+<code>Pipes</code> list of the same <code>Registration</code>:</p>
+<!-- source: pkg/plugin/sdk/sdk_types.go -- PipeDecl, Registration -->
+
+<pre><code class="language-go">err := p.Run(ctx, sdk.Registration{
+    Commands: []sdk.CommandDecl{
+        {Name: &quot;my-plugin status&quot;, Description: &quot;Show current status&quot;},
+    },
+    Pipes: []sdk.PipeDecl{{
+        Command:     &quot;my-plugin status&quot;,
+        Name:        &quot;totals&quot;,
+        Description: &quot;The counters, without the per-session rows&quot;,
+        Expansion:   &quot;display sessions-total sessions-established&quot;,
+    }},
+})
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Command</code></td>
+<td>string</td>
+<td class="cell-yes">✓</td>
+<td>Command path the alias sits on. MUST be one of your own declared commands</td>
+</tr>
+<tr>
+<td><code>Name</code></td>
+<td>string</td>
+<td class="cell-yes">✓</td>
+<td>The word typed after the pipe character (kebab-case)</td>
+</tr>
+<tr>
+<td><code>Description</code></td>
+<td>string</td>
+<td class="cell-no">✕</td>
+<td>The line completion and <code>command help</code> show beside the name</td>
+</tr>
+<tr>
+<td><code>Expansion</code></td>
+<td>string</td>
+<td class="cell-yes">✓</td>
+<td>The operator chain the name stands for</td>
+</tr>
+</tbody>
+</table>
+<p>Three rules decide whether your command CAN have an alias.</p>
+<!-- source: internal/component/command/alias.go -- RegisterPluginAliases, checkAlias -->
+
+<ul>
+<li><strong>The pipe layer selects. It does not compute.</strong> <code>display</code> keeps named keys and
+  drops the rest, and no operator renames a key, adds two numbers, or counts
+  matching rows. Your handler MUST emit the aggregate fields beside the detail
+  rows, as siblings at one level. <code>show bgp rpki</code> is the worked example.</li>
+<li><strong>The name MUST be free.</strong> It cannot be a built-in operator name, a pipe filter
+  name on an overlapping command path, or an alias name the exact same command
+  path already carries. One refusal fails your whole Stage 1 registration.</li>
+<li><strong>The alias takes no argument, and names no other alias.</strong> Its expansion parses
+  to built-in operators alone.</li>
+</ul>
+<p>The engine stops the alias reaching a command below the one it sits on. Declare
+<code>my-plugin status detail</code> in the same message and it inherits nothing.</p>
+<p><code>ze cli</code> with no command argument expands the chain in the client process, where
+your alias is not registered, so it answers
+<code>pipe error: unknown pipe operator: totals</code> there. It resolves over
+<code>ze cli -c "&lt;command&gt;"</code> and in the interactive session a plain ssh client
+reaches.</p>
+<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
+
 <h2 id="complex-responses">Complex Responses</h2>
 <p>Return structured JSON data for API consumers:</p>
 <pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
@@ -363,7 +487,7 @@ if command == &quot;my-plugin help&quot; {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 12:15 UTC</span>
                 </div>
             </div>
         </footer>

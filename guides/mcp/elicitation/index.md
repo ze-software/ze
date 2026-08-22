@@ -97,7 +97,7 @@ that client will get an error rather than a prompt.
         "method": "elicitation/create",
         "params": {
           "mode": "form",
-          "message": "Which ze command should be run? For example: show bgp summary",
+          "message": "Which ze command should be run? For example: show bgp",
           "requestedSchema": {
             "type": "object",
             "properties": {
@@ -138,7 +138,7 @@ The retry is the original request plus `inputResponses`, under a new id.
     "inputResponses": {
       "ze_execute_command": {
         "action": "accept",
-        "content": { "command": "show bgp summary" }
+        "content": { "command": "show bgp" }
       }
     },
     "_meta": { "...": "the same required per-request fields" }

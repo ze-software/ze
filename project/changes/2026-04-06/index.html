@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2026-04-06 - Ze</title>
+        <meta name="description" content="A full BFD engine, BGP route reflection and policy filters, a REST/gRPC config editor, WireGuard support, and a talk at Net Manchester." />
+        <meta property="og:title" content="Week of 2026-04-06 - Ze" />
+        <meta property="og:description" content="A full BFD engine, BGP route reflection and policy filters, a REST/gRPC config editor, WireGuard support, and a talk at Net Manchester." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2026-04-06 - Ze" />
+        <meta name="twitter:description" content="A full BFD engine, BGP route reflection and policy filters, a REST/gRPC config editor, WireGuard support, and a talk at Net Manchester." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/project/changes/2026-04-06/" />
+        <meta property="og:url" content="https://ze-software.net/project/changes/2026-04-06/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">Weekly update</span>
+                    <h1 id="post-title">Week of 2026-04-06</h1>
+                    <p>A full BFD engine, BGP route reflection and policy filters, a REST/gRPC config editor, WireGuard support, and a talk at Net Manchester.</p>
+                </div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🔒 BFD liveness detection">
+                        <div class="md-content">
+                            <h2>🔒 BFD liveness detection</h2>
+                            <p>A complete BFD implementation shipped end to end:</p>
+<ul>
+<li>Transport hardening (GTSM, jitter, single-hop and multi-hop per RFC 5881/5883)</li>
+<li>BGP peer opt-in, so a session can require BFD before it's considered up</li>
+<li>Authentication (RFC 5880 keyed SHA1/MD5)</li>
+<li>Echo mode</li>
+<li>Operator visibility: show commands and Prometheus metrics</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ BGP routing and policy">
+                        <div class="md-content">
+                            <h2>🛰️ BGP routing and policy</h2>
+                            <ul>
+<li>BMP (RFC 7854): wire format, receiver, sender, and Adj-RIB-Out support (RFC 8671)</li>
+<li>Route reflection (RFC 4456), next-hop control, and multipath</li>
+<li>A new policy filter chain: prefix-list, AS-path regex, community match, and route attribute modification (local-preference, MED, AS-path prepend)</li>
+<li>The first piece of a broader policy framework, including loop-detection filtering</li>
+<li>N-way best-path selection with a <code>rib show best</code> reason trace</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧩 Config editor and API">
+                        <div class="md-content">
+                            <h2>🧩 Config editor and API</h2>
+                            <p>A REST and gRPC API landed on top of a shared transport engine, with TLS, a Swagger UI, and a working config editor with per-user auth.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔌 Interfaces">
+                        <div class="md-content">
+                            <h2>🔌 Interfaces</h2>
+                            <ul>
+<li>WireGuard support: configure, reconcile, and tear down interfaces</li>
+<li>GRE, IPIP, SIT, and IP6TNL tunnel interfaces</li>
+<li>DHCP client wiring for routes, DNS, and NTP discovery on every ethernet interface</li>
+<li>An NTP client plugin for system clock sync</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="💿 Appliance">
+                        <div class="md-content">
+                            <h2>💿 Appliance</h2>
+                            <p>A gokrazy VM appliance build for x86_64.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📣 Presentation: Net Manchester">
+                        <div class="md-content">
+                            <h2>📣 Presentation: Net Manchester</h2>
+                            <p>Presented "Ze: Redoing and improving on ExaBGP" at Net Manchester this week,
+walking through why Ze exists and what it does differently from ExaBGP. Good
+session, and a good crowd to have that conversation with in person.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../../project/changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

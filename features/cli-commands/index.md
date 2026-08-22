@@ -7,7 +7,7 @@ words after the verb are the YANG path. A bare form with no verb is not in the
 command tree, and the dispatcher answers `unknown command` for it. `daemon
 reload` is now `request reload`, `daemon status` is `show status`, `daemon quit`
 is `request halt`, `daemon shutdown` is `request shutdown`, and `bgp summary` is
-`show bgp summary`.
+`show bgp`.
 
 `stop`, `restart`, and `reboot` are the exception, and they keep their bare
 spelling. The SSH exec middleware intercepts those three lifecycle verbs before

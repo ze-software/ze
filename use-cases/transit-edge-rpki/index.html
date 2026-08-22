@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -166,7 +166,7 @@ as a capacity claim.</p>
 <p>Decide cache failure behaviour before deployment. A cache timeout can fail open, fail closed, or retain a previously validated state depending on the configured component and policy. Record that decision and test it with the cache unavailable.</p>
 <p>A transit failure and an RPKI cache failure are different events. Monitor them separately so a routing incident does not hide a validation outage.</p>
 <h2 id="verification">Verification</h2>
-<pre><code class="language-console">ze cli -c &quot;show bgp summary&quot;
+<pre><code class="language-console">ze cli -c &quot;show bgp&quot;
 ze cli -c &quot;show bgp peer transit-a capabilities&quot;
 ze cli -c &quot;show bgp rpki status&quot;
 ze cli -c &quot;show bgp rpki cache&quot;
@@ -226,7 +226,7 @@ ze cli -c &quot;show warnings&quot;
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

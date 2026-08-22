@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -197,7 +197,7 @@
 <tr>
 <td><a href="../../features/cli-commands/">CLI Commands</a></td>
 <td>Supported</td>
-<td>Protocol tools, config management, schema discovery, daemon control, AS topology graph, policy dry-run testing (<code>show policy test</code>). Verb-first is now the only spelling: every command starts with <code>show</code>, <code>clear</code>, <code>monitor</code>, <code>request</code>, <code>set</code> or <code>delete</code>, and the words after it are the YANG path. The bare forms are gone from the command tree, not aliased, so the dispatcher answers <code>unknown command</code> for <code>daemon reload</code>, <code>daemon status</code>, <code>daemon quit</code>, <code>bgp summary</code>, <code>system memory</code>, <code>interface rate</code> and the rest; the verb-first spellings are <code>request reload</code>, <code>show status</code>, <code>request halt</code>, <code>show bgp summary</code>, <code>show system memory</code>, <code>show interface rate</code>. Three exec verbs stay bare on purpose (<code>stop</code>, <code>restart</code>, <code>reboot</code>): the SSH exec middleware intercepts them before the dispatcher, which registers no key for them. <code>show interface</code> reshaped its keywords too: <code>name &lt;n&gt; detail</code> and <code>name &lt;n&gt; counters</code> replace <code>detail &lt;n&gt;</code> and <code>counters &lt;n&gt;</code>, and <code>brief</code>, <code>scan</code>, <code>type</code>, <code>errors</code> and <code>rate</code> each answer a distinct question. <!-- source: internal/plugins/signal/main.go -- ExecCommand mapping and the removed spellings --> <!-- source: internal/component/ssh/ssh.go -- execMiddleware --></td>
+<td>Protocol tools, config management, schema discovery, daemon control, AS topology graph, policy dry-run testing (<code>show policy test</code>). Verb-first is now the only spelling: every command starts with <code>show</code>, <code>clear</code>, <code>monitor</code>, <code>request</code>, <code>set</code> or <code>delete</code>, and the words after it are the YANG path. The bare forms are gone from the command tree, not aliased, so the dispatcher answers <code>unknown command</code> for <code>daemon reload</code>, <code>daemon status</code>, <code>daemon quit</code>, <code>bgp summary</code>, <code>system memory</code>, <code>interface rate</code> and the rest; the verb-first spellings are <code>request reload</code>, <code>show status</code>, <code>request halt</code>, <code>show bgp</code>, <code>show system memory</code>, <code>show interface rate</code>. Three exec verbs stay bare on purpose (<code>stop</code>, <code>restart</code>, <code>reboot</code>): the SSH exec middleware intercepts them before the dispatcher, which registers no key for them. <code>show interface</code> reshaped its keywords too: <code>name &lt;n&gt; detail</code> and <code>name &lt;n&gt; counters</code> replace <code>detail &lt;n&gt;</code> and <code>counters &lt;n&gt;</code>, and <code>brief</code>, <code>scan</code>, <code>type</code>, <code>errors</code> and <code>rate</code> each answer a distinct question. <!-- source: internal/plugins/signal/main.go -- ExecCommand mapping and the removed spellings --> <!-- source: internal/component/ssh/ssh.go -- execMiddleware --></td>
 </tr>
 <tr>
 <td>CLI Session Transcript</td>
@@ -445,6 +445,11 @@
 <td><code>| first N</code> and <code>| last N</code> pipe operators bound output to the first or last N items. Works on any command's JSON output (client-side truncation). Commands that register them as pipe filters (e.g. RIB) get server-side early termination: <code>| first N</code> stops the iterator at N, saving both iteration and serialization cost. <code>| last N</code> keeps a trailing window. JSON output includes a <code>"pipe"</code> metadata dict recording which data-shaping modifiers were applied. <!-- source: internal/component/command/pipe.go -- pipeFirst, pipeLast, applyFirst, applyLast, collectPipeMeta --></td>
 </tr>
 <tr>
+<td>Plugin-Declared Pipe Aliases</td>
+<td>Supported</td>
+<td>A pipe alias names an operator chain, so <code>show bgp \| summary</code> says what <code>show bgp \| display router-id local-as uptime peers-configured peers-established</code> says. A plugin names one for its own commands in the <code>pipes</code> list of its Stage 1 registration, and the engine parses the expansion once, at registration. The alias leaves the registry when the plugin stops, so a stopped plugin can start again. The pipe layer selects and re-sequences and computes nothing, so a command that offers an alias MUST emit its aggregate fields beside its detail rows. <code>show bgp rpki</code> does this, and <code>show bgp rpki \| summary</code> answers the same record as <code>show bgp rpki summary</code>. <code>command help "&lt;name&gt;"</code> lists the aliases a command answers to, with the chain each one stands for. A declared alias resolves over <code>ze cli -c</code> and over ssh, and NOT inside <code>ze cli</code> with no command argument, which expands the chain in the client process. <!-- source: pkg/plugin/rpc/types.go -- PipeDecl --> <!-- source: internal/component/command/alias.go -- RegisterPluginAliases, UnregisterPluginAliases, aliasBarriers --> <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion --> <!-- source: internal/plugins/meta/cmd/help.go -- pipeAliasHelp --></td>
+</tr>
+<tr>
 <td>Stdin/stdout <code>-</code> on filename arguments</td>
 <td>Supported</td>
 <td>Every filename-accepting command treats <code>-</code> as stdin when reading and stdout when writing, so configs and data stream through pipes without temp files: <code>generate \| ze config show -</code>, <code>ssh host cat rib.mrt \| ze analyze show -</code>, <code>ze config show - \| ze config set - bgp session asn local 65001 \| ze config validate -</code>, <code>ze config migrate -o - old.conf</code>. Resolution goes through one leaf helper so <code>-</code> behaves identically everywhere; MRT stdin auto-detects gzip/bzip2 by magic bytes. stdin is consumable once: a second <code>-</code> in one command fails closed. <code>ze config edit/rollback/history -</code> are rejected (no TTY / no revision history for a pipe). A build gate (<code>make ze-dash-stdio-check</code>) fails any command that reads/writes a user path without the helper. <!-- source: internal/core/cliio/cliio.go -- ReadFile, OpenReader, Create, WriteFile, ErrStdinClaimed --> <!-- source: internal/mrt/reader.go -- openReader, SniffDecompress --> <!-- source: scripts/checks/cli_dash_stdio.go -- the enforcement gate --></td>
@@ -690,7 +695,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

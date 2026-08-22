@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -231,8 +231,10 @@ returns one interface. Output is structured per interface: <code>ingress-ports</
 <pre><code>ze cli -c 'show traffic usage'
 ze cli -c 'show traffic usage name eth0'
 </code></pre>
-<p>The command produces JSON by default and supports the full set of pipe
-operators.</p>
+<p>The command answers structured data, which <code>ze cli -c</code> renders in the format
+<code>environment cli format default</code> names. The registered value is <code>text</code>. Append
+<code>| json</code>, <code>| table</code>, <code>| yaml</code> or <code>| ndjson</code> to select another one, and the full
+set of pipe operators applies.</p>
 <!-- source: internal/plugins/trafficusage/show.go -- ze-show:traffic-usage -->
 
 <figure class="terminal-demo" data-terminal-demo="traffic-anomaly">
@@ -399,7 +401,7 @@ metrics.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

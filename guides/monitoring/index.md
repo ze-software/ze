@@ -482,7 +482,7 @@ their authority is checked by AAA, and `send` grants authority to a program.
 For scripting, use `-c` to execute a single command and exit:
 
 ```
-ze cli -c "show bgp summary"
+ze cli -c "show bgp"
 ze cli -c "show bgp rib received"
 ze cli -c "show bgp rpki status"
 ```

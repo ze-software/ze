@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2026-06-15 - Ze</title>
+        <meta name="description" content="Native IS-IS landed, MPLS gained fast reroute, and firewall rules can now pull straight from the IRR." />
+        <meta property="og:title" content="Week of 2026-06-15 - Ze" />
+        <meta property="og:description" content="Native IS-IS landed, MPLS gained fast reroute, and firewall rules can now pull straight from the IRR." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2026-06-15 - Ze" />
+        <meta name="twitter:description" content="Native IS-IS landed, MPLS gained fast reroute, and firewall rules can now pull straight from the IRR." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/project/changes/2026-06-15/" />
+        <meta property="og:url" content="https://ze-software.net/project/changes/2026-06-15/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">Weekly update</span>
+                    <h1 id="post-title">Week of 2026-06-15</h1>
+                    <p>Native IS-IS landed, MPLS gained fast reroute, and firewall rules can now pull straight from the IRR.</p>
+                </div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🛰️ IS-IS &amp; MPLS">
+                        <div class="md-content">
+                            <h2>🛰️ IS-IS &amp; MPLS</h2>
+                            <ul>
+<li>A native IS-IS link-state IGP (ISO/IEC 10589, RFC 1195/5305/5308/5301/5303/5304/5310/2966): full PDU/TLV codec, adjacency FSM for point-to-point and LAN, LSDB flooding, DIS election, SPF with ECMP install into the Loc-RIB, HMAC auth, and dual-stack IPv6, interop-tested against FRR's isisd. Interface config now nests under <code>interfaces { }</code>, matching OSPF's convention.</li>
+<li>RSVP-TE fast reroute (RFC 4090 facility backup): a Point of Local Repair redirects a protected LSP onto a pre-armed bypass on link failure without tearing down the LSP, and tunnels reconcile correctly across a config reload.</li>
+<li>BGP-LU labeled unicast now has a full label path through the kernel FIB, LDP, and RSVP-TE.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ BGP">
+                        <div class="md-content">
+                            <h2>🛰️ BGP</h2>
+                            <ul>
+<li>SR-Policy routes: decode, JSON output, and CLI <code>--nlri decode</code> support</li>
+<li>A pass fixing eight RFC 9252 compliance bugs in SRv6 Prefix-SID, found during external review (wire-format field sizes, TLV bounds checks, SID length validation)</li>
+<li>Per-family ADD-PATH mode enforcement, plus a new PATHS-LIMIT capability (draft-abraitis-idr-addpath-paths-limit) with add-path config unified into a single block</li>
+<li>FlowSpec rate-limit now accepts an explicit <code>:bytes</code> unit (RFC 8955), and the ExaBGP-compatibility bridge moved to version 6.0.0 to match ExaBGP's own unified rate-limit syntax</li>
+<li>A route-server race that could send duplicate or misordered End-of-RIB markers on reconnect is fixed</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔒 Firewall / IRR">
+                        <div class="md-content">
+                            <h2>🔒 Firewall / IRR</h2>
+                            <p>A new firewall plugin resolves ASN and AS-SET references against the Internet Routing Registry and turns them into nftables prefix-list filters automatically, with dual-stack support, per-interface source validation, and commit-time verification that rejects any reference that hasn't been cached yet.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔌 Interfaces">
+                        <div class="md-content">
+                            <h2>🔌 Interfaces</h2>
+                            <p>Interfaces can now bind to the underlying kernel device by hardware MAC address instead of by OS-assigned name, so the binding survives a NIC rename or a MAC override. <code>show interface</code> also now exposes the permanent factory MAC and OS device name.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🖥️ CLI">
+                        <div class="md-content">
+                            <h2>🖥️ CLI</h2>
+                            <p>Running <code>ze</code> with no arguments now opens a hierarchical TUI menu of every command, with type-ahead filtering and drill-down into sub-commands. Environment-key values now autocomplete in both the operational CLI and the shell, and help output is consistently colored across every surface.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="💿 Appliance &amp; provisioning">
+                        <div class="md-content">
+                            <h2>💿 Appliance &amp; provisioning</h2>
+                            <p>Provisioning now logs per-request detail (DHCP lease, TFTP read, served image identity) at a visible level by default, so a PXE boot sequence isn't silent, and an installed appliance can report which build it's running via <code>ze version</code>. PXE-provisioned interfaces get their address auto-configured. The runtime kernel picked up fixes for L2TP support on kernel 7.0 and for the serial console driver, and the installer now shows console output on headless serial hardware and recovers from a foreign DHCP lease that has no route back to the install server.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../../project/changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

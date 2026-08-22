@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2026-07-20 - Ze</title>
+        <meta name="description" content="Ze has left Codeberg for GitHub. Beyond the move: protocol correctness, a security triage over the code-scanning backlog, and build-time feature gates that let a deployment ship only the code it runs." />
+        <meta property="og:title" content="Week of 2026-07-20 - Ze" />
+        <meta property="og:description" content="Ze has left Codeberg for GitHub. Beyond the move: protocol correctness, a security triage over the code-scanning backlog, and build-time feature gates that let a deployment ship only the code it runs." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2026-07-20 - Ze" />
+        <meta name="twitter:description" content="Ze has left Codeberg for GitHub. Beyond the move: protocol correctness, a security triage over the code-scanning backlog, and build-time feature gates that let a deployment ship only the code it runs." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/project/changes/2026-07-20/" />
+        <meta property="og:url" content="https://ze-software.net/project/changes/2026-07-20/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">Weekly update</span>
+                    <h1 id="post-title">Week of 2026-07-20</h1>
+                    <p>Ze has left Codeberg for GitHub. Beyond the move: protocol correctness, a security triage over the code-scanning backlog, and build-time feature gates that let a deployment ship only the code it runs.</p>
+                </div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🏠 Ze has moved to GitHub">
+                        <div class="md-content">
+                            <h2>🏠 Ze has moved to GitHub</h2>
+                            <p>Development has left Codeberg entirely and now happens at <strong>github.com/ze-software/ze</strong>. Codeberg's LLM policy, published on 23 July, makes hosting Ze's development there untenable. What changes for anyone using Ze:</p>
+<ul>
+<li>The clone URL is <code>https://github.com/ze-software/ze.git</code>, and the Go module path is now <code>github.com/ze-software/ze</code>, so <code>go install</code> needs the new path.</li>
+<li>Issues and the wiki live on GitHub.</li>
+<li>Validation moved off Woodpecker onto GitHub Actions: the full suite on every push and pull request, plus scheduled fuzz, kernel-integration and performance runs. The nightly gained kernel integration coverage that the previous runner could not grant the privileges for.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧩 Build only the features you run">
+                        <div class="md-content">
+                            <h2>🧩 Build only the features you run</h2>
+                            <p>Twenty-three more subsystems compile out behind build tags, taking the total to thirty-six. All are on by default, so the shipped binary is unchanged.</p>
+<ul>
+<li>BGP itself is now gated, along with BMP and MRT. Dropping BGP from a full build takes the binary from about 70 MB to 60 MB, and that build still runs OSPF, IS-IS, static routes, the FIB, MRT and flow export.</li>
+<li>Also new this week: BFD, IKE/IPsec, L2TP, RADIUS, TACACS+, DHCP, PXE, AS112 and GeoDNS, NTP, VPP, flow export, DDoS and anomaly detection, CoS, CoPP, MPLS, policy routing, traffic usage, and the ExaBGP bridge. OSPF, IS-IS, LDP, RSVP-TE, VRRP and the management surfaces were already gated.</li>
+<li>The config loader fails closed on a config carrying blocks the running build has no code for. A stripped build used to boot a full build's config with the missing blocks pruned without reporting it, which could reduce TACACS+ or RADIUS authentication to local-only.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔒 Security">
+                        <div class="md-content">
+                            <h2>🔒 Security</h2>
+                            <p>A triage of every open code-scanning alert closed six real issues:</p>
+<ul>
+<li>The installer's rescue shell published an unsalted SHA-256 of the admin password on the kernel command line, inside a boot script served unauthenticated over plain HTTP and readable from <code>/proc/cmdline</code>. It now commits to a dedicated random token behind salted argon2id, minted by <code>ze plugin provision</code> and printed once. A malformed token reboots rather than opening a shell or prompting forever.</li>
+<li>Appliance config push accepted any SSH host key. It verifies against <code>known_hosts</code> and fails closed, naming the host and the <code>ssh-keyscan</code> line.</li>
+<li>An open redirect in the web UI, plus two truncations that should have been rejections: an ASN above the 32-bit range became AS 0, and a bare-seconds announce duration overflowed into a negative delay.</li>
+</ul>
+<p>Elsewhere:</p>
+<ul>
+<li>Any host able to open a colliding TCP connection to a configured peer address could crash the BGP reactor before capability negotiation, because that path read an OPEN using the raw wire length with no upper bound. Auditing it found the connection winning collision resolution ran no OPEN validator at all, so role and router-id checks were bypassable there.</li>
+<li>Authorization fails closed. A login resolving to no profile is denied instead of falling through to built-in admin, and reserved identities are dropped on ingress from RADIUS and TACACS+.</li>
+<li>EAP-TLS performs certificate path validation on both sides, as RFC 5216 requires. A peer or responder with no usable trust anchor refuses the session instead of completing an unauthenticated handshake. The IPsec config validators now run at commit, so a peer naming an absent IKE group, ESP group or certificate is rejected there.</li>
+<li>Routing-table IDs are bounded before reaching netlink. An out-of-range value used to drop the attribute silently and send the rule to the default table.</li>
+<li><code>govulncheck</code> and CodeQL across the shipped build-tag combinations run on a schedule, and the dependency pins carry documented reasons.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ BGP correctness">
+                        <div class="md-content">
+                            <h2>🛰️ BGP correctness</h2>
+                            <p>Forwarding and replay:</p>
+<ul>
+<li>Peer-up replay and live forwarding were two unsynchronised writers to one session, so a route arriving during establishment went out twice. Replay carries announcements only, so a replayed announcement landing after a live withdrawal resurrected a withdrawn route permanently. Replay and live forwarding now meet at one cut-over point.</li>
+<li>The delta replay re-sent its boundary route on every iteration, and a peer's first session replayed its own sends back to it.</li>
+<li>A route reflector forwarded updates whose source peer could not be resolved, which suppressed the reflection checks and ORIGINATOR_ID and CLUSTER_LIST injection that RFC 4456 provides for loop prevention. Such forwarding is now refused.</li>
+<li>A peer could receive the same End-of-RIB twice for one family in one session.</li>
+</ul>
+<p>Wire output:</p>
+<ul>
+<li>An as-path supplied through the API went out verbatim to every peer. RFC 7947 grants that transparency to route-server clients; a plain eBGP peer now gets the local AS prepended, as RFC 4271 requires, so the receiver's loop detection can see the path.</li>
+<li>One route could encode to two different byte strings depending on when it was sent, because one of three builders wrote MP_REACH_NLRI out of type-code order.</li>
+<li>A re-encoded route carried NEXT_HOP twice, which a strict receiver such as FRR treats as a withdrawal.</li>
+<li>Splitting an oversized UPDATE that carried both an MP attribute and the legacy IPv4 fields dropped the IPv4 half entirely, with no error and a success return. A dropped withdrawal leaves a stale route installed on the peer.</li>
+<li>RFC 6286 is implemented: an OPEN whose BGP Identifier is zero, or which matches this speaker's identifier on an internal peer, is rejected, and the identifier is claimed AS-wide during OPEN validation.</li>
+<li>Stale routes readvertised by the operator or the graceful-restart timer now carry NO_EXPORT and LOCAL_PREF 0 toward internal peers, and are withdrawn from eBGP peers, per RFC 9494.</li>
+<li>An unrecognized BGP-LS NLRI type no longer erases every NLRI after it. EVPN rejects a malformed IP address length, and the route types Ze relays without recognising are encoded byte-exact.</li>
+<li>Five disclosed RFC 7606 gaps are implemented: attribute codes 24, 25 and 128 are length-validated, ATTR_SET is checked against all three RFC 6368 conditions, treat-as-withdraw covers two families and skips non-negotiated ones, and the attribute tombstone uses a single wire code point.</li>
+<li>Four reactor concurrency races, and a buffer leak on the forwarding path that eventually failed every read daemon-wide.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ OSPF, L2TP and BMP">
+                        <div class="md-content">
+                            <h2>🛰️ OSPF, L2TP and BMP</h2>
+                            <ul>
+<li>OSPFv3 sent a zero, invalid IPv6 checksum on every packet. A conforming peer that sets <code>IPV6_CHECKSUM</code> on its raw socket discards those, which plausibly made OSPFv3 non-interoperable. The OSPFv2 authentication signer was being installed on OSPFv3 engines, and the transport reads a signer as a statement that an authentication trailer owns integrity.</li>
+<li>One interface that could not be opened took down every OSPF instance and address family. The engine now warns and leaves that interface to the rescan.</li>
+<li>An OSPFv3 interface opened while its link-local address was still in duplicate address detection could never send, and never recovered once detection finished.</li>
+<li>A config with OSPF and an external plugin but no BGP was routed to the plugin-hub path, so OSPF was skipped and the plugin was killed for want of a TLS acceptor.</li>
+<li>L2TP went deaf to a peer's control plane once that tunnel's first session reached the kernel data plane: no second call, no CDN, no HELLO, no StopCCN. The kernel prefers the connected socket when demuxing, and control frames landing there were never read.</li>
+<li>Session ids were lost through the L2TP reorder queue, so every reordered session message was dropped as unknown.</li>
+<li>BMP shared one unsynchronised scratch buffer between the plugin's delivery loop and the RFC 9069 Loc-RIB path, so a message could go out whose header length did not describe its content and desynchronise the collector's framing. The Initiation message is now guaranteed first on the wire.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="💿 Interfaces, QoS and firewall">
+                        <div class="md-content">
+                            <h2>💿 Interfaces, QoS and firewall</h2>
+                            <ul>
+<li>Renumbering an interface inside its own subnet lost the address. The netlink monitor never seeded its interface cache, so address events for exactly the configured interfaces were dropped and every reload changing an address timed out and rolled back. Underneath, make-before-break reconcile makes the incoming address a secondary, which the kernel flushes with the primary unless <code>promote_secondaries</code> is set.</li>
+<li>Traffic control refused any interface whose root queueing discipline was <code>noqueue</code>, the default on veth, dummy and bridge devices, so container and VM deployments could not apply QoS at all.</li>
+<li>Mixing an IPv4 and an IPv6 DSCP match on one interface was unapplicable, since both filters were built at the same priority and the kernel keeps one protocol per priority.</li>
+<li>Per-element timeouts in firewall sets never reached the kernel.</li>
+<li>The policy-routing plugin built a chain type nftables accepts only on OUTPUT, so the kernel refused it and took the plugin down at startup.</li>
+<li>A DDoS mitigation for an unresolvable victim installed an unconditional drop of all forwarded traffic while logging that a drop rule was installed. It now refuses and logs at error, leaving any prior narrow rule intact.</li>
+<li>One unresolvable static route no longer fails the whole <code>static</code> section: what resolves is applied, the rest is reported through <code>show static skipped</code> and a doctor check, and retried next apply.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛠️ Configuration and operations">
+                        <div class="md-content">
+                            <h2>🛠️ Configuration and operations</h2>
+                            <ul>
+<li><code>ze start &lt;config&gt;</code> is how a config file is launched now. A bare path was resolved after commands, so a config named like a command was dispatched as that command and never loaded.</li>
+<li><code>ze config set</code>, <code>activate</code> and <code>deactivate</code> no longer notify a running daemon by default. Editing a stored config offline is the common case, and <code>--reload</code> opts in.</li>
+<li>A reload verified a participant and then never applied it whenever another participant supplied operations, so a change was dropped while the reload reported success. Plugins declaring a nested config root could never be reconfigured by SIGHUP at all, which affected eight of them.</li>
+<li>A successful SIGHUP now announces completion, so an operator can tell a finished reload from a stuck one.</li>
+<li>AS_PATH prepends and MPLS label stacks survive a config round trip. A leaf-list deduplication was collapsing repeated members of ordered sequences where the duplicates are load-bearing.</li>
+<li>Runtime state persists when the config lives on a filesystem backend. BFD authentication sequence numbers, DDoS baselines and NTP last-sync were lost across every restart, and traffic control refuses to program a qdisc without persistence.</li>
+<li>The IRR filter plugin enrolled every peer with a remote ASN, so any config with a <code>bgp</code> block made live PeeringDB and RADB requests at startup. Enrolment now requires asking for IRR filtering.</li>
+<li>Plugin startup waits on progress rather than a flat five seconds shared by a whole tier, so a CPU-starved or slow-disk box no longer comes up with its BGP plugins missing. A plugin that fails startup now reports the underlying cause alongside the stage it failed at.</li>
+<li>Two config backups taken within the same millisecond no longer overwrite each other.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📊 Standards ledger and docs">
+                        <div class="md-content">
+                            <h2>📊 Standards ledger and docs</h2>
+                            <ul>
+<li>Thirty more RFC summaries joined the compliance gate, bringing it to 166: BGP-4 itself, 4-octet AS, graceful restart and long-lived graceful restart, BGP Identifier, BGP-LS, EVPN, FlowSpec, SR Policy and Prefix-SID, tunnel encapsulation, MPLS labels, OSPFv2, OSPFv3 and its IPsec, PE-CE and segment-routing extensions, LDP, BFD, PPP, DHCP, DNSSEC, VRRPv2 and VRRPv3, and both revisions of RPKI-RTR.</li>
+<li>Enrolling an RFC means every MUST-level requirement is either bound to a passing test or published as a gap with its reason and a source anchor. Enrolling RFC 4271 disclosed 21 of them on the status page. The OSPFv3 checksum bug and the EVPN decoder hole were both found doing this. The gate also ratchets now: a requirement that was proven cannot quietly stop being proven, and it cannot be deleted from a summary to make the gate green.</li>
+<li>A minimal independent BGP speaker joined the interoperability suite. It reads what Ze actually puts on the wire rather than the bytes a test was told to expect, and it is what caught the duplicate NEXT_HOP above.</li>
+<li>New guides published: BGP peering, BGP policy, BGP resilience, configuration lifecycle, plugin development, a glossary, and a short project history.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔭 Coming up">
+                        <div class="md-content">
+                            <h2>🔭 Coming up</h2>
+                            <p>More of the same before anything new. The next stretch goes on clearing open issues and known bugs, and feature work waits until that queue is down. Correctness on the paths that already exist is worth more than another protocol.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../../project/changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

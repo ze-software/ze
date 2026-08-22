@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2026-03-23 - Ze</title>
+        <meta name="description" content="A full web interface, fleet management, redistribution filtering, and a stack of routing-protocol correctness work all landed together." />
+        <meta property="og:title" content="Week of 2026-03-23 - Ze" />
+        <meta property="og:description" content="A full web interface, fleet management, redistribution filtering, and a stack of routing-protocol correctness work all landed together." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2026-03-23 - Ze" />
+        <meta name="twitter:description" content="A full web interface, fleet management, redistribution filtering, and a stack of routing-protocol correctness work all landed together." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/project/changes/2026-03-23/" />
+        <meta property="og:url" content="https://ze-software.net/project/changes/2026-03-23/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">Weekly update</span>
+                    <h1 id="post-title">Week of 2026-03-23</h1>
+                    <p>A full web interface, fleet management, redistribution filtering, and a stack of routing-protocol correctness work all landed together.</p>
+                </div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🖥️ Web interface">
+                        <div class="md-content">
+                            <h2>🖥️ Web interface</h2>
+                            <p>A browser-based config editor shipped alongside the existing CLI and SSH editor:</p>
+<ul>
+<li>YANG-driven rendering with per-user drafts, inline diffs, and live SSE updates</li>
+<li>Admin commands, finder-style navigation, and a light/dark theme toggle</li>
+<li>Started with <code>ze start --web</code></li>
+<li>Hardened against DoS, SSE injection, and XSS (capped request bodies, tightened CSP, sanitized SSE event types)</li>
+<li>The web server now refuses to start without blob storage backing it, so TLS keys can't leak to the filesystem</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🧩 Fleet management">
+                        <div class="md-content">
+                            <h2>🧩 Fleet management</h2>
+                            <p>A managed/fleet-config system landed: named hub blocks with per-client authentication, a managed client with first-boot TLS bootstrap, duplicate-client rejection, and CLI flags for managed mode. A client stops itself automatically if <code>managed</code> is turned off in its config.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔌 Redistribution filtering">
+                        <div class="md-content">
+                            <h2>🔌 Redistribution filtering</h2>
+                            <p>External plugins can now filter and modify routes on ingress and egress: a YANG-configured filter chain with piped transforms and reject short-circuit, wired into the reactor's forwarding path, shipped with a working community filter plugin.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔒 Plugin and session security">
+                        <div class="md-content">
+                            <h2>🔒 Plugin and session security</h2>
+                            <ul>
+<li>Plugin TLS hardened with per-plugin tokens, certificate pinning, and secret clearing from the environment</li>
+<li>The ExaBGP compatibility bridge gained a TLS connect-back mode for engine-launched plugins</li>
+<li>A new plugin debug shell inspects a running plugin over an SSH channel</li>
+<li>Two new subsystems: a cached DNS resolver component (used by decorators such as Team Cymru lookups), and an MCP server exposing six tools for AI-assisted BGP operations (announce, withdraw, peers, peer control, execute, commands)</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ Routing correctness">
+                        <div class="md-content">
+                            <h2>🛰️ Routing correctness</h2>
+                            <ul>
+<li>Route loop detection: AS-path, ORIGINATOR_ID, and CLUSTER_LIST loops are caught and silently withdrawn before reaching prefix limits or plugins (RFC 4271 §9, RFC 4456 §8)</li>
+<li>Hold timer split in two per RFC 9687: <code>receive-hold-time</code> (the classic RFC 4271 timer) and <code>send-hold-time</code> (auto by default)</li>
+<li>Fixed peers configured with only a per-peer local-as sending AS_PATH with ASN 0, which other implementations correctly reject under RFC 7607</li>
+<li>Graceful TCP close now drains before closing, so a pending NOTIFICATION can't be lost to an RST</li>
+<li>Junos-style <code>inactive</code>/<code>deactivate</code> config: mark any config block inactive without deleting it, with matching <code>show | active</code> / <code>show | inactive</code> filters</li>
+<li>Update groups now build one UPDATE per group of peers sharing identical attributes instead of one per peer</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📊 Observability and prefix hygiene">
+                        <div class="md-content">
+                            <h2>📊 Observability and prefix hygiene</h2>
+                            <ul>
+<li>Prometheus instrumentation expanded with histograms, session lifecycle, wire metrics, and plugin health (status, restarts, delivery)</li>
+<li>New prefix data infrastructure pulls maximum-prefix guidance from PeeringDB and IRR/RIR delegation data, tracks staleness, and warns on stale data at login and in <code>show</code></li>
+<li>Forward-pool congestion handling gained weight-based auto-sizing and two-threshold backpressure: soft buffer denial for the worst-offending peer, then forced GR-aware session teardown if a peer keeps hogging the pool</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="⚡ Performance and benchmarking">
+                        <div class="md-content">
+                            <h2>⚡ Performance and benchmarking</h2>
+                            <p>TCP_NODELAY is now enabled on production BGP sessions, and outgoing packets get DSCP CS6 marking. The <code>ze-perf</code> benchmarking tool grew report generation and gained more implementations to compare against: RustyBGP, freeRtr, and GoBGP alongside BIRD.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../../project/changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

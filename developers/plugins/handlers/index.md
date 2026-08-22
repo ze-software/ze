@@ -161,8 +161,14 @@ p.OnExecuteCommand(func(serial, command string, args []string, peer string) (sta
 | Return | Type | Description |
 |--------|------|-------------|
 | `status` | `string` | `"done"` or `"error"` |
-| `data` | `string` | JSON-encoded response data |
+| `data` | `any` | The value the command produced, marshaled once by the SDK, or an `sdk.Records` walk |
 | `err` | `error` | Non-nil triggers error response |
+
+A command that walks a large collection returns an `sdk.Records` for `data`. The
+SDK then writes one line for each row rather than one document, so neither the
+plugin nor the engine holds the whole answer. See
+[commands.md](../commands/index.md), "Success with Rows".
+<!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->
 
 ### OnConfigVerify
 

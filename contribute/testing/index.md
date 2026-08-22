@@ -269,7 +269,13 @@ files without running their tests.
 
 The matrix guarantees these direct single-feature omissions. It makes no
 guarantee for arbitrary combinations with two or more omitted features.
-Rerun the stage directly:
+
+Inside a verify run the stage judges only the rows the change set can move: the
+distro all-on and bare-core rows, plus one row per feature tag the change
+reached. Typing the target yourself judges every row, because only a verify run
+publishes the feature-tag answer it scopes by. What widens the scope back to
+every row is `../architecture/testing/verify-freshness-scope.md`. Rerun the stage
+directly:
 
 ```sh
 make ze-staticcheck-feature-matrix-check

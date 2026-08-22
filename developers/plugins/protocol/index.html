@@ -39,8 +39,8 @@
                     <a href="../../../docs/">Docs</a>
                     <a href="../../../features/">Features</a>
                     <a href="../../../compare/">Compare</a>
-                    <a href="../../../roadmap/">Roadmap</a>
-                    <a href="../../../changes/">Changes</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
                     <a href="../../../faq/">FAQ</a>
                     <a href="../../../contribute/">Contribute</a>
                 </nav>
@@ -99,9 +99,64 @@ plugins connect back via TLS.</p>
 <td>Error response</td>
 <td><code>#&lt;id&gt; error [&lt;json-error&gt;]\n</code></td>
 </tr>
+<tr>
+<td>Record answer</td>
+<td><code>#&lt;id&gt; ok &lt;key=value tail&gt;\n</code>, one line per record</td>
+</tr>
 </tbody>
 </table>
-<!-- source: pkg/plugin/rpc/message.go -- FormatRequest, FormatResult, FormatError -->
+<!-- source: pkg/plugin/rpc/message.go -- AppendRequest, AppendResult, AppendError -->
+
+<p>The record answer applies to three methods. It replaces the single success line
+with a head, zero or more records, and a terminator. Every other method keeps
+the three forms above. The grammar is in
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/ipc_protocol.md" target="_blank" rel="noopener">ipc_protocol.md</a>, "Answer Protocol".</p>
+<!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerTerminator -->
+
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>The plugin</th>
+<th>The engine</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dispatch-command</code></td>
+<td>reads the answer</td>
+<td>writes it</td>
+</tr>
+<tr>
+<td><code>dispatch-command-args</code></td>
+<td>reads the answer</td>
+<td>writes it</td>
+</tr>
+<tr>
+<td><code>execute-command</code></td>
+<td>writes the answer</td>
+<td>reads it</td>
+</tr>
+</tbody>
+</table>
+<p>One encoding covers both columns, on every connection. Nothing is declared and
+nothing is negotiated, so a plugin author sets no field and reaches no option.</p>
+<!-- source: pkg/plugin/rpc/types.go -- DeclareCapabilitiesInput -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, WriteDocumentAnswer -->
+
+<p>A plugin READS an engine answer in one of two ways, and both read the same
+frame. <code>Plugin.DispatchCommandAnswer</code> yields each row as it arrives, which is
+what bounds the memory of a walk over a large table. <code>Plugin.DispatchCommand</code>
+and <code>Plugin.DispatchCommandArgs</code> collapse the same answer into the one document
+a caller that wants the whole payload reads.</p>
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.DispatchCommandAnswer, Plugin.DispatchCommand, dispatchCommandValue -->
+
+<p>A plugin WRITES its own answer to <code>execute-command</code>, and the frame is the same
+whatever the payload is. A handler that returns a <code>plugin.Records</code> writes one
+line for each row of the walk. A handler that returns a built value writes that
+value as the one record of a <code>doc</code> answer, byte for byte.</p>
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
+<!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->
 
 <ul>
 <li><code>&lt;id&gt;</code> is a monotonically increasing uint64 correlation ID</li>
@@ -224,12 +279,58 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <td>Show enrichers the plugin provides</td>
 </tr>
 <tr>
+<td><code>pipes</code></td>
+<td><code>[]PipeDecl</code></td>
+<td>CLI pipe aliases the plugin names for its own commands</td>
+</tr>
+<tr>
 <td><code>claims</code></td>
 <td><code>[]string</code></td>
 <td>Exclusive runtime roles the plugin takes over</td>
 </tr>
 </tbody>
 </table>
+<p>Each <code>PipeDecl</code> has these fields:</p>
+<!-- source: pkg/plugin/rpc/types.go -- PipeDecl -->
+<!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes -->
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>command</code></td>
+<td><code>string</code></td>
+<td>Command path the alias sits on. MUST be one of this plugin's own declared commands</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td><code>string</code></td>
+<td>The word an operator types after the pipe character (kebab-case, 1-64 chars)</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td><code>string</code></td>
+<td>The line completion and <code>command help</code> show beside the name</td>
+</tr>
+<tr>
+<td><code>expansion</code></td>
+<td><code>string</code></td>
+<td>The operator chain the name stands for, as an operator would type it</td>
+</tr>
+</tbody>
+</table>
+<p>A pipe alias SELECTS and re-sequences the answer the command already returned.
+It renames no key, sums no numbers and counts no rows, so the command MUST emit
+the aggregate fields beside the detail rows. One bad entry refuses the whole
+list and fails the plugin's startup. Read
+<code>docs/architecture/api/commands.md</code> for the collision rules and the payload
+obligation.</p>
 <p>Each <code>FamilyDecl</code> has these fields:</p>
 <!-- source: pkg/plugin/rpc/types.go -- FamilyDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- registerPluginFamilies -->
@@ -338,6 +439,8 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 </tr>
 </tbody>
 </table>
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, Stage 3 declare-capabilities -->
+
 <p>Each <code>CapabilityDecl</code> has:</p>
 <!-- source: pkg/plugin/rpc/types.go -- CapabilityDecl -->
 
@@ -506,7 +609,7 @@ each wire method to its registered handler.</p>
 <td><code>ze-plugin-callback:execute-command</code></td>
 <td><code>OnExecuteCommand</code></td>
 <td><code>ExecuteCommandInput</code></td>
-<td><code>ExecuteCommandOutput</code></td>
+<td>a record answer</td>
 <td>Run a command</td>
 </tr>
 <tr>
@@ -867,7 +970,7 @@ config-verify, etc.) and bye.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

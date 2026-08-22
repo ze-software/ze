@@ -39,8 +39,8 @@
                     <a href="../../../docs/">Docs</a>
                     <a href="../../../features/">Features</a>
                     <a href="../../../compare/">Compare</a>
-                    <a href="../../../roadmap/">Roadmap</a>
-                    <a href="../../../changes/">Changes</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
                     <a href="../../../faq/">FAQ</a>
                     <a href="../../../contribute/">Contribute</a>
                 </nav>
@@ -298,8 +298,8 @@ p.Run(ctx, sdk.Registration{...})
 </tr>
 <tr>
 <td><code>data</code></td>
-<td><code>string</code></td>
-<td>JSON-encoded response data</td>
+<td><code>any</code></td>
+<td>The value the command produced, marshaled once by the SDK, or an <code>sdk.Records</code> walk</td>
 </tr>
 <tr>
 <td><code>err</code></td>
@@ -308,6 +308,12 @@ p.Run(ctx, sdk.Registration{...})
 </tr>
 </tbody>
 </table>
+<p>A command that walks a large collection returns an <code>sdk.Records</code> for <code>data</code>. The
+SDK then writes one line for each row rather than one document, so neither the
+plugin nor the engine holds the whole answer. See
+<a href="../commands/">commands.md</a>, "Success with Rows".</p>
+<!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->
+
 <h3 id="onconfigverify">OnConfigVerify</h3>
 <p>Called during config reload to validate a candidate config. The plugin receives
 the full candidate config sections and returns nil to accept or an error to reject.
@@ -686,7 +692,7 @@ return fmt.Errorf(&quot;validation failed&quot;)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

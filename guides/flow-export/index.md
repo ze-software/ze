@@ -153,8 +153,11 @@ that one collector, or an error if the name is not configured. When no `flow-exp
 section is configured the command returns `{"status": "not-configured"}`.
 
 ```
-ze cli -c 'show flow export'
+ze cli -c 'show flow export | json'
 ```
+
+The `| json` pipe asks for that shape. Without it the answer is rendered in the
+format `environment cli format default` names, whose registered value is `text`.
 
 ```json
 [
@@ -184,8 +187,9 @@ ze cli -c 'show flow export'
 | `sequence` | Current export sequence number |
 | `last-export-time` | Unix timestamp of the most recent poll (omitted before the first poll) |
 
-The command produces JSON by default and supports the full set of pipe
-operators.
+The command answers structured data, rendered in the format
+`environment cli format default` names. The registered value is `text`. The full
+set of pipe operators selects another one.
 
 ## Prometheus Metrics
 

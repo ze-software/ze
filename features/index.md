@@ -194,7 +194,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - Built from git history each time
 - Current Go code composition
 
-[Learn more](https://ze-software.net/activity/)
+[Learn more](https://ze-software.net/project/activity/)
 
 ### Prometheus Telemetry
 

@@ -132,14 +132,28 @@ not `conn=1:seq=1` and `conn=1:seq=2`.
 
 ### Port Substitution
 
-The runner assigns ephemeral ports and exposes them as variables in commands and URLs:
+Each test owns a pair of ports, exposed as variables in commands, `tmpfs=`
+content, `option=env` values, and URLs:
 
 | Variable | Meaning |
 |----------|---------|
-| `$PORT` | BGP peer port (assigned by runner, used by `ze-peer --port $PORT`) |
-| `$PORT2` | Secondary port (web UI, looking glass, etc.) |
+| `$PORT` | BGP peer port (leased by the runner, used by `ze-peer --port $PORT`) |
+| `$PORT2` | Secondary port, `$PORT`+1 (web UI, looking glass, plugin acceptor) |
 
 Never hardcode port numbers. Use `$PORT` in `cmd=` exec values and `$PORT2` in `http=` URLs.
+
+The pair is LEASED when the test starts, not when the suite discovers it
+(`runner.LeaseTestPorts`, `internal/test/runner/ports.go`). Discovery numbers the
+Nth test of every suite from the same base, so the preference alone collides
+whenever two ze-test processes run at once; the lease takes a machine-wide
+advisory lock in `$TMPDIR/ze-test-port-locks` and probes the pair, and a test
+whose preferred pair is locked or occupied gets one from 25000-32759 instead. A
+hardcoded number in a `.ci` file takes part in neither step, which is why the
+rule above is a rule.
+
+<!-- source: internal/test/runner/ports.go -- LeaseTestPorts -->
+<!-- source: internal/test/runner/runner_exec.go -- runTest leases before any $PORT expansion -->
+
 
 ## Stdin Blocks
 

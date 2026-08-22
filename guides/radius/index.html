@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -271,7 +271,7 @@ ze explain doctor-radius-admin-unreachable
 </table>
 <p>Unit coverage lives in <code>internal/component/radius/{config,authenticator,aaa,doctor}_test.go</code>.</p>
 <p>For ad-hoc verification, point the daemon at a real RADIUS server and run any
-command via <code>ze cli -c "show bgp summary"</code> -- the daemon log tags the satisfying
+command via <code>ze cli -c "show bgp"</code> -- the daemon log tags the satisfying
 backend on every login, e.g.:</p>
 <pre><code>INFO SSH auth success subsystem=ssh username=alice remote=10.0.0.1:51408 source=radius
 </code></pre>
@@ -341,7 +341,7 @@ bcrypt user accepted the credentials.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

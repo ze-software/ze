@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -234,7 +234,7 @@ fi
 </code></pre>
 <h3 id="peer-health">Peer Health</h3>
 <pre><code class="language-bash">ze cli -c &quot;show bgp peer list&quot;  # brief peer list with state
-ze cli -c &quot;show bgp summary&quot;   # summary table with uptime and prefix counts
+ze cli -c &quot;show bgp&quot;            # summary table with uptime and prefix counts
 </code></pre>
 <h2 id="environment-variables">Environment Variables</h2>
 <p>Ze environment variables use dot notation (<code>ze.log.bgp</code>) and are case-insensitive. All forms are equivalent: <code>ze.log.bgp</code>, <code>ZE_LOG_BGP</code>, <code>ze_log_bgp</code>.</p>
@@ -581,7 +581,7 @@ ze show crashes latest   # display most recent crash report
 ze config validate config.conf        # config validity
 ze status                      # daemon state
 ze cli -c &quot;show bgp peer list&quot;  # peer states
-ze cli -c &quot;show bgp summary&quot;   # session summary
+ze cli -c &quot;show bgp&quot;            # session summary
 ze env list -v                 # effective configuration
 ze signal quit                 # goroutine dump (kills daemon!)
 </code></pre>
@@ -626,7 +626,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -414,8 +414,12 @@ successful query.</p>
 </thead>
 <tbody>
 <tr>
+<td><code>show bgp rpki</code></td>
+<td>Show the validation counters with one row for each cache server</td>
+</tr>
+<tr>
 <td><code>show bgp rpki status</code></td>
-<td>Show RTR session count, sync state, and VRP counts</td>
+<td>Show RTR session count, sync state, VRP counts, and the effective actions</td>
 </tr>
 <tr>
 <td><code>show bgp rpki cache</code></td>
@@ -423,18 +427,46 @@ successful query.</p>
 </tr>
 <tr>
 <td><code>show bgp rpki roa</code></td>
-<td>Show ROA table summary</td>
+<td>Show ROA table summary, or the covering VRPs for a prefix</td>
 </tr>
 <tr>
 <td><code>show bgp rpki summary</code></td>
 <td>Show validation statistics</td>
 </tr>
+<tr>
+<td><code>show bgp rpki aspa</code></td>
+<td>Show the ASPA cache, or the providers for a customer AS</td>
+</tr>
+<tr>
+<td><code>request bgp rpki validate &lt;prefix&gt; &lt;origin-asn&gt;</code></td>
+<td>Validate one prefix against the ROA cache</td>
+</tr>
 </tbody>
 </table>
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- handleCommand, overviewCommand, statusCommand, cacheCommand, roaCommand, summaryCommand, aspaCommand, validateCommand -->
+
+<p><code>show bgp rpki</code> answers the counters and the cache server rows as siblings, so
+<code>show bgp rpki | summary</code> cuts it down to the counters alone. That name is a pipe
+alias the plugin declares over its own command, and it answers the same record
+<code>show bgp rpki summary</code> answers. The seven counters are <code>vrp-count</code>,
+<code>validation-enabled</code>, <code>sessions-total</code>, <code>sessions-established</code>,
+<code>sessions-synced</code>, <code>aspa-enabled</code> and <code>aspa-records</code>.</p>
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- summaryFieldNames, summaryAliasExpansion, appendSummaryFields -->
+
+<p>A plugin's pipe alias lives in the daemon's registry. <code>ze cli</code> with no command
+argument expands the chain in the client process instead, so <code>| summary</code> comes
+back there as <code>pipe error: unknown pipe operator: summary</code>. Use
+<code>ze cli -c "..."</code> as above, or the interactive session a plain ssh client
+reaches. <code>show bgp rpki summary</code> works in every client.</p>
+<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
+
 <p>Example:</p>
-<pre><code>$ ze cli -c &quot;show bgp rpki status&quot;
+<pre><code>$ ze cli -c &quot;show bgp rpki status | json compact&quot;
 {&quot;running&quot;:true,&quot;vrp-count-ipv4&quot;:3,&quot;vrp-count-ipv6&quot;:0,&quot;sessions&quot;:1,&quot;sessions-synced&quot;:1,&quot;synced&quot;:true,&quot;aspa-enabled&quot;:false,&quot;aspa-records&quot;:0,&quot;cache-servers&quot;:[{&quot;address&quot;:&quot;192.0.2.1&quot;,&quot;port&quot;:3323,&quot;state&quot;:&quot;idle&quot;,&quot;synced&quot;:true,&quot;version&quot;:2}],&quot;actions&quot;:{&quot;invalid&quot;:&quot;reject&quot;,&quot;not-found&quot;:&quot;accept&quot;,&quot;aspa-invalid&quot;:&quot;log-only&quot;,&quot;aspa-unknown&quot;:&quot;accept&quot;},&quot;peer-actions&quot;:[]}
 </code></pre>
+<p>The <code>| json compact</code> pipe asks for that shape. Without it the answer is rendered
+in the format <code>environment cli format default</code> names, whose registered value is
+<code>text</code>.</p>
 <p><code>running</code> says that a cache server is configured. <code>synced</code> says that a cache
 server completed a sync and gave ze a VRP set. The two are different states:
 while <code>synced</code> is false, ze holds no VRP set, so every prefix reads <code>not-found</code>
@@ -755,7 +787,7 @@ The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, an
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

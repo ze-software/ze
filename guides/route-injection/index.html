@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -64,6 +64,7 @@
 <li><a href="#attribute-keywords">Attribute Keywords</a></li>
 <li><a href="#well-known-communities">Well-Known Communities</a></li>
 <li><a href="#colon-less-flowspec-actions">Colon-Less FlowSpec Actions</a></li>
+<li><a href="#one-encoder-per-flowspec-action">One Encoder Per FlowSpec Action</a></li>
 <li><a href="#next-hop-self">Next-Hop Self</a></li>
 <li><a href="#a-peer-never-receives-its-own-address-as-next-hop">A Peer Never Receives Its Own Address as Next Hop</a></li>
 <li><a href="#nlri-operations">NLRI Operations</a></li>
@@ -345,6 +346,16 @@ octet, which is the copy semantic. An unknown keyword is refused with an error
 naming the keywords Ze accepts, derived from the table.</p>
 <!-- source: internal/core/bgp/attribute/flowspec_action.go -- FlowSpecActionKeyword, FlowSpecActionKeywords -->
 
+<h3 id="one-encoder-per-flowspec-action">One Encoder Per FlowSpec Action</h3>
+<p>The actions that DO carry a value -- traffic-rate, traffic-action,
+traffic-marking, rt-redirect and redirect-to-IP -- are built in one place as
+well. Config, <code>update text</code> and the FlowSpec NLRI plugin call the same
+constructors, so the three surfaces accept the same values and put the same
+octets on the wire. Three copies of this vocabulary disagreed before: one wrote
+an out-of-range DSCP into the reserved bits, one dropped a zero-valued action,
+and one refused a 4-octet AS in a redirect the others encoded.</p>
+<!-- source: internal/core/bgp/attribute/flowspec_encode.go -- FlowSpecTrafficRate, FlowSpecTrafficAction, FlowSpecTrafficMarking, FlowSpecRedirect -->
+
 <h3 id="next-hop-self">Next-Hop Self</h3>
 <p><code>nhop self</code> resolves to the local address of each destination peer at wire time.</p>
 <h3 id="a-peer-never-receives-its-own-address-as-next-hop">A Peer Never Receives Its Own Address as Next Hop</h3>
@@ -487,7 +498,7 @@ api.send(&quot;peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/2
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

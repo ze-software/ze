@@ -23,9 +23,9 @@ These rows have at least one listed vendor command.
 | `resolve ping <target> [source <ip>] [count <n>] [size <bytes>]` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](resolve-ping/) |
 | `resolve traceroute <target> [source <ip>] [max-hops N] [timeout D] [probes N]` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](resolve-traceroute/) |
 | `show arp` | Read-only | - | - | - | `show arp` | [details](show-arp/) |
+| `show bgp` | Read-only | `show bgp summary` | `show bgp ipv4 unicast summary`<br>`show bgp summary` | `show router bgp summary` | `show bgp ipv4 summary`<br>`show ip bgp summary` | [details](show-bgp/) |
 | `show bgp peer <selector> rib [scope\|filters\|terminal]` | Read-only | `show route advertising-protocol bgp <peer>`<br>`show route receive-protocol bgp <peer>` | - | - | - | [details](show-bgp-peer-rib/) |
 | `show bgp rib best` | Read-only | `show route <prefix> protocol bgp`<br>`show route protocol bgp` | `show bgp ipv4 unicast`<br>`show bgp ipv4 unicast <prefix>` | - | `show ip bgp <prefix>` | [details](show-bgp-rib-best/) |
-| `show bgp summary` | Read-only | `show bgp summary` | `show bgp ipv4 unicast summary`<br>`show bgp summary` | `show router bgp summary` | `show bgp ipv4 summary`<br>`show ip bgp summary` | [details](show-bgp-summary/) |
 | `show config diff` | Read-only | - | - | - | `compare`<br>`show configuration` | [details](show-config-diff/) |
 | `show config dump` | Read-only | - | - | - | `compare`<br>`show configuration` | [details](show-config-dump/) |
 | `show config fmt` | Read-only | - | - | - | `compare`<br>`show configuration` | [details](show-config-fmt/) |
@@ -268,6 +268,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show bfd profile <name>` | Read-only | - | - | - | - | [details](show-bfd-profile-name/) |
 | `show bfd session <address>` | Read-only | - | - | - | - | [details](show-bfd-session-address/) |
 | `show bfd sessions` | Read-only | - | - | - | - | [details](show-bfd-sessions/) |
+| `show bgp` | Read-only | `show bgp summary` | `show bgp ipv4 unicast summary`<br>`show bgp summary` | `show router bgp summary` | `show bgp ipv4 summary`<br>`show ip bgp summary` | [details](show-bgp/) |
 | `show bgp decode` | Read-only | - | - | - | - | [details](show-bgp-decode/) |
 | `show bgp encode` | Read-only | - | - | - | - | [details](show-bgp-encode/) |
 | `show bgp health` | Read-only | - | - | - | - | [details](show-bgp-health/) |
@@ -285,7 +286,6 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show bgp rib best status` | Read-only | - | - | - | - | [details](show-bgp-rib-best-status/) |
 | `show bgp rib rpf` | Read-only | - | - | - | - | [details](show-bgp-rib-rpf/) |
 | `show bgp rib status` | Read-only | - | - | - | - | [details](show-bgp-rib-status/) |
-| `show bgp summary` | Read-only | `show bgp summary` | `show bgp ipv4 unicast summary`<br>`show bgp summary` | `show router bgp summary` | `show bgp ipv4 summary`<br>`show ip bgp summary` | [details](show-bgp-summary/) |
 | `show bmp collectors` | Read-only | - | - | - | - | [details](show-bmp-collectors/) |
 | `show bmp peers` | Read-only | - | - | - | - | [details](show-bmp-peers/) |
 | `show bmp rib` | Read-only | - | - | - | - | [details](show-bmp-rib/) |

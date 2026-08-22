@@ -39,8 +39,8 @@
                     <a href="../../../docs/">Docs</a>
                     <a href="../../../features/">Features</a>
                     <a href="../../../compare/">Compare</a>
-                    <a href="../../../roadmap/">Roadmap</a>
-                    <a href="../../../changes/">Changes</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
                     <a href="../../../faq/">FAQ</a>
                     <a href="../../../contribute/">Contribute</a>
                 </nav>
@@ -380,7 +380,8 @@ block when <code>StepTrace</code> is non-empty.</p>
 <p>A test with two peers and one UPDATE each uses <code>conn=1:seq=1</code> and <code>conn=2:seq=1</code>,
 not <code>conn=1:seq=1</code> and <code>conn=1:seq=2</code>.</p>
 <h3 id="port-substitution">Port Substitution</h3>
-<p>The runner assigns ephemeral ports and exposes them as variables in commands and URLs:</p>
+<p>Each test owns a pair of ports, exposed as variables in commands, <code>tmpfs=</code>
+content, <code>option=env</code> values, and URLs:</p>
 <table>
 <thead>
 <tr>
@@ -391,15 +392,26 @@ not <code>conn=1:seq=1</code> and <code>conn=1:seq=2</code>.</p>
 <tbody>
 <tr>
 <td><code>$PORT</code></td>
-<td>BGP peer port (assigned by runner, used by <code>ze-peer --port $PORT</code>)</td>
+<td>BGP peer port (leased by the runner, used by <code>ze-peer --port $PORT</code>)</td>
 </tr>
 <tr>
 <td><code>$PORT2</code></td>
-<td>Secondary port (web UI, looking glass, etc.)</td>
+<td>Secondary port, <code>$PORT</code>+1 (web UI, looking glass, plugin acceptor)</td>
 </tr>
 </tbody>
 </table>
 <p>Never hardcode port numbers. Use <code>$PORT</code> in <code>cmd=</code> exec values and <code>$PORT2</code> in <code>http=</code> URLs.</p>
+<p>The pair is LEASED when the test starts, not when the suite discovers it
+(<code>runner.LeaseTestPorts</code>, <code>internal/test/runner/ports.go</code>). Discovery numbers the
+Nth test of every suite from the same base, so the preference alone collides
+whenever two ze-test processes run at once; the lease takes a machine-wide
+advisory lock in <code>$TMPDIR/ze-test-port-locks</code> and probes the pair, and a test
+whose preferred pair is locked or occupied gets one from 25000-32759 instead. A
+hardcoded number in a <code>.ci</code> file takes part in neither step, which is why the
+rule above is a rule.</p>
+<!-- source: internal/test/runner/ports.go -- LeaseTestPorts -->
+<!-- source: internal/test/runner/runner_exec.go -- runTest leases before any $PORT expansion -->
+
 <h2 id="stdin-blocks">Stdin Blocks</h2>
 <p>Stdin blocks embed content that will be piped to a process's stdin.</p>
 <h3 id="syntax">Syntax</h3>
@@ -2175,7 +2187,7 @@ expect=completion:contains=router-id,local-as,peer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

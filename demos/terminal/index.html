@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -161,14 +161,14 @@ The dashboard polls three local BGP sessions. Press &quot;s&quot; to sort by the
       <span>zefs-config.terminal</span>
       <span>WEBM</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/zefs-config.png?v=9e82166aac" aria-label="Create ZeFS and commit over SSH demonstration">
-      <source src="../../assets/demos/zefs-config.webm?v=9651a7e3df" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/zefs-config.webm?v=9651a7e3df">Download the recording</a>.
+    <video controls playsinline preload="metadata" poster="../../assets/demos/zefs-config.png?v=395cc5eb0c" aria-label="Create ZeFS and commit over SSH demonstration">
+      <source src="../../assets/demos/zefs-config.webm?v=e1f065f598" type="video/webm">
+      Your browser cannot play WebM video. <a href="../../assets/demos/zefs-config.webm?v=e1f065f598">Download the recording</a>.
     </video>
   </div>
   <figcaption>
-    <span>Ze 26.08.19</span><span>2 minutes 21 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
-    <a href="../../assets/demos/zefs-config.txt?v=cf435951c8">Plain-text transcript</a>
+    <span>Ze 26.08.21</span><span>2 minutes 21 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <a href="../../assets/demos/zefs-config.txt?v=061ef7a006">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -183,7 +183,7 @@ $ ze config ls
 ze.conf
 $ ze data check
 
-$ ssh ze-demo show bgp summary
+$ ssh ze-demo show bgp
 
 $ ssh ze-demo
 ze# set environment cli format default table
@@ -192,12 +192,15 @@ ze# commit
 Session committed
 ze# exit
 ze# exit
-$ ze cli -c &#x27;show bgp summary&#x27;
-$ ze cli -c &#x27;show bgp summary | text&#x27;
-$ ze cli -c &#x27;show bgp summary | raw&#x27; | head -14
-$ ze cli -c &#x27;show bgp summary | raw&#x27; | ze pipe text
+$ ze cli -c &#x27;show bgp&#x27;
+$ ze cli -c &#x27;show bgp | text&#x27;
+$ ze cli -c &#x27;show bgp | display router-id local-as peers-established&#x27;
+$ ze cli -c &#x27;show bgp | display router-id | fill alpha&#x27;
+$ ze cli -c &#x27;show bgp | peers&#x27;
+$ ze cli -c &#x27;show bgp | raw&#x27; | head -14
+$ ze cli -c &#x27;show bgp | raw&#x27; | ze pipe text
 
-The five lines answer `ze init`&#x27;s prompts in order: username, password, host, port, and name. It reads them from a file here so the recording is reproducible, and it prints nothing when its input is not a terminal, so the file is shown first rather than left as an unexplained redirection. `ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the format setting back to ZeFS, not to a second flat file, and the same operational command immediately uses the committed default. The last commands show the two ways to override that default, and they are different pipes. `show bgp summary | text` is Ze&#x27;s own operator, inside the quoted command, and it wins over the committed setting. Then `| raw` on its own shows what every one of these renderings is made from: the payload as the daemon holds it, unrendered. The last command sends that same payload across a real shell pipe, and `ze pipe text` formats it on this side, which is how output captured earlier is formatted later. The command is `ze pipe` rather than `ze format` because the operator language also carries `match`, `count`, `first`, `last` and `resolve`, so `format` would name one clause of it. Every command answers with structured data, so `text`, `table`, `json`, `yaml` and `ndjson` all render the same payload.</code></pre>
+The five lines answer `ze init`&#x27;s prompts in order: username, password, host, port, and name. It reads them from a file here so the recording is reproducible, and it prints nothing when its input is not a terminal, so the file is shown first rather than left as an unexplained redirection. `ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the format setting back to ZeFS, not to a second flat file, and the same operational command immediately uses the committed default. The last commands show the two ways to override that default, and they are different pipes. `show bgp | text` is Ze&#x27;s own operator, inside the quoted command, and it wins over the committed setting. Then `| raw` on its own shows what every one of these renderings is made from: the payload as the daemon holds it, unrendered. The last command sends that same payload across a real shell pipe, and `ze pipe text` formats it on this side, which is how output captured earlier is formatted later. The command is `ze pipe` rather than `ze format` because the operator language also carries `match`, `count`, `first`, `last` and `resolve`, so `format` would name one clause of it. Every command answers with structured data, so `text`, `table`, `json`, `yaml` and `ndjson` all render the same payload. Three commands in the middle choose WHICH of that payload to read. `display` names the fields wanted, in the order wanted, and shows those alone. `fill` brings back the fields it did not name, and `alpha` orders them by field name. `peers` is an alias, which is a name for a pipe expression, so one word answers the per-peer rows without the totals beside them. Each command declares its own column order, so a table leads with the fields an operator reads first rather than with the alphabet.</code></pre>
   </details>
 </figure>
 
@@ -830,7 +833,7 @@ No reporting helper creates the displayed relationships. The command filters Ze&
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

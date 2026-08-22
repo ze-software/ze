@@ -615,7 +615,9 @@ ze show flow export <collector>   # One collector by name (error if not found)
 
 Each entry reports `name`, `address`, `port`, `protocol`, `datagrams-sent`,
 `bytes-sent`, `errors`, `sequence`, and `last-export-time` (Unix seconds,
-omitted before the first poll). JSON by default; full pipe operators supported.
+omitted before the first poll). The answer is rendered in the format
+`environment cli format default` names, whose registered value is `text`. The
+full pipe operator set applies.
 See the [Flow Export guide](../flow-export/index.md).
 
 <!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowExport, ze-show:flow-export -->
@@ -717,8 +719,10 @@ ze show traffic usage name <interface># One interface by name
 ```
 
 Each entry reports `ingress-ports`, `egress-ports`, `map-entries`, and (only
-when `track-ip` is enabled) `ingress-ips` and `egress-ips`. JSON by default;
-full pipe operators supported. See the [Traffic Usage guide](../traffic-usage/index.md).
+when `track-ip` is enabled) `ingress-ips` and `egress-ips`. The answer is
+rendered in the format `environment cli format default` names, whose registered
+value is `text`. The full pipe operator set applies. See the
+[Traffic Usage guide](../traffic-usage/index.md).
 
 <!-- source: internal/plugins/trafficusage/show.go -- handleShowTrafficUsage, ze-show:traffic-usage -->
 
@@ -1292,14 +1296,14 @@ rollback, `.prev` no longer exists and the new version is gone from disk.
 
 <!-- source: internal/plugins/update-cmd/cmd/firmware.go -- firmware CLI handlers -->
 
-### show bgp summary
+### show bgp
 
 ```
-ze show bgp summary                  # Every configured peer
-ze show bgp summary ipv4             # Expanded to ipv4/unicast
-ze show bgp summary ipv6             # Expanded to ipv6/unicast
-ze show bgp summary l2vpn            # Expanded to l2vpn/evpn
-ze show bgp summary <afi>/<safi>     # Full AFI/SAFI form (e.g. ipv4/vpn)
+ze show bgp                          # Every configured peer
+ze show bgp ipv4                     # Expanded to ipv4/unicast
+ze show bgp ipv6                     # Expanded to ipv6/unicast
+ze show bgp l2vpn                    # Expanded to l2vpn/evpn
+ze show bgp <afi>/<safi>             # Full AFI/SAFI form (e.g. ipv4/vpn)
 ```
 
 The family argument is validated against the families any peer has
@@ -1307,7 +1311,55 @@ actually negotiated; unknown or un-negotiated families reject with the
 sorted set of currently-negotiated families so the operator sees
 exactly what is reachable on the running daemon.
 
-<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd; internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary -->
+The answer carries the aggregate fields and the peer rows as siblings, with no
+wrapper around them:
+
+```json
+{"router-id": "…", "local-as": 64500, "uptime": "4h",
+ "peers-configured": 2, "peers-established": 1, "peers": [ … ]}
+```
+
+A family argument adds `family` and `peers-in-family` beside them. Two aliases
+name the halves, so an operator asks for one half and names no field:
+
+```
+ze show bgp | peers      # the peer rows alone, as a table
+ze show bgp | summary    # the aggregate fields alone
+```
+
+`show bgp` takes an optional family argument and carries no subcommand of its
+own. A token that names no family and no subcommand comes back as an unknown
+command, so a mistyped subcommand is not reported as an invalid family.
+
+The two aliases and the column order are declared on `show bgp`, and a command
+inherits a declaration from its own path or an ancestor of it. Each branch under
+`show bgp` declares no alias and no column order at its own root, which covers
+every command in that branch: `show bgp peer` covers `show bgp peer 192.0.2.1
+detail`, and `show bgp rib` covers `show bgp rib best`. So no command under
+`show bgp` inherits `| summary` or `| peers`, and `show bgp rib` renders its
+columns alphabetically. `show bgp peer list` is the one command that declares a
+column order of its own, on a longer path than the branch root, so it keeps it.
+`show bgp rpki` declares an alias of its own the same way, so
+`show bgp rpki | summary` answers the RPKI counters and not the peer aggregates.
+
+That bare command answers the seven validation counters and one row for each
+cache server, as siblings. That shape is what leaves `| summary` a half to
+select. The RPKI plugin declares the alias over the plugin Stage 1 channel
+rather than in Go. So `ze help command --json` and `make ze-command-list` do not
+list it: both read the compiled tree in their own process and start no plugin.
+The full RPKI command list is in `docs/guide/rpki.md`.
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
+<!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
+
+`show bgp summary` was a second spelling of this command until 2026-08. It is
+removed, not aliased, so it answers an unknown-command error. `show bgp` gives
+the ordered table, and `show bgp | summary` gives the aggregate fields that
+`show bgp summary | summary` gave. An authorization entry keyed on the literal
+`show bgp summary` matches nothing after the removal; key it on `show bgp`.
+
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd; internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary, handleBgpOverview -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerAliases, registerColumns -->
+<!-- source: internal/component/command/column_order.go -- ColumnsForCommand, commandMatchesPrefix -->
 
 ### ping / traceroute
 
@@ -1696,10 +1748,12 @@ operators as a standalone filter.
 <command> | ze pipe first <n>          # Take first N items
 <command> | ze pipe last <n>           # Take last N items
 <command> | ze pipe resolve            # Add reverse DNS for IP values
+<command> | ze pipe display <field>... # Answer with these fields, in this order
+<command> | ze pipe fill [alpha] [reverse]  # Bring the rest back
 ```
 
 Format operators (json, yaml, table, text, ndjson) expect JSON input. Filter
-operators (match, count, first, last) work on both JSON and plain text.
+operators (match, count, first, last, display) work on both JSON and plain text.
 `resolve` adds a `<key>-name` sibling field for each IP address value in JSON.
 <!-- source: cmd/ze/ze_core_pipe.go -- runPipe -->
 
@@ -1972,8 +2026,8 @@ Many commands take a `peer <selector>` argument:
 | `show bgp peer <sel> capabilities` | read-only | Negotiated capabilities |
 | `show bgp peer <sel> statistics` | read-only | Per-peer update statistics with rates |
 | `show bgp peer <sel> history` | read-only | FSM transition history |
-| `show bgp summary` | read-only | BGP summary table (all peers) |
-| `show bgp summary <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count |
+| `show bgp` | read-only | BGP summary table (all peers) |
+| `show bgp <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count |
 | `request peer <sel> pause` | write | Pause read loop (flow control) |
 | `request peer <sel> resume` | write | Resume read loop |
 | `request peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |
@@ -2387,13 +2441,27 @@ Inside `ze cli`:
 | Pipe: streaming log | `monitor traceroute 8.8.8.8 \| log` |
 | Pipe: first N items | `show bgp rib \| first 100` |
 | Pipe: last N items | `show bgp rib \| last 10` |
+| Pipe: choose columns | `show bgp peer list \| display state name` |
+| Pipe: fill the rest back | `show bgp peer list \| display state \| fill alpha` |
+| Pipe: every column by name | `show bgp peer list \| fill alpha` |
 | Pipe: disable paging | `show bgp peer list \| no-more` |
+| Pipe: named alias | `show bgp \| summary`, `show bgp \| peers` |
 | Set default format | `set cli format json` (session override) |
 | Show current format | `set cli format` (no argument) |
 | Tab completion | Contextual command/argument completion |
 <!-- source: internal/component/cli/client/main.go -- pipe operators, interactive model -->
 <!-- source: internal/component/command/pipe.go -- pipe operator definitions -->
 <!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat -->
+
+`ze cli` with no command argument runs the interactive model in the CLIENT
+process and expands the pipe chain there. Only the aliases compiled into Ze
+itself are registered in that process, so an alias a PLUGIN declares, such as
+`show bgp rpki | summary`, comes back as
+`pipe error: unknown pipe operator: summary`. It resolves over
+`ze cli -c "<command>"` and in the interactive session a plain ssh client
+reaches, where the daemon expands the chain.
+<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
+<!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
 
 ---
 

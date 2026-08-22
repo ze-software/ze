@@ -1344,6 +1344,21 @@
     "global-pipes": true
   },
   {
+    "path": "show bgp",
+    "description": "BGP peers, sessions, RIB, and protocol tools.\nTyped with no subcommand, lists every peer with state, ASN, prefixes\nreceived, and uptime. Optionally scope by address family: ipv4,\nipv6, or l2vpn.",
+    "mode": "read-only",
+    "wire-method": "ze-bgp:overview",
+    "global-pipes": true,
+    "subcommands": [
+      "decode",
+      "encode",
+      "health",
+      "irr",
+      "peer",
+      "rib"
+    ]
+  },
+  {
     "path": "show bgp decode",
     "description": "Decode a hex-encoded BGP message into readable JSON.\nPaste a hex BGP UPDATE and get back parsed attributes, NLRI, and\nwithdrawn prefixes. Handy for reading pcap captures or debugging\nwire issues. Also available in the web UI under tools.",
     "mode": "read-only",
@@ -1494,7 +1509,7 @@
   },
   {
     "path": "show bgp rib",
-    "description": "Query routes in the BGP RIB.\nLook at received or advertised routes with flexible filters: peer,\nfamily, prefix, AS path regex, community, match expression. Pipe\noperators: | count, | prefix-summary, | graph. This is the main\nroute inspection command.",
+    "description": "Query routes in the BGP RIB.\nLook at received or advertised routes with flexible filters: peer,\nfamily, prefix, AS path regex, community, match expression. Pipe\noperators: | count, | histogram, | graph. This is the main\nroute inspection command.",
     "mode": "read-only",
     "wire-method": "ze-rib-api:routes",
     "task-support": "required",
@@ -1527,6 +1542,10 @@
         "description": "Render AS-path topology graph"
       },
       {
+        "name": "histogram",
+        "description": "Count routes by family and prefix length"
+      },
+      {
         "name": "last",
         "description": "Take last N routes",
         "takes-arg": true
@@ -1550,10 +1569,6 @@
         "name": "prefix",
         "description": "Filter by prefix",
         "takes-arg": true
-      },
-      {
-        "name": "prefix-summary",
-        "description": "Summarize by family and prefix length"
       },
       {
         "name": "received",
@@ -1597,6 +1612,10 @@
         "description": "Render AS-path topology graph"
       },
       {
+        "name": "histogram",
+        "description": "Count routes by family and prefix length"
+      },
+      {
         "name": "last",
         "description": "Take last N best paths",
         "takes-arg": true
@@ -1620,10 +1639,6 @@
         "name": "prefix",
         "description": "Filter by prefix",
         "takes-arg": true
-      },
-      {
-        "name": "prefix-summary",
-        "description": "Summarize by family and prefix length"
       },
       {
         "name": "reason",
@@ -1654,13 +1669,6 @@
     "description": "Get a quick RIB overview without dumping routes.\nShows total peers, received/accepted/advertised route counts, and\nper-family breakdowns. Use this to confirm convergence after a\npeer comes up.",
     "mode": "read-only",
     "wire-method": "ze-rib-api:status",
-    "global-pipes": true
-  },
-  {
-    "path": "show bgp summary",
-    "description": "Show a one-line-per-peer BGP summary.\nLists every peer with state, ASN, prefixes received, and uptime.\nOptionally scope by address family: ipv4, ipv6, or l2vpn.",
-    "mode": "read-only",
-    "wire-method": "ze-bgp:summary",
     "global-pipes": true
   },
   {

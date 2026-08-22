@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -641,9 +641,10 @@ inside a <code>terminator=</code> block):</p>
 </li>
 <li><strong>Never change a tagged test to make it pass.</strong> Once a test carries an
   <code>RFC requirement:</code> tag it is the requirement: fix your code, not the test.
-  Changing its behavior needs explicit user approval recorded as
-  <code>// rfc-test-change-approved: &lt;date&gt; &lt;what and why&gt;</code>; the <code>rfc-tagged-test</code> hook
-  blocks the edit otherwise.</li>
+  Changing its behavior needs the owner's approval. Write it as one row in
+  <code>test/rfc-changed.md</code>, and commit that file with the change. The
+  <code>rfc-tagged-test</code> hook reads the file and blocks the edit until a row names the
+  test.</li>
 </ul>
 <!-- source: scripts/dev/rfc_requirements.py -- scan_go_tags/scan_ci_tags, evaluate -->
 <!-- source: ai/skills/ze-rfc.md -- requirement id allocation and annotations -->
@@ -838,7 +839,7 @@ func (n *MyNLRI) SupportsAddPath() bool { return true }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

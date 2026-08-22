@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -109,7 +109,7 @@ ze.api-server.rest.listen=127.0.0.1:8081
 <pre><code>curl http://localhost:8081/api/v1/commands
 curl -X POST http://localhost:8081/api/v1/execute \
     -H &quot;Content-Type: application/json&quot; \
-    -d '{&quot;command&quot;:&quot;show bgp summary&quot;}'
+    -d '{&quot;command&quot;:&quot;show bgp&quot;}'
 </code></pre>
 <!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd -->
 
@@ -268,7 +268,7 @@ refresh row gives the required generic Execute command instead.</p>
 <tr>
 <td><code>GET</code></td>
 <td><code>/api/v1/peers</code></td>
-<td><code>show bgp summary</code></td>
+<td><code>show bgp</code></td>
 </tr>
 <tr>
 <td><code>GET</code></td>
@@ -488,14 +488,14 @@ must be authenticated and must configure TLS with both <code>tls-cert</code> and
 <p>Pass the same <code>Bearer username:password</code> or <code>Bearer &lt;token&gt;</code> as REST, via
 the <code>authorization</code> metadata key:</p>
 <pre><code class="language-python">metadata = [('authorization', 'Bearer alice:password123')]
-stub.Execute(CommandRequest(command='show bgp summary'), metadata=metadata)
+stub.Execute(CommandRequest(command='show bgp'), metadata=metadata)
 </code></pre>
 <h3 id="grpc-reflection">gRPC reflection</h3>
 <p>Reflection is enabled by default. Discover the schema with <code>grpcurl</code> on a
 plaintext loopback listener:</p>
 <pre><code>grpcurl -plaintext localhost:50051 list
 grpcurl -plaintext localhost:50051 describe ze.api.v1.ZeService
-grpcurl -plaintext -d '{&quot;command&quot;:&quot;show bgp summary&quot;}' \
+grpcurl -plaintext -d '{&quot;command&quot;:&quot;show bgp&quot;}' \
     -H &quot;authorization: Bearer alice:password123&quot; \
     localhost:50051 ze.api.v1.ZeService/Execute
 </code></pre>
@@ -663,7 +663,7 @@ dispatcher command strings.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

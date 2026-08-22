@@ -152,6 +152,17 @@ octet, which is the copy semantic. An unknown keyword is refused with an error
 naming the keywords Ze accepts, derived from the table.
 <!-- source: internal/core/bgp/attribute/flowspec_action.go -- FlowSpecActionKeyword, FlowSpecActionKeywords -->
 
+### One Encoder Per FlowSpec Action
+
+The actions that DO carry a value -- traffic-rate, traffic-action,
+traffic-marking, rt-redirect and redirect-to-IP -- are built in one place as
+well. Config, `update text` and the FlowSpec NLRI plugin call the same
+constructors, so the three surfaces accept the same values and put the same
+octets on the wire. Three copies of this vocabulary disagreed before: one wrote
+an out-of-range DSCP into the reserved bits, one dropped a zero-valued action,
+and one refused a 4-octet AS in a redirect the others encoded.
+<!-- source: internal/core/bgp/attribute/flowspec_encode.go -- FlowSpecTrafficRate, FlowSpecTrafficAction, FlowSpecTrafficMarking, FlowSpecRedirect -->
+
 ### Next-Hop Self
 
 `nhop self` resolves to the local address of each destination peer at wire time.

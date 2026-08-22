@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2026-07-06 - Ze</title>
+        <meta name="description" content="A dense week across VPN, DNS, subscriber access, the VPP data plane, the web UI, and observability." />
+        <meta property="og:title" content="Week of 2026-07-06 - Ze" />
+        <meta property="og:description" content="A dense week across VPN, DNS, subscriber access, the VPP data plane, the web UI, and observability." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2026-07-06 - Ze" />
+        <meta name="twitter:description" content="A dense week across VPN, DNS, subscriber access, the VPP data plane, the web UI, and observability." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/project/changes/2026-07-06/" />
+        <meta property="og:url" content="https://ze-software.net/project/changes/2026-07-06/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">Weekly update</span>
+                    <h1 id="post-title">Week of 2026-07-06</h1>
+                    <p>A dense week across VPN, DNS, subscriber access, the VPP data plane, the web UI, and observability.</p>
+                </div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🔐 IPsec / IKEv2">
+                        <div class="md-content">
+                            <h2>🔐 IPsec / IKEv2</h2>
+                            <p>Ze can now sit on the answering side of an IPsec tunnel, not just dial one:</p>
+<ul>
+<li>Full IKEv2 responder role: it accepts an unsolicited IKE_SA_INIT, authenticates with PSK, X.509, or EAP (acting as the EAP-MSCHAPv2 / EAP-TLS server), and brings up the first Child SA.</li>
+<li>Rekeying is now an on-the-wire CREATE_CHILD_SA exchange for both Child and IKE SAs, with make-before-break, instead of a local key roll that desynced live tunnels without reporting it. Interop verified against strongSwan 5.9.14.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🌐 Encrypted and validated DNS">
+                        <div class="md-content">
+                            <h2>🌐 Encrypted and validated DNS</h2>
+                            <ul>
+<li>The AS112 and GeoDNS servers gained DNS-over-TLS (RFC 7858) and DNS-over-HTTPS (RFC 8484) listeners, answering with the same authoritative policy as cleartext.</li>
+<li>The stub resolver added DNSSEC validation modes (off, permissive, strict): strict fails closed on a broken chain, permissive fails open and logs. Exposed via <code>ze resolve dns --dnssec</code>.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📡 L2TP as initiator, PPPoE relay">
+                        <div class="md-content">
+                            <h2>📡 L2TP as initiator, PPPoE relay</h2>
+                            <p>L2TP previously only answered; it can now originate:</p>
+<ul>
+<li>The initiator half of the L2TPv2 control channel: dial a tunnel, drive the SCCRP handshake with mutual CHAP, and place calls.</li>
+<li>A PPPoE subscriber can be relayed straight into an L2TP tunnel (the LAC role) via a kernel channel bridge, instead of terminating PPP on the box. Interop verified against xl2tpd.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛡️ DDoS mitigation">
+                        <div class="md-content">
+                            <h2>🛡️ DDoS mitigation</h2>
+                            <ul>
+<li>Mitigation is now direction-aware: a victim is classified as box-local (dropped at INPUT) or transit (FORWARD drop or FlowSpec upstream), and a single allow/deny traffic policy with longest-prefix rules replaces the old per-responder allowlists.</li>
+<li>A bandwidth (bits-per-second) trigger now catches low-packet, high-volume amplification (NTP, memcached, CLDAP) that a packet-rate trigger misses. Detection baselines persist across restarts, and each incident carries a confidence score shown in <code>show ddos incidents</code>.</li>
+<li>FlowSpec origination is wired end to end with an <code>announce flowspec</code> verb (a rule with no next-hop was previously dropped before reaching any peer).</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔌 VPP data plane">
+                        <div class="md-content">
+                            <h2>🔌 VPP data plane</h2>
+                            <p>The VPP backend gained a lot of parity with the kernel path:</p>
+<ul>
+<li>Tunnels: GRE, GRETAP, IPIP, and VXLAN.</li>
+<li>Port mirroring (SPAN), WireGuard, and Linux Control Plane pairs that shadow a VPP NIC into a Linux TAP so kernel networking (the BGP listener) can still bind to it.</li>
+<li>Traffic policing by DSCP and multi-class classification steering.</li>
+<li>Static routes now program into VPP when the VPP data plane is active.</li>
+<li>Host tuning for appliance deployments: a poll-sleep control and hugepage reservation, with doctor checks.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🖥️ Web UI and operator auth">
+                        <div class="md-content">
+                            <h2>🖥️ Web UI and operator auth</h2>
+                            <ul>
+<li>Web login now runs through the AAA chain, so RADIUS and TACACS+ admins can sign in, with local users as fallback. A new RADIUS PAP backend (RFC 2865) also covers SSH and MCP operator logins.</li>
+<li>Role-based access control: read-only sessions are blocked from the admin console and config editor (page and mutation enforced by the same authorizer), and edit controls are hidden from them.</li>
+<li>Config can be downloaded and uploaded from the web UI, with uploads validated exactly like a commit and rolled back on failure.</li>
+<li>A French locale (with English fallback) and a small-screen layout down to 390px.</li>
+<li>New display decorators annotate an IP with its reverse-DNS name and a standard community with its well-known RFC name.</li>
+<li>Looking Glass route lists can be paginated with limit and offset.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📊 Observability fixes">
+                        <div class="md-content">
+                            <h2>📊 Observability fixes</h2>
+                            <ul>
+<li>Two long-standing bugs fixed: telemetry memory gauges under-reported by 1024x (kilobytes read as bytes), and MRT dumps had never activated in production because their config was never applied. Both are now correct, with tests pinning them.</li>
+<li>The <code>/metrics</code> endpoint now exposes Go runtime and process stats (goroutines, GC, CPU, memory, file descriptors), plus new counters for AS_PATH loop rejects and ASPA validation outcomes.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="💿 Appliance and resilience">
+                        <div class="md-content">
+                            <h2>💿 Appliance and resilience</h2>
+                            <ul>
+<li>The gokrazy init was bumped to clear CVE-2026-25680.</li>
+<li>Unreachable external services (NTP, a RADIUS CoA server, the managed hub) can no longer stall boot or a config commit.</li>
+<li>A missing physical interface is now skipped instead of aborting the whole config apply.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛠️ Under the hood">
+                        <div class="md-content">
+                            <h2>🛠️ Under the hood</h2>
+                            <ul>
+<li>Twelve config parsers that compared YANG values as if already typed now coerce the string form correctly, so valid config is no longer silently defaulted.</li>
+<li>MCP consolidated onto the Streamable HTTP transport and the legacy handler was removed; the ExaBGP bridge is now an internal, config-delivered plugin; and the managed hub finally serves fleet clients that used to be dropped after authenticating.</li>
+<li>A large internal consolidation pass unified RPC dispatch, filter ordering, config diff, the redistribution loop guard, and route, replay, and startup handling behind single shared paths.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔭 Coming up">
+                        <div class="md-content">
+                            <h2>🔭 Coming up</h2>
+                            <p>Design work has started on a RIB architecture refresh (long-lived graceful restart, RFC 5549 next-hops, real-time ECMP in the FIB) and on advanced graceful restart (RFC 8538 Hard Reset and notification-aware route retention). A DHCPv6 server remains on the drawing board.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../../project/changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -52,9 +52,9 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
 
 Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
 
-[Play the WebM recording](../../assets/demos/zefs-config.webm?v=9651a7e3df) · [View the poster](../../assets/demos/zefs-config.png?v=9e82166aac) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=cf435951c8)
+[Play the WebM recording](../../assets/demos/zefs-config.webm?v=e1f065f598) · [View the poster](../../assets/demos/zefs-config.png?v=395cc5eb0c) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=061ef7a006)
 
-Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 2 minutes 21 seconds.
+Recorded with Ze 26.08.21 on macOS and Linux using VHS 0.11.0. Duration: 2 minutes 21 seconds.
 
 ```console
 $ cat "$ZE_INIT_INPUT"
@@ -68,7 +68,7 @@ $ ze config ls
 ze.conf
 $ ze data check
 
-$ ssh ze-demo show bgp summary
+$ ssh ze-demo show bgp
 
 $ ssh ze-demo
 ze# set environment cli format default table
@@ -77,12 +77,15 @@ ze# commit
 Session committed
 ze# exit
 ze# exit
-$ ze cli -c 'show bgp summary'
-$ ze cli -c 'show bgp summary | text'
-$ ze cli -c 'show bgp summary | raw' | head -14
-$ ze cli -c 'show bgp summary | raw' | ze pipe text
+$ ze cli -c 'show bgp'
+$ ze cli -c 'show bgp | text'
+$ ze cli -c 'show bgp | display router-id local-as peers-established'
+$ ze cli -c 'show bgp | display router-id | fill alpha'
+$ ze cli -c 'show bgp | peers'
+$ ze cli -c 'show bgp | raw' | head -14
+$ ze cli -c 'show bgp | raw' | ze pipe text
 
-The five lines answer `ze init`'s prompts in order: username, password, host, port, and name. It reads them from a file here so the recording is reproducible, and it prints nothing when its input is not a terminal, so the file is shown first rather than left as an unexplained redirection. `ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the format setting back to ZeFS, not to a second flat file, and the same operational command immediately uses the committed default. The last commands show the two ways to override that default, and they are different pipes. `show bgp summary | text` is Ze's own operator, inside the quoted command, and it wins over the committed setting. Then `| raw` on its own shows what every one of these renderings is made from: the payload as the daemon holds it, unrendered. The last command sends that same payload across a real shell pipe, and `ze pipe text` formats it on this side, which is how output captured earlier is formatted later. The command is `ze pipe` rather than `ze format` because the operator language also carries `match`, `count`, `first`, `last` and `resolve`, so `format` would name one clause of it. Every command answers with structured data, so `text`, `table`, `json`, `yaml` and `ndjson` all render the same payload.
+The five lines answer `ze init`'s prompts in order: username, password, host, port, and name. It reads them from a file here so the recording is reproducible, and it prints nothing when its input is not a terminal, so the file is shown first rather than left as an unexplained redirection. `ze init` creates `database.zefs`. The first BGP summary uses the default text format. The SSH editor commits the format setting back to ZeFS, not to a second flat file, and the same operational command immediately uses the committed default. The last commands show the two ways to override that default, and they are different pipes. `show bgp | text` is Ze's own operator, inside the quoted command, and it wins over the committed setting. Then `| raw` on its own shows what every one of these renderings is made from: the payload as the daemon holds it, unrendered. The last command sends that same payload across a real shell pipe, and `ze pipe text` formats it on this side, which is how output captured earlier is formatted later. The command is `ze pipe` rather than `ze format` because the operator language also carries `match`, `count`, `first`, `last` and `resolve`, so `format` would name one clause of it. Every command answers with structured data, so `text`, `table`, `json`, `yaml` and `ndjson` all render the same payload. Three commands in the middle choose WHICH of that payload to read. `display` names the fields wanted, in the order wanted, and shows those alone. `fill` brings back the fields it did not name, and `alpha` orders them by field name. `peers` is an alias, which is a name for a pipe expression, so one word answers the per-peer rows without the totals beside them. Each command declares its own column order, so a table leads with the fields an operator reads first rather than with the alphabet.
 ```
 
 

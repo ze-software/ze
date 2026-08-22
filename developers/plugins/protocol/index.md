@@ -17,8 +17,40 @@ Every message is a single newline-terminated line:
 | Request | `#<id> <method> [<json-params>]\n` |
 | Success response | `#<id> ok [<json-result>]\n` |
 | Error response | `#<id> error [<json-error>]\n` |
+| Record answer | `#<id> ok <key=value tail>\n`, one line per record |
 
-<!-- source: pkg/plugin/rpc/message.go -- FormatRequest, FormatResult, FormatError -->
+<!-- source: pkg/plugin/rpc/message.go -- AppendRequest, AppendResult, AppendError -->
+
+The record answer applies to three methods. It replaces the single success line
+with a head, zero or more records, and a terminator. Every other method keeps
+the three forms above. The grammar is in
+[ipc_protocol.md](https://github.com/ze-software/ze/blob/main/docs/architecture/api/ipc_protocol.md), "Answer Protocol".
+<!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerTerminator -->
+
+| Method | The plugin | The engine |
+|--------|-----------|-----------|
+| `dispatch-command` | reads the answer | writes it |
+| `dispatch-command-args` | reads the answer | writes it |
+| `execute-command` | writes the answer | reads it |
+
+One encoding covers both columns, on every connection. Nothing is declared and
+nothing is negotiated, so a plugin author sets no field and reaches no option.
+<!-- source: pkg/plugin/rpc/types.go -- DeclareCapabilitiesInput -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, WriteDocumentAnswer -->
+
+A plugin READS an engine answer in one of two ways, and both read the same
+frame. `Plugin.DispatchCommandAnswer` yields each row as it arrives, which is
+what bounds the memory of a walk over a large table. `Plugin.DispatchCommand`
+and `Plugin.DispatchCommandArgs` collapse the same answer into the one document
+a caller that wants the whole payload reads.
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.DispatchCommandAnswer, Plugin.DispatchCommand, dispatchCommandValue -->
+
+A plugin WRITES its own answer to `execute-command`, and the frame is the same
+whatever the payload is. A handler that returns a `plugin.Records` writes one
+line for each row of the walk. A handler that returns a built value writes that
+value as the one record of a `doc` answer, byte for byte.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
+<!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->
 
 - `<id>` is a monotonically increasing uint64 correlation ID
 - `<method>` uses YANG-style `<module>:<rpc-name>` naming (e.g., `ze-plugin-engine:declare-registration`)
@@ -81,8 +113,27 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `filters` | `[]FilterDecl` | Named route filters the plugin provides |
 | `doctor-checks` | `[]DoctorCheckDecl` | Doctor checks the plugin provides |
 | `enrichers` | `[]EnricherDecl` | Show enrichers the plugin provides |
+| `pipes` | `[]PipeDecl` | CLI pipe aliases the plugin names for its own commands |
 | `claims` | `[]string` | Exclusive runtime roles the plugin takes over |
 
+
+Each `PipeDecl` has these fields:
+<!-- source: pkg/plugin/rpc/types.go -- PipeDecl -->
+<!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `command` | `string` | Command path the alias sits on. MUST be one of this plugin's own declared commands |
+| `name` | `string` | The word an operator types after the pipe character (kebab-case, 1-64 chars) |
+| `description` | `string` | The line completion and `command help` show beside the name |
+| `expansion` | `string` | The operator chain the name stands for, as an operator would type it |
+
+A pipe alias SELECTS and re-sequences the answer the command already returned.
+It renames no key, sums no numbers and counts no rows, so the command MUST emit
+the aggregate fields beside the detail rows. One bad entry refuses the whole
+list and fails the plugin's startup. Read
+`docs/architecture/api/commands.md` for the collision rules and the payload
+obligation.
 
 Each `FamilyDecl` has these fields:
 <!-- source: pkg/plugin/rpc/types.go -- FamilyDecl -->
@@ -136,6 +187,7 @@ Plugin sends `ze-plugin-engine:declare-capabilities` with a `DeclareCapabilities
 | Field | Type | Description |
 |-------|------|-------------|
 | `capabilities` | `[]CapabilityDecl` | BGP capabilities for OPEN injection |
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, Stage 3 declare-capabilities -->
 
 Each `CapabilityDecl` has:
 <!-- source: pkg/plugin/rpc/types.go -- CapabilityDecl -->
@@ -221,7 +273,7 @@ each wire method to its registered handler.
 |--------|-------------|-------|--------|---------|
 | `ze-plugin-callback:deliver-event` | `OnEvent` | `DeliverEventInput` | None | Deliver one event |
 | `ze-plugin-callback:deliver-batch` | `OnEvent` | `{"events":[]}` | None | Deliver an event batch |
-| `ze-plugin-callback:execute-command` | `OnExecuteCommand` | `ExecuteCommandInput` | `ExecuteCommandOutput` | Run a command |
+| `ze-plugin-callback:execute-command` | `OnExecuteCommand` | `ExecuteCommandInput` | a record answer | Run a command |
 | `ze-plugin-callback:encode-nlri` | `OnEncodeNLRI` | `EncodeNLRIInput` | `EncodeNLRIOutput` | Encode NLRI |
 | `ze-plugin-callback:decode-nlri` | `OnDecodeNLRI` | `DecodeNLRIInput` | `DecodeNLRIOutput` | Decode NLRI |
 | `ze-plugin-callback:decode-capability` | `OnDecodeCapability` | `DecodeCapabilityInput` | `{"json":...}` | Decode a capability |

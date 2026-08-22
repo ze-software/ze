@@ -96,14 +96,14 @@ Explanation pages for architecture, comparisons, performance, labs, and deployme
 
 Project context for people deciding whether to try Ze or help shape it.
 
-- [Why Ze or not where Ze fits and where it does not](https://ze-software.net/project/why-ze-or-not/)
-- [Roadmap the path to the first release](https://ze-software.net/roadmap/)
-- [Changes what shipped, week by week](https://ze-software.net/changes/)
+- [Why Ze what makes Ze different and who it is for](https://ze-software.net/project/why-ze/)
+- [Roadmap the path to the first release](https://ze-software.net/project/roadmap/)
+- [Changes what shipped, week by week](https://ze-software.net/project/changes/)
 - [Blog longer notes behind the work](https://ze-software.net/blog/)
 - [FAQ answers before you commit time](https://ze-software.net/faq/)
 - [Contribute code, bug reports, and interop results](https://ze-software.net/contribute/)
 - [Developer setup build, test, and debug the Ze source tree](https://ze-software.net/contribute/developer-setup/)
 - [RFC implementation guide how a new RFC gets built and proven](https://ze-software.net/contribute/rfc-implementation-guide/)
 - [Documentation testing keep docs honest with tested command output](https://ze-software.net/contribute/documentation-testing/)
-- [Project history reasons to use Ze and the origin story after ExaBGP](https://ze-software.net/project/history/)
+- [Project history how ExaBGP's programmable model grew into Ze](https://ze-software.net/project/history/)
 - [Contributor testing choose the right proof layer and run it locally](https://ze-software.net/contribute/testing/)

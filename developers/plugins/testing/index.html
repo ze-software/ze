@@ -39,8 +39,8 @@
                     <a href="../../../docs/">Docs</a>
                     <a href="../../../features/">Features</a>
                     <a href="../../../compare/">Compare</a>
-                    <a href="../../../roadmap/">Roadmap</a>
-                    <a href="../../../changes/">Changes</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
                     <a href="../../../faq/">FAQ</a>
                     <a href="../../../contribute/">Contribute</a>
                 </nav>
@@ -270,16 +270,33 @@ a serial, command name, args, and peer address, and returns status, data, and er
         Peer    string   `json:&quot;peer,omitempty&quot;`
     }{Serial: &quot;1&quot;, Command: &quot;show-status&quot;}
 
-    result, err := engineMux.CallRPC(ctx, &quot;ze-plugin-callback:execute-command&quot;, cmdInput)
-    require.NoError(t, err)
-
-    var out sdk.ExecuteCommandOutput
-    require.NoError(t, json.Unmarshal(result, &amp;out))
+    out := executeCommand(t, ctx, engineMux, cmdInput)
     assert.Equal(t, &quot;done&quot;, out.Status)
-    assert.Contains(t, out.Data, &quot;healthy&quot;)
+    assert.Contains(t, string(out.Data), &quot;healthy&quot;)
 }
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
+
+<p><code>CallRPC</code> cannot read this answer. A plugin answers <code>execute-command</code> with a
+head, its records and a terminator, so a test that reads one JSON result takes
+the head line's tail for its payload. Read the answer with <code>CallAnswer</code> and
+collapse it, which is the engine's own three steps:</p>
+<pre><code class="language-go">func executeCommand(t *testing.T, ctx context.Context, mux *rpc.MuxConn, input any) *rpc.ExecuteCommandOutput {
+    t.Helper()
+
+    answer, err := mux.CallAnswer(ctx, &quot;ze-plugin-callback:execute-command&quot;, input)
+    require.NoError(t, err)
+
+    document, collapseErr := rpc.CollapseAnswer(answer)
+    require.NoError(t, answer.Err(), &quot;the answer must reach its terminator&quot;)
+    require.NoError(t, collapseErr)
+    return &amp;rpc.ExecuteCommandOutput{Status: answer.Status, Data: document}
+}
+</code></pre>
+<p><code>answer.Err()</code> is read AFTER the collapse, because the walk is what fills it.</p>
+<!-- source: pkg/plugin/rpc/mux.go -- MuxConn.CallAnswer -->
+<!-- source: pkg/plugin/rpc/collapse.go -- CollapseAnswer -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.SendExecuteCommandAnswer, ExecuteCommandValue -->
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput, ExecuteCommandOutput -->
 
 <h2 id="testing-configuration-handling">Testing Configuration Handling</h2>
@@ -363,13 +380,9 @@ The <code>OnConfigVerify</code> and <code>OnConfigApply</code> callbacks handle 
                 Command string `json:&quot;command&quot;`
             }{Serial: &quot;1&quot;, Command: tt.command}
 
-            result, err := engineMux.CallRPC(ctx, &quot;ze-plugin-callback:execute-command&quot;, cmdInput)
-            require.NoError(t, err)
-
-            var out sdk.ExecuteCommandOutput
-            require.NoError(t, json.Unmarshal(result, &amp;out))
+            out := executeCommand(t, ctx, engineMux, cmdInput)
             assert.Equal(t, tt.wantStatus, out.Status)
-            assert.Equal(t, tt.wantData, out.Data)
+            assert.JSONEq(t, tt.wantData, string(out.Data))
         })
     }
 }
@@ -429,7 +442,7 @@ p.OnEvent(func(event string) error {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

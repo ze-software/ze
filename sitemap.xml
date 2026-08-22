@@ -4,9 +4,6 @@
     <loc>https://ze-software.net/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/activity/</loc>
-  </url>
-  <url>
     <loc>https://ze-software.net/architecture/</loc>
   </url>
   <url>
@@ -47,117 +44,6 @@
   </url>
   <url>
     <loc>https://ze-software.net/blog/the-repository-is-the-ai-harness/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2025-12-15/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2025-12-22/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2025-12-29/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-01-05/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-01-12/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-01-19/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-01-26/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-02-02/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-02-09/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-02-16/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-02-23/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-03-02/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-03-09/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-03-16/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-03-23/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-03-30/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-04-06/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-04-13/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-04-20/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-04-27/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-05-04/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-05-11/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-05-18/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-05-25/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-06-01/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-06-08/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-06-15/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-06-22/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-06-25/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-07-01/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-07-06/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-07-13/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-07-20/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-07-27/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-08-03/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/changes/2026-08-10/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/code-of-conduct/</loc>
@@ -221,9 +107,6 @@
   </url>
   <url>
     <loc>https://ze-software.net/docs/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/docs/why-ze-or-not/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/faq/</loc>
@@ -326,9 +209,6 @@
   </url>
   <url>
     <loc>https://ze-software.net/guides/bgp-role/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/guides/bgp/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/guides/bmp/</loc>
@@ -538,9 +418,6 @@
     <loc>https://ze-software.net/license/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/milestones/</loc>
-  </url>
-  <url>
     <loc>https://ze-software.net/performance/</loc>
   </url>
   <url>
@@ -550,13 +427,127 @@
     <loc>https://ze-software.net/project/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/project/activity/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2025-12-15/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2025-12-22/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2025-12-29/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-01-05/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-01-12/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-01-19/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-01-26/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-02-02/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-02-09/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-02-16/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-02-23/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-03-02/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-03-09/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-03-16/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-03-23/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-03-30/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-04-06/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-04-13/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-04-20/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-04-27/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-05-04/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-05-11/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-05-18/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-05-25/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-06-01/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-06-08/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-06-15/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-06-22/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-06-25/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-07-01/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-07-06/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-07-13/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-07-20/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-07-27/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-08-03/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-08-10/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/project/history/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/project/history/why-ze/</loc>
+    <loc>https://ze-software.net/project/milestones/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/project/why-ze-or-not/</loc>
+    <loc>https://ze-software.net/project/roadmap/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/project/why-ze/</loc>
@@ -1030,7 +1021,7 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-bgp-rib/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/show-bgp-summary/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/show-bgp/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-bmp-collectors/</loc>
@@ -2089,9 +2080,6 @@
     <loc>https://ze-software.net/reference/rfcs/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/roadmap/</loc>
-  </url>
-  <url>
     <loc>https://ze-software.net/search/</loc>
   </url>
   <url>
@@ -2135,9 +2123,6 @@
   </url>
   <url>
     <loc>https://ze-software.net/use-cases/transit-edge-rpki/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/why-ze-or-not/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/zeledon/</loc>

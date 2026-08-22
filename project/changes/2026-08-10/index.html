@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2026-08-10 - Ze</title>
+        <meta name="description" content="Web and Looking Glass rewrites, remote-triggered blackholing, dynamic BGP peer repairs, authenticated PPPoE and another standards pass shaped the week." />
+        <meta property="og:title" content="Week of 2026-08-10 - Ze" />
+        <meta property="og:description" content="Web and Looking Glass rewrites, remote-triggered blackholing, dynamic BGP peer repairs, authenticated PPPoE and another standards pass shaped the week." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2026-08-10 - Ze" />
+        <meta name="twitter:description" content="Web and Looking Glass rewrites, remote-triggered blackholing, dynamic BGP peer repairs, authenticated PPPoE and another standards pass shaped the week." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/project/changes/2026-08-10/" />
+        <meta property="og:url" content="https://ze-software.net/project/changes/2026-08-10/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">Weekly update</span>
+                    <h1 id="post-title">Week of 2026-08-10</h1>
+                    <p>Web and Looking Glass rewrites, remote-triggered blackholing, dynamic BGP peer repairs, authenticated PPPoE and another standards pass shaped the week.</p>
+                </div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🛰️ BGP control and route servers">
+                        <div class="md-content">
+                            <h2>🛰️ BGP control and route servers</h2>
+                            <p>New:</p>
+<ul>
+<li>Per-peer <code>blackhole communities</code> and <code>blackhole prefixes</code> implement RFC 7999 remote-triggered blackholing. Only an agreed community from an authorized peer, inside an authorized covering prefix, becomes a discard route.</li>
+<li>BGP import policies can condition a modification and remove MULTI_EXIT_DISC before route selection.</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li>Dynamic groups inherit address families, ADD-PATH settings, filters, passwords, attached processes and plugin settings. Unchanged groups keep their live sessions across reload.</li>
+<li>Re-advertised ADD-PATH routes get stable Path Identifiers owned by Ze, so clients reusing one incoming identifier no longer collapse into one downstream path.</li>
+<li>RPKI reports whether each cache has completed a sync, honors its refresh interval, refuses unparseable prefixes and applies revalidation to installed routes.</li>
+<li>Ze no longer advertises a route back to a peer when the final next hop is that peer's own address.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📡 Subscriber edge and network services">
+                        <div class="md-content">
+                            <h2>📡 Subscriber edge and network services</h2>
+                            <p>New:</p>
+<ul>
+<li>PPPoE access concentrators can require <code>pap</code>, <code>chap-md5</code> or <code>ms-chap-v2</code> through <code>auth-method</code>. The default is <code>chap-md5</code>, and <code>allow-no-auth</code> remains false unless explicitly enabled.</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li>EAP-TLS answers Start with ClientHello and sends the TLS 1.3 protected success indication. Mid-EAP IKE_AUTH retransmissions replay the cached response.</li>
+<li>IKEv2 uses the RFC 4303 replay-window default and preserves the XFRM settings required for installed security associations.</li>
+<li>Authoritative DNS distinguishes REFUSED, NXDOMAIN and NODATA, rejects non-query opcodes, and truncates only datagram replies.</li>
+<li>An L2TP SCCRQ with a zero Assigned Tunnel ID now receives StopCCN.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🖥️ Web, labs and operations">
+                        <div class="md-content">
+                            <h2>🖥️ Web, labs and operations</h2>
+                            <p>New:</p>
+<ul>
+<li>The web interface, Looking Glass and chaos dashboard now use templ components and htmx 4.0.0-beta6.</li>
+<li>Ze ships a netlab daemon definition for BGP, OSPF, IS-IS, BFD and static routing. <code>make ze-docker-lab-build</code> builds the local lab image.</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li>Web inline edits commit on Enter instead of every keystroke, and secret values stay masked on every rendering path.</li>
+<li>Management listeners retain their configured address and authentication settings. Removed users stop authenticating after reload.</li>
+<li>Daemon startup and reload apply the same registered value checks as <code>ze config validate</code>. Stored-config diffs include structural additions and deletions.</li>
+<li>Appliance kernels include every tunnel type that Ze exposes. Mirror teardown removes Ze's filter without removing the shared traffic-control attachment.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📚 Standards program">
+                        <div class="md-content">
+                            <h2>📚 Standards program</h2>
+                            <p>Ze is being checked against every RFC it implements, one MUST at a time. The work has started rather than finished.</p>
+<p>There are 3,043 MUST-level requirements. Of those, 2,965 are checked, and 51 still owe work. Six documents have been read end to end against their source text. The other 165 have not.</p>
+<p>A green run proves everything currently written down. It does not yet prove that the list is complete, which is why the end-to-end reading continues.</p>
+<p>What that turned up this week:</p>
+<ul>
+<li>RFC 7999 remote-triggered blackholing had no receive path. The BGP feature above is the result.</li>
+<li>Ze ignored the RFC 1997 scopes of NO_ADVERTISE, NO_EXPORT and NO_EXPORT_SUBCONFED on both forwarding paths. Withdrawals now still reach peers whose announcements are suppressed.</li>
+<li>EAP-TLS did not send the RFC 9190 protected success indication, and it answered Start with an ACK instead of ClientHello. Both paths are fixed.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔭 Coming up">
+                        <div class="md-content">
+                            <h2>🔭 Coming up</h2>
+                            <p>The order remains: fix the defects already found, clear the 51 MUSTs that still owe work, then read the remaining 165 documents end to end. SHOULD-level work waits behind all three.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../../project/changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

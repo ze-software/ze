@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -257,7 +257,7 @@ what the user typed: <code>show bgp peer list</code>, <code>clear counters</code
 forms that once worked without a verb (<code>bgp summary</code>, <code>system memory</code>, <code>daemon
 reload</code>) were removed from the command tree. Prefix matching is anchored at the
 start of the typed string, so an entry whose <code>match</code> is <code>bgp</code> no longer covers
-<code>show bgp summary</code>. Review any denylist entry keyed on a bare form: it silently
+<code>show bgp</code>. Review any denylist entry keyed on a bare form: it silently
 stops covering the command it was written for. Write <code>show bgp</code>, <code>show system</code>,
 and <code>request reload</code> instead.</p>
 <!-- source: internal/component/cli/client/verb_tree.go -- BuildVerbCommandTree, verbContextPath -->
@@ -305,7 +305,7 @@ and <code>request reload</code> instead.</p>
                 }
                 entry 20 {
                     action allow
-                    match &quot;show bgp summary&quot;
+                    match &quot;show bgp&quot;
                 }
                 entry 30 {
                     action allow
@@ -395,7 +395,7 @@ command:</p>
         }
         entry 20 {
             action allow
-            match &quot;show bgp summary&quot;
+            match &quot;show bgp&quot;
         }
     }
     edit {
@@ -404,7 +404,7 @@ command:</p>
 }
 </code></pre>
 <p>This user can run <code>show bgp peer list</code> (with or without arguments after
-it, such as an IP address) and <code>show bgp summary</code>, but nothing else.</p>
+it, such as an IP address) and <code>show bgp</code>, but nothing else.</p>
 <h3 id="deny-dangerous-commands-denylist">Deny dangerous commands (denylist)</h3>
 <p>Set <code>default-action allow</code> and add <code>deny</code> entries for commands to block:</p>
 <pre><code>profile noc {
@@ -664,7 +664,7 @@ profile &quot;test&quot; run: entry 10: invalid regex &quot;[broken&quot;: error
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

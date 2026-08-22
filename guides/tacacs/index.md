@@ -182,7 +182,7 @@ Strict fallback is covered by `TestExtractConfigStrictFallback` and
 `TestTacacsAuthorizerStrictFallbackDeniesUnreachable` in the TACACS+ unit tests.
 
 For ad-hoc verification, point the daemon at a real TACACS+ server and
-run any command via `ze cli -c "show bgp summary"` -- the daemon log tags the
+run any command via `ze cli -c "show bgp"` -- the daemon log tags the
 satisfying backend on every login, e.g.:
 
 ```

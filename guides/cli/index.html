@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -142,7 +142,7 @@ ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full
 <td>Show negotiated capabilities</td>
 </tr>
 <tr>
-<td><code>show bgp summary</code></td>
+<td><code>show bgp</code></td>
 <td>BGP summary table</td>
 </tr>
 </tbody>
@@ -288,6 +288,10 @@ ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full
 </thead>
 <tbody>
 <tr>
+<td><code>show bgp rpki</code></td>
+<td>Validation counters with one row for each cache server</td>
+</tr>
+<tr>
 <td><code>show bgp rpki status</code></td>
 <td>RTR session count and VRP counts</td>
 </tr>
@@ -303,8 +307,22 @@ ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full
 <td><code>show bgp rpki summary</code></td>
 <td>Validation statistics</td>
 </tr>
+<tr>
+<td><code>show bgp rpki aspa</code></td>
+<td>ASPA cache, or the providers for a customer AS</td>
+</tr>
+<tr>
+<td><code>request bgp rpki validate &lt;prefix&gt; &lt;origin-asn&gt;</code></td>
+<td>Validate one prefix against the ROA cache</td>
+</tr>
 </tbody>
 </table>
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- handleCommand, overviewCommand -->
+
+<p><code>show bgp rpki | summary</code> answers the counters without the cache server rows,
+through a pipe alias the plugin declares. It resolves over <code>ze cli -c "..."</code> and
+over ssh, and NOT inside <code>ze cli</code> with no command argument
+(<code>docs/guide/rpki.md</code>).</p>
 <h2 id="daemon-control">Daemon Control</h2>
 <table>
 <thead>
@@ -426,7 +444,7 @@ ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

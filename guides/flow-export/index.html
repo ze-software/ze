@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -308,8 +308,10 @@ destination prefix.</p>
 With no argument it lists every collector; with <code>name &lt;collector&gt;</code> it returns
 that one collector, or an error if the name is not configured. When no <code>flow-export</code>
 section is configured the command returns <code>{"status": "not-configured"}</code>.</p>
-<pre><code>ze cli -c 'show flow export'
+<pre><code>ze cli -c 'show flow export | json'
 </code></pre>
+<p>The <code>| json</code> pipe asks for that shape. Without it the answer is rendered in the
+format <code>environment cli format default</code> names, whose registered value is <code>text</code>.</p>
 <pre><code class="language-json">[
   {
     &quot;name&quot;: &quot;edge-sflow&quot;,
@@ -370,8 +372,9 @@ section is configured the command returns <code>{"status": "not-configured"}</co
 </tr>
 </tbody>
 </table>
-<p>The command produces JSON by default and supports the full set of pipe
-operators.</p>
+<p>The command answers structured data, rendered in the format
+<code>environment cli format default</code> names. The registered value is <code>text</code>. The full
+set of pipe operators selects another one.</p>
 <h2 id="prometheus-metrics">Prometheus Metrics</h2>
 <p>The component registers the following metrics:</p>
 <table>
@@ -510,7 +513,7 @@ the collector endpoints off any untrusted path.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

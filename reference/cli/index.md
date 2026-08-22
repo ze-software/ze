@@ -226,6 +226,7 @@
 
 | Command | Mode | Description |
 | --- | --- | --- |
+| `show bgp` | Read-only | BGP peers, sessions, RIB, and protocol tools. Typed with no subcommand, lists every peer with state, ASN, prefixes received, and uptime. Optionally scope by address family: ipv4, ipv6, or l2vpn. |
 | `show bgp decode` | Read-only | Decode a hex-encoded BGP message into readable JSON. Paste a hex BGP UPDATE and get back parsed attributes, NLRI, and withdrawn prefixes. Handy for reading pcap captures or debugging wire issues. Also available in the web UI under tools. |
 | `show bgp encode` | Read-only | Turn a route announcement into wire-format hex. Takes a route in API syntax and returns the BGP UPDATE as a hex string. Useful for building test payloads, feeding to ze-test, or verifying that your announcement encodes correctly. |
 | `show bgp health` | Read-only | Quick health check for all your BGP peers. Lists every peer with address, state, ASN, and uptime. Reports how many are not Established. Much faster than 'show bgp peer *' when you just need a status overview. |
@@ -238,12 +239,11 @@
 | `show bgp peer list` | Read-only | List your peers, one line each. Shows name, address, ASN, state, and uptime. Quick overview without the detail of 'show bgp peer <selector> detail'. |
 | `show bgp peer rib` | Read-only | Show RIB data scoped to one peer. Usage: show bgp peer <selector> rib [scope\|filters\|terminal]. |
 | `show bgp peer statistics` | Read-only | Show UPDATE throughput for your peers. Usage: show bgp peer <selector> statistics. |
-| `show bgp rib` | Read-only | Query routes in the BGP RIB. Look at received or advertised routes with flexible filters: peer, family, prefix, AS path regex, community, match expression. Pipe operators: \| count, \| prefix-summary, \| graph. This is the main route inspection command. |
+| `show bgp rib` | Read-only | Query routes in the BGP RIB. Look at received or advertised routes with flexible filters: peer, family, prefix, AS path regex, community, match expression. Pipe operators: \| count, \| histogram, \| graph. This is the main route inspection command. |
 | `show bgp rib best` | Read-only | Show the winning route for each prefix. Same filters as 'show bgp rib'. Use '\| reason' to see why each path was selected (local-pref, AS path length, MED, etc.). |
 | `show bgp rib best status` | Read-only | Check whether best-path computation is still running. Reports idle, pending, or running, plus the last run duration. |
 | `show bgp rib rpf` | Read-only | Reverse-path forwarding lookup in the Loc-RIB. Performs a longest-prefix-match and returns the best-path entry. Use this to verify RPF checks would pass for a given source. |
 | `show bgp rib status` | Read-only | Get a quick RIB overview without dumping routes. Shows total peers, received/accepted/advertised route counts, and per-family breakdowns. Use this to confirm convergence after a peer comes up. |
-| `show bgp summary` | Read-only | Show a one-line-per-peer BGP summary. Lists every peer with state, ASN, prefixes received, and uptime. Optionally scope by address family: ipv4, ipv6, or l2vpn. |
 
 ## show bmp (4)
 

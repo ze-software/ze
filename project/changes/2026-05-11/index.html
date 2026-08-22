@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2026-05-11 - Ze</title>
+        <meta name="description" content="CPE features round out, interface config gets restructured, and RPKI gains ASPA path verification." />
+        <meta property="og:title" content="Week of 2026-05-11 - Ze" />
+        <meta property="og:description" content="CPE features round out, interface config gets restructured, and RPKI gains ASPA path verification." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2026-05-11 - Ze" />
+        <meta name="twitter:description" content="CPE features round out, interface config gets restructured, and RPKI gains ASPA path verification." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/project/changes/2026-05-11/" />
+        <meta property="og:url" content="https://ze-software.net/project/changes/2026-05-11/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">Weekly update</span>
+                    <h1 id="post-title">Week of 2026-05-11</h1>
+                    <p>CPE features round out, interface config gets restructured, and RPKI gains ASPA path verification.</p>
+                </div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🏠 CPE / edge router">
+                        <div class="md-content">
+                            <h2>🏠 CPE / edge router</h2>
+                            <p>Several pieces needed for Ze to run as a customer-premises router landed together:</p>
+<ul>
+<li>A DHCP server plugin (RFC 2131/2132) with lease tracking, static MAC-to-IP mappings, and multi-subnet dispatch</li>
+<li>A PPPoE client interface kind, dialling an access concentrator and negotiating LCP/CHAP/PAP/IPCP for a routable PPP session</li>
+<li>Declarative conntrack management (helper modules, table sizing, per-protocol timeouts)</li>
+<li>Serial console configuration for headless boxes, working on both gokrazy and standard Linux</li>
+<li>A firmware update checker plus a <code>ze update-serve</code> command for hosting update manifests and binaries</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔌 Interfaces">
+                        <div class="md-content">
+                            <h2>🔌 Interfaces</h2>
+                            <p>Interface config got more structured: rp-filter's integer setting is now a <code>strict</code>/<code>loose</code>/<code>disable</code> enum, addresses moved into per-family <code>ipv4</code>/<code>ipv6</code> containers (Junos/Nokia-style), interface units are now named by string label instead of numeric ID, and per-interface offload/steering (GRO, GSO, TSO, LRO, RPS, RFS, hw-tc-offload) is configurable.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ Routing">
+                        <div class="md-content">
+                            <h2>🛰️ Routing</h2>
+                            <ul>
+<li>Static routes gained named routing tables for policy-based routing, plus interface-only next-hops for point-to-point links</li>
+<li>Kernel-installed routes (from DHCP, PPP, or manual <code>ip route add</code>) can now redistribute into BGP</li>
+<li>Connected prefixes and L2TP RADIUS framed routes redistribute the same way</li>
+<li>Redistribution rules can now scope by destination protocol</li>
+<li>BGP keepalive timer is configurable independently of hold-time</li>
+<li>MPLS labels from BGP labeled unicast now flow through the RIB into the VPP FIB</li>
+<li>A new <code>bgp rib rpf</code> command does LPM-based reverse-path lookups for external multicast daemons</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔒 Security">
+                        <div class="md-content">
+                            <h2>🔒 Security</h2>
+                            <p>RPKI gained ASPA path verification against RFC 9582 provider authorization records over RTR v2. It ships opt-in, off by default, after an initial default-on release flagged every route as "unknown" wherever no ASPA infrastructure was deployed.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📊 Observability">
+                        <div class="md-content">
+                            <h2>📊 Observability</h2>
+                            <p>BMP-received routes now live in their own RIB slot and show up in the looking glass under a dedicated "BMP Monitored Peers" section, kept separate from BGP best-path selection. Host hardware (CPU, NIC, memory, storage, thermal) is now live in the web UI, storage inventory picks up SMART health data, and a new hardware tuning engine (CPU governor, IRQ affinity, ethtool ring buffers) applies at startup and on config reload. NIC flaps, ECC error growth, and CPU throttling now surface in <code>show warnings</code>/<code>show errors</code>.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛠️ Under the hood">
+                        <div class="md-content">
+                            <h2>🛠️ Under the hood</h2>
+                            <p>Config archiving was redesigned around named blocks with triggers (commit, manual, daily, hourly) and change detection, and config history/rollback got a proper date-based version API. RIB attribute storage was reworked for better cache density, alongside a broader pass removing allocations from BGP's hot paths. The MCP server picked up the latest protocol additions: embedded UI resources and background task-augmented tool calls.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../../project/changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -1085,8 +1085,8 @@ without ever holding that many routes. Pick <code>installed</code> to bound how 
 distinct prefixes a peer may advertise to you at once, which is the number that
 stops moving when the peer only churns attributes.</p>
 <p>Neither value is the size of the RIB, and neither is the number
-<code>show bgp summary</code> reports. Both counts are taken before import policy runs.
-<code>show bgp summary</code> reports <code>routes-received</code> and <code>routes-accepted</code>, and both are
+<code>show bgp</code> reports. Both counts are taken before import policy runs.
+<code>show bgp</code> reports <code>routes-received</code> and <code>routes-accepted</code>, and both are
 the Adj-RIB-In size AFTER that policy, because Ze stores no route the policy
 rejected. A peer whose prefixes the policy rejects therefore reads lower there
 than in either count. Neither value changes enforcement, either: both drop the
@@ -2878,7 +2878,7 @@ The web config editor checks the user's profile before <code>set</code>, <code>a
 <code>/show/</code> pages. Terminal-mode web config commands use the same checks before
 they mutate a draft.</p>
 <p>REST and gRPC without a token or per-user authenticator use the <code>api</code>
-identity as read-only. Reads such as <code>show version</code> and <code>show bgp summary</code> work;
+identity as read-only. Reads such as <code>show version</code> and <code>show bgp</code> work;
 write commands and config sessions return 403. Configure
 <code>environment.api-server.token</code> or per-user credentials when API clients need
 write access.</p>
@@ -4494,7 +4494,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

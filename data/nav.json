@@ -106,10 +106,10 @@
                 [
                     {"label_only": "Progress and updates"},
                     {"href": "project/", "icon": "🧭", "title": "Project overview", "desc": "Progress, history, talks, and contribution paths", "feature": true},
-                    {"href": "roadmap/", "icon": "🗺️", "title": "Roadmap", "desc": "What works today and what remains before the first release"},
-                    {"href": "changes/", "icon": "🧾", "title": "Changes", "desc": "What shipped, week by week"},
-                    {"href": "milestones/", "icon": "🏁", "title": "Milestones", "desc": "Landmark features, oldest to newest"},
-                    {"href": "activity/", "icon": "📈", "title": "Activity", "desc": "A year of commits, at a glance"},
+                    {"href": "project/roadmap/", "icon": "🗺️", "title": "Roadmap", "desc": "What works today and what remains before the first release"},
+                    {"href": "project/changes/", "icon": "🧾", "title": "Changes", "desc": "What shipped, week by week"},
+                    {"href": "project/milestones/", "icon": "🏁", "title": "Milestones", "desc": "Landmark features, oldest to newest"},
+                    {"href": "project/activity/", "icon": "📈", "title": "Activity", "desc": "A year of commits, at a glance"},
                     {"href": "blog/", "icon": "✍", "title": "Blog", "desc": "Project notes and release stories"},
                     {"href": "talks/", "icon": "🎤", "title": "Talks", "desc": "Talk slides and conference material"}
                 ],

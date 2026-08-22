@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -432,8 +432,13 @@ distro all-on row, one bare-core row, and one row that omits each feature.
 Staticcheck includes selected <code>_test.go</code> files. This stage type-checks those
 files without running their tests.</p>
 <p>The matrix guarantees these direct single-feature omissions. It makes no
-guarantee for arbitrary combinations with two or more omitted features.
-Rerun the stage directly:</p>
+guarantee for arbitrary combinations with two or more omitted features.</p>
+<p>Inside a verify run the stage judges only the rows the change set can move: the
+distro all-on and bare-core rows, plus one row per feature tag the change
+reached. Typing the target yourself judges every row, because only a verify run
+publishes the feature-tag answer it scopes by. What widens the scope back to
+every row is <code>../architecture/testing/verify-freshness-scope.md</code>. Rerun the stage
+directly:</p>
 <pre><code class="language-sh">make ze-staticcheck-feature-matrix-check
 </code></pre>
 <p>The matrix checks package and test variants in the working tree.
@@ -582,7 +587,7 @@ fuzz corpus entry becomes a regression test automatically.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

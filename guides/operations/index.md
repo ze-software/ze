@@ -114,7 +114,7 @@ fi
 
 ```bash
 ze cli -c "show bgp peer list"  # brief peer list with state
-ze cli -c "show bgp summary"   # summary table with uptime and prefix counts
+ze cli -c "show bgp"            # summary table with uptime and prefix counts
 ```
 
 ## Environment Variables
@@ -369,7 +369,7 @@ ze --version                   # ze version
 ze config validate config.conf        # config validity
 ze status                      # daemon state
 ze cli -c "show bgp peer list"  # peer states
-ze cli -c "show bgp summary"   # session summary
+ze cli -c "show bgp"            # session summary
 ze env list -v                 # effective configuration
 ze signal quit                 # goroutine dump (kills daemon!)
 ```

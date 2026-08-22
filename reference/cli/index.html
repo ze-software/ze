@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -262,6 +262,7 @@
 <details class="cli-group" id="cli-group-show-bgp" open>
 <summary>show bgp <span class="cli-group-count">18</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>
+<tr id="cmd-show-bgp"><td><code>show bgp</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>BGP peers, sessions, RIB, and protocol tools.<br>Typed with no subcommand, lists every peer with state, ASN, prefixes<br>received, and uptime. Optionally scope by address family: ipv4,<br>ipv6, or l2vpn.</td></tr>
 <tr id="cmd-show-bgp-decode"><td><code>show bgp decode</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Decode a hex-encoded BGP message into readable JSON.<br>Paste a hex BGP UPDATE and get back parsed attributes, NLRI, and<br>withdrawn prefixes. Handy for reading pcap captures or debugging<br>wire issues. Also available in the web UI under tools.</td></tr>
 <tr id="cmd-show-bgp-encode"><td><code>show bgp encode</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Turn a route announcement into wire-format hex.<br>Takes a route in API syntax and returns the BGP UPDATE as a hex<br>string. Useful for building test payloads, feeding to ze-test, or<br>verifying that your announcement encodes correctly.</td></tr>
 <tr id="cmd-show-bgp-health"><td><code>show bgp health</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Quick health check for all your BGP peers.<br>Lists every peer with address, state, ASN, and uptime. Reports how<br>many are not Established. Much faster than &#x27;show bgp peer *&#x27; when<br>you just need a status overview.</td></tr>
@@ -274,12 +275,11 @@
 <tr id="cmd-show-bgp-peer-list"><td><code>show bgp peer list</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List your peers, one line each.<br>Shows name, address, ASN, state, and uptime. Quick overview without<br>the detail of &#x27;show bgp peer &lt;selector&gt; detail&#x27;.</td></tr>
 <tr id="cmd-show-bgp-peer-rib"><td><code>show bgp peer &lt;selector&gt; rib [scope|filters|terminal]</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show RIB data scoped to one peer.<br>Usage: show bgp peer &lt;selector&gt; rib [scope|filters|terminal].</td></tr>
 <tr id="cmd-show-bgp-peer-statistics"><td><code>show bgp peer &lt;selector&gt; statistics</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show UPDATE throughput for your peers.<br>Usage: show bgp peer &lt;selector&gt; statistics.</td></tr>
-<tr id="cmd-show-bgp-rib"><td><code>show bgp rib</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Query routes in the BGP RIB.<br>Look at received or advertised routes with flexible filters: peer,<br>family, prefix, AS path regex, community, match expression. Pipe<br>operators: | count, | prefix-summary, | graph. This is the main<br>route inspection command.</td></tr>
+<tr id="cmd-show-bgp-rib"><td><code>show bgp rib</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Query routes in the BGP RIB.<br>Look at received or advertised routes with flexible filters: peer,<br>family, prefix, AS path regex, community, match expression. Pipe<br>operators: | count, | histogram, | graph. This is the main<br>route inspection command.</td></tr>
 <tr id="cmd-show-bgp-rib-best"><td><code>show bgp rib best</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the winning route for each prefix.<br>Same filters as &#x27;show bgp rib&#x27;. Use &#x27;| reason&#x27; to see why each<br>path was selected (local-pref, AS path length, MED, etc.).</td></tr>
 <tr id="cmd-show-bgp-rib-best-status"><td><code>show bgp rib best status</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Check whether best-path computation is still running.<br>Reports idle, pending, or running, plus the last run duration.</td></tr>
 <tr id="cmd-show-bgp-rib-rpf"><td><code>show bgp rib rpf</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Reverse-path forwarding lookup in the Loc-RIB.<br>Performs a longest-prefix-match and returns the best-path entry.<br>Use this to verify RPF checks would pass for a given source.</td></tr>
 <tr id="cmd-show-bgp-rib-status"><td><code>show bgp rib status</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Get a quick RIB overview without dumping routes.<br>Shows total peers, received/accepted/advertised route counts, and<br>per-family breakdowns. Use this to confirm convergence after a<br>peer comes up.</td></tr>
-<tr id="cmd-show-bgp-summary"><td><code>show bgp summary</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show a one-line-per-peer BGP summary.<br>Lists every peer with state, ASN, prefixes received, and uptime.<br>Optionally scope by address family: ipv4, ipv6, or l2vpn.</td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-show-bmp" open>
 <summary>show bmp <span class="cli-group-count">4</span></summary>
@@ -679,7 +679,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

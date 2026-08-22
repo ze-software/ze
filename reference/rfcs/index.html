@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -180,7 +180,7 @@
 <td>RFC 4724</td>
 <td>Graceful Restart</td>
 <td class="cell-partial">∿</td>
-<td>Receiving-Speaker Graceful Restart: GR capability advertise and last-instance negotiate, Restart-State/Forwarding-State bit encoding, End-of-RIB send and detect, mark-stale on a non-NOTIFICATION drop, stale deletion on consecutive restart / Restart-Time expiry / F-bit-clear, and GR-stale routes competing normally in best-path (internal/component/bgp/plugins/gr, internal/component/bgp/plugins/rib). Requirements bound per line in rfc/short/rfc4724.md.</td>
+<td>Receiving-Speaker Graceful Restart: GR capability advertise and last-instance negotiate, Restart-State/Forwarding-State bit encoding, End-of-RIB send and detect, mark-stale on a non-NOTIFICATION drop, stale deletion on consecutive restart / Restart-Time expiry / F-bit-clear, and GR-stale routes competing normally in best-path (internal/component/bgp/plugins/gr, internal/component/bgp/plugins/rib). The send covers a session where neither speaker advertised a Multiprotocol capability. RFC 4271 carries that session as IPv4 unicast, so RFC 4724 Section 4 owes it a marker. <code>Negotiate</code> (internal/core/bgp/capability/negotiated.go) reads a side that advertised none as advertising ipv4/unicast. <code>sendInitialRoutes</code> (internal/component/bgp/reactor/peer_initial_sync.go) then sends the marker. FRR 10.3.1 decodes it in test/interop/scenarios/no-family-peer-eor-frr. Requirements bound per line in rfc/short/rfc4724.md.</td>
 <td>Eight MUST gaps annotated in rfc/short/rfc4724.md: ze implements the Restarting-Speaker path as GR signaling only and does not retain its own Loc-RIB across a restart, so it runs no selection-deferral cycle and exposes no Selection_Deferral_Timer (RFC4724-4.1-1, 4.1-2, 4.1-3, 4.1-5, 4.1-6, 4.1-8); and on a re-established GR-capable session it follows plain RFC 4271 Section 6.8 collision detection (closes the new connection, keeps the existing session) rather than the RFC 4724 Section 4.2 override that treats the new OPEN as terminating the old session (RFC4724-4.2-1, 4.2-2).</td>
 </tr>
 <tr>
@@ -1392,7 +1392,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 August 2026 03:49 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

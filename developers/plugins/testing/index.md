@@ -188,16 +188,36 @@ func TestCommandHandler(t *testing.T) {
         Peer    string   `json:"peer,omitempty"`
     }{Serial: "1", Command: "show-status"}
 
-    result, err := engineMux.CallRPC(ctx, "ze-plugin-callback:execute-command", cmdInput)
-    require.NoError(t, err)
-
-    var out sdk.ExecuteCommandOutput
-    require.NoError(t, json.Unmarshal(result, &out))
+    out := executeCommand(t, ctx, engineMux, cmdInput)
     assert.Equal(t, "done", out.Status)
-    assert.Contains(t, out.Data, "healthy")
+    assert.Contains(t, string(out.Data), "healthy")
 }
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
+
+`CallRPC` cannot read this answer. A plugin answers `execute-command` with a
+head, its records and a terminator, so a test that reads one JSON result takes
+the head line's tail for its payload. Read the answer with `CallAnswer` and
+collapse it, which is the engine's own three steps:
+
+```go
+func executeCommand(t *testing.T, ctx context.Context, mux *rpc.MuxConn, input any) *rpc.ExecuteCommandOutput {
+    t.Helper()
+
+    answer, err := mux.CallAnswer(ctx, "ze-plugin-callback:execute-command", input)
+    require.NoError(t, err)
+
+    document, collapseErr := rpc.CollapseAnswer(answer)
+    require.NoError(t, answer.Err(), "the answer must reach its terminator")
+    require.NoError(t, collapseErr)
+    return &rpc.ExecuteCommandOutput{Status: answer.Status, Data: document}
+}
+```
+
+`answer.Err()` is read AFTER the collapse, because the walk is what fills it.
+<!-- source: pkg/plugin/rpc/mux.go -- MuxConn.CallAnswer -->
+<!-- source: pkg/plugin/rpc/collapse.go -- CollapseAnswer -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.SendExecuteCommandAnswer, ExecuteCommandValue -->
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput, ExecuteCommandOutput -->
 
 ## Testing Configuration Handling
@@ -286,13 +306,9 @@ func TestCommandDispatch(t *testing.T) {
                 Command string `json:"command"`
             }{Serial: "1", Command: tt.command}
 
-            result, err := engineMux.CallRPC(ctx, "ze-plugin-callback:execute-command", cmdInput)
-            require.NoError(t, err)
-
-            var out sdk.ExecuteCommandOutput
-            require.NoError(t, json.Unmarshal(result, &out))
+            out := executeCommand(t, ctx, engineMux, cmdInput)
             assert.Equal(t, tt.wantStatus, out.Status)
-            assert.Equal(t, tt.wantData, out.Data)
+            assert.JSONEq(t, tt.wantData, string(out.Data))
         })
     }
 }

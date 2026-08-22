@@ -126,7 +126,7 @@ what the user typed: `show bgp peer list`, `clear counters`,
 forms that once worked without a verb (`bgp summary`, `system memory`, `daemon
 reload`) were removed from the command tree. Prefix matching is anchored at the
 start of the typed string, so an entry whose `match` is `bgp` no longer covers
-`show bgp summary`. Review any denylist entry keyed on a bare form: it silently
+`show bgp`. Review any denylist entry keyed on a bare form: it silently
 stops covering the command it was written for. Write `show bgp`, `show system`,
 and `request reload` instead.
 <!-- source: internal/component/cli/client/verb_tree.go -- BuildVerbCommandTree, verbContextPath -->
@@ -178,7 +178,7 @@ system {
                 }
                 entry 20 {
                     action allow
-                    match "show bgp summary"
+                    match "show bgp"
                 }
                 entry 30 {
                     action allow
@@ -272,7 +272,7 @@ profile monitoring {
         }
         entry 20 {
             action allow
-            match "show bgp summary"
+            match "show bgp"
         }
     }
     edit {
@@ -282,7 +282,7 @@ profile monitoring {
 ```
 
 This user can run `show bgp peer list` (with or without arguments after
-it, such as an IP address) and `show bgp summary`, but nothing else.
+it, such as an IP address) and `show bgp`, but nothing else.
 
 ### Deny dangerous commands (denylist)
 

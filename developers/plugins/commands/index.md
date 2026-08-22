@@ -50,7 +50,7 @@ p.OnExecuteCommand(func(serial, command string, args []string, peer string) (sta
 ## Wire Format
 
 Commands are delivered to the plugin as `execute-command` RPCs over the MuxConn connection. The wire format uses `#<id> <verb> [<json>]` framing.
-<!-- source: pkg/plugin/rpc/message.go -- FormatRequest, FormatResult, FormatError -->
+<!-- source: pkg/plugin/rpc/message.go -- AppendRequest, AppendResult, AppendError -->
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput, ExecuteCommandOutput -->
 
 ### Request (engine to plugin)
@@ -61,9 +61,25 @@ Commands are delivered to the plugin as `execute-command` RPCs over the MuxConn 
 
 ### Success Response (plugin to engine)
 
+The answer is a head, its records and a terminator, on every connection. The
+frame is the same whatever the payload is, so a handler that built one value
+takes the same three lines as a handler that walked a table. The field after the
+id is a three-byte kind token saying which of the three a line is: `top`, `row`
+and `end`, with `bad` for a rejected row.
+
 ```
-#17 ok {"status":"done","data":{"status":"running","uptime":3600}}
+#17 top doc 1:0: 1:0:
+#17 row 2:34:{"status":"running","uptime":3600}
+#17 end 1:1 1:0 1:0:
 ```
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer -->
+
+The engine reads that sequence back into one `ExecuteCommandOutput`: the record
+is its `data`, and its `status` is derived from the terminator, which is the one
+line an answer states an outcome on.
+<!-- source: internal/component/plugin/ipc/rpc.go -- ExecuteCommandValue -->
+<!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
 
 ### Error Response (plugin to engine)
 
@@ -85,11 +101,13 @@ return "done", map[string]any{
 }, nil
 ```
 
-The SDK marshals this value into `ExecuteCommandOutput.Data` and sends:
+The SDK marshals this value once and sends it as the one record of the answer:
 ```
-#17 ok {"status":"done","data":{"count":42,"items":["a","b"]}}
+#17 top doc 1:0: 1:0:
+#17 row 2:30:{"count":42,"items":["a","b"]}
+#17 end 1:1 1:0 1:0:
 ```
-<!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandOutput, executeCommandAnswer -->
 
 ### Success without Data
 
@@ -97,11 +115,45 @@ The SDK marshals this value into `ExecuteCommandOutput.Data` and sends:
 return "done", nil, nil
 ```
 
-Response:
+Response. A command that reported nothing writes no record, and the terminator
+says so. Nothing is not the same answer as an empty collection:
 ```
-#17 ok {"status":"done"}
+#17 top doc 1:0: 1:0:
+#17 end 1:0 1:0 1:0:
 ```
-<!-- source: pkg/plugin/rpc/message.go -- FormatResult, FormatOK -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer, writeDocumentLines -->
+
+### Success with Rows
+
+A command that walks a large collection returns an `sdk.Records` rather than a
+built value. The SDK writes one line for each row, so neither the plugin nor the
+engine holds the whole answer:
+
+```go
+return "done", sdk.Records{Key: "sessions", Rows: sessionRows()}, nil
+```
+
+```
+#17 top map 1:8:sessions 1:0:
+#17 row 2:26:{"id":1,"peer":"10.0.0.1"}
+#17 row 2:26:{"id":2,"peer":"10.0.0.2"}
+#17 end 1:2 1:0 1:0:
+```
+
+`Key` names the envelope the rows belong under. A handler MUST NOT name it
+`errors`, because that name holds the rows the walk rejected. `Rows` is walked
+once, before the handler's call returns. A handler MUST NOT store the sequence,
+and MUST keep whatever it reads alive until then. A row that no wire message can
+carry is reported as a rejected row, and the walk continues.
+
+A walk of 256 rows or fewer collapses to one `doc` record, which is the
+JSON the command answered with before it produced rows at all. The encoder
+decides that from the walk, and the handler states nothing about the wire. That
+document is one line as well, so rows that each fit and collapse into something
+no line can carry earn the same rejected row, and the head then states `map`.
+<!-- source: pkg/plugin/records.go -- Row, Record, Records, Records.WriteAnswer -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, boundedRecord -->
+<!-- source: pkg/plugin/rpc/collapse.go -- CollapseRecords, AnswerErrorsKey -->
 
 ### Handler Error
 
@@ -180,6 +232,57 @@ Commands are declared with these fields:
 | `Description` | string | No | Human-readable description |
 | `Args` | []string | No | Expected argument names (for help/completion) |
 | `Completable` | bool | No | Whether the command supports tab completion |
+
+## Naming a Pipe Alias for Your Command
+
+A pipe alias is the word an operator types after the pipe character, standing
+for an operator chain they would otherwise type in full. Declare one in the
+`Pipes` list of the same `Registration`:
+<!-- source: pkg/plugin/sdk/sdk_types.go -- PipeDecl, Registration -->
+
+```go
+err := p.Run(ctx, sdk.Registration{
+    Commands: []sdk.CommandDecl{
+        {Name: "my-plugin status", Description: "Show current status"},
+    },
+    Pipes: []sdk.PipeDecl{{
+        Command:     "my-plugin status",
+        Name:        "totals",
+        Description: "The counters, without the per-session rows",
+        Expansion:   "display sessions-total sessions-established",
+    }},
+})
+```
+
+| Field | Type | Required | Purpose |
+|-------|------|----------|---------|
+| `Command` | string | Yes | Command path the alias sits on. MUST be one of your own declared commands |
+| `Name` | string | Yes | The word typed after the pipe character (kebab-case) |
+| `Description` | string | No | The line completion and `command help` show beside the name |
+| `Expansion` | string | Yes | The operator chain the name stands for |
+
+Three rules decide whether your command CAN have an alias.
+<!-- source: internal/component/command/alias.go -- RegisterPluginAliases, checkAlias -->
+
+- **The pipe layer selects. It does not compute.** `display` keeps named keys and
+  drops the rest, and no operator renames a key, adds two numbers, or counts
+  matching rows. Your handler MUST emit the aggregate fields beside the detail
+  rows, as siblings at one level. `show bgp rpki` is the worked example.
+- **The name MUST be free.** It cannot be a built-in operator name, a pipe filter
+  name on an overlapping command path, or an alias name the exact same command
+  path already carries. One refusal fails your whole Stage 1 registration.
+- **The alias takes no argument, and names no other alias.** Its expansion parses
+  to built-in operators alone.
+
+The engine stops the alias reaching a command below the one it sits on. Declare
+`my-plugin status detail` in the same message and it inherits nothing.
+
+`ze cli` with no command argument expands the chain in the client process, where
+your alias is not registered, so it answers
+`pipe error: unknown pipe operator: totals` there. It resolves over
+`ze cli -c "<command>"` and in the interactive session a plain ssh client
+reaches.
+<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
 
 ## Complex Responses
 

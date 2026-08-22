@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -137,6 +137,16 @@ unregistered access (<code>env.MustRegister()</code>).</p>
 </tr>
 </tbody>
 </table>
+<p>One registration is out of reach of both catalogs. <code>ze help command --json</code> and
+<code>make ze-command-list</code> read the compiled command tree in their own process, and
+they start no plugin. Neither reports a pipe alias a plugin declared in its
+Stage 1 message. The running daemon answers that question, through
+<code>command help "&lt;name&gt;"</code> and through Tab completion in the interactive session.
+The wiki catalog built from the JSON therefore lists a plugin's commands without
+its aliases.</p>
+<!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
+<!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp -->
+
 <h2 id="build-time-verification">Build-Time Verification</h2>
 <table>
 <thead>
@@ -156,7 +166,7 @@ unregistered access (<code>env.MustRegister()</code>).</p>
 </tr>
 <tr>
 <td><code>make ze-command-list</code></td>
-<td>Every CLI command with wire method, help text, read-only flag, source</td>
+<td>Every CLI command of the compiled tree, with wire method, help text, read-only flag, source</td>
 </tr>
 <tr>
 <td><code>make ze-command-contract-check</code></td>
@@ -216,7 +226,7 @@ completion, schema discovery, inventory, and environment variable listing. No ma
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

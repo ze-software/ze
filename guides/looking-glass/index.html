@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -223,7 +223,7 @@ set <code>tls false</code>). No authentication is required unless you set <code>
 </table>
 <p>All API responses use <code>Content-Type: application/json</code> with birdwatcher-convention <code>snake_case</code> field names (not Ze's standard <code>kebab-case</code>).</p>
 <p>The per-peer route counts on <code>/protocols/bgp</code> come from the <code>bgp-rib</code> plugin's
-Adj-RIB-In and Adj-RIB-Out sizes, merged into <code>show bgp summary</code>:
+Adj-RIB-In and Adj-RIB-Out sizes, merged into <code>show bgp</code>:
 <code>routes_received</code> and <code>routes_imported</code> are both the Adj-RIB-In size (Ze retains
 only accepted routes, so there is no distinct pre-policy received count here),
 and <code>routes_exported</code> is the Adj-RIB-Out size. <code>routes_filtered</code> is always <code>0</code>:
@@ -297,7 +297,7 @@ counts are only present when the <code>bgp-rib</code> plugin is loaded.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

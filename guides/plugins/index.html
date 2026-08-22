@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -88,7 +88,11 @@
 <li><a href="#nlri-encodersdecoders">NLRI Encoders/Decoders</a></li>
 </ol></li>
 <li><a href="#hub-configuration">Hub Configuration</a></li>
-<li><a href="#writing-external-plugins">Writing External Plugins</a></li>
+<li><a href="#writing-external-plugins">Writing External Plugins</a>
+<ol>
+<li><a href="#answering-a-command-with-rows">Answering a command with rows</a></li>
+<li><a href="#naming-a-pipe-alias-for-your-own-command">Naming a pipe alias for your own command</a></li>
+</ol></li>
 <li><a href="#dependencies">Dependencies</a></li>
 <li><a href="#exclusive-roles">Exclusive Roles</a></li>
 <li><a href="#peer-up-barrier">Peer-Up Barrier</a></li>
@@ -1267,6 +1271,99 @@ while True:
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv, Run -->
 <!-- source: test/scripts/ze_api.py -- API YANG RPC client -->
 
+<h3 id="answering-a-command-with-rows">Answering a command with rows</h3>
+<p>A command handler returns <code>(status string, data any, error)</code>. When <code>data</code> is a
+built value, the operator gets that value. When the command walks a large
+collection, return an <code>sdk.Records</code> instead. The SDK then writes one line for
+each row past the first 256, and neither the plugin nor the engine holds the
+whole answer. A walk that ends inside those 256 rows collapses to the one
+document the command answered with before it produced rows at all.</p>
+<pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+    return &quot;done&quot;, sdk.Records{
+        Key:  &quot;sessions&quot;,
+        Rows: sessionRows(),
+    }, nil
+})
+</code></pre>
+<p><code>Key</code> names the envelope the rows belong under. <code>Rows</code> is an
+<code>iter.Seq[sdk.Record]</code>, and each record carries one <code>Item</code> the command produced
+or one <code>Fault</code> it rejected. A <code>Row</code> appends its own JSON, so a producer can hand
+back one row value for every row of the walk.</p>
+<!-- source: pkg/plugin/records.go -- Row, Record, Records -->
+
+<p>Three rules bind a handler that answers this way.</p>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The walk is read before the handler's call returns. Do not store the sequence</td>
+<td>It is the answer being written, not a collection that can be read again</td>
+</tr>
+<tr>
+<td>Keep whatever the walk reads alive until that call returns</td>
+<td>The SDK pulls a row at a time, so a released buffer reaches the operator as zeros</td>
+</tr>
+<tr>
+<td>Do not name the envelope <code>errors</code></td>
+<td>That name holds the rejected rows, and both producers refuse the collision</td>
+</tr>
+</tbody>
+</table>
+<p>A row that no wire message can carry is reported as a rejected row and the walk
+continues. The operator then reads the rows that were applied under <code>Key</code>, and
+the row that was refused under <code>errors</code> beside them. A short walk whose rows
+each fit and whose one collapsed document does not is refused the same way, and
+the operator reads that rejection alone.</p>
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, boundedRecord -->
+<!-- source: pkg/plugin/rpc/collapse.go -- CollapseRecords, AnswerErrorsKey -->
+
+<p>A plugin also READS a record answer. <code>Plugin.DispatchCommandAnswer</code> runs an
+engine command and yields each row as it arrives, which is what bounds the memory
+of a walk over a large table. <code>Plugin.DispatchCommand</code> reads the same answer as
+one document for a caller that wants the whole payload.</p>
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.DispatchCommandAnswer, Plugin.DispatchCommand -->
+
+<h3 id="naming-a-pipe-alias-for-your-own-command">Naming a pipe alias for your own command</h3>
+<p>A plugin declares a CLI pipe alias in the <code>Pipes</code> list of the same
+<code>Registration</code>. An alias is the word an operator types after the pipe character,
+and it stands for an operator chain. The BGP RPKI plugin declares <code>summary</code> on
+<code>show bgp rpki</code>, so <code>show bgp rpki | summary</code> answers the counters without the
+cache server rows.</p>
+<pre><code class="language-go">Pipes: []sdk.PipeDecl{{
+    Command:     &quot;my-plugin status&quot;,
+    Name:        &quot;totals&quot;,
+    Description: &quot;The counters, without the per-session rows&quot;,
+    Expansion:   &quot;display sessions-total sessions-established&quot;,
+}},
+</code></pre>
+<!-- source: pkg/plugin/sdk/sdk_types.go -- PipeDecl, Registration -->
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
+
+<p>The pipe layer selects and re-sequences. It renames no key, adds no numbers and
+counts no matching rows. So your handler MUST emit the aggregate fields beside
+the detail rows, as siblings at one level. A command whose second view needs
+computed data stays a subcommand, and so does one that takes a value.</p>
+<p><code>Command</code> MUST be one of the commands you declare in the same message. Three
+holders refuse the name:</p>
+<ul>
+<li>a built-in pipe operator that carries it.</li>
+<li>a pipe filter on an overlapping command path that carries it.</li>
+<li>an alias on the exact same command path that carries it.</li>
+</ul>
+<p>One refusal fails your whole startup, and the daemon log names the plugin, the
+path and the name.</p>
+<p>A declared alias resolves over <code>ze cli -c "&lt;command&gt;"</code> and in the interactive
+session a plain ssh client reaches. It does NOT resolve in <code>ze cli</code> with no
+command argument, which expands the chain in the client process and answers
+<code>pipe error: unknown pipe operator: totals</code>.</p>
+<!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes -->
+<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
+
 <h2 id="dependencies">Dependencies</h2>
 <p>Plugins can declare dependencies on other plugins. The engine starts plugins in dependency order and delivers state/EOR events to dependents first.</p>
 <pre><code># bgp-gr depends on bgp-rib
@@ -1407,7 +1504,7 @@ while True:
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 12:15 UTC</span>
                 </div>
             </div>
         </footer>

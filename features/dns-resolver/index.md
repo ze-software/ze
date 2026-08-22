@@ -88,7 +88,7 @@ Two pipe operators enrich JSON output from any command with DNS-based lookups:
 | `\| origin` | Adds `<key>-asn`, `<key>-as-name`, and `<key>-prefix` fields for each IP address value via Team Cymru DNS queries. 2s timeout. |
 
 Both pipes walk JSON values, detect IP addresses, and add sibling fields.
-They work on any command output, including `show traceroute`, `show bgp summary`, etc.
+They work on any command output, including `show traceroute`, `show bgp`, etc.
 In `monitor traceroute | log` mode, they enrich the hop legend.
 
 ## Reload behavior

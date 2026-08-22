@@ -1,131 +1,14 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>Week of 2025-12-15 - Ze</title>
-        <meta name="description" content="The first tracked week of development on Ze. In seven days the BGP engine went from nothing to a config-driven daemon that speaks the wire protocol, holds a RIB, and tests itself against ExaBGP." />
-        <meta property="og:title" content="Week of 2025-12-15 - Ze" />
-        <meta property="og:description" content="The first tracked week of development on Ze. In seven days the BGP engine went from nothing to a config-driven daemon that speaks the wire protocol, holds a RIB, and tests itself against ExaBGP." />
-        <meta property="og:type" content="website" />
-        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Week of 2025-12-15 - Ze" />
-        <meta name="twitter:description" content="The first tracked week of development on Ze. In seven days the BGP engine went from nothing to a config-driven daemon that speaks the wire protocol, holds a RIB, and tests itself against ExaBGP." />
-        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
-        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
-            rel="stylesheet"
-        />
-        <link rel="canonical" href="https://ze-software.net/changes/2025-12-15/" />
-        <meta property="og:url" content="https://ze-software.net/changes/2025-12-15/" />
-        <link rel="stylesheet" href="../../assets/site.css" />
-        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
-    </head>
-    <body>
-        <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
-            <noscript>
-                <nav class="site-header-fallback" aria-label="Site navigation">
-                    <a class="brand" href="../../#top">Ze</a>
-                    <a href="../../#top">Home</a>
-                    <a href="../../docs/">Docs</a>
-                    <a href="../../features/">Features</a>
-                    <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
-                    <a href="../../faq/">FAQ</a>
-                    <a href="../../contribute/">Contribute</a>
-                </nav>
-            </noscript>
-        </div>
-
-        <main id="top" class="has-page-sidebar" tabindex="-1">
-            <section class="blog-post" aria-labelledby="post-title">
-                <div class="journey-hero reveal">
-                    <span class="journey-eyebrow">Weekly update</span>
-                    <h1 id="post-title">Week of 2025-12-15</h1>
-                    <p>The first tracked week of development on Ze. In seven days the BGP engine went from nothing to a config-driven daemon that speaks the wire protocol, holds a RIB, and tests itself against ExaBGP.</p>
-                </div>
-                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
-            </section>
-            <section class="blog-post reveal">
-                <div class="blog-grid">
-                    <div class="blog-block" aria-label="🏗️ Core BGP engine">
-                        <div class="md-content">
-                            <h2>🏗️ Core BGP engine</h2>
-                            <p>The foundational pieces of a BGP speaker landed: wire-format encoding/decoding, all BGP message types, capability negotiation, path attributes, NLRI types, a RIB, the finite state machine, and the session/reactor layer that drives peer connections. A zero-copy byte-deduplication pool underpins the encoding path from the start.</p>
-                        </div>
-                    </div>
-                    <div class="blog-block" aria-label="🧩 Config and CLI">
-                        <div class="md-content">
-                            <h2>🧩 Config and CLI</h2>
-                            <p>A schema-driven config parser landed with ExaBGP-compatible syntax (set-style blocks, arrays, serialization), wired straight through to the reactor. The CLI grew daemon and API run modes plus an interactive editor with autocomplete.</p>
-                        </div>
-                    </div>
-                    <div class="blog-block" aria-label="🔌 API and self-check testing">
-                        <div class="md-content">
-                            <h2>🔌 API and self-check testing</h2>
-                            <p>An API layer for external processes to talk to Ze, alongside a functional self-check test harness and a testpeer package that exercises the daemon against ExaBGP for compatibility, including passive-peer handling.</p>
-                        </div>
-                    </div>
-                    <div class="blog-block" aria-label="📜 RFC compliance pass">
-                        <div class="md-content">
-                            <h2>📜 RFC compliance pass</h2>
-                            <p>A broad pass brought the engine's attribute and NLRI handling in line with the relevant RFCs: EVPN Type 1, Type 4, and Type 5 (RFC 7432), BGP-LS, MVPN, VPLS, and FlowSpec VPN (SAFI 134) route support, extended next-hop encoding (RFC 5549/8950), AFI/SAFI family validation (RFC 4760), VPN next-hop RD parsing (RFC 4364/4659), MP-NLRI chunking (RFC 4271), AS_CONFED handling in AS4_PATH and ASN4-aware AS_PATH encoding (RFC 6793), and path attribute ordering (RFC 4271 Appendix F.3). Fixes went in for extended community parsing, FlowSpec numeric match operators, software-version capability parsing, and IPv6 route sending with correct end-of-RIB markers.</p>
-                        </div>
-                    </div>
-                    <div class="blog-block" aria-label="📦 Config migration and batched updates">
-                        <div class="md-content">
-                            <h2>📦 Config migration and batched updates</h2>
-                            <p>Config syntax moved from <code>neighbor</code> to <code>peer</code>, with <code>static</code> routes migrating to <code>announce</code>, template-based <code>group</code>/<code>match</code> blocks, peer glob patterns (<code>peer 192.168.*.*</code>), and CLI commands to check and migrate older configs. Per-family negotiation now supports enable/disable/require modes plus a lenient ignore mode for UPDATE validation. On the sending side, routes are now grouped by shared attributes and packed into batched UPDATE messages per peer, with per-peer Adj-RIB-Out, transactional commits, and a CommitService that flushes and sends grouped UPDATEs as a unit.</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            <aside class="page-sidebar" aria-label="Related page links">
-                <p class="page-sidebar-eyebrow">Change note</p>
-                <nav class="page-sidebar-nav" aria-label="Related links">
-                <section class="page-sidebar-group">
-                    <h2>More context</h2>
-                    <a class="page-sidebar-link" href="../../changes/">
-                        <span class="page-sidebar-link-label">All changes</span>
-                        <small>Return to the weekly update index.</small>
-                    </a>
-                    <a class="page-sidebar-link" href="../../milestones/">
-                        <span class="page-sidebar-link-label">Milestones</span>
-                        <small>See which changes became landmarks.</small>
-                    </a>
-                    <a class="page-sidebar-link" href="../../roadmap/">
-                        <span class="page-sidebar-link-label">Roadmap</span>
-                        <small>Map this week to the release plan.</small>
-                    </a>
-                    <a class="page-sidebar-link" href="../../activity/">
-                        <span class="page-sidebar-link-label">Activity</span>
-                        <small>View commit cadence around this week.</small>
-                    </a>
-                </section>
-                </nav>
-            </aside>
-        </main>
-
-        <script src="../../assets/site.js" defer></script>
-
-        <footer>
-            <div class="footer-inner">
-                <div class="footer-bottom">
-                    <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
-                </div>
-            </div>
-        </footer>
-    </body>
+<head>
+    <meta charset="utf-8">
+    <meta name="robots" content="noindex">
+    <meta http-equiv="refresh" content="0; url=/project/changes/2025-12-15/">
+    <link rel="canonical" href="https://ze-software.net/project/changes/2025-12-15/">
+    <title>Page moved - Ze</title>
+    <script>location.replace("/project/changes/2025-12-15/" + location.search + location.hash);</script>
+</head>
+<body>
+    <p>This page moved to <a href="https://ze-software.net/project/changes/2025-12-15/">https://ze-software.net/project/changes/2025-12-15/</a>.</p>
+</body>
 </html>

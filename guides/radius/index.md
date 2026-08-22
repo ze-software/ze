@@ -143,7 +143,7 @@ The `.ci` tests in `test/plugin/` cover the main behaviours:
 Unit coverage lives in `internal/component/radius/{config,authenticator,aaa,doctor}_test.go`.
 
 For ad-hoc verification, point the daemon at a real RADIUS server and run any
-command via `ze cli -c "show bgp summary"` -- the daemon log tags the satisfying
+command via `ze cli -c "show bgp"` -- the daemon log tags the satisfying
 backend on every login, e.g.:
 
 ```

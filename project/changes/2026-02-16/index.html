@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2026-02-16 - Ze</title>
+        <meta name="description" content="A hard round of route reflector hardening, a live web dashboard for the chaos tool, and a batch of BGP protocol and config improvements." />
+        <meta property="og:title" content="Week of 2026-02-16 - Ze" />
+        <meta property="og:description" content="A hard round of route reflector hardening, a live web dashboard for the chaos tool, and a batch of BGP protocol and config improvements." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2026-02-16 - Ze" />
+        <meta name="twitter:description" content="A hard round of route reflector hardening, a live web dashboard for the chaos tool, and a batch of BGP protocol and config improvements." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            rel="stylesheet"
+        />
+        <link rel="canonical" href="https://ze-software.net/project/changes/2026-02-16/" />
+        <meta property="og:url" content="https://ze-software.net/project/changes/2026-02-16/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">Weekly update</span>
+                    <h1 id="post-title">Week of 2026-02-16</h1>
+                    <p>A hard round of route reflector hardening, a live web dashboard for the chaos tool, and a batch of BGP protocol and config improvements.</p>
+                </div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🔀 Route reflector hardening">
+                        <div class="md-content">
+                            <h2>🔀 Route reflector hardening</h2>
+                            <p>The route reflector had a hard week of bug-hunting. Fixes landed for routes being dropped under a slow consumer, deadlocks from subscribing to both directions of a session, incorrect per-family filtering, and log spam during backpressure. The UPDATE cache is now refcounted with configurable size and TTL, out-of-order acknowledgements are treated as no-ops instead of protocol violations, and forwarding moved to per-source and per-destination worker pools so one slow peer no longer stalls the others. Shutdown is faster too: sequential per-component timeouts that used to compound are now parallel waits under a single deadline, so daemon stop is near-instant.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🌪️ Chaos tool dashboard">
+                        <div class="md-content">
+                            <h2>🌪️ Chaos tool dashboard</h2>
+                            <p>The chaos testing tool, now <code>ze-chaos</code>, gained a web dashboard (<code>--web :8080</code>) with SSE event streaming, peer status, a route matrix heatmap, and pause, resume and rate controls. It also gained an in-process simulation mode with virtual time that runs over 100x faster than real TCP connections, composable RFC property assertions checked on every run, and a shrink engine that reduces a failing run to a minimal reproduction. Chaos fault injection can now be wired directly into a running Ze process via CLI flag, environment variable or config.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📄 A new IETF draft: ATTR_TOMBSTONE">
+                        <div class="md-content">
+                            <h2>📄 A new IETF draft: ATTR_TOMBSTONE</h2>
+                            <p>RFC 7606's "attribute discard" action says a malformed attribute MUST be
+removed and the UPDATE continues to be processed. The conventional way to do
+that is to rebuild the whole path attributes section: shift every attribute
+after the bad one down to close the gap, then recompute the path attributes
+length, the UPDATE's total length, and any offsets an implementation cached
+while parsing.</p>
+<p>There's a cheaper trick: overwrite the malformed attribute in place with an
+unused attribute code instead of removing it. Nothing moves, no length field
+changes, and any offsets already computed for the rest of the message stay
+valid. This already works against any conformant BGP speaker today, no new
+RFC required, because RFC 4271 already specifies safe handling of attributes
+a speaker doesn't recognize.</p>
+<p>Ze started enforcing RFC 7606 error handling this week and implemented
+exactly this: attribute-discard markers written in place, first under the
+name ATTR_DISCARD (and a first draft, <code>draft-mangin-idr-attr-discard-00</code>).
+A few days later both got renamed to ATTR_TOMBSTONE, with the draft revised
+to match: a specific, reserved code point with a defined value format
+(which attribute got discarded, and why), so implementations that adopt it
+are speaking the same language instead of each inventing their own
+incompatible version of the same trick. It's the same principle behind Ze's
+own wire encoding: operate on the buffer in place instead of copying it.</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ Protocol and config">
+                        <div class="md-content">
+                            <h2>🛰️ Protocol and config</h2>
+                            <ul>
+<li>Duplicate router IDs within the same AS are now rejected on OPEN per RFC 4271 §4.2</li>
+<li>All BGP capabilities (ASN4, route refresh, extended message, add-path, graceful restart, extended next-hop) now share the same four enforcement modes as address families: enable, disable, require, refuse</li>
+<li>Peers can each bind a dedicated listen port, so multiple peers can run on 127.0.0.1 without loopback aliases</li>
+<li>The <code>passive</code> boolean peer option was replaced with a <code>connection</code> mode (<code>both</code>/<code>passive</code>/<code>active</code>) for clearer intent</li>
+<li>Config gained presence containers, inline list syntax, and an extended-community length suffix</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛠️ Under the hood">
+                        <div class="md-content">
+                            <h2>🛠️ Under the hood</h2>
+                            <p>BGP capability handling (route refresh, graceful restart, hostname, software version) moved out of the core engine into independent plugins, and a lightweight "summary" subscription format was added for consumers that only need announce/withdraw and family information rather than fully decoded attributes.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../../project/changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -39,8 +39,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../roadmap/">Roadmap</a>
-                    <a href="../../changes/">Changes</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -376,7 +376,7 @@ ze doctor
 <p>Both checks now run for a dynamic peer. A dynamic peer has no configured remote AS when the OPEN arrives, so Ze reads the AS the peer advertises in its 4-octet AS capability (RFC 6793). A peer that advertises no such capability is judged on its My AS field.</p>
 <p>The AS-wide uniqueness claim of Section 2.1 reads the same value. A 4-byte-AS speaker sends AS_TRANS (23456) in My AS, so every such peer used to claim in one shared bucket, and two peers in genuinely different 4-byte ASes that share an identifier collided. Section 2.1 scopes uniqueness per AS and licenses no such rejection.</p>
 <h2 id="verify-the-session">Verify the session</h2>
-<pre><code class="language-console">ze cli -c &quot;show bgp summary&quot;
+<pre><code class="language-console">ze cli -c &quot;show bgp&quot;
 ze cli -c &quot;show bgp peer transit-a detail&quot;
 ze cli -c &quot;show bgp peer transit-a capabilities&quot;
 ze cli -c &quot;show bgp rib status&quot;
@@ -437,7 +437,7 @@ ze cli -c &quot;show bgp rib status&quot;
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 18 August 2026 11:28 UTC</span>
+                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
                 </div>
             </div>
         </footer>

@@ -14,7 +14,7 @@ Once a subsystem declares its model, Ze derives the CLI, completion, validation,
 
 Not yet, and the site says so everywhere on purpose. The routing core is heavily tested, but production exposure is still limited and the configuration syntax can still change before the first release.
 
-The right place for Ze today is a lab: build a route server, migrate an ExaBGP config, stand up a looking glass, run the interop labs against real FRR or BIRD, and report where it breaks. The [roadmap](https://ze-software.net/roadmap/) explains what remains before a stable release.
+The right place for Ze today is a lab: build a route server, migrate an ExaBGP config, stand up a looking glass, run the interop labs against real FRR or BIRD, and report where it breaks. The [roadmap](https://ze-software.net/project/roadmap/) explains what remains before a stable release.
 
 **Why would I use Ze instead of BIRD, FRR, or GoBGP?**
 
@@ -58,9 +58,9 @@ No. Ze runs entirely on its own. The MCP server is an optional surface derived f
 
 **Will my configuration keep working as Ze changes?**
 
-Until the first release, treat the configuration syntax as not yet frozen. Breaking changes are called out in the [changes log](https://ze-software.net/changes/), and the policy is no silent breakage: a change that affects your config should come with either an automatic migration or a clear error.
+Until the first release, treat the configuration syntax as not yet frozen. Breaking changes are called out in the [changes log](https://ze-software.net/project/changes/), and the policy is no silent breakage: a change that affects your config should come with either an automatic migration or a clear error.
 
-Stabilising the syntax so it stays stable is an explicit milestone on the [roadmap](https://ze-software.net/roadmap/).
+Stabilising the syntax so it stays stable is an explicit milestone on the [roadmap](https://ze-software.net/project/roadmap/).
 
 **Who builds Ze, and how is it funded?**
 
