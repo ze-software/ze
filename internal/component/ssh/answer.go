@@ -140,6 +140,7 @@ func writeExecAnswer(sess ssh.Session, frame *answerFrame, input string, formatO
 // twice would give a reader two facts that can disagree. The columns are named
 // on the same condition and for the same reason: they are how a positional row
 // is read, and a document has no positional rows in it.
+//
 // The rows reach the rendering as bytes of their own (rpc.HeldRecords), because
 // the pipe chain behind it keeps what it is given: `| last 10` holds a ring of
 // rows and every rendering holds a window of them until the threshold decides
