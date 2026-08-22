@@ -520,8 +520,10 @@ emitted.
 
 ### Allocation-ceiling gate (`make ze-alloc-check`, always-run in `ze-precommit-verify`)
 
-`make ze-alloc-check` runs the reactor hot-path `ReportAllocs` benchmarks
-(bufmux / forward-pool / prefix-limits) with `-benchmem` at a bounded benchtime and
+`make ze-alloc-check` runs the hot-path `ReportAllocs` benchmarks of the
+packages `ALLOC_GATE_PACKAGES` names (`mk/alloc-gate.mk`: the reactor tree for
+bufmux / forward-pool / prefix-limits, and `internal/component/plugin` for the
+command-answer record path) with `-benchmem` at a bounded benchtime and
 asserts a per-benchmark `allocs/op` ceiling. allocs/op counts allocations, not
 time, so the ceiling is machine-independent; the gate needs no Docker and is
 registered as a stage in `scripts/status/verify_run.go`, so every full
@@ -529,7 +531,10 @@ registered as a stage in `scripts/status/verify_run.go`, so every full
 leave the inline dev loop fast). Registration over hardcoding: a hot-path
 benchmark opts in by adding one entry to `perf.AllocCeilings`
 (`internal/perf/allocgate.go`); the gate fails closed if a registered benchmark
-is absent from the output. The machine-dependent timing regression check
+is absent from the output. A benchmark in a package `ALLOC_GATE_PACKAGES` does
+not name is therefore a permanent red rather than a silent pass, and
+`TestAllocGateCoversRecordPath` asserts that the record path's package is named.
+The machine-dependent timing regression check
 (convergence / throughput / p99) is NOT in this gate: it runs scheduled-only via
 `.github/workflows/perf-nightly.yml` (`bin/ze-perf track --check`, scheduled), and
 the heavy Docker throughput/p99 DUT matrix stays in `make ze-evidence-perf-record`.
@@ -574,7 +579,7 @@ Dropping a whole suite to `-p 1` is not always the right tool. When only a
 *cluster* of tests inside a large suite contends, they declare
 `option=exclusive:group=<name>`: members of one group never run concurrently with
 each other, while every unrelated test in the suite keeps running in parallel.
-The `plugin` suite is 530 tests and only the ddos cluster contends, so serializing
+The `plugin` suite is 690 tests and four clusters inside it contend, so serializing
 all of it would cost minutes per QEMU run.
 
 The ddos tests are the motivating case (`option=exclusive:group=ddos-flood`). Each
@@ -615,6 +620,23 @@ SPIs and reported `POLICY-MOVED`, while `ipsec-child-rekey-xfrm-narrowing` read
 that test's SPIs and reported `REKEY-ACCEPTED`. Both verdicts were about the other
 test's kernel state. Membership is "declares
 `option=needs-linux:caps=net-admin`", which is the same ratchet's fourth cluster.
+
+The firewall-irr cluster (`option=exclusive:group=firewall-irr-nft`) contends on
+two node-wide resources at once. The first is the nftables ruleset. These tests
+cannot vary the table names they program: `ifaceTableName` is the Go constant
+`ze_irr_iface`, and the config-derived tables collide as `ze_wan` and `ze_lan`.
+The backend's `Apply` lists the node's tables and deletes every `ze_*` table it is
+about to program, so one daemon removes a sibling's live table and the sibling
+then reads back terms it never wrote. The second is the persisted prefix store.
+`DefaultConfigDir` derives it from the running binary's path, so every daemon in
+the run opens one `database.zefs`, and a sibling that fetches `AS-TEST` destroys
+the cold-cache precondition `firewall-irr-cold-cache-recovers` asserts on its
+first line. Measured on 2026-08-22 in one privileged container: run in parallel 2
+of 12 failed, run serially 12 of 12 pass. Membership is "declares
+`option=needs-linux:caps=net-admin`", which is the same ratchet's fifth cluster.
+<!-- source: internal/component/firewall/plugins/irr/sets.go -- ifaceTableName, the constant no .ci can vary -->
+<!-- source: internal/plugins/firewall/nft/backend_linux.go -- Apply, ListTables then DelTable over the desired ze_* names -->
+<!-- source: internal/core/paths/paths.go -- DefaultConfigDir, binary-derived config dir shared by every daemon in the run -->
 
 Related: a test that binds a *chosen* port must take it from the runner's per-test
 range (`$PORT`, `$PORT2`), never a literal. `bfd-echo-handshake` hardcoded
@@ -1933,6 +1955,36 @@ message, and a row wider than one line, are the two payloads whose readings
 differ. A short walk whose rows each fit and whose collapse does not is the
 third, and it separates the bound on a row from the bound on the document.
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, boundedRecord -->
+
+#### Reading the exec channel's answer frame
+
+The SSH exec channel puts the rendering on stdout and the answer FRAME on
+stderr. `ze cli` reads that frame and shows an operator the rendering. A test
+that drives `ze cli` therefore sees what the frame became, never the frame.
+
+To read the frame bytes, drive the daemon with OpenSSH instead:
+
+1. Generate an ed25519 key pair in the test.
+2. Put the public half in the user's `public-keys` block.
+3. Run `ssh -i ./testkey -p <port> <user>@127.0.0.1 "<command>"`. Keep stdout
+   and stderr apart.
+4. Add `-o LogLevel=ERROR`. Without it the client's own known-hosts notice
+   lands on the same stream.
+
+`ssh` parses nothing and declares nothing. Its stderr is the daemon's frame,
+byte for byte.
+
+`test/plugin/exec-answer-unconditional.ci` drives it. Its `frame-check.py` reads
+a frame by the grammar. A three-byte word is taken by its width. A counted
+number runs to the byte that closes it. A counted text is the byte count, the
+colon, and that many BYTES.
+
+| Test | Proves |
+|------|--------|
+| `test/plugin/exec-answer-unconditional.ci` | a client that declares nothing is framed, with the kind at offset zero and every count a count of bytes |
+
+<!-- source: internal/component/ssh/answer.go -- answerFrame, writeExecAnswer -->
+<!-- source: test/plugin/ssh-pubkey-auth.ci -- the key pair this reuses -->
 
 ### Tmpfs (Virtual File System)
 

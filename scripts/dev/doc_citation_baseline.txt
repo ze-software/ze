@@ -548,9 +548,6 @@ plan/spec-finish-web-cli-ux.md	test/ui/cli-completion-nushell.ci
 plan/spec-firewall-dynamic-address-group.md	internal/plugins/firewall/nft/backend_linux_test.go
 plan/spec-firewall-dynamic-address-group.md	test/ci/firewall-dynamic-group.ci
 plan/spec-firewall-prefix-normalize.md	test/plugin/firewall-prefix-normalize.ci
-plan/spec-fixit-child-sa-rekey-policy.md	docs/architecture/ipsec/
-plan/spec-fixit-child-sa-rekey-policy.md	internal/component/ike/engine/rekey_policy_test.go
-plan/spec-fixit-child-sa-rekey-policy.md	plan/deferrals/rfcgate-1b-rfc7296-pilot.md
 plan/spec-fixit-dns-rfc1035-conformance.md	internal/core/dnsserver/manager_rfc1035_test.go
 plan/spec-fixit-dns-rfc1035-conformance.md	internal/core/dnsserver/transfer.go
 plan/spec-fixit-dns-rfc1035-conformance.md	internal/core/dnsserver/transfer_test.go

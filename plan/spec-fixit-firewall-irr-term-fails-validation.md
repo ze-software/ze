@@ -149,7 +149,7 @@ the sets and the terms in one owner. Only the table-term form is dead.
 |----------|--------|
 | What breaks if this is wrong? | The verify-time set-reference guard, which today catches a genuine typo before it reaches the kernel. A careless widening turns a commit-time error into an apply-time failure of the whole reconcile |
 | How is it reverted? | Single commit revert; no persisted state, no config format change. The feature returns to being unusable, which is the current state |
-| Who else touches this path? | `plan/spec-fixit-irr-empty-answer-clears-set.md` changes what the store returns and what the sets contain; this spec changes whether a config referencing them can be committed. They meet at the same functional test and should be sequenced, not merged |
+| Who else touches this path? | `spec-fixit-irr-empty-answer-clears-set` changed what the store returns and what the sets contain; this spec changes whether a config referencing them can be committed. They meet at the same functional test and were sequenced, not merged. That spec CLOSED on 2026-08-22, so its stem is written bare here: a `plan/` path would cite a file the tree no longer holds |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -257,7 +257,7 @@ the sets and the terms in one owner. Only the table-term form is dead.
 | 9 | RFC behavior implemented, changed, or newly proven? | No | BCP 38 is named in the guide as intent, and no RFC checklist row changes |
 | 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` if the mock IRR fixture is extended for the table-term tests |
 | 11 | Affects daemon comparison? | No | no comparison claim |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/firewall/firewall-irr.md` |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/firewall/firewall-irr.md`. Two further design docs are declared by the `// Design:` headers of files this spec changes, and both are unaffected. `docs/architecture/core-design.md` is named by `validate.go` and `registry.go`; it describes verify-time validation as a stage, and this spec changes what one guard can SEE rather than when the stage runs. `docs/architecture/resolve.md` is named by `store/store.go`; it describes the resolver's cache, and the change keeps that cache across a client swap rather than altering its model. Named here so the anchor check reads a decision rather than an omission |
 | 13 | Route metadata keys added/changed? | No | no metadata key |
 | 14 | Prometheus counters added/changed? | No | none added |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | the IRR plugin registers set names for validation; `docs/features/plugins.md` if the registration is operator-visible |
@@ -342,7 +342,7 @@ the sets and the terms in one owner. Only the table-term form is dead.
 - Validation learns set NAMES, not contents. A name that is registered but whose data is empty is a different problem, owned by the IRR store spec.
 - This spec makes the table-term path reachable. Anything that path meets for the first time at lowering or apply is discovered by the Phase 4 functional test, and R-4 records that finding it is in scope rather than a surprise.
 - An IRR term works in a table whose family is `inet`, and is refused in `ip` or `ip6`. One leaf emits a v4 match and its IPv6 twin, and an address set of the wrong family in a single-family table would lower against the wrong header bytes. The refusal is `validateSetFamilyCompat`'s existing message, which names the family to use. `buildIRRTables` also registers its tables as `inet` only, so an `ip` table would never receive the set. The guide now states the constraint.
-- `firewall-irr-empty-answer-keeps-last-good.ci` and `firewall-irr-iface-no-blackhole.ci` stay red on `a refresh that learned nothing reported success`. Both were red before this spec, for the command-argument defect this spec fixed; the fix moved them onto an assertion that `plan/spec-fixit-irr-empty-answer-clears-set.md` owns. Journalled under `plan/journal/zero-value-as-valid-answer.md`. Their producer is now measured: both log one `configured` and two `firewall-irr: refreshed ... ipv4=3 ipv6=1`, so the second refresh never reached the server that answers nothing. `IRR.LookupPrefixes` (`internal/component/resolve/irr/client.go`) serves it from the `cacheTTL = time.Hour` cache, which is AC-8 of that spec.
+- `firewall-irr-empty-answer-keeps-last-good.ci` and `firewall-irr-iface-no-blackhole.ci` stay red on `a refresh that learned nothing reported success`. Both were red before this spec, for the command-argument defect this spec fixed; the fix moved them onto an assertion that `spec-fixit-irr-empty-answer-clears-set` owned, and that spec CLOSED on 2026-08-22, so both are green now. Its stem is bare here because a `plan/` path would cite a file the tree no longer holds. Journalled under `plan/journal/zero-value-as-valid-answer.md`. Their producer is now measured: both log one `configured` and two `firewall-irr: refreshed ... ipv4=3 ipv6=1`, so the second refresh never reached the server that answers nothing. `IRR.LookupPrefixes` (`internal/component/resolve/irr/client.go`) serves it from the `cacheTTL = time.Hour` cache, which is AC-8 of that spec.
 
 ## Checklist
 
