@@ -542,7 +542,24 @@ producers it compares.
 
 ### What this gate could not close
 
-**Two ISSUEs are open at their real severity, so this gate is NOT clean.**
+**One ISSUE is open at its real severity, so this gate is NOT clean.**
+
+Round 2, 2026-08-22. Findings 4 and 5 are FIXED (`5d6ad6919`): `streamType` is
+gone and its two call sites read `rpc.AnswerStreamType`, and the comment names
+what exists. The directories that blocked them were free by then.
+
+Finding 3 stays open, and the fix this table proposed for it was TRIED and does
+not work. Asserting the slot by calling `DispatchCommandAnswer` segfaults:
+`TestWireBridgeDispatchInstallsTypedSlots` builds a bare `&Server{}` with no
+dispatcher, so the dispatch nil-derefs before it can report whether the slot
+exists. Proving the slot by using it needs a fully built server, which is a
+different test from one whose subject is that the registry wires every slot.
+
+So the real choice is narrower than the table below suggests, and it is the
+owner's: keep an exported accessor whose only caller is a wiring test, or build
+a second test with a real server so the accessor can go. No gate is red either
+way (`ze-repository-check` passes; the finding comes from reading
+`ai/rules/completion.md`, not from a check).
 
 Findings 3 and 4, and the `render_records.go` half of finding 5, all sit in
 `internal/component/plugin/server/` and `internal/component/command/`. Another

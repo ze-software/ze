@@ -116,6 +116,14 @@ func TestWireBridgeDispatchInstallsTypedSlots(t *testing.T) {
 	assert.True(t, b.HasDispatchCommandArgs(), "dispatch-command-args typed slot not installed")
 	// dispatch-command carries two typed slots from its one registry entry: the
 	// built value a caller holds whole, and the records a caller walks.
+	//
+	// Asked through the accessor rather than by calling DispatchCommandAnswer.
+	// Calling it here was tried on 2026-08-22 and segfaults: the slot is wired
+	// to a handler bound to this Server, and this test builds a bare
+	// &Server{} with no dispatcher, so the dispatch nil-derefs before it can
+	// report whether the slot exists. Asserting the slot by using it needs a
+	// fully built server, which is a different test from this one, whose whole
+	// subject is that the registry wires every slot.
 	assert.True(t, b.HasDispatchCommandAnswer(), "dispatch-command-answer typed slot not installed")
 	assert.True(t, b.HasUpdateRouteSel(), "update-route-sel typed slot not installed")
 	assert.True(t, b.HasForwardCached(), "forward-cached typed slot not installed")
