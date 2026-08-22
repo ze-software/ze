@@ -349,13 +349,13 @@ func TestReadLine(t *testing.T) {
 		want    string
 		wantErr bool
 	}{
-		{name: "normal LF", input: "#0 ok\n", maxSize: 512, want: "#0 ok"},
-		{name: "CRLF stripped", input: "#0 ok\r\n", maxSize: 512, want: "#0 ok"},
+		{name: "normal LF", input: "#1:0 ok\n", maxSize: 512, want: "#1:0 ok"},
+		{name: "CRLF stripped", input: "#1:0 ok\r\n", maxSize: 512, want: "#1:0 ok"},
 		{name: "empty line", input: "\n", maxSize: 512, want: ""},
 		{name: "oversize", input: "aaaaaaaaaa\n", maxSize: 5, wantErr: true},
 		{name: "exact at limit", input: "abcde\n", maxSize: 5, wantErr: true},
 		{name: "one under limit", input: "abcd\n", maxSize: 5, want: "abcd"},
-		{name: "error response", input: "#0 error {\"code\":\"auth\"}\n", maxSize: 512, want: "#0 error {\"code\":\"auth\"}"},
+		{name: "error response", input: "#1:0 error {\"code\":\"auth\"}\n", maxSize: 512, want: "#1:0 error {\"code\":\"auth\"}"},
 	}
 
 	for _, tt := range tests {

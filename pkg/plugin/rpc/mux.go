@@ -70,7 +70,7 @@ func pendingKey(id uint64) string {
 // request dispatching on a single bidirectional connection.
 //
 // A background reader goroutine reads all incoming lines and routes them:
-//   - Responses (verb is "ok" or "error") are routed to waiting CallRPC callers by #<id>.
+//   - Responses (verb is "ok" or "error") are routed to waiting CallRPC callers by #<len>:<id>.
 //   - Requests (verb is a method name) are pushed to the Requests() channel.
 //
 // MuxConn owns the Conn's reader exclusively -- do not call ReadRequest
@@ -104,7 +104,7 @@ type MuxConn struct {
 }
 
 // NewMuxConn creates a MuxConn wrapping the given Conn.
-// Starts a background reader goroutine that routes responses by #<id> prefix
+// Starts a background reader goroutine that routes responses by #<len>:<id> prefix
 // and inbound requests to the Requests() channel.
 func NewMuxConn(conn *Conn) *MuxConn {
 	m := &MuxConn{
@@ -184,7 +184,7 @@ func (m *MuxConn) CallRPC(ctx context.Context, method string, params any) (json.
 		paramsRaw = b
 	}
 
-	// Send request line: #<id> <method> [<json>]\n (appended into pool buffer).
+	// Send request line: #<len>:<id> <method> [<json>]\n (appended into pool buffer).
 	writeErr := m.conn.writeAppended(ctx, func(buf []byte) []byte {
 		return AppendRequest(buf, id, method, paramsRaw)
 	})
@@ -376,7 +376,7 @@ func answerEndedErr(call *answerCall) error {
 }
 
 // readLoop is the background reader goroutine. It reads response lines
-// from the connection and routes them to waiting callers by #<id> prefix.
+// from the connection and routes them to waiting callers by #<len>:<id> prefix.
 // Runs until the connection is closed or a read error occurs.
 //
 // Uses conn.readFrame() to consume from the persistent reader's channel,
@@ -400,18 +400,12 @@ func (m *MuxConn) readLoop() {
 
 		line := string(data)
 
-		// Extract #<id> prefix using simple string operations (no JSON parsing).
-		if !strings.HasPrefix(line, "#") {
-			slog.Warn("mux conn: line missing # prefix", "line", truncate(line, 80))
-			if m.badLine() {
-				return
-			}
-			continue
-		}
-
-		idStr, body, ok := strings.Cut(line[1:], " ")
-		if !ok {
-			slog.Warn("mux conn: line has no body after ID", "line", truncate(line, 80))
+		// Take the `#<len>:<id> ` field by arithmetic (no JSON parsing). The
+		// length character says where the id ends, so the body starts at a
+		// computed offset rather than at the first space a search finds.
+		idStr, body, idErr := cutID(line)
+		if idErr != nil {
+			slog.Warn("mux conn: line states no readable id", "error", idErr, "line", truncate(line, 80))
 			if m.badLine() {
 				return
 			}
@@ -611,7 +605,7 @@ func (m *MuxConn) sendRequest(req *Request) bool {
 	}
 }
 
-// interpretResponse parses the body after #<id> (e.g., "ok {...}" or "error {...}")
+// interpretResponse parses the body after #<len>:<id> (e.g., "ok {...}" or "error {...}")
 // and returns the result payload on success or an RPCCallError on error.
 func interpretResponse(body []byte) (json.RawMessage, error) {
 	s := string(body)

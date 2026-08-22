@@ -46,7 +46,7 @@ const answerFrameCapacity = 256
 // answerFrame writes the frame of one exec-channel answer.
 //
 // One answer owns the channel, so every line is written with rpc.AnswerNoID and
-// carries no #<id>. Everything after the verb is the grammar the plugin
+// carries no #<len>:<id>. Everything after the verb is the grammar the plugin
 // connection uses, so a reader parses one tail whichever channel it came from.
 type answerFrame struct {
 	w   io.Writer

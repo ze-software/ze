@@ -23,6 +23,14 @@ func writeLine(t *testing.T, conn net.Conn, line string) {
 	require.NoError(t, err)
 }
 
+// wireLine spells the `#<len>:<id> ` field the writers produce, followed by
+// rest byte for byte. A test that is not about the id encoding states what it
+// cares about in rest and leaves the id field to the one writer, so no fixture
+// keeps a second copy of the grammar.
+func wireLine(id uint64, rest string) string {
+	return string(append(appendID(nil, id), rest...))
+}
+
 // closeConn closes an RPC Conn and logs failures.
 func closeConn(t *testing.T, c *Conn) {
 	t.Helper()
@@ -54,9 +62,9 @@ func TestConn_ReadRequest_PersistentReader(t *testing.T) {
 	// first ReadRequest, so we must not block the test goroutine on Write.
 	const count = 10
 	go func() {
-		writeLine(t, serverEnd, "#1 test-method")
+		writeLine(t, serverEnd, wireLine(1, "test-method"))
 		for i := range count {
-			writeLine(t, serverEnd, fmt.Sprintf("#%d ping", i+2))
+			writeLine(t, serverEnd, wireLine(uint64(i+2), "ping"))
 		}
 	}()
 
@@ -93,7 +101,7 @@ func TestConn_ReadRequest_Sequential(t *testing.T) {
 	methods := []string{"alpha", "beta", "gamma", "delta"}
 	go func() {
 		for i, m := range methods {
-			writeLine(t, serverEnd, fmt.Sprintf("#%d %s", i+1, m))
+			writeLine(t, serverEnd, wireLine(uint64(i+1), m))
 		}
 	}()
 
@@ -133,7 +141,7 @@ func TestConn_ReadRequest_ContextCancel(t *testing.T) {
 	defer longCancel()
 
 	// Send from goroutine -- net.Pipe is synchronous.
-	go writeLine(t, serverEnd, "#2 after-cancel")
+	go writeLine(t, serverEnd, wireLine(2, "after-cancel"))
 
 	got, err := conn.ReadRequest(longCtx)
 	require.NoError(t, err)
@@ -159,7 +167,7 @@ func TestConn_ReadRequest_CloseUnblocks(t *testing.T) {
 	// Use a context we can observe to confirm ReadRequest is blocking.
 	// Send a frame first to trigger the persistent reader start, then
 	// issue a second ReadRequest that will block (no more data).
-	go writeLine(t, serverEnd, "#1 warmup")
+	go writeLine(t, serverEnd, wireLine(1, "warmup"))
 
 	got, err := conn.ReadRequest(ctx)
 	require.NoError(t, err)
@@ -206,7 +214,7 @@ func TestConn_ReaderError_Propagates(t *testing.T) {
 	defer cancel()
 
 	// Send one frame from goroutine (net.Pipe is synchronous), then close.
-	go writeLine(t, serverEnd, "#1 before-break")
+	go writeLine(t, serverEnd, wireLine(1, "before-break"))
 
 	got, err := conn.ReadRequest(ctx)
 	require.NoError(t, err)
@@ -245,9 +253,9 @@ func TestConn_NoGoroutineLeak(t *testing.T) {
 
 	// Send all frames from a goroutine -- net.Pipe is synchronous.
 	go func() {
-		writeLine(t, serverEnd, "#0 warmup")
+		writeLine(t, serverEnd, wireLine(0, "warmup"))
 		for i := range n {
-			writeLine(t, serverEnd, fmt.Sprintf("#%d test", i+1))
+			writeLine(t, serverEnd, wireLine(uint64(i+1), "test"))
 		}
 	}()
 
@@ -637,39 +645,39 @@ func TestParseResponse(t *testing.T) {
 	}{
 		{
 			name:       "ok with payload",
-			line:       `#1 ok {"key":"val"}`,
+			line:       `#1:1 ok {"key":"val"}`,
 			expectedID: 1,
 			wantData:   `{"key":"val"}`,
 		},
 		{
 			name:       "ok without payload",
-			line:       "#1 ok",
+			line:       "#1:1 ok",
 			expectedID: 1,
 			wantData:   "",
 		},
 		{
 			name:       "error with payload",
-			line:       `#1 error {"message":"bad"}`,
+			line:       `#1:1 error {"message":"bad"}`,
 			expectedID: 1,
 			wantErr:    true,
 			wantRPCErr: true,
 		},
 		{
 			name:       "error without payload",
-			line:       "#1 error",
+			line:       "#1:1 error",
 			expectedID: 1,
 			wantErr:    true,
 			wantRPCErr: true,
 		},
 		{
 			name:       "mismatched id",
-			line:       "#2 ok",
+			line:       "#1:2 ok",
 			expectedID: 1,
 			wantErr:    true,
 		},
 		{
 			name:       "unknown verb",
-			line:       "#1 foobar",
+			line:       "#1:1 foobar",
 			expectedID: 1,
 			wantErr:    true,
 		},
@@ -699,7 +707,7 @@ func TestParseResponse(t *testing.T) {
 }
 
 // TestInterpretResponse verifies interpretResponse handles ok, error, and
-// unknown verb after the #<id> prefix has been stripped by MuxConn.
+// unknown verb after the #<len>:<id> prefix has been stripped by MuxConn.
 //
 // VALIDATES: interpretResponse correctly extracts payload or returns typed errors.
 // PREVENTS: Silent mishandling of response bodies in MuxConn.CallRPC.
@@ -830,9 +838,9 @@ func TestAnswerWriterPutsEachLineOnTheWireWhole(t *testing.T) {
 	defer cancel()
 
 	want := []string{
-		"#7 ok status=done key=peers",
-		`#7 ok item={"peer":"10.0.0.1","state":"established"}`,
-		"#7 ok count=1",
+		"#1:7 ok status=done key=peers",
+		`#1:7 ok item={"peer":"10.0.0.1","state":"established"}`,
+		"#1:7 ok count=1",
 	}
 
 	// net.Pipe is synchronous, so the writes must not run on the goroutine

@@ -77,19 +77,23 @@ plugin RPC frames.
 All plugin RPC messages are UTF-8, newline-delimited lines:
 
 ```
-#<id> <verb> [<json>]\n
+#<len>:<id> <verb> [<json>]\n
 ```
 
 Each line is a complete message. The `#` prefix and decimal `uint64` ID are
-required. The optional payload is compact JSON.
+required, and the ID states its own width: `<len>` is one base-36 character,
+`0` to `9` then `A` to `Z`, naming how many decimal digits follow the `:`. A
+reader takes that one byte and reaches the verb by addition rather than by
+searching the line for a space. A uint64 occupies 20 digits at most, so `K` is
+the widest length an id can state. The optional payload is compact JSON.
 <!-- source: pkg/plugin/rpc/framing.go -- FrameReader, FrameWriter -->
 <!-- source: pkg/plugin/rpc/message.go -- ParseLine -->
 
 ### RPC Request (Either Direction)
 
 ```
-#42 ze-plugin-engine:subscribe-events {"events":["update"]}
-#43 ze-plugin-callback:deliver-batch {"events":[{"type":"bgp"}]}
+#2:42 ze-plugin-engine:subscribe-events {"events":["update"]}
+#2:43 ze-plugin-callback:deliver-batch {"events":[{"type":"bgp"}]}
 ```
 
 For a request, the verb is a method name. A plugin-to-engine method uses the
@@ -100,13 +104,13 @@ For a request, the verb is a method name. A plugin-to-engine method uses the
 ### RPC Response (Either Direction)
 
 ```
-#42 ok
-#43 error {"code":"invalid-event","message":"unknown event"}
+#2:42 ok
+#2:43 error {"code":"invalid-event","message":"unknown event"}
 ```
 
 | Component | Requirement |
 |-----------|-------------|
-| `#<id>` | Echoes the request ID |
+| `#<len>:<id>` | Echoes the request ID, with its base-36 digit count in front |
 | `ok` | The only success response verb |
 | `error` | The only error response verb |
 | `<json>` | Optional result or error payload |
@@ -205,7 +209,7 @@ Events are only sent to plugins that have subscribed.
 
 ## Correlation and Command Dispatch
 
-Every plugin RPC request has a `#<uint64>` correlation ID. The peer returns a
+Every plugin RPC request has a `#<len>:<uint64>` correlation ID. The peer returns a
 response with the same ID. Most requests receive exactly one response line.
 Three carry a command answer, and each of those receives a sequence of lines:
 `dispatch-command` and `dispatch-command-args` from the engine, and
@@ -215,7 +219,7 @@ Three carry a command answer, and each of those receives a sequence of lines:
 The command dispatcher is a payload protocol inside plugin RPC:
 
 ```
-#1 ze-plugin-engine:dispatch-command {"command":"show bgp peer * detail"}
+#1:1 ze-plugin-engine:dispatch-command {"command":"show bgp peer * detail"}
 ```
 
 The request line is the plugin RPC frame, and the `command` member inside it
@@ -236,10 +240,10 @@ terminator. One code path writes every answer, whatever its record count, so a
 reader follows one path and nothing declares a shape the payload can contradict.
 <!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerItem, AppendAnswerFault, AppendAnswerTerminator -->
 
-Each line is `#<id> ok <tail>`, and the tail is bare `key=value` pairs, so a
-reader decides how to take the answer without a JSON decoder. On the SSH exec
-channel there is no `#<id>`: one command owns the channel, so nothing needs to be
-told apart.
+Each line is `#<len>:<id> ok <tail>`, and the tail is bare `key=value` pairs, so
+a reader decides how to take the answer without a JSON decoder. On the SSH exec
+channel there is no id field at all: one command owns the channel, so nothing
+needs to be told apart.
 <!-- source: pkg/plugin/rpc/message.go -- AnswerNoID, ParseAnswerLine -->
 
 ### One encoding, both directions
@@ -251,8 +255,8 @@ reads that same sequence back from every plugin. Stage 3
 and names no wire shape:
 
 ```
-#2 ze-plugin-engine:declare-capabilities {"capabilities":[]}
-#2 ok
+#1:2 ze-plugin-engine:declare-capabilities {"capabilities":[]}
+#1:2 ok
 ```
 <!-- source: pkg/plugin/rpc/types.go -- DeclareCapabilitiesInput, CapabilityDecl -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, WriteDocumentAnswer -->
@@ -320,10 +324,10 @@ records after it still arrive, and the terminator counts the two collections
 separately:
 
 ```
-#7 ok status=done type=ndjson key=peers
-#7 ok item={"peer":"10.0.0.1","state":"established"}
-#7 ok fault={"path":"bgp/peer/10.0.0.2","message":"nexthop unreachable"}
-#7 ok count=1 faults=1
+#1:7 ok status=done type=ndjson key=peers
+#1:7 ok item={"peer":"10.0.0.1","state":"established"}
+#1:7 ok fault={"path":"bgp/peer/10.0.0.2","message":"nexthop unreachable"}
+#1:7 ok count=1 faults=1
 ```
 
 A record too wide for one line is rejected the same way. Every record is one
@@ -334,7 +338,7 @@ terminator. The rejected row quotes none of the record, because a row that
 carried 16 MB would not fit the line either.
 
 ```
-#7 ok fault={"message":"answer record does not fit one wire message","record":12,"encoded-bytes":16777300,"limit-bytes":16777216}
+#1:7 ok fault={"message":"answer record does not fit one wire message","record":12,"encoded-bytes":16777300,"limit-bytes":16777216}
 ```
 <!-- source: pkg/plugin/rpc/answer_write.go -- boundedRecord, answerRecordTooLargeFault -->
 
@@ -423,7 +427,7 @@ behind it is. The consumer stops the generator inside the buffering window.
 
 | The daemon | Answer |
 |-----------|--------|
-| did not understand the command | `#<id> error message=<text>`, with an optional `code=`. The only line for this id |
+| did not understand the command | `#<len>:<id> error message=<text>`, with an optional `code=`. The only line for this id |
 | understood it and it failed | a head stating `status=error`, then a terminator carrying `message=` |
 <!-- source: pkg/plugin/rpc/message.go -- AppendAnswerNotUnderstood, AnswerVerbError -->
 <!-- source: internal/component/ssh/answer.go -- writeExecFailure -->
@@ -972,7 +976,7 @@ peer 192.0.2.1 remote as 65001 sent keepalive 42
 
 ## Plugin Wire Format
 
-All plugins use the unified `#<id> <verb> [<json>]\n` wire format (see `wire-format.md`).
+All plugins use the unified `#<len>:<id> <verb> [<json>]\n` wire format (see `wire-format.md`).
 There is no separate text mode. The same newline-delimited framing is used for both
 the 5-stage startup handshake and post-startup concurrent RPCs.
 <!-- source: pkg/plugin/rpc/mux.go -- MuxConn -->

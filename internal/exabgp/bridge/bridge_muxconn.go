@@ -11,55 +11,44 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"strconv"
 	"strings"
 
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// parseMuxLine parses a MuxConn wire format line: #<id> <verb> [<payload>].
+// parseMuxLine parses a MuxConn wire format line: #<len>:<id> <verb> [<payload>].
 // Returns the request ID, verb (method name or "ok"/"error"), and optional payload.
+//
+// The line grammar has one reader, rpc.ParseLine, so the bridge and the daemon
+// cannot disagree about where a field starts. This wrapper only puts the result
+// in the string shape the bridge works in.
 func parseMuxLine(line string) (id uint64, verb, payload string, err error) {
-	if !strings.HasPrefix(line, "#") {
-		return 0, "", "", fmt.Errorf("line missing # prefix: %q", truncate(line, 80))
-	}
-
-	rest := line[1:] // strip #
-
-	idStr, after, hasAfter := strings.Cut(rest, " ")
-	if !hasAfter || after == "" {
-		return 0, "", "", fmt.Errorf("line has no verb after #%s", idStr)
-	}
-
-	id, err = strconv.ParseUint(idStr, 10, 64)
+	id, verb, payloadBytes, err := rpc.ParseLine([]byte(line))
 	if err != nil {
-		return 0, "", "", fmt.Errorf("invalid id %q: %w", idStr, err)
+		return 0, "", "", err
 	}
-
-	verb, payload, _ = strings.Cut(after, " ")
-
-	return id, verb, payload, nil
+	return id, verb, string(payloadBytes), nil
 }
 
-// formatMuxOK formats a successful MuxConn response: #<id> ok.
+// formatMuxOK formats a successful MuxConn response: #<len>:<id> ok.
 func formatMuxOK(id uint64) string {
-	return textbuf.StrUintStr("#", id, " ok")
+	return string(rpc.AppendOK(nil, id))
 }
 
 // formatDispatchRequest formats a MuxConn dispatch-command request:
-// #<id> ze-plugin-engine:dispatch-command {"command":"<cmd>"}.
+// #<len>:<id> ze-plugin-engine:dispatch-command {"command":"<cmd>"}.
 func formatDispatchRequest(id uint64, command string) string {
 	payload, err := json.Marshal(map[string]string{"command": command})
 	if err != nil {
-		// command is always a plain string; Marshal cannot fail here.
-		// Log defensively and fall back to unescaped embedding.
-		return fmt.Sprintf("#%d ze-plugin-engine:dispatch-command {\"command\":%q}", id, command)
+		// command is always a plain string, so Marshal cannot fail here. Build
+		// the one-member object by hand rather than drop the command.
+		var b textbuf.Buffer
+		payload = json.RawMessage(b.Str(`{"command":`).Quoted(command).Byte('}').String())
 	}
-	b := textbuf.Get()
-	defer b.Release()
-	return b.Byte('#').Uint(id).Str(" ze-plugin-engine:dispatch-command ").Str(string(payload)).String()
+	return string(rpc.AppendRequest(nil, id, "ze-plugin-engine:dispatch-command", payload))
 }
 
 // extractBatchEvents extracts event strings from a deliver-batch JSON payload.
@@ -75,15 +64,16 @@ func extractBatchEvents(payload string) ([]string, error) {
 }
 
 // formatFlushRequest formats a MuxConn peer-flush RPC request:
-// #<id> ze-bgp:peer-flush {"selector":"<addr>"}.
+// #<len>:<id> ze-bgp:peer-flush {"selector":"<addr>"}.
 func formatFlushRequest(id uint64, selector string) string {
 	payload, err := json.Marshal(map[string]string{"selector": selector})
 	if err != nil {
-		return fmt.Sprintf("#%d ze-bgp:peer-flush {\"selector\":%q}", id, selector)
+		// selector is always a plain string, so this is the same unreachable
+		// branch formatDispatchRequest carries, built the same way.
+		var b textbuf.Buffer
+		payload = json.RawMessage(b.Str(`{"selector":`).Quoted(selector).Byte('}').String())
 	}
-	b2 := textbuf.Get()
-	defer b2.Release()
-	return b2.Byte('#').Uint(id).Str(" ze-bgp:peer-flush ").Str(string(payload)).String()
+	return string(rpc.AppendRequest(nil, id, "ze-bgp:peer-flush", payload))
 }
 
 // ExtractPeerAddress extracts the peer address from a translated ZeBGP command.

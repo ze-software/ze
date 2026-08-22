@@ -49,14 +49,14 @@ p.OnExecuteCommand(func(serial, command string, args []string, peer string) (sta
 
 ## Wire Format
 
-Commands are delivered to the plugin as `execute-command` RPCs over the MuxConn connection. The wire format uses `#<id> <verb> [<json>]` framing.
+Commands are delivered to the plugin as `execute-command` RPCs over the MuxConn connection. The wire format uses `#<len>:<id> <verb> [<json>]` framing.
 <!-- source: pkg/plugin/rpc/message.go -- AppendRequest, AppendResult, AppendError -->
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput, ExecuteCommandOutput -->
 
 ### Request (engine to plugin)
 
 ```
-#17 ze-plugin-callback:execute-command {"serial":"abc123","command":"my-plugin status","args":[],"peer":""}
+#2:17 ze-plugin-callback:execute-command {"serial":"abc123","command":"my-plugin status","args":[],"peer":""}
 ```
 
 ### Success Response (plugin to engine)
@@ -66,9 +66,9 @@ frame is the same whatever the payload is, so a handler that built one value
 takes the same three lines as a handler that walked a table.
 
 ```
-#17 ok status=done type=json
-#17 ok item={"status":"running","uptime":3600}
-#17 ok count=1
+#2:17 ok status=done type=json
+#2:17 ok item={"status":"running","uptime":3600}
+#2:17 ok count=1
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer -->
@@ -81,7 +81,7 @@ The engine reads that sequence back into one `ExecuteCommandOutput`: the head's
 ### Error Response (plugin to engine)
 
 ```
-#17 error {"message":"execute-command not supported"}
+#2:17 error {"message":"execute-command not supported"}
 ```
 
 ## Return Values
@@ -100,9 +100,9 @@ return "done", map[string]any{
 
 The SDK marshals this value once and sends it as the one record of the answer:
 ```
-#17 ok status=done type=json
-#17 ok item={"count":42,"items":["a","b"]}
-#17 ok count=1
+#2:17 ok status=done type=json
+#2:17 ok item={"count":42,"items":["a","b"]}
+#2:17 ok count=1
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandOutput, executeCommandAnswer -->
 
@@ -115,8 +115,8 @@ return "done", nil, nil
 Response. A command that reported nothing writes no record, and the terminator
 says so. Nothing is not the same answer as an empty collection:
 ```
-#17 ok status=done type=json
-#17 ok count=0
+#2:17 ok status=done type=json
+#2:17 ok count=0
 ```
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer, writeDocumentLines -->
 
@@ -131,10 +131,10 @@ return "done", sdk.Records{Key: "sessions", Rows: sessionRows()}, nil
 ```
 
 ```
-#17 ok status=done type=ndjson key=sessions
-#17 ok item={"id":1,"peer":"10.0.0.1"}
-#17 ok item={"id":2,"peer":"10.0.0.2"}
-#17 ok count=2
+#2:17 ok status=done type=ndjson key=sessions
+#2:17 ok item={"id":1,"peer":"10.0.0.1"}
+#2:17 ok item={"id":2,"peer":"10.0.0.2"}
+#2:17 ok count=2
 ```
 
 `Key` names the envelope the rows belong under. A handler MUST NOT name it
@@ -160,7 +160,7 @@ return "", nil, fmt.Errorf("operation failed: database timeout")
 ```
 Response:
 ```
-#17 error {"message":"operation failed: database timeout"}
+#2:17 error {"message":"operation failed: database timeout"}
 ```
 <!-- source: pkg/plugin/rpc/message.go -- FormatError, NewErrorPayload -->
 

@@ -165,7 +165,7 @@ Ze Engine                          Plugin
 <!-- source: pkg/plugin/sdk/sdk.go -- Run (stages 1-5) -->
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput, ConfigureInput, DeclareCapabilitiesInput, ShareRegistryInput, ReadyInput, ExecuteCommandInput, UpdateRouteInput, ByeInput -->
 
-External plugins communicate via a single bidirectional TLS connection using the `#<id> <verb> [<json>]` wire format. MuxConn multiplexes concurrent RPCs by distinguishing responses (`ok`/`error`) from requests (method name as verb).
+External plugins communicate via a single bidirectional TLS connection using the `#<len>:<id> <verb> [<json>]` wire format. MuxConn multiplexes concurrent RPCs by distinguishing responses (`ok`/`error`) from requests (method name as verb).
 <!-- source: pkg/plugin/rpc/message.go -- ParseLine, AppendRequest, AppendResult, AppendError -->
 
 For internal plugins (running as goroutines inside the engine), startup uses a `net.Pipe`, and after Stage 5 DirectBridge bypasses the pipe for supported hot paths.

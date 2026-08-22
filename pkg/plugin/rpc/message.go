@@ -14,14 +14,15 @@ import (
 	"strings"
 )
 
-// Request represents a parsed incoming RPC request line: #<id> <method> [<json>].
+// Request represents a parsed incoming RPC request line: #<len>:<id> <method> [<json>].
 type Request struct {
-	ID     uint64          // Correlation ID from #<id> prefix
+	ID     uint64          // Correlation ID from the #<len>:<id> prefix
 	Method string          // module:rpc-name
 	Params json.RawMessage // JSON payload (may be nil)
 }
 
-// RPCCallError represents an error returned by the remote side via #<id> error [<json>].
+// RPCCallError represents an error returned by the remote side via
+// #<len>:<id> error [<json>].
 type RPCCallError struct {
 	Code    string // Short kebab-case identifier (may be empty)
 	Message string // Human-readable detail
@@ -67,24 +68,113 @@ func ExtractErrorMessage(payload json.RawMessage) string {
 	return ""
 }
 
+// The id field every line carrying an id opens with: `#<len>:<id> `, where
+// <len> is one base-36 character stating how many decimal digits the id
+// occupies. A reader takes that one byte and reaches every later field by
+// addition, and searches no line for a separator.
+//
+// idDigitsMax is the widest id: a uint64 is at most 20 decimal digits.
+// idPrefixMax is the whole field at that width: `#`, the length, `:`, twenty
+// digits, and the space that ends the field.
+const (
+	idDigitsMax = 20
+	idPrefixMax = 24
+)
+
+// idLengthAlphabet spells the length character, `0` to `9` then `A` to `Z`, so
+// one byte states a length up to 35. A uint64 needs 20 decimal digits at most,
+// so the whole id range is expressible with room left and no counter has to
+// wrap to keep its id readable.
+const idLengthAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+// appendID appends the `#<len>:<id> ` field naming which conversation a line
+// belongs to. Requests, responses and answer lines open with it alike, so the
+// protocol carries ONE id encoding rather than one for each direction.
+//
+// The digits are formatted once and the length is read off the very bytes that
+// reach the wire, so the two halves of the field cannot disagree (R-2).
+func appendID(buf []byte, id uint64) []byte {
+	var scratch [idDigitsMax]byte
+	digits := strconv.AppendUint(scratch[:0], id, 10)
+	buf = append(buf, '#', idLengthAlphabet[len(digits)], ':')
+	buf = append(buf, digits...)
+	return append(buf, ' ')
+}
+
+// idLengthValue reads one base-36 length character and reports whether it is
+// one. Anything outside `0` to `9` and `A` to `Z` is refused, lower case
+// included: one spelling of a length is what keeps the offset arithmetic the
+// same at both ends of the wire.
+func idLengthValue(c byte) (int, bool) {
+	if c >= '0' && c <= '9' {
+		return int(c - '0'), true
+	}
+	if c >= 'A' && c <= 'Z' {
+		return int(c-'A') + 10, true
+	}
+	return 0, false
+}
+
+// cutID takes the `#<len>:<id> ` field off the front of line and returns the
+// id's decimal digits and everything after the space that ends the field.
+//
+// The length character states the digit count, so the id and the field after
+// it are both reached by addition. The byte the length names as the end of the
+// id MUST be that space: a length disagreeing with its digits would otherwise
+// slice the next field in half, and this check is what makes such a line a
+// refusal rather than a wrong read (R-2).
+//
+// It is the one reader of the id, and appendID is the one writer, so no
+// consumer keeps its own copy of the rule.
+func cutID(line string) (digits, rest string, err error) {
+	if line == "" {
+		return "", "", errors.New("empty line carries no id")
+	}
+	if line[0] != '#' {
+		return "", "", fmt.Errorf("line missing # prefix: %q", truncate(line, 80))
+	}
+	if len(line) < 3 {
+		return "", "", fmt.Errorf("line states no id length: %q", truncate(line, 80))
+	}
+	count, known := idLengthValue(line[1])
+	if !known {
+		return "", "", fmt.Errorf("id length %q is not one base-36 character, 0 to 9 then A to Z", line[1:2])
+	}
+	if count == 0 {
+		return "", "", fmt.Errorf("id states a length of zero digits: %q", truncate(line, 80))
+	}
+	if count > idDigitsMax {
+		return "", "", fmt.Errorf("id states %d digits, past the %d a uint64 occupies", count, idDigitsMax)
+	}
+	if line[2] != ':' {
+		return "", "", fmt.Errorf("id length is not followed by ':': %q", truncate(line, 80))
+	}
+
+	end := 3 + count
+	if len(line) <= end {
+		return "", "", fmt.Errorf("id of %d digits runs past the end of the line: %q", count, truncate(line, 80))
+	}
+	if line[end] != ' ' {
+		return "", "", fmt.Errorf("id of %d digits does not end at a space: %q", count, truncate(line, 80))
+	}
+	return line[3:end], line[end+1:], nil
+}
+
 // ParseLine parses a wire line into id, verb, and payload.
-// Format: #<id> <verb> [<payload>].
+// Format: #<len>:<id> <verb> [<payload>].
 func ParseLine(line []byte) (id uint64, verb string, payload []byte, err error) {
-	s := string(line)
-	if !strings.HasPrefix(s, "#") {
-		return 0, "", nil, fmt.Errorf("line missing # prefix: %q", truncate(s, 80))
-	}
-	s = s[1:] // strip #
-
-	// Extract ID
-	idStr, rest, hasRest := strings.Cut(s, " ")
-	id, err = strconv.ParseUint(idStr, 10, 64)
+	digits, rest, err := cutID(string(line))
 	if err != nil {
-		return 0, "", nil, fmt.Errorf("invalid id %q: %w", idStr, err)
+		return 0, "", nil, err
 	}
 
-	if !hasRest || rest == "" {
-		return 0, "", nil, fmt.Errorf("line has no verb after #%d", id)
+	id, err = strconv.ParseUint(digits, 10, 64)
+	if err != nil {
+		return 0, "", nil, fmt.Errorf("invalid id %q: %w", digits, err)
+	}
+
+	if rest == "" {
+		return 0, "", nil, fmt.Errorf("line has no verb after id %d", id)
 	}
 
 	// Extract verb and optional payload
@@ -96,14 +186,12 @@ func ParseLine(line []byte) (id uint64, verb string, payload []byte, err error) 
 	return id, verb, payload, nil
 }
 
-// AppendRequest appends a request line (#<id> <method> [<json>]) to buf
+// AppendRequest appends a request line (#<len>:<id> <method> [<json>]) to buf
 // and returns the extended slice. Newline is NOT appended. Callers on
 // the hot path should supply a pool buffer; tests and one-shot callers
 // can pass nil.
 func AppendRequest(buf []byte, id uint64, method string, params json.RawMessage) []byte {
-	buf = append(buf, '#')
-	buf = strconv.AppendUint(buf, id, 10)
-	buf = append(buf, ' ')
+	buf = appendID(buf, id)
 	buf = append(buf, method...)
 	if len(params) == 0 || string(params) == "null" {
 		return buf
@@ -113,36 +201,32 @@ func AppendRequest(buf []byte, id uint64, method string, params json.RawMessage)
 	return buf
 }
 
-// AppendResult appends a success response line (#<id> ok [<json>]) to
+// AppendResult appends a success response line (#<len>:<id> ok [<json>]) to
 // buf. Newline is NOT appended.
 func AppendResult(buf []byte, id uint64, result json.RawMessage) []byte {
-	buf = append(buf, '#')
-	buf = strconv.AppendUint(buf, id, 10)
+	buf = appendID(buf, id)
 	if len(result) == 0 || string(result) == "null" {
-		return append(buf, ' ', 'o', 'k')
+		return append(buf, 'o', 'k')
 	}
-	buf = append(buf, ' ', 'o', 'k', ' ')
+	buf = append(buf, 'o', 'k', ' ')
 	buf = append(buf, result...)
 	return buf
 }
 
-// AppendOK appends an empty success response line (#<id> ok) to buf.
+// AppendOK appends an empty success response line (#<len>:<id> ok) to buf.
 // Newline is NOT appended.
 func AppendOK(buf []byte, id uint64) []byte {
-	buf = append(buf, '#')
-	buf = strconv.AppendUint(buf, id, 10)
-	return append(buf, ' ', 'o', 'k')
+	return append(appendID(buf, id), 'o', 'k')
 }
 
-// AppendError appends an error response line (#<id> error [<json>]) to
+// AppendError appends an error response line (#<len>:<id> error [<json>]) to
 // buf. Newline is NOT appended.
 func AppendError(buf []byte, id uint64, errPayload json.RawMessage) []byte {
-	buf = append(buf, '#')
-	buf = strconv.AppendUint(buf, id, 10)
+	buf = appendID(buf, id)
 	if len(errPayload) == 0 {
-		return append(buf, " error"...)
+		return append(buf, "error"...)
 	}
-	buf = append(buf, " error "...)
+	buf = append(buf, "error "...)
 	buf = append(buf, errPayload...)
 	return buf
 }
@@ -150,8 +234,8 @@ func AppendError(buf []byte, id uint64, errPayload json.RawMessage) []byte {
 // Answer lines. Every answer is a head, zero or more records, and a
 // terminator, whatever its record count, so a reader follows one path and
 // nothing declares a shape the payload can contradict. Each line is
-// `#<id> ok <tail>`, and the tail is bare key=value pairs, so a reader decides
-// how to read the answer without a JSON decoder.
+// `#<len>:<id> ok <tail>`, and the tail is bare key=value pairs, so a reader
+// decides how to read the answer without a JSON decoder.
 
 // Answer tail key names. The appenders below write these and ParseAnswerTail
 // reads them, so a key cannot be spelled one way on the wire and another way in
@@ -210,13 +294,13 @@ const AnswerBufferThreshold = 256
 
 // AnswerNoID is the id of an answer on a channel that carries exactly one
 // answer, which is the SSH exec channel: one command owns the channel, so
-// nothing needs to be told apart and no #<id> is written. Every other answer
+// nothing needs to be told apart and no #<len>:<id> is written. Every other answer
 // travels on the multiplexed plugin connection, whose ids start at 1
 // (Conn.idSeq), so no real id collides with it.
 const AnswerNoID uint64 = 0
 
 // AppendAnswerHead appends an answer head line
-// (#<id> ok status=<status> type=<answerType> [key=<key>] [fields=<fields>]) to
+// (#<len>:<id> ok status=<status> type=<answerType> [key=<key>] [fields=<fields>]) to
 // buf and returns the extended slice. Newline is NOT appended.
 //
 // status is StatusDone or StatusError, and it states what the daemon knows when
@@ -251,7 +335,7 @@ func AppendAnswerHead(buf []byte, id uint64, status, answerType, key string, fie
 	return replaceNewlines(buf, start)
 }
 
-// AppendAnswerItem appends a result record line (#<id> ok item=<json>) to buf
+// AppendAnswerItem appends a result record line (#<len>:<id> ok item=<json>) to
 // and returns the extended slice. Newline is NOT appended. item takes the rest
 // of the line verbatim, so a JSON value holding `=` or a space needs no
 // quoting and no escaping.
@@ -263,7 +347,7 @@ func AppendAnswerItem(buf []byte, id uint64, item json.RawMessage) []byte {
 	return replaceNewlines(buf, start)
 }
 
-// AppendAnswerFault appends an error record line (#<id> ok fault=<json>) to buf
+// AppendAnswerFault appends an error record line (#<len>:<id> ok fault=<json>) to
 // and returns the extended slice. Newline is NOT appended. A fault records one
 // rejected row and does not end the walk, which is what lets an answer report
 // 97 rows applied and 3 rejected.
@@ -276,10 +360,10 @@ func AppendAnswerFault(buf []byte, id uint64, fault json.RawMessage) []byte {
 }
 
 // answerRecordPrefixMax is the capacity the record-line prefix is measured in:
-// one `#`, at most 20 digits of a uint64 id, one space, `ok`, one space, the
-// longest record key (answerKeyFault), and one `=`. That is 31 bytes, so the
+// the id field at its widest (idPrefixMax, 24 bytes), `ok`, one space, the
+// longest record key (answerKeyFault), and one `=`. That is 33 bytes, so the
 // scratch never grows.
-const answerRecordPrefixMax = 32
+const answerRecordPrefixMax = idPrefixMax + 9
 
 // AnswerRecordLineSize reports how many bytes the record line for record
 // occupies under id, its newline terminator excluded. It measures the line
@@ -304,7 +388,7 @@ func AnswerRecordLineSize(id uint64, record Record) int {
 }
 
 // AppendAnswerTerminator appends the terminator line
-// (#<id> ok count=<count> [faults=<faults>] [message=<message>]) to buf and
+// (#<len>:<id> ok count=<count> [faults=<faults>] [message=<message>]) to buf and
 // returns the extended slice. Newline is NOT appended. The terminator is the
 // line carrying count=, so head and terminator are told apart by a key rather
 // than by position. It states no status: the verdict is derived from the counts
@@ -330,7 +414,7 @@ func AppendAnswerTerminator(buf []byte, id, count, faults uint64, message string
 }
 
 // AppendAnswerNotUnderstood appends the answer to a command the daemon did not
-// understand (#<id> error [code=<code>] message=<message>) to buf and returns
+// understand (#<len>:<id> error [code=<code>] message=<message>) to buf and returns
 // the extended slice. Newline is NOT appended. It is the whole answer for its
 // id: the verb says the conversation was valid and the command was not, which
 // is what lets a client offer completion here and an operational message for a
@@ -348,26 +432,26 @@ func AppendAnswerNotUnderstood(buf []byte, id uint64, code, message string) []by
 	return replaceNewlines(buf, start)
 }
 
-// appendAnswerPrefix appends the `#<id> ok` every answer line opens with.
+// appendAnswerPrefix appends the `#<len>:<id> ok` every answer line opens with.
 func appendAnswerPrefix(buf []byte, id uint64) []byte {
 	buf = appendAnswerID(buf, id)
 	return append(buf, 'o', 'k')
 }
 
-// appendAnswerID appends the `#<id> ` that names which answer a line belongs
-// to, and appends nothing for AnswerNoID. A muxed connection interleaves the
-// answers of many callers and needs the id on every line; the SSH exec channel
-// carries one answer and would be stating a fact with one possible value.
+// appendAnswerID appends the `#<len>:<id> ` that names which answer a line
+// belongs to, and appends nothing for AnswerNoID. A muxed connection
+// interleaves the answers of many callers and needs the id on every line; the
+// SSH exec channel carries one answer and would be stating a fact with one
+// possible value.
 //
-// Everything after it is the same grammar on both channels, so a reader parses
-// one tail whichever channel it came from.
+// The field is the one appendID writes for a request, so both directions of the
+// protocol spell an id the same way. Everything after it is the same grammar on
+// both channels, so a reader parses one tail whichever channel it came from.
 func appendAnswerID(buf []byte, id uint64) []byte {
 	if id == AnswerNoID {
 		return buf
 	}
-	buf = append(buf, '#')
-	buf = strconv.AppendUint(buf, id, 10)
-	return append(buf, ' ')
+	return appendID(buf, id)
 }
 
 // appendAnswerKey appends the ` <name>=` that opens one tail pair.
@@ -637,23 +721,23 @@ func Verdict(terminator *AnswerTail) string {
 	return VerdictPartial
 }
 
-// FormatRequest returns a request line (#<id> <method> [<json>]) in a
+// FormatRequest returns a request line (#<len>:<id> <method> [<json>]) in a
 // freshly-allocated slice. Retained for tests and low-rate callers;
 // hot-path senders should use AppendRequest with a pool buffer.
 func FormatRequest(id uint64, method string, params json.RawMessage) []byte {
-	return AppendRequest(make([]byte, 0, 2+20+1+len(method)+1+len(params)), id, method, params)
+	return AppendRequest(make([]byte, 0, idPrefixMax+len(method)+1+len(params)), id, method, params)
 }
 
 // FormatOK returns an empty success response in a freshly-allocated
 // slice. Retained for tests; hot-path senders should use AppendOK.
 func FormatOK(id uint64) []byte {
-	return AppendOK(make([]byte, 0, 2+20+3), id)
+	return AppendOK(make([]byte, 0, idPrefixMax+2), id)
 }
 
 // FormatError returns an error response in a freshly-allocated slice.
 // Retained for tests; hot-path senders should use AppendError.
 func FormatError(id uint64, errPayload json.RawMessage) []byte {
-	return AppendError(make([]byte, 0, 2+20+7+len(errPayload)), id, errPayload)
+	return AppendError(make([]byte, 0, idPrefixMax+6+len(errPayload)), id, errPayload)
 }
 
 // NewErrorPayload creates a JSON error payload with code and message fields.

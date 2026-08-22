@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strconv"
 	"sync"
 )
 
@@ -39,10 +38,11 @@ func WriteBatchFrame(w io.Writer, id uint64, events [][]byte) error {
 	}
 	buf := (*bp)[:0]
 
-	// Build line: #<id> ze-plugin-callback:deliver-batch {"events":[...]}
-	buf = append(buf, '#')
-	buf = strconv.AppendUint(buf, id, 10)
-	buf = append(buf, ` ze-plugin-callback:deliver-batch {"events":[`...)
+	// Build line: #<len>:<id> ze-plugin-callback:deliver-batch {"events":[...]}
+	// appendID writes the id field, so this frame states an id the same way
+	// every other line does rather than keeping a second spelling of it.
+	buf = appendID(buf, id)
+	buf = append(buf, `ze-plugin-callback:deliver-batch {"events":[`...)
 	for i, event := range events {
 		if i > 0 {
 			buf = append(buf, ',')

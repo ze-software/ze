@@ -271,7 +271,7 @@ func TestGenerateSelfSignedCert(t *testing.T) {
 
 // TestSendAuthFormat verifies SendAuth uses the expected RPC framing.
 //
-// VALIDATES: Auth RPC uses #0 auth format.
+// VALIDATES: Auth RPC uses #1:0 auth format.
 // PREVENTS: Auth frame being unparseable by engine.
 func TestSendAuthFormat(t *testing.T) {
 	t.Parallel()

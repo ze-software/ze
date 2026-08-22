@@ -230,11 +230,11 @@ func TestGeneratorAnswerReachesTheEncoder(t *testing.T) {
 	}
 
 	want := map[int]string{
-		0:            "#7 ok status=done type=ndjson key=peers",
-		1:            `#7 ok item={"peer":"10.0.0.0"}`,
-		2:            `#7 ok item={"peer":"10.0.0.1"}`,
-		rowCount:     `#7 ok item={"peer":"10.0.0.` + strconv.Itoa(rowCount-1) + `"}`,
-		rowCount + 1: "#7 ok count=" + strconv.Itoa(rowCount),
+		0:            "#1:7 ok status=done type=ndjson key=peers",
+		1:            `#1:7 ok item={"peer":"10.0.0.0"}`,
+		2:            `#1:7 ok item={"peer":"10.0.0.1"}`,
+		rowCount:     `#1:7 ok item={"peer":"10.0.0.` + strconv.Itoa(rowCount-1) + `"}`,
+		rowCount + 1: "#1:7 ok count=" + strconv.Itoa(rowCount),
 	}
 	for index, line := range want {
 		if got[index] != line {

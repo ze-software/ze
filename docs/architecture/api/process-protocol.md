@@ -8,7 +8,7 @@
 
 Ze plugins communicate with the engine via newline-framed YANG RPCs over a
 single bidirectional connection. All messages use the wire format
-`#<id> <verb> [<json>]\n`.
+`#<len>:<id> <verb> [<json>]\n`.
 <!-- source: pkg/plugin/rpc/conn.go -- Conn doc comment -->
 
 - **Events (engine to plugin):** BGP events delivered via `deliver-event` or `deliver-batch` RPCs
@@ -28,14 +28,14 @@ Every message is a single newline-terminated line:
 
 | Message type | Format | Example |
 |-------------|--------|---------|
-| Request | `#<id> <method> [<json>]\n` | `#1 ze-plugin-engine:ready {"subscribe":{...}}` |
-| Success | `#<id> ok [<json>]\n` | `#1 ok {"peers-affected":2}` |
-| Error | `#<id> error [<json>]\n` | `#1 error {"code":"error","message":"..."}` |
+| Request | `#<len>:<id> <method> [<json>]\n` | `#1:1 ze-plugin-engine:ready {"subscribe":{...}}` |
+| Success | `#<len>:<id> ok [<json>]\n` | `#1:1 ok {"peers-affected":2}` |
+| Error | `#<len>:<id> error [<json>]\n` | `#1:1 error {"code":"error","message":"..."}` |
 
 A command answer has a second form, and every peer reads it and writes it. The
 engine answers a plugin's `dispatch-command` and `dispatch-command-args` with a
 head, zero or more records, and a terminator. The plugin answers the engine's
-`execute-command` the same way. Each line is `#<id> ok <key=value tail>`. Every
+`execute-command` the same way. Each line is `#<len>:<id> ok <key=value tail>`. Every
 other request keeps the single line above. The grammar is in
 [ipc_protocol.md](ipc_protocol.md), "Answer Protocol".
 <!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerTerminator -->
@@ -56,7 +56,7 @@ other request keeps the single line above. The grammar is in
 
 **Multiplexing:** `MuxConn` wraps a `Conn` to support concurrent RPCs on a single
 connection. A background reader goroutine routes responses (verb `ok`/`error`) to
-waiting `CallRPC` callers by `#<id>`, and pushes inbound requests (verb is a method
+waiting `CallRPC` callers by `#<len>:<id>`, and pushes inbound requests (verb is a method
 name) to the `Requests()` channel.
 <!-- source: pkg/plugin/rpc/mux.go -- MuxConn, readLoop -->
 
@@ -344,8 +344,8 @@ Engine sends `ze-plugin-callback:bye` with an optional reason:
 <!-- source: pkg/plugin/rpc/types.go -- ByeInput -->
 
 ```
-#99 ze-plugin-callback:bye {"reason":"shutdown"}
-#99 ok
+#2:99 ze-plugin-callback:bye {"reason":"shutdown"}
+#2:99 ok
 ```
 
 For internal plugins, the engine then closes the connection (EOF signals exit).
@@ -515,8 +515,8 @@ events are delivered as a batch of 1.
 <!-- source: pkg/plugin/rpc/batch.go -- WriteBatchFrame -->
 
 ```
-#42 ze-plugin-callback:deliver-batch {"events":["<json-event-1>","<json-event-2>"]}
-#42 ok
+#2:42 ze-plugin-callback:deliver-batch {"events":["<json-event-1>","<json-event-2>"]}
+#2:42 ok
 ```
 
 The SDK unpacks the batch and dispatches each event to the `OnEvent` handler individually.
@@ -925,10 +925,10 @@ For external plugins (Python, Rust, etc.) -- runs as separate process:
 
 1. Engine starts TLS listener from `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }` config
 2. Engine forks child with env vars: `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` (per-plugin unique token), `ZE_PLUGIN_CERT_FP` (server cert SHA-256 fingerprint), `ZE_PLUGIN_NAME`
-3. Child verifies server cert fingerprint during TLS handshake, authenticates with `#0 auth {"token":"...","name":"..."}`
+3. Child verifies server cert fingerprint during TLS handshake, authenticates with `#1:0 auth {"token":"...","name":"..."}`
 4. Engine validates token matches the per-plugin token generated for that name (name binding prevents impersonation)
 5. Token is cleared from the child's OS environment after first read (`Secret: true` registration)
-6. Single bidirectional connection using `MuxConn` (responses routed by `#id`, requests via `Requests()` channel)
+6. Single bidirectional connection using `MuxConn` (responses routed by `#<len>:<id>`, requests via `Requests()` channel)
 7. No `DirectBridge` -- always uses newline-framed RPC over TLS
 8. Same 5-stage handshake over the same connection
 <!-- source: internal/component/plugin/process/process.go -- startExternal env var setup -->
@@ -1034,10 +1034,10 @@ These RPCs allow plugins to request full UPDATE or MP attribute decoding:
 
 | Error Type | Response |
 |------------|----------|
-| Invalid family | `#<id> error {"code":"error","message":"unknown family: ipv4/unknown"}` |
-| Parse error (encode) | `#<id> error {"code":"error","message":"invalid prefix: 10.0.0/24"}` |
-| Cannot decode | `#<id> error {"code":"error","message":"..."}` |
-| Handler not registered | `#<id> error {"code":"error","message":"encode-nlri not supported"}` |
+| Invalid family | `#<len>:<id> error {"code":"error","message":"unknown family: ipv4/unknown"}` |
+| Parse error (encode) | `#<len>:<id> error {"code":"error","message":"invalid prefix: 10.0.0/24"}` |
+| Cannot decode | `#<len>:<id> error {"code":"error","message":"..."}` |
+| Handler not registered | `#<len>:<id> error {"code":"error","message":"encode-nlri not supported"}` |
 
 ### Files
 
@@ -1059,7 +1059,7 @@ At runtime, the engine dispatches commands to plugins via `execute-command`:
 
 **Engine to Plugin:**
 ```
-#5 ze-plugin-callback:execute-command {"serial":"abc","command":"rib adjacent status","args":[],"peer":"*"}
+#1:5 ze-plugin-callback:execute-command {"serial":"abc","command":"rib adjacent status","args":[],"peer":"*"}
 ```
 
 **Plugin to Engine:** the answer is a head, its records and a terminator. Every
@@ -1077,9 +1077,9 @@ answer. The handler's status is on the head, and the record carries the value
 byte for byte:
 
 ```
-#5 ok status=done type=json
-#5 ok item={"running":true,"peers":1}
-#5 ok count=1
+#1:5 ok status=done type=json
+#1:5 ok item={"running":true,"peers":1}
+#1:5 ok count=1
 ```
 
 A handler that answered with a `plugin.Records` walk of more than 256 rows
@@ -1087,9 +1087,9 @@ writes one line for each row. A walk over a large table therefore never becomes
 one 16 MB line. A shorter walk collapses to the `type=json` document above:
 
 ```
-#5 ok status=done type=ndjson key=peers
-#5 ok item={"address":"10.0.0.1","state":"established"}
-#5 ok count=1
+#1:5 ok status=done type=ndjson key=peers
+#1:5 ok item={"address":"10.0.0.1","state":"established"}
+#1:5 ok count=1
 ```
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
 <!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->
@@ -1102,7 +1102,7 @@ Plugins can dispatch commands to other plugins via the external-compatible strin
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- DispatchCommand -->
 
 ```
-#4 ze-plugin-engine:dispatch-command {"command":"rib adjacent inbound show"}
+#1:4 ze-plugin-engine:dispatch-command {"command":"rib adjacent inbound show"}
 ```
 
 Internal plugins that already know the exact registered command should use the
@@ -1112,7 +1112,7 @@ peer selector separately, so runtime values are not split by the command tokeniz
 <!-- source: internal/component/plugin/server/dispatch.go -- dispatchCommandArgs -->
 
 ```
-#4 ze-plugin-engine:dispatch-command-args {"command":"request bgp adj-rib-in replay","args":["peer key with spaces","0"],"peer":"*"}
+#1:4 ze-plugin-engine:dispatch-command-args {"command":"request bgp adj-rib-in replay","args":["peer key with spaces","0"],"peer":"*"}
 ```
 
 Both APIs answer with a head, records, and a terminator. See
@@ -1144,8 +1144,8 @@ Config reload uses a two-phase verify/apply pattern:
 **Phase 1: Verify** -- engine sends candidate config to all plugins for validation:
 
 ```
-#10 ze-plugin-callback:config-verify {"sections":[{"root":"bgp","data":"{...}"}]}
-#10 ok {"status":"ok"}
+#2:10 ze-plugin-callback:config-verify {"sections":[{"root":"bgp","data":"{...}"}]}
+#2:10 ok {"status":"ok"}
 ```
 
 If any plugin rejects, the reload is aborted.
@@ -1153,8 +1153,8 @@ If any plugin rejects, the reload is aborted.
 **Phase 2: Apply** -- engine sends config diffs to all plugins:
 
 ```
-#11 ze-plugin-callback:config-apply {"sections":[{"root":"bgp","added":"{...}","removed":"","changed":""}]}
-#11 ok {"status":"ok"}
+#2:11 ze-plugin-callback:config-apply {"sections":[{"root":"bgp","added":"{...}","removed":"","changed":""}]}
+#2:11 ok {"status":"ok"}
 ```
 
 **ConfigDiffSection fields:**
@@ -1176,15 +1176,15 @@ The engine sends both local and remote OPENs for inspection:
 <!-- source: pkg/plugin/rpc/types.go -- ValidateOpenInput, ValidateOpenOutput -->
 
 ```
-#7 ze-plugin-callback:validate-open {"peer":"192.168.1.1","local":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[...]},"remote":{"asn":65002,...}}
-#7 ok {"accept":true}
+#1:7 ze-plugin-callback:validate-open {"peer":"192.168.1.1","local":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[...]},"remote":{"asn":65002,...}}
+#1:7 ok {"accept":true}
 ```
 
 `peer` is the peer's configured name. `group` is its enclosing group, and the
 field is omitted for a peer that stands alone:
 
 ```
-#8 ze-plugin-callback:validate-open {"peer":"dyn-192.0.2.7","group":"ix","local":{...},"remote":{...}}
+#1:8 ze-plugin-callback:validate-open {"peer":"dyn-192.0.2.7","group":"ix","local":{...},"remote":{...}}
 ```
 
 A peer created from a dynamic group's template has only that second identity. The
@@ -1195,7 +1195,7 @@ through `group` or resolves nothing for it.
 
 To reject:
 ```
-#7 ok {"accept":false,"notify-code":2,"notify-subcode":6,"reason":"unacceptable hold time"}
+#1:7 ok {"accept":false,"notify-code":2,"notify-subcode":6,"reason":"unacceptable hold time"}
 ```
 
 ---
@@ -1215,10 +1215,10 @@ Transport: single TLS connection per plugin.
 1. Engine reads `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }` from config
 2. Engine starts TLS listener(s) (one per `server` entry), creates `PluginAcceptor` with cert fingerprint
 3. Engine generates per-plugin token, forks child with `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` (unique per plugin), `ZE_PLUGIN_CERT_FP`, `ZE_PLUGIN_NAME` env vars
-4. Child verifies server cert fingerprint, connects via TLS, sends `#0 auth {"token":"...","name":"..."}`
+4. Child verifies server cert fingerprint, connects via TLS, sends `#1:0 auth {"token":"...","name":"..."}`
 5. Engine authenticates: per-plugin token lookup by name (constant-time comparison), name binding enforced
 6. Token cleared from child OS environment after first read
-7. Single `MuxConn` handles bidirectional RPC (responses by `#id`, requests via `Requests()` channel)
+7. Single `MuxConn` handles bidirectional RPC (responses by `#<len>:<id>`, requests via `Requests()` channel)
 8. Standard 5-stage handshake proceeds over the same connection
 <!-- source: internal/component/plugin/ipc/tls.go -- combinedLookup, AuthenticateWithLookup -->
 
@@ -1259,7 +1259,7 @@ STAGE 1: REGISTRATION
 #1 ok                  --->
 
 STAGE 2: CONFIG DELIVERY
-#1 ze-plugin-callback:configure
+#1:1 ze-plugin-callback:configure
   {"sections":[{"root":"bgp","data":"{...}"}]}  --->
                        <--- #1 ok
 
@@ -1332,17 +1332,17 @@ STAGE 5: READY (with startup subscription)
 === BGP PEERS START ===
 
 RUNTIME: Peer comes up
-#42 ze-plugin-callback:deliver-batch
+#2:42 ze-plugin-callback:deliver-batch
   {"events":["{\"type\":\"state\",\"peer\":\"192.168.1.1\",\"state\":\"up\"}"]}  --->
                        <--- #42 ok
 
 RUNTIME: Route sent to peer
-#43 ze-plugin-callback:deliver-batch
+#2:43 ze-plugin-callback:deliver-batch
   {"events":["{\"type\":\"sent\",\"peer\":\"192.168.1.1\",...}"]}  --->
                        <--- #43 ok
 
 RUNTIME: Command request
-#44 ze-plugin-callback:execute-command
+#2:44 ze-plugin-callback:execute-command
   {"serial":"abc","command":"rib adjacent status","args":[],"peer":"*"}  --->
                        <--- #44 ok {"status":"done","data":"{\"running\":true,\"peers\":1}"}
 

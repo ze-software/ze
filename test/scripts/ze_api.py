@@ -157,17 +157,53 @@ _ANSWER_TAIL_KEYS = (
 )
 
 
+# _ID_LENGTH_ALPHABET spells the base-36 length character an id field opens
+# with. Every line carrying an id opens with `#<len>:<id> `, where <len> states
+# how many decimal digits the id occupies, so a reader reaches the field after
+# the id by addition rather than by searching for a space. It is the encoding
+# appendID writes and cutID reads (pkg/plugin/rpc/message.go).
+_ID_LENGTH_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+
+def _id_field(req_id: int) -> str:
+    """Spell the `#<len>:<id> ` field every wire line this harness writes opens with."""
+    digits = str(req_id)
+    return f"#{_ID_LENGTH_ALPHABET[len(digits)]}:{digits} "
+
+
+def _cut_id(line: str) -> tuple[int, str]:
+    """Take the `#<len>:<id> ` field off line and return the id and the rest.
+
+    The stated length is checked against the byte it names as the end of the
+    id: a length that disagrees with its digits would otherwise slice the verb
+    in half, and this is the check that makes such a line a refusal.
+    """
+    if not line.startswith("#"):
+        raise RuntimeError(f"line missing # prefix: {line[:80]}")
+    if len(line) < 3:
+        raise RuntimeError(f"line states no id length: {line[:80]}")
+    count = _ID_LENGTH_ALPHABET.find(line[1])
+    if count <= 0:
+        raise RuntimeError(f"line states no readable id length: {line[:80]}")
+    if count > 20:
+        raise RuntimeError(f"id states {count} digits, past the 20 a uint64 occupies")
+    if line[2] != ":":
+        raise RuntimeError(f"id length is not followed by ':': {line[:80]}")
+    end = 3 + count
+    if len(line) <= end or line[end] != " ":
+        raise RuntimeError(f"id of {count} digits does not end at a space: {line[:80]}")
+    return int(line[3:end]), line[end + 1 :]
+
+
 def _split_wire_line(line: str) -> tuple[int, str, str]:
-    """Split `#<id> <verb> [<tail>]` and leave the tail undecoded.
+    """Split `#<len>:<id> <verb> [<tail>]` and leave the tail undecoded.
 
     `API._parse_line` json.loads the tail, which a record-shaped answer line
     is not. This one keeps the bytes, so a test can assert on them.
     """
-    if not line.startswith("#"):
-        raise RuntimeError(f"line missing # prefix: {line[:80]}")
-    id_str, _, body = line[1:].partition(" ")
+    req_id, body = _cut_id(line)
     verb, _, tail = body.partition(" ")
-    return int(id_str), verb, tail
+    return req_id, verb, tail
 
 
 def _ends_answer(verb: str, tail: str) -> bool:
@@ -277,7 +313,7 @@ class API:
       - TLS mode (ZE_PLUGIN_HUB_TOKEN set): single TLS connection, bidirectional mux
       - FD mode (ZE_ENGINE_FD set): inherited file descriptors (legacy)
 
-    Messages are newline-delimited lines: #<id> <verb> [<json-payload>]
+    Messages are newline-delimited lines: #<len>:<id> <verb> [<json-payload>]
     """
 
     def __init__(self, engine_fd: int | None = None, callback_fd: int | None = None):
@@ -439,23 +475,19 @@ class API:
     def _format_line(
         self, req_id: int, verb: str, payload: dict | None = None
     ) -> bytes:
-        """Format #<id> <verb> [<json-payload>] newline-terminated line."""
+        """Format #<len>:<id> <verb> [<json-payload>] newline-terminated line."""
         if payload is not None:
             json_str = json.dumps(payload, separators=(",", ":"))
-            return f"#{req_id} {verb} {json_str}\n".encode("utf-8")
-        return f"#{req_id} {verb}\n".encode("utf-8")
+            return f"{_id_field(req_id)}{verb} {json_str}\n".encode("utf-8")
+        return f"{_id_field(req_id)}{verb}\n".encode("utf-8")
 
     def _parse_line(self, line: str) -> tuple[int, str, dict | None]:
-        """Parse #<id> <verb> [<json-payload>] from a raw line.
+        """Parse #<len>:<id> <verb> [<json-payload>] from a raw line.
 
         Returns:
             Tuple of (request_id, verb, payload_dict_or_None)
         """
-        if not line.startswith("#"):
-            raise RuntimeError(f"line missing # prefix: {line[:80]}")
-        rest = line[1:]
-        id_str, _, body = rest.partition(" ")
-        req_id = int(id_str)
+        req_id, body = _cut_id(line)
         verb, _, payload_str = body.partition(" ")
         payload = json.loads(payload_str) if payload_str else None
         return req_id, verb, payload
@@ -463,7 +495,7 @@ class API:
     def _send_rpc(
         self, fd: int, req_id: int, method: str, params: dict | None = None
     ) -> None:
-        """Send a newline-terminated RPC line: #<id> <method> [<json-params>]."""
+        """Send a newline-terminated RPC line: #<len>:<id> <method> [<json-params>]."""
         line = self._format_line(req_id, method, params)
         if self._tls_mode:
             self._tls_sock.sendall(line)
@@ -530,8 +562,8 @@ class API:
     def _call_engine(self, method: str, params: Any = None) -> dict | None:
         """Send RPC to engine and wait for response.
 
-        Sends: #<id> <method> [<json-params>]
-        Expects: #<id> ok [<json>] or #<id> error [<json>]
+        Sends: #<len>:<id> <method> [<json-params>]
+        Expects: #<len>:<id> ok [<json>] or #<len>:<id> error [<json>]
 
         In TLS mode, reads from the shared connection. If an inbound request
         arrives instead of the expected response, it is queued for _serve_one.
@@ -604,7 +636,7 @@ class API:
             return {"result": payload}
 
     def _respond_ok(self, req_id: int) -> None:
-        """Send OK response: #<id> ok."""
+        """Send OK response: #<len>:<id> ok."""
         line = self._format_line(req_id, "ok")
         if self._tls_mode:
             self._tls_sock.sendall(line)
@@ -612,7 +644,7 @@ class API:
             os.write(self._callback_fd, line)
 
     def _respond_result(self, req_id: int, result: dict) -> None:
-        """Send OK response with JSON result: #<id> ok <json>."""
+        """Send OK response with JSON result: #<len>:<id> ok <json>."""
         line = self._format_line(req_id, "ok", result)
         if self._tls_mode:
             self._tls_sock.sendall(line)
@@ -636,14 +668,15 @@ class API:
         if status != "error":
             status = "done"
 
-        lines = [f"#{req_id} ok status={status} type=json\n"]
+        prefix = _id_field(req_id)
+        lines = [f"{prefix}ok status={status} type=json\n"]
         if "data" in result and result["data"] is not None:
             document = json.dumps(result["data"], separators=(",", ":"))
-            lines.append(f"#{req_id} ok item={document}\n")
+            lines.append(f"{prefix}ok item={document}\n")
             count = 1
         else:
             count = 0
-        lines.append(f"#{req_id} ok count={count}\n")
+        lines.append(f"{prefix}ok count={count}\n")
 
         payload = "".join(lines).encode("utf-8")
         if self._tls_mode:
@@ -1307,7 +1340,7 @@ class API:
         This is the wire-shape view ``dispatch`` hides: it returns the bytes
         the engine wrote, so a test can assert on the frame rather than on a
         decoded payload. An answer in the original shape is ONE line,
-        ``#<id> ok <json>``. An answer in the record shape is a head, one line
+        ``#<len>:<id> ok <json>``. An answer in the record shape is a head, one line
         for each record, and a terminator carrying ``count=``.
 
         Reading stops at the first line that ends the answer: a tail that is

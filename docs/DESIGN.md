@@ -291,7 +291,7 @@ token via `ZE_PLUGIN_HUB_TOKEN`.
 | 5. Ready | Plugin -> Engine | `ze-plugin-engine:ready` |
 
 After stage 5, the SDK wraps the socket in `MuxConn` for concurrent RPCs. The wire
-format is `#<id> <verb> [<json>]\n` -- newline-delimited, UTF-8, with correlation IDs.
+format is `#<len>:<id> <verb> [<json>]\n` -- newline-delimited, UTF-8, with correlation IDs.
 
 ### IPC Wire Format
 

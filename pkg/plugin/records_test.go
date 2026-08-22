@@ -33,7 +33,7 @@ func rowsFrom(items ...string) iter.Seq[Record] {
 
 // answerTails decodes every line of one written answer into the tail it
 // carries, so a test reads the wire rather than the writer that produced it.
-// Each line of an answer on the plugin connection is `#<id> ok` and a key=value
+// Each line of an answer on the plugin connection is `#<len>:<id> ok` and a key=value
 // tail, which is what rpc.ParseLine cuts apart.
 func answerTails(t *testing.T, id uint64, wire []byte) []rpc.AnswerTail {
 	t.Helper()

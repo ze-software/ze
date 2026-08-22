@@ -567,7 +567,7 @@ class TestPostStartupSurvivesTheQueuedPath(unittest.TestCase):
         """The socket route is the one that already worked; it stays covered."""
         api = self._api_holding_a_queued_post_startup()
         api._pending_requests = []
-        lines = ["#7 ze-plugin-callback:post-startup"]
+        lines = ["#1:7 ze-plugin-callback:post-startup"]
         api._read_tls_line = lambda timeout=None: lines.pop(0) if lines else None
         api.POST_STARTUP_FLOOR = 0.05
         self.assertTrue(api.wait_for_post_startup(timeout=0.05))

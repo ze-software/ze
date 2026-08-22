@@ -636,10 +636,10 @@ func TestMuxConnDeliversEveryRecordToOneCaller(t *testing.T) {
 			return
 		}
 		answer := []string{
-			fmt.Sprintf("#%d ok status=done type=ndjson key=peers\n", req.ID),
-			fmt.Sprintf("#%d ok item={\"peer\":\"10.0.0.1\"}\n", req.ID),
-			fmt.Sprintf("#%d ok item={\"peer\":\"10.0.0.2\"}\n", req.ID),
-			fmt.Sprintf("#%d ok count=2\n", req.ID),
+			wireLine(req.ID, "ok status=done type=ndjson key=peers\n"),
+			wireLine(req.ID, "ok item={\"peer\":\"10.0.0.1\"}\n"),
+			wireLine(req.ID, "ok item={\"peer\":\"10.0.0.2\"}\n"),
+			wireLine(req.ID, "ok count=2\n"),
 		}
 		for _, line := range answer {
 			if _, writeErr := engineEnd.Write([]byte(line)); writeErr != nil {
@@ -682,7 +682,7 @@ func writeLines(conn net.Conn, lines ...string) {
 
 // TestSingleResponseCallRPCPathUnchanged checks that a peer answering with
 // today's one-line frame still reaches its caller byte for byte. The method: a
-// peer answers a CallRPC with #<id> ok <json>, and the test compares the
+// peer answers a CallRPC with #<len>:<id> ok <json>, and the test compares the
 // returned payload against the bytes it wrote and then checks the pending entry
 // is gone.
 //
@@ -708,7 +708,7 @@ func TestSingleResponseCallRPCPathUnchanged(t *testing.T) {
 		if err != nil {
 			return
 		}
-		writeLines(engineEnd, fmt.Sprintf("#%d ok %s\n", req.ID, payload))
+		writeLines(engineEnd, wireLine(req.ID, fmt.Sprintf("ok %s\n", payload)))
 	}()
 
 	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
@@ -753,8 +753,8 @@ func TestVerbPredicateUnchangedForResponses(t *testing.T) {
 		}
 		// Same id as the waiting call, but the verb is a method name.
 		writeLines(engineEnd,
-			fmt.Sprintf("#%d deliver-event {\"kind\":\"route\"}\n", req.ID),
-			fmt.Sprintf("#%d ok {\"served\":true}\n", req.ID),
+			wireLine(req.ID, "deliver-event {\"kind\":\"route\"}\n"),
+			wireLine(req.ID, "ok {\"served\":true}\n"),
 		)
 	}()
 
@@ -805,12 +805,12 @@ func TestOrphanRecordDoesNotCloseConnection(t *testing.T) {
 			return
 		}
 		for i := range orphans {
-			line := fmt.Sprintf("#999 ok item={\"row\":%d}\n", i)
+			line := wireLine(999, fmt.Sprintf("ok item={\"row\":%d}\n", i))
 			if _, writeErr := engineEnd.Write([]byte(line)); writeErr != nil {
 				return
 			}
 		}
-		writeLines(engineEnd, fmt.Sprintf("#%d ok {\"alive\":true}\n", req.ID))
+		writeLines(engineEnd, wireLine(req.ID, "ok {\"alive\":true}\n"))
 	}()
 
 	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
@@ -853,7 +853,7 @@ func TestOrphanJunkStillClosesConnection(t *testing.T) {
 			return
 		}
 		for i := range junk {
-			line := fmt.Sprintf("#999 ok {\"row\":%d}\n", i)
+			line := wireLine(999, fmt.Sprintf("ok {\"row\":%d}\n", i))
 			if _, writeErr := engineEnd.Write([]byte(line)); writeErr != nil {
 				return
 			}
@@ -900,20 +900,20 @@ func TestSlowConsumerDoesNotStallReadLoop(t *testing.T) {
 		if err != nil {
 			return
 		}
-		writeLines(engineEnd, fmt.Sprintf("#%d ok status=done type=ndjson key=peers\n", slow.ID))
+		writeLines(engineEnd, wireLine(slow.ID, "ok status=done type=ndjson key=peers\n"))
 		for i := range records {
-			line := fmt.Sprintf("#%d ok item={\"row\":%d}\n", slow.ID, i)
+			line := wireLine(slow.ID, fmt.Sprintf("ok item={\"row\":%d}\n", i))
 			if _, writeErr := engineEnd.Write([]byte(line)); writeErr != nil {
 				return
 			}
 		}
-		writeLines(engineEnd, fmt.Sprintf("#%d ok count=%d\n", slow.ID, records))
+		writeLines(engineEnd, wireLine(slow.ID, fmt.Sprintf("ok count=%d\n", records)))
 
 		other, err := engineConn.ReadRequest(ctx)
 		if err != nil {
 			return
 		}
-		writeLines(engineEnd, fmt.Sprintf("#%d ok {\"flowing\":true}\n", other.ID))
+		writeLines(engineEnd, wireLine(other.ID, "ok {\"flowing\":true}\n"))
 	}()
 
 	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
@@ -965,8 +965,8 @@ func TestAnswerWithoutTerminatorReportsTruncation(t *testing.T) {
 			return
 		}
 		writeLines(engineEnd,
-			fmt.Sprintf("#%d ok status=done type=ndjson key=peers\n", req.ID),
-			fmt.Sprintf("#%d ok item={\"peer\":\"10.0.0.1\"}\n", req.ID),
+			wireLine(req.ID, "ok status=done type=ndjson key=peers\n"),
+			wireLine(req.ID, "ok item={\"peer\":\"10.0.0.1\"}\n"),
 		)
 		if closeErr := engineEnd.Close(); closeErr != nil {
 			return
@@ -995,7 +995,7 @@ func TestAnswerWithoutTerminatorReportsTruncation(t *testing.T) {
 
 // TestNotUnderstoodAnswerReachesTheCaller checks that the error verb ends an
 // answer as an error rather than as an empty result. The method: a peer answers
-// a CallAnswer with one #<id> error message= line, and the test asserts the
+// a CallAnswer with one #<len>:<id> error message= line, and the test asserts the
 // call fails with that message.
 //
 // VALIDATES: AC-4 -- the not-understood answer is the only line for its id, and
@@ -1017,7 +1017,7 @@ func TestNotUnderstoodAnswerReachesTheCaller(t *testing.T) {
 		if err != nil {
 			return
 		}
-		writeLines(engineEnd, fmt.Sprintf("#%d error message=unknown command: shwo bgp peers\n", req.ID))
+		writeLines(engineEnd, wireLine(req.ID, "error message=unknown command: shwo bgp peers\n"))
 	}()
 
 	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
@@ -1133,4 +1133,90 @@ func TestCallAnswerStopsGeneratorOnConsumerStop(t *testing.T) {
 	assert.Equal(t, 1, produced, "the generator stopped on the row the consumer stopped at")
 	assert.Equal(t, VerdictTruncated, inProcess.Verdict(), "a stopped range reaches no terminator")
 	assert.NoError(t, inProcess.Err(), "a consumer that stopped the range itself reports no fault")
+}
+
+// TestMuxReadLoopSeparatesAnswerFromResponse checks that one reader carries
+// both line families over one connection once every line states its id length.
+// The method: a CallRPC and a CallAnswer run at once, the peer writes the plain
+// response between two records of the answer, and each caller is required to
+// receive its own lines whole.
+//
+// VALIDATES: A-3 -- the mux read loop takes the id field by arithmetic and
+// still tells an answer line from a plain response line, so one reader serves
+// both without a second discriminator.
+// PREVENTS: the length-prefixed id costing the reader its routing, which would
+// deliver a record to a CallRPC caller or strand an answer behind a response.
+func TestMuxReadLoopSeparatesAnswerFromResponse(t *testing.T) {
+	t.Parallel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "pluginEnd", pluginEnd)
+	defer closePipe(t, "engineEnd", engineEnd)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	const (
+		answerMethod = "ze-plugin-engine:dispatch-command"
+		rpcMethod    = "ze-bgp:peer-list"
+	)
+
+	go func() {
+		engineConn := NewConn(engineEnd, engineEnd)
+		ids := make(map[string]uint64, 2)
+		for len(ids) < 2 {
+			req, err := engineConn.ReadRequest(ctx)
+			if err != nil {
+				return
+			}
+			ids[req.Method] = req.ID
+		}
+		answerID, rpcID := ids[answerMethod], ids[rpcMethod]
+		writeLines(engineEnd,
+			wireLine(answerID, "ok status=done type=ndjson key=peers\n"),
+			wireLine(answerID, "ok item={\"peer\":\"10.0.0.1\"}\n"),
+			wireLine(rpcID, "ok {\"peers\":1}\n"),
+			wireLine(answerID, "ok item={\"peer\":\"10.0.0.2\"}\n"),
+			wireLine(answerID, "ok count=2\n"),
+		)
+	}()
+
+	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
+	defer func() {
+		if err := mux.Close(); err != nil {
+			t.Logf("mux close: %v", err)
+		}
+	}()
+
+	type answerRead struct {
+		items   []string
+		verdict string
+		err     error
+	}
+	answered := make(chan answerRead, 1)
+	go func() {
+		received, err := mux.CallAnswer(ctx, answerMethod, nil)
+		if err != nil {
+			answered <- answerRead{err: err}
+			return
+		}
+		var got answerRead
+		for record := range received.Records {
+			got.items = append(got.items, string(record.Item))
+		}
+		got.verdict = received.Verdict()
+		got.err = received.Err()
+		answered <- got
+	}()
+
+	result, err := mux.CallRPC(ctx, rpcMethod, nil)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"peers":1}`, string(result),
+		"the plain response reaches its CallRPC caller whole, from between two records")
+
+	got := <-answered
+	require.NoError(t, got.err)
+	assert.Equal(t, []string{`{"peer":"10.0.0.1"}`, `{"peer":"10.0.0.2"}`}, got.items,
+		"both records reach the CallAnswer caller, with the other id's response between them")
+	assert.Equal(t, VerdictDone, got.verdict, "the answer reached its terminator")
 }

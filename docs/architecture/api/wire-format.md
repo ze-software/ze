@@ -6,8 +6,8 @@ Messages are UTF-8 lines terminated by a newline byte (0x0A).
 Compact JSON never contains unescaped newlines, making newline an unambiguous frame delimiter.
 
 ```
-#1 ze-bgp:peer-list {"selector":"10.0.0.1"}
-#1 ok {"peers":[{"address":"10.0.0.1","state":"established"}]}
+#1:1 ze-bgp:peer-list {"selector":"10.0.0.1"}
+#1:1 ok {"peers":[{"address":"10.0.0.1","state":"established"}]}
 ```
 
 ### Framing
@@ -19,9 +19,14 @@ Compact JSON never contains unescaped newlines, making newline an unambiguous fr
 | Max message size | 16 MB (16,777,216 bytes) |
 | Initial buffer | 64 KB |
 
-Each line has the format: `#<id> <verb> [<json-payload>]`
+Each line has the format: `#<len>:<id> <verb> [<json-payload>]`
 
-- `#<id>` is a decimal integer (monotonically increasing per connection).
+- `#<len>:<id>` is a decimal integer (monotonically increasing per connection),
+  preceded by one base-36 character stating how many digits it occupies. A
+  reader takes that byte and reaches the verb by addition, never by searching
+  the line for a space. `0` to `9` then `A` to `Z` spell a length up to 35, and
+  a uint64 occupies 20 decimal digits at most, so `K` is the widest length any
+  id can state.
 - `<verb>` is a method name (requests) or `ok`/`error` (responses).
 - `<json-payload>` is optional compact JSON.
 
@@ -58,27 +63,27 @@ declaration can set a different wire method for command dispatch.
 ## Request
 
 ```
-#42 ze-bgp:peer-list {"selector":"10.0.0.1"}
-#43 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/unicast","mode":"both"}]}
-#44 ze-bgp:subscribe {"args":["bgp","event","update"]}
+#2:42 ze-bgp:peer-list {"selector":"10.0.0.1"}
+#2:43 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/unicast","mode":"both"}]}
+#2:44 ze-bgp:subscribe {"args":["bgp","event","update"]}
 ```
 
 | Component | Description |
 |-----------|-------------|
-| `#<id>` | Correlation ID (decimal integer) |
+| `#<len>:<id>` | Correlation ID (decimal integer), preceded by its base-36 digit count |
 | `<method>` | `module:rpc-name` |
 | `<json>` | Optional JSON params |
 
 ## Successful Response
 
 ```
-#42 ok {"peers":[{"address":"10.0.0.1","state":"established"}]}
-#43 ok
+#2:42 ok {"peers":[{"address":"10.0.0.1","state":"established"}]}
+#2:43 ok
 ```
 
 | Component | Description |
 |-----------|-------------|
-| `#<id>` | Echoed from request |
+| `#<len>:<id>` | Echoed from request |
 | `ok` | Success verb |
 | `<json>` | Optional JSON result (absent for void responses) |
 
@@ -91,9 +96,9 @@ is a head, zero or more records, and a terminator, and each line carries a bare
 `key=value` tail instead of JSON:
 
 ```
-#42 ok status=done type=ndjson key=peers
-#42 ok item={"address":"10.0.0.1","state":"established"}
-#42 ok count=1
+#2:42 ok status=done type=ndjson key=peers
+#2:42 ok item={"address":"10.0.0.1","state":"established"}
+#2:42 ok count=1
 ```
 
 The head's `type=` says how to take each `item=`. The terminator states no
@@ -108,13 +113,13 @@ and `type=json`. The grammar is in
 ## Error Response
 
 ```
-#42 error {"code":"peer-not-found","message":"no peer at 10.0.0.99"}
-#43 error {"message":"unknown method"}
+#2:42 error {"code":"peer-not-found","message":"no peer at 10.0.0.99"}
+#2:43 error {"message":"unknown method"}
 ```
 
 | Component | Description |
 |-----------|-------------|
-| `#<id>` | Echoed from request |
+| `#<len>:<id>` | Echoed from request |
 | `error` | Error verb |
 | `<json>` | Optional JSON with `code` and/or `message` fields |
 
@@ -123,8 +128,8 @@ and `type=json`. The grammar is in
 Events are delivered in batches for efficiency using a pooled buffer.
 
 ```
-#7 ze-plugin-callback:deliver-batch {"events":["event1-json","event2-json"]}
-#7 ok
+#1:7 ze-plugin-callback:deliver-batch {"events":["event1-json","event2-json"]}
+#1:7 ok
 ```
 
 Implementation: `pkg/plugin/rpc/batch.go`
