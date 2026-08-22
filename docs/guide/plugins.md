@@ -844,7 +844,9 @@ Three rules bind a handler that answers this way.
 
 A row that no wire message can carry is reported as a rejected row and the walk
 continues. The operator then reads the rows that were applied under `Key`, and
-the row that was refused under `errors` beside them.
+the row that was refused under `errors` beside them. A short walk whose rows
+each fit and whose one collapsed document does not is refused the same way, and
+the operator reads that rejection alone.
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, boundedRecord -->
 <!-- source: pkg/plugin/rpc/collapse.go -- CollapseRecords, AnswerErrorsKey -->
 

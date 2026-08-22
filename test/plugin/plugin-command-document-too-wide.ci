@@ -1,0 +1,241 @@
+# Test: a bounded walk whose collapsed document no line can carry
+#
+# Flow:
+# 1. A shell script writes a config declaring one external Go SDK plugin
+# 2. The daemon starts, spawns `ze-test record-plugin`, and opens SSH
+# 3. `ze cli -c "show test records document | raw"` runs a walk of two rows
+# 4. Each row fits one wire message and the document they collapse to does not
+# 5. The answer carries the rejection that stands in for that document
+#
+# A walk inside rpc.AnswerBufferThreshold is answered as ONE document, and that
+# document is one line like any other record (writeDocumentLines,
+# pkg/plugin/rpc/answer_write.go). Bounding the rows alone left the collapse
+# unmeasured, so the write failed under the answer, the walk returned before its
+# terminator, and the operator got an internal write error and no payload at
+# all. That is the state plan/journal/gate-excludes-part-of-its-population.md
+# recorded on 2026-08-20.
+#
+# The document is measured now, and a document with no line earns the fault an
+# over-wide record earns. The answer reaches its terminator, which counts no
+# record and one rejection, so the operator is told which record was refused and
+# how wide it was.
+#
+# The rejected row states the DOCUMENT's width, not one row's. That is what
+# separates this from test/plugin/plugin-command-partial-fault.ci, where one ROW
+# is too wide and the rows around it still reach the operator. Here every row
+# fits and their collapse does not.
+#
+# VALIDATES: AC-9 of spec-record-answers-2-only-encoding -- a bounded answer's
+# document past one wire message is refused with the same fault an over-wide
+# record gets, rather than being written and read as truncated.
+# PREVENTS: R-7 -- a whole answer lost to a line nobody measured, reported to an
+# operator as a transport failure with no payload and no record named.
+
+tmpfs=test-plugin-command-document-too-wide.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+# Signal test runner readiness
+touch daemon.ready
+
+cat > plugin-command-document-too-wide.conf << 'ZECONF'
+plugin {
+	external record-plugin {
+		run "ze-test record-plugin"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			profile [ admin ]
+		}
+	}
+	authorization {
+		profile admin {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action allow
+			}
+		}
+	}
+}
+
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port 0;
+		}
+	}
+}
+ZECONF
+
+# Use a PID-derived high port for BGP to avoid needing root for port 179
+export ze_test_bgp_port=$((10000 + ($$ % 50000)))
+
+ze start plugin-command-document-too-wide.conf 2>daemon.log &
+DAEMON_PID=$!
+trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+
+# Wait for the SSH server to report its listening address
+SSH_PORT=""
+for i in $(seq 1 50); do
+	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
+	if [ -n "$SSH_PORT" ]; then
+		break
+	fi
+	sleep 0.2
+done
+
+if [ -z "$SSH_PORT" ]; then
+	echo "FAIL: SSH server did not start (no address in daemon.log)" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+echo "SSH port: $SSH_PORT" >&2
+
+# Brief delay for postStartFunc to wire the authorizer
+sleep 0.5
+
+ADMIN_DIR=$(mktemp -d)
+trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
+
+# The plugin registers its commands at Stage 1, and the engine freezes the
+# registry after every plugin is ready. Wait for the name to be there rather
+# than for a duration.
+for i in $(seq 1 50); do
+	if ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" \
+		ze cli -c "system command list | raw" 2>/dev/null | grep -q 'show test records document'; then
+		break
+	fi
+	sleep 0.2
+done
+
+# The answer arrives whole and reports failure: no record reached the operator,
+# so nothing succeeded and the exec client says so (rpc.Verdict, and answerError
+# in internal/core/ssh/client/answer.go). The REASON travels on stdout, as the
+# rejected row of the answer, which is where an operator reads the rows a walk
+# rejected in every other answer too.
+set +e
+ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" \
+	ze cli -c "show test records document | raw" > document.json 2> document-err.log
+CLI_STATUS=$?
+set -e
+
+if [ "$CLI_STATUS" -eq 0 ]; then
+	echo "FAIL: an answer that delivered no row reported success" >&2
+	cat document.json >&2
+	exit 1
+fi
+
+# The write must not have failed under the answer. That is the state this test
+# exists to keep out: a line no transport accepts, a walk that returned before
+# its terminator, and an operator holding an internal error and no payload.
+if grep -q "exceeds maximum size" document-err.log; then
+	echo "FAIL: the document line was written unmeasured and the transport refused it" >&2
+	cat document-err.log >&2
+	exit 1
+fi
+
+# The reason must REACH the operator. A head still calling this a document
+# answer is refused by the buffered reader, because a document has nowhere to
+# carry a rejected row beside itself, and the payload is then lost a second way.
+if [ ! -s document.json ]; then
+	echo "FAIL: no payload reached the operator; the daemon said: $(head -c 300 document-err.log)" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+
+python3 - document.json << 'PYEOF'
+import json
+import sys
+
+# The walk the plugin produces: recordDocumentRows rows of recordDocumentRowBytes
+# each (internal/test/cli/cmd_record_plugin.go).
+LIMIT_BYTES = 16777216
+WALK_ROWS = 2
+ROW_BYTES = LIMIT_BYTES * 5 // 8
+
+with open(sys.argv[1]) as handle:
+    document = json.load(handle)
+
+# A rejection has nowhere to sit beside a document, so an answer whose document
+# has no line is not a document answer. It carries the rejected row alone, under
+# the default envelope, with the produced collection present and empty.
+if sorted(document) != ["data", "errors"]:
+    print(f"FAIL: the answer carries {sorted(document)}, want data and errors", file=sys.stderr)
+    sys.exit(1)
+
+if document["data"] != []:
+    print(f"FAIL: {len(document['data'])} rows reached the operator, want none", file=sys.stderr)
+    sys.exit(1)
+
+errors = document["errors"]
+if len(errors) != 1:
+    print(f"FAIL: the answer rejected {len(errors)} things, want one", file=sys.stderr)
+    sys.exit(1)
+
+fault = errors[0]
+if sorted(fault) != ["encoded-bytes", "limit-bytes", "message", "record"]:
+    print(f"FAIL: the rejected row carries {sorted(fault)}", file=sys.stderr)
+    sys.exit(1)
+
+# The same sentence a row too wide for one line earns.
+if fault["message"] != "answer record does not fit one wire message":
+    print(f"FAIL: the rejected row says {fault['message']!r}", file=sys.stderr)
+    sys.exit(1)
+
+# A document is the answer's only record, so it is record one.
+if fault["record"] != 1:
+    print(f"FAIL: the rejected row names record {fault['record']}, want 1", file=sys.stderr)
+    sys.exit(1)
+
+if fault["limit-bytes"] != LIMIT_BYTES:
+    print(f"FAIL: the rejected row states limit {fault['limit-bytes']}, want {LIMIT_BYTES}", file=sys.stderr)
+    sys.exit(1)
+
+# What was refused is the DOCUMENT and not a row. One row is ROW_BYTES wide and
+# fits a line on its own, so a bound that rejected a row instead would report
+# about half this width and would leave the other row in the answer.
+if fault["encoded-bytes"] < WALK_ROWS * ROW_BYTES:
+    print(f"FAIL: the rejected line is {fault['encoded-bytes']} bytes, one ROW wide rather than the whole document", file=sys.stderr)
+    sys.exit(1)
+
+print(f"OK: the document of {fault['encoded-bytes']} bytes was refused and the answer still ended", file=sys.stderr)
+PYEOF
+
+exit 0
+EOF_SH
+
+# Process orchestration
+cmd=foreground:seq=1:exec=./test-plugin-command-document-too-wide.sh:timeout=120s
+expect=exit:code=0
+expect=stderr:pattern=OK: the document of [0-9]+ bytes was refused and the answer still ended
+reject=stderr:pattern=panic recovered

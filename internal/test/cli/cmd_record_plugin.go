@@ -7,7 +7,7 @@
 // reads an engine answer as one. It exists because the record path has two
 // halves and only a running daemon joins them. A plugin's own rows travel to an
 // operator through execute-command. An engine command's rows travel back
-// through dispatch-command. Three .ci files under test/plugin/ drive it.
+// through dispatch-command. Four .ci files under test/plugin/ drive it.
 
 package cli
 
@@ -37,9 +37,10 @@ const recordPluginName = "record-plugin"
 // The commands this plugin registers. Each one is one property of the record
 // path, so a .ci that fails names the half that broke.
 const (
-	recordWalkCommand   = "show test records walk"
-	recordFaultCommand  = "show test records fault"
-	recordEngineCommand = "show test engine answer"
+	recordWalkCommand     = "show test records walk"
+	recordFaultCommand    = "show test records fault"
+	recordDocumentCommand = "show test records document"
+	recordEngineCommand   = "show test engine answer"
 )
 
 // engineWalkCommand is the engine command the plugin reads as a streamed
@@ -76,6 +77,20 @@ const (
 	recordFaultWideBytes = rpc.MaxMessageSize + 1
 )
 
+// recordDocumentRows and recordDocumentRowBytes size the walk
+// recordDocumentCommand produces, and both numbers are load-bearing.
+//
+// The row count is inside rpc.AnswerBufferThreshold, so the answer is one
+// document rather than a stream. Each row carries five eighths of
+// rpc.MaxMessageSize, so every row fits a line on its own and the two of them
+// collapse to a document a quarter wider than any line can carry. What this
+// answer rejects is therefore the DOCUMENT and never a row, which is what
+// separates it from recordFaultCommand.
+const (
+	recordDocumentRows     = 2
+	recordDocumentRowBytes = rpc.MaxMessageSize * 5 / 8
+)
+
 // engineAnswerWait bounds how long recordEngineCommand waits for the startup
 // read to finish. The read starts when every plugin is ready, and an operator
 // reaches this command later, so the wait is usually zero.
@@ -108,6 +123,11 @@ func cmdRecordPlugin(_ []string) int {
 				Key:  "rows",
 				Rows: recordRows(recordFaultRows, recordFaultRowBytes, recordFaultIndex),
 			}, nil
+		case recordDocumentCommand:
+			return rpc.StatusDone, sdk.Records{
+				Key:  "rows",
+				Rows: recordRows(recordDocumentRows, recordDocumentRowBytes, -1),
+			}, nil
 		case recordEngineCommand:
 			return reader.answer()
 		}
@@ -127,6 +147,7 @@ func cmdRecordPlugin(_ []string) int {
 		Commands: []sdk.CommandDecl{
 			{Name: recordWalkCommand, Description: "Walk that streams its rows"},
 			{Name: recordFaultCommand, Description: "Walk with one row no line can carry"},
+			{Name: recordDocumentCommand, Description: "Walk whose collapsed document no line can carry"},
 			{Name: recordEngineCommand, Description: "What the plugin read from a streamed engine answer"},
 		},
 	}

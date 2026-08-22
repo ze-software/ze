@@ -424,6 +424,21 @@ carried 16 MB would not fit the line either.
 ```
 <!-- source: pkg/plugin/rpc/answer_write.go -- boundedRecord, answerRecordTooLargeFault -->
 
+The DOCUMENT a bounded answer carries is one line too, and it is measured the
+same way. A walk that ends inside the buffer threshold collapses into a single
+`row` line, so 256 rows that each fit can still collapse into a document that
+does not. The encoder writes the same rejected row in its place, named record
+one, because a document is the answer's only record.
+
+The head of such an answer states `map` and not `doc`. A document has nowhere
+to carry a rejected row beside itself, so an answer whose document has no line
+is not a document answer: what reaches the consumer is the head, the one `bad`
+record, and a terminator counting no record and one rejection. That is the shape
+a streamed answer already uses for a rejection, so no reader meets a new one,
+and the verdict derives to `error`.
+<!-- source: pkg/plugin/rpc/answer_write.go -- writeDocumentLines, WriteRecordAnswer -->
+<!-- source: pkg/plugin/rpc/collapse.go -- CollapseAnswer -->
+
 ### The terminator states no status
 
 The verdict is DERIVED from the counts the terminator already carries. A stated

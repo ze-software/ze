@@ -89,4 +89,3 @@ that row is where you say which of the two happened.
 
 | Test | Reason |
 |------|--------|
-| TestAnswerValuesNeedNoEscaping | One subtest inverts, in place, because the behavior it pinned is the behavior this commit removes. It asserted that a newline inside a terminator message was rewritten to a space and that the line carried no newline at all. The frame now takes a line by the width it states, so a newline inside a counted value is DATA: the subtest asserts the message reaches the wire and reads back byte for byte, which is the stronger statement. `TestCountedValuesCarryNewlinesAndCarriageReturns` covers the same property through the shipped frame layer, over four payload shapes and a two-line terminator message. |

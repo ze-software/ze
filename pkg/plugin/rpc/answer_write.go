@@ -142,7 +142,10 @@ func WriteRecordAnswer(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[Re
 // two statements of one fact can disagree.
 //
 // A payload built whole is one row, and a producer that answered with no data
-// at all is none, so the terminator counts one or zero and rejects nothing.
+// at all is none, so the terminator counts one or zero. It rejects nothing
+// unless the document is wider than one wire message, which is the one refusal
+// this answer can carry and the one case where its head names another type
+// (writeDocumentLines).
 //
 // It is WriteRecordAnswer's sibling for the answer no walk produced, and the
 // two write the same three lines for the same document.
@@ -163,13 +166,41 @@ func WriteDocumentAnswer(w io.Writer, id uint64, head AnswerTail, document json.
 // count and faults are the WALK's, so the terminator states what the answer
 // produced whichever type carried it, which is what a collapsed short walk and
 // a streamed long one have in common.
+//
+// The document is bounded here for the reason every record line is bounded
+// (boundedRecord): it IS a record line, and a line holds at most
+// MaxMessageSize. Writing a wider one fails the write, so the answer would stop
+// before its terminator and a consumer would read an answer the daemon produced
+// whole as a truncated one (R-7 of spec-record-answers-2-only-encoding).
+//
+// A document with no line makes this not a document answer at all, so the head
+// says so. What reaches the consumer is the one rejected row that stands in for
+// the document, and that is the record a streamed answer already carries a
+// rejection in: head, one `bad`, terminator counting no record and one
+// rejection. No reader meets a new shape, and the buffered one refuses the
+// alternative by name, because a document has nowhere to carry a rejected row
+// beside itself (CollapseAnswer, collapse.go).
+//
+// The counts then state what the wire carried rather than what the walk
+// produced. The rows the walk rejected traveled INSIDE that document, so
+// counting them would name rows no consumer received.
 func writeDocumentLines(w io.Writer, buf []byte, id uint64, head AnswerTail, document json.RawMessage, count, faults uint64) error {
-	buf, err := writeAnswerLine(w, AppendAnswerHead(buf[:0], id, AnswerTypeDocument, "", nil))
+	// The document is the answer's first and only record, so it is the record
+	// boundedRecord names when it rejects one.
+	answerType, record := AnswerTypeDocument, Record{Item: document}
+	if len(document) > 0 {
+		record = boundedRecord(id, 1, record)
+	}
+	if len(record.Fault) > 0 {
+		answerType, count, faults = AnswerTypeMap, 0, 1
+	}
+
+	buf, err := writeAnswerLine(w, AppendAnswerHead(buf[:0], id, answerType, "", nil))
 	if err != nil {
 		return err
 	}
 	if len(document) > 0 {
-		buf, err = writeAnswerLine(w, AppendAnswerItem(buf[:0], id, document))
+		buf, err = writeRecordLine(w, buf, id, record, nil)
 		if err != nil {
 			return err
 		}
@@ -178,13 +209,19 @@ func writeDocumentLines(w io.Writer, buf []byte, id uint64, head AnswerTail, doc
 	return err
 }
 
-// writeRecordLine writes one record of a streamed answer and returns the line
-// buffer for the next one. Its caller has already refused a record carrying
-// neither an item nor a fault, so an item here is never empty.
+// writeRecordLine writes one record line and returns the line buffer for the
+// next one. Its caller has already refused a record carrying neither an item
+// nor a fault, so an item here is never empty.
+//
+// It serves both shapes an answer takes: one line for each row of a streamed
+// answer, and the one line a collapsed answer's document occupies. Both write
+// the same two kinds for the same two cases, so one writer is what keeps a
+// rejected row spelled the same way whichever shape carried it.
 //
 // A row of an answer that declares columns is checked against them here,
 // because the row reaches the wire unchanged and a consumer reading it by
-// position cannot tell a short row from a value it should have had.
+// position cannot tell a short row from a value it should have had. A document
+// declares none: it is one value rather than a positional row.
 func writeRecordLine(w io.Writer, buf []byte, id uint64, record Record, fields []string) ([]byte, error) {
 	if len(record.Fault) > 0 {
 		return writeAnswerLine(w, AppendAnswerFault(buf[:0], id, record.Fault))
@@ -217,8 +254,14 @@ func writeRecordLine(w io.Writer, buf []byte, id uint64, record Record, fields [
 // differ, and they differ because one transport bounds a line and the other does
 // not.
 //
+// It runs a second time over that collapsed document (writeDocumentLines),
+// because the document is itself one line. Bounding the rows alone leaves 256
+// rows within the limit collapsing to a document past it, which no line can
+// carry either.
+//
 // ordinal is the record's position in the walk, counted from one, and it is how
-// the rejected row names the record it stands for.
+// the rejected row names the record it stands for. A document is the answer's
+// only record, so it is record one.
 func boundedRecord(id, ordinal uint64, record Record) Record {
 	size := AnswerRecordLineSize(id, record)
 	if size <= MaxMessageSize {

@@ -148,7 +148,9 @@ carry is reported as a rejected row, and the walk continues.
 
 A walk of 256 rows or fewer collapses to one `doc` record, which is the
 JSON the command answered with before it produced rows at all. The encoder
-decides that from the walk, and the handler states nothing about the wire.
+decides that from the walk, and the handler states nothing about the wire. That
+document is one line as well, so rows that each fit and collapse into something
+no line can carry earn the same rejected row, and the head then states `map`.
 <!-- source: pkg/plugin/records.go -- Row, Record, Records, Records.WriteAnswer -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, boundedRecord -->
 <!-- source: pkg/plugin/rpc/collapse.go -- CollapseRecords, AnswerErrorsKey -->
