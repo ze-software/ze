@@ -3,14 +3,18 @@
 //	compares each hot-path benchmark to its registered integer ceiling
 //	(spec-fixit-perf-alloc-ci-gate AC-1, AC-2, boundary).
 //
-// PREVENTS: a per-op heap allocation reintroduced on a forward/bufmux/prefix-limits
+// PREVENTS: a per-op heap allocation reintroduced on a registered hot path
 //
-//	hot path merging undetected, and a masked benchmark build/run
-//	failure passing the gate silently (fail-closed missing-benchmark).
+//	merging undetected, a masked benchmark build/run failure passing the
+//	gate silently (fail-closed missing-benchmark), and a registered
+//	benchmark sitting in a package the gate never benchmarks.
 package perf
 
 import (
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -18,6 +22,11 @@ import (
 // hot-path benchmark, all within their ceilings. A name registered in
 // perf.AllocCeilings and absent here is a Missing violation by design
 // (fail-closed), so this fixture gains a line whenever the map gains an entry.
+//
+// It states what the COMPARATOR is fed, never what the daemon measures. The
+// record-path line reads zero allocs/op because these tests exercise the parse
+// and the comparison. The daemon's real number for that benchmark is not zero
+// today, and `make ze-alloc-check` is the one place that fact lives.
 const sampleBenchOutput = `goos: linux
 goarch: amd64
 pkg: github.com/ze-software/ze/internal/component/bgp/reactor
@@ -30,6 +39,13 @@ BenchmarkCheckPrefixLimitsInstalled-4 	    3000	       237.2 ns/op	       2 B/op
 BenchmarkCheckPrefixLimitsInstalledChurn-4	    3000	       418.1 ns/op	      10 B/op	       2 allocs/op
 PASS
 ok  	github.com/ze-software/ze/internal/component/bgp/reactor	0.081s
+goos: linux
+goarch: amd64
+pkg: github.com/ze-software/ze/internal/component/plugin
+cpu: AMD EPYC 7351 16-Core Processor
+BenchmarkRecordAnswerRows-4           	     300	       310.0 ns/op	      64 B/op	       0 allocs/op
+PASS
+ok  	github.com/ze-software/ze/internal/component/plugin	0.094s
 `
 
 // TestAllocGateCeiling verifies AC-1: benchmark output within every registered
@@ -115,6 +131,7 @@ func TestParseAllocsPerOp(t *testing.T) {
 		"BenchmarkCheckPrefixLimitsOffered":        0,
 		"BenchmarkCheckPrefixLimitsInstalled":      0,
 		"BenchmarkCheckPrefixLimitsInstalledChurn": 2,
+		"BenchmarkRecordAnswerRows":                0,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("parsed %d results, want %d: %+v", len(got), len(want), got)
@@ -147,9 +164,10 @@ func TestAllocGateWorstSample(t *testing.T) {
 }
 
 // TestAllocGateEnforce is the real gate driver: mk/alloc-gate.mk runs the
-// reactor benchmarks with -benchmem, writes the output to a file, and points
-// ZE_ALLOC_GATE_BENCH at it. When the env var is unset (a normal `go test`
-// run) the test skips, so enforcement happens only via `make ze-alloc-check`.
+// benchmarks of ALLOC_GATE_PACKAGES with -benchmem, writes the output to a
+// file, and points ZE_ALLOC_GATE_BENCH at it. When the env var is unset (a
+// normal `go test` run) the test skips, so enforcement happens only via
+// `make ze-alloc-check`.
 func TestAllocGateEnforce(t *testing.T) {
 	path := os.Getenv("ZE_ALLOC_GATE_BENCH")
 	if path == "" {
@@ -162,4 +180,138 @@ func TestAllocGateEnforce(t *testing.T) {
 	for _, v := range checkAllocCeilings(string(data), AllocCeilings) {
 		t.Errorf("alloc gate: %s", v.Message)
 	}
+}
+
+// recordPathBenchmark is the command-answer record path's benchmark, and
+// recordPathPackage is the package directory that defines it. They are spelled
+// here rather than derived. This test's subject is that three files agree about
+// them: the ceiling registry, the package's own test sources, and the makefile
+// that decides which packages the gate benchmarks at all.
+const (
+	recordPathBenchmark = "BenchmarkRecordAnswerRows"
+	recordPathPackage   = "internal/component/plugin"
+)
+
+// allocGateMakefile is the gate's makefile, relative to the repository root.
+const allocGateMakefile = "mk/alloc-gate.mk"
+
+// VALIDATES: AC-3 of spec-record-answers-3-zero-alloc -- a benchmark covering
+//
+//	the record path has a registered ceiling AND is inside the package set
+//	`make ze-alloc-check` benchmarks, so the gate can see that path.
+//
+// PREVENTS: the gate silently not covering the record path, in either of its
+//
+//	two shapes. A ceiling registered for a benchmark whose package the
+//	makefile never runs makes TestAllocGateEnforce report the name as
+//	absent. That reads as a broken gate rather than as a missing package. A
+//	benchmark that runs while nothing enforces a ceiling for it proves
+//	nothing at all. Neither shape is visible from the gate's own output.
+func TestAllocGateCoversRecordPath(t *testing.T) {
+	if _, registered := AllocCeilings[recordPathBenchmark]; !registered {
+		t.Errorf("%s has no ceiling in AllocCeilings, so the gate enforces nothing for the record path", recordPathBenchmark)
+	}
+
+	root := repoRootForTest(t)
+	if !benchmarkDefinedIn(t, filepath.Join(root, recordPathPackage), recordPathBenchmark) {
+		t.Errorf("no `func %s(` in %s, so the registered ceiling names a benchmark that does not exist", recordPathBenchmark, recordPathPackage)
+	}
+
+	makefile := readAllocGateMakefile(t, root)
+	if !strings.Contains(makefile, "-bench '.'") || !strings.Contains(makefile, "$(ALLOC_GATE_PACKAGES)") {
+		t.Fatalf("%s does not benchmark $(ALLOC_GATE_PACKAGES), so the variable below no longer says what the gate runs", allocGateMakefile)
+	}
+
+	packages := allocGatePackages(t, makefile)
+	if !packagePatternsCover(packages, recordPathPackage) {
+		t.Errorf("ALLOC_GATE_PACKAGES = %v does not cover %s, so `make ze-alloc-check` never runs %s", packages, recordPathPackage, recordPathBenchmark)
+	}
+}
+
+// repoRootForTest returns the repository root from this test file's location
+// (<root>/internal/perf/allocgate_test.go -> <root>).
+func repoRootForTest(t *testing.T) string {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed, so the repository root cannot be found")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+}
+
+// readAllocGateMakefile returns the gate's makefile text. A makefile that
+// cannot be read fails the test rather than skipping it. Both files this test
+// compares are tracked, so an unreadable one is a broken checkout rather than a
+// reason to pass.
+func readAllocGateMakefile(t *testing.T, root string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(root, allocGateMakefile))
+	if err != nil {
+		t.Fatalf("read %s: %v", allocGateMakefile, err)
+	}
+	return string(data)
+}
+
+// benchmarkDefinedIn reports whether dir holds a Go test file defining name. It
+// reads the directory rather than the whole tree. A benchmark defined anywhere
+// else is in another package, and the gate would not run it from here.
+func benchmarkDefinedIn(t *testing.T, dir, name string) bool {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read %s: %v", dir, err)
+	}
+	definition := "func " + name + "("
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), "_test.go") {
+			continue
+		}
+		data, readErr := os.ReadFile(filepath.Join(dir, entry.Name())) //nolint:gosec // a tracked test file under the repository root
+		if readErr != nil {
+			t.Fatalf("read %s: %v", entry.Name(), readErr)
+		}
+		if strings.Contains(string(data), definition) {
+			return true
+		}
+	}
+	return false
+}
+
+// allocGatePackages returns the package patterns ALLOC_GATE_PACKAGES assigns.
+// An absent variable fails the test. The gate would then benchmark whatever the
+// recipe spells, and this test would assert about a line nothing reads.
+func allocGatePackages(t *testing.T, makefile string) []string {
+	t.Helper()
+	for line := range strings.SplitSeq(makefile, "\n") {
+		if !strings.HasPrefix(line, "ALLOC_GATE_PACKAGES") {
+			continue
+		}
+		_, value, found := strings.Cut(line, "=")
+		if !found {
+			t.Fatalf("ALLOC_GATE_PACKAGES line carries no assignment: %q", line)
+		}
+		return strings.Fields(value)
+	}
+	t.Fatalf("%s declares no ALLOC_GATE_PACKAGES", allocGateMakefile)
+	return nil
+}
+
+// packagePatternsCover reports whether one of the `go test` package patterns
+// selects pkg, a repository-relative package directory. A pattern ending in
+// `/...` selects the directory and everything under it. Every other pattern
+// selects exactly the one directory it names.
+func packagePatternsCover(patterns []string, pkg string) bool {
+	for _, pattern := range patterns {
+		directory := strings.TrimPrefix(pattern, "./")
+		if subtree, wildcard := strings.CutSuffix(directory, "/..."); wildcard {
+			if pkg == subtree || strings.HasPrefix(pkg, subtree+"/") {
+				return true
+			}
+			continue
+		}
+		if pkg == directory {
+			return true
+		}
+	}
+	return false
 }

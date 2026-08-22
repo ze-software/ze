@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"iter"
 	"slices"
 	"strconv"
@@ -1431,4 +1432,113 @@ func TestFailedCommandStatesItsReasonOnTheTerminator(t *testing.T) {
 			t.Errorf("the in-process answer derives %q, want %q", answer.Verdict(), rpc.VerdictError)
 		}
 	})
+}
+
+// VALIDATES: AC-1 of spec-record-answers-3-zero-alloc -- the allocation cost of
+//
+//	ONE ROW of a record answer, which the alloc gate holds to a ceiling of
+//	zero (perf.AllocCeilings, internal/perf/allocgate.go).
+//
+// PREVENTS: the zero-allocation claim resting on a reading of the code. The
+//
+//	gate reads this benchmark's allocs/op, so a per-row allocation
+//	reintroduced anywhere between the generator and the wire reddens
+//	`make ze-alloc-check` rather than being argued about.
+//
+// The op is ONE ROW and not one answer. The walk yields b.N rows into a single
+// answer, so allocs/op reads as allocations per row. That is what AC-1 bounds
+// and what a ceiling of zero states. A per-answer op would hide the row cost
+// inside a number that grows with the walk.
+//
+// The gate pins -benchtime=300x (ALLOC_GATE_BENCHTIME, mk/alloc-gate.mk), so
+// b.N is 300. That is past rpc.AnswerBufferThreshold, so the answer STREAMS,
+// which is the shape the per-row cost matters in. A shorter benchtime collapses
+// the walk into one document and measures the collapse instead. The collapse
+// costs more for each row, so that mistake turns the gate red, never green.
+//
+// io.Discard is the writer because this measures the encoder, not a socket. Its
+// Write returns the length and allocates nothing, so nothing it does reaches
+// the count.
+func BenchmarkRecordAnswerRows(b *testing.B) {
+	resp := NewResponse(StatusDone, Records{Key: "peers", Rows: benchmarkPeerRows(b.N)})
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	if err := WriteAnswer(io.Discard, benchmarkAnswerID, resp); err != nil {
+		b.Fatalf("WriteAnswer: %v", err)
+	}
+}
+
+// BenchmarkRecordAnswerRowsHarness measures what BenchmarkRecordAnswerRows's
+// own scaffolding costs. It walks the same generator shape the same way, with
+// one row built before the timer starts and nothing written. It is the control
+// that says the number above belongs to the record path rather than to the
+// benchmark, and it is expected to read zero.
+//
+// It is deliberately NOT registered in perf.AllocCeilings. A ceiling on it
+// would gate the harness rather than the product. It is committed rather than
+// run once because a control nobody can re-run is an assertion
+// (`ai/rules/evidence.md`). It prints beside the measured benchmark in
+// tmp/verify/alloc-gate-bench.txt, so the two numbers are read together.
+func BenchmarkRecordAnswerRowsHarness(b *testing.B) {
+	record := rpc.Record{Item: json.RawMessage(`{"peer":"10.0.0.1","state":"up"}`)}
+	var rows iter.Seq[rpc.Record] = func(yield func(rpc.Record) bool) {
+		for range b.N {
+			if !yield(record) {
+				return
+			}
+		}
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	walked := 0
+	for range rows {
+		walked++
+	}
+
+	b.StopTimer()
+	if walked != b.N {
+		b.Fatalf("the harness walked %d rows, want %d", walked, b.N)
+	}
+}
+
+// benchmarkAnswerID is the request id the benchmarked answer is written under.
+// Every line of an answer carries it, and a wider id writes a wider line, so it
+// is stated rather than left at zero.
+const benchmarkAnswerID = 42
+
+// benchmarkRowCapacity is the byte capacity each benchmarked row is built into.
+// The widest row benchmarkPeerRows writes is 34 bytes, so the append never
+// grows the slice. The measured count is then one allocation for the row,
+// rather than one plus the growth of a slice that started too small.
+const benchmarkRowCapacity = 48
+
+// benchmarkPeerRows yields rows the cheapest way rpc.Record allows today. Each
+// row's JSON is appended into a slice of its own. That slice is what
+// rpc.Record's json.RawMessage fields force: the encoder holds a record's bytes
+// while later rows are produced, so a scratch reused across rows would rewrite
+// the rows it still holds (Records.wire, pkg/plugin/records.go).
+//
+// It is deliberately the FLOOR of the record path rather than a real handler.
+// The number the gate reads is then the cost the ENCODER cannot avoid, rather
+// than one handler's choice of payload. A handler pays more on top. The one
+// record generator in the tree today marshals a struct for each row
+// (yieldCompletion, internal/component/plugin/server/system.go), measured at 4
+// allocs/row on 2026-08-22, and marshaling a plugin.Map measured 12. Both sit
+// above this floor, so no cheaper producer can satisfy the gate.
+func benchmarkPeerRows(rows int) iter.Seq[rpc.Record] {
+	return func(yield func(rpc.Record) bool) {
+		for i := range rows {
+			row := make([]byte, 0, benchmarkRowCapacity)
+			row = append(row, `{"peer":"10.0.0.`...)
+			row = strconv.AppendInt(row, int64(i%256), 10)
+			row = append(row, `","state":"up"}`...)
+			if !yield(rpc.Record{Item: row}) {
+				return
+			}
+		}
+	}
 }

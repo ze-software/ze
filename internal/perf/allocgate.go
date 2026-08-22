@@ -1,9 +1,10 @@
 // Design: docs/functional-tests.md -- alloc-ceiling gate (ze-alloc-check stage)
 //
-// The gate parses `go test -benchmem` output for the reactor hot-path
-// ReportAllocs benchmarks (bufmux / forward-pool / prefix-limits) and asserts a
-// per-benchmark allocs/op ceiling. mk/alloc-gate.mk drives it as a ze-precommit-verify
-// stage. allocs/op is machine-independent, so an integer ceiling is a stable
+// The gate parses `go test -benchmem` output for the hot-path ReportAllocs
+// benchmarks of every package in ALLOC_GATE_PACKAGES (mk/alloc-gate.mk: the
+// reactor tree and the plugin command-answer path) and asserts a per-benchmark
+// allocs/op ceiling. mk/alloc-gate.mk drives it as a ze-precommit-verify stage.
+// allocs/op is machine-independent, so an integer ceiling is a stable
 // regression signal without a stored baseline host.
 package perf
 
@@ -46,6 +47,22 @@ var AllocCeilings = map[string]int{
 	// alternates a four-prefix announce with its withdraw, so four map keys are
 	// allocated every two operations.
 	"BenchmarkCheckPrefixLimitsInstalledChurn": 2,
+	// The command-answer record path, per ROW of a streamed walk
+	// (BenchmarkRecordAnswerRows, internal/component/plugin/dispatch_test.go).
+	//
+	// This ceiling is the GOAL, not a measurement with headroom. It is the one
+	// entry in this map that is RED today. AC-1 of
+	// spec-record-answers-3-zero-alloc is zero allocations for each row. The
+	// measurement lands before the optimization, so the gate can never be a
+	// green that was unable to be red.
+	//
+	// Measured 1 alloc/row on 2026-08-22, and that one allocation is the slice
+	// rpc.Record's json.RawMessage fields force on every row whatever the
+	// handler does. Phase 3 of that spec removes it by letting a row append
+	// into the encoder's buffer. The answer ENVELOPE costs 21 allocations
+	// beside it, and that count does not grow with the walk: the same benchmark
+	// measured 321 for 300 rows and 1021 for 1000.
+	"BenchmarkRecordAnswerRows": 0,
 }
 
 // allocResult is one parsed allocs/op sample from `go test -benchmem` output.
