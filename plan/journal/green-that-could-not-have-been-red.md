@@ -40,8 +40,11 @@ Assert the specific text instead. Grep for the mutated string and require the
 count you expect, which is usually exactly one. A count is what separates "it
 matched" from "it matched once, where I meant it".
 
-Everybody already saves a copy and restores it by hash, because the interesting
-moment feels like the run. Nobody confirms that the change landed.
+The restore half is already habit and the applied half is not. Every agent one
+session ran on 2026-08-22 saved a copy and restored it by hash, and not one
+confirmed that the change had landed. That is an observation over those runs
+rather than a survey of the repository. The reason it is worth stating anyway:
+the interesting moment feels like the run, so the patch is what goes unchecked.
 
 The header above names the consequence. One phrasing names the mechanism: a
 signal whose shape does not change when the thing it reports changes. Three
