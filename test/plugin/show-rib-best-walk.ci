@@ -206,3 +206,10 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
 expect=exit:code=0
+
+# Readback: the plugin's own OK lines, one per walk shape. Without them this
+# file's only assertion is a zero exit, which a plugin that never reached its
+# assertions would also produce.
+expect=stderr:contains=OK best: 12 rows
+expect=stderr:contains=OK best-first: the walk stopped at two rows
+expect=stderr:contains=OK best-count: count=12
