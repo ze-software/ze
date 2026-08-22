@@ -137,7 +137,7 @@ surprise to hit.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| A `.ci` that asserts which backend the daemon is using | → | the runner's environment composer | `test/plugin/storage-backend-is-the-shipped-default.ci` |
+| A `.ci` that asserts which backend the daemon is using | → | the runner's environment composer | `test/plugin/storage-backend-is-the-shipped-default.ci` | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
 | A `.ci` that declares it needs filesystem storage | → | the new option | `TestRunnerStorageOptionSelectsTheBackend` |
 
 ## Acceptance Criteria
@@ -154,7 +154,7 @@ surprise to hit.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Edits configuration through the web editor on a shipped daemon and reviews the pending changes | web editor → `EditorManager.Diff` → blob storage | `test/web/config-diff-structural-op.wb` |
+| 1 | Edits configuration through the web editor on a shipped daemon and reviews the pending changes | web editor → `EditorManager.Diff` → blob storage | `test/web/config-diff-structural-op.wb` | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
 | 2 | Runs the functional suite to gain confidence before a release | runner → daemon on the shipped backend | the suite itself |
 
 ## 🧪 TDD Test Plan
@@ -174,8 +174,8 @@ surprise to hit.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `storage-backend-is-the-shipped-default` | `test/plugin/storage-backend-is-the-shipped-default.ci` | the daemon a test drives is the daemon an operator runs | |
-| `config-diff-structural-op` | `test/web/config-diff-structural-op.wb` | the surface the closed spec's Task named, finally covered | |
+| `storage-backend-is-the-shipped-default` | `test/plugin/storage-backend-is-the-shipped-default.ci` | the daemon a test drives is the daemon an operator runs | | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
+| `config-diff-structural-op` | `test/web/config-diff-structural-op.wb` | the surface the closed spec's Task named, finally covered | | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -190,8 +190,8 @@ surprise to hit.
 - Every `.ci` or `.wb` the phase-1 count identifies, each gaining a declaration with a stated reason
 
 ## Files to Create
-- `test/plugin/storage-backend-is-the-shipped-default.ci` - the AC-1 proof
-- `test/web/config-diff-structural-op.wb` - the AC-4 proof, and the closed spec's missing coverage
+- `test/plugin/storage-backend-is-the-shipped-default.ci` - the AC-1 proof <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
+- `test/web/config-diff-structural-op.wb` - the AC-4 proof, and the closed spec's missing coverage <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -244,7 +244,7 @@ surprise to hit.
    - Tests: `TestRunnerDefaultsToTheShippedBackend`, plus the suite
    - Verify: the suite is green, and every filesystem declaration states its reason
 4. **Phase: Prove it can fail** -- close AC-4
-   - Tests: `test/web/config-diff-structural-op.wb`
+   - Tests: `test/web/config-diff-structural-op.wb` <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
    - Verify: reverting `(*blobStorage).List` to `resolveKey` reddens it. Without this the spec has moved the pin and proven nothing
 5. **Phase: Close the class** -- no env key is pinned away from its default silently
    - Tests: `TestNoEnvKeyIsPinnedAwayFromItsDefault`

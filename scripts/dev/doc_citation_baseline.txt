@@ -568,7 +568,6 @@ plan/spec-fixit-firewall-concurrency-deadlock.md	cmd/yang/ze-ddos-local-cmd.yang
 plan/spec-fixit-firewall-concurrency-deadlock.md	internal/plugins/firewall/engine.go
 plan/spec-fixit-firewall-concurrency-deadlock.md	plan/deferrals.md
 plan/spec-fixit-firewall-concurrency-deadlock.md	test/plugin/ddos-firewall-concurrency.ci
-plan/spec-fixit-ike-resource-lifetime-leaks.md	docs/guide/vpn/
 plan/spec-fixit-ipsec-interop-cli-credentials.md	internal/component/ssh/client/client.go
 plan/spec-fixit-ipsec-interop-cli-credentials.md	plan/deferrals/fixit-ipsec-interop-cli-credentials.md
 plan/spec-fixit-lint-blind-to-integration-tag.md	scripts/dev/dep_audit_test.py

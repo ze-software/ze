@@ -157,7 +157,7 @@ citation of a file the tree no longer holds.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | An operator edits a live peer's traffic selectors and commits | → | `peerConfigChanged` | `TestPeerConfigChangedIsFailClosed` |
-| The same edit, end to end, on a running daemon | → | `startPeerSession`, `proposeChildTSPayloads` | `test/ipsec/ipsec-peer-reload-applies-selectors.ci` |
+| The same edit, end to end, on a running daemon | → | `startPeerSession`, `proposeChildTSPayloads` | `test/ipsec/ipsec-peer-reload-applies-selectors.ci` | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
 
 ## Acceptance Criteria
 
@@ -173,8 +173,8 @@ citation of a file the tree no longer holds.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Narrows a site-to-site peer's traffic selectors to stop carrying a prefix, and commits | config tree → reconcile → `peerConfigChanged` → `startPeerSession` → `proposeChildTSPayloads` → wire | `test/ipsec/ipsec-peer-reload-applies-selectors.ci` |
-| 2 | Commits an unrelated change while an IPsec tunnel carries traffic | config tree → reconcile → no restart | `test/ipsec/ipsec-peer-reload-leaves-tunnel-alone.ci` |
+| 1 | Narrows a site-to-site peer's traffic selectors to stop carrying a prefix, and commits | config tree → reconcile → `peerConfigChanged` → `startPeerSession` → `proposeChildTSPayloads` → wire | `test/ipsec/ipsec-peer-reload-applies-selectors.ci` | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
+| 2 | Commits an unrelated change while an IPsec tunnel carries traffic | config tree → reconcile → no restart | `test/ipsec/ipsec-peer-reload-leaves-tunnel-alone.ci` | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
 
 ## 🧪 TDD Test Plan
 
@@ -195,8 +195,8 @@ citation of a file the tree no longer holds.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ipsec-peer-reload-applies-selectors` | `test/ipsec/ipsec-peer-reload-applies-selectors.ci` | an operator narrows the selectors and the kernel policy follows | |
-| `ipsec-peer-reload-leaves-tunnel-alone` | `test/ipsec/ipsec-peer-reload-leaves-tunnel-alone.ci` | an unrelated commit does not bounce a live tunnel | |
+| `ipsec-peer-reload-applies-selectors` | `test/ipsec/ipsec-peer-reload-applies-selectors.ci` | an operator narrows the selectors and the kernel policy follows | | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
+| `ipsec-peer-reload-leaves-tunnel-alone` | `test/ipsec/ipsec-peer-reload-leaves-tunnel-alone.ci` | an unrelated commit does not bounce a live tunnel | | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -209,8 +209,8 @@ citation of a file the tree no longer holds.
 - `docs/guide/ipsec.md` - which peer edits restart a tunnel and which do not
 
 ## Files to Create
-- `test/ipsec/ipsec-peer-reload-applies-selectors.ci` - the AC-1 and AC-5 proof
-- `test/ipsec/ipsec-peer-reload-leaves-tunnel-alone.ci` - the AC-2 proof
+- `test/ipsec/ipsec-peer-reload-applies-selectors.ci` - the AC-1 and AC-5 proof <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
+- `test/ipsec/ipsec-peer-reload-leaves-tunnel-alone.ci` - the AC-2 proof <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -267,7 +267,7 @@ citation of a file the tree no longer holds.
    - Files: `internal/component/ike/engine/reconcile.go`
    - Verify: the next CREATE_CHILD_SA proposes the edited selectors
 5. **Phase: Interop** -- the strongSwan scenario with a Ze peer that narrows
-   - Tests: `test/interop-ipsec/scenarios/NN-peer-reload-narrowing`
+   - Tests: `test/interop-ipsec/scenarios/NN-peer-reload-narrowing` <!-- doc-links: ignore (this spec's own acceptance criteria create this artifact; the spec is ready and not yet authorised to run) -->
    - Verify: strongSwan's SPD follows Ze's new proposal
 
 ### Critical Review Checklist
@@ -285,7 +285,7 @@ citation of a file the tree no longer holds.
 |-------------|---------------------|
 | The guard fails closed on an unclassified member | `make ze-unit-pkg-test PKG=./internal/component/ike/engine` |
 | A selector edit reaches the wire | `make ze-qemu-integration-test` |
-| An unrelated commit bounces nothing | `test/ipsec/ipsec-peer-reload-leaves-tunnel-alone.ci` |
+| An unrelated commit bounces nothing | `test/ipsec/ipsec-peer-reload-leaves-tunnel-alone.ci` | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
 | A strongSwan peer follows the new proposal | `make ze-interop-ipsec-test` |
 
 ### Security Review Checklist
