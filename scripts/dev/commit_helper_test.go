@@ -117,7 +117,10 @@ func TestCommitHelperRejectsLongSubject(t *testing.T) {
 	if code == 0 {
 		t.Fatalf("expected long subject to be rejected")
 	}
-	mustContain(t, stderr, "--subject must be at most 72 characters")
+	// The refusal names the length, the overage and the subject, so the next
+	// attempt is the last one. This is the CLI twin of commit_helper_test.py
+	// TestSubjectLengthRefusal, which pins the same message at the unit level.
+	mustContain(t, stderr, "--subject is 73 characters, 1 over the 72 limit")
 }
 
 // VALIDATES: commit_helper reuses the persisted session id and appends additional logical commits deliberately.

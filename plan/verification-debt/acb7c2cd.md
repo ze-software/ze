@@ -31,3 +31,5 @@ is open.
 | 2026-08-22 | acb7c2cd | docs(journal): the row names the file, not the file minus its suffix | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-22 | acb7c2cd | rules: a discrimination proof verifies its mutation applied | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-22 | acb7c2cd | fix(tools): a spec move is not a spec closure | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-22 | acb7c2cd | test(tools): the go twin asserts the refusal the code emits | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-22 | acb7c2cd | test(tools): the go twin asserts the refusal the code emits | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
