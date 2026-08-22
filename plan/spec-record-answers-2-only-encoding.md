@@ -421,7 +421,7 @@ AC-11 against the terminator FIRST, and only then deletes the field.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-exec-answer-unconditional` | `test/plugin/exec-answer-unconditional.ci` | an operator runs a command over SSH with nothing configured | | <!-- doc-links: ignore (functional test this spec will create; the work is not implemented) -->
+| `test-exec-answer-unconditional` | `test/plugin/exec-answer-unconditional.ci` | an operator runs a command over SSH with nothing configured | done, after phase 8 |
 | `test-plugin-answer-unconditional` | `test/plugin/answer-unconditional.ci` | a plugin that declares nothing still gets records; replaces `answer-not-negotiated.ci` | done, phase 1 |
 | `test-answer-first-bounds-long-walk` | `test/plugin/answer-first-bounds-long-walk.ci` | `first 10` over a long walk still bounds the read | done, phase 6 |
 | `test-plugin-command-document-too-wide` | `test/plugin/plugin-command-document-too-wide.ci` | a bounded answer whose document no line can carry is refused rather than truncated (AC-9, R-7) | done, phase 7 |
@@ -451,7 +451,7 @@ AC-11 against the terminator FIRST, and only then deletes the field.
 - `test/plugin/answer-single-record.ci`, `test/plugin/answer-many-records.ci`, `test/plugin/answer-truncation-detected.ci`, `test/plugin/answer-unknown-command.ci` - reframed fixtures
 
 ## Files to Create
-- `test/plugin/exec-answer-unconditional.ci` - SSH exec with nothing configured. NOT CREATED, and it is the one open item this spec leaves <!-- doc-links: ignore (functional test this spec planned and did not create) -->
+- `test/plugin/exec-answer-unconditional.ci` - SSH exec with nothing configured. Created after phase 8, which found it missing and left it as the spec's one open item
 - `test/plugin/answer-unconditional.ci` - replaces `answer-not-negotiated.ci`. Created by phase 1
 - `test/plugin/answer-first-bounds-long-walk.ci` - the pipe still bounds the walk. Created by phase 6
 - `test/plugin/plugin-command-document-too-wide.ci` - a bounded answer's document is measured before it is built. Created by phase 7

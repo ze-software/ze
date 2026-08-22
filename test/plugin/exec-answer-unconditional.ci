@@ -1,0 +1,581 @@
+# Test: a stock SSH client receives the record answer frame, having asked for
+# nothing
+#
+# Flow:
+# 1. Daemon starts with SSH and one configured BGP peer
+# 2. The shell generates an ed25519 key pair and puts the public half in the
+#    daemon's user, so OpenSSH authenticates with no password prompt
+# 3. Four commands run over `ssh`, the ordinary client, and each one's RAW
+#    stderr is kept: that stream is the answer frame
+# 4. frame-check.py reads each frame by the GRAMMAR and asserts what it holds
+#
+# The driver is OpenSSH and not `ze cli`, and that is the whole point of this
+# test. `ze cli` is Ze's own client (ExecCommandStream, internal/core/ssh/
+# client/answer.go); it consumes the frame and shows an operator the rendering,
+# so a fixture driving it can only see what the frame was turned INTO. `ssh`
+# consumes nothing, declares nothing, and has no way to declare anything: it
+# does not know this protocol exists. Its stderr is the daemon's frame bytes,
+# unread and unrewritten, and it receives them because every peer does.
+#
+# That makes the unconditional claim a POSITIVE assertion rather than an absence
+# one. If the frame were gated on a declaration again -- on an environment
+# variable, a capability, a protocol name at Stage 3 -- a client that declares
+# nothing would receive an empty stderr, and every assertion below would fail
+# for want of a line to read.
+#
+# The four fixtures that already drive this channel (answer-single-record,
+# answer-unknown-command, answer-truncation-detected,
+# answer-first-bounds-long-walk) all read the rendering `ze cli` produced. None
+# of them reads a frame byte. This one reads only the frame.
+#
+# WHAT THE EXEC CHANNEL WRITES, and why `row` and `bad` are not here. The daemon
+# RENDERS on this channel, because the format an operator sees comes from
+# ze.cli.format and four of the six renderings run to several lines
+# (writeExecAnswer, internal/component/ssh/answer.go). So the records reach the
+# operator on stdout as rendered text, and stderr carries the frame around them:
+# a head, a terminator, and a not-understood line for a command text that named
+# no command. The record kinds belong to the multiplexed plugin connection,
+# where answer-unconditional.ci asserts them. A `row` or a `bad` on THIS channel
+# would be a rendering leaking into the frame, which is why frame-check.py
+# refuses one.
+#
+# VALIDATES: AC-2 -- an SSH client that sets up nothing receives the head and
+# the terminator, and no environment variable is consulted to decide it.
+# VALIDATES: AC-4 -- the kind token starts at offset zero. The exec channel
+# carries one answer, so no `#<id>` sits in front of it.
+# VALIDATES: AC-13 -- no line carries a key=value pair. Every field is a
+# three-byte word closed by a space, a counted number, or a counted text, and
+# frame-check.py reaches each one by arithmetic with no scan anywhere.
+# VALIDATES: AC-15 -- the head states no status: `top`, the item type, the
+# envelope key, the column names, and nothing else.
+# VALIDATES: AC-16 -- every token is a whole word: `top`, `end`, `nay` for the
+# kinds this channel writes, `doc` and `map` for the item types it produces.
+# VALIDATES: AC-17 -- an absent value is written `0:`, present and empty, so a
+# line's field count never varies.
+# VALIDATES: AC-20 -- a line ends at exactly one `\n`, and never at `\r\n`.
+# PREVENTS: the negotiation returning, which would leave a peer that declares
+# nothing with no way to tell a finished answer from half of one.
+# PREVENTS: a count of CHARACTERS reaching the wire where a count of BYTES
+# belongs, which mis-slices every field after the first non-ASCII value.
+
+# The grammar reader. It owns the SHAPE of a line; the shell below owns the
+# VALUES, so a change to either is read on its own terms.
+tmpfs=frame-check.py:mode=755:terminator=EOF_CHECK
+#!/usr/bin/env python3
+"""Read one exec-channel answer frame by the grammar and assert what it holds.
+
+Usage: frame-check.py <case> <frame-file> [body-file]
+
+Every field is reached by ARITHMETIC. A three-byte word is taken by its width, a
+counted number is the digits up to the byte that closes them, and a counted text
+is the digits, the colon, and exactly that many BYTES. Nothing is searched for:
+the newline is where the arithmetic says it is, and a frame that puts it
+anywhere else is refused here rather than accommodated.
+"""
+
+import sys
+
+# The kinds the exec channel writes. Its records never reach the frame -- the
+# daemon renders them onto stdout -- so `row` and `bad` belong to the plugin
+# connection, and one appearing here is a rendering leaking into the frame.
+KINDS = (b"top", b"end", b"nay")
+
+# What an item IS, never how it was serialized.
+TYPES = (b"doc", b"map", b"tab")
+
+WORD = 3
+DIGITS_MAX = 20
+
+# The record count past which an answer stops being one document
+# (rpc.AnswerBufferThreshold). The streamed case must pass it, or it would read
+# the bounded branch and never produce a `map` head at all.
+BUFFER_THRESHOLD = 256
+
+
+class Refused(Exception):
+    """The bytes do not spell the grammar."""
+
+
+def digits_at(data, at):
+    """Return the length of the decimal run opening at `at`.
+
+    Stopping one byte past the widest run a uint64 occupies is what keeps a
+    payload of digits from being walked to its end.
+    """
+    end = min(len(data), at + DIGITS_MAX + 1)
+    walk = at
+    while walk < end and 0x30 <= data[walk] <= 0x39:
+        walk += 1
+    return walk - at
+
+
+def check_digits(data, at, field):
+    count = digits_at(data, at)
+    if count == 0:
+        raise Refused("%s: states no digits at offset %d" % (field, at))
+    if count > DIGITS_MAX:
+        raise Refused(
+            "%s: states more than the %d digits a uint64 occupies" % (field, DIGITS_MAX)
+        )
+    return count
+
+
+def read_number(data, at, field):
+    """A counted number: decimal digits, closed by a space or the line's end."""
+    width = check_digits(data, at, field)
+    closer = data[at + width : at + width + 1]
+    if closer == b":":
+        raise Refused(
+            "%s: a counted number is closed by ':', which is a counted text's byte count"
+            % field
+        )
+    if closer not in (b" ", b"\n"):
+        raise Refused(
+            "%s: digits are closed by %r, want a space or the line's end" % (field, closer)
+        )
+    return int(data[at : at + width]), at + width
+
+
+def read_text(data, at, field):
+    """A counted text: decimal digits, a colon, then exactly that many BYTES."""
+    width = check_digits(data, at, field)
+    if data[at + width : at + width + 1] != b":":
+        raise Refused(
+            "%s: the byte count is not closed by ':', which every text carries, "
+            "an empty one included" % field
+        )
+    count = int(data[at : at + width])
+    start = at + width + 1
+    value = data[start : start + count]
+    if len(value) != count:
+        raise Refused("%s: states %d bytes and %d arrived" % (field, count, len(value)))
+    # Every field is closed by the one space after it or by the line's end, so
+    # the byte the count lands on says whether the count was right. A count of
+    # CHARACTERS lands short of the field it measured, and this is where that
+    # shows: the value is longer than the number in front of it says.
+    closer = data[start + count : start + count + 1]
+    if closer not in (b" ", b"\n", b"\r"):
+        raise Refused(
+            "%s: states %d, and the byte after those %d is %r rather than the space or "
+            "the newline that closes a field. A count is a count of BYTES and never of "
+            "characters, so a value holding multi-byte utf-8 states more than it spells"
+            % (field, count, count, closer)
+        )
+    return count, value, start + count
+
+
+def read_word(data, at, field, allowed):
+    word = data[at : at + WORD]
+    if word not in allowed:
+        raise Refused(
+            "%s: %r is not one of %s" % (field, word, [one.decode() for one in allowed])
+        )
+    return word, at + WORD
+
+
+def close_field(data, at, field):
+    """Every field but the last is closed by the one space after it."""
+    if data[at : at + 1] != b" ":
+        raise Refused("%s: is closed by %r, want one space" % (field, data[at : at + 1]))
+    return at + 1
+
+
+def end_line(data, at, kind):
+    """The byte after the last field is the line terminator, and it is `\\n`.
+
+    The fields are counted, so the arithmetic says where the line ends rather
+    than a search for a newline. A `\\r` sitting where the terminator belongs is
+    a line ended `\\r\\n`, and it is refused. A `\\r` INSIDE a counted value is
+    ordinary data that must round-trip, so it never reaches this check.
+    """
+    closer = data[at : at + 1]
+    if closer == b"\r":
+        raise Refused(
+            "%s: ends with a carriage return and a newline. A line ends at exactly one "
+            "newline, and nothing else terminates one" % kind.decode()
+        )
+    if closer != b"\n":
+        raise Refused("%s: ends with %r, want exactly one newline" % (kind.decode(), closer))
+    return at + 1
+
+
+def read_line(data, at):
+    """Read one frame line at `at` and return what it said."""
+    kind, at = read_word(data, at, "kind", KINDS)
+    at = close_field(data, at, "kind")
+    line = {"kind": kind.decode()}
+
+    if kind == b"top":
+        item, at = read_word(data, at, "item type", TYPES)
+        at = close_field(data, at, "item type")
+        line["type"] = item.decode()
+        line["key_count"], key, at = read_text(data, at, "envelope key")
+        at = close_field(data, at, "envelope key")
+        line["key"] = key
+        line["columns_count"], columns, at = read_text(data, at, "column names")
+        line["columns"] = columns
+    elif kind == b"end":
+        line["count"], at = read_number(data, at, "count")
+        at = close_field(data, at, "count")
+        line["faults"], at = read_number(data, at, "faults")
+        at = close_field(data, at, "faults")
+        line["message_count"], message, at = read_text(data, at, "message")
+        line["message"] = message
+    else:
+        line["code_count"], code, at = read_text(data, at, "error code")
+        at = close_field(data, at, "error code")
+        line["code"] = code
+        line["message_count"], message, at = read_text(data, at, "message")
+        line["message"] = message
+
+    return line, end_line(data, at, kind)
+
+
+def read_frame(data):
+    """Split the stream into frame lines and the plain text written beside them.
+
+    The plain text is the daemon talking to a PERSON: the exec channel writes
+    `error: ...` for a failure an operator has to read. It is not part of the
+    frame and it is not parsed as one.
+    """
+    lines = []
+    text = []
+    at = 0
+    while at < len(data):
+        if data[at : at + WORD] in KINDS and data[at + WORD : at + WORD + 1] == b" ":
+            line, at = read_line(data, at)
+            lines.append(line)
+            continue
+        stop = data.find(b"\n", at)
+        if stop < 0:
+            stop = len(data)
+        plain = data[at:stop]
+        if plain.startswith(b"#"):
+            raise Refused(
+                "a frame line opened with an id field: %r. The exec channel carries one "
+                "answer, so its kind token sits at offset zero" % plain[:32]
+            )
+        text.append(plain.decode("utf-8", "replace"))
+        at = stop + 1
+    return lines, text
+
+
+def want(condition, message):
+    if not condition:
+        raise Refused(message)
+
+
+def kinds_of(lines):
+    return [line["kind"] for line in lines]
+
+
+def check_document(lines, _body):
+    """A command that answered one built payload: `top doc 0: 0:` and `end 1 0 0:`."""
+    want(kinds_of(lines) == ["top", "end"], "want a head and a terminator, got %s" % kinds_of(lines))
+    head, terminator = lines
+    want(head["type"] == "doc", "head names item type %r, want doc" % head["type"])
+    want(
+        head["key_count"] == 0 and head["key"] == b"",
+        "head names an envelope %r, want the empty one written `0:`" % head["key"],
+    )
+    want(
+        head["columns_count"] == 0 and head["columns"] == b"",
+        "head names columns %r, want none, written `0:`" % head["columns"],
+    )
+    want(terminator["count"] == 1, "terminator counts %d records, want 1" % terminator["count"])
+    want(terminator["faults"] == 0, "terminator counts %d faults, want 0" % terminator["faults"])
+    want(
+        terminator["message_count"] == 0 and terminator["message"] == b"",
+        "terminator carries a message %r, want the empty one written `0:`"
+        % terminator["message"],
+    )
+    return "a built payload is framed `top doc 0: 0:` and `end 1 0 0:`"
+
+
+def check_streamed(lines, body):
+    """A walk past the threshold: a `map` head naming its envelope, and the count."""
+    want(kinds_of(lines) == ["top", "end"], "want a head and a terminator, got %s" % kinds_of(lines))
+    head, terminator = lines
+    want(head["type"] == "map", "head names item type %r, want map" % head["type"])
+    want(head["key"] == b"commands", "head names envelope %r, want commands" % head["key"])
+    want(
+        head["key_count"] == len(head["key"]),
+        "head states %d bytes of envelope name and wrote %d"
+        % (head["key_count"], len(head["key"])),
+    )
+    want(
+        head["columns_count"] == 0 and head["columns"] == b"",
+        "head names columns %r, want none, written `0:`" % head["columns"],
+    )
+    want(
+        terminator["count"] > BUFFER_THRESHOLD,
+        "fixture problem -- the walk is %d records, inside the %d-record threshold, so it "
+        "answered one document rather than a stream"
+        % (terminator["count"], BUFFER_THRESHOLD),
+    )
+    want(terminator["faults"] == 0, "terminator counts %d faults, want 0" % terminator["faults"])
+    rendered = sum(1 for line in body.split(b"\n") if line.startswith(b"{"))
+    want(
+        rendered == terminator["count"],
+        "the terminator counts %d records and %d reached the operator"
+        % (terminator["count"], rendered),
+    )
+    return "a walk of %d records is framed `top map 8:commands 0:` and counted on `end`" % (
+        terminator["count"]
+    )
+
+
+def check_unknown(lines, body):
+    """A command text naming no command: one `nay` line, and it is the whole answer."""
+    want(kinds_of(lines) == ["nay"], "want one nay line and nothing else, got %s" % kinds_of(lines))
+    nay = lines[0]
+    want(
+        nay["code_count"] == 0 and nay["code"] == b"",
+        "nay states a code %r, want the empty one written `0:`" % nay["code"],
+    )
+    want(
+        nay["message"] == b"unknown command",
+        "nay carries %r, want unknown command" % nay["message"],
+    )
+    want(
+        nay["message_count"] == len(nay["message"]),
+        "nay states %d bytes of message and wrote %d"
+        % (nay["message_count"], len(nay["message"])),
+    )
+    want(body == b"", "a refused command wrote %d bytes to stdout, want none" % len(body))
+    return "a command text naming no command is the whole answer: `nay 0: 15:unknown command`"
+
+
+def check_failed(lines, _body):
+    """A command that ran and failed, carrying a message whose bytes outnumber its characters."""
+    want(kinds_of(lines) == ["top", "end"], "want a head and a terminator, got %s" % kinds_of(lines))
+    head, terminator = lines
+    want(head["type"] == "doc", "head names item type %r, want doc" % head["type"])
+    want(terminator["count"] == 0, "terminator counts %d records, want 0" % terminator["count"])
+    want(terminator["faults"] == 0, "terminator counts %d faults, want 0" % terminator["faults"])
+
+    # The certificate name is one Cyrillic Zhe and one e-acute, and each
+    # occupies two bytes in utf-8. So the message is 31 BYTES and 29 characters,
+    # and the two numbers are far enough apart that a count of characters cannot
+    # pass for a count of bytes. The name is written as escapes so this file
+    # stays ASCII and nothing between here and the daemon re-encodes it.
+    message = terminator["message"]
+    characters = len(message.decode("utf-8"))
+    want(
+        message.decode("utf-8") == "pki: certificate \u0416\u00e9 not found",
+        "terminator carries %r, want the name the operator typed" % message,
+    )
+    want(
+        terminator["message_count"] == len(message),
+        "terminator states %d and the message is %d BYTES"
+        % (terminator["message_count"], len(message)),
+    )
+    want(
+        terminator["message_count"] != characters,
+        "terminator states %d, which is the CHARACTER count. A count is a count of BYTES, "
+        "and this message is %d bytes" % (characters, len(message)),
+    )
+    return (
+        "a failed command states its message as %d BYTES, not the %d characters it decodes to"
+        % (terminator["message_count"], characters)
+    )
+
+
+CASES = {
+    "document": check_document,
+    "streamed": check_streamed,
+    "unknown": check_unknown,
+    "failed": check_failed,
+}
+
+
+def main():
+    case, frame_path = sys.argv[1], sys.argv[2]
+    body = b""
+    if len(sys.argv) > 3:
+        with open(sys.argv[3], "rb") as handle:
+            body = handle.read()
+    with open(frame_path, "rb") as handle:
+        data = handle.read()
+
+    try:
+        lines, text = read_frame(data)
+        said = CASES[case](lines, body)
+    except Refused as refused:
+        print("FAIL: %s: %s" % (case, refused), file=sys.stderr)
+        print("FRAME: %r" % data[:400], file=sys.stderr)
+        return 1
+
+    print("OK: %s -- %s" % (case, said), file=sys.stderr)
+    for plain in text:
+        print("     beside it, for a person: %s" % plain, file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+EOF_CHECK
+
+# Test script: four commands over a stock SSH client, nothing declared
+tmpfs=test-exec-answer-unconditional.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+# Signal test runner readiness
+touch daemon.ready
+
+# Isolate from the host SSH agent, so no stray key authenticates instead.
+unset SSH_AUTH_SOCK
+
+# The key pair. Public-key authentication is what lets OpenSSH run
+# non-interactively, and OpenSSH is what makes this test's claim: the client
+# declares nothing because it cannot.
+ssh-keygen -t ed25519 -f ./testkey -N "" -q
+PUBKEY_DATA=$(awk '{print $2}' ./testkey.pub)
+
+cat > exec-answer-unconditional.conf << ZECONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+system {
+	authentication {
+		user keyuser {
+			password "\$2a\$04\$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			profile [ admin ]
+			public-keys testkey {
+				type ssh-ed25519
+				key $PUBKEY_DATA
+			}
+		}
+	}
+	authorization {
+		profile admin {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action allow
+			}
+		}
+	}
+}
+
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port 0;
+		}
+	}
+}
+ZECONF
+
+# Use a PID-derived high port for BGP to avoid needing root for port 179
+export ze_test_bgp_port=$((10000 + ($$ % 50000)))
+
+# Start daemon, capture stderr to parse SSH port
+ze start exec-answer-unconditional.conf 2>daemon.log &
+DAEMON_PID=$!
+trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+
+# Wait for SSH server to report its listening address
+SSH_PORT=""
+for i in $(seq 1 50); do
+	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
+	if [ -n "$SSH_PORT" ]; then
+		break
+	fi
+	# The listener has no event to wait on, so this polls, bounded at ten seconds.
+	sleep 0.2
+done
+
+if [ -z "$SSH_PORT" ]; then
+	echo "FAIL: SSH server did not start (no address in daemon.log)" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+echo "SSH port: $SSH_PORT" >&2
+
+# Brief delay for postStartFunc to wire the authorizer
+sleep 0.5
+
+# ask runs one command over the ordinary SSH client and keeps both streams
+# apart: the rendering on stdout, and the frame on stderr, byte for byte.
+#
+# LogLevel=ERROR is what keeps the client's own known-hosts notice off stderr.
+# Nothing else here configures anything: there is no ze client, no credential
+# store, and no environment variable this protocol reads.
+ask() {
+	set +e
+	ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+		-o LogLevel=ERROR -o PasswordAuthentication=no -o BatchMode=yes \
+		-o IdentitiesOnly=yes -i ./testkey \
+		-p "$SSH_PORT" keyuser@127.0.0.1 "$2" >"$1.body" 2>"$1.frame"
+	CODE=$?
+	set -e
+	if [ "$CODE" -ne "$3" ]; then
+		echo "FAIL: $2 exited $CODE, want $3" >&2
+		cat "$1.frame" >&2
+		exit 1
+	fi
+	if [ ! -s "$1.frame" ]; then
+		echo "FAIL: $2 received an EMPTY frame. Every peer is framed, so a peer that" >&2
+		echo "      declared nothing receiving nothing means the frame is negotiated again" >&2
+		exit 1
+	fi
+}
+
+# The certificate name: one Cyrillic Zhe and one e-acute, two bytes each in
+# utf-8. Written in octal so this file stays ASCII and no editor, harness or
+# shell re-encodes it on the way to the daemon.
+CERT_NAME=$(printf '\320\226\303\251')
+
+# A command answering one built payload.
+ask document "show version" 0
+python3 ./frame-check.py document document.frame document.body
+
+# A walk past the buffer threshold: the head names the envelope its records
+# belong under, and the terminator counts them.
+ask streamed "system command list | ndjson" 0
+python3 ./frame-check.py streamed streamed.frame streamed.body
+
+# A command text that names no command. The kind says the conversation was
+# valid and the command was not, and the line is the whole answer.
+ask unknown "shwo bgp peers" 1
+python3 ./frame-check.py unknown unknown.frame unknown.body
+
+# A command that RAN and failed, carrying a message the operator's own
+# non-ASCII text is inside. Its byte count is not its character count.
+ask failed "show pki certificate name $CERT_NAME" 1
+python3 ./frame-check.py failed failed.frame failed.body
+
+echo "OK: a client that declares nothing read every frame by arithmetic" >&2
+exit 0
+EOF_SH
+
+# Process orchestration
+cmd=foreground:seq=1:exec=./test-exec-answer-unconditional.sh:timeout=45s
+expect=exit:code=0
+expect=stderr:contains=OK: document -- a built payload is framed `top doc 0: 0:` and `end 1 0 0:`
+expect=stderr:pattern=OK: streamed -- a walk of [0-9]+ records is framed
+expect=stderr:contains=OK: unknown -- a command text naming no command is the whole answer
+expect=stderr:pattern=OK: failed -- a failed command states its message as 31 BYTES, not the 29 characters
+expect=stderr:contains=OK: a client that declares nothing read every frame by arithmetic
