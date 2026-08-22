@@ -12,6 +12,26 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+## Why this does not block the first release (2026-08-23)
+
+Moved from `plan/` on the owner's standing instruction that a genuine improvement
+belongs here rather than in the release backlog.
+
+Nothing this spec changes is a defect in the shipped product. It changes how long
+a test suite takes on a host larger than the one the constant was measured on.
+No wire byte moves, no configuration is accepted and then ignored, no
+authentication is skipped, no route is lost, and nothing leaks
+(`plan/future/README.md` lists what a defect is).
+
+**One finding inside it IS a defect, and it does not travel with the spec.** The
+measured failure cluster at high concurrency is an IN-TEST deadline: `runMCP`
+(`internal/test/cli/cmd_mcp.go`) defaults `-timeout` to 10s and `waitReady`
+(`internal/test/cli/cmd_mcp_client.go`) produces the message. `ParallelTimeoutHeadroom`
+(`internal/test/runner/parallel.go`) widens the RUNNER's budget and never reaches
+an in-test deadline, so a test fails for the harness rather than for the product.
+That is a test wrong about what it asserts. It belongs in `plan/`, and the reason
+it is named here is so a later reader does not assume this whole file was parked.
+
 ## Task
 
 `ZE_PLUGIN_PARALLEL ?= 8` and `ZE_ENCODE_PARALLEL ?= 8` (`mk/test-functional.mk`)
