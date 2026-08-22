@@ -156,6 +156,26 @@ func initiateChildRekey(sa *SA, oldChild *ChildSA) ([]byte, *pendingRekey, error
 		return nil, nil, err
 	}
 
+	// The test infrastructure can narrow what THIS request proposes, which is the only way
+	// a Ze peer proposes a scope narrower than the SA in use (narrowedRekeyPairs,
+	// testport.go). The record of the proposal moves with the payloads:
+	// recordInitiatorSelectors (ts_narrow.go) checks the answer against
+	// sa.ProposedChildPairs, and a record of pairs the peer was never sent would refuse a
+	// legal answer.
+	narrowed, err := narrowedRekeyPairs(sa.ProposedChildPairs)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(narrowed) > 0 {
+		narrowedTSi, narrowedTSr := pairsToWire(narrowed)
+		if narrowedTSi == nil || narrowedTSr == nil {
+			return nil, nil, fmt.Errorf("%s: the narrowed traffic selectors cannot be encoded",
+				envKeyIKERekeyTSLocal)
+		}
+		sa.ProposedChildPairs = narrowed
+		tsi, tsr = narrowedTSi, narrowedTSr
+	}
+
 	// RFC 7296 §3.10: REKEY_SA notify carries the SPI of the SA being rekeyed.
 	spiBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(spiBytes, oldChild.InboundSPI)
@@ -194,6 +214,10 @@ func initiateChildRekey(sa *SA, oldChild *ChildSA) ([]byte, *pendingRekey, error
 // pending child rekey: derives keys from our Ni and the peer's Nr, and installs
 // the new Child SA BEFORE the caller removes the old one (make-before-break).
 // RFC 7296 §1.3.2, §2.17: KEYMAT = prf+(SK_d, Ni | Nr).
+//
+// The response states the scope of the SA the peer just built, so TSi and TSr are
+// mandatory (RFC 7296 §1.3.3) and a response without them is refused. The replacement is
+// then installed with the selectors the response announced, never with the retired pair's.
 func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.PayloadEntry, dp dataplane.Dataplane, log *slog.Logger) (*ChildSA, error) {
 	// RFC 7296 Section 2.25: a TEMPORARY_FAILURE answer means the peer is busy, not that
 	// the response is malformed. It is read before the payload walk, because such a
@@ -211,6 +235,7 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	var nr []byte
 	var outSPI uint32
 	var accepted *wire.PayloadSA
+	var respTSi, respTSr *wire.PayloadTS
 	for _, pe := range inner {
 		switch p := pe.Payload.(type) {
 		case *wire.PayloadNonce:
@@ -222,13 +247,65 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 				return nil, err
 			}
 			outSPI = s
+		case *wire.PayloadTS:
+			switch p.TSPayloadType {
+			case wire.PayloadTypeTSi:
+				respTSi = p
+			case wire.PayloadTypeTSr:
+				respTSr = p
+			}
 		}
 	}
 	if len(nr) == 0 || outSPI == 0 {
 		return nil, fmt.Errorf("child rekey response: missing Nr(%d) or ESP SPI(%d)", len(nr), outSPI)
 	}
+	if respTSi == nil || respTSr == nil {
+		// RFC 7296 Section 1.3.3 puts TSi and TSr in the rekey RESPONSE, and Section 2.9
+		// says what they carry: "TS payloads specify the selection criteria for packets
+		// that will be forwarded over the newly set up SA." A response that omits either
+		// payload states no criteria for the SA it just created, so nothing describes what
+		// the replacement should protect. Keeping the retired pair's selectors instead
+		// programs a scope this exchange never agreed, which is the divergence this whole
+		// path exists to remove.
+		var absent string
+		switch {
+		case respTSi == nil && respTSr == nil:
+			absent = "TSi and TSr"
+		case respTSi == nil:
+			absent = "TSi"
+		default:
+			absent = "TSr"
+		}
+		return nil, fmt.Errorf("child rekey response: missing %s", absent)
+	}
 
 	old := pending.oldChild
+	// RFC 7296 Section 2.9.2 MUST NOT: "The responder MUST NOT narrow down the Traffic
+	// Selectors narrower than the scope currently in use." The SA being replaced is that
+	// scope, so it is the narrowing FLOOR, exactly as it is for respondChildRekey below.
+	//
+	// The floor is compared against THIS response's payloads, so it has to be in THIS
+	// exchange's orientation. Ze sent Ni here, so this node's side is TSi. The stored floor
+	// is in the orientation of whatever exchange negotiated it, which is the opposite one
+	// whenever the peer's side was TSi there.
+	floor := old.Selectors
+	if !old.SelectorsLocalIsTSi {
+		floor = swapPairs(floor)
+	}
+	// RFC 7296 Section 2.9: "TS payloads specify the selection criteria for packets that
+	// will be forwarded over the newly set up SA." The response therefore states the scope
+	// of the SA the peer built, and this node installs that scope rather than the retired
+	// pair's, or the two ends program different traffic.
+	//
+	// recordInitiatorSelectors is the same producer the IKE_AUTH initiator adopts an answer
+	// through (transport_mode.go). It refuses an answer wider than what ze proposed and an
+	// answer below the floor, so what it records is always installable unchanged. This path
+	// read no TS payload at all before, and inherited old.Selectors.
+	//
+	// It runs BEFORE the key derivation below, so a refused answer costs no keying.
+	if err := recordInitiatorSelectors(sa, respTSi, respTSr, floor); err != nil {
+		return nil, fmt.Errorf("child rekey response: %w", err)
+	}
 	// RFC 7296 Section 3.3.6: the initiator checks the accepted offer against the ESP
 	// proposals it sent. It stops the exchange when the two disagree. The replacement
 	// Child SA then takes the suite the peer selected. That suite is not always the
@@ -247,8 +324,9 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	if err != nil {
 		return nil, err
 	}
-	// We initiated this rekey (sent Ni), so our KEYMAT role is initiator.
-	child := newRekeyedChild(old, pending.newInboundSPI, outSPI, keys, true)
+	// We initiated this rekey (sent Ni), so our KEYMAT role is initiator, and this node's
+	// side is TSi in the set recorded above.
+	child := newRekeyedChild(old, pending.newInboundSPI, outSPI, keys, true, sa.NegotiatedPairs)
 	// The replacement records the suite it is keyed with, and nothing else. It inherits
 	// the retired SA's group. respondChildRekey reads Proposals[0] of that group when
 	// the peer rekeys this SA next. An unselected proposal left in front of the accepted
@@ -369,9 +447,8 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	// TSi/TSr orientation.
 	//
 	// The answer and the install are one set on every path that reaches here.
-	// narrowChildSelectors ran for THIS request, and it refuses the exchange unless its
-	// narrowing covers the scope in use, so the only answer left is the floor
-	// (ts_narrow.go), which newRekeyedChild installs by inheriting old.Selectors.
+	// narrowChildSelectors ran for THIS request and wrote sa.NegotiatedPairs, and that is
+	// the value both the payloads below and newRekeyedChild are built from.
 	//
 	// A scope no TS payload can carry is refused rather than answered, as the IKE_AUTH
 	// responder refuses it (initiator.go). A wildcard here would widen the peer's proposal,
@@ -383,8 +460,9 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 			errTSUnacceptable, pairsText(sa.NegotiatedPairs))
 	}
 
-	// The peer initiated this rekey (sent Ni); our KEYMAT role is responder.
-	child := newRekeyedChild(old, inSPI, peerSPI, keys, false)
+	// The peer initiated this rekey (sent Ni); our KEYMAT role is responder, and the peer's
+	// side is TSi in the set narrowChildSelectors recorded.
+	child := newRekeyedChild(old, inSPI, peerSPI, keys, false, sa.NegotiatedPairs)
 	if err := installChildTolerant(child, prop, dp, log); err != nil {
 		keys.Clear()
 		return nil, nil, err
@@ -408,19 +486,44 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	return resp, child, nil
 }
 
-// newRekeyedChild builds a replacement Child SA inheriting addresses/TS/ifID from
-// the old one, with fresh SPIs and keys. localIsInitiator records whether we sent
-// Ni for this rekey exchange (true when we initiated it), which selects the ESP
-// send/receive key halves in installChildSA (RFC 7296 Section 2.17).
-func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKeys, localIsInitiator bool) *ChildSA {
+// newRekeyedChild builds a replacement Child SA inheriting addresses and ifID from the
+// old one, with fresh SPIs, fresh keys, and the scope THIS exchange negotiated.
+// localIsInitiator records whether we sent Ni for this rekey exchange (true when we
+// initiated it), which selects the ESP send/receive key halves in installChildSA
+// (RFC 7296 Section 2.17).
+//
+// negotiated is that exchange's answer in its own TSi/TSr orientation, and both callers
+// pass sa.NegotiatedPairs: the value the wire answer is built from. The scope ze programs
+// and the scope the peer was told are then one value rather than two that agree by
+// accident. RFC 7296 Section 2.9 makes TSi the side of the end that sent Ni, so
+// localIsInitiator is also the orientation of that answer.
+func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKeys, localIsInitiator bool, negotiated []tsPair) *ChildSA {
+	// An exchange that negotiated no selector leaves the retired pair's scope in place. A
+	// Child SA whose peer answered no TS payload carries none, and dropping the retired
+	// pair's set would give the next rekey no RFC 7296 Section 2.9.2 floor.
+	selectors, selectorsLocalIsTSi := old.Selectors, old.SelectorsLocalIsTSi
+	tsLocal, tsRemote := old.TSLocal, old.TSRemote
+	if len(negotiated) > 0 {
+		selectors, selectorsLocalIsTSi = negotiated, localIsInitiator
+		// TSLocal and TSRemote are what childPolicyParams turns into the kernel policy's
+		// prefixes (child.go), never the selector set above, so they move with it. The
+		// first pair is oriented local-first here, which is the order those two fields
+		// carry, exactly as createFirstChildSA orients sa.NegotiatedTSi and NegotiatedTSr.
+		first := negotiated[0]
+		if !localIsInitiator {
+			first = tsPair{I: first.R, R: first.I}
+		}
+		tsLocal, tsRemote = first.I.Net, first.R.Net
+	}
+
 	return &ChildSA{
 		InboundSPI:  inSPI,
 		OutboundSPI: outSPI,
 		LocalAddr:   old.LocalAddr,
 		RemoteAddr:  old.RemoteAddr,
 		IfID:        old.IfID,
-		TSLocal:     old.TSLocal,
-		TSRemote:    old.TSRemote,
+		TSLocal:     tsLocal,
+		TSRemote:    tsRemote,
 		Keys:        keys,
 		ESPGroup:    old.ESPGroup,
 		ReqID:       old.ReqID,
@@ -436,23 +539,23 @@ func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKey
 		// then refuses the encapsulated ESP the peer keeps sending, and a NAT-traversing
 		// tunnel carries nothing from its first Child SA rekey onward.
 		UDPEncap: old.UDPEncap,
-		// Selectors and Mode are inherited for the same reason as UDPEncap above:
-		// createFirstChildSA is their only other writer.
+		// Selectors is the scope this rekey agreed, and it becomes the SCOPE CURRENTLY IN
+		// USE that RFC 7296 Section 2.9.2 forbids the NEXT rekey from narrowing below. A
+		// replacement that carried no set would give that rekey no floor, so the second
+		// rekey of a tunnel could shrink it.
 		//
-		// Selectors is the SCOPE CURRENTLY IN USE that RFC 7296 Section 2.9.2 forbids the
-		// NEXT rekey from narrowing below. A replacement that dropped it would give that
-		// rekey no floor, so the second rekey of a tunnel could shrink it.
-		//
-		// Mode decides the encapsulation of every state and policy the replacement
-		// installs. A replacement that dropped it would fall back to tunnel, so a
-		// transport-mode tunnel would silently become a tunnel-mode one at its first
+		// Mode is inherited for the same reason as UDPEncap above: createFirstChildSA is
+		// its only other writer. It decides the encapsulation of every state and policy the
+		// replacement installs. A replacement that dropped it would fall back to tunnel, so
+		// a transport-mode tunnel would silently become a tunnel-mode one at its first
 		// rekey -- the wrong-mode-without-an-error failure this package removes.
-		Selectors: old.Selectors,
-		// The orientation travels with the selectors it describes. This rekey did not
-		// renegotiate them, so the half that was ours is still ours -- whichever end
-		// started this exchange. Deriving it from localIsInitiator instead would swap the
-		// policy's ports at the first rekey the other end initiates.
-		SelectorsLocalIsTSi: old.SelectorsLocalIsTSi,
+		Selectors: selectors,
+		// The orientation travels with the selectors it describes, so it names the exchange
+		// that produced THEM. It is NOT LocalIsInitiator below, which is the KEYMAT role of
+		// the exchange that keyed this pair: the two agree for a renegotiated set and part
+		// company for an inherited one, and reading the KEYMAT role for an inherited set
+		// swaps the policy's ports at the first rekey the other end initiates.
+		SelectorsLocalIsTSi: selectorsLocalIsTSi,
 		Mode:                old.Mode,
 		LocalIsInitiator:    localIsInitiator,
 	}

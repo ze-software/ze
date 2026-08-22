@@ -664,7 +664,13 @@ var errTSUnusable = errors.New("ike: the responder's traffic selectors cannot be
 // wireToSelectors, because a peer can answer with a range no backend can express. That
 // reduction only ever shrinks a selector, so it cannot turn a widening answer into a
 // permitted one.
-func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS) error {
+//
+// floor is the selector set of the SA being rekeyed, or nil for a fresh Child SA, exactly
+// as it is for narrowChildSelectors above. It is in the orientation of the exchange in
+// hand, which applyChildRekeyResponse (rekey.go) establishes before it calls. An answer
+// that does not cover it is refused, so the set this function records is always one the
+// caller can install unchanged.
+func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) error {
 	iSels := wireToSelectors(tsi.TrafficSelectors)
 	rSels := wireToSelectors(tsr.TrafficSelectors)
 	// A GUARD MUST DENY OR SAY SOMETHING (ai/rules/evidence.md). Both exits
@@ -700,6 +706,28 @@ func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS) error {
 	if err := checkAnswerWithin(pairs, ceiling, what); err != nil {
 		return err
 	}
+
+	// RFC 7296 Section 2.9.2 MUST NOT: "Thus, the new SA MUST NOT have narrower selectors
+	// than the original" (rfc/full/rfc7296.txt:2539-2540), and "The responder MUST NOT
+	// narrow down the Traffic Selectors narrower than the scope currently in use"
+	// (rfc/full/rfc7296.txt:2551-2552).
+	//
+	// The first sentence binds the NEW SA, so it binds the end that installs one as much as
+	// the end that answers. A peer that answers below the scope in use has broken the
+	// second, and adopting that answer would build the SA the first forbids. Neither is
+	// available, so the exchange is refused and the SA in use stays.
+	//
+	// The initiator sends no error notification for it. RFC 7296 Section 2.21.3: "there
+	// should not be any reason for a peer to send error messages to the other end except as
+	// a response. Because sending such error messages as an INFORMATIONAL exchange might
+	// lead to further errors that could cause loops, such errors SHOULD NOT be sent"
+	// (rfc/full/rfc7296.txt:3331-3337). The caller drops the pending rekey and logs both
+	// selector sets instead (inbound.go).
+	if len(floor) > 0 && !coversFloor(pairs, floor) {
+		return fmt.Errorf("%w: the rekey answer narrows the scope in use %s down to %s",
+			errTSUnacceptable, pairsText(floor), pairsText(pairs))
+	}
+
 	sa.NegotiatedPairs = pairs
 	sa.NegotiatedTSi = pairs[0].I.Net
 	sa.NegotiatedTSr = pairs[0].R.Net

@@ -61,6 +61,12 @@ func TestRecordWithoutExclusiveOptionHasNoGroup(t *testing.T) {
 //     all of them. Unique victim addresses only stop the bind collision.
 //   - cos: every test configures the same VLAN (vlan-id 100) on the VM's real
 //     eth0, so concurrent daemons create and reconcile one device, eth0.100.
+//   - ipsec: `ip xfrm state` and `ip xfrm policy` are node-wide, so a test that
+//     reads them cannot tell its own SPIs and selectors from a sibling's. The two
+//     rekey tests read the SPI set to watch a make-before-break replacement
+//     arrive, and ipsec-teardown-leaves-nothing asserts both tables are EMPTY,
+//     which any concurrent tunnel falsifies. Unique prefixes partition the POLICY
+//     reads and nothing partitions the STATE reads: an SPI is random.
 //   - bfd: BFD listens on the ports RFC 5881 / RFC 5883 FIX (3784/3785). Every
 //     test's daemon binds the same wildcard tuple, co-existing only because
 //     ze.bfd.test-parallel turns on SO_REUSEPORT -- and the kernel then hashes
@@ -85,21 +91,23 @@ func TestContendingFunctionalTestsDeclareExclusiveGroup(t *testing.T) {
 	// contention is two processes on one host, so it bites on every platform, and
 	// membership is exactly "this test asked to co-bind the RFC ports".
 	clusters := []struct {
+		dir       string
 		glob      string
 		selector  string
 		group     string
 		shared    string
 		minChecks int
 	}{
-		{"ddos-*.ci", "option=needs-linux", "option=exclusive:group=ddos-flood", "the loopback byte counters their detector reads", 5},
-		{"cos-*.ci", "option=needs-linux", "option=exclusive:group=cos-vlan", "the eth0.100 VLAN device they each configure", 3},
-		{"*.ci", "ze.bfd.test-parallel", "option=exclusive:group=bfd-ports", "the RFC-fixed BFD ports 3784/3785 they all co-bind", 10},
+		{"plugin", "ddos-*.ci", "option=needs-linux", "option=exclusive:group=ddos-flood", "the loopback byte counters their detector reads", 5},
+		{"plugin", "cos-*.ci", "option=needs-linux", "option=exclusive:group=cos-vlan", "the eth0.100 VLAN device they each configure", 3},
+		{"plugin", "*.ci", "ze.bfd.test-parallel", "option=exclusive:group=bfd-ports", "the RFC-fixed BFD ports 3784/3785 they all co-bind", 10},
+		{"ipsec", "*.ci", "option=needs-linux:caps=net-admin", "option=exclusive:group=ipsec-xfrm", "the node-wide XFRM state and policy tables they each program", 3},
 	}
 
 	for _, c := range clusters {
-		matches, err := filepath.Glob(filepath.Join("..", "..", "..", "test", "plugin", c.glob))
+		matches, err := filepath.Glob(filepath.Join("..", "..", "..", "test", c.dir, c.glob))
 		if err != nil {
-			t.Fatalf("glob %s: %v", c.glob, err)
+			t.Fatalf("glob %s/%s: %v", c.dir, c.glob, err)
 		}
 
 		checked := 0
@@ -122,8 +130,8 @@ func TestContendingFunctionalTestsDeclareExclusiveGroup(t *testing.T) {
 		// Fail closed: a glob or filter that matches nothing would make the loop
 		// above vacuous and the ratchet would silently stop ratcheting.
 		if checked < c.minChecks {
-			t.Fatalf("checked %d %s files matching %q, want at least %d; the assertion above ran on nothing",
-				checked, c.glob, c.selector, c.minChecks)
+			t.Fatalf("checked %d %s/%s files matching %q, want at least %d; the assertion above ran on nothing",
+				checked, c.dir, c.glob, c.selector, c.minChecks)
 		}
 	}
 }

@@ -46,11 +46,12 @@ func winSoftExpired() *lifetimeState {
 
 // winChildRekeyResponse builds the payload chain of a peer CREATE_CHILD_SA response
 // to a Child SA rekey we initiated. RFC 7296 Section 1.3.2: SA and Nr.
-func winChildRekeyResponse(peerESPSPI uint32, nr []byte) []wire.PayloadEntry {
-	return []wire.PayloadEntry{
+func winChildRekeyResponse(t *testing.T, old *ChildSA, peerESPSPI uint32, nr []byte) []wire.PayloadEntry {
+	t.Helper()
+	return append([]wire.PayloadEntry{
 		{Payload: espSAPayload(peerESPSPI)},
 		{Payload: &wire.PayloadNonce{NonceData: nr}},
-	}
+	}, childRekeyAnswerTS(t, old)...)
 }
 
 // winForge returns a copy of raw whose last byte is flipped. The header and every
@@ -297,7 +298,7 @@ func TestWinDeleteDefersWhileProbeOutstanding(t *testing.T) {
 		oldChild:      old,
 	}
 	respMsg := &wire.Message{Header: wire.Header{MessageID: ps.pendingRekey.messageID}}
-	out := ps.handleCreateChildSAOwned(ini, respMsg, winChildRekeyResponse(winESPSPI, testNonce(5)), true, myTr, dp, log)
+	out := ps.handleCreateChildSAOwned(ini, respMsg, winChildRekeyResponse(t, old, winESPSPI, testNonce(5)), true, myTr, dp, log)
 	if out.newChild == nil {
 		t.Fatal("the rekey response installed no replacement Child SA")
 	}

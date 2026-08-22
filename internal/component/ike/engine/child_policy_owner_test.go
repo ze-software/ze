@@ -243,10 +243,10 @@ func TestChildSARekeyReclaimsItsOwnPolicySelector(t *testing.T) {
 		newInboundSPI: 0x55667788,
 		oldChild:      old,
 	}
-	inner := []wire.PayloadEntry{
+	inner := append([]wire.PayloadEntry{
 		{Payload: espSAPayload(0x99AABBCC)},
 		{Payload: &wire.PayloadNonce{NonceData: make([]byte, nonceLen)}},
-	}
+	}, childRekeyAnswerTS(t, old)...)
 
 	replacement, err := applyChildRekeyResponse(sa, pending, inner, dp, log)
 	if err != nil {

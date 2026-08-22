@@ -471,7 +471,9 @@ func TestRekeyedChildInheritsModeAndSelectors(t *testing.T) {
 		}},
 	}
 
-	fresh := newRekeyedChild(old, 3, 4, nil, true)
+	// The rekey negotiated no selector of its own, so the replacement carries the scope in
+	// use forward and the NEXT rekey still has a floor.
+	fresh := newRekeyedChild(old, 3, 4, nil, true, nil)
 	if fresh.Mode != modeTransport {
 		t.Errorf("rekeyed child mode = %d, want transport (%d); a transport tunnel would become a tunnel-mode one at its first rekey",
 			fresh.Mode, modeTransport)

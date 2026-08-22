@@ -1,0 +1,7 @@
+# The stimulus. It narrows THIS peer's Child SA rekey proposal to 10.2.0.0/25, below
+# the 10.2.0.0/24 the SA in use carries, which is the only way to make a conforming
+# strongSwan answer a rekey with a scope narrower than the one in use: charon narrows
+# what it is offered, and it builds its own proposals from the CHILD_SA's stored
+# child_cfg, so no swanctl edit can produce that answer.
+# Producer: narrowedRekeyPairs (internal/component/ike/engine/testport.go).
+ZE_TEST_IKE_REKEY_TS_LOCAL=10.2.0.0/25

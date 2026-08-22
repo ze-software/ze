@@ -62,7 +62,7 @@ func TestTisInitiatorRefusesAWidenedAnswer(t *testing.T) {
 
 	err := recordInitiatorSelectors(sa,
 		tsPayload(t, wire.PayloadTypeTSi, "0.0.0.0/0"),
-		tsPayload(t, wire.PayloadTypeTSr, "0.0.0.0/0"))
+		tsPayload(t, wire.PayloadTypeTSr, "0.0.0.0/0"), nil)
 	if !errors.Is(err, errTSWidened) {
 		t.Fatalf("an answer of 0.0.0.0/0 to a proposal of 10.1.0.0/16 returned %v, want errTSWidened", err)
 	}
@@ -79,7 +79,7 @@ func TestTisInitiatorRefusesAWidenedAnswer(t *testing.T) {
 	proposeChildTSPayloads(half)
 	err = recordInitiatorSelectors(half,
 		tsPayload(t, wire.PayloadTypeTSi, "10.1.1.0/24"),
-		tsPayload(t, wire.PayloadTypeTSr, "10.0.0.0/8"))
+		tsPayload(t, wire.PayloadTypeTSr, "10.0.0.0/8"), nil)
 	if !errors.Is(err, errTSWidened) {
 		t.Errorf("an answer widening only TSr returned %v, want errTSWidened", err)
 	}
@@ -94,7 +94,7 @@ func TestTisInitiatorAcceptsANarrowedAnswer(t *testing.T) {
 
 	if err := recordInitiatorSelectors(sa,
 		tsPayload(t, wire.PayloadTypeTSi, "10.1.1.0/24"),
-		tsPayload(t, wire.PayloadTypeTSr, "10.2.1.0/24")); err != nil {
+		tsPayload(t, wire.PayloadTypeTSr, "10.2.1.0/24"), nil); err != nil {
 		t.Fatalf("a narrowed answer was refused: %v", err)
 	}
 	if got := sa.NegotiatedTSi.String(); got != "10.1.1.0/24" {
@@ -108,7 +108,7 @@ func TestTisInitiatorAcceptsANarrowedAnswer(t *testing.T) {
 	same := tisInitiator(t, tisPeer(t))
 	if err := recordInitiatorSelectors(same,
 		tsPayload(t, wire.PayloadTypeTSi, "10.1.0.0/16"),
-		tsPayload(t, wire.PayloadTypeTSr, "10.2.0.0/16")); err != nil {
+		tsPayload(t, wire.PayloadTypeTSr, "10.2.0.0/16"), nil); err != nil {
 		t.Errorf("an answer equal to the proposal was refused: %v", err)
 	}
 }
@@ -128,7 +128,7 @@ func TestTisUnconfiguredPeerAcceptsAnyAnswer(t *testing.T) {
 
 	if err := recordInitiatorSelectors(sa,
 		tsPayload(t, wire.PayloadTypeTSi, "192.168.5.0/24"),
-		tsPayload(t, wire.PayloadTypeTSr, "172.16.9.0/24")); err != nil {
+		tsPayload(t, wire.PayloadTypeTSr, "172.16.9.0/24"), nil); err != nil {
 		t.Fatalf("an unconfigured peer refused an answer: %v", err)
 	}
 	if sa.NegotiatedTSi == nil || sa.NegotiatedTSi.String() != "192.168.5.0/24" {
@@ -167,7 +167,7 @@ func TestTisTransportModeAnswerIsNotRefusedByPolicyPrefixes(t *testing.T) {
 
 	if err := recordInitiatorSelectors(sa,
 		tsPayload(t, wire.PayloadTypeTSi, "192.0.2.1/32"),
-		tsPayload(t, wire.PayloadTypeTSr, "192.0.2.2/32")); err != nil {
+		tsPayload(t, wire.PayloadTypeTSr, "192.0.2.2/32"), nil); err != nil {
 		t.Fatalf("the answer to ze's own transport-mode proposal was refused: %v", err)
 	}
 
@@ -175,7 +175,7 @@ func TestTisTransportModeAnswerIsNotRefusedByPolicyPrefixes(t *testing.T) {
 	other := tisInitiator(t, peer)
 	if err := recordInitiatorSelectors(other,
 		tsPayload(t, wire.PayloadTypeTSi, "198.51.100.7/32"),
-		tsPayload(t, wire.PayloadTypeTSr, "192.0.2.2/32")); !errors.Is(err, errTSWidened) {
+		tsPayload(t, wire.PayloadTypeTSr, "192.0.2.2/32"), nil); !errors.Is(err, errTSWidened) {
 		t.Errorf("a transport-mode answer naming a third address returned %v, want errTSWidened", err)
 	}
 }
@@ -191,7 +191,7 @@ func TestTisUndecodableAnswerIsRefusedRatherThanIgnored(t *testing.T) {
 
 	// TS payloads carrying no selector at all: present on the wire, empty after decoding.
 	empty := &wire.PayloadTS{}
-	err := recordInitiatorSelectors(sa, empty, empty)
+	err := recordInitiatorSelectors(sa, empty, empty, nil)
 	if err == nil {
 		t.Fatal("an answer carrying no decodable selector was accepted, so the SA would " +
 			"establish with no negotiated traffic selector and nothing would say so")
@@ -208,7 +208,7 @@ func TestTisUndecodableAnswerIsRefusedRatherThanIgnored(t *testing.T) {
 	ok := tisInitiator(t, tisPeer(t))
 	if err := recordInitiatorSelectors(ok,
 		tsPayload(t, wire.PayloadTypeTSi, "10.1.1.0/24"),
-		tsPayload(t, wire.PayloadTypeTSr, "10.2.1.0/24")); err != nil {
+		tsPayload(t, wire.PayloadTypeTSr, "10.2.1.0/24"), nil); err != nil {
 		t.Errorf("a narrowed answer was refused: %v", err)
 	} else if len(ok.NegotiatedPairs) == 0 {
 		t.Error("a narrowed answer was accepted but recorded no negotiated pair")

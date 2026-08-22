@@ -80,10 +80,13 @@ hard lifetime.
 **The wire answer against the installed policy.** RFC 7296 Section 2.9 makes the
 TS payloads of a rekey response a statement about the SA that was installed: "TS
 payloads specify the selection criteria for packets that will be forwarded over
-the newly set up SA." `newRekeyedChild` installs the retired pair's selectors, so
-the response must announce that same set.
+the newly set up SA." `newRekeyedChild` installs the set THIS exchange
+negotiated, which both roles hand it as `sa.NegotiatedPairs`, so the scope on the
+wire and the scope in the kernel are one value rather than two that agree by
+accident. It also takes that set's orientation from the exchange role: the end
+that sent Ni is TSi.
 
-`narrowChildSelectors` keeps the two as one set. It answers the scope in use
+`narrowChildSelectors` keeps the two as one set on the responder. It answers the scope in use
 while the peer's proposal covers it, and it refuses the exchange with
 TS_UNACCEPTABLE when the narrowing does not cover that scope. Section 2.9.2
 leaves no third answer: "The responder MUST NOT narrow down the Traffic Selectors
@@ -96,6 +99,26 @@ no notification.
 
 <!-- source: internal/component/ike/engine/ts_narrow.go -- narrowChildSelectors, coversFloor -->
 <!-- source: internal/component/ike/engine/rekey.go -- respondChildRekey, newRekeyedChild -->
+
+**The answer the INITIATOR reads.** The same Section 2.9 sentence binds the other
+role, and it binds it harder: the responder narrowed, so only the response says
+what the peer will forward. `applyChildRekeyResponse` refuses a rekey response
+that carries no TSi or TSr, then hands the payloads and the rekey floor to
+`recordInitiatorSelectors`, which refuses an answer wider than what ze proposed
+and an answer that does not cover the scope in use. What it records is what
+`newRekeyedChild` installs.
+
+RFC 7296 Section 2.21.3 settles what ze sends when it refuses: nothing. "Because
+sending such error messages as an INFORMATIONAL exchange might lead to further
+errors that could cause loops, such errors SHOULD NOT be sent." The pending rekey
+is dropped, both selector sets reach the log, and the SA in use keeps carrying
+traffic. Before this path read the payloads at all, ze installed the retired
+pair's scope whatever the peer answered. Measured against strongSwan 5.9.14:
+charon programmed `10.1.0.0/24 === 10.2.0.0/25` while ze kept `10.2.0.0/24 <->
+10.1.0.0/24`.
+
+<!-- source: internal/component/ike/engine/rekey.go -- applyChildRekeyResponse -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- recordInitiatorSelectors, checkAnswerWithin -->
 
 **A kernel with no XFRM.** `createFirstChildSA` tolerates an unsupported
 dataplane. The rekey install must tolerate it too, or it tears down tunnels that

@@ -603,6 +603,19 @@ unique config cannot partition. Membership is "declares `ze.bfd.test-parallel`",
 which is the same ratchet's third cluster.
 <!-- source: internal/component/bfd/transport/udp_linux.go -- applySocketOptions, SO_REUSEPORT under ze.bfd.test-parallel -->
 
+The ipsec cluster (`option=exclusive:group=ipsec-xfrm`) contends on the kernel's
+own tables. `ip xfrm state` and `ip xfrm policy` are node-wide, so a test that
+reads them cannot tell its own SPIs and selectors from a sibling's. The two rekey
+tests watch the SPI set for a make-before-break replacement arriving, and
+`ipsec-teardown-leaves-nothing` asserts both tables are *empty*, which any
+concurrent tunnel falsifies. Unique prefixes partition the policy reads and
+nothing partitions the state reads, because an SPI is random. Run together before
+the group existed, `ipsec-child-rekey-xfrm` read the narrowing test's replacement
+SPIs and reported `POLICY-MOVED`, while `ipsec-child-rekey-xfrm-narrowing` read
+that test's SPIs and reported `REKEY-ACCEPTED`. Both verdicts were about the other
+test's kernel state. Membership is "declares
+`option=needs-linux:caps=net-admin`", which is the same ratchet's fourth cluster.
+
 Related: a test that binds a *chosen* port must take it from the runner's per-test
 range (`$PORT`, `$PORT2`), never a literal. `bfd-echo-handshake` hardcoded
 telemetry port 19274, which sits outside every range the runner hands out, so a

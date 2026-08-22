@@ -51,6 +51,26 @@ the scope in use.
 `recordInitiatorSelectors` and `checkAnswerWithin` reject a response whose
 selectors are wider than the proposal. `errTSWidened` is that refusal.
 
+**The initiator INSTALLS the answer, on a rekey as well as on IKE_AUTH.**
+Section 2.9 makes the response TS payloads the criteria for packets forwarded
+over the new SA, so the answer is what the initiator programs.
+`recordInitiatorSelectors` therefore takes the same rekey FLOOR that
+`narrowChildSelectors` takes, and `coversFloor` refuses an answer below the
+scope in use: Section 2.9.2 binds the new SA, so it binds the end that installs
+one as much as the end that answers. `applyChildRekeyResponse`
+(`internal/component/ike/engine/rekey.go`) passes that floor and hands the
+recorded set to `newRekeyedChild`, which is the single place a replacement Child
+SA takes its scope from. The floor is nil on IKE_AUTH, where no scope is in use
+yet.
+
+<!-- source: internal/component/ike/engine/rekey.go -- applyChildRekeyResponse, respondChildRekey, newRekeyedChild -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- coversFloor, floorWithinProposal -->
+
+RFC 7296 Section 2.21.3 decides what the initiator sends when it refuses:
+nothing. "Because sending such error messages as an INFORMATIONAL exchange might
+lead to further errors that could cause loops, such errors SHOULD NOT be sent."
+The rekey is abandoned, both selector sets are logged, and the SA in use stays.
+
 **A selector the dataplane cannot program is refused at config time.** The
 config parser validates the port form and the single-host constraint, so an
 unprogrammable policy is a config error rather than a runtime surprise.

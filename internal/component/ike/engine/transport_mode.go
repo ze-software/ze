@@ -127,8 +127,12 @@ func adoptAuthResponseNegotiation(sa *SA, transportAccepted bool, tsi, tsr *wire
 	// they are what this side installs, so both ends program the same traffic. Narrowing is
 	// one-way, so an answer that WIDENS the proposal ends the exchange instead of being
 	// installed (ts_narrow.go).
+	//
+	// The floor is nil: this is the FIRST Child SA of the IKE SA, so no scope is in use yet
+	// for RFC 7296 Section 2.9.2 to protect. applyChildRekeyResponse (rekey.go) passes the
+	// SA being replaced.
 	if tsi != nil && tsr != nil {
-		if err := recordInitiatorSelectors(sa, tsi, tsr); err != nil {
+		if err := recordInitiatorSelectors(sa, tsi, tsr, nil); err != nil {
 			log.Warn("ike: the responder widened the traffic selectors, deleting the SA",
 				"peer", sa.PeerName, "error", err)
 			// RFC 7296 Section 2.9 names the notification for a traffic-selector answer

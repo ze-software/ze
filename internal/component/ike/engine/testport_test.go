@@ -5,7 +5,12 @@
 // PREVENTS: the override silently regressing to the fixed well-known port.
 package engine
 
-import "testing"
+import (
+	"net"
+	"testing"
+
+	"github.com/ze-software/ze/internal/component/ike/ipsec"
+)
 
 func TestIKEAddrDefaultPort(t *testing.T) {
 	orig := ikeTestPortFn
@@ -131,5 +136,67 @@ func TestIKEAddrRejectsGarbageOverride(t *testing.T) {
 	// producing an unusable address.
 	if got := ikeAddr("127.0.0.2"); got != "127.0.0.2:500" {
 		t.Fatalf("ikeAddr = %q, want fallback to :500", got)
+	}
+}
+
+// TestNarrowedRekeyPairsOverride covers the ze.test.ike.rekey.ts.local seam that lets a
+// functional test reach RFC 7296 Section 2.9.2's split-configuration case.
+//
+// VALIDATES: unset means production, a prefix replaces the local half of every proposed
+// pair, and a value the daemon cannot act on is an error rather than a silent no-op.
+// PREVENTS: a typo in a .ci turning the refusal test green by proposing the ordinary
+// selectors, which every responder accepts.
+func TestNarrowedRekeyPairsOverride(t *testing.T) {
+	orig := ikeRekeyTSLocalFn
+	t.Cleanup(func() { ikeRekeyTSLocalFn = orig })
+
+	_, wide, err := net.ParseCIDR("192.0.2.128/25")
+	if err != nil {
+		t.Fatalf("ParseCIDR: %v", err)
+	}
+	_, remote, err := net.ParseCIDR("192.0.2.0/25")
+	if err != nil {
+		t.Fatalf("ParseCIDR: %v", err)
+	}
+	proposed := []tsPair{{
+		I: tsSelector{Net: wide, Proto: 6},
+		R: tsSelector{Net: remote, Port: ipsec.PortSelector{Form: ipsec.PortSingle, Port: 179}, Proto: 6},
+	}}
+
+	ikeRekeyTSLocalFn = func() string { return "" }
+	narrowed, err := narrowedRekeyPairs(proposed)
+	if err != nil {
+		t.Fatalf("unset override: %v", err)
+	}
+	if narrowed != nil {
+		t.Fatalf("unset override narrowed the proposal to %v", narrowed)
+	}
+
+	ikeRekeyTSLocalFn = func() string { return "192.0.2.192/26" }
+	narrowed, err = narrowedRekeyPairs(proposed)
+	if err != nil {
+		t.Fatalf("set override: %v", err)
+	}
+	if len(narrowed) != 1 {
+		t.Fatalf("set override returned %d pairs, want 1", len(narrowed))
+	}
+	if got := narrowed[0].I.Net.String(); got != "192.0.2.192/26" {
+		t.Errorf("local half = %s, want 192.0.2.192/26", got)
+	}
+	if got := narrowed[0].R.Net.String(); got != "192.0.2.0/25" {
+		t.Errorf("remote half = %s, want it untouched at 192.0.2.0/25", got)
+	}
+	if got := proposed[0].I.Net.String(); got != "192.0.2.128/25" {
+		t.Errorf("the caller's pair was mutated to %s", got)
+	}
+
+	ikeRekeyTSLocalFn = func() string { return "not-a-prefix" }
+	if _, err := narrowedRekeyPairs(proposed); err == nil {
+		t.Error("a malformed prefix was accepted")
+	}
+
+	ikeRekeyTSLocalFn = func() string { return "192.0.2.192/26" }
+	if _, err := narrowedRekeyPairs(nil); err == nil {
+		t.Error("an override with nothing to narrow was accepted")
 	}
 }

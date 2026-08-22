@@ -33,7 +33,7 @@ func rekeyPair(t *testing.T) (old, replacement *ChildSA) {
 		TSRemote:    tsRemote,
 		Mode:        modeTunnel,
 	}
-	replacement = newRekeyedChild(old, 0x3333, 0x4444, &crypto.ChildSAKeys{}, true)
+	replacement = newRekeyedChild(old, 0x3333, 0x4444, &crypto.ChildSAKeys{}, true, nil)
 	return old, replacement
 }
 

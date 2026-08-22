@@ -1,15 +1,20 @@
 // Design: docs/architecture/ike/ipsec-10-cli-diag.md -- IKE engine addressing seam
 // RFC: rfc/short/rfc3948.md -- UDP encapsulation of ESP uses port 4500 (Section 2.1)
 //
-// ze.test.ike.port is a runtime-only env var for the test infrastructure,
-// mirroring ze.test.bgp.port (internal/component/bgp/config/loader_create.go):
-// it reroutes both the IKE listen socket and peer dial addresses so two
-// unprivileged local daemons can negotiate IKEv2 on a high port. Production
-// deployments never set it and keep the RFC 3947/4306 well-known UDP 500.
+// This file holds the runtime-only env vars the IKE test infrastructure sets.
+// Production deployments set none of them.
+//
+// ze.test.ike.port mirrors ze.test.bgp.port
+// (internal/component/bgp/config/loader_create.go): it reroutes both the IKE
+// listen socket and peer dial addresses so two unprivileged local daemons can
+// negotiate IKEv2 on a high port. Production keeps the RFC 3947/4306 well-known
+// UDP 500.
 
 package engine
 
 import (
+	"fmt"
+	"net"
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/ike/transport"
@@ -18,8 +23,9 @@ import (
 )
 
 const (
-	envKeyIKEPort      = "ze.test.ike.port"
-	envKeyIKEDataplane = "ze.test.ike.dataplane"
+	envKeyIKEPort         = "ze.test.ike.port"
+	envKeyIKEDataplane    = "ze.test.ike.dataplane"
+	envKeyIKERekeyTSLocal = "ze.test.ike.rekey.ts.local"
 )
 
 var _ = coreenv.MustRegister(coreenv.EnvEntry{
@@ -37,6 +43,54 @@ var _ = coreenv.MustRegister(coreenv.EnvEntry{
 	Description: "IKE dataplane backend override, e.g. noop (test infrastructure)",
 	Private:     true,
 })
+
+var _ = coreenv.MustRegister(coreenv.EnvEntry{
+	Key:         envKeyIKERekeyTSLocal,
+	Type:        "string",
+	Default:     "",
+	Description: "Child SA rekey local traffic selector override (test infrastructure)",
+	Private:     true,
+})
+
+// ikeRekeyTSLocalFn reads the override; swapped in unit tests.
+var ikeRekeyTSLocalFn = func() string { return coreenv.Get(envKeyIKERekeyTSLocal) }
+
+// narrowedRekeyPairs replaces the local half of a Child SA rekey proposal with the prefix
+// ze.test.ike.rekey.ts.local names. It returns a nil slice and a nil error when the key is
+// unset, which is every production run.
+//
+// It exists because one case of RFC 7296 Section 2.9.2 is otherwise unreachable between two
+// Ze daemons. A rekey proposal comes from sa.PeerCfg (proposeChildTSPayloads, rekey.go),
+// which startPeerSession copies when the session starts and nothing writes again;
+// peerConfigChanged compares no traffic selector, so a config reload neither restarts the
+// session nor refreshes the copy (reconcile.go). A live SA therefore proposes the selectors
+// it was born with, and those always cover the scope it installed. Section 2.9.2 names the
+// opposite case, where "the policy was changed in a way such that the currently used SA is
+// against the policy", and this key is what produces a peer in it.
+// test/ipsec/ipsec-child-rekey-xfrm-narrowing.ci is the caller that sets it.
+//
+// It is an env var rather than a YANG leaf because it states nothing an operator would
+// want: it makes a daemon propose a scope its own policy does not hold.
+func narrowedRekeyPairs(pairs []tsPair) ([]tsPair, error) {
+	value := ikeRekeyTSLocalFn()
+	if value == "" {
+		return nil, nil
+	}
+	_, prefix, err := net.ParseCIDR(value)
+	if err != nil {
+		return nil, fmt.Errorf("%s=%q: %w", envKeyIKERekeyTSLocal, value, err)
+	}
+	if len(pairs) == 0 {
+		return nil, fmt.Errorf("%s=%q: this peer proposes no traffic selector to narrow",
+			envKeyIKERekeyTSLocal, value)
+	}
+	out := make([]tsPair, 0, len(pairs))
+	for _, pair := range pairs {
+		pair.I.Net = prefix
+		out = append(out, pair)
+	}
+	return out, nil
+}
 
 // ikeDataplaneFn reads the backend override; swapped in unit tests.
 var ikeDataplaneFn = func() string { return coreenv.Get(envKeyIKEDataplane) }

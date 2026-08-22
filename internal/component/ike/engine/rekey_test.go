@@ -245,10 +245,10 @@ func TestRekeyPreservesAddresses(t *testing.T) {
 		newInboundSPI: 0x55667788,
 		oldChild:      old,
 	}
-	inner := []wire.PayloadEntry{
+	inner := append([]wire.PayloadEntry{
 		{Payload: espSAPayload(0x99AABBCC)},
 		{Payload: &wire.PayloadNonce{NonceData: make([]byte, nonceLen)}},
-	}
+	}, childRekeyAnswerTS(t, old)...)
 	newChild, err := applyChildRekeyResponse(sa, pending, inner, dp, log)
 	if err != nil {
 		t.Fatalf("applyChildRekeyResponse: %v", err)
@@ -289,10 +289,10 @@ func TestRekeyKeepsBothESPFormAcceptance(t *testing.T) {
 		newInboundSPI: 0x55667788,
 		oldChild:      old,
 	}
-	inner := []wire.PayloadEntry{
+	inner := append([]wire.PayloadEntry{
 		{Payload: espSAPayload(0x99AABBCC)},
 		{Payload: &wire.PayloadNonce{NonceData: make([]byte, nonceLen)}},
-	}
+	}, childRekeyAnswerTS(t, old)...)
 	if _, err := applyChildRekeyResponse(sa, pending, inner, dp, log); err != nil {
 		t.Fatalf("applyChildRekeyResponse: %v", err)
 	}

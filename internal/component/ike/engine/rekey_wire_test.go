@@ -20,6 +20,20 @@ func espSAPayload(spi uint32) *wire.PayloadSA {
 	return &wire.PayloadSA{Proposals: buildWireESPProposals(testESPGroup(), spi)}
 }
 
+// childRekeyAnswerTS builds the TSi and TSr payloads a conforming peer echoes for a rekey
+// ze started: the scope the SA in use already carries.
+//
+// RFC 7296 Section 1.3.3 puts both payloads in the CREATE_CHILD_SA response, and Section
+// 2.9.2 forbids an answer narrower than the scope in use, so echoing that scope is what a
+// peer that accepts the proposal sends. ze sent Ni here, so this node's side is TSi.
+func childRekeyAnswerTS(t *testing.T, old *ChildSA) []wire.PayloadEntry {
+	t.Helper()
+	return []wire.PayloadEntry{
+		{Payload: tsPayload(t, wire.PayloadTypeTSi, old.TSLocal.String())},
+		{Payload: tsPayload(t, wire.PayloadTypeTSr, old.TSRemote.String())},
+	}
+}
+
 func testNonce(seed byte) []byte {
 	n := make([]byte, nonceLen)
 	for i := range n {
@@ -85,10 +99,10 @@ func TestApplyChildRekeyResponse(t *testing.T) {
 		newInboundSPI: ourSPI,
 		oldChild:      old,
 	}
-	inner := []wire.PayloadEntry{
+	inner := append([]wire.PayloadEntry{
 		{Payload: espSAPayload(peerSPI)},
 		{Payload: &wire.PayloadNonce{NonceData: testNonce(2)}},
-	}
+	}, childRekeyAnswerTS(t, old)...)
 
 	child, err := applyChildRekeyResponse(sa, pending, inner, dp, log)
 	if err != nil {

@@ -83,7 +83,15 @@ func TestRekeyKeepsThePolicyOrientationOfTheRetiredPair(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			old := asymmetricPortChild(t, tc.oldLocalInitiator)
-			replacement := newRekeyedChild(old, 0x3333, 0x4444, &crypto.ChildSAKeys{}, tc.rekeyInitiator)
+			// The rekey renegotiated the SAME scope, stated in ITS own orientation: the end
+			// that sent Ni is TSi (RFC 7296 Section 2.9). That is what both production
+			// callers hand the builder, and the two cases below make that orientation
+			// disagree with the one the retired pair stored.
+			negotiated := old.Selectors
+			if old.SelectorsLocalIsTSi != tc.rekeyInitiator {
+				negotiated = swapPairs(negotiated)
+			}
+			replacement := newRekeyedChild(old, 0x3333, 0x4444, &crypto.ChildSAKeys{}, tc.rekeyInitiator, negotiated)
 
 			for _, side := range []struct {
 				name  string

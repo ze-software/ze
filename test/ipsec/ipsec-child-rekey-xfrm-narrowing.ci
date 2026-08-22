@@ -1,0 +1,328 @@
+# Functional test: a Child SA rekey REFUSED on the REAL XFRM dataplane.
+# VALIDATES: spec-fixit-child-rekey-answer-vs-installed-selectors AC-2 and AC-4 -- a peer
+#            proposes a scope that no longer covers the SA in use, RFC 7296 Section 2.9.2
+#            leaves no legal answer, and the responder refuses with TS_UNACCEPTABLE. The
+#            kernel policy selectors stay exactly what the tunnel announced, and no
+#            replacement state pair is ever installed.
+# PREVENTS: the divergence the spec names. Before the fix, respondChildRekey answered the
+#           intersection of the peer's narrowed proposal while newRekeyedChild installed
+#           the retired pair's selectors, so the wire said 192.0.2.96/27 and the kernel
+#           held 192.0.2.64/26. Traffic in the difference is protected at one end and
+#           dropped at the other, with no notification and no log line.
+#
+# WHY THE ROLES ARE CROSSED. RFC 7296 Section 1.3.2 lets EITHER end start a
+# CREATE_CHILD_SA, so the exchange role is not the IKE SA role. peer-a INITIATED the IKE
+# SA and holds a long ESP lifetime, peer-b responded and holds a short one, so peer-b's
+# soft expiry makes it drive the rekey that peer-a answers. This is the same crossing
+# test/ipsec/ipsec-child-rekey-xfrm.ci uses, and for the same reason: the floor peer-a
+# compares against is stored in the IKE_AUTH orientation and has to be swapped into this
+# exchange's, so an orientation error here refuses every rekey rather than this one.
+#
+# WHY ONE DATAPLANE AND NOT TWO. The kernel keys an XFRM state on (src, dst, spi, proto)
+# and the two ends of one negotiated Child SA are the SAME two states, so a second
+# XfrmStateAdd answers EEXIST. peer-a therefore runs the real xfrm backend and peer-b the
+# noop one, and every kernel assertion below is about peer-a.
+#
+# WHY peer-b NEEDS ze_test_ike_rekey_ts_local. A Ze peer proposes sa.PeerCfg at its rekey
+# (proposeChildTSPayloads, engine/rekey.go), startPeerSession copies that config when the
+# session starts, and peerConfigChanged compares no traffic selector (engine/reconcile.go).
+# A live SA therefore proposes the selectors it was born with, and those always cover the
+# scope it installed, so two Ze daemons alone cannot reach Section 2.9.2's case where "the
+# policy was changed in a way such that the currently used SA is against the policy". The
+# override narrows the local half of THIS request alone, which is the peer that section
+# describes. Production sets no such key (engine/testport.go, narrowedRekeyPairs).
+#
+# WHY THE SELECTORS CARRY A PORT. A prefix pair is symmetric under an orientation error:
+# swapping the two halves of a policy whose only asymmetry is the prefix produces the
+# INBOUND policy, which is installed anyway. A port on one side alone is what makes the
+# swap visible, so the selector is TCP with a source port on peer-a's half.
+#
+# WHY THESE PREFIXES. The policies are real and node-wide for the life of the test, so
+# they name RFC 5737 documentation addresses no traffic can be using. They are quarters of
+# TEST-NET-1, distinct as printed strings from the TEST-NET-1 halves
+# ipsec-child-rekey-xfrm.ci installs and from the TEST-NET-2/3 pair
+# ipsec-teardown-leaves-nothing.ci installs, so each XFRM fixture reads only its own rows.
+#
+# Gated option=needs-linux:caps=net-admin: peer-a programs real XFRM state, so this SKIPs
+# on a host without CAP_NET_ADMIN (the unprivileged dev box) and runs as root in the QEMU
+# VM, where `fsuite ipsec` in scripts/evidence/qemu-all-tests.sh executes the suite.
+
+option=needs-linux:caps=net-admin
+# Serialize against every other real-XFRM ipsec test. `ip xfrm state` and
+# `ip xfrm policy` are NODE-WIDE, so a sibling running concurrently adds SPIs and
+# policies this test's readers cannot tell from its own. MEASURED 2026-08-22: run
+# together, ipsec-child-rekey-xfrm read the narrowing test's replacement SPIs as its
+# own and reported POLICY-MOVED, while ipsec-child-rekey-xfrm-narrowing read this
+# test's replacement SPIs and reported REKEY-ACCEPTED. Both verdicts were about the
+# other test's kernel state.
+option=exclusive:group=ipsec-xfrm
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=120s
+option=env:var=ze_log_ike:value=info
+
+tmpfs=refused.py:mode=755:terminator=EOF_REFUSED
+#!/usr/bin/env python3
+"""Watch a refused Child SA rekey in the kernel rather than in a log line.
+
+Two facts are read from `ip xfrm`. The tunnel's state pair arrives, and from then on
+NOTHING moves: no replacement pair joins it, and the policy selectors stay where the
+IKE_AUTH exchange put them. A rekey peer-a answered instead of refusing would install a
+second pair beside the first, because that is what make-before-break does.
+
+The refusal itself is asserted on the daemons' log by the expect=stderr lines at the end
+of the .ci file. This script owns the kernel half, which is what AC-4 asks for: the
+policy selector the kernel holds equals the set the tunnel announced.
+"""
+import subprocess
+import sys
+
+from ze_api import wait_until
+
+# The two halves of the negotiated selector, as `ip xfrm policy` prints them. Every policy
+# this tunnel installs names one of them, and nothing else on the box does.
+LOCAL_NET = "192.0.2.0/26"
+REMOTE_NET = "192.0.2.64/26"
+
+# The tunnel endpoints. An XFRM state row names them, so reading only those rows keeps a
+# tunnel another fixture installed out of this one's arithmetic.
+ENDPOINTS = frozenset(("127.0.0.1", "127.0.0.2"))
+
+# The watch, in polls of a quarter second. peer-b's ESP lifetime is 10 seconds, so its
+# rekey starts around 5 seconds after the pair arrives and its hard expiry lands at 10.
+# 80 polls is 20 seconds, which covers both and stops well before peer-a could notice a
+# peer that is no longer answering.
+WATCH_POLLS = 80
+WATCH_DELAY = 0.25
+
+
+def run(*cmd):
+    out = subprocess.run(cmd, capture_output=True, text=True)
+    if out.returncode != 0:
+        sys.exit(f"{' '.join(cmd)} failed: {out.stderr.strip()}")
+    return out.stdout
+
+
+def spis():
+    """The ESP SPIs of the states between this test's two endpoints.
+
+    A state row opens with its `src <addr> dst <addr>` line and the SPI follows on the
+    next line, so the endpoints are carried forward until the next row opens.
+    """
+    found = []
+    endpoints = None
+    for line in run("ip", "xfrm", "state").splitlines():
+        fields = line.split()
+        if not fields:
+            continue
+        if fields[0] == "src" and len(fields) >= 4:
+            endpoints = frozenset((fields[1], fields[3]))
+            continue
+        if endpoints != ENDPOINTS:
+            continue
+        for i, field in enumerate(fields):
+            if field == "spi" and i + 1 < len(fields):
+                found.append(fields[i + 1])
+    return frozenset(found)
+
+
+def policies():
+    """This tunnel's policy selectors, one normalised string per policy.
+
+    The selector line carries the addresses, the protocol and the ports; the `dir` line
+    that follows says which direction it is. A port that changed sides, a prefix the rekey
+    moved, or a policy that was removed changes this set.
+    """
+    found = []
+    selector = None
+    for line in run("ip", "xfrm", "policy").splitlines():
+        fields = line.split()
+        if not fields:
+            continue
+        if fields[0] == "src":
+            selector = " ".join(fields) if (LOCAL_NET in fields or REMOTE_NET in fields) else None
+        elif selector is not None and fields[0] == "dir":
+            found.append(f"{selector} | {fields[1]}")
+            selector = None
+    return frozenset(found)
+
+
+if not wait_until(lambda: len(spis()) >= 2 and len(policies()) >= 2, attempts=400, delay=0.25):
+    sys.exit(f"the tunnel never reached the kernel: states={sorted(spis())} policies={sorted(policies())}")
+first_spis, first_policies = spis(), policies()
+print("INSTALLED:", " ".join(sorted(first_spis)))
+print("POLICIES:", " | ".join(sorted(first_policies)))
+
+# The refusal, measured as the absence of every change a rekey makes. peer-b proposes
+# 192.0.2.96/27, which covers no pair of the scope in use, so peer-a answers
+# TS_UNACCEPTABLE and installs nothing. The first result recorded wins, and the poll ends
+# on it.
+moved = {}
+
+
+def changed():
+    current = spis()
+    if current != first_spis:
+        moved["states"] = sorted(current)
+        return True
+    current = policies()
+    if current != first_policies:
+        moved["policies"] = sorted(current)
+        return True
+    return False
+
+
+wait_until(changed, attempts=WATCH_POLLS, delay=WATCH_DELAY)
+
+if "policies" in moved:
+    print("POLICY-MOVED: the refused rekey changed the installed selectors")
+    print("  before:", " | ".join(sorted(first_policies)))
+    print("  after: ", " | ".join(moved["policies"]))
+    sys.exit(1)
+if moved.get("states"):
+    print("REKEY-ACCEPTED: peer-a installed states for a proposal that covers no pair of the scope in use")
+    print("  before:", " ".join(sorted(first_spis)))
+    print("  after: ", " ".join(moved["states"]))
+    sys.exit(1)
+if "states" in moved:
+    # Every state left and none arrived. peer-b's Child SA hard-expired without a
+    # replacement, which is the end state a refused rekey reaches.
+    print("RETIRED:", " ".join(sorted(first_spis)))
+print("POLICY-STABLE:", " | ".join(sorted(first_policies)))
+EOF_REFUSED
+
+# ── peer-b (background, noop dataplane, SHORT esp lifetime): binds 127.0.0.2 ──
+# It responds to the IKE SA and drives the Child SA rekey. Its dataplane is the noop one
+# so exactly one daemon owns what the kernel holds. Its configured selectors match
+# peer-a's, so IKE_AUTH negotiates the full scope; only its REKEY proposal is narrowed.
+stdin=peer-b:terminator=EOF_PEER_B
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 10
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-a {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				mode tunnel
+				traffic-selector 1 {
+					protocol 6
+					local {
+						prefix 192.0.2.64/26
+					}
+					remote {
+						prefix 192.0.2.0/26
+						port 179
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_PEER_B
+
+# ── peer-a (background, REAL xfrm, LONG esp lifetime): binds 127.0.0.1 ──
+# It initiates the IKE SA, so sa.IsInitiator is true here while peer-b initiates the
+# CREATE_CHILD_SA. That is the crossed case named at the top of this file.
+stdin=peer-a:terminator=EOF_PEER_A
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-b {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				mode tunnel
+				traffic-selector 1 {
+					protocol 6
+					local {
+						prefix 192.0.2.0/26
+						port 179
+					}
+					remote {
+						prefix 192.0.2.64/26
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_PEER_A
+
+# peer-b's dataplane and its narrowed rekey proposal, and ONLY peer-b's: option=env
+# applies to every process the runner launches, so the per-daemon overrides ride in front
+# of the command. `env` rather than a shell, because env just execs and the daemon still
+# gets the signal cmd=stop sends. 192.0.2.96/27 sits inside peer-b's configured
+# 192.0.2.64/26 and does not cover it, which is the whole point: the proposal covers no
+# pair of the scope in use.
+cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze_test_ike_rekey_ts_local=192.0.2.96/27 ze -:stdin=peer-b:name=peer-b
+cmd=background:seq=2:exec=ze -:stdin=peer-a:name=peer-a
+cmd=foreground:seq=3:exec=python3 refused.py:timeout=110s
+# signal=term, not the default kill: peer-a's policies are REAL and node-wide, and the
+# release that removes them runs on the way out of runEngine. A SIGKILLed peer-a leaves
+# them in the kernel for the rest of the suite, where ipsec-teardown-leaves-nothing.ci
+# asserts the XFRM tables are empty.
+cmd=stop:seq=4:name=peer-a:signal=term
+cmd=stop:seq=5:name=peer-b:signal=term
+
+# NO engine-steps executor and no command= step, deliberately, for the reason
+# ipsec-child-rekey-xfrm.ci records: the executor exits the moment its steps pass and the
+# daemon carrying it exits with it, while every assertion here is about a kernel peer-a
+# must still be running to hold.
+expect=exit:code=0
+expect=stdout:contains=INSTALLED:
+expect=stdout:contains=POLICY-STABLE:
+# peer-a refused, and named both selector sets so an operator can act (engine/inbound.go
+# logs the error respondChildRekey returned). Without the refusal peer-a answers the
+# intersection and this line never appears.
+expect=stderr:contains=the rekey proposal narrows the scope in use
+# peer-b's Child SA reached its hard lifetime with no replacement. A rekey peer-a had
+# answered would have reset that lifetime, so this line is the peer's own statement that
+# the exchange never completed.
+expect=stderr:contains=hard lifetime expired
+reject=stdout:pattern=POLICY-MOVED
+reject=stdout:pattern=REKEY-ACCEPTED
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

@@ -32,6 +32,14 @@
 # VM, where `fsuite ipsec` in scripts/evidence/qemu-all-tests.sh executes the suite.
 
 option=needs-linux:caps=net-admin
+# Serialize against every other real-XFRM ipsec test. `ip xfrm state` and
+# `ip xfrm policy` are NODE-WIDE, so a sibling running concurrently adds SPIs and
+# policies this test's readers cannot tell from its own. MEASURED 2026-08-22: run
+# together, ipsec-child-rekey-xfrm read the narrowing test's replacement SPIs as its
+# own and reported POLICY-MOVED, while ipsec-child-rekey-xfrm-narrowing read this
+# test's replacement SPIs and reported REKEY-ACCEPTED. Both verdicts were about the
+# other test's kernel state.
+option=exclusive:group=ipsec-xfrm
 option=env:var=ze_test_ike_port:value=$PORT2
 option=timeout:value=120s
 option=env:var=ze_log_ike:value=info
