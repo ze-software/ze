@@ -1322,8 +1322,11 @@ func answerLineWidth(data []byte) (uint64, answerLineState) {
 		if width > uint64(MaxMessageSize) {
 			// The line is past the maximum whatever follows this field, so the
 			// width is stated NOW and the caller refuses it before anything
-			// grows a buffer a peer chose the size of.
-			return uint64(at) + width, answerLineStated
+			// grows a buffer a peer chose the size of. The offsets before it are
+			// NOT added: a field that alone passes the maximum leaves nothing
+			// for a sum to say, and adding to it is one more place the total can
+			// wrap.
+			return width, answerLineStated
 		}
 		at += int(width)
 	}
@@ -1333,6 +1336,13 @@ func answerLineWidth(data []byte) (uint64, answerLineState) {
 // answerFieldWidth reports how many bytes one field of shape occupies at the
 // front of field. A counted field states it; a word is three bytes by
 // construction.
+//
+// ONE case returns something else, and it says so rather than leaving the
+// number to mean two things: a counted text whose stated count ALONE passes
+// MaxMessageSize reports that count instead of the field's width. The caller
+// refuses the line on it either way, and the header cannot be added first,
+// because that sum WRAPS for a count near the range of a uint64 and a wrapped
+// sum is small enough to pass the very bound it is read for.
 func answerFieldWidth(shape answerFieldShape, field []byte) (uint64, answerLineState) {
 	switch shape {
 	case answerFieldWord:
@@ -1358,6 +1368,14 @@ func answerFieldWidth(shape answerFieldShape, field []byte) (uint64, answerLineS
 		size, header, err := countedTextAt(field)
 		if err != nil {
 			return 0, countedTextState(field)
+		}
+		if size > uint64(MaxMessageSize) {
+			// The count alone passes the maximum, so it is reported as it was
+			// stated and the caller refuses the line. Adding the header first
+			// would WRAP for a count near the range of a uint64, and the sum a
+			// wrap produces is small: it would defeat the very bound this value
+			// is read to check, and frame the line inside its own count field.
+			return size, answerLineStated
 		}
 		return uint64(header) + size, answerLineStated
 	}

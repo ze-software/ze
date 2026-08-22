@@ -45,10 +45,11 @@ const answerLineCapacity = 512
 // does not, and the held records are written first in walk order, so the switch
 // loses none of them.
 //
-// head states what the producer knows before the walk runs: Status and Key open
-// the answer, Fields is the column schema its positional rows are read against,
-// and Message is the operational text the TERMINATOR carries. Type, Count and
-// Faults are the walk's and are ignored here.
+// head states what the producer knows before the walk runs: Key is the envelope
+// the head opens the answer under, Fields is the column schema its positional
+// rows are read against, and Message is the operational text the TERMINATOR
+// carries. Type, Count and Faults are the walk's and are ignored here. head
+// states no outcome at all: the terminator is the one line that carries one.
 //
 // A rejected row is written and the walk goes on, so one answer can report 97
 // rows applied and 3 rejected. A row too wide for one line is rejected the same
@@ -137,9 +138,9 @@ func WriteRecordAnswer(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[Re
 
 // WriteDocumentAnswer writes the answer of a producer that built its whole
 // payload before the answer opened: a head naming AnswerTypeDocument, that one
-// document as the single record, and the terminator. Only head's Status and
-// Message are read, because the document already carries its own envelope and
-// two statements of one fact can disagree.
+// document as the single record, and the terminator. Only head's Message is
+// read, because the document already carries its own envelope and two
+// statements of one fact can disagree.
 //
 // A payload built whole is one row, and a producer that answered with no data
 // at all is none, so the terminator counts one or zero. It rejects nothing

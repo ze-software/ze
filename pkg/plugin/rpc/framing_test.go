@@ -4,6 +4,7 @@
 package rpc
 
 import (
+	"bufio"
 	"bytes"
 	"math"
 	"strings"
@@ -207,4 +208,91 @@ func TestAnswerLineWidthMatchesTheWriters(t *testing.T) {
 		_, state := answerLineWidth([]byte(line))
 		assert.Equal(t, answerLineOther, state, "%q was read as an answer line", line)
 	}
+}
+
+// TestCountedTextPastTheMaximumDoesNotWrapItsWidth checks that a byte count a
+// peer chose cannot become a SMALL width. The method: a record line states a
+// count near the range of a uint64, which is what makes the header plus the
+// count wrap, and the width the frame reader computes is required to stay past
+// MaxMessageSize so the reader refuses the line.
+//
+// The wrap is the whole point. A counted text is the digits, the colon, and the
+// bytes: adding that 21-byte header to a count of 2^64-21 or more rolls the sum
+// back to a number under 21, which is under the maximum and would frame the
+// line INSIDE its own count field.
+//
+// VALIDATES: the MaxMessageSize bound holds for every count a peer can spell,
+// not only the ones that leave the sum in range.
+// PREVENTS: an untrusted count defeating the one bound that stands between it
+// and the slice the frame reader takes.
+func TestCountedTextPastTheMaximumDoesNotWrapItsWidth(t *testing.T) {
+	t.Parallel()
+
+	// Each count wraps `header + size` to a different small number: 2^64-21
+	// wraps it to 0, and each step up moves the wrapped width one byte on.
+	for _, count := range []string{
+		"18446744073709551595", // 2^64 - 21, the header's own width
+		"18446744073709551599",
+		"18446744073709551615", // the widest a uint64 spells
+	} {
+		line := "#7 " + AnswerKindRecord + " " + count + ":x"
+
+		width, state := answerLineWidth([]byte(line))
+		require.Equal(t, answerLineStated, state, "%q did not state a width", line)
+		assert.Greater(t, width, uint64(MaxMessageSize),
+			"%q states a width of %d, which is inside the %d-byte maximum", line, width, MaxMessageSize)
+
+		_, err := NewFrameReader(strings.NewReader(line + "\n")).Read()
+		require.Error(t, err, "the frame reader accepted %q", line)
+		assert.ErrorContains(t, err, "past the 16777216-byte maximum",
+			"%q was refused by another check than the one under test", line)
+	}
+}
+
+// TestPlainTextIsFramedByItsNewlineAlone checks that the split function a
+// rendering stream uses frames on the newline and measures nothing. The method:
+// lines of an operator's text that OPEN with an answer kind word and fields
+// that parse are read through both split functions, and only the plain-text one
+// delivers them.
+//
+// The pairing is the assertion. ScanAnswerLines is right for a stream of answer
+// lines and wrong for text, because text states no width: it measures the line
+// by fields the renderer never wrote and then refuses the stream over the byte
+// it lands on, delivering nothing at all -- the lines already read included.
+//
+// VALIDATES: a carriage return in an operator's data still reaches the caller,
+// which is what bufio.ScanLines got wrong, without the width arithmetic that
+// belongs to a frame.
+// PREVENTS: the answer framer being put back on a plain-text stream, where one
+// rendered line that reads like an answer costs an operator the whole output.
+func TestPlainTextIsFramedByItsNewlineAlone(t *testing.T) {
+	t.Parallel()
+
+	// Rendering lines that open with a kind word and carry fields its shape
+	// accepts. Nothing here is an answer line: no producer of this protocol
+	// wrote one of them.
+	const text = "end 1 0 0: rows written\nrow 3:abc and more\ntop map 5:peers 0: trailing\nend of file\r\n"
+	want := []string{
+		"end 1 0 0: rows written",
+		"row 3:abc and more",
+		"top map 5:peers 0: trailing",
+		"end of file\r",
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(text))
+	scanner.Split(ScanLinesKeepingReturns)
+	var got []string
+	for scanner.Scan() {
+		got = append(got, scanner.Text())
+	}
+	require.NoError(t, scanner.Err(), "the rendering stream was refused")
+	assert.Equal(t, want, got, "the rendering did not reach the caller line for line")
+
+	// The same text through the answer framer, which is what this stream MUST
+	// NOT use: it measures the first line and refuses the stream on the byte
+	// the arithmetic lands on.
+	scanner = bufio.NewScanner(strings.NewReader(text))
+	scanner.Split(ScanAnswerLines)
+	require.False(t, scanner.Scan(), "the answer framer delivered a line of plain text")
+	require.Error(t, scanner.Err(), "the answer framer read plain text without measuring it")
 }

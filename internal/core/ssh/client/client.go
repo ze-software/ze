@@ -182,8 +182,13 @@ func StreamCommand(creds Credentials, command string, callback func(line string)
 	// A line ends with exactly one newline and never with `\r\n`. This stream
 	// carries the daemon's rendering rather than answer lines, so nothing here
 	// states a width; what the split function buys is that a carriage return an
-	// operator's data holds reaches the caller (rpc.ScanAnswerLines).
-	scanner.Split(rpc.ScanAnswerLines)
+	// operator's data holds reaches the caller (rpc.ScanLinesKeepingReturns).
+	//
+	// It is NOT rpc.ScanAnswerLines. That one measures a line by the fields it
+	// states, and a rendering line that happens to open with a kind word states
+	// none: it would be framed at a width nothing wrote, and the byte found
+	// there would refuse the whole stream.
+	scanner.Split(rpc.ScanLinesKeepingReturns)
 	for scanner.Scan() {
 		if err := callback(scanner.Text()); err != nil {
 			return err

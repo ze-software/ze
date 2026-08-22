@@ -105,9 +105,18 @@ func NewFrameReader(r io.Reader) *FrameReader {
 // would take a `\r` a producer put INSIDE a counted value. Nothing is stripped
 // here, and a `\r` where the newline belongs is refused by name.
 //
-// A line that states no width -- a request, a response, an operator's plain
-// text -- is framed by its newline, which is the one place this genuinely scans
-// and it uses bytes.IndexByte to do it.
+// A line that does not open as an answer line -- a request, a response -- is
+// framed by its newline, which is the one place this genuinely scans and it
+// uses bytes.IndexByte to do it.
+//
+// It is for a stream that CARRIES answer lines, and MUST NOT be put on one that
+// carries an operator's plain text. Text is framed by the bytes it holds, so a
+// line that happens to open with a kind word and fields that parse is taken by
+// the width those fields state, and a byte that is not the newline where the
+// arithmetic ends is refused: the scan then stops and delivers nothing, the
+// lines already read included. A plain-text stream takes ScanLinesKeepingReturns
+// instead, which is the same refusal to strip a `\r` with none of the width
+// arithmetic.
 func ScanAnswerLines(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	switch width, state := answerLineWidth(data); state {
 	case answerLineStated:
@@ -121,6 +130,22 @@ func ScanAnswerLines(data []byte, atEOF bool) (advance int, token []byte, err er
 		// Framed by its newline, below.
 	}
 
+	return ScanLinesKeepingReturns(data, atEOF)
+}
+
+// ScanLinesKeepingReturns is the bufio.SplitFunc for a stream that carries no
+// answer line: the daemon's rendering of a command, which is whatever text the
+// command produced.
+//
+// It splits on `\n` and strips NOTHING. That is the one thing bufio.ScanLines
+// gets wrong here: a `\r` an operator's data holds is data, and stripping it
+// hands the caller bytes the daemon did not send.
+//
+// It states no width and reads no field, which is what separates it from
+// ScanAnswerLines. Text is not a frame: a rendering line that happens to open
+// with a kind word carries no count, and measuring it by one would refuse the
+// whole stream over a coincidence.
+func ScanLinesKeepingReturns(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	if end := bytes.IndexByte(data, '\n'); end >= 0 {
 		return end + 1, data[:end], nil
 	}

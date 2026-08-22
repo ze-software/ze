@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | spec-record-answers-1-sdk-path |
-| Phase | - |
+| Phase | 8 of 8, Review Gate |
 | Deferral shard | `plan/deferrals/record-answers.md` |
 | Handoff | - |
-| Updated | 2026-08-21 |
+| Updated | 2026-08-22 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -316,9 +316,30 @@ The reading, now owner-confirmed: **fix the producer, not the
 frame.** A failure with no reason is a zero value wearing a valid answer's
 clothes, which `ai/rules/evidence.md` refuses of any guard: fail closed or say
 something. So a `StatusError` response MUST carry a message before the head's
-status is deleted, and `errStatusErrorNoMessage` becomes unreachable rather than
-handled. That keeps this spec's goal intact, because the terminator then carries
-the whole outcome and nothing contradicts it.
+status is deleted. That keeps this spec's goal intact, because the terminator
+then carries the whole outcome and nothing contradicts it.
+
+**What phase 5 built, recorded here because it is not what the paragraph above
+predicted (review, 2026-08-22).** This paragraph said `errStatusErrorNoMessage`
+would become UNREACHABLE. It did not. Two things happened instead, and together
+they fail closed:
+
+- The one live producer of the state was repaired. `handleAS112Health`
+  (`internal/plugins/as112/health.go`) answered a failing probe with
+  `Status=error` and an empty `Error`, and now names the target that did not
+  answer. Journal row in `plan/journal/zero-value-as-valid-answer.md`.
+- The frame states the failure for any producer that still names none.
+  `answerMessage` (`internal/component/plugin/dispatch.go`) returns
+  `rpc.AnswerFailureUnstated` for a `Status=error` response with an empty
+  `Error`, so the terminator always carries a message when the command failed
+  and `Verdict` can never read such an answer as done. `errStatusErrorNoMessage`
+  (`internal/component/plugin/dispatch.go`) is still reachable from
+  `responseFailure`, and it now carries the same text, so the string surface and
+  the record surface name one failure one way.
+
+The difference matters to a reader: a producer that names no reason reads badly
+rather than reaching a consumer as a success, which is what the directive asked
+for. What was not done is making the state impossible, and no code claims it is.
 
 The rejected alternative is keeping the status as a positional token on the head.
 It costs three bytes on one line per answer, not per row, so the cost is not the
@@ -354,7 +375,7 @@ AC-11 against the terminator FIRST, and only then deletes the field.
 |-------|-------------------|-------------------|
 | AC-1 | A plugin completes Stage 3 declaring no protocol name | It receives the record answer sequence for `dispatch-command` and `dispatch-command-args` |
 | AC-2 | An SSH exec client connects without setting `ZE_ANSWER_PROTOCOL` | It receives head, records and terminator, and the env var no longer exists in the tree |
-| AC-3 | Any answer line is written on the mux channel | Its kind token is reached from the id's length byte with one addition, identically for all five kinds, and never by searching for a space |
+| AC-3 | Any answer line is written on the mux channel | Its kind token is the three bytes the id field's closing space is followed by, identically for all five kinds. The reader reaches it from where `cutID` stopped, which is one fused loop over the digits, and no line is searched for a separator a second time. **AMENDED by the review, 2026-08-22.** The row read "reached from the id's length byte with one addition, identically for all five kinds, and never by searching for a space", which describes the length prefix phase 6 (`9313b7d5e`) deleted. The design that shipped closes the id at a space and says so in AC-6, so the old row contradicted both the code and its own sibling |
 | AC-4 | Any answer line is written on the exec channel | Its kind token starts at offset zero |
 | AC-5 | A result record line is written | Its payload's byte count follows the kind token, and the payload follows the count. No key, and no separator scanned for at either end: the reader slices the payload by arithmetic and never looks for the newline to find where it stops |
 | AC-6 | Ids of one digit, ten digits and the maximum uint64 are written | Each reads back to the value written, and a reader reaches the kind token by walking the id's digits to the one space that closes them. An id past the twenty digits a uint64 occupies, and one past the range of a uint64, are each refused by name |
@@ -507,7 +528,7 @@ AC-11 against the terminator FIRST, and only then deletes the field.
    - Tests: `TestDispatchCommandAlwaysAnswersRecords`, `test-plugin-answer-unconditional`, `test-exec-answer-unconditional`
    - Files: `pkg/plugin/rpc/types.go`, `internal/component/plugin/process/process.go`, `internal/component/plugin/server/startup.go`, `internal/core/ssh/client/answer.go`, `internal/component/plugin/server/dispatch.go`
    - Verify: AC-10's search is empty, and `answer-unconditional.ci` is deleted rather than adjusted
-3. **Phase: Length-prefixed id** -- every line carrying an id
+3. **Phase: Length-prefixed id (REVERSED by phase 6, `9313b7d5e`)** -- every line carrying an id
    - Tests: `TestAppendRequestSpellsTheSameIDField`, `TestAnswerIDRoundTrip`, `TestAnswerIDMaxUint64`, `TestAnswerIDFieldRejected`
    - Files: `pkg/plugin/rpc/message.go`, `pkg/plugin/rpc/conn.go`, `pkg/plugin/rpc/mux.go`
    - Verify: requests and answers agree on the encoding, the whole uint64 range is expressible, and A-3 is answered by `TestMuxReadLoopSeparatesAnswerFromResponse`
@@ -608,6 +629,96 @@ section is retained because the spec's Scope is `protocol`, and its answer is
 that the protocol is Ze's own. The SSH transport beneath the exec channel is
 governed by RFC 4254, and this spec changes nothing in it: the answer travels as
 channel data, exactly as before.
+
+## Review Gate
+
+Independent reviewer, 2026-08-22. One context ran every lens itself and spawned
+no readers (`ai/rules/planning.md`, "Critical Review Is the Central Deliverable").
+The reviewer wrote none of this spec's thirteen commits.
+
+### Scope of each round, written before it ran
+
+| Round | Scope |
+|-------|-------|
+| 1 | The whole diff: `c08252e0a^..c5d0544c0`, thirteen commits, both channels, the three speakers of this wire, every AC, and the two documents the owner named |
+| 2 | ONLY round 1's fixes and what they touch: `answerFieldWidth` and `answerLineWidth` with their one caller, `ScanAnswerLines` and `ScanLinesKeepingReturns` with all four of their callers (`NewFrameReader`, `readAnswerFrame`, the bridge's stdin scanner, `StreamCommand`), the two comment-only files, the new tests, the spec edits, `docs/architecture/api/process-protocol.md`, and the journal row |
+
+### Findings
+
+| # | Severity | Finding | Disposition |
+|---|----------|---------|-------------|
+| 1 | ISSUE | **A stated byte count defeated the bound that reads it, by wrapping.** `answerFieldWidth` (`pkg/plugin/rpc/message.go`) returned `uint64(header) + size` for a counted text with `size` unbounded. A count near the range of a uint64 wraps that sum to a number under 21, which is inside `MaxMessageSize`, so `answerLineWidth` reported a small width and `scanStatedLine` never reached its refusal. Measured before the fix: `#7 row 18446744073709551595:x` stated a width of 7. It is reachable from any peer on the mux connection and from the exec channel. It could not be steered onto a newline today, because the wrapped width always lands inside the count's own 21-byte header, so the line was refused for the wrong reason rather than mis-framed. The bound was still inoperative | FIXED. A count past `MaxMessageSize` is reported as stated and the header is never added to it; `answerLineWidth` returns that width rather than `at + width`, which is the second place the sum could wrap. `TestCountedTextPastTheMaximumDoesNotWrapItsWidth` (`pkg/plugin/rpc/framing_test.go`) is the regression, mutation-verified: removing the guard reddens it with `"7" is not greater than "16777216"` |
+| 2 | ISSUE | **The answer framer went onto a stream that carries no answer lines, and its own comment said that was safe.** `rpc.ScanAnswerLines` was put on `StreamCommand`'s stdout (`internal/core/ssh/client/client.go`), which carries the daemon's rendering, and the split function's doc comment claimed "an operator's plain text is framed by its newline". It is not. A rendering line opening with a kind word and fields its shape accepts is measured by the width those fields state, and the byte the arithmetic lands on refuses the WHOLE stream, the lines already read included. Measured: `end 1 0 0: rows written\nnext line\n` yields zero tokens and `answer line of 10 bytes is terminated by " "`. The spec asked for "a split function that splits on `\n` and strips NOTHING" at two sites; the width-measuring one went onto four | FIXED. `ScanLinesKeepingReturns` (`pkg/plugin/rpc/framing.go`) splits on the newline and strips nothing, the rendering stream uses it, `ScanAnswerLines` falls back through it so there is one copy of that code, and both comments now say which stream each function is for. `TestPlainTextIsFramedByItsNewlineAlone` is the regression, mutation-verified: stripping a trailing `\r` reddens it |
+| 3 | ISSUE | **Two public doc comments name a field this spec deleted.** `WriteRecordAnswer` and `WriteDocumentAnswer` (`pkg/plugin/rpc/answer_write.go`) told a caller that `head.Status` opens the answer and is read. Phase 5 (`46c4d0e1e`) removed `Status` from `AnswerTail`, which is the type in both signatures. These are the two entry points every producer of this protocol calls | FIXED. Both rewritten against what `writeDocumentLines` actually reads, which is `head.Message` alone, and the head's silence about the outcome is now stated where a producer reads it |
+| 4 | ISSUE | **AC-3 still stated the reversed design.** "Its kind token is reached from the id's length byte with one addition, and never by searching for a space" describes the length prefix phase 6 (`9313b7d5e`) deleted, and it contradicts AC-6 and `cutID`, which walk the digits to the space that closes them. Phase 8 swept ten stale statements and missed this one | FIXED. AC-3 restated against `cutID`, with the amendment recorded in the row rather than silently rewritten. The phase 3 heading in Implementation Steps now carries `(REVERSED by phase 6, 9313b7d5e)` |
+| 5 | ISSUE | **The A-5 directive asserts a product property that is false.** It says `errStatusErrorNoMessage` "becomes unreachable rather than handled". It is reachable from `responseFailure` (`internal/component/plugin/dispatch.go`), and the no-message case is HANDLED: `answerMessage` substitutes `rpc.AnswerFailureUnstated`. What shipped fails closed and meets the directive's purpose, and no reader of the spec could learn that it is not the directive's letter | FIXED. The paragraph now records what phase 5 built, which is the one live producer repaired (`handleAS112Health`) plus the frame stating the failure for any producer that names none, and says plainly what was not done |
+| 6 | ISSUE | **Status said `design` after thirteen commits.** `/ze-status`, `scripts/dev/spec-session.sh` and every other session read that field, and it reported this spec as not started | FIXED. `in-progress`, Phase `8 of 8, Review Gate`, Updated 2026-08-22 |
+| 7 | NOTE | `ParseAnswerLine` (`pkg/plugin/rpc/message.go`) guards `len(text) == answerKindWidth`, which `answerKindAt` has already made impossible: it refuses anything under four bytes. The branch and its message are unreachable | Not fixed. No behavior depends on it and there is nothing to regress |
+| 8 | NOTE | Two comments in `pkg/plugin/rpc/mux.go` cited AC-16 for the orphan-line guard. AC-16 is the token-vocabulary criterion, and no AC covers orphan debris | FIXED by removing the citations rather than substituting another wrong one |
+| 9 | NOTE | `test/scripts/ze_api.py` is laxer than the Go reader in four places: `_cut_id` accepts any Unicode digit through `str.isdigit()` and checks the digit COUNT but not the uint64 range, `_answer_head_fields` does not check the item type against `doc`/`map`/`tab`, and `_answer_line_width` applies no `MaxMessageSize` bound | Not fixed. Harness-only, and every case accepts a line Go refuses rather than refusing one Go accepts, so it cannot green a red |
+| 10 | NOTE | AC-12 states a scale nothing runs at, "a walk of one million rows". Its actual criterion, that no line is scanned for a separator before its payload is taken, is covered | Not fixed. `TestAppendAnswerRecordNoKey`, `TestParseAnswerLineFixedOffsets` and `TestAnswerLineWidthMatchesTheWriters` hold the property, and `answer-first-bounds-long-walk.ci` drives it through the daemon at 407 records |
+| 11 | NOTE | `TestAnswerLineTableMatchesDoc` binds only `ipc_protocol.md`. The nine decoded examples on `wire-format.md`, `process-protocol.md`, `plugin-development/commands.md` and `plugin-development/protocol.md` are pinned by nothing | Not fixed. Every byte count in all nine was re-derived by hand in this review and all are correct |
+| 12 | NOTE | `process-protocol.md` named the five kinds and not the field ORDER of `bad` and `nay`, so a reader on that one page could split a `nay` line's fields and not name them | FIXED. Its kind table gained a "fields, in order" column |
+| 13 | NOTE | `capability_done()` (`test/scripts/ze_api.py`) is the one public helper whose signature changed, in phase 2. Its `protocol` argument named the negotiation this spec deletes, so removing it is correct rather than compat-shimmable, and no caller in this checkout passes one | Not fixed, and nothing to fix. Recorded because the phase 2 record does not name it as a break |
+| 14 | NOTE | Two tests reddened once each under parallel load and neither reproduces alone: `TestSendExecuteCommandReadsRecords/a long walk reads as a record sequence` with `answer queue full`, and `test/plugin/rfc7606-54-bgpls-override-propagates` at 60s against a 36s barrier | Recorded, not fixed. Row in `plan/journal/gate-verdict-depends-on-the-machine.md`. Reproduction was attempted for both: 30 of 30 solo runs green, the 23-package set green at exit 0, and the functional test green alone in 3.9s |
+| 15 | NOTE | A frame-level refusal is terminal for the mux connection. `ScanAnswerLines` errors, `FrameReader.Read` propagates, `readLoop` stores it and exits, so `maxConsecutiveBadLines` never counts that line | Not fixed. It is the correct answer, because a wrong stated width leaves the stream position unknown and no reader can resynchronize on it, but nothing in the code says so |
+
+### Round 2
+
+Round 2 read only what round 1's fixes changed. It found one thing.
+
+| # | Severity | Finding | Disposition |
+|---|----------|---------|-------------|
+| 16 | ISSUE | Round 1's own fix made `answerFieldWidth`'s return value mean two things without saying so: the field's width, or the stated count when that count alone passes the maximum | FIXED in round 2. The doc comment now names the one case and why the header cannot be added first |
+
+Round 2 found no other BLOCKER and no other ISSUE inside its scope, and no
+always-in-scope finding anywhere. The loop ends at two rounds.
+
+### The two things the owner asked about
+
+**The payload-unchanged proof holds, and it was re-proven here rather than
+read.** `test/plugin/answer-payload-unchanged.ci` reads only the payload an
+operator receives, through `| raw`, and compares every row against the literal
+`recordRow.AppendTo` writes. Both directions were driven:
+
+| Mutation | Result |
+|----------|--------|
+| One payload byte rewritten inside `AppendAnswerItem`, stated count unchanged, JSON still valid | RED on the collapsed leg: `collapsed row 0 reached the operator as '{"indey":0,...' (85 bytes), want '{"index":0,...' (85 bytes)`. The failure is bytes differing, not an answer failing to arrive |
+| The same rewrite fired only for payloads over 50000 bytes, so it reaches the STREAMED leg alone | `OK: 11 collapsed rows are the bytes the producer wrote`, then RED at `streamed row 0 ... (60021 bytes)`. Both roads through the encoder are covered, and each fails on its own |
+| A real frame change: `AnswerKindRecord` spelled `rov`, both ends agreeing | GREEN. The same mutation reddens `TestAnswerIDMaxUint64`, `TestAnswerLineTableMatchesDoc`, `TestAwaitAnswerHeadValidatesByKind` and three more in `pkg/plugin/rpc`, so the frame change was real and this test is blind to it by construction |
+
+The flaw its author reported is gone: the mutation that reddens it now keeps the
+JSON valid and the count honest, so the red says the bytes differ. One
+correction to the fixture's own prose, recorded and not fixed because it changes
+no assertion: the comparison is `json.dumps(json.loads(x), separators=(",", ":"))`
+against a literal, so it is byte for byte for anything that changes a value, a
+key, or their order, and blind to insignificant whitespace inside the JSON. The
+CLI decodes and re-renders before the fixture ever sees the bytes, so no test on
+this path can be more literal than that.
+
+**The documentation requirement is met, on the page the owner named and on four
+others.** `docs/architecture/api/process-protocol.md` carries the five kind
+words with their meanings, the three item types with theirs, both field shapes,
+the sentence that a count is a BYTE count, and an in-place decode under every
+line of both worked answers. A reader who opens only that page can decode
+`#42 top map 5:peers 0:`, `#42 row ...` and `#42 end 417 3 0:` without leaving
+it, and after finding 12 can name the fields of a `nay` and a `bad` line too.
+`wire-format.md` stopped delegating its grammar and now carries it, with the
+link kept for depth. `ipc_protocol.md` decodes the four-line rejecting answer,
+the over-wide record and the `nay` line. The nine decoded examples were checked
+byte by byte: every stated count is correct.
+
+### What was run
+
+| Command | Result |
+|---------|--------|
+| `GOFLAGS=-count=1 go test -tags '<GO_TEST_TAGS>' ./pkg/plugin/... ./internal/component/plugin/... ./internal/exabgp/bridge/... ./internal/core/ssh/... ./internal/component/ssh/... ./internal/component/command/... ./internal/component/cli/...` | exit 0, 23 packages ok. Real runs throughout, never cached |
+| `python3 test/scripts/ze_api_test.py` | 57 tests, OK |
+| `make ze-functional-plugin-test` | 634 of 635. The one red is `attach-process-reload`, deterministic and owned elsewhere. All eleven answer fixtures and `exec-answer-unconditional` green |
+| `make ze-functional-ui-test` | 183 of 183, exit 0 |
+| `make ze-lint-changed` | exit 0, `0 issues.` twice |
+| `make ze-repository-check` | exit 0, all checks passed, re-run after the fixes |
+| `python3 scripts/dev/audit-test-relaxation.py` | clean. Against `c08252e0a^` it reports six weakenings, all in `internal/component/ike/engine/`, none on this spec's surface |
 
 ## Checklist
 

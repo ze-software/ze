@@ -332,7 +332,7 @@ func (m *MuxConn) readerStopped() bool {
 //
 // The sequence is single-use, and stopping it detaches from the answer: the
 // pending entry goes, and readLoop discards what the peer still writes for that
-// id rather than counting it as junk (AC-16).
+// id rather than counting it as junk (discardOrphanResponse).
 func (m *MuxConn) answerRecords(ctx context.Context, idStr string, call *answerCall, answer *Answer) iter.Seq[Record] {
 	return func(yield func(Record) bool) {
 		// Bounded by the answer: each pass either takes one line the peer wrote
@@ -589,7 +589,7 @@ func (m *MuxConn) endAnswer(idStr string, call *answerCall, cause error) {
 //
 // A line stating an answer kind is a line of an answer whose consumer has
 // already gone: expected debris of a canceled or completed answer, and it MUST
-// NOT count toward the flood guard (AC-16, R-2). The kind says so on its own,
+// NOT count toward the flood guard. The kind says so on its own,
 // so nothing decodes the tail to find out. Every other unmatched line still
 // counts, so the guard narrows rather than weakens.
 //
