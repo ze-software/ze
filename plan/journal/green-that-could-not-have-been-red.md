@@ -29,10 +29,19 @@ apply, the test runs against unmodified source, and it passes. The proof then
 reads exactly like a successful one.
 
 So the habit needs a guard of its own, and the guard is cheaper than the run it
-protects. VERIFY THAT THE MUTATION APPLIED. Use a diff that must be non-empty, or
-a grep for the mutated text, between the patch and the run. Everybody already
-saves a copy and restores it by hash, because the interesting moment feels like
-the run. Nobody confirms that the change landed.
+protects. VERIFY THAT THE MUTATION APPLIED, between the patch and the run.
+
+The two ways to do that are not equal, and the weaker one looks sufficient. A
+non-empty diff proves that SOMETHING changed. It does not prove the right thing
+changed. A patch that lands at the wrong offset gives a non-empty diff. So does a
+`sed` that matches twice. Either one leaves a mutation that never disabled what
+the test judges.
+Assert the specific text instead. Grep for the mutated string and require the
+count you expect, which is usually exactly one. A count is what separates "it
+matched" from "it matched once, where I meant it".
+
+Everybody already saves a copy and restores it by hash, because the interesting
+moment feels like the run. Nobody confirms that the change landed.
 
 The header above names the consequence. One phrasing names the mechanism: a
 signal whose shape does not change when the thing it reports changes. Three
