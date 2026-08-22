@@ -1334,6 +1334,15 @@ func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredComma
 	if rpcOut.Status == plugin.StatusError {
 		return &plugin.Response{Status: plugin.StatusError, Error: string(rpcOut.Data)}, nil
 	}
+	// An answer that carried no document leaves Data ABSENT rather than empty.
+	// RawJSON("") marshals to `null` (plugin.RawJSON.MarshalJSON), and
+	// ResponseJSON only reports "nothing" for a nil Data, so wrapping an empty
+	// document here would print `null` to an operator where they previously read
+	// nothing. The owner ruled on that spelling directly: returning nil is fine,
+	// printing it is not.
+	if len(rpcOut.Data) == 0 {
+		return &plugin.Response{Status: rpcOut.Status}, nil
+	}
 	return &plugin.Response{Status: rpcOut.Status, Data: plugin.RawJSON(rpcOut.Data)}, nil
 }
 
