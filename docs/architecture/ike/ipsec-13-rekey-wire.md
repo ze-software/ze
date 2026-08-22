@@ -111,10 +111,36 @@ pending state is tracked only for rekeys. This is harmless to the rekey.
 
 <!-- source: internal/component/ike/engine/dpd.go -- dpdState -->
 
+**Each end keeps its own request counter.** RFC 7296 Section 2.2 gives an
+endpoint two current Message IDs: the next one it uses for a request it starts,
+and the next one it expects from the peer. The two are independent, so the
+original responder's first self-initiated request carries id 0 whatever ids the
+handshake spent. `finishResponderEstablish` took the peer's IKE_AUTH id as this
+side's next request id, which numbered every exchange this side started where
+the peer expected none. `classifyInbound` matches the expected id exactly, so
+the peer answered nothing: no liveness probe, no Delete and no rekey ever
+completed from a responder-role Ze.
+
+<!-- source: internal/component/ike/engine/responder.go -- finishResponderEstablish -->
+<!-- source: internal/component/ike/engine/msgid.go -- advanceMsgID, advanceExpectedMsgID, classifyInbound -->
+
 ## Proof
 
-`test/interop-ipsec/scenarios/05-child-rekey` runs against strongSwan 5.9.14.
-strongSwan parses the REKEY_SA request, installs the new Child SA, and receives
-the Delete for the old SA. The Docker VM on macOS has no XFRM or ESP, so the
-scenario proves the control plane and the dataplane assertions gate on XFRM
-being available.
+`test/interop-ipsec/scenarios/05-child-rekey` runs against strongSwan 5.9.14
+with Ze as the connection initiator. strongSwan parses the REKEY_SA request,
+installs the new Child SA, and receives the Delete for the old SA.
+
+`test/interop-ipsec/scenarios/26-responder-raises-child-rekey` runs the other
+direction. strongSwan dials, so Ze is the original responder, and Ze's short ESP
+lifetime makes Ze raise the CREATE_CHILD_SA. It is the only scenario where a
+responder-role Ze speaks first, so it is what proves the two counters are
+independent. With the old counter write restored, strongSwan parses no REKEY_SA
+request at all.
+
+Both scenarios gate their dataplane assertions on XFRM being available, because
+a Docker host without XFRM or ESP still proves the control plane.
+
+`test/ipsec/ipsec-child-rekey-xfrm.ci` reads the kernel directly, between two Ze
+daemons on the real XFRM backend, with the exchange role crossed against the IKE
+SA role. It compares the installed policy selectors across the whole
+make-before-break window and fails when a rekey moves one.

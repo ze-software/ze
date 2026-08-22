@@ -127,16 +127,42 @@ to do less than the RFC states.
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/fixit-child-sa-rekey-policy-6c2adacb-9282-4d78-9180-bab7cb6a2f15.md` |
-| `review_gate.py check` | not run: the artifact records `findings`, not `clean` |
-| Rounds | 1 |
-| Reviewer lenses used | RFC conformance and extraction state, test discrimination, comment-against-producer, documentation completeness |
+| Artifact | `tmp/review/fixit-child-sa-rekey-policy-ebf5d9b3-b158-40df-bba0-32a51591883e.md` |
+| `review_gate.py check` | OK, clean, 20 files hash-pinned |
+| Rounds | 4. Round 4 earned its pass on a PRODUCT defect: `esp_spis()` in the scenario round 2 added read through a fail-open helper, so a broken `docker exec` would have skipped every dataplane assertion in silence, and `make ze-functional-docker-exec-check` was RED for the whole checkout |
+| Reviewer lenses used | RFC conformance and extraction state, test discrimination, removed-behavior audit, orientation and data-flow correctness, documentation against the producer, interop coverage |
 
-**The verdict is `findings` on purpose, and closure is blocked until a fresh pass
-clears it.** The round-1 review was independent: it read commit `86b6aa291` and
-reported 3 BLOCKER and 4 ISSUE. The fixes below were made by the implementation
-session, so that session cannot record a clean verdict over its own edits
-(`ai/rules/planning.md`). An independent pass over the working tree is owed.
+**Round 1 recorded `findings` on purpose and its artifact is gone.** It read commit
+`86b6aa291` and reported 3 BLOCKER and 4 ISSUE. The fixes were made by the
+implementation session, so that session could not record a clean verdict over its
+own edits (`ai/rules/planning.md`), and `tmp/` was cleaned before an independent
+pass ran. Rounds 2 to 4 are that pass, by a closure agent that wrote none of the
+code. Round 2 re-read the whole diff from source rather than citing the lost
+artifact, CONFIRMED each round-1 fix at its producer instead of trusting the record,
+and settled the three residuals the 2026-08-02 second-pass audit left OPEN. Round 3
+read only round 2's own fixes. Round 4 read the new interop scenario under the gate
+that reads it.
+
+**One thing on this surface stays OPEN and this closure claims nothing about it.**
+I3b routed the answer-versus-install divergence to
+`spec-fixit-child-rekey-answer-vs-installed-selectors`, and `coversFloor` settles the
+RESPONDER path only. `applyChildRekeyResponse` (`rekey.go`), the INITIATOR path, still
+reads no TSi or TSr from a rekey response, so a Ze-initiated rekey installs the
+pre-rekey selectors while the peer installs the narrowed ones. That spec is live and
+owns it.
+
+**The 2026-08-02 second-pass residuals are all closed.** (1) `samePolicySelector`
+flipping orientation IS R-1, fixed here; `LocalIsInitiator` has exactly one production
+reader left, the RFC 7296 Section 2.17 KEYMAT-half choice in `installChildSA`.
+(2) Removal and install no longer disagree about policy identity: every engine Child SA
+policy removal goes through `RemovePolicyParams(childPolicyParams(child, dir))`, and no
+production caller of the three-argument `RemovePolicy` remains in `internal/`, `pkg/` or
+`cmd/`. (3) `resolvePendingAfterOwnerLoop` stranding a `pendingChild` DISSOLVES, which
+the audit named as the cheaper answer: `pendingChild` is set only by
+`finishResponderEstablish` under `ps.ownedSA.Load() != nil`, the same condition that made
+`register.go` set `pendingSA` first, and every clearer of `pendingSA` clears
+`pendingChild` in the same block (`reapStalePending`, `cleanupPendingSA`, and the
+promotion path in `fsm.go`). The combination cannot arise.
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
@@ -147,6 +173,11 @@ session, so that session cannot record a clean verdict over its own edits
 | I3a | ISSUE | The comment above `pairsToWire(sa.NegotiatedPairs)` claimed the response carries the same subset the replacement was installed with. `newRekeyedChild` installs `old.Selectors` | `internal/component/ike/engine/rekey.go`, `respondChildRekey` | The comment now states which branch of `narrowSelectors` makes the two agree, and names the spec that records the divergence |
 | I3b | ISSUE | The answered set and the installed set diverge on the intersection branch, which is reachable from the wire | `internal/component/ike/engine/rekey.go`, `respondChildRekey` and `newRekeyedChild` | NOT fixed here. RFC 7296 Section 2.9 governs it, so `ai/rules/rfc-compliance.md` routes it to `spec-fixit-child-rekey-answer-vs-installed-selectors` and a question for Thomas, rather than an inline fix inside a closing commit (`ai/rules/rule-precedence.md`) |
 | I4 | ISSUE | Two documentation rows were marked "Yes" and the work had not happened | `plan/spec-fixit-child-sa-rekey-policy.md`, Documentation Update Checklist | `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` documents the orientation field against the KEYMAT role, the `docs/features/rfc-status.md` RFC 7296 row records the three behaviors this spec proved, and both rows say what landed |
+| I5 | ISSUE | Round 2. Interop non-conformance, always-in-scope (`ai/rules/planning.md`, "Bounding the loop"). The commit changed a value on the wire, and no strongSwan scenario witnessed it. Scenario 05 has Ze as the connection INITIATOR, whose request counter was always right; 07, 09, 11 and 25 have Ze ANSWERING an exchange charon started. Nothing had a responder-role Ze speak first, so reverting the counter fix leaves every existing scenario green. The spec's own Interop Tests row was blank | `internal/component/ike/engine/responder.go`, `finishResponderEstablish` | `test/interop-ipsec/scenarios/26-responder-raises-child-rekey`. charon dials, Ze answers IKE_AUTH, and Ze's 30s ESP lifetime makes ZE raise the CREATE_CHILD_SA. PASS 2026-08-22 with ESP counters advancing on both containers after the rekey. MUTATION-VERIFIED in a throwaway worktree at HEAD with `sa.NextMsgID = msgID + 1` restored: FAIL, "strongSwan never parsed a CREATE_CHILD_SA REKEY_SA request from a responder-role Ze" |
+| I6 | ISSUE | Round 2. A documentation claim false about the product (`ai/rules/evidence.md`). The `## Proof` section cited scenario 05 as this page's interop evidence, and that scenario cannot fail for the behavior the page describes. Its second sentence, "The Docker VM on macOS has no XFRM or ESP", is contradicted by the I5 run on this host, where the dataplane assertions ran and passed | `docs/architecture/ike/ipsec-13-rekey-wire.md`, `## Proof` | The Proof section names both exchange directions and what each proves, a Decisions paragraph states the two-counter rule with source anchors, and the XFRM sentence says the assertions are GATED rather than absent. `ai/digests/ipsec-ike.md` gains the same both-roles statement |
+| N3 | NOTE | Round 3, over round 2's own fixes. A comment asserted a property the mutation run disproved: `OUT_OF_WINDOW` was called "the whole discrimination of this scenario", and the mutated run showed charon logs no refusal at all | `test/interop-ipsec/scenarios/26-responder-raises-child-rekey/check.py` | The comment records the measurement and calls the pattern a diagnostic. The assertion order is unchanged. A NOTE does not re-open a round |
+| I7 | ISSUE | Round 2. A doc comment asserting a PRODUCT property that is false, on the function the commit changed. `finishResponderEstablish`'s header read "advances the message-ID counters (RFC 7296 Section 2.2: post-IKE_AUTH each side's request counter resumes at 2)", which is the behavior `86b6aa291` REMOVED, while the body directly below says `sa.NextMsgID` is deliberately not written and stays 0. A reader settling the two-counter question meets the header first (`ai/rules/stale-comments.md`) | `internal/component/ike/engine/responder.go`, `finishResponderEstablish` | The header names the counter that moves, says it is one of the two Section 2.2 gives an endpoint, and points at the body for why this side's own id stays 0. Written to the same line count, so the file's pre-existing 1018 lines do not grow |
+| I8 | ISSUE | Round 4. A fail-open read in the scenario round 2 added, which is the vacuity `ai/rules/interop-and-goal-validation.md` exists to stop. `esp_spis()` read through `lab.ze_xfrm_state`, whose `docker_exec_quiet` returns `""` for a failed read AND for a kernel holding no state. Step 3 reads an empty set as "this host has no XFRM" and skips every dataplane assertion, so a broken `docker exec` would have skipped them in silence. `make ze-functional-docker-exec-check` went RED at 122 sites against a floor of 121, and that gate is a stage of `ze-precommit-verify`, so it blocked every session in this shared checkout | `test/interop-ipsec/scenarios/26-responder-raises-child-rekey/check.py`, `esp_spis` | It reads through `docker_exec`, which raises and names the container, the command and the stderr. An empty set is a reading now. The floor was NOT raised: `docker-exec-check: OK (121 unchecked <= floor 121)`. The scenario was re-run afterwards, because the fix changed the code path that produced the earlier PASS: PASS 2026-08-22, ESP counters advancing on both containers |
 
 ## As originally written (HISTORY — do not implement)
 
@@ -419,6 +450,10 @@ backend and the capability marker the backend needs.
 | User guide | No | no operator-visible change |
 | RFC compliance | Yes, done 2026-08-19 | `docs/features/rfc-status.md` RFC 7296 row now records Section 2.2's two independent Message ID counters, Section 2.9's narrowing orientation, and the Section 2.8 rekey measured on the XFRM backend |
 | Architecture | Yes, done 2026-08-19 | `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`: `SelectorsLocalIsTSi` is the selector orientation and `LocalIsInitiator` is the KEYMAT role, so one field no longer carries both. This row read "one policy, successive states" until 2026-08-19, which described the VOID session-owned design |
+| Architecture, rekey wire | Yes, done 2026-08-22 | `docs/architecture/ike/ipsec-13-rekey-wire.md`: a Decisions paragraph states RFC 7296 Section 2.2's two independent counters against `finishResponderEstablish` and `classifyInbound`, and the `## Proof` section names both exchange directions. It had claimed interop proof from scenario 05 alone, which stays green when the responder counter fix is reverted |
+| Architecture, engine | No | `docs/architecture/ike/ipsec-7-ikev2-engine.md` is declared by `internal/component/ike/engine/register.go`, which "Files to Modify" above lists for the VOID session-owned design. No `register.go` edit shipped and `PeerSession` gained no policy record, so the engine page's shape is unchanged |
+| Agent digest | Yes, done 2026-08-22 | `ai/digests/ipsec-ike.md`: the rekey bullet claimed interop verification from scenario 05 alone. It now names both exchange roles and what the second one proves |
+| Test infrastructure | Yes, done 2026-08-22 | `test/interop-ipsec/scenarios/26-responder-raises-child-rekey` is new. Scenarios are discovered from the directory listing (`test/interop-ipsec/run.py`), so it needs no registration, and `make ze-interop-ipsec-test` runs it |
 
 ## Implementation Steps
 
@@ -571,3 +606,235 @@ arise, the finding dissolves, and proving it cannot arise is the cheaper answer.
 
 **All three stay OPEN and none is closed by the first pass.** Rows in
 `plan/deferrals/rfcgate-1b-rfc7296-pilot.md` name this spec as their destination.
+
+**Superseded 2026-08-22.** All three are closed, and so are the first pass's own
+residuals. The Review Gate section above carries the evidence for each, and the
+Deferrals Resolved table below carries the verdicts. The shard named in the line above
+no longer exists: it was removed when the rfcgate-1b spec closed.
+
+## Implementation Summary
+
+### What Was Implemented
+
+- `ChildSA.SelectorsLocalIsTSi` (`internal/component/ike/engine/child.go`): the orientation
+  of `ChildSA.Selectors`, written once at creation from the IKE_AUTH role and inherited
+  unchanged by `newRekeyedChild`. `selectorPort` reads it. `LocalIsInitiator` keeps its
+  KEYMAT meaning and has exactly one production reader left, the RFC 7296 Section 2.17
+  key-half choice in `installChildSA`.
+- `swapPairs` (`internal/component/ike/engine/ts_narrow.go`): the whole conversion between
+  the two TSi/TSr orientations, its own inverse. `respondChildRekey` swaps the stored floor
+  into the request's orientation before comparing.
+- `narrowChildSelectors` orients the configured policy by the RESPONDER role, constant,
+  because every caller of it is answering a proposal.
+- `finishResponderEstablish` (`internal/component/ike/engine/responder.go`) no longer writes
+  `sa.NextMsgID` from the peer's IKE_AUTH id. `resumeRequestsAfter` is deleted.
+- `test/ipsec/ipsec-child-rekey-xfrm.ci`: a Child SA rekey on the real XFRM backend, roles
+  crossed, reading the kernel rather than a log line.
+- `internal/component/ike/dataplane/xfrm_reqid_resolution_integration_linux_test.go`:
+  assumption A-1, measured in QEMU.
+- `test/interop-ipsec/scenarios/26-responder-raises-child-rekey`: a responder-role Ze
+  raising its own CREATE_CHILD_SA against strongSwan.
+
+### Bugs Found/Fixed
+
+- One field carrying two meanings, so a role-flipping rekey installed a port-swapped policy
+  (R-1). `TestRekeyKeepsThePolicyOrientationOfTheRetiredPair`.
+- The responder narrowed against the IKE SA role, so with `traffic-selector` configured Ze
+  answered TS_UNACCEPTABLE to every peer-initiated Child SA rekey on a tunnel it had
+  initiated. `TestPeerInitiatedRekeyIsNarrowedInTheExchangeOrientation`.
+- The responder's Message ID counter took the peer's request id, so a responder-role Ze
+  could raise no exchange at all. `TestResponderFirstRequestMatchesWhatTheInitiatorExpects`,
+  and now `test/interop-ipsec/scenarios/26-responder-raises-child-rekey` against strongSwan.
+- Each of the three carries a row in `plan/journal/field-carries-two-meanings.md`.
+
+### Documentation Updates
+
+- `docs/features/rfc-status.md`, RFC 7296 row: Section 2.2 two counters, Section 2.9
+  narrowing orientation, Section 2.8 rekey on the XFRM dataplane.
+- `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`: "One field cannot carry both the
+  KEYMAT role and the selector orientation", anchored to
+  `child.go -- ChildSA.SelectorsLocalIsTSi, selectorPort` and `rekey.go -- newRekeyedChild`.
+- `docs/architecture/ike/ipsec-13-rekey-wire.md`: a Decisions paragraph on the two
+  independent request counters, anchored to `responder.go -- finishResponderEstablish` and
+  `msgid.go`, and a `## Proof` section naming both exchange directions.
+- `ai/digests/ipsec-ike.md`: the rekey bullet names both interop scenarios.
+- `make ze-doc-verify` PASSED (3025 digest anchors resolve).
+
+### Deviations from Plan
+
+- The whole session-owned policy design is VOID. What shipped is one upserted policy per
+  selector plus a shared-selector guard on removal, and the 2026-08-17 rewrite made that the
+  spec's subject. AC-1..AC-6 are void; AC-R1..AC-R4 are the criteria.
+- `internal/component/ike/engine/register.go` and `established.go` are in "Files to Modify"
+  for the void design and were not touched.
+- `internal/component/ike/engine/rekey_policy_test.go` was never created. The four unit tests
+  it was to hold describe the void design.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3 was written as "selectors never change across a rekey", to be validated by reading `narrowChildSelectors` for widening | The mechanism is different: `narrowChildSelectors` writes only `sa.NegotiatedPairs`, and `newRekeyedChild` inherits `old.Selectors` without ever reading the narrowing result. A rekey cannot move the installed selector at all | reading the producer at implementation time | A-3 is confirmed by a different mechanism, and R-1's compare-and-replace mitigation is not needed. `coversFloor` (`ts_narrow.go`) then made the RESPONDER's answer agree with what it installs, under the sibling spec. The INITIATOR path is not settled: `applyChildRekeyResponse` reads no TSi or TSr from a rekey response, and `spec-fixit-child-rekey-answer-vs-installed-selectors` owns it |
+| approach | The spec proposed moving the policy to `PeerSession` ownership | The defect was already cured one layer down by `xfrmBackend.InstallPolicy` upserting, and per-peer `SPParams.Owner` refuses the foreign peer EEXIST used to refuse | the 2026-08-02 audit read the shipped code against the spec | The shipped design is KEPT and the spec was rewritten to it (`ai/rules/no-layering.md`, `ai/rules/simplicity.md`) |
+| escalation | A wire-visible protocol change shipped with no foreign-implementation witness, and the spec's own Interop Tests row stayed blank through implementation | Every existing strongSwan scenario has Ze initiating, or responding-and-answering. None had a responder-role Ze speak first, so reverting the counter fix left all of them green | closure review, round 2 | `test/interop-ipsec/scenarios/26-responder-raises-child-rekey`, mutation-verified. The general lesson is that "an interop scenario exists for this feature" is not the same claim as "an interop scenario fails when this change is reverted" |
+| approach | The new scenario read Ze's XFRM state through `lab.ze_xfrm_state`, copied from scenario 05 | `docker_exec_quiet` returns `""` for a failed read AND for a kernel holding no state, and the scenario reads an empty set as "no XFRM here" and skips every dataplane assertion. A broken `docker exec` would have skipped them in silence | `make ze-functional-docker-exec-check` went RED at 122 sites against a floor of 121, blocking `ze-precommit-verify` for the whole checkout | The scenario reads through `docker_exec`, which raises and names the container and the command. The floor was not raised, and the scenario was re-run because the fix changed the path that produced its PASS |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| R-1: separate the selector orientation from the KEYMAT role | Done | `internal/component/ike/engine/child.go`, `ChildSA.SelectorsLocalIsTSi`, `selectorPort`; `rekey.go`, `newRekeyedChild` | `LocalIsInitiator` has one production reader left, and it is the Section 2.17 key-half choice |
+| R-2: a rekey `.ci` that can observe XFRM | Done | `test/ipsec/ipsec-child-rekey-xfrm.ci` | Real backend on peer-a, noop on peer-b, roles crossed, asymmetric port |
+| R-3: a QEMU test for reqid resolution | Done | `internal/component/ike/dataplane/xfrm_reqid_resolution_integration_linux_test.go` | Bracketed by controls that must move the counter |
+| Found and fixed: the responder's narrowing orientation | Done | `internal/component/ike/engine/ts_narrow.go`, `narrowChildSelectors` | `policyPairs(sa.PeerCfg, false)`; every caller responds |
+| Found and fixed: the responder's Message ID counter | Done | `internal/component/ike/engine/responder.go`, `finishResponderEstablish` | `resumeRequestsAfter` deleted from `msgid.go` |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-R1 | Done | `TestRekeyKeepsThePolicyOrientationOfTheRetiredPair`, case "peer rekeys a ze-initiated child" | Asserts `selectorPort` on both sides, `samePolicySelector`, and `childPolicyParams` ports in both directions |
+| AC-R2 | Done | The same test, case "ze rekeys a peer-initiated child" | Same assertions, roles reversed |
+| AC-R3 | Done | `test/ipsec/ipsec-child-rekey-xfrm.ci` | Reads `ip xfrm state` and `ip xfrm policy` through three phases and fails on POLICY-MOVED |
+| AC-R4 | Done | `TestXFRMPolicyResolvesToAReplacedState` | One policy, state A then state B at one reqid, read from `XfrmOutNoStates` and each state's own packet counter |
+| AC-1..AC-6 | VOID | - | They describe the session-owned design the 2026-08-17 rewrite discarded |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestChildRekeyInstallsStatesWithoutTouchingThePolicy` | Changed | - | VOID with AC-1. The shipped design DOES call `InstallPolicy` on rekey, and it upserts. `TestXFRMPolicyInstallIsIdempotent` (`dataplane/xfrm_rekey_policy_integration_linux_test.go`) is the surviving claim |
+| `TestRetiringASupersededPairKeepsTheLivePolicy` | Done, renamed | `internal/component/ike/engine/child_rekey_policy_test.go`, `TestRetiredChildKeepsThePolicyTheReplacementUses` | |
+| `TestSessionTeardownRemovesThePolicyExactlyOnce` | Changed | - | VOID: the live pair's teardown is repeated by design and the code concedes it as harmless |
+| `TestPolicyInstallFailureStillFailsTheChildSA` | Changed | - | VOID with AC-6. The install-failure paths still fail closed and are unchanged by this spec |
+| `ipsec-child-rekey-xfrm` | Done | `test/ipsec/ipsec-child-rekey-xfrm.ci` | |
+| `TestXFRMPolicyResolvesToAReplacedState` | Done | `internal/component/ike/dataplane/xfrm_reqid_resolution_integration_linux_test.go` | |
+| `TestXFRMSecondInstallOfOneSelectorIsRefused` | Changed | - | Gone with `XfrmPolicyAdd`. `TestXFRMPolicyInstallIsIdempotent` replaces it |
+| a short-lifetime rekey scenario, strongSwan | Done | `test/interop-ipsec/scenarios/05-child-rekey` and `26-responder-raises-child-rekey` | 26 is new here and covers the direction 05 cannot fail on |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/ike/engine/child.go` | Done | `SelectorsLocalIsTSi` added and read; not the split the void design asked for |
+| `internal/component/ike/engine/rekey.go` | Done | Orientation inherited, floor swapped into the request's orientation |
+| `internal/component/ike/engine/delete.go` | Changed | Untouched. `removeChildSAExcept` already guards the retire path |
+| `internal/component/ike/engine/established.go` | Changed | Untouched by this spec |
+| `internal/component/ike/engine/register.go` | Changed | Untouched. It was listed to hold the void `PeerSession` policy record |
+| `internal/component/ike/engine/rekey_policy_test.go` | Changed | Never created. `child_rekey_orientation_test.go` and `child_rekey_policy_test.go` hold the surviving claims |
+| `internal/component/ike/engine/msgid.go` | Done, not in the plan | `resumeRequestsAfter` deleted |
+| `internal/component/ike/engine/responder.go` | Done, not in the plan | `finishResponderEstablish` |
+| `internal/component/ike/engine/ts_narrow.go` | Done, not in the plan | `swapPairs`, and the responder-constant narrowing orientation |
+
+### Audit Summary
+
+- **Total items:** 27
+- **Done:** 20
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 7, every one of them a consequence of the 2026-08-17 rewrite to the shipped
+  design, recorded in Deviations above. No item was reduced in scope.
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A rekey never moves the installed policy selector, whichever end starts it | unit, both role directions | `TestRekeyKeepsThePolicyOrientationOfTheRetiredPair` PASS 2026-08-22 (`make ze-unit-pkg-test PKG=./internal/component/ike/engine`). It compares `selectorPort`, `samePolicySelector` and `childPolicyParams` across the rekey, on a selector with a different port on each side, which is what makes a swap observable |
+| The rekey works on the REAL dataplane, not the noop backend | functional, QEMU, real kernel | `test/ipsec/ipsec-child-rekey-xfrm.ci`. It waits for two states, then two more beside them, then the retirement, and compares the policy selector set across all three. It discriminates: with the orientation read reverted it prints POLICY-MOVED and names the port that changed sides |
+| The kernel resolves one policy to successive states at one request id (A-1) | integration, QEMU, real kernel | `TestXFRMPolicyResolvesToAReplacedState`. Bracketed by an opening and a closing control that MUST move `XfrmOutNoStates`, plus each state's own packet counter, so the "counter did not move" readings are readings and not a dead instrument |
+| A responder-role Ze can raise its own exchange, and a foreign implementation accepts it | interop, strongSwan 5.9.14 | `test/interop-ipsec/scenarios/26-responder-raises-child-rekey` PASS 2026-08-22, ESP counters advancing on both containers after the rekey. MUTATION-VERIFIED: in a throwaway worktree at HEAD with `sa.NextMsgID = msgID + 1` restored, it FAILS with "strongSwan never parsed a CREATE_CHILD_SA REKEY_SA request from a responder-role Ze" |
+| A tunnel survives a Child SA rekey against strongSwan and keeps carrying traffic | interop, strongSwan 5.9.14 | `test/interop-ipsec/scenarios/05-child-rekey` (Ze as connection initiator) and scenario 26 (Ze as original responder). Both assert ESP counters advance per SPI after the rekey, on Ze and on the peer |
+| RFC 7296 Section 2.2's two counters are gated, not merely implemented | RFC gate | `rfc/short/rfc7296.md` row `[RFC7296-2.2-3] [MUST]`, both polarities tagged, `rfc/extraction/rfc7296.json` records it under section 2.2 `unsourced-ids` with a resign reason. `make ze-rfc-check` OK: 2966 gated MUST-level requirements, 3581 tags resolved |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| The spec metadata declares no deferral shard (`Deferral shard: -`) and none exists | done | `plan/deferrals/rfcgate-1b-rfc7296-pilot.md`, which the two 2026-08-02 audits name as the source of their rows, was removed when that spec closed. `grep -rl "child-sa-rekey-policy" plan/deferrals/` returns nothing, so no live row anywhere names this spec |
+| First audit pass: `reapStalePending` and `cleanupPendingSA` tear down a pending child with no `keep` | done | `reapStalePending` (`established.go`) calls `removeChildSAExcept(pc, firstSharingSelector(pc, ps.getChildSA()), ...)`. `cleanupPendingSA` keeps its unconditional removal on purpose: it runs only after `Stop()` has joined the owner goroutine, when every policy of the session is going |
+| First audit pass: audit the three responder rollback sites for the same hazard | done | They are one site now, `rollbackFirstChildSA` (`responder.go`), and it passes `firstSharingSelector(child, ps.getChildSA(), ps.getPendingChild())` |
+| Second audit pass 1: `samePolicySelector` flips orientation on a peer-initiated rekey | done | It is R-1 and it is fixed here |
+| Second audit pass 2: removal and install disagree on what identifies a policy | done | Every engine Child SA policy removal calls `RemovePolicyParams(childPolicyParams(child, dir))`. No production caller of the three-argument `RemovePolicy` remains |
+| Second audit pass 3: `resolvePendingAfterOwnerLoop` strands a `pendingChild` on a nil `pendingSA` | cancelled | The combination cannot arise, which the audit named as the cheaper answer. Proof in the Review Gate section above |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/ipsec/ipsec-child-rekey-xfrm.ci` | Yes | `ls -l` 2026-08-22: 9.0K |
+| `internal/component/ike/dataplane/xfrm_reqid_resolution_integration_linux_test.go` | Yes | `ls -l` 2026-08-22: 12K |
+| `internal/component/ike/engine/child_rekey_orientation_test.go` | Yes | `ls -l` 2026-08-22: 18K |
+| `internal/component/ike/engine/rfc7296_msgid_responder_request_test.go` | Yes | `ls -l` 2026-08-22: 4.7K |
+| `test/interop-ipsec/scenarios/26-responder-raises-child-rekey/check.py` | Yes | `ls -l` 2026-08-22, beside `ze.conf` and `swanctl.conf` |
+| `internal/component/ike/engine/rekey_policy_test.go` | No | `ls` reports no such file. It belongs to the VOID design; see Files from Plan |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-R1 | a peer-initiated rekey of a Ze-initiated Child SA keeps the policy orientation | `make ze-unit-pkg-test PKG=./internal/component/ike/engine RUN='^TestRekeyKeepsThePolicyOrientationOfTheRetiredPair$'` -> ok, 2026-08-22. The producer is `newRekeyedChild` (`rekey.go`) inheriting `old.SelectorsLocalIsTSi`, read by `selectorPort` (`child.go`) |
+| AC-R2 | the same with the roles reversed | Same run, table case "ze rekeys a peer-initiated child" |
+| AC-R3 | a rekey is observed on the real XFRM dataplane | `test/ipsec/ipsec-child-rekey-xfrm.ci` carries `option=needs-linux:caps=net-admin`, runs `peer-a` without `ze_test_ike_dataplane=noop`, and asserts on `ip xfrm state` and `ip xfrm policy`. PASS in QEMU 2026-08-18 against commit `86b6aa291`; `child.go`, `responder.go` and `msgid.go` have not moved since (`git log 86b6aa291..HEAD` is empty for all three) |
+| AC-R4 | one policy resolves to a replaced state at one reqid | `TestXFRMPolicyResolvesToAReplacedState`, QEMU 2026-08-18. Neither the test nor `dataplane/xfrm_linux.go` has changed since |
+| Message ID counters | a responder-role Ze raises its first request at id 0 | `make ze-unit-pkg-test RUN='^TestResponderFirstRequestMatchesWhatTheInitiatorExpects$'` -> ok, 2026-08-22, and `test/interop-ipsec/scenarios/26-responder-raises-child-rekey` PASS against strongSwan 2026-08-22 |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| A CREATE_CHILD_SA rekey the peer initiates, answered on the real XFRM backend | `test/ipsec/ipsec-child-rekey-xfrm.ci` | Yes. Read, not inferred: peer-b holds `lifetime 10` and the noop backend, peer-a holds `lifetime 3600` and the real one, so peer-b's soft expiry drives the rekey peer-a answers. `rekey.py` reads the kernel through three phases |
+| A CREATE_CHILD_SA rekey Ze raises as the original IKE responder | `test/interop-ipsec/scenarios/26-responder-raises-child-rekey/check.py` | Yes. charon carries `start_action = start` and every rekey timer at 0, Ze carries `connection-type respond` and `lifetime 30`, so the only rekey on the wire is Ze's |
+| `ChildSA.SelectorsLocalIsTSi` reaches the kernel policy | `test/ipsec/ipsec-child-rekey-xfrm.ci` | Yes. `selectorPort` -> `childPolicyParams` -> `InstallPolicy`, and the `.ci`'s selector carries a port on one side only, which is what makes an orientation error visible in `ip xfrm policy` |
+| `TestChildRekeyInstallsStatesWithoutTouchingThePolicy` and the other three Wiring Test rows | none | VOID with the session-owned design. The two rows above replace them |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestXFRMPolicyResolvesToAReplacedState`, QEMU 2026-08-18, against a real kernel, bracketed by two controls |
+| A-2 | confirmed | `grep -rn "createFirstChildSA(" internal/` gives two production callers, `initiatorFirstChildSA` (`child.go`) and `buildAuthResponse` (`responder.go`); `installChildTolerant` has two, `applyChildRekeyResponse` and `respondChildRekey`. Three install paths, no fourth |
+| A-3 | confirmed, by a different mechanism | `narrowChildSelectors` writes only `sa.NegotiatedPairs` (`ts_narrow.go`), and `newRekeyedChild` inherits `old.Selectors` without reading it, so a rekey cannot move the installed selector. Recorded in the Mistake Log |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/features/rfc-status.md`, "Section 2.2 two counters ... It took the peer's id before this fix" | `finishResponderEstablish` writes no `NextMsgID`; `advanceMsgID` and `advanceExpectedMsgID` (`msgid.go`) own the two counters and the ceiling | Yes |
+| `docs/features/rfc-status.md`, "Section 2.9 narrowing orientation" | `narrowChildSelectors` calls `policyPairs(sa.PeerCfg, false)` (`ts_narrow.go`) | Yes |
+| `docs/features/rfc-status.md`, "Section 2.8 rekey on the XFRM dataplane" | `newRekeyedChild` inherits `Selectors` and `SelectorsLocalIsTSi`; `test/ipsec/ipsec-child-rekey-xfrm.ci` measures it | Yes |
+| `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, "One field cannot carry both..." | Source anchors `child.go -- ChildSA.SelectorsLocalIsTSi, selectorPort` and `rekey.go -- newRekeyedChild` both resolve | Yes |
+| `docs/architecture/ike/ipsec-13-rekey-wire.md`, the two-counter paragraph and `## Proof` | Anchored to `responder.go -- finishResponderEstablish` and `msgid.go`; the Proof section names scenario 05, scenario 26 and the `.ci`, and each exists | Yes |
+| `ai/digests/ipsec-ike.md`, the rekey bullet | Both scenario paths exist; `make ze-doc-verify` resolves 3025 digest anchors | Yes |
+| Feature list, user guide: no update | `grep -rn "SelectorsLocalIsTSi" docs/guide docs/features` finds nothing outside the rfc-status row, and no operator-visible surface changed: no YANG leaf, no CLI verb, no env var | Yes |
+| `docs/architecture/ike/ipsec-7-ikev2-engine.md`: no update | It is declared by `internal/component/ike/engine/register.go`, which this spec lists for the VOID session-owned design and never edited. `git log 86b6aa291..HEAD -- register.go` and the diff of `86b6aa291` both show no change to it | Yes |
+
+## Core Insight
+
+A field's name says what it holds; only its WRITER says when it changes. `LocalIsInitiator`
+was written per exchange and read as though it were written per SA, and the two readings
+agreed on every tunnel until the far end started a rekey. The fix was not a better read: it
+was giving the second meaning its own field, written beside the data it describes and
+inherited with it.
+
+The same shape produced the Message ID defect one function away. `sa.NextMsgID` names this
+end's next request, and `finishResponderEstablish` wrote it from a number that belonged to
+the peer's counter. RFC 7296 Section 2.2 states the two counters are independent in
+indicative prose with no capitalised keyword, so the extraction walk derived no site, no
+checklist row existed, and the gate that exists to catch exactly this was silent. An
+obligation a keyword scan cannot see is still an obligation, and `unsourced-ids` is where it
+goes.
+
+What made the third finding possible is narrower and worth keeping: a suite can hold a
+scenario for a feature and still hold none that FAILS when the change is reverted. Ze had a
+strongSwan Child SA rekey scenario throughout. It had Ze on the initiating side, so it could
+not have caught a defect that silenced the responding side completely.
+
+The scenario written to close that gap opened the same shape one more time, in the test
+harness rather than the daemon. `docker_exec_quiet` returns the empty string for a failed
+read and for a kernel holding no state, and the scenario reads an empty state as "this host
+has no XFRM" and skips its dataplane assertions. One value, two meanings, and the caller
+cannot tell them apart: the daemon defect and the test defect are the same sentence.

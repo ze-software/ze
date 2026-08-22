@@ -11,7 +11,7 @@
 // the backend upserts (xfrmBackend.InstallPolicy). If the kernel bound a policy to the
 // state that existed when the policy was written, the replacement would carry nothing
 // and every tunnel would go dark at its first Child SA rekey. That was recorded as
-// assumption A-1 of plan/spec-fixit-child-sa-rekey-policy.md, load-bearing and never
+// assumption A-1 of spec-fixit-child-sa-rekey-policy, load-bearing and never
 // measured: no test in this package installed an XFRM state against an installed policy
 // at all.
 //

@@ -905,10 +905,10 @@ func (ps *PeerSession) rollbackFirstChildSA(child *ChildSA, dp dataplane.Datapla
 	removeChildSAExcept(child, firstSharingSelector(child, ps.getChildSA(), ps.getPendingChild()), dp, log)
 }
 
-// finishResponderEstablish caches and sends the IKE_AUTH response, adopts the
-// installed Child SA, advances the message-ID counters (RFC 7296 Section 2.2:
-// post-IKE_AUTH each side's request counter resumes at 2), and marks the SA
-// established. runResponder observes the state change and takes over the owner loop.
+// finishResponderEstablish caches and sends the IKE_AUTH response, adopts the installed
+// Child SA, advances the PEER's request counter past the IKE_AUTH it just answered, and
+// marks the SA established. RFC 7296 Section 2.2 gives an endpoint two counters and this
+// moves one. The body says why this side's own id stays 0. runResponder then takes over.
 func (ps *PeerSession) finishResponderEstablish(sa *SA, msgID uint32, resp []byte, child *ChildSA, tr *transport.UDPTransport, remote *net.UDPAddr, log *slog.Logger) {
 	// A different SA already owns the loop => this is a PARALLEL re-initiation that has
 	// now authenticated (we reached finishResponderEstablish only after verifyRemoteAuth).
