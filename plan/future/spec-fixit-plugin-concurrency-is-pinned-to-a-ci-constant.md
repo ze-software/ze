@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | ready |
 | Scope | tooling |
 | Depends | - |
 | Phase | 1/4 |
 | Deferral shard | `-` |
 | Handoff | - |
-| Updated | 2026-08-19 |
+| Updated | 2026-08-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

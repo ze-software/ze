@@ -34,3 +34,6 @@ is open.
 | 2026-08-22 | acb7c2cd | test(tools): the go twin asserts the refusal the code emits | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-22 | acb7c2cd | test(tools): the go twin asserts the refusal the code emits | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
 | 2026-08-22 | acb7c2cd | plan: the plugin-concurrency spec waits for the first release | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-22 | acb7c2cd | fix(plugin): every spawn clears the stop re-entry guard | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-22 | acb7c2cd | fix(plugin): every spawn clears the stop re-entry guard | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
+| 2026-08-22 | acb7c2cd | plan: a parked spec reads ready, not in-progress | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
