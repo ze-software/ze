@@ -3818,11 +3818,22 @@ def index_head_gate(repo: Path) -> GateVerdict:
 
 _DEBT_GATE_NAME = dict(DEBT_FLAGS)
 
-# How each owed gate is re-judged: a runner taking the repo root, or the
+# How each owed gate is re-judged: a runner taking the tree to run in, or the
 # sentence saying why no command can produce that judgement. Keyed by the flag
 # rather than by the literal cell text, so rewording a gate name in DEBT_FLAGS
 # cannot orphan an entry here. A row written under an OLDER wording finds no
 # runner and stays open, which is the safe direction.
+#
+# A gate added here MUST NOT pass make variables on the command line. Job
+# admission keys a running job on its command text plus the variables it parsed
+# (`_job_key`, `scripts/dev/ze-run.sh`), and a variable the key loses makes two
+# different runs hash the same, so a job can take its verdict from an unrelated
+# one. That was live on this host until 2026-08-22 -- GNU Make 3.81 omits the
+# ` -- ` separator when the command line carries no flag, and the parser read
+# only what followed it -- and a run for one package was measured exiting 0 on
+# another's result. Everything here is a bare target for that reason. A
+# parameterized gate would write somebody else's verdict into the ledger as
+# `cleared`, which is the artifact a later reader trusts (`ai/rules/evidence.md`).
 DEBT_GATE_RUNNERS: dict[str, GateRunner | str] = {
     _DEBT_GATE_NAME["unverified"]: gate_command("make", "ze-precommit-verify"),
     _DEBT_GATE_NAME["structural_red_ok"]: gate_command(
