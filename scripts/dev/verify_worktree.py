@@ -26,6 +26,8 @@ import shutil
 import subprocess
 import sys
 import time
+from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 
 
@@ -119,6 +121,63 @@ def remove_worktree(root: Path, path: Path) -> None:
     )
 
 
+def gate_env() -> dict[str, str]:
+    """The environment a gate runs under inside a worktree.
+
+    `ZE_RUN_JOB` is dropped because the gate reads it to decide whether it is
+    nested inside another admitted job (`scripts/dev/ze-run.sh`). A worktree run
+    is its own job, and inheriting the caller's marker makes it skip admission.
+
+    Shared with `clear_debt` (`scripts/dev/commit_helper.py`), which runs the
+    same make targets in the same kind of worktree. Two spellings of "how a gate
+    is invoked here" would drift, and the drift would be invisible: both would
+    still run, and only one would be admitted.
+    """
+    env = dict(os.environ)
+    env.pop("ZE_RUN_JOB", None)
+    return env
+
+
+@contextmanager
+def worktree_at(root: Path, sha: str, keep: bool = False) -> Generator[Path]:
+    """A throwaway worktree at `sha`, removed on every exit path.
+
+    Extracted so a second caller can have it. `clear_debt`
+    (`scripts/dev/commit_helper.py`) re-runs a verification-debt row's gate, and
+    it used to run those gates over the shared WORKING TREE -- which in this
+    checkout carries several other sessions' uncommitted files. A `cleared`
+    written from such a run says the gate was green over somebody else's work in
+    progress, not over the commit the row is about. Its own docstring named this
+    repair: materialize HEAD once and run the make targets inside it.
+
+    Raises `RuntimeError` when `git worktree add` fails, because a caller that
+    got no worktree must not quietly fall back to judging the working tree.
+    That fallback is the defect, so failing loudly is the whole point.
+    """
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    path = worktree_path(root, sha, stamp)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    add = run(
+        ["git", "-C", str(root), "worktree", "add", "--detach", str(path), sha],
+        capture_output=True,
+    )
+    if add.returncode != 0:
+        raise RuntimeError(
+            f"git worktree add failed for {sha[:12]}: "
+            f"{(add.stderr or add.stdout or '').strip()}"
+        )
+    try:
+        # A worktree has no tmp/ of its own, and a gate writes its logs and its
+        # session directory there.
+        (path / "tmp").mkdir(exist_ok=True)
+        yield path
+    finally:
+        if keep:
+            print(f"verify-worktree: kept {path}")
+        else:
+            remove_worktree(root, path)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -134,42 +193,27 @@ def main() -> int:
 
     root = repo_root()
     sha = resolve(args.commit)
-    path = worktree_path(root, sha, time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()))
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    print(f"verify-worktree: {sha[:12]} -> {path}")
-    add = run(["git", "-C", str(root), "worktree", "add", "--detach", str(path), sha])
-    if add.returncode != 0:
-        return add.returncode
 
     try:
-        # A worktree has no tmp/ of its own, and the gate writes its logs and
-        # its session directory there.
-        (path / "tmp").mkdir(exist_ok=True)
-        env = dict(os.environ)
-        # The gate reads this to decide whether it is nested inside another
-        # admitted job. A worktree run is its own job.
-        env.pop("ZE_RUN_JOB", None)
-        print(f"verify-worktree: make {args.target}")
-        result = run(["make", args.target], cwd=str(path), env=env)
-        print(f"verify-worktree: {args.target} exit={result.returncode}")
-        if result.returncode != 0:
-            saved = save_logs(root, path, path.name)
-            if saved is not None:
-                print(f"verify-worktree: logs saved to {saved}")
-            else:
-                print(
-                    "verify-worktree: the gate wrote no stage logs "
-                    f"({path}/tmp/verify/ is absent), so it went red before "
-                    "the first stage"
-                )
-        return result.returncode
-    finally:
-        if args.keep:
-            print(f"verify-worktree: kept {path}")
-        else:
-            remove_worktree(root, path)
-            print("verify-worktree: worktree removed")
+        with worktree_at(root, sha, keep=args.keep) as path:
+            print(f"verify-worktree: {sha[:12]} -> {path}")
+            print(f"verify-worktree: make {args.target}")
+            result = run(["make", args.target], cwd=str(path), env=gate_env())
+            print(f"verify-worktree: {args.target} exit={result.returncode}")
+            if result.returncode != 0:
+                saved = save_logs(root, path, path.name)
+                if saved is not None:
+                    print(f"verify-worktree: logs saved to {saved}")
+                else:
+                    print(
+                        "verify-worktree: the gate wrote no stage logs "
+                        f"({path}/tmp/verify/ is absent), so it went red before "
+                        "the first stage"
+                    )
+            return result.returncode
+    except RuntimeError as exc:
+        print(f"verify-worktree: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

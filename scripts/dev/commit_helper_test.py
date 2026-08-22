@@ -4780,6 +4780,14 @@ class TestDebtClear(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         root = Path(tmp.name)
         _git(root, "init", "-q")
+        _git(root, "config", "user.email", "t@example.com")
+        _git(root, "config", "user.name", "t")
+        _git(root, "config", "commit.gpgsign", "false")
+        # debt-clear materializes a worktree at HEAD, so the fixture needs one.
+        # `.gitignore` keeps tmp/ out, which is where the worktree is built.
+        (root / ".gitignore").write_text("tmp/\n", encoding="utf-8")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-qm", "init")
         ch.record_debt(root, "abcd1234", "fix: thing", rows)
         return root
 
@@ -4819,13 +4827,17 @@ class TestDebtClear(unittest.TestCase):
         concurrent `create` would."""
         root = self._repo([("green fixture gate", "another session's red")])
 
-        def append_a_twin(repo: Path) -> tuple[int, str]:
+        def append_a_twin(_where: Path) -> tuple[int, str]:
             # Written straight to the shard rather than through record_debt,
             # which refuses a row the shard already holds open. The twin is
             # still reachable: shards recorded before that guard carry one, and
             # so does a hand edit. What clear_debt_rows owes is unchanged --
             # a judgement clears the row it was passed on and no other.
-            shard = repo / ch.debt_shard_path("abcd1234")
+            # `root`, not the argument: the runner now receives the worktree
+            # the gate runs in, and a concurrent `create` appends to the real
+            # repo's shard. Using the argument would write into a checkout that
+            # is discarded when the pass ends.
+            shard = root / ch.debt_shard_path("abcd1234")
             twin = next(
                 line
                 for line in shard.read_text(encoding="utf-8").splitlines()
@@ -4844,16 +4856,26 @@ class TestDebtClear(unittest.TestCase):
         self.assertEqual(len(ch.open_debt_rows(root)), 1)
 
     def test_the_shard_header_says_what_a_cleared_row_establishes(self) -> None:
-        """The header is the contract every reader of the ledger gets, and it
-        used to say the pass re-runs the gate `over the committed code`. Three
-        of the five runnable gates in `DEBT_GATE_RUNNERS` are plain make targets
-        over the working tree, which in this checkout carries other sessions'
-        uncommitted files, so that claim was about a tree the pass never
-        judged."""
+        """The header is the contract every reader of the ledger gets, so it
+        must claim exactly what the pass delivers and not a word more.
+
+        It has now been wrong in both directions, which is why this is asserted
+        rather than trusted. It first claimed the gate ran `over the committed
+        code` while every runnable gate judged the working tree. It was then
+        corrected to say WORKING TREE, and that became false in turn on
+        2026-08-22, when `clear_debt` moved the gates into a worktree at HEAD.
+        A header describing the previous implementation is the same defect
+        either way round.
+        """
         root = self._repo([("green fixture gate", "r")])
         header = self._shard(root).split("| Date |")[0]
-        self.assertNotIn("over the committed code", header)
-        self.assertIn("WORKING TREE", header)
+        self.assertIn("worktree at HEAD", header)
+        self.assertIn("over the COMMIT", header)
+        self.assertNotIn(
+            "green in this checkout",
+            header,
+            "the header still describes the pre-worktree pass",
+        )
 
     def test_a_red_gate_leaves_the_row_open_and_prints_its_output(self) -> None:
         """AC-7. Exit 3 is not exit 0, so the row is untouched and the operator
@@ -4918,8 +4940,11 @@ class TestDebtClear(unittest.TestCase):
         out untouched, and it is still open."""
         root = self._repo([("green fixture gate", "r1")])
 
-        def slow_gate(repo: Path) -> tuple[int, str]:
-            ch.record_debt(repo, "abcd1234", "other session", [("g9", "late row")])
+        def slow_gate(_where: Path) -> tuple[int, str]:
+            # `root` for the same reason as the twin above: the late row is a
+            # concurrent session writing to the real ledger, not to the
+            # throwaway worktree the gate happens to be running in.
+            ch.record_debt(root, "abcd1234", "other session", [("g9", "late row")])
             return 0, "ran"
 
         with mock.patch.dict(ch.DEBT_GATE_RUNNERS, {"green fixture gate": slow_gate}):
@@ -5102,6 +5127,121 @@ class TestWiringGateAttribution(unittest.TestCase):
             reds.unattributed,
             ("ze-doc-wiring-check (subcheck:ci-sleep-ratchet)",),
         )
+
+
+class TestDebtClearRunsOverTheCommit(unittest.TestCase):
+    """`debt-clear` judges HEAD in a worktree, never the shared working tree.
+
+    A `cleared` row is the artifact that records verification evidence, so what
+    the run judged decides what the word means. Against the working tree it
+    meant "green beside whatever several other sessions had uncommitted at that
+    moment", which is a different claim from the one the row makes about a
+    commit, and it could go red on work nobody in the pass owned.
+    """
+
+    def _repo_with_one_open_row(self, tmp: str, gate_flag: str) -> tuple[Path, str]:
+        root = Path(tmp)
+        _git(root, "init", "-q")
+        _git(root, "config", "user.email", "t@example.com")
+        _git(root, "config", "user.name", "t")
+        _git(root, "config", "commit.gpgsign", "false")
+        (root / "plan" / "verification-debt").mkdir(parents=True)
+        (root / ".gitignore").write_text("tmp/\n")
+        (root / "committed.txt").write_text("in the commit\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-qm", "init")
+        gate = ch._DEBT_GATE_NAME[gate_flag]
+        ch.record_debt(root, "abcd1234", "a subject", [(gate, "a reason")])
+        return root, gate
+
+    def test_the_gate_is_handed_a_worktree_without_the_dirty_tree(self) -> None:
+        """The discriminating assertion is the uncommitted file's ABSENCE.
+
+        Handing the gate a different path proves little on its own. What the
+        change exists to guarantee is that another session's work in progress
+        cannot reach the verdict, so the test writes an uncommitted file and
+        asserts the gate could not see it.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root, gate = self._repo_with_one_open_row(tmp, "unverified")
+            (root / "another-session-was-editing.txt").write_text("uncommitted\n")
+            seen: dict[str, object] = {}
+
+            def fake(where: Path) -> tuple[int, str]:
+                seen["where"] = where
+                seen["saw_committed"] = (where / "committed.txt").exists()
+                seen["saw_dirty"] = (where / "another-session-was-editing.txt").exists()
+                return 0, "PASS\n"
+
+            with mock.patch.dict(ch.DEBT_GATE_RUNNERS, {gate: fake}):
+                with contextlib.redirect_stdout(io.StringIO()) as out:
+                    code = ch.clear_debt(argparse.Namespace(repo=str(root)))
+
+            self.assertEqual(0, code)
+            self.assertNotEqual(root, seen["where"])
+            self.assertTrue(seen["saw_committed"], "the commit was not materialized")
+            self.assertFalse(
+                seen["saw_dirty"],
+                "the gate could see another session's uncommitted file, which is "
+                "the whole defect this change removes",
+            )
+            self.assertIn("cleared 1 row(s)", out.getvalue())
+
+    def test_the_worktree_is_removed_after_the_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root, gate = self._repo_with_one_open_row(tmp, "unverified")
+            seen: dict[str, Path] = {}
+
+            def fake(where: Path) -> tuple[int, str]:
+                seen["where"] = where
+                return 0, "PASS\n"
+
+            with mock.patch.dict(ch.DEBT_GATE_RUNNERS, {gate: fake}):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    ch.clear_debt(argparse.Namespace(repo=str(root)))
+
+            self.assertFalse(seen["where"].exists(), "the worktree outlived the pass")
+
+    def test_nothing_clears_when_no_worktree_can_be_made(self) -> None:
+        """No worktree means no honest answer, so the pass fails rather than
+        falling back to the tree it was written to stop judging."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root, gate = self._repo_with_one_open_row(tmp, "unverified")
+
+            def never_called(where: Path) -> tuple[int, str]:
+                raise AssertionError("the gate ran with no worktree")
+
+            def boom(*a, **kw):
+                raise RuntimeError("git worktree add failed for deadbeef: disk full")
+
+            with mock.patch.dict(ch.DEBT_GATE_RUNNERS, {gate: never_called}):
+                with mock.patch.object(ch, "_worktree_at", boom):
+                    with contextlib.redirect_stdout(io.StringIO()) as out:
+                        code = ch.clear_debt(argparse.Namespace(repo=str(root)))
+
+            self.assertEqual(1, code)
+            self.assertIn("every row stays open", out.getvalue())
+            still_open = [r for r in ch.open_debt_rows(root)]
+            self.assertEqual(1, len(still_open))
+
+    def test_an_all_unrunnable_pass_pays_no_checkout(self) -> None:
+        """A worktree is a full checkout. A pass with nothing to run must not
+        pay for one."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root, gate = self._repo_with_one_open_row(tmp, "review_override")
+            called = []
+
+            def watched(*a, **kw):
+                called.append(a)
+                raise AssertionError("materialized a worktree for nothing to run")
+
+            with mock.patch.object(ch, "_worktree_at", watched):
+                with contextlib.redirect_stdout(io.StringIO()) as out:
+                    code = ch.clear_debt(argparse.Namespace(repo=str(root)))
+
+            self.assertEqual(0, code)
+            self.assertEqual([], called)
+            self.assertIn("UNRUNNABLE", out.getvalue())
 
 
 if __name__ == "__main__":

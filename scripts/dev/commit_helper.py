@@ -43,6 +43,15 @@ from discovery_sources import is_discovery_source as _is_discovery_source
 # already diverged: spec-closure-check.py's returned None where the others
 # returned a malformed marker, so closure evidence skipped malformed rows.
 from journal import MALFORMED as JOURNAL_MALFORMED
+
+# The throwaway worktree a debt-clear pass runs its gates in, and the environment
+# it runs them under. Both come from verify_worktree.py rather than being spelled
+# again here: `make ze-verify-worktree` and this pass ask the same question of the
+# same commit, and two spellings of "materialize HEAD and run a gate in it" would
+# drift where nobody could see it -- both would still run, and only one would be
+# admitted by scripts/dev/ze-run.sh.
+from verify_worktree import gate_env as _gate_env
+from verify_worktree import worktree_at as _worktree_at
 from journal import journal_row_cells, journal_spec_stems
 
 SESSION_RE = re.compile(r"^[0-9a-f]{8}$")
@@ -3675,12 +3684,12 @@ def record_debt(
         "Each row is work owed, not a defect: a defect is fixed, never recorded",
         "(`ai/rules/completion.md`). Clear a row with `make ze-verify-debt-clear`:",
         "it re-runs the gate the row names and writes `cleared` only when that",
-        "run exits 0. Most of those gates judge the WORKING TREE, so a cleared",
-        "row says the gate was green in this checkout, other sessions'",
-        "uncommitted files included. It does not say the gate is green over the",
-        "commit alone: `discovery-index freshness` and",
-        "`ze-repository-tracked-build-check` are the two gates re-judged over",
-        "what git holds. A human MAY delete the",
+        "run exits 0. Every gate runs inside one throwaway worktree at HEAD, so",
+        "a cleared row says the gate was green over the COMMIT rather than",
+        "beside the uncommitted files several sessions keep in this checkout.",
+        "When no worktree can be made, nothing clears and the pass exits 1: the",
+        "fallback it refuses, judging the working tree, is the whole reason the",
+        "worktree is there. A human MAY delete the",
         "shard once every row is cleared.",
         "`scripts/dev/commit_helper.py create --push` refuses while any row here",
         "is open.",
@@ -3773,7 +3782,16 @@ def gate_command(*argv: str) -> GateRunner:
     def run(repo: Path) -> GateVerdict:
         shown = "$ " + " ".join(argv) + "\n"
         try:
-            proc = subprocess.run(list(argv), cwd=repo, capture_output=True, text=True)
+            proc = subprocess.run(
+                list(argv),
+                cwd=repo,
+                capture_output=True,
+                text=True,
+                # `repo` is a throwaway worktree during a debt-clear pass, so the
+                # gate runs as its own admitted job rather than inheriting the
+                # caller's `ZE_RUN_JOB` marker and skipping admission.
+                env=_gate_env(),
+            )
         except OSError as exc:
             return 1, shown + f"{argv[0]} did not run: {exc}"
         return proc.returncode, shown + (proc.stdout or "") + (proc.stderr or "")
@@ -3888,19 +3906,29 @@ def clear_debt_rows(path: Path, rows: dict[int, str]) -> int:
 def clear_debt(args: argparse.Namespace) -> int:
     """`commit_helper.py debt-clear`: re-run every open row's gate, clear on 0.
 
-    What a cleared row establishes is what the RUN established, and that is
-    narrower than the row's subject. Three of the five runnable gates are plain
-    `make` targets over the WORKING TREE (`DEBT_GATE_RUNNERS`), which in this
-    checkout carries several other sessions' uncommitted files as well as the
-    committed code the row is about. Two answer about what git holds:
-    `index_head_gate` materializes HEAD, and `ze-repository-tracked-build-check`
-    compiles the tracked tree. So a `cleared` says the gate was green HERE, and
-    it does not say the gate is green over the commit alone.
+    Every gate runs in ONE throwaway worktree at HEAD (`_worktree_at`), so a
+    `cleared` says the gate was green over the COMMIT. It used to say something
+    much weaker. The runnable gates are mostly plain `make` targets, they used to
+    run against the WORKING TREE, and in this checkout that tree carries several
+    other sessions' uncommitted files: a pass could therefore go red on work
+    nobody in it owned, or green on work nobody in it had written. This function's
+    own docstring named the repair for months -- materialize HEAD once and run the
+    make targets inside it -- and that is now what happens.
 
-    Clearing every row over HEAD is the stronger check, and it is separable
-    work rather than a wording fix: each gate would need a HEAD-scoped spelling
-    of the kind `discovery_index_head_status` already has, or the pass would
-    need to materialize HEAD once and run the make targets inside it.
+    A pass with no runnable gate materializes nothing, so an all-unrunnable pass
+    pays no checkout.
+
+    When the worktree cannot be made, NOTHING clears and the pass exits 1. The
+    fallback that suggests itself -- run them here instead -- is the exact defect
+    this removes, and it would write `cleared` into the artifact that exists to
+    hold verification evidence (`ai/rules/evidence.md`).
+
+    The worktree is also what keeps a cached verdict out of the ledger. `go test`
+    keys a cached result on the absolute paths in its testlog, so a gate at a
+    fresh path starts cold and cannot answer `ok (cached)` for a run that never
+    happened (`worktree_path`, `scripts/dev/verify_worktree.py`). Against the
+    shared tree the path is stable and that staleness is reachable, which is a
+    second reason the old spelling could write a `cleared` nobody could check.
 
     Each distinct gate runs ONCE, however many rows name it, and every row
     naming a gate that exited 0 is cleared (AC-6). A gate that exited non-zero
@@ -3922,21 +3950,47 @@ def clear_debt(args: argparse.Namespace) -> int:
         by_shard.setdefault(shard, []).append((line, row, debt_row_gate(row)))
     owed = {gate for shard_rows in by_shard.values() for _, _, gate in shard_rows}
     passed: set[str] = set()
+    runnable: list[str] = []
     for gate in sorted(owed):
         runner = DEBT_GATE_RUNNERS.get(gate)
-        if not callable(runner):
-            reason = runner or f"no gate is registered for {gate!r}"
-            print(f"UNRUNNABLE  {gate}\n  {reason}")
+        if callable(runner):
+            runnable.append(gate)
             continue
-        print(f"RUN         {gate}", flush=True)
-        code, output = runner(repo)
-        if code == 0:
-            print(f"PASS        {gate}")
-            print(textwrap.indent(gate_last_word(output), "  "))
-            passed.add(gate)
-            continue
-        print(f"RED         {gate} (exit {code})")
-        print(textwrap.indent(output.rstrip("\n"), "  "))
+        reason = runner or f"no gate is registered for {gate!r}"
+        print(f"UNRUNNABLE  {gate}\n  {reason}")
+    # Every runnable gate runs in ONE worktree at HEAD, and the unrunnable ones
+    # were reported above so a pass with nothing to run pays no checkout.
+    if runnable:
+        head = subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if head.returncode != 0:
+            print("UNWORKTREED no HEAD to materialize; every row stays open")
+            return 1
+        sha = head.stdout.strip()
+        print(f"WORKTREE    {sha[:12]} (gates run over the commit, not the tree)")
+        try:
+            with _worktree_at(repo, sha) as tree:
+                for gate in runnable:
+                    runner = DEBT_GATE_RUNNERS[gate]
+                    assert callable(runner)
+                    print(f"RUN         {gate}", flush=True)
+                    code, output = runner(tree)
+                    if code == 0:
+                        print(f"PASS        {gate}")
+                        print(textwrap.indent(gate_last_word(output), "  "))
+                        passed.add(gate)
+                        continue
+                    print(f"RED         {gate} (exit {code})")
+                    print(textwrap.indent(output.rstrip("\n"), "  "))
+        except RuntimeError as exc:
+            # No worktree means no honest answer. Falling back to the working
+            # tree is the defect this pass exists to remove, so nothing clears.
+            print(f"UNWORKTREED {exc}\n  every row stays open")
+            return 1
     cleared = 0
     for shard in sorted(by_shard):
         judged = {line: row for line, row, gate in by_shard[shard] if gate in passed}
