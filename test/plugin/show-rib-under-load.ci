@@ -1,0 +1,282 @@
+# Test: `show bgp rib` walks the adj-rib-in while a real peer is still feeding
+#       it, and every walk answers.
+#
+# VALIDATES: AC-5 of spec-record-answers-3-zero-alloc, through the real daemon.
+#            A show walk and the UPDATE path run on two goroutines at once, so
+#            the walk holds PeerRIB's read lock while handleReceivedStructured
+#            asks for its write side. Every dump answers and the table reaches
+#            its full size.
+# PREVENTS:  the read lock taken twice on one path
+#            (plan/journal/read-lock-taken-twice-on-one-path.md). Each show
+#            pipeline used to ask PeerRIB.IsAddPath from inside a
+#            PeerRIB.IterateSorted callback. IterateSorted runs the callback
+#            under that type's read lock and IsAddPath takes the same lock, so a
+#            write arriving between the two wedges the walk, the UPDATE path and
+#            every later reader of that peer's RIB, with nothing logged and
+#            nothing timing out. The RIB plugin then answers nothing ever again.
+#
+# WHY THE WRITER IS A REAL PEER AND NOT A SECOND PLUGIN. The engine hands every
+# command for one plugin to that plugin's single event loop
+# (Plugin.bridgeEventLoop, pkg/plugin/sdk/sdk_dispatch.go, "callbacks are
+# processed serially"), so two commands to bgp-rib never overlap and a fixture
+# built on `request bgp rib withdraw` beside `show bgp rib` measures nothing.
+# The UPDATE path is a different goroutine: handleReceivedStructured takes
+# peerMu for its phase 1 and gives it back BEFORE phase 2 inserts or removes
+# anything (rib_structured.go), so a walk holding peerMu.RLock does not hold
+# that writer off. That is the interleaving this fixture reproduces, and it is
+# the one an operator reaches by running a dump on a peer that is still sending.
+#
+# WHAT THIS FILE DOES NOT MEASURE, deliberately: the engine's answer queue.
+# `show bgp rib` answers with ONE document whatever the table size --
+# showPipeline returns a json.RawMessage (rib_pipeline.go) -- so its answer is a
+# head, one record and a terminator, three lines. The queue holds 256 lines for a
+# consumer that has not been scheduled yet (answerQueueDepth,
+# pkg/plugin/rpc/mux.go), and a streamed answer is 259 lines at the shortest, so
+# any streamed answer can be abandoned under load
+# (plan/journal/bound-too-small-for-its-own-burst.md). No table size reaches that
+# bound here, which is what lets the table be large enough to be worth racing.
+#
+# WHY THE LOAD LOOP COUNTS. `count` drains the same iteration the document form
+# drains and then answers one number, so nearly all of its time is the RIB
+# iteration this test races the UPDATE path against. The document form spends
+# most of its time building JSON, outside that lock, and a 200000-route document
+# would pass the wire message ceiling. So the loop counts, and one dump reads the
+# whole document early, while the table is small and the peer is still sending.
+#
+# ANTI-VACUITY. The walker asserts that at least one dump saw a route total
+# strictly between empty and complete. A walk that only ever ran before the
+# UPDATEs arrived, or only after they had all landed, never sees that, so a
+# fixture whose two halves failed to overlap fails rather than passing for a
+# concurrency that was not there. Measured on 2026-08-22: 203 walks, the first
+# at 0 routes and the last at 200000, with 197 of them on a partial table.
+#
+# DISCRIMINATION. Reverting the deadlock fix in inboundSource -- reading the
+# ADD-PATH flag with peerRIB.IsAddPath from inside the IterateSorted callback
+# instead of AddPathFamilies before the walk -- reddens this test on every run,
+# with `show bgp rib count did not answer within 20s ... the walk is wedged
+# against the UPDATE path`.
+
+# The peer feeds the whole table as one burst of UPDATEs and then holds the
+# session open, so the walks below run against a session that stays up.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=linger:value=true
+option=update:value=send-bulk:prefix=10.0.0.0/24:count=200000:next-hop=10.0.0.1:origin-as=65001:max-msg=512:eor=true
+# ze has nothing of its own to advertise, so its End-of-RIB is the only frame it
+# sends. Expecting it is what makes ze-peer bind a listening socket at all: a
+# check-mode peer with no ze-peer-consumed expectation exits before it listens.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# The walker: dumps the RIB while the peer's UPDATEs are still being processed.
+tmpfs=rib-under-load-walk.run:mode=755:terminator=EOF_WALK
+#!/usr/bin/env python3
+"""Test: show bgp rib walks a table a real peer is still filling."""
+
+import signal
+import sys
+
+from ze_api import API, runtime_fail, result_json_data
+
+
+failures = 0
+
+# The routes the peer sends. It matches the send-bulk count above: the walker
+# stops when the table is complete, so a mismatch is a hang the deadline names
+# rather than a silent early exit.
+ROUTES = 200000
+
+# The walk budget. The loop ends when the table is complete, so this is only the
+# ceiling that stops a broken run from looping for ever.
+WALKS_MAX = 4000
+
+# One dump must answer inside this, or the walk is wedged rather than slow. It
+# is far above the milliseconds a dump of this table takes and far below the
+# process timeout, so a wedge is reported as a wedge instead of as a timeout
+# with no cause named.
+WALK_DEADLINE_SECONDS = 20
+
+
+class WalkWedged(Exception):
+    """The dump did not answer inside its deadline."""
+
+
+def _on_alarm(signum, frame):
+    raise WalkWedged()
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+
+def fail(message):
+    global failures
+    print(f'FAIL {message}', file=sys.stderr)
+    failures += 1
+
+
+def document_total(result):
+    """Count the received routes in one `show bgp rib` document."""
+    data = result_json_data(result, {})
+    if not isinstance(data, dict):
+        return None
+    rib_in = data.get('adj-rib-in')
+    if not isinstance(rib_in, dict):
+        return None
+    total = 0
+    for routes in rib_in.values():
+        if not isinstance(routes, list):
+            return None
+        total += len(routes)
+    return total
+
+
+def main():
+    global failures
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # No wait beyond the handshake. The walk loop below starts at the earliest
+    # instant this process can dispatch, which is BEFORE ze opens the BGP
+    # session, so the walks are already running when the peer's burst arrives.
+    # A dispatch that reaches the engine before the command registry is frozen
+    # raises, and the loop retries rather than giving the ramp a head start.
+    signal.signal(signal.SIGALRM, _on_alarm)
+
+    def walk(label, command):
+        """Run one show command under a deadline, so a wedge names itself."""
+        signal.alarm(WALK_DEADLINE_SECONDS)
+        try:
+            return dispatch(api, command)
+        except WalkWedged:
+            runtime_fail(
+                f'`{command}` did not answer within {WALK_DEADLINE_SECONDS}s at '
+                f'{label}: the walk is wedged against the UPDATE path')
+            raise
+        finally:
+            signal.alarm(0)
+
+    totals = []
+    walks = 0
+    partial = 0
+    while walks < WALKS_MAX:
+        try:
+            result = walk(f'count-{walks}', 'show bgp rib count')
+        except RuntimeError:
+            # The command registry is not frozen yet. Retry: this is the window
+            # the loop exists to be inside.
+            continue
+        walks += 1
+        if result.get('status') != 'done':
+            fail(f'count-{walks}: expected status=done, got={result.get("status")}')
+            break
+        total = result_json_data(result, {}).get('count')
+        if not isinstance(total, int):
+            fail(f'count-{walks}: no count in the answer: {result!r}')
+            break
+        totals.append(total)
+        if 0 < total < ROUTES:
+            partial += 1
+            # Read the whole document too, once, while the table is still
+            # growing under it. This is the answer an operator reads, and it
+            # runs here rather than at the end because a complete table's
+            # document approaches the wire message ceiling.
+            if partial == 1:
+                doc = walk('document', 'show bgp rib')
+                if doc.get('status') != 'done':
+                    fail(f'document: expected status=done, got={doc.get("status")}')
+                elif document_total(doc) is None:
+                    fail('document: no adj-rib-in map in the answer')
+                else:
+                    print(f'OK document: dumped {document_total(doc)} routes '
+                          'while the peer was still sending', file=sys.stderr)
+        if total >= ROUTES:
+            break
+
+    print(f'OK walks: {walks} dumps answered, first={totals[0] if totals else None} '
+          f'last={totals[-1] if totals else None} partial={partial}',
+          file=sys.stderr)
+
+    if not totals or totals[-1] < ROUTES:
+        fail(f'the table never reached {ROUTES} routes: last={totals[-1] if totals else None}. '
+             'The peer did not deliver its burst, so this test measured nothing')
+
+    # The dumps have to have overlapped the UPDATE path for any of the above to
+    # mean anything. A run whose walks all fell before or all fell after the
+    # burst never sees a partial table.
+    if partial == 0:
+        fail('no dump saw a partially filled table, so no walk overlapped the '
+             'UPDATE path and this test measured nothing')
+
+    if failures > 0:
+        msg = f'{failures} rib-under-load assertions failed (see FAIL lines above)'
+        print(f'\n{msg}', file=sys.stderr)
+        sys.stderr.flush()
+        runtime_fail(msg)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_WALK
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external rib-under-load-walk {
+		run ./rib-under-load-walk.run
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 500000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
+expect=exit:code=0
