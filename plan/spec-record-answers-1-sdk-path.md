@@ -643,10 +643,296 @@ most expensive and least checked.
 
 - [ ] The gate re-run shows 0 BLOCKER, 0 ISSUE
 
-**0 BLOCKER. 2 ISSUE open**, findings 3 and 4, plus the `render_records.go` half
-of finding 5. All three are one-line fixes in files another agent holds. They are
-left at their real severity rather than downgraded: this gate is not clean, and
-the spec MUST NOT close until they are applied and a round re-runs over them.
+**0 BLOCKER, 0 ISSUE, over three rounds. The gate is clean.**
+
+Round 1 found five ISSUEs and five NOTEs. Findings 1, 2 and four fifths of
+finding 5 were fixed in `5d6ad6919`. Findings 4 and the last fifth of 5 waited
+for the directory another agent held and were fixed in the same commit once it
+was free. Finding 3 was the last one open and was fixed in `954b50947`, where
+the drift guard was changed to exercise the answer slot instead of asking about
+it, so the accessor with no product caller could go.
 
 NOTEs recorded above: findings 6 to 10. Six and seven were fixed anyway because
-they were free. Eight, nine and ten are acknowledged and need no change.
+they were free. Eight, nine and ten are acknowledged and need no change. Eight
+predicted its own end correctly: `spec-record-answers-2-only-encoding` deleted
+the negotiation in `66328ee04`, so the two unreachable branches it named are
+gone.
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/record-answers-1-sdk-path-7e4e9f00-6a89-4b80-b4c1-573d6037cfc6.md` |
+| `review_gate.py check` | clean |
+| Rounds | 3 |
+| Reviewer lenses used | wiring and dead exports, AC-to-producer mapping, test discrimination and mutation, the `internal` to `pkg` move, stale comments, style |
+
+## Implementation Summary
+
+### What Was Implemented
+
+- `pkg/plugin/records.go`, new: the SDK record producer a plugin command handler
+  answers with. `Row` is an APPENDER (`AppendTo(buf []byte) []byte`), not a
+  `[]byte`, so `spec-record-answers-3-zero-alloc` can reach zero allocation
+  without changing the type. `Record` carries an item or a fault, `Records`
+  carries the generator, `WriteAnswer` writes the wire sequence and
+  `MarshalJSON` gives the same walk its buffered reading.
+- `pkg/plugin/sdk/`: the read side. `Plugin.DispatchCommandAnswer`
+  (`sdk_engine.go:247`) walks an engine answer through `MuxConn.CallAnswer`,
+  which gained its first non-test caller here. `answerExecuteCommand`
+  (`sdk_dispatch.go`) writes the plugin's own answer back through
+  `Conn.AnswerWriter`.
+- `internal/component/plugin/ipc/rpc.go`: `PluginConn.SendExecuteCommandAnswer`
+  (`:324`) reads a plugin's `execute-command` answer as a record sequence.
+  `internal/component/plugin/server/command.go` `routeToProcess` turns it into a
+  `Records` payload, so the engine never holds the whole collection.
+- `internal/component/plugin/dispatch.go`: `AnswerFor` (`:253`), the in-process
+  twin of the wire writer, so `DirectBridge` carries a record answer with the
+  same head, records and terminator the socket produces.
+- Protocol code MOVED from `internal/component/plugin/` to `pkg/plugin/rpc/`:
+  `answer_row.go`, `collapse.go` and the answer writers. Forced by the
+  dependency graph rather than by the compiler. `pkg/plugin/sdk` CAN import
+  `internal/component/plugin` (both are rooted at the same module and no cycle
+  exists), but doing so would link config storage, the plugin registry,
+  `internal/core/metrics`, `internal/core/events` and `internal/core/family`
+  into any out-of-tree plugin just to get a collapse function. The spec's own
+  wording ("cannot import") is looser than the real reason; the Review Gate
+  recorded the correction.
+- `internal/test/cli/cmd_record_plugin.go`, new: the Go SDK plugin the three
+  `.ci` files drive. No in-tree plugin answered with rows, so the functional
+  tests had no producer to point at.
+
+### Bugs Found/Fixed
+
+- AC-7 had an acceptance criterion and no test over its producing code.
+  `plugin.AnswerFor` is the whole in-process answer producer and had no test at
+  all, and neither did its one caller. The test the spec named,
+  `TestDirectBridgeDispatchCommandAnswer`, drives a hand-written stub inside
+  `pkg/plugin/rpc`: it proves the two TRANSPORTS carry one answer and says
+  nothing about whether the two PRODUCERS build one. Covered by
+  `TestAnswerForAgreesWithTheWire` (`internal/component/plugin/dispatch_test.go:1239`),
+  nine cases, mutation-tested twice.
+- `CheckRowArity` was exported by the package move and had no caller outside its
+  own package. Unexported again in `5d6ad6919`.
+- `DirectBridge.HasDispatchCommandAnswer` was exported with a test as its only
+  caller. Deleted in `954b50947`, and the drift guard now proves the slot by
+  USING it.
+- `streamType` (`internal/component/command/render_records.go`) duplicated the
+  newly exported `rpc.AnswerStreamType` line for line. Deleted in `5d6ad6919`.
+- Five comments named a symbol this work deleted or renamed. All five repointed.
+
+### Documentation Updates
+
+Every doc row answered Yes in the Documentation Update Checklist was written in
+`4bdae01c8` and is already in git history: `docs/architecture/api/commands.md`,
+`ipc_protocol.md`, `process-protocol.md`, `wire-format.md`,
+`docs/architecture/testing/ci-format.md`, `docs/functional-tests.md`,
+`docs/guide/plugins.md`, `docs/plugin-development/commands.md`, `handlers.md`,
+`protocol.md`, `testing.md`, and four rule point files under
+`ai/rules/points/plugins/`. `make ze-doc-verify` ran green in that commit's
+verification. No doc edit is owed by this closure, which carries no code.
+
+### Deviations from Plan
+
+- **The negotiation this spec built is already gone, by design.**
+  `spec-record-answers-2-only-encoding` deleted `ProtocolRecordAnswers`,
+  `DeclareCapabilitiesInput.Protocol`, `Process.RecordAnswers` and the whole
+  Stage 3 declaration in `66328ee04`, and its two tests replaced this spec's
+  two: `TestPluginRunDeclaresRecordAnswers` and
+  `TestHubStartupSinkRecordsTheProtocolDeclaration` are gone, and
+  `TestPluginAnswersRecordsWithoutDeclaringAShape` and
+  `TestDispatchCommandAlwaysAnswersRecords` state the unconditional property in
+  their place. That is the succession this spec was written to enable, not a
+  regression: AC-1 and the declaration half of AC-8 were the transitional step,
+  and NOTE 8 of the Review Gate predicted their end.
+- **AC-5 was narrowed in phase 4**, from "the answer is unchanged" to "the VALUE
+  is unchanged". The engine must know which frame is arriving before it reads
+  the first line, so the frame follows the declaration and not the payload. The
+  criterion carries the qualification and names the test.
+- **AC-7 was qualified at the Review Gate.** The two producers diverge on one
+  input, deliberately: a row wider than `rpc.MaxMessageSize` is a rejected row
+  on the socket and is carried whole in process, because one transport bounds a
+  line and the other has no line. Not reachable from any in-tree generator.
+- **`internal/component/plugin/bridge.go` does not exist**, and every spec row
+  naming it was corrected in the audit at phase 1. `DirectBridge` lives at
+  `pkg/plugin/rpc/bridge.go`.
+- **`pkg/plugin/rpc/conn.go` was not touched**, and nothing was owed:
+  `execute-command` is an inbound request on the plugin's side, so
+  `Conn.AnswerWriter` already fitted it.
+- **A defensive nil branch was collapsed and one rendering changed.** A nil
+  transport result used to render as nothing and now renders as `null`, because
+  every transport routes through `valueAnswer`. Recorded rather than repaired:
+  the path is unreachable from the in-tree SDK (`SetExecuteCommand` is
+  registered only when a handler exists, and no in-tree handler returns a bare
+  nil), and repairing it means choosing between two renderings that already
+  disagreed on a path that IS reachable. The Review Gate read the diff and did
+  not overturn it. The owner should know it stands.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The Review Gate proposed fixing finding 3 by calling `DispatchCommandAnswer` inside `TestWireBridgeDispatchInstallsTypedSlots` | That test built a bare `&Server{}`, and the slot's handler is bound to the server it was wired from, so the call segfaults before it can report whether the slot exists | Tried it; it crashed | The test was given a real dispatcher, the setup `TestEngineOpJSONAndDirectMatch` already uses in the same file. The failed attempt is recorded in the Review Gate so nobody tries it a third time |
+| assumption | A doc comment on `HasDispatchCommandAnswer` argued that deleting it would leave the registry drift guard blind to the slot, and that argument survived two reviews | The premise stopped holding the moment the guard exercised the slot instead of asking about it. A comment is its author's belief, not evidence the symbol is needed | Counting the family: eight of nine `Has*` accessors had exactly one product caller each, this one had zero | Accessor deleted, guard rewritten to use the slot (`954b50947`) |
+| approach | AC-7 was believed covered because a test named it and passed | The named test drove a hand-written stub in the transport package. It proved the two transports carry one answer and never that the two producers build one, so `plugin.AnswerFor` had no test at all | The Review Gate mapped each AC to the function that PRODUCES its behavior rather than to the test that names it | `TestAnswerForAgreesWithTheWire` added, mutation-tested twice |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A plugin can PRODUCE a record answer | Done | `pkg/plugin/records.go` `Records.WriteAnswer:113`, `pkg/plugin/sdk/sdk_dispatch.go` `answerExecuteCommand` | Driven end to end by `test/plugin/plugin-owned-command-streams.ci` |
+| A plugin can READ a record answer | Done | `pkg/plugin/sdk/sdk_engine.go` `DispatchCommandAnswer:247` over `MuxConn.CallAnswer` | `MuxConn.CallAnswer` gained its first non-test caller here and in `internal/component/plugin/ipc/rpc.go` |
+| The engine reads a plugin's record answer | Done | `internal/component/plugin/ipc/rpc.go` `SendExecuteCommandAnswer:324`, `internal/component/plugin/server/command.go` `routeToProcess` | The engine holds one row at a time, never the collection |
+| Both transports agree | Done | `pkg/plugin/rpc/bridge.go` `DirectBridge.DispatchCommandAnswer:417`, `internal/component/plugin/dispatch.go` `AnswerFor:253` | Agreement proven at both levels after the Review Gate: transports by `TestDirectBridgeDispatchCommandAnswer`, producers by `TestAnswerForAgreesWithTheWire` |
+| The frame stops being dead code for the Go SDK | Done | `internal/test/cli/cmd_record_plugin.go` and three `.ci` files | The frame was never dead for the SSH exec client or the Python test peer; the accurate claim was that no Go SDK plugin could use it |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Changed | `TestPluginRunDeclaresRecordAnswers` (`4bdae01c8`) | Superseded by `spec-record-answers-2-only-encoding` in `66328ee04`, which deleted negotiation. `TestPluginAnswersRecordsWithoutDeclaringAShape` states the unconditional property now |
+| AC-2 | Done | `TestDispatchCommandAnswerYieldsRows` (`pkg/plugin/sdk/sdk_engine_test.go:73`) | Rows arrive in walk order, terminator ends the walk |
+| AC-3 | Done | `TestDispatchCommandAnswerBoundedIsDocument` (`sdk_engine_test.go:157`) | A short walk still reads as one document |
+| AC-4 | Done | `TestExecuteCommandRecordResult` (`sdk_callbacks_test.go:536`), `TestRecordsMarshalJSONIsTheDocumentTheWireCollapsesTo` (`records_test.go:134`), `test-plugin-owned-command-streams` | |
+| AC-5 | Done | `TestExecuteCommandValueAnswerIsUnchanged` (`sdk_callbacks_test.go:438`) | Narrowed to the VALUE; see Deviations |
+| AC-6 | Done | `TestRecordsWriteAnswerFaultsARowNoLineCanCarry` (`records_test.go:69`) | Terminator states `count=2 faults=1` |
+| AC-7 | Done | `TestDirectBridgeDispatchCommandAnswer` (`bridge_test.go:530`) and `TestAnswerForAgreesWithTheWire` (`dispatch_test.go:1239`) | Qualified; see Deviations. The second test was added at the Review Gate |
+| AC-8 | Done | `TestSendExecuteCommandReadsRecords` (`ipc/rpc_test.go:1228`), `TestRouteToProcessBuildsRecords` (`server/command_test.go:2360`) | Its declaration half is superseded with AC-1 |
+| AC-9 | Done | `TestWriteRecordAnswerRefusesTheReservedEnvelope` (`rpc/answer_write_test.go:119`), `TestPluginRecordEnvelopeErrorsRefused` (`sdk/sdk_test.go:2771`) | Refused on both the socket and the bridge |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestPluginRunDeclaresRecordAnswers` | Changed | deleted in `66328ee04` | Landed green in `4bdae01c8`; child 2 removed the negotiation it asserted |
+| `TestHubStartupSinkRecordsTheProtocolDeclaration` | Changed | deleted in `66328ee04` | Same succession |
+| `TestDispatchCommandAnswerYieldsRows` | Done | `pkg/plugin/sdk/sdk_engine_test.go:73` | |
+| `TestDispatchCommandAnswerBoundedIsDocument` | Done | `sdk_engine_test.go:157` | |
+| `TestCallAnswerStopsGeneratorOnConsumerStop` | Done | `pkg/plugin/rpc/mux_test.go:1060` | |
+| `TestDirectBridgeWaitDispatchSpansAnswerWalk` | Done | `pkg/plugin/rpc/bridge_test.go:612` | |
+| `TestCollapseAnswerRefusesAnUnreadableDocument` | Done | `sdk_engine_test.go:234` | |
+| `TestExecuteCommandRecordResult` | Done | `pkg/plugin/sdk/sdk_callbacks_test.go:536` | |
+| `TestExecuteCommandValueAnswerIsUnchanged` | Done | `sdk_callbacks_test.go:438` | |
+| `TestRecordsWriteAnswerFaultsARowNoLineCanCarry` | Done | `pkg/plugin/records_test.go:69` | |
+| `TestRecordsMarshalJSONIsTheDocumentTheWireCollapsesTo` | Done | `records_test.go:134` | |
+| `TestRecordsWithNoGeneratorIsAnEmptyCollection` | Done | `records_test.go:161` | |
+| `TestWriteRecordAnswerRefusesTheReservedEnvelope` | Done | `pkg/plugin/rpc/answer_write_test.go:119` | |
+| `TestSendExecuteCommandReadsRecords` | Done | `internal/component/plugin/ipc/rpc_test.go:1228` | |
+| `TestRouteToProcessBuildsRecords` | Done | `internal/component/plugin/server/command_test.go:2360` | |
+| `TestRouteToProcessRefusesARowThatIsNotJSON` | Done | `server/command_test.go:2405` | |
+| `TestDirectBridgeDispatchCommandAnswer` | Done | `pkg/plugin/rpc/bridge_test.go:530` | |
+| `TestAnswerForAgreesWithTheWire` | Done | `internal/component/plugin/dispatch_test.go:1239` | Added at the Review Gate |
+| `TestPluginRecordEnvelopeErrorsRefused` | Done | `pkg/plugin/sdk/sdk_test.go:2771` | |
+| `test-plugin-owned-command-streams` | Done | `test/plugin/plugin-owned-command-streams.ci` | |
+| `test-plugin-reads-engine-record-answer` | Done | `test/plugin/plugin-reads-engine-answer.ci` | |
+| `test-plugin-command-partial-fault` | Done | `test/plugin/plugin-command-partial-fault.ci` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `pkg/plugin/records.go` | Done | Created |
+| `pkg/plugin/rpc/collapse.go` | Done | Created by the move out of `internal/component/plugin` |
+| `pkg/plugin/rpc/answer_row.go` | Done | Moved; `internal/component/plugin/answer_row.go` no longer exists |
+| `internal/test/cli/cmd_record_plugin.go` | Done | Created in phase 5 |
+| `test/plugin/plugin-owned-command-streams.ci` | Done | Created |
+| `test/plugin/plugin-reads-engine-answer.ci` | Done | Created |
+| `test/plugin/plugin-command-partial-fault.ci` | Done | Created |
+| `internal/component/plugin/bridge.go` | Changed | Never existed. Corrected to `pkg/plugin/rpc/bridge.go` in the phase 1 audit |
+| `pkg/plugin/rpc/conn.go` | Changed | Not touched, and nothing was owed |
+| `pkg/plugin/rpc/answer_write.go` | Changed | Not in the plan. Added when the wire writer moved out of `internal/component/plugin/dispatch.go` in phase 3 |
+
+### Audit Summary
+- **Total items:** 9 acceptance criteria, 22 tests, 10 planned files
+- **Done:** 8 acceptance criteria, 20 tests, 7 files
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** AC-1 and 2 tests (superseded by child 2 in `66328ee04`), 3 file rows (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A plugin can produce a record answer that reaches the operator | functional | `test-plugin-owned-command-streams` (`test/plugin/plugin-owned-command-streams.ci`) drives the real daemon and the real Go SDK plugin `internal/test/cli/cmd_record_plugin.go`. Its fixture is past both the 256-record threshold and the 16 MB line ceiling, so the test fails when the record path is removed |
+| A plugin can read a streamed engine answer | functional | `test-plugin-reads-engine-record-answer` (`test/plugin/plugin-reads-engine-answer.ci`), plus `TestDispatchCommandAnswerYieldsRows` over `MuxConn.CallAnswer` |
+| Applied rows and rejected rows both reach the operator | functional | `test-plugin-command-partial-fault` (`test/plugin/plugin-command-partial-fault.ci`), plus `TestRecordsWriteAnswerFaultsARowNoLineCanCarry` for the terminator counts |
+| The engine never holds the whole collection | unit | `TestRouteToProcessBuildsRecords` asserts `routeToProcess` returned on the head with one line written, which is what proves the engine holds no collection |
+| The two transports carry one answer, and the two producers build one | unit, mutation-verified | `TestDirectBridgeDispatchCommandAnswer` for the transports; `TestAnswerForAgreesWithTheWire` for the producers. The second was mutation-tested twice: changing the threshold test from `<=` to `<` and dropping `Message` from the streamed terminator each redden it |
+| Interop | N-A | The plugin connection is internal to Ze. No other implementation speaks it, so no peer daemon can validate it. The three `.ci` files drive the real daemon and the real SDK, which is the strongest evidence this surface admits |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| Converting the payload handlers outside the two RIB walks (2026-08-20, sourced by `spec-record-answers-3-zero-alloc` design) | deferred | Live, and homed at a spec of its own. Sourced by child 3, not by this spec, and it names no spec in its Destination cell, so this closure neither resolves it nor removes the shard. `plan/deferrals/record-answers.md` survives this closure and keeps its name |
+| Record-level streaming for REST, gRPC, web, MCP and the looking glass | deferred | Not in this shard. Lives in `plan/deferrals/streaming-answer-protocol.md` and is unchanged by this work |
+| `table` and `text` rendering buffers whatever the wire does | accepted | Same shard, a permanent limit, unchanged |
+
+No row in any shard names `spec-record-answers-1-sdk-path` as a Destination:
+`grep -rn "record-answers-1-sdk-path" plan/deferrals/` returns one line, the
+header of `record-answers.md` naming the family. Nothing dangles when this spec
+is removed.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `pkg/plugin/records.go` | Yes | `ls -la` 8.0K, 2026-08-22 |
+| `pkg/plugin/rpc/collapse.go` | Yes | `ls -la` 8.4K |
+| `pkg/plugin/rpc/answer_row.go` | Yes | `ls -la` 6.6K |
+| `internal/test/cli/cmd_record_plugin.go` | Yes | `ls -la` 11K |
+| `test/plugin/plugin-owned-command-streams.ci` | Yes | `ls -la` 6.4K |
+| `test/plugin/plugin-reads-engine-answer.ci` | Yes | `ls -la` 6.5K |
+| `test/plugin/plugin-command-partial-fault.ci` | Yes | `ls -la` 7.1K |
+| `internal/component/plugin/answer_row.go` | No, and correctly | `ls` reports no such file: the move to `pkg/plugin/rpc/answer_row.go` deleted it |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Stage 3 declares the name | SUPERSEDED. `grep -rn "ProtocolRecordAnswers" --include="*.go" .` returns nothing: `66328ee04` deleted the constant with the rest of the negotiation |
+| AC-2, AC-3 | The SDK walks an engine answer | `grep -n "func (p \*Plugin) DispatchCommandAnswer" pkg/plugin/sdk/sdk_engine.go` gives `:247`. `make ze-unit-pkg-test PKG=./pkg/plugin/...` green: plugin 1.291s, plugin/rpc 4.718s, plugin/sdk 2.269s, race-instrumented |
+| AC-4 | A handler answers with rows | `grep -n "^func\|^type" pkg/plugin/records.go` shows `Row:38`, `Record:49`, `Records:72`, `WriteAnswer:113`, `MarshalJSON:131`, `wire:153` |
+| AC-5 | The VALUE is unchanged | `TestExecuteCommandValueAnswerIsUnchanged` at `pkg/plugin/sdk/sdk_callbacks_test.go:438`, green in the `pkg/plugin/...` run above |
+| AC-6 | A too-wide row is a fault and the walk continues | `TestRecordsWriteAnswerFaultsARowNoLineCanCarry` at `pkg/plugin/records_test.go:69`, green in the same run |
+| AC-7 | Bridge and socket agree, producer and producer agree | `go test -run TestAnswerForAgreesWithTheWire -race ./internal/component/plugin/` reports `ok 1.635s`, run 2026-08-22 |
+| AC-8 | The engine reads a plugin's record answer | `grep -n "func (pc \*PluginConn) SendExecuteCommandAnswer" internal/component/plugin/ipc/rpc.go` gives `:324`. `internal/component/plugin/ipc` green at 2.493s in the race run |
+| AC-9 | The reserved envelope is refused on both paths | `TestWriteRecordAnswerRefusesTheReservedEnvelope` (`pkg/plugin/rpc/answer_write_test.go:119`) and `TestPluginRecordEnvelopeErrorsRefused` (`pkg/plugin/sdk/sdk_test.go:2771`), both green in the `pkg/plugin/...` run |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Plugin startup Stage 3 | none, a unit test | SUPERSEDED. `TestPluginRunDeclaresRecordAnswers` landed green in `4bdae01c8` and was deleted in `66328ee04` when child 2 removed the declaration. The property is now unconditional and `TestPluginAnswersRecordsWithoutDeclaringAShape` states it |
+| Plugin calls a streaming engine command | `test/plugin/plugin-reads-engine-answer.ci` | Yes. Read: the plugin's `show test engine answer` handler dispatches an engine command and reports what it walked, so the assertion is on the plugin's reading rather than on the engine's writing |
+| Operator runs a plugin-owned command with a long walk | `test/plugin/plugin-owned-command-streams.ci` | Yes. Read: it drives `show test records walk` against `internal/test/cli/cmd_record_plugin.go` and asserts row content and the terminator count, not exit status |
+| Internal plugin over `DirectBridge` | none, a unit test | Yes. `TestDirectBridgeDispatchCommandAnswer` (`pkg/plugin/rpc/bridge_test.go:530`) compares the two transports, and `TestAnswerForAgreesWithTheWire` compares the two producers |
+| A plugin command that faults half way | `test/plugin/plugin-command-partial-fault.ci` | Yes. Read: it drives `show test records fault` and asserts applied and rejected rows side by side |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `ai/rules/go-standards.md:450` bans compat code everywhere, the plugin API included; its carve-out at `:456` is conditional on a release that has not happened |
+| A-2 | confirmed, then retired | `TestSendExecuteCommandReadsRecords` proved the one name covers both directions in phase 4. `66328ee04` then removed the name entirely, which is the stronger form of the same answer: no direction needs declaring |
+| A-3 | confirmed | `Row` is an interface with `AppendTo(buf []byte) []byte` (`pkg/plugin/records.go:38`) and both readers take the bytes without unmarshaling. `spec-record-answers-3-zero-alloc` builds on it at its A-1 |
+| A-4 | confirmed, with a correction | `serveEngineOpDirect` already detected `*recordAnswer` and projected it, so AC-7 was reached by replacing the projection with a generator-carrying result rather than by adding a path. `DirectBridge.DispatchCommandAnswer` at `pkg/plugin/rpc/bridge.go:417` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| API/RPC, plugin SDK, wire format, architecture, test infrastructure (rows 4, 5, 7, 8, 10, 12, 16, 17) | Written in `4bdae01c8`, which carried `docs/architecture/api/commands.md`, `ipc_protocol.md`, `process-protocol.md`, `wire-format.md`, `docs/architecture/testing/ci-format.md`, `docs/functional-tests.md`, `docs/guide/plugins.md` and five `docs/plugin-development/` pages | Yes. The Review Gate re-read the wire against the docs: the answer-type table in `ipc_protocol.md` states the same three rows the encoder takes, the bounded head's missing `key=` included |
+| Rows 1, 2, 3, 6, 11, 13, 14, 15 answered No | `grep -rn "record-answers\|DispatchCommandAnswer" docs/` finds no user-guide, config, CLI, comparison, route-metadata or metrics page claiming this behavior. No verb, flag, config leaf, counter or registration was added | Yes |
+| Row 9 answered N-A | No RFC governs the plugin connection | Yes |
+| Doc citations survive closure | `python3 scripts/dev/spec-citation-check.py` reports OK (238 specs). `grep -rn "plan/spec-record-answers-1-sdk-path" .` outside the spec itself returns nothing: both siblings cite the BARE stem, which `SPEC_REF_RE` does not match, so commit B leaves no dangling path | Yes |
+
+## Core Insight
+
+An accessor family is evidence, and a doc comment defending one member is not.
+Eight of the nine `Has*` methods on `DirectBridge` guarded a call in the SDK.
+`HasDispatchCommandAnswer` guarded nothing, and it survived two reviews because
+it LOOKED symmetric and because its own comment argued that deleting it would
+blind the registry drift guard. Counting the family settled in one pass what the
+argument could not settle in two: the family is not "a set that works this way",
+it is eight members with a caller and one without. The comment's premise died
+the moment the guard exercised the slot instead of asking about it.
+
+The same reading closed AC-7. A criterion is met by the function that PRODUCES
+the behavior, never by the test that names the criterion. `plugin.AnswerFor` was
+the whole in-process producer and had no test, while the test the spec cited
+drove a hand-written stub in the transport package and would have stayed green
+with the producer broken.

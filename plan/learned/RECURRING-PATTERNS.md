@@ -86,7 +86,40 @@ time, when the architecture may not easily accommodate it.
 
 **Evidence.** This is the project's most recurring defect class.
 488 -> 498 (looking-glass decorator wiring), plus numerous instances
-flagged by the user across sessions.
+flagged by the user across sessions. Occurrence count lives in
+`plan/journal/unwired-feature.md`.
+
+**The `pkg/` blind spot, and how to count a family (2026-08-22,
+spec-record-answers-1-sdk-path).** A move from `internal/` to `pkg/` is a one-way
+door. It also moves the symbol OUT of the gate below.
+`check_cross_package_wiring` in `scripts/dev/validate.py` collects symbols only
+from changed files under `internal/` and `cmd/`. So a `pkg/` export is unwired
+where it is most expensive and least checked. One such move made three symbols
+public and two had no caller: `CheckRowArity`, which only its own package called,
+and `DirectBridge.HasDispatchCommandAnswer`, whose one caller was a test.
+
+The accessor is the instructive half, because it survived two reviews. Two things
+protected it. It LOOKED symmetric: eight sibling `Has*` methods sat beside it, so
+the set read as a family that works this way. And its own doc comment argued that
+deleting it would leave the registry drift guard blind to the answer slot.
+
+Neither is evidence. **Count the family instead of arguing about it.** Eight of
+the nine accessors guarded exactly one product call each, and this one guarded
+none. That makes it the member with no caller, not a set with a convention.
+**A doc comment defending a symbol is its author's belief, not a reason the
+symbol is needed** (`ai/rules/evidence.md`). This comment stated a premise you
+can make false: give the drift guard a real dispatcher, and it exercises the slot
+instead of asking about it.
+
+A review's proposed repair can be wrong. This one was. Calling
+`DispatchCommandAnswer` inside the guard segfaulted, because that test built a
+bare `&Server{}` and the slot's handler is bound to the server it was wired from.
+The working fix reused a real-dispatcher setup already in the same file.
+
+**Extra check for a `pkg/` change.** When you move or add anything under `pkg/`,
+grep each new exported symbol yourself. The wiring gate will not:
+`grep -rn 'Symbol' --include='*.go' . | grep -v _test.go`. When the symbol is one
+of a family, count the family's callers before you accept that it belongs there.
 
 **Avoid it by.**
 1. Spec design: fill the Wiring Test table with concrete entry points
@@ -101,8 +134,9 @@ flagged by the user across sessions.
 
 **Gated by.** `make ze-doc-wiring-check`, which runs `check_wiring` in
 `scripts/dev/verify_wiring_docs.py`. It fails when a new exported symbol under
-`internal/` or `cmd/` has no non-test caller, so this pattern is now caught
-mechanically rather than at review time.
+`internal/` or `cmd/` has no non-test caller. Read the scope literally: the gate
+covers `internal/` and `cmd/` and nothing else, so `pkg/` is caught at review
+time or not at all.
 
 **Recover if you hit it.** Identify every unwired symbol via
 `grep -rn 'Symbol' internal/ cmd/ --include="*.go" | grep -v _test.go`.
@@ -395,6 +429,16 @@ actually produces. The test self-validates against its own setup.
   The reactor does not persist routes across reconnects itself
   (`internal/component/bgp/reactor/peer.go`), so a reconnect is not
   a clean genuinely-new-peer isolation).
+- spec-record-answers-1-sdk-path, AC-7, 2026-08-22 (the acceptance
+  criterion said the socket and the bridge produce one answer, and the
+  test named for it drove a hand-written stub handler inside the
+  TRANSPORT package. It proved the two transports carry one answer and
+  never that the two producers build one, so `plugin.AnswerFor`, the
+  whole in-process producer, reached the review gate with no test at
+  all, and neither did its one caller. The criterion looked covered
+  because a passing test named it. The variant to watch for: two
+  implementations of one decision, where a test exercises the plumbing
+  between them and nothing holds them to the same answer).
 
 **Avoid it by.** Before citing a test as evidence that feature F
 works, name the single file and line in production code whose removal
