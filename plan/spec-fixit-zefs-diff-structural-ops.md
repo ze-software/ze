@@ -9,12 +9,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | config |
 | Depends | - |
 | Phase | 2/2 |
 | Deferral shard | - |
-| Updated | 2026-08-19 |
+| Updated | 2026-08-22 |
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
@@ -305,12 +305,13 @@ Not applicable. Nothing wire-visible changes; this is config storage.
 | 9 | RFC behavior implemented, changed, or newly proven? | N-A | No RFC governs config storage |
 | 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` and the `.et` directive point file both carry `option=storage:value=blob` |
 | 11 | Affects daemon comparison? | No | No feature claim changes |
-| 12 | Internal architecture changed? | No | `docs/architecture/zefs-format.md` describes the flat namespace, which this fix relies on rather than alters |
+| 12 | Internal architecture changed? | Yes | Corrected at closure. `docs/architecture/zefs-format.md` said the Storage interface "translates filesystem paths to namespaced keys via `resolveKey()`", the one-function story the defect came from. It now names both functions and which call each serves, anchored on `resolveKey, resolveDirKey, blobStorage.List`. `docs/architecture/testing/runner-architecture.md` anchored "runTestCase iterates tc.Steps", which `runTestCaseIn` does since `092f3b309`; the anchor now names both halves |
 | 13 | Route metadata keys added/changed? | N-A | No route metadata |
 | 14 | Prometheus counters added/changed? | No | None added |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | Nothing registered changes |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/functional-tests.md` anchors `internal/component/cli/testing/parser.go`; the `.et` option table there is updated. No anchor names `blob.go` |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Corrected at closure: three anchors name `blob.go`, not none. `docs/guide/config-editor.md` (`resolveDirKey, blobStorage.List`, written for this fix), `docs/architecture/fleet-config.md` (`SetWriteObserver`, untouched) and `docs/architecture/zefs-format.md` (`NewBlob` self-heal, untouched, plus the `resolveKey` claim corrected in row 12). `docs/functional-tests.md` anchors `internal/component/cli/testing/parser.go`; the `.et` option table there is updated |
 | 17 | Existing docs show config/CLI/API examples for this area? | No | The `.et` examples in the docs stay valid; the new option is additive |
+| 18 | Does a changed file declare a `// Design:` doc this spec never named? | Yes, unaffected | `internal/component/cli/testing/runner.go` and `headless.go` both head with `// Design: docs/architecture/config/yang-config-design.md -- editor test infrastructure`. That document describes the YANG config model and names no editor-test harness symbol: `grep -n "runTestCase\|storage\|headless\|NewEditor\|blob"` over it returns one hit, an unrelated `storage` path name in a registry list. The harness's own design doc is `docs/architecture/testing/runner-architecture.md`, which row 12 updates |
 
 ## Implementation Steps
 
@@ -616,23 +617,31 @@ unproven here.
 
 | Row (from the deferral shard) | Final Status | Destination or evidence |
 |-------------------------------|--------------|-------------------------|
-| No shard. The metadata table declares `Deferral shard: -` | done | Nothing was deferred: every AC has code and a passing test, and the two review findings were fixed in place rather than recorded |
+| The spec's own metadata declares `Deferral shard: -`, and nothing was deferred here | done | Every AC has code and a passing test, and the two review findings were fixed in place rather than recorded |
+| A FOREIGN shard homes a row at this spec: `plan/deferrals/ad-hoc-2026-07-27-423eaa77.md`, row 1, the 2026-07-27 handover-19 find that became this spec | done | Set to `done` at closure, with the producing function and the discriminating red named in the row. That shard is NOT removed: two of its rows are still live (the `rfc/short/` re-audit of 58 backfilled texts, and `spec-fixit-netns-test-dut-tags`) |
 
 ## Review Gate
 
-<!-- NOT FILLED BY THIS SESSION. The 2026-08-19 changes above (the
-     runTestCaseIn seam, TestRunnerBlobStorageWritesBlobNotFile, the viewport
-     assertion, the filesystem counterpart .et) were authored in this context,
-     and ai/rules/planning.md forbids the authoring context from judging its own
-     work. An independent pass records the artifact with
-     scripts/dev/review_gate.py and fills the table. -->
+Filled on 2026-08-22 by an independent closure pass, which authored none of the
+code it judged. The diff was already committed (`85a79ac9b`, `092f3b309`), so the
+review read those two commits rather than the working tree.
 
 | Field | Value |
 |-------|-------|
-| Artifact | not recorded |
-| `review_gate.py check` | not run |
-| Rounds | not run |
-| Reviewer lenses used | not run |
+| Artifact | `tmp/review/fixit-zefs-diff-structural-ops-ebf5d9b3-b158-40df-bba0-32a51591883e.md` |
+| `review_gate.py check` | OK (clean, hashes match) |
+| Rounds | 3 |
+| Reviewer lenses used | wiring, removed behavior, logic and guards; discrimination and backend comparison by mutation; documentation drift and the record |
+
+### Discrimination measured
+
+Two mutations, each an edit to package source, so the `go test` cache key changes
+and no verdict can be served stale.
+
+| Mutation | Red | Green | What that separates |
+|----------|-----|-------|---------------------|
+| `(*blobStorage).List` back to `resolveKey(prefix)` | `TestBlobStorageListFilesystemDirectory` (`readdir file/active/ze: file does not exist`), `diff-structural-op-blob.et` (`step 8 (expect status): status message does not contain "1 pending change", got "No pending changes"`) | `diff-structural-op-filesystem.et` | The two backends are held against each other by a PAIR that names the disagreement, not by an equality assertion a regression moving both together would satisfy |
+| `configStore = blobStore` to `_ = blobStore` in `runTestCaseIn` | `TestRunnerBlobStorageWritesBlobNotFile`, all three assertions | `TestRunnerBlobStorage`, `TestRunnerBlobStorageRefusesFileExpectation`, `TestRunnerUnknownStorageBackendFails`, both `.et` files | Confirms the spec's own finding: only the new test discriminates AC-5 |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
@@ -641,6 +650,12 @@ unproven here.
 | 2 | BLOCKER | A-4 is recorded `broken` and owed a Mistake Log row and a Deviations entry, and neither existed | The same file | The Mistake Log row and the Deviations entry above |
 | 3 | ISSUE | AC-5's proof was mutation-blind: `TestRunnerBlobStorage` and the `.et` both stay green with `configStore = blobStore` dropped | `internal/component/cli/testing/runner_test.go` | `TestRunnerBlobStorageWritesBlobNotFile`, on the `runTestCaseIn` seam |
 | 4 | ISSUE | AC-1 claimed the review counts AND shows the delete, and nothing asserted the rendered entry; "matching filesystem storage" rested on code symmetry | `test/editor/session/diff-structural-op-blob.et` | `expect=viewport:contains=peer peer1`, plus the new `diff-structural-op-filesystem.et` counterpart |
+| 5 | ISSUE | A source anchor named a symbol that no longer does what it claims: `runTestCase iterates tc.Steps`. `092f3b309` moved the loop into `runTestCaseIn` | `docs/architecture/testing/runner-architecture.md` | The anchor names both halves |
+| 6 | ISSUE | The architecture doc said the Storage interface "translates filesystem paths to namespaced keys via `resolveKey()`" -- the one-function story the defect came from. `85a79ac9b` split it into a FILE key and a DIRECTORY key | `docs/architecture/zefs-format.md` | The paragraph names both functions and which call each serves, anchored on `resolveKey, resolveDirKey, blobStorage.List` |
+| 7 | NOTE | The Deferrals Resolved table said "No shard". A FOREIGN shard homes its first row at this spec | `plan/deferrals/ad-hoc-2026-07-27-423eaa77.md` | The row is `done` with the producing function and the discriminating red; the shard stays, because two of its rows are live |
+| 8 | NOTE | Documentation Update Checklist rows 12 and 16 were false: three doc anchors name `blob.go`, not none | This file | Both rows corrected |
+| 9 | NOTE | `EditorManager.ChangeCount` (`internal/component/web/editor.go`) falls back to `1` when `PendingChanges(sid)` is empty and `Dirty()` is true; `EditorManager.Diff` has no such fallback and returns `""`. Those two producers are what rendered `Review changes (1)` over an empty body. This fix removes the trigger, not the shape | `internal/component/web/editor.go` | Not fixed here: the goal holds without it. Row in `plan/journal/guard-added-to-one-half-of-a-pair.md` |
+| 10 | NOTE | `internal/test/runner/runner_exec.go` sets `ze.storage.blob=false` for every functional daemon, while `cmd/ze/ze_core_dispatch.go` defaults it to `true`, so no `.ci` or `.wb` can see a blob-only daemon defect. It is the same class this spec fixed one layer down for `.et` | `internal/test/runner/runner_exec.go` | Not fixed here: the goal holds without it. Row in `plan/journal/test-against-broken-path.md` |
 
 ## Pre-Commit Verification
 
@@ -703,6 +718,8 @@ the test still passes a string). Every package this spec touches lints clean.
 | `option=storage:value=blob` exists and behaves as the `.et` tables say | `internal/component/cli/testing/runner.go` parses `case "storage"` and serves `blob`, `filesystem` and `""`, and refuses anything else | Yes |
 | `expect=file:` is refused beside blob storage | The same function returns that error before building a model; `TestRunnerBlobStorageRefusesFileExpectation` asserts it | Yes |
 | The docs that anchor the changed files still describe them correctly | `grep -rn "resolveDirKey\|storage/blob.go" docs/` returns three anchors: `docs/guide/config-editor.md` ("Structural operations appear in the diff", anchored on `resolveDirKey` and `blobStorage.List`), `docs/architecture/zefs-format.md` (anchored on `NewBlob`'s corrupt-store self-heal) and `docs/architecture/fleet-config.md` (anchored on `SetWriteObserver`). All three symbols exist and behave as written; the 2026-08-19 changes touch none of them | Yes |
+| Two anchored claims the diff made stale, found by the closure review | `docs/architecture/zefs-format.md` named `resolveKey()` as the one path-to-key translator, which `85a79ac9b` split into a file key and a directory key; `docs/architecture/testing/runner-architecture.md` anchored `runTestCase iterates tc.Steps`, which `092f3b309` moved into `runTestCaseIn`. Both corrected at closure and re-read against `resolveKey`, `resolveDirKey`, `(*blobStorage).List` and `runTestCaseIn` | Yes |
+| The doc gate over the corrected pages | `make ze-doc-verify`: `Documentation tests PASSED` (2026-08-22). `make ze-repository-check`: all checks passed. `make ze-spec-citation-check`: OK, no dangling citation of this spec once it is removed | Yes |
 
 ## Core Insight
 

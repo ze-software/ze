@@ -19,3 +19,5 @@ is open.
 | 2026-08-22 | acb7c2cd | fix(commit-helper): read a closure signal as the committing session's own | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-22 | acb7c2cd | fix(commit-helper): a closure signal is the committing session's own | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-22 | acb7c2cd | plan: three defects found while draining the fixit backlog | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-22 | acb7c2cd | docs(storage): the path-to-key docs name both resolvers | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-22 | acb7c2cd | spec: close fixit-zefs-diff-structural-ops | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |

@@ -181,8 +181,8 @@ Keys follow a `<namespace>/<qualifier>/<path>` convention to prevent collisions 
 | `file/<date>/` | Historical config versions | `file/20260318-100000.000/router.conf` |
 <!-- source: pkg/zefs/keys.go -- KeyLocalAdminUsername -->
 
-The Storage interface (`internal/component/config/storage/`) translates filesystem paths to namespaced keys via `resolveKey()`. The function is idempotent: already-namespaced keys pass through unchanged, so `List()` results can be fed back to `ReadFile()` without double-prefixing.
-<!-- source: internal/component/config/storage/ -- Storage interface, resolveKey -->
+The Storage interface (`internal/component/config/storage/`) translates filesystem paths to namespaced keys with two functions, because a key names either a file or a directory. `resolveKey()` builds a FILE key and serves every read, write, remove and version path: it keeps the base filename alone, so `/etc/ze/router.conf` and `router.conf` both become `file/active/router.conf`. `resolveDirKey()` builds a DIRECTORY key and serves `List()` alone: it maps any filesystem directory to `file/active`, which is where `resolveKey()` put those files. Both are idempotent, so an already-namespaced key passes through unchanged and a `List()` result can be fed back to `ReadFile()` without double-prefixing.
+<!-- source: internal/component/config/storage/blob.go -- resolveKey, resolveDirKey, blobStorage.List -->
 
 `ze data` operates on raw blob keys. `ze init` writes `meta/` keys directly.
 
