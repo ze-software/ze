@@ -49,6 +49,37 @@ def resolve(commit: str) -> str:
     return out.stdout.strip()
 
 
+def worktree_path(root: Path, sha: str, stamp: str) -> Path:
+    """Where this run's worktree goes: a NEW directory every time.
+
+    The timestamp is not decoration, and it is not for the operator. `go test`
+    keys a cached verdict on the absolute paths its testlog recorded, so a fresh
+    directory misses the cache whatever the module and build caches hold, and a
+    gate run here cannot answer `ok (cached)` for a run that never happened.
+
+    Measured 2026-08-22 on `./scripts/status/`, one of the exec sites in
+    `plan/journal/test-cache-stale.md`: 1.674s then `(cached)` in the main tree,
+    2.384s in a fresh worktree at the same sha with that package byte-identical,
+    then `(cached)` on a second run inside that same worktree.
+
+    BOTH halves of that matter, and the second is the one a reader loses. The
+    stale-cache class does not reach a gate run in a fresh worktree at a new
+    path. It DOES reach those same gates run over the shared working tree, where
+    the path is stable and a warm verdict outlives an edit to a producer the
+    test only execs. That is what `DEBT_GATE_RUNNERS`
+    (`scripts/dev/commit_helper.py`) does today, and it is why the debt pass is
+    moving here rather than staying there.
+
+    So making this path stable to save the checkout cost would be right about
+    the cost and wrong about the consequence: it re-arms that class against the
+    artifact that records verification evidence, silently. This is a function
+    rather than one line inside `main` so that the property can be ASSERTED
+    (`TimestampedPathTest`) instead of only described here. A comment reaches
+    whoever reads this line; a test reaches whoever changes it.
+    """
+    return root / "tmp" / "verify-worktree" / f"{stamp}-{sha[:12]}"
+
+
 def save_logs(root: Path, path: Path, name: str) -> Path | None:
     """Copy a red run's stage logs out of the worktree before it is removed.
 
@@ -103,28 +134,7 @@ def main() -> int:
 
     root = repo_root()
     sha = resolve(args.commit)
-    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
-    # A NEW path every run, and the timestamp is not decoration. `go test` keys
-    # a cached verdict on the absolute paths its testlog recorded, so a fresh
-    # directory misses the cache whatever the module and build caches hold, and
-    # a gate run here cannot answer `ok (cached)` for a run that never happened.
-    # Measured 2026-08-22 on `./scripts/status/`, one of the exec sites in
-    # `plan/journal/test-cache-stale.md`: 1.674s then `(cached)` in the main
-    # tree, 2.384s in a fresh worktree at the same sha with that package
-    # byte-identical, then `(cached)` on a second run in that same worktree.
-    #
-    # BOTH halves of that matter, and the second is the one a reader loses.
-    # The stale-cache class does not reach a gate run in a fresh worktree at a
-    # new path. It DOES reach those same gates run over the shared working
-    # tree, where the path is stable and a warm verdict outlives an edit to a
-    # producer the test only execs. That is what `DEBT_GATE_RUNNERS`
-    # (`scripts/dev/commit_helper.py`) does today, and it is why the debt pass
-    # is moving here rather than staying there.
-    #
-    # So making this path stable to save the checkout cost would be right about
-    # the cost and wrong about the consequence: it re-arms that class against
-    # the artifact that records verification evidence, silently.
-    path = root / "tmp" / "verify-worktree" / f"{stamp}-{sha[:12]}"
+    path = worktree_path(root, sha, time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()))
     path.parent.mkdir(parents=True, exist_ok=True)
 
     print(f"verify-worktree: {sha[:12]} -> {path}")

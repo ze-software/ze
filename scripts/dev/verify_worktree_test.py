@@ -148,6 +148,45 @@ class SaveLogsTest(unittest.TestCase):
             self.assertEqual(["second.log"], [p.name for p in sorted(dest.iterdir())])
 
 
+class TimestampedPathTest(unittest.TestCase):
+    """The worktree path must stay NEW per run, and this asserts it.
+
+    The property is load-bearing for a reason nobody chose it for: a fresh
+    absolute path misses the `go test` result cache, so a gate run here cannot
+    clear a verification-debt row on a verdict from a run that never happened.
+    The obvious future optimisation is to key the path on the sha alone and
+    reuse the checkout, which is right about the cost and wrong about the
+    consequence. A comment reaches whoever reads that line. This reaches
+    whoever changes it.
+    """
+
+    def test_two_runs_at_one_commit_get_different_paths(self) -> None:
+        root = Path("/repo")
+        sha = "d3bd1d88b88c0000000000000000000000000000"
+
+        first = verify_worktree.worktree_path(root, sha, "20260822T130818Z")
+        second = verify_worktree.worktree_path(root, sha, "20260822T142530Z")
+
+        self.assertNotEqual(
+            first,
+            second,
+            "the worktree path stopped varying per run, which re-arms the "
+            "stale go test cache against the debt ledger",
+        )
+
+    def test_the_path_carries_the_commit_so_a_reader_can_attribute_it(
+        self,
+    ) -> None:
+        root = Path("/repo")
+        sha = "d3bd1d88b88c0000000000000000000000000000"
+
+        path = verify_worktree.worktree_path(root, sha, "20260822T130818Z")
+
+        self.assertIn("d3bd1d88b88c", path.name)
+        self.assertIn("20260822T130818Z", path.name)
+        self.assertEqual(root / "tmp" / "verify-worktree", path.parent)
+
+
 class RunnerEndToEndTest(unittest.TestCase):
     """The whole runner, against a real git worktree and a real make target."""
 
