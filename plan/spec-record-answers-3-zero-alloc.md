@@ -496,6 +496,128 @@ The BLOCKER the review found, `show bgp rib best last N` rendering rows from
 released pool handles, is fixed in `bd18679ab` with two mutation-proven
 regression tests.
 
+
+## Implementation Summary
+
+### What Was Implemented
+
+Six phases plus the AC-4 conversion. The encoder writes an answer's rows with
+zero allocations per row, an answer's line buffer comes from a pool and is
+returned on every path, the alloc gate covers the record path with a ceiling of
+zero, and both RIB walks stream: `show bgp rib best` from phase 5 and
+`show bgp rib` from the 2026-08-23 conversion.
+
+### Bugs Found/Fixed
+
+- `show bgp rib best last N` rendered every row but the last from RELEASED pool
+  handles. Found by the independent review, fixed in `bd18679ab` with two
+  mutation-proven regression tests. In a release build the slot is re-interned,
+  so a row carried another route's attributes rather than failing.
+- A nested-reader deadlock introduced BY the AC-4 conversion:
+  `showProtocolPipeline` held `peerMu` across a drain whose `Next` now takes it.
+  No test caught it, because nested readers deadlock only when a writer queues
+  between them. A lint finding of an unused release method led to it.
+- The alloc ceiling was a goal registered red a phase before the optimization,
+  and nothing held it to that goal afterwards. `recordPathCeiling` now spells it
+  beside the registry and the test fails when the two disagree.
+
+### Documentation Updates
+
+`docs/architecture/plugin/rib-storage-design.md` carries the reference rule the
+walks depend on. `plan/journal/false-synchronization-claim.md` is corrected: its
+row said `showPipeline` was NOT converted, which this spec made false.
+
+### Deviations from Plan
+
+Two of the five files in "Files to Create" were never created under those names.
+The streaming proofs are `test/plugin/answer-first-bounds-long-walk.ci` and
+`test/plugin/answer-single-record.ci`, which drive `system command list` rather
+than `show bgp rib`, plus the Go-level
+`internal/component/bgp/plugins/rib/rib_pipeline_show_stream_test.go` added with
+the conversion. The named `.ci` files would have added a third daemon-driven
+proof of the same property.
+
+## Mistake Log
+
+| What | Why it happened | What stops it |
+|------|-----------------|---------------|
+| Claimed AC-4 implemented when only the payload half had landed | The review said "the conversion is queued"; I did a conversion and read mine as that one without re-reading what the criterion asks | The criterion text, not a summary of it, is what a completion claim is checked against |
+| Reported AC-4 to a peer as blocked on the owner | "Closing needs either the conversion or his decision" is true, and I let the first branch vanish when summarising | A block names what cannot proceed; if any branch is available, it is not a block |
+| Searched only the OLD key when the payload shape changed | A search for what you remove cannot find code that breaks because of what you add: `internal/component/lg` broke without ever naming the old key | `ai/rules/points/testing/the-affected-population-is-not-the-edited-population/a-shape-change-has-two-populations-old-name-and-new.md` |
+
+## Goal Validation (BLOCKING)
+
+| Goal | Evidence |
+|------|----------|
+| An answer's rows cost no allocation per row | `make ze-alloc-check`: `BenchmarkRecordAnswerRows-4 300 319.2 ns/op 221 B/op 0 allocs/op`, harness beside it at 0. `-benchtime=300x` puts b.N past `rpc.AnswerBufferThreshold` (256), so the STREAMED form is what is measured |
+| A large RIB dump does not hold the table in memory | `TestBestPipelineStreams` and `TestShowPipelineStreams`: one wire line per row past the threshold, against the three a collected document writes whatever its row count. Both mutation-proven |
+| A dump does not stall the BGP data plane | `TestBestPipelineNoLockAcrossWrite` and `TestShowPipelineNoLockAcrossWrite` take the WRITE side of `peerMu` from inside the answer writer, so they fail if any line is written while a reader holds it |
+| The walks are safe against a concurrent writer | `internal/component/bgp/plugins/rib` green under `-race`, including `TestShowPipelineWalkSurvivesConcurrentUpdates`, which exists to catch the wedge a nested lock produces |
+
+## Deferrals Resolved
+
+`plan/deferrals/record-answers.md` holds ONE row, status `deferred`: converting
+the payload handlers outside the two RIB walks. It is live, homed at a spec of
+its own, and therefore SURVIVES this closure. The shard is not removed.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/show-rib-under-load.ci` | Yes | `ls` |
+| `test/plugin/stream-answer-renders-table.ci` | Yes | `ls` |
+| `test/interop/scenarios/show-rib-under-frr-load/check.py` | Yes | `ls` |
+| `test/plugin/show-rib-streams.ci` | **No** | `ls` reports absent. The property is proved by `answer-first-bounds-long-walk.ci`, `answer-single-record.ci` and `rib_pipeline_show_stream_test.go` instead; see Deviations |
+| `test/plugin/show-rib-first-stops-walk.ci` | **No** | `ls` reports absent. Same three proofs |
+| `internal/component/bgp/plugins/rib/rib_pipeline_show_stream_test.go` | Yes | `ls`, added with the AC-4 conversion |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Zero allocations per row | `BenchmarkRecordAnswerRows-4 300 319.2 ns/op 221 B/op 0 allocs/op` |
+| AC-2 | The line buffer comes from the pool and is returned on every path | `TestWriteAnswerUsesPooledBuffer`, `TestWriteAnswerReleasesBufferOnError` PASS (`internal/component/plugin`) |
+| AC-3 | The gate covers the record path and reddens without the release | `make ze-alloc-check` exit 0; `TestAllocGateCoversRecordPath` PASS, and it fails when the registered ceiling and `recordPathCeiling` disagree |
+| AC-4 | `show bgp rib` streams | `TestShowPipelineStreams` PASS, mutation-proven: the document path reddens it with "must answer with a walk" |
+| AC-5 | No socket write while `peerMu` is held | `TestShowPipelineNoLockAcrossWrite` and `TestBestPipelineNoLockAcrossWrite` PASS |
+| AC-6 | A declared column schema gives a `tab` head with positional rows | `test/plugin/stream-answer-renders-table.ci` names this AC and exists |
+| AC-7 | No schema gives a `map` head with self-describing rows | Same file; the two shapes are the file's pair |
+| AC-8 | A bounded walk is byte-identical to before | `TestShowPipelineCollapsesInsideTheWindow` PASS. **Does not hold for `show bgp rib`**, by the owner's 2026-08-23 payload ruling, which is recorded in the AC-4 section |
+| AC-9 | An oversize row is a fault and the walk continues | `boundedRecord` (`pkg/plugin/rpc/answer_write.go`) rejects it; the walk's yield loop continues, and `showRows` yields a `Fault` row for an unencodable route rather than stopping |
+| AC-10 | No `fmt` or concatenation on the record path | `make ze-lint-changed` 0 issues, and the repository's `c_string_concat` and `c_sprintf_new` gates refused three of this session's commits until the calls were removed |
+| AC-11 | A buffered surface reads the same document | `TestShowPipelineCollapsesInsideTheWindow` PASS: a short walk is a head, one document and a terminator |
+| AC-12 | `show bgp rib best` streams under the same lock rule | `TestBestPipelineStreams`, `TestBestPipelineNoLockAcrossWrite` PASS; the BLOCKER this AC wrongly claimed safe is fixed in `bd18679ab` |
+| AC-13 | A short line into a pooled buffer carries none of the previous answer | `TestWriteAnswerUsesPooledBuffer` covers the round trip; the length is stated by the frame rather than by the buffer |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| A command answers with rows | `test/plugin/answer-single-record.ci` | Yes, exists and drives a one-record answer through the same reader as a large one |
+| `show bgp rib` over a large table | `test/plugin/answer-first-bounds-long-walk.ci` | Yes, exists and measures past the 256-record window. It drives `system command list`, not `show bgp rib`; the Go-level proof for this command is `TestShowPipelineStreams` |
+| `show bgp rib` under concurrent UPDATEs | `test/plugin/show-rib-under-load.ci` | Yes, exists and names AC-5 |
+| A positional row renders as a table | `test/plugin/stream-answer-renders-table.ci` | Yes, exists and names AC-6 |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | Held | `rpc.Row` is an `AppendTo(buf []byte) []byte` interface and `rpc.RawRow` implements it; the encoder never learns a row's type |
+| A-2 | Held, and it needed MORE than the assumption said | Releasing `peerMu` before the write is not sufficient on its own: the inbound sources also had to take a pool REFERENCE for their buffered rows, because `peerMu` never covered the handles. `plan/journal/false-synchronization-claim.md` records the disproof |
+| A-3 | Held | One pool size, bounded by `MaxMessageSize`; a row wider than one wire message is a fault rather than a per-line allocation |
+| A-4 | Held | `make ze-alloc-check` runs `./internal/component/plugin` beside the reactor glob and reports the record-path benchmark |
+| A-5 | Held | `Records.Fields` is written on the head, which precedes every row. `show bgp rib` declares no schema and answers `map`-shaped rows, which is the branch A-5 predicted for a command whose columns are not fixed |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/plugin/rib-storage-design.md` states the reference rule | The rule it states is the one `bestSource.Next` and the inbound sources implement: a dereference is covered by a reference, not by `peerMu` | Yes |
+| `plan/journal/false-synchronization-claim.md` describes the current state | Its row said `showPipeline` was NOT converted. Corrected in this closure with what the conversion took | Yes |
+| No page documents a two-level `show bgp rib` payload | `grep -rn "adj-rib-in" docs/` returns three hits and none is this command's payload: a capability map entry, a comparison table, and `docs/guide/irr-filtering.md` describing `show bgp adj-rib-in`, which is a DIFFERENT command served by the adj_rib_in plugin and still answers that shape | Yes |
+
 ## Review Gate
 
 Independent review of the six implementation phases, by a context that wrote
