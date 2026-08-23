@@ -549,12 +549,22 @@ with nothing listening.
 - `show env list`, `show env get` and `show env registered` are converted, with
   a declared shape and column order.
 
-**Still owed for AC-10:** the storage, yang and config CLI families (12 of the
-20 commands that declare a wire method no daemon handler implements). Each is
-the same conversion: a data handler beside the existing printer, a
+**Still owed for AC-10:** the yang and config CLI families (11 of the 20
+commands that declare a wire method no daemon handler implements). Each is the
+same conversion: a data handler beside the existing printer, a
 `RegisterLocalData` call, and a declared shape.
 
-The env family (3) and the schema family (5) are converted. Schema was cheap
+The env family (3), the schema family (5) and two of the three storage commands
+are converted.
+
+**One command is deliberately NOT converted, and that is an answer rather than
+a gap.** `show data cat` returns the BYTES of one stored file, which may be
+YAML, JSON, a certificate or a binary blob. Those bytes are the answer; wrapping
+them in a record would corrupt the one use the command has, and no pipe operator
+has anything to do with them. It keeps its plain handler and the published page
+says it reaches no pipe layer, which is true rather than an omission. A command
+whose answer is a byte stream is the boundary of this spec, not a case it
+missed. Schema was cheap
 because four of its five commands already built a payload for a `--json` flag,
 so the data function was lifted out of the printer rather than invented, and the
 two spellings of each answer cannot disagree. Storage and yang have no `--json`
