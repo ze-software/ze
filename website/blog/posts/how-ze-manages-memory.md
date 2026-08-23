@@ -3,6 +3,7 @@ title: How Ze keeps BGP traffic away from the garbage collector
 date: 2026-08-04
 author: Thomas Mangin
 description: How Ze reuses buffers, borrows wire data and limits copies so repeated routing work creates little garbage.
+deck: Ze controls allocation by making ownership and lifetime explicit: borrow immutable wire data, copy at ownership boundaries and return bounded storage.
 ---
 
 The Common Gateway Interface let an HTTP server invoke an external program to produce a webpage. ExaBGP applied the same separation to BGP: it managed the sessions and the wire messages, while ordinary processes exchanged decoded events and route announcements with it.

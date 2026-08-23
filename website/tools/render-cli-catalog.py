@@ -36,6 +36,24 @@ MODE_LABELS = {
     "offline": "Offline",
 }
 
+AVAILABILITY_LABELS = {
+    "always": "Always",
+    "with-rows": "With rows",
+    "when-streaming": "While streaming",
+}
+
+AVAILABILITY_ORDER = {
+    "always": 0,
+    "with-rows": 1,
+    "when-streaming": 2,
+}
+
+PIPE_CLASS_LABELS = {
+    "global": "Output and control",
+    "stream": "Streaming",
+    "data": "Row data",
+}
+
 MAX_GROUP_SIZE = 20
 
 SLUG_RE = re.compile(r"[^a-z0-9]+")
@@ -179,6 +197,160 @@ def group_commands(commands):
             groups.append(("%s (other)" % verb, sorted(other, key=lambda c: c["path"])))
     return groups
 
+def pipe_items(command, key):
+    return command.get(key) or []
+
+
+def pipe_name(item):
+    name = item.get("name", "")
+    if item.get("takes-arg"):
+        name += " <value>"
+    return name
+
+
+def pipe_summary(command):
+    parts = []
+    pipes = pipe_items(command, "pipes")
+    aliases = pipe_items(command, "pipe-aliases")
+    operators = pipe_items(command, "operators")
+    if pipes:
+        parts.append("%d command pipe%s" % (len(pipes), "" if len(pipes) == 1 else "s"))
+    if aliases:
+        parts.append("%d alias%s" % (len(aliases), "" if len(aliases) == 1 else "es"))
+    if operators:
+        parts.append(
+            "%d operator%s" % (len(operators), "" if len(operators) == 1 else "s")
+        )
+    return " · ".join(parts) or "None"
+
+
+def operators_by_availability(command):
+    grouped = {}
+    for operator in pipe_items(command, "operators"):
+        grouped.setdefault(operator.get("available", "always"), []).append(
+            operator.get("name", "")
+        )
+    return grouped
+
+
+def render_pipe_details(command):
+    pipes = pipe_items(command, "pipes")
+    aliases = pipe_items(command, "pipe-aliases")
+    operators = pipe_items(command, "operators")
+    if not pipes and not aliases and not operators:
+        return '<span class="cli-pipe-none">None</span>'
+
+    parts = [
+        '<details class="cli-pipes">',
+        "<summary>%s</summary>" % html.escape(pipe_summary(command)),
+        '<div class="cli-pipe-detail">',
+    ]
+    if pipes:
+        parts.append('<strong>Command pipes</strong><div class="cli-pipe-chips">')
+        for pipe in pipes:
+            parts.append(
+                '<code title="%s">%s</code>'
+                % (
+                    html.escape(pipe.get("description", ""), quote=True),
+                    html.escape(pipe_name(pipe)),
+                )
+            )
+        parts.append("</div>")
+        parts.append(
+            '<details class="cli-pipe-descriptions"><summary>Command pipe descriptions</summary><dl>'
+        )
+        for pipe in pipes:
+            parts.append(
+                "<dt><code>%s</code></dt><dd>%s</dd>"
+                % (
+                    html.escape(pipe_name(pipe)),
+                    html.escape(pipe.get("description", "")),
+                )
+            )
+        parts.append("</dl></details>")
+    if aliases:
+        parts.append("<strong>Aliases</strong><dl>")
+        for alias in aliases:
+            parts.append(
+                "<dt><code>%s</code></dt><dd>%s <code>%s</code></dd>"
+                % (
+                    html.escape(alias.get("name", "")),
+                    html.escape(alias.get("description", "")),
+                    html.escape(alias.get("expansion", "")),
+                )
+            )
+        parts.append("</dl>")
+    for availability, names in operators_by_availability(command).items():
+        parts.append(
+            '<p><span>%s</span><code>%s</code></p>'
+            % (
+                html.escape(AVAILABILITY_LABELS.get(availability, availability)),
+                html.escape(" · ".join(names)),
+            )
+        )
+    parts.extend(["</div>", "</details>"])
+    return "".join(parts)
+
+
+def operator_catalog(commands):
+    catalog = {}
+    for command in commands:
+        for operator in pipe_items(command, "operators"):
+            name = operator.get("name", "")
+            entry = catalog.setdefault(
+                name,
+                {
+                    "name": name,
+                    "class": operator.get("class", ""),
+                    "description": operator.get("description", ""),
+                    "available": [],
+                },
+            )
+            available = operator.get("available", "always")
+            if available not in entry["available"]:
+                entry["available"].append(available)
+    return list(catalog.values())
+
+
+def render_pipe_guide(commands):
+    operators = operator_catalog(commands)
+    if not operators:
+        return ""
+    parts = [
+        '<section class="cli-pipe-guide" aria-labelledby="cli-pipe-guide-title">',
+        '<div class="cli-pipe-guide-head">',
+        '<span class="tag">Pipes</span>',
+        '<div><h2 id="cli-pipe-guide-title">Pipe operators</h2>',
+        "<p>Each command row names the operators it accepts after <code>|</code>. "
+        "Availability comes from the live command registry: some operators need row "
+        "data or a streaming answer.</p></div>",
+        "</div>",
+        "<details>",
+        "<summary>Operator reference <span>%d</span></summary>" % len(operators),
+        "<table><thead><tr><th>Operator</th><th>Class</th><th>Available</th>"
+        "<th>Description</th></tr></thead><tbody>",
+    ]
+    for operator in operators:
+        available = sorted(
+            operator["available"], key=lambda value: AVAILABILITY_ORDER.get(value, 99)
+        )
+        availability = ", ".join(
+            AVAILABILITY_LABELS.get(value, value) for value in available
+        )
+        parts.append(
+            "<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td>%s</td></tr>"
+            % (
+                html.escape(operator["name"]),
+                html.escape(
+                    PIPE_CLASS_LABELS.get(operator["class"], operator["class"])
+                ),
+                html.escape(availability),
+                html.escape(operator["description"]),
+            )
+        )
+    parts.extend(["</tbody></table>", "</details>", "</section>"])
+    return "\n".join(parts)
+
 
 def render_row(c):
     desc_html = html.escape(c["description"]).replace("\n", "<br>")
@@ -187,13 +359,14 @@ def render_row(c):
     return (
         '<tr id="%s"><td><code>%s</code></td>'
         '<td><span class="cli-mode cli-mode-%s">%s</span></td>'
-        "<td>%s</td></tr>"
+        "<td>%s</td><td>%s</td></tr>"
     ) % (
         slugify("cmd-", c["path"]),
         html.escape(c.get("syntax") or c["path"]),
         mode,
         mode_label,
         desc_html,
+        render_pipe_details(c),
     )
 
 
@@ -202,11 +375,42 @@ def render_group(label, entries):
         '<details class="cli-group" id="%s" open>' % slugify("cli-group-", label),
         '<summary>%s <span class="cli-group-count">%d</span></summary>'
         % (html.escape(label), len(entries)),
-        "<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th></tr></thead><tbody>",
+        "<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th><th>Pipes</th></tr></thead><tbody>",
     ]
     parts.extend(render_row(c) for c in entries)
     parts.append("</tbody></table></details>")
     return "\n".join(parts)
+
+def markdown_code_list(values):
+    return ", ".join("`%s`" % value.replace("|", "\\|") for value in values)
+
+
+def markdown_pipe_details(command):
+    parts = []
+    pipes = pipe_items(command, "pipes")
+    aliases = pipe_items(command, "pipe-aliases")
+    if pipes:
+        parts.append("Command: %s" % markdown_code_list([pipe_name(p) for p in pipes]))
+    if aliases:
+        parts.append(
+            "Aliases: %s"
+            % markdown_code_list(
+                [
+                    "%s -> %s"
+                    % (alias.get("name", ""), alias.get("expansion", ""))
+                    for alias in aliases
+                ]
+            )
+        )
+    for availability, names in operators_by_availability(command).items():
+        parts.append(
+            "%s: %s"
+            % (
+                AVAILABILITY_LABELS.get(availability, availability),
+                markdown_code_list(names),
+            )
+        )
+    return "<br>".join(parts) or "None"
 
 
 def render_markdown(commands, groups):
@@ -220,8 +424,8 @@ def render_markdown(commands, groups):
         "%d commands across %d groups, generated straight from `ze help "
         "command --json` -- the same live command registry the binary "
         "itself uses, so this list cannot drift from what the binary "
-        "actually supports. Full machine-readable list (path, mode, "
-        "description for every command, one JSON array): "
+        "actually supports. Full machine-readable list (path, mode, description, "
+        "pipe operators, command pipes, and aliases for every command): "
         "[data/cli-commands.json](%sdata/cli-commands.json)."
         % (len(commands), len(groups), sitelib.SITE_BASE),
         "",
@@ -229,13 +433,16 @@ def render_markdown(commands, groups):
     for label, entries in groups:
         parts.append("## %s (%d)" % (label, len(entries)))
         parts.append("")
-        parts.append("| Command | Mode | Description |")
-        parts.append("| --- | --- | --- |")
+        parts.append("| Command | Mode | Description | Pipes |")
+        parts.append("| --- | --- | --- | --- |")
         for c in entries:
             mode_label = MODE_LABELS.get(c.get("mode", ""), c.get("mode", ""))
             path = c["path"].replace("|", "\\|")
             desc = " ".join(c["description"].split()).replace("|", "\\|")
-            parts.append("| `%s` | %s | %s |" % (path, mode_label, desc))
+            parts.append(
+                "| `%s` | %s | %s | %s |"
+                % (path, mode_label, desc, markdown_pipe_details(c))
+            )
         parts.append("")
     return "\n".join(parts).strip() + "\n"
 
@@ -261,8 +468,8 @@ def render(commands, groups):
             (
                 "%d commands across %d groups, generated straight from "
                 "<code>ze help command --json</code> -- the same live command registry the "
-                "binary itself uses, so this page cannot drift from what the binary actually "
-                "supports the way a hand-maintained list can. Full machine-readable list: "
+                "binary itself uses, including the pipe operators available to each command. "
+                "Full machine-readable list: "
                 '<a href="../../data/cli-commands.json">data/cli-commands.json</a>.'
                 % (len(commands), len(groups))
             ),
@@ -271,6 +478,7 @@ def render(commands, groups):
             lead_html=True,
         )
     )
+    out.append(render_pipe_guide(commands))
     out.append('                <div class="cli-search-wrap">')
     out.append(
         '                    <input id="cli-search" type="search" autocomplete="off" '

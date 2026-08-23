@@ -1,50 +1,58 @@
 ---
-title: Reference from the system
+title: Reference stays attached to code
 date: 2026-08-22
 author: Thomas Mangin
 description: Generated references stay tied to code, registries and RFC evidence.
+
+deck: Ze does not copy facts into prose. It publishes checked views from the sources that own them.
+
+image: assets/blog/reference-from-the-system.svg
+image-dark: assets/blog/reference-from-the-system-dark.svg
+image-alt: A code-owned source publishes a reference view while an agent follows a lookup route back to the same source.
+
+key-points: Facts stay with the owner | Pages publish checked views | Agents follow the same routes
 ---
 
-A large project has to document itself for two readers: users and the agents that change it.
+A large project has to explain itself. The website cannot become a second database.
 
-The first objective is public reference. Users need current facts when they decide whether Ze fits their network and when they operate it. If the site lags behind the code, the project moves risk to the operator.
+Operators need current facts: commands, configuration leaves, plugin names, dependency reasons, RFC status and gaps. If the site lags behind the code, the project moves risk to the operator.
 
-The second objective is context for AI work. An agent needs to find the rule, source owner, evidence and prior decision while it edits. If that context comes from the same repository facts each time, the next session starts from the same map instead of inventing a new one.
+Developers and agents need a different view of the same material. They need the rule, source owner, evidence and prior decision while they edit. If that context comes from the same repository facts each time, the next session starts from the same map instead of inventing a new one.
 
-Those objectives are equal. User documentation keeps the project honest in public. Agent context keeps decisions consistent over time.
+Those two readers make the same demand: do not copy a fact away from the place that owns it.
 
 The trick we used in Ze is simple. Keep each fact where the system already enforces it. Generate the reference page from that place. Check the links back to evidence.
-
-This is useful beyond Ze. If your project already has structured knowledge in the repository, do not copy it into a page by hand.
-
-Generate the table from the source that owns the fact. Then write the explanation around it.
 
 *This article was drafted with OpenAI Codex. The design, decisions and conclusions are mine.*
 
 ## The useful split
 
-A human writes context, judgement and tradeoffs. The system writes lists, counts and relationships.
+<p class="blog-section-reveal">The website stays current when prose explains decisions and generators publish the inventory.</p>
+
+Humans own the context, judgement and tradeoffs. The system owns the lists, counts and relationships.
 
 That split keeps reference pages from becoming a second database. Each fact stays with its owner in the repository, and the website reads those owners to publish a view.
 
-The scale is why this matters.
+The table is useful because the same pattern repeats across enough of the project.
 
 | Public reference | Source that owns the fact | Scale covered | Why generation helps |
 |---|---|---:|---|
-| CLI reference | Live command registry | {{ze:cli-commands}} commands across 48 groups | The page cannot forget a command the binary exposes. |
-| Configuration reference | YANG schema from `ze yang tree` | {{ze:config-sections}} top-level sections, 27 from plugins | The page follows the schema when a plugin adds a leaf. |
-| Plugin catalogue | Plugin registry and metadata | 90 runtime plugins, 6 fixtures | Names, purposes, config roots and source paths come from registration. |
-| Dependencies | `go.mod` plus written reasons | {{ze:dependencies}} direct dependencies | Versions come from Go, while the reason stays human-written. |
-| RFC status | RFC requirement ledger | {{ze:rfc-requirements}} requirements across {{ze:rfc-summaries}} summaries | Public support claims stay tied to tests, gaps and annotations. |
+| CLI reference | Live command registry | {{ze:cli-commands}} commands<br>across 48 groups | The page cannot miss a command the binary exposes. |
+| Configuration reference | YANG schema from<br>`ze yang tree` | {{ze:config-sections}} top-level sections<br>27 from plugins | The page follows the schema when a plugin adds a leaf. |
+| Plugin catalogue | Plugin registry and metadata | 90 runtime plugins<br>6 fixtures | Names, purposes, config roots and source paths come from registration. |
+| Dependencies | `go.mod`<br>plus written reasons | {{ze:dependencies}}<br>direct dependencies | Versions come from Go, while the reason stays human-written. |
+| RFC status | RFC requirement ledger | {{ze:rfc-requirements}} requirements<br>across {{ze:rfc-summaries}} summaries | Public support claims stay tied to tests, gaps and annotations. |
 
 The page can still be readable. It can group commands, add search, explain why a dependency exists, or warn that an RFC is partial. The fact itself still comes from the place that changes when the product changes.
 
 Some pages are not regenerated every time the data changes. For those, the HTML carries `data-ze-stat` markers. JavaScript fetches `data/site-facts.json` and updates those values in the browser. The page stays static, while the visible count still comes from the latest generated data.
 
 
-## Links turn a page into a route
+## Links turn reference into a route
 
-A generated page is still weak if the reader cannot move from a claim to its source.
+<p class="blog-section-reveal">A reference becomes operational when every public claim has a maintained route back to its owner.</p>
+
+A public claim is useful only when a reader can follow it back to the source and evidence behind it.
 
 Ze uses links in both directions. Source files carry headers such as `// Design:` near the top. They point to the rule or design document that explains the file. Documents point back with `<!-- source: ... -->` anchors.
 
@@ -75,41 +83,54 @@ That is where the consistency comes from. The tag exists in the file, the genera
 
 ## RFCs show the whole system
 
-RFC compliance is the best example because it joins external text, local knowledge, tests and public claims.
+<p class="blog-section-reveal">Standards support is a chain from normative text to a public row, with omissions made visible along the way.</p>
 
-The external authority is the RFC. Ze does not get to redefine it. The local knowledge lives under `rfc/short/`, where each RFC summary gives stable ids to the requirements. A requirement id such as `RFC7606-7.1-1` lets a test, an audit result, a gap and a public status row all name the same obligation.
+An RFC support claim is credible only when the standard, Ze's interpretation, the evidence and the public page share one requirement id.
 
-A summary can still miss a sentence. That is the failure mode that makes compliance checklists dangerous. The checklist can be green because nobody wrote down the missing rule.
+The RFC remains the authority. Ze keeps a local copy under `rfc/full/`, then records its implementation requirements in `rfc/short/`. Each requirement gets a stable id. For example, `RFC7606-7.1-1` identifies one rule from RFC 7606 section 7.1.
 
-Ze uses `rfc/extraction/<stem>.json` to bound that risk. The file starts as a generated skeleton from the RFC source text. A reviewer classifies each normative site by hand. Each site maps to a requirement id, or gets excluded with a reason from a closed set.
+Writing the summary creates an obvious risk: the author can omit a normative sentence. Every listed requirement can have a test while the omitted sentence remains invisible.
 
-Tests then carry the same ids:
+The extraction record under `rfc/extraction/` checks the summary against the RFC text. A generated skeleton lists the normative locations found in the RFC. A reviewer must map each location to a requirement id or exclude it with a reason from the allowed list. The record therefore answers a separate question from the tests: did the summary account for the normative text?
+
+Tests name the same requirement ids:
 
 ```go
 // RFC requirement: RFC7606-7.1-1 negative - ORIGIN length 2 selects treat-as-withdraw.
 ```
 
-`make ze-rfc-index-update` joins the summary with the test tags. It writes one generated file per RFC under `rfc/requirements/`, and an index over all of them in `ai/RFC-REQUIREMENTS.md`.
+The id connects the RFC sentence to its evidence:
 
-The chain is deliberately boring.
+```text
+RFC sentence
+  -> extraction review
+  -> requirement id
+  -> test or declared gap
+  -> per-RFC ledger
+  -> public support row
+```
+
+`make ze-rfc-index-update` performs the joins. It combines the summary, extraction result, test tags and gap annotations. It writes one ledger per RFC under `rfc/requirements/` and the global index at `ai/RFC-REQUIREMENTS.md`.
 
 | Layer | File or page | Job | Failure it catches |
 |---|---|---|---|
 | External text | `rfc/full/<stem>.txt` | Keep the RFC text local and stable. | A claim based on memory. |
 | Local summary | `rfc/short/<stem>.md` | Give each obligation a stable id. | A test or gap with no named requirement. |
-| Extraction sign-off | `rfc/extraction/<stem>.json` | Map source text to requirement ids. | A summary that missed a normative sentence. |
-| Test tag | `RFC requirement:` comment | Tie evidence to one requirement id. | A passing test that proves no public claim. |
+| Extraction review | `rfc/extraction/<stem>.json` | Account for each normative location. | A summary that missed a normative sentence. |
+| Test tag | `RFC requirement:` comment | Tie evidence to one requirement id. | A passing test with no public claim. |
 | Per-RFC ledger | `rfc/requirements/<stem>.md` | Join requirements, tests, gaps and evidence type. | Evidence hidden in the tree. |
 | Global ledger | `ai/RFC-REQUIREMENTS.md` | Show coverage across all summaries. | Backlog hidden across many files. |
 | Public page | `reference/rfcs/` | Publish support and gaps. | Private gaps missing from the public claim. |
 
-The public RFC page is a support view over that system. A supported row has to stay tied to current source, tests or documentation. If a private `{gap}` annotation exists in `rfc/short/`, the public page has to disclose it. A newly enrolled RFC has to get a public row.
+The public RFC page is the final view of this chain. A supported row must point to current source, tests or documentation. A `{gap}` annotation in `rfc/short/` must appear as a public gap, and each enrolled RFC must have a public row.
 
-That is the system I wanted. A public claim can be followed to a requirement. The requirement can be followed to evidence. The evidence can be followed to code. When the code changes, the route has to move with it.
+This gives every public support claim a traceable route back to the standard. The requirement points to evidence, the evidence points to code, and a code change can update the claim that users see.
 
 ## Why this serves Ze
 
-This machinery pays for itself when the project changes.
+<p class="blog-section-reveal">One repository map can guide operators reading the website and agents changing the code.</p>
+
+The same checked facts serve two readers: users who operate Ze and agents that change it.
 
 The public site gives users the current support view and does not turn reference pages into separate ledgers.
 
@@ -121,9 +142,11 @@ I hope the article is useful for other projects for that reason. The exact gener
 
 ## The cost is worth naming
 
-This is not free.
+<p class="blog-section-reveal">Generated reference trades manual drift for machinery that must itself be tested and maintained.</p>
 
-Generators become code to maintain. Build logs get longer. A false positive can block correct work. A source link that felt helpful when it was written can become debt when files move.
+Generated reference replaces stale prose with generators, checks and links that all require maintenance.
+
+Builds take longer, false positives can block correct work, and useful source links become debt when files move.
 
 The system can also be believed too much. A generated page can be generated from the wrong source. A test tag can name the right requirement and assert the wrong behaviour. An extraction sign-off can record a walk over RFC text and still miss the meaning of a paragraph.
 
@@ -133,7 +156,9 @@ A page that publishes its uncertainty is safer than a page that says "supported"
 
 ## The shape I want
 
-The reference comes from the system wherever the system already owns the fact.
+<p class="blog-section-reveal">The website should describe the repository that exists now, using facts its owners can still enforce.</p>
+
+The target is a website where each fact stays with the owner that can keep it current.
 
 A human writes the explanation, the judgement and the tradeoff. The program provides the lists, relationships and counts. The gate checks the links between them.
 

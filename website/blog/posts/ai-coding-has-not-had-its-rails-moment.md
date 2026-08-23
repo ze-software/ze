@@ -3,6 +3,7 @@ title: AI coding has not had its Rails moment
 date: 2026-08-10
 author: Thomas Mangin
 description: Harnesses and models improve every few weeks, and the repositories they work in still explain nothing about themselves. Rails solved that once for people, and nothing equivalent has arrived for agents.
+deck: AI coding has better models and better harnesses, but no shared convention for making a repository explain itself to an agent.
 ---
 
 An agent can locate and open any file in a large repository in under a second. Nothing it finds there tells it how to work with what it has just opened: which design document explains what that code implements, which rule it is about to break, or which test would catch it if it gets that wrong. That knowledge exists. It lives in a wiki nobody updates, in a handful of pull request comments, and in the maintainer's head.

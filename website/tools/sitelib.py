@@ -1183,7 +1183,14 @@ _PENDING_PAGE_SIDEBAR = ""
 
 
 def page_head(
-    title, desc, root, og_title=None, og_desc=None, extra_head="", page_key=None
+    title,
+    desc,
+    root,
+    og_title=None,
+    og_desc=None,
+    extra_head="",
+    page_key=None,
+    wide=False,
 ):
     page_title = str(title)
     page_desc = str(desc)
@@ -1193,7 +1200,12 @@ def page_head(
     sidebar = page_sidebar(root, page_key)
     global _PENDING_PAGE_SIDEBAR
     _PENDING_PAGE_SIDEBAR = sidebar
-    main_class = ' class="has-page-sidebar"' if sidebar else ""
+    if sidebar:
+        main_class = ' class="has-page-sidebar"'
+    elif wide:
+        main_class = ' class="site-main-wide"'
+    else:
+        main_class = ""
     return PAGE_HEAD.format(
         title=html.escape(page_title),
         desc=html.escape(page_desc, quote=True),
@@ -1264,6 +1276,15 @@ def parse_blog_front_matter(text):
     return meta, body.strip()
 
 
+def split_article_meta_list(value):
+    """Pipe-separated scalar lists for blog front matter.
+
+    The front matter parser is deliberately scalar-only. A pipe list keeps
+    article metadata editable without pulling YAML into the website build.
+    """
+    return [part.strip() for part in value.split("|") if part.strip()]
+
+
 def split_blog_sections(body):
     """Return (title_marker, intro, [(header, section_body), ...])."""
     parts = BLOG_HEADER_RE.split(body)
@@ -1317,9 +1338,9 @@ ARTICLES_DIR = GH_PAGES / "blog" / "posts"
 
 
 def blog_articles():
-    """Every blog/posts/*.md as {slug, title, date, author, description, body},
-    newest first. Files without a title are skipped (treated as not ready);
-    a missing author is a warning, not a silently anonymous page."""
+    """Every blog/posts/*.md as {slug, title, date, author, description, deck,
+    image, image_dark, image_alt, key_points, body}, newest first. Files without
+    a title are skipped; a missing author is a warning."""
     articles = []
     for f in sorted(ARTICLES_DIR.glob("*.md")):
         meta, body = parse_blog_front_matter(f.read_text())
@@ -1337,6 +1358,11 @@ def blog_articles():
                 "date": meta.get("date", "").strip(),
                 "author": author,
                 "description": meta.get("description", "").strip(),
+                "deck": meta.get("deck", "").strip(),
+                "image": meta.get("image", "").strip(),
+                "image_dark": meta.get("image-dark", "").strip(),
+                "image_alt": meta.get("image-alt", "").strip(),
+                "key_points": split_article_meta_list(meta.get("key-points", "")),
                 "body": body,
             }
         )

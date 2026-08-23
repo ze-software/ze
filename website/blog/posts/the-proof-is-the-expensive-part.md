@@ -3,6 +3,7 @@ title: The proof is the expensive part
 date: 2026-08-06
 author: Thomas Mangin
 description: Ze uses AI to write code, but an RFC claim only counts after the standard, the tests, the public gap list and the commit process all agree.
+deck: A feature is unfinished until every support claim can be traced from the standard through tests, known gaps and the exact change being committed.
 ---
 
 I ended [AI slop is the wrong test](../ai-slop-is-the-wrong-test/) with this line: the code is cheap, the proof is the expensive part. This post is the missing explanation.

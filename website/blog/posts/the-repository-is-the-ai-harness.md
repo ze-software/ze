@@ -3,6 +3,7 @@ title: The repository is half the AI harness
 date: 2026-08-09
 author: Thomas Mangin
 description: AI coding needs more than a capable model. The repository must carry its architecture, relationships, tests and checks in a form the agent can discover and the project can enforce.
+deck: The harness gives an agent tools. The repository provides project-specific meaning and checks that reject work which does not belong.
 ---
 
 Ze is a network operating system spread over {{ze:repo-go-packages}} Go packages. A model can open any one of them in under a second and still have no idea which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. Nothing in the repository tells it.

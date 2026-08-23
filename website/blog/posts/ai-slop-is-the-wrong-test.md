@@ -3,6 +3,7 @@ title: AI slop is the wrong test
 date: 2026-08-03
 author: Thomas Mangin
 description: Ze is an AI-written NOS. The useful question is whether the code is constrained, reviewed, tested and measured.
+deck: Authorship says little about whether code belongs in a network operating system. Constraints, review, tests and measurements decide that.
 ---
 
 Ze is an AI-written NOS. I decide the architecture, the tradeoffs, what the code must never break and what gets rejected. Claude turns that into implementation.

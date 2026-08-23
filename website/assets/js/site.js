@@ -1727,6 +1727,29 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    function initFAQDeepLinks() {
+        if (!document.querySelector(".faq-groups")) return;
+
+        function revealQuestion() {
+            if (!location.hash) return;
+            var id;
+            try {
+                id = decodeURIComponent(location.hash.slice(1));
+            } catch (err) {
+                return;
+            }
+            var target = document.getElementById(id);
+            if (!target || !target.matches("details.faq-card")) return;
+            target.open = true;
+            window.requestAnimationFrame(function () {
+                target.scrollIntoView({ block: "start" });
+            });
+        }
+
+        revealQuestion();
+        window.addEventListener("hashchange", revealQuestion);
+    }
+
     function copyText(text) {
         if (navigator.clipboard && navigator.clipboard.writeText) {
             return navigator.clipboard.writeText(text);
@@ -1794,5 +1817,6 @@ document.addEventListener("DOMContentLoaded", function () {
     observeAutomaticTableColumnSelectors();
     initSourceLinks();
     initCodeCopyButtons();
+    initFAQDeepLinks();
     initRepoStats();
 });
