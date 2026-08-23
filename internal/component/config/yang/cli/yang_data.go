@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/commands.md — where a command is served
-// Related: plan/spec-cli-pipe-operator-coverage.md — AC-10
+// Related: docs/architecture/api/commands.md — the operator model this serves
 //
 // yang_data.go answers `show yang tree` and `show yang completion` with
 // structured data, so they reach the pipe layer. Both printed text and returned

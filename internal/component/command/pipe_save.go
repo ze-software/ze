@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/commands.md — CLI pipe operators
 // Detail: pipe_catalog.go — the operator contract this implements
-// Related: plan/spec-cli-pipe-operator-coverage.md — AC-7
+// Related: docs/architecture/api/commands.md — save is a global operator, so every command owes it
 //
 // pipe_save.go implements `| save <path>`, the one global operation the owner
 // named that did not exist. Nothing in the CLI wrote an answer to a file: a

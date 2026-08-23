@@ -1,6 +1,6 @@
 # Test: a command served in the CLI's own process reaches the pipe layer
 #
-# VALIDATES: plan/spec-cli-pipe-operator-coverage.md AC-10 -- the 38 commands
+# VALIDATES: docs/architecture/api/commands.md -- the 38 commands
 #   that reached no pipe layer on any surface reach one.
 # PREVENTS: `ze cli -c "show env list | json"` answering `unknown command`
 #   again, which is what it did while YANG declared a wire method for the
@@ -114,6 +114,27 @@ require(code == 1, 'a row operator over a declared document exit=%d, want 1: %s%
 combined = out + err
 require('one document' in combined, 'the refusal does not say why: %r' % combined)
 require(conf not in combined, 'the refusal echoes the file path back: %r' % combined)
+
+# 9. The two surfaces answer the same BYTES.
+#
+#    A dual-registered command is reachable as `ze show env list` and as
+#    `ze cli -c "show env list"`, and those are two different call sites in two
+#    different packages. `ze <verb>` renders through command.RenderLocalAnswer,
+#    which ends an answer with exactly one newline. `ze cli -c` used
+#    fmt.Println over the same rendered string, which added a second one when
+#    the rendering already ended in a newline, and every table rendering does.
+#
+#    A trailing blank line is not cosmetic on this surface. It is one surface
+#    of a pair that a tool author is told answer alike, so `wc -l` disagreed by
+#    one between two spellings of one command, and a `tail -1` read the blank
+#    instead of the last row.
+code_a, out_a, err_a = run(['ze', 'show', 'env', 'list'])
+require(code_a == 0, 'ze show env list exit=%d: %s%s' % (code_a, out_a, err_a))
+code_b, out_b, err_b = run(['ze', 'cli', '-c', 'show env list'])
+require(code_b == 0, 'cli -c exit=%d: %s%s' % (code_b, out_b, err_b))
+require(out_a == out_b,
+        'the two surfaces answer different bytes: verb ends %r, cli -c ends %r'
+        % (out_a[-40:], out_b[-40:]))
 
 print('OK')
 EOF_PY

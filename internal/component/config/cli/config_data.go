@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/commands.md — where a command is served
-// Related: plan/spec-cli-pipe-operator-coverage.md — AC-10
+// Related: docs/architecture/api/commands.md — the local-data path this serves
 //
 // config_data.go answers `show config dump`, `history` and `ls` with structured
 // data, so they reach the pipe layer. They printed text and returned an exit

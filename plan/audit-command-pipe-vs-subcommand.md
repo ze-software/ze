@@ -720,3 +720,26 @@ Four limits.
 - The counts come from a snapshot on 2026-08-21. The extraction is
   re-derivable: a walk of `ze:command` nodes, `[]sdk.CommandDecl` literals and
   `MustRegisterLocal` path literals, deduplicated.
+
+## Open finding added 2026-08-23: an unknown trailing argument is ignored
+
+Found while verifying `spec-cli-pipe-operator-coverage` AC-11, which asserts a
+dual-registered command answers identically through `ze <verb>` and through
+`ze cli -c`. It does, and that is the point: BOTH surfaces accept an argument no
+command declares, ignore it, and exit 0.
+
+```
+$ ze show env list --nosuchflag        # 96 rows, exit 0
+$ ze cli -c "show env list --nosuchflag"   # the same 96 rows
+```
+
+This is outside the pipe-operator language, which is why that spec recorded it
+here rather than growing to hold it. It belongs to this audit's subject, the
+command grammar: an operator who mistypes a flag gets a full answer and no
+signal, and a tool author who passes an option this grammar does not have gets
+the unfiltered answer instead of an error.
+
+It is not a surface asymmetry. The two spellings agree, so the parity guard in
+`test/ui/pipe-local-command.ci` section 9 stays green either way. Whoever fixes
+it should decide the rule once, for every command, rather than per family:
+today no layer owns "this command takes no arguments".

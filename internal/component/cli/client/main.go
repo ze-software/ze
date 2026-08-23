@@ -272,9 +272,7 @@ func runBGP(args []string) int {
 	// daemon handler implements.
 	if *runCmd != "" {
 		if answer, code, served := cmd.ServeLocal(*runCmd, *format); served {
-			if answer != "" {
-				fmt.Println(answer)
-			}
+			cmd.WriteAnswer(answer)
 			return code
 		}
 	}
@@ -398,9 +396,7 @@ func (c *cliClient) execute(command, format string, tw *unicli.TranscriptWriter)
 	// handler implements. Serving it here runs the operator's chain over its
 	// answer, through the same pipe layer that renders a daemon answer.
 	if answer, code, served := cmd.ServeLocal(command, format); served {
-		if answer != "" {
-			fmt.Println(answer)
-		}
+		cmd.WriteAnswer(answer)
 		if tw != nil {
 			tw.Record(command, answer)
 		}

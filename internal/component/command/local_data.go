@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/commands.md — where a command is served
 // Detail: pipe.go — the chain this runs over a local answer
-// Related: plan/spec-cli-pipe-operator-coverage.md — AC-10, AC-11
+// Related: docs/architecture/api/commands.md — why a local command answers through the pipe layer
 //
 // local_data.go serves a command in THIS process and runs the pipe chain over
 // its answer.
@@ -106,12 +106,19 @@ func RenderLocalAnswer(path string, payload any) int {
 	if IsPipeError(rendered) {
 		return 1
 	}
-	writeAnswer(rendered)
+	WriteAnswer(rendered)
 	return 0
 }
 
-// writeAnswer prints a rendered answer, ending it with exactly one newline.
-func writeAnswer(rendered string) {
+// WriteAnswer prints a rendered answer, ending it with exactly one newline.
+//
+// Every surface that prints a locally served answer MUST come through here.
+// The `ze <verb>` and `ze cli -c` spellings of one command are two call sites
+// in two packages, and a tool author is told they answer alike. While the CLI
+// client used fmt.Println over the same rendered string, they did not: a table
+// rendering already ends in a newline, so that surface added a second one, and
+// `wc -l` disagreed by one between two spellings of one command.
+func WriteAnswer(rendered string) {
 	if rendered == "" {
 		return
 	}

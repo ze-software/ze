@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — per-command answer shape
 // Detail: pipe_catalog.go — the operator contracts this shape is checked against
 // Related: column_order.go — the other user of the command-path registry
-// Related: plan/spec-cli-pipe-operator-coverage.md — why this file exists
+// Related: docs/architecture/api/commands.md — the answer shape an operator list derives from
 //
 // answer_shape.go answers one question: does this command's answer have rows?
 //

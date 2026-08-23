@@ -400,7 +400,7 @@ func TestApplyJSONANSIPassthrough(t *testing.T) {
 // the second count unwrapped the first one's single-key answer and counted the
 // number inside it. The catalog now declares count as RepeatRefuse, because
 // counting a count has no honest answer, and the validator refuses the chain
-// before it runs (plan/spec-cli-pipe-operator-coverage.md, AC-5).
+// before it runs (docs/architecture/api/commands.md, the repeatable column).
 func TestApplyPipesCountOfCount(t *testing.T) {
 	ops := []pipeOp{
 		{kind: pipeCount},
@@ -1172,7 +1172,7 @@ func TestApplyFirstUnderCount(t *testing.T) {
 // unchanged. That silence is the defect: `show version | first 1` answered the
 // version string and dropped the key the bare command prints, and a caller had
 // no way to learn the operator had not applied. It is now refused by name
-// (plan/spec-cli-pipe-operator-coverage.md, AC-3).
+// (docs/architecture/api/commands.md, shape-aware refusal).
 func TestApplyFirstNonArray(t *testing.T) {
 	input := `{"count":42}`
 	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeFirst, arg: "3"}}, nil, nil)

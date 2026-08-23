@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — CLI pipe operators
 // Detail: pipe.go — the parser and the document chain that read this catalog
 // Related: completer.go — Tab completion, derived from here
-// Related: plan/spec-cli-pipe-operator-coverage.md — why this file exists
+// Related: docs/architecture/api/commands.md — the operator language this table defines
 //
 // pipe_catalog.go holds the ONE statement of the operator language: every
 // operator, and what each one promises. Before it, the set was hand-copied into

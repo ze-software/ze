@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/commands.md — where a command is served
-// Related: plan/spec-cli-pipe-operator-coverage.md — AC-10
+// Related: docs/architecture/api/commands.md — the operator model this serves
 //
 // env_data.go answers `show env list`, `show env get` and `show env registered`
 // with structured data, so they reach the pipe layer.
