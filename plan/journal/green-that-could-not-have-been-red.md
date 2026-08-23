@@ -6,7 +6,7 @@ greenness was structural rather than earned: nothing about the state of the
 product could have changed it.
 
 This is a sharper class than "vacuous test", because the mechanisms differ and
-only the consequence is shared. Five are known, and they fail at five different
+only the consequence is shared. Six are known, and they fail at six different
 points.
 
 Where the stimulus never reaches the defect's path, the green says the test
@@ -18,10 +18,23 @@ fourth one is the only shape here that is not a false green. Where the MUTATION
 never happened, nothing was tested at all, and the artifact of the attempt is
 byte-identical to success.
 
+The sixth is the odd one, because the signal itself was sound. The other five
+RAN and carried no information. This one never ran where it mattered: a skip
+kept it off the machine the work happens on, and the suite's aggregate still
+read green. A coverage hole in a rarely-run suite costs little. A hole over the
+one signal that CAN fail, on the one machine everybody uses, costs the whole
+value of the test.
+
 The habit that catches the first four is the same, and it is cheap. Before you
 trust a green, break the thing it judges and watch it go red. A red you cannot
 produce on demand is a green you cannot rely on. Where no red can be produced at
 all, say so in the test. Do not leave the reader to assume coverage.
+
+That habit does not reach the sixth either, and for a plainer reason than the
+fifth: you cannot break a thing and watch it go red on a machine where it does
+not run. What reaches it is reading the skip. A skip with a stated reason is a
+coverage boundary a reader can audit. A skip with none is an assertion nobody
+can check. The two read identically, in the file and in the suite output alike.
 
 **The fifth mechanism defeats that habit, which is why it is listed apart.** It
 is the habit itself failing silently. The break is attempted, the patch does not
