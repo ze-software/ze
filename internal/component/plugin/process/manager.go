@@ -512,19 +512,28 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 	validTimes = append(validTimes, now)
 	pm.respawnTimes[name] = validTimes
 
-	// Stop existing process if running.
-	// Nil out metrics callbacks before stopping to prevent the dying process
-	// from re-creating deleted status labels via SetStage during shutdown.
+	// Stop the process this respawn replaces and JOIN its goroutines, whether or not
+	// its engine is still running. The line further down overwrites pm.processes[name],
+	// and that map entry is the only handle anything holds on the old process, so this
+	// is the last moment it can be joined.
+	//
+	// Running() reports the ENGINE, and the engine is not the only goroutine a Process
+	// owns: StartWithContext starts the event delivery loop first (process.go), and
+	// that loop ends only when Stop closes the event channel (delivery.go, deliveryLoop
+	// ranges over it). A respawn follows a crash, so an engine that has already
+	// returned is the COMMON case here and was the one the old Running() guard skipped.
+	// Every such cycle left a delivery loop blocked on a channel nobody could reach,
+	// and ProcessManager.Stop walks pm.processes, so nothing ever joined it.
+	//
+	// Nil out the metrics callbacks first, so the dying process cannot re-create
+	// deleted status labels via SetStage during shutdown.
 	if proc, ok := pm.processes[name]; ok {
 		proc.onStageChange = nil
 		proc.deliveryInc = nil
-		if proc.Running() {
-			proc.Stop()
-			// Wait briefly for stop
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-			_ = proc.Wait(ctx)
-			cancel()
-		}
+		proc.Stop()
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		_ = proc.Wait(ctx)
+		cancel()
 	}
 
 	// Start new process with acceptor if configured.

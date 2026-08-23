@@ -5,6 +5,7 @@
 package process
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -373,4 +374,44 @@ func TestARespawnedPluginStillGetsItsEngineWait(t *testing.T) {
 
 	assert.True(t, released.Load(),
 		"the stop after a respawn returned before the respawned engine released: Respawn left the re-entry guard set")
+}
+
+// VALIDATES: Respawn JOINS the process it replaces, so no goroutine outlives the map
+// entry that owned it.
+//
+// PREVENTS: one leaked event delivery loop per crash-and-respawn cycle. Running()
+// reports the ENGINE, and StartWithContext (process.go) starts the delivery loop before
+// it, so a plugin whose engine has returned still owns a goroutine ranging over its
+// event channel (delivery.go, deliveryLoop) that only Stop can end. Respawn used to
+// skip Stop for exactly that process, then overwrite pm.processes[name], the only
+// handle on it. ProcessManager.Stop walks that map, so the loop blocked for the life of
+// the daemon and nothing could reach it again. The same leak in a test lets the dropped
+// goroutine read a package var while a later test swaps it, which is how this was
+// found: the plugin logger, raced by a stopped plugin's engine.
+func TestRespawnJoinsTheProcessItReplaces(t *testing.T) {
+	registerRunEngine(t, "test-respawn-join", func(_ net.Conn) int {
+		// Returns at once, which is what the manager sees when a plugin crashes.
+		return 0
+	})
+
+	pm := NewProcessManager([]plugin.PluginConfig{{
+		Name: "test-respawn-join", Internal: true, Encoder: "json", RespawnEnabled: true,
+	}})
+	require.NoError(t, pm.Start())
+	t.Cleanup(pm.Stop)
+
+	first := pm.GetProcess("test-respawn-join")
+	require.NotNil(t, first)
+	require.Eventually(t, func() bool { return !first.Running() }, 5*time.Second, time.Millisecond,
+		"the engine must have returned before the respawn, because that is what a crash looks like")
+
+	_, err := pm.Respawn("test-respawn-join")
+	require.NoError(t, err)
+
+	// The respawn has already dropped this process from pm.processes, so this is the
+	// last handle on it that exists. Every goroutine it owns must be done by now.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	assert.NoError(t, first.Wait(ctx),
+		"Respawn replaced a process that still had a goroutine running, and no later Stop can reach it")
 }

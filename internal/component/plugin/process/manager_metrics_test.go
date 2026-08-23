@@ -108,6 +108,10 @@ func TestPluginRestartMetric(t *testing.T) {
 
 	pm.ctx, pm.cancel = context.WithCancel(t.Context())
 	defer pm.cancel()
+	// Every Respawn starts an engine goroutine, and only Stop joins them. Without
+	// this the last respawn's goroutine outlives the test and races whatever a later
+	// test does to a package var it reads, the plugin logger among them.
+	defer pm.Stop()
 
 	// First respawn should increment counter.
 	_, err := pm.Respawn("cycle")
@@ -198,6 +202,9 @@ func TestPluginMetricsDeletedOnDisable(t *testing.T) {
 	// RespawnLimit=5: first 5 calls succeed (counter=5), 6th hits limit and disables.
 	pm.ctx, pm.cancel = context.WithCancel(t.Context())
 	defer pm.cancel()
+	// See TestPluginRestartMetric: Stop is what joins the engine goroutines these
+	// respawns start.
+	defer pm.Stop()
 	for range RespawnLimit + 1 {
 		_, _ = pm.Respawn("crash-metrics")
 	}
