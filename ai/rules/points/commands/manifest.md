@@ -70,6 +70,7 @@ lint-gate ## Lint Gate
   the-rule
   run-the-lint-gate-before-claiming-go-work-done
   make-ze-lint-changed
+  never-invoke-golangci-lint-directly
   what-ze-lint-changed-covers-and-what-it-costs
   fix-every-lint-issue-before-claiming-done
   when-to-run
