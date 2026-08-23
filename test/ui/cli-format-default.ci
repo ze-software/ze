@@ -176,15 +176,37 @@ try:
     #    can tell "nothing to report" from "the command did not run". The answer
     #    is emptied by a filter rather than by a command that reports nothing,
     #    because no RPC handler in the tree returns an empty Response.
-    code, out, err = run(['ze', 'cli', '-c', 'show version | match zzz-no-such-token'], cli_env)
+    #
+    #    CHANGED by spec-cli-pipe-operator-coverage (AC-3, AC-9). This used to
+    #    empty the answer of `show version`, which holds ONE VALUE: `| match`
+    #    grepped the lines of the dispatcher's compact JSON, which is one line,
+    #    so the filter answered all-or-nothing and an unmatched token left an
+    #    empty string. match acts on ROWS now and refuses an answer that has
+    #    none by name, so a single-value answer can no longer be emptied that
+    #    way -- and nothing else can produce a truly empty answer either, for
+    #    the reason the paragraph above gives.
+    #
+    #    So the step asserts what an emptied ROW answer does, which is the case
+    #    an operator actually meets. It keeps its envelope and reports that the
+    #    rows are gone. `(empty)` and `OK` are two spellings of "nothing to
+    #    report"; what AC-7 exists to prevent is SILENCE, which neither is.
+    code, out, err = run(['ze', 'cli', '-c', 'show bgp peer list | match zzz-no-such-token'], cli_env)
     require(code == 0, 'an emptied answer exit=%d: %s%s' % (code, out, err))
-    require(out == 'OK\n', 'an empty answer with no format operator must print OK: %r' % out)
+    require(out.strip() != '', 'an emptied answer printed nothing, so a human cannot tell it ran')
+    require(out.strip() in ('OK', '(empty)'),
+            'an emptied answer must say nothing-to-report, got %r' % out)
 
-    # 6. The other half of AC-7's branch: a command that asked for a machine
-    #    format gets nothing, because OK is not valid JSON.
-    code, out, err = run(['ze', 'cli', '-c', 'show version | match zzz-no-such-token | json'], cli_env)
+    # 6. The other half of AC-7's branch: a machine format never receives the
+    #    human's nothing-to-report word. It receives an answer it can parse
+    #    carrying no rows, which is stronger than the empty string this step
+    #    used to assert: a caller can tell "no rows" from "no answer".
+    code, out, err = run(['ze', 'cli', '-c', 'show bgp peer list | match zzz-no-such-token | json'], cli_env)
     require(code == 0, 'an emptied answer in json exit=%d: %s%s' % (code, out, err))
-    require(out == '', 'a machine format must not receive OK: %r' % out)
+    require('OK' not in out, 'a machine format must not receive OK: %r' % out)
+    if out.strip():
+        parsed = json.loads(out)
+        peers = parsed.get('peers', {}) if isinstance(parsed, dict) else parsed
+        require(len(peers) == 0, 'the emptied answer still carries rows: %r' % out)
 
     # 7. A format the grammar does not name is REFUSED, not passed to the
     #    dispatcher as a command argument. --format now reaches the daemon

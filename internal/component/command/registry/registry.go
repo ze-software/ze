@@ -28,6 +28,7 @@ package registry
 import (
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"sync"
 
@@ -50,6 +51,21 @@ var (
 
 // LocalHandler runs a CLI command in-process (no daemon required).
 type LocalHandler func(args []string) int
+
+// LocalDataHandler answers a command with structured DATA instead of printing
+// text, so the answer can go through the pipe layer like any other.
+//
+// A LocalHandler prints and returns an exit code, which is why 38 commands
+// reached no pipe layer on any surface: by the time RunCommand had a result
+// there was nothing left but an int, and `ze cli -c "show env list | json"`
+// answered `unknown command` because the daemon serves no such method. A data
+// handler returns the payload, and the caller renders it.
+//
+// The value MUST be structured data a JSON encoder can take: a map, a slice, or
+// a struct. It MUST NOT be text a renderer already formatted, for the reason
+// ai/rules/cli.md gives for every other handler: `| json`, `| yaml` and
+// `| table` are three renderings of ONE payload.
+type LocalDataHandler func(args []string) (any, int)
 
 // RootHandler runs an owner-backed root command in-process. It receives the
 // process RuntimeContext built by cmd/ze/main.go after global flag parsing,
@@ -361,6 +377,76 @@ func longestLocalPrefix(words []string) (LocalHandler, int) {
 		}
 	}
 	return nil, 0
+}
+
+// localDataHandlers holds the commands that answer with data in this process.
+var localDataHandlers = make(map[string]LocalDataHandler)
+
+// RegisterLocalData registers a command that answers with structured data in
+// this process, so its answer reaches the pipe layer.
+//
+// It ALSO registers a plain local handler, built from the same data handler, so
+// `ze <verb>` prints exactly what it printed before and the two forms of one
+// command cannot drift apart. That drift is real: `ze show interface` took the
+// local path and `ze cli -c "show interface"` took the daemon's, and only the
+// second honored a pipe.
+func RegisterLocalData(path string, handler LocalDataHandler, meta Meta, render func(string, any) int) error {
+	if path == "" {
+		return errRegisterLocalEmptyPath
+	}
+	if handler == nil {
+		return fmt.Errorf("registry.RegisterLocalData: nil handler for %q", path)
+	}
+	if render == nil {
+		return fmt.Errorf("registry.RegisterLocalData: nil renderer for %q", path)
+	}
+	if err := RegisterLocalMeta(path, func(args []string) int {
+		payload, code := handler(args)
+		if code != 0 || payload == nil {
+			return code
+		}
+		return render(path, payload)
+	}, meta); err != nil {
+		return err
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	localDataHandlers[path] = handler
+	return nil
+}
+
+// MustRegisterLocalData is RegisterLocalData, and panics rather than letting a
+// command register half.
+func MustRegisterLocalData(path string, handler LocalDataHandler, meta Meta, render func(string, any) int) {
+	err := RegisterLocalData(path, handler, meta, render)
+	if err == nil {
+		return
+	}
+	// The detail goes to stderr and the panic value is a literal. A registration
+	// failure is a programming error at init, so the process must stop, and the
+	// error already names the path that could not register.
+	fmt.Fprintln(os.Stderr, "BUG: registry.MustRegisterLocalData:", err)
+	panic("BUG: registry.MustRegisterLocalData")
+}
+
+// LookupLocalData answers the data handler for a command path, by longest
+// registered prefix, with the words that follow it as its arguments.
+func LookupLocalData(words []string) (LocalDataHandler, []string) {
+	mu.RLock()
+	defer mu.RUnlock()
+	for i := len(words); i > 0; i-- {
+		if handler, ok := localDataHandlers[textbuf.Join(words[:i], " ")]; ok {
+			return handler, words[i:]
+		}
+	}
+	return nil, nil
+}
+
+// ResetLocalDataForTest clears every registered data handler.
+func ResetLocalDataForTest() {
+	mu.Lock()
+	defer mu.Unlock()
+	localDataHandlers = make(map[string]LocalDataHandler)
 }
 
 // RegisterOfflineFallback registers an in-process handler for a read-only

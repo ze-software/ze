@@ -171,6 +171,15 @@ func rowsIn(v any) (rows []any, key string, ok bool) {
 // identity map would drop the keys, so `show bgp peer list | first 2` would
 // answer two peers with their addresses gone.
 func rowsInKeyed(v any) (rows []any, keys []string, key string, ok bool) {
+	// An EMPTY answer has zero rows; it does not have a shape that cannot
+	// support them. A filter that removed every row, and a command that
+	// answered nothing, both land here, and refusing either would turn
+	// "nothing to report" into an error. `show bgp peer list | match nothing`
+	// answers no rows and exits 0, which is what lets a reader tell an empty
+	// answer from a command that did not run.
+	if isEmptyAnswer(v) {
+		return nil, nil, "", true
+	}
 	if typed, isMap := v.(map[string]any); isMap {
 		found := ""
 		count := 0
@@ -251,4 +260,18 @@ func ShapeOfAnswer(v any) AnswerShape {
 		return ShapeMap
 	}
 	return ShapeDoc
+}
+
+// isEmptyAnswer reports whether a decoded answer carries nothing at all.
+func isEmptyAnswer(v any) bool {
+	switch typed := v.(type) {
+	case nil:
+		return true
+	case []any:
+		return len(typed) == 0
+	case map[string]any:
+		return len(typed) == 0
+	default:
+		return false
+	}
 }

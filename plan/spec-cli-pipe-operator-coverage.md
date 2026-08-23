@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | cli |
 | Depends | `plan/audit-pipe-operator-coverage.md`, `plan/audit-presentation-pipes.md`, `plan/audit-command-pipe-vs-subcommand.md` |
-| Phase | 5 of 6 (phases 1, 2, 3, 5 and 6 implemented 2026-08-23; 4 outstanding) |
+| Phase | 4 of 6 (phases 1, 2, 3, 5, 6 done; 4 mechanism done, four families outstanding) |
 | Deferral shard | `plan/deferrals/cli-pipe-operator-coverage.md` |
 | Handoff | - |
 | Updated | 2026-08-23 |
@@ -528,6 +528,46 @@ second update to append, and no implementation could change that. It is now its
 own class, published per command as "while the command keeps answering". The
 owner's taxonomy said the same thing: the global class is formatting and saving,
 and `log` is neither.
+
+### Phase 4, as built so far, and what is still owed
+
+The mechanism is built and one family uses it. Four families are not converted
+yet, and that is the honest state: AC-10 is NOT met.
+
+`ze <verb> ... | json` was never the gap: the shell eats the `|` before ze sees
+it. The gap is `ze cli -c "show env list | json"`, which answered
+`unknown command`, and the client is where it is fixed. The client has the same
+registry compiled in, so a command served in that process needs no daemon at
+all: it is answered BEFORE credentials are loaded, which is why the chain works
+with nothing listening.
+
+- `registry.LocalDataHandler` answers with DATA rather than printing.
+  `RegisterLocalData` also registers the plain handler, built from the same data
+  handler, so `ze <verb>` and `ze cli -c` render through one path and cannot
+  drift apart. That is AC-11's mechanism.
+- `command.ServeLocal` runs the operator's chain over the payload.
+- `show env list`, `show env get` and `show env registered` are converted, with
+  a declared shape and column order.
+
+**Still owed for AC-10:** the schema, storage, yang and config CLI families
+(17 of the 20 commands that declare a wire method no daemon handler
+implements). Each is the same conversion: a data handler beside the existing
+printer, a `RegisterLocalData` call, and a declared shape.
+
+**Two defects this phase found in the earlier phases, both fixed here:**
+
+An EMPTY answer was being refused. `rowsIn` treated `{}`, `[]` and `null` as
+"no rows to act on" rather than "zero rows", so a filter that removed every row
+turned an empty result into an error. `show bgp peer list | match nothing` must
+answer nothing and exit 0, and it does.
+
+Two functional tests were RED across four commits and I did not see them,
+because I ran unit tests and lint and not the UI suite that covers the surfaces
+I changed. `pipe-operators.ci` asserted the two help headings phase 1 renamed.
+`cli-format-default.ci` emptied an answer with `show version | match`, which
+phase 3 correctly began refusing. Both are fixed, and the second is strengthened
+rather than relaxed: its machine-format arm now parses the answer and asserts it
+carries no rows, where it used to assert an empty string.
 
 ## Design Insights
 

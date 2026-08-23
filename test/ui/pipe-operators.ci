@@ -85,9 +85,25 @@ cmd=foreground:seq=12:exec=ze pipe resolve:stdin=ips:exit=0
 expect=stdout:contains=ip-name
 
 # help
+#
+# The two headings changed with spec-cli-pipe-operator-coverage phase 1: the
+# page used to split "Format Operators" from "Filter Operators", and it named
+# ten of sixteen. The split now follows the class that decides what a command
+# owes, and the page is derived from the operator catalog rather than
+# hand-typed.
+#
+# The operators asserted below are the ones the hand-typed page OMITTED, so this
+# fails if the page ever stops being derived. They are matched with a leading
+# space so `json` cannot satisfy the check for a name inside `ndjson`.
 cmd=foreground:seq=13:exec=ze pipe --help:exit=0
-expect=stdout:contains=Format Operators
-expect=stdout:contains=Filter Operators
+expect=stdout:contains=Global Operators
+expect=stdout:contains=Row Operators
+expect=stdout:contains= raw
+expect=stdout:contains= log
+expect=stdout:contains= save
+expect=stdout:contains= origin
+expect=stdout:contains= display
+expect=stdout:contains= fill
 
 # no args -> usage, exit 1 (inline exit is the real per-command proof)
 cmd=foreground:seq=14:exec=ze pipe:exit=1

@@ -138,3 +138,24 @@ func TestDeclaredAddressFields(t *testing.T) {
 		t.Errorf("undeclared command answers %v, want nil", got)
 	}
 }
+
+// TestEmptyAnswerHasZeroRowsRatherThanNone separates "nothing to report" from
+// "this answer has a shape that cannot carry rows". A filter that removed every
+// row lands here, and refusing it would turn an empty result into an error:
+// `show bgp peer list | match nothing` must answer nothing and exit 0.
+func TestEmptyAnswerHasZeroRowsRatherThanNone(t *testing.T) {
+	for _, payload := range []string{`{}`, `[]`, `null`} {
+		rows, _, ok := rowsIn(decode(t, payload))
+		if !ok {
+			t.Errorf("%s reports no rows; an empty answer has zero rows", payload)
+		}
+		if len(rows) != 0 {
+			t.Errorf("%s reports %d rows, want 0", payload, len(rows))
+		}
+	}
+	// A non-empty answer with no rows is still refused: it HAS content and
+	// none of it is rows.
+	if _, _, ok := rowsIn(decode(t, `{"version":"ze dev"}`)); ok {
+		t.Error("a single-value answer reports rows")
+	}
+}

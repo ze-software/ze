@@ -265,6 +265,20 @@ func runBGP(args []string) int {
 		return 1
 	}
 
+	// A command served in THIS process needs no daemon and no credentials, so
+	// it is answered before either is asked for. It used to reach the pipe
+	// layer on no surface: `ze cli -c "show env list | json"` answered
+	// `unknown command`, because YANG declares a wire method for it that no
+	// daemon handler implements.
+	if *runCmd != "" {
+		if answer, code, served := cmd.ServeLocal(*runCmd, *format); served {
+			if answer != "" {
+				fmt.Println(answer)
+			}
+			return code
+		}
+	}
+
 	// Load SSH credentials to connect to daemon
 	var creds sshclient.Credentials
 	var err error
@@ -378,6 +392,21 @@ func (c *cliClient) executeWithTranscript(command, format string, tw *unicli.Tra
 // cannot be taken back: the operator has already read the rows that arrived,
 // and the message says why the rest did not.
 func (c *cliClient) execute(command, format string, tw *unicli.TranscriptWriter) int {
+	// A command served in THIS process never reaches the daemon, and used to
+	// reach no pipe layer either: `ze cli -c "show env list | json"` answered
+	// `unknown command`, because YANG declares a wire method that no daemon
+	// handler implements. Serving it here runs the operator's chain over its
+	// answer, through the same pipe layer that renders a daemon answer.
+	if answer, code, served := cmd.ServeLocal(command, format); served {
+		if answer != "" {
+			fmt.Println(answer)
+		}
+		if tw != nil {
+			tw.Record(command, answer)
+		}
+		return code
+	}
+
 	var transcript *textbuf.Buffer
 	if tw != nil {
 		transcript = &textbuf.Buffer{}
