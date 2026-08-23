@@ -175,7 +175,7 @@ func expandAliases(command string, ops []pipeOp) []pipeOp {
 // Every other operator stays in the chain ApplyPipes runs over the answer.
 // Returns pipe metadata recording all data-shaping modifiers (both folded
 // and remaining). Display-only pipes are excluded from metadata.
-func foldFilters(command string, ops []pipeOp) (string, []pipeOp, map[string]any) {
+func foldFilters(command string, ops []pipeOp) (string, []pipeOp, PipeChainMeta) {
 	meta := collectPipeMeta(ops)
 
 	trimmed := strings.TrimSpace(command)
@@ -251,46 +251,47 @@ func foldFilters(command string, ops []pipeOp) (string, []pipeOp, map[string]any
 	return command, chainOps, meta
 }
 
-// collectPipeMeta builds metadata from all data-shaping pipe ops.
+// PipeChainStep is one operator that shaped an answer.
+type PipeChainStep struct {
+	Op  string `json:"op"`
+	Arg string `json:"arg,omitempty"`
+}
+
+// PipeChainMeta records the operators that shaped an answer, IN CHAIN ORDER.
+//
+// It was a map keyed by operator name, which could not record a chain that
+// repeats one: `match idle | match 192` wrote meta["match"] twice and published
+// only "192", so the key a tool author parses under-reported the chain that
+// actually ran. A map has no order either, and order is what a chain is.
+type PipeChainMeta []PipeChainStep
+
+// collectPipeMeta records the data-shaping pipe ops, in chain order.
 // Display-only pipes (json, ndjson, table, text, yaml, resolve, origin, log, no-more)
-// are excluded.
-func collectPipeMeta(ops []pipeOp) map[string]any {
-	var meta map[string]any
+// are excluded: they change no data, so they shaped nothing to report.
+func collectPipeMeta(ops []pipeOp) PipeChainMeta {
+	var meta PipeChainMeta
 	for _, op := range ops {
 		switch op.kind { //nolint:exhaustive // only data-shaping ops
 		case pipeMatch:
-			if meta == nil {
-				meta = make(map[string]any)
-			}
-			meta["match"] = op.arg
+			meta = append(meta, PipeChainStep{Op: "match", Arg: op.arg})
 		case pipeCount:
-			if meta == nil {
-				meta = make(map[string]any)
-			}
-			meta["count"] = true
+			meta = append(meta, PipeChainStep{Op: "count"})
 		case pipeFirst:
-			if meta == nil {
-				meta = make(map[string]any)
-			}
-			if n, err := strconv.Atoi(op.arg); err == nil {
-				meta["first"] = n
+			if _, err := strconv.Atoi(op.arg); err == nil {
+				meta = append(meta, PipeChainStep{Op: "first", Arg: op.arg})
 			}
 		case pipeLast:
-			if meta == nil {
-				meta = make(map[string]any)
-			}
-			if n, err := strconv.Atoi(op.arg); err == nil {
-				meta["last"] = n
+			if _, err := strconv.Atoi(op.arg); err == nil {
+				meta = append(meta, PipeChainStep{Op: "last", Arg: op.arg})
 			}
 		case pipeUnknown:
-			if meta == nil {
-				meta = make(map[string]any)
-			}
+			// A command-owned filter or an alias the fold left behind, which
+			// shaped the answer as much as a generic operator did.
 			fields := strings.Fields(op.arg)
 			if len(fields) == 1 {
-				meta[fields[0]] = true
+				meta = append(meta, PipeChainStep{Op: fields[0]})
 			} else if len(fields) >= 2 {
-				meta[fields[0]] = textbuf.Join(fields[1:], " ")
+				meta = append(meta, PipeChainStep{Op: fields[0], Arg: textbuf.Join(fields[1:], " ")})
 			}
 		}
 	}
@@ -360,7 +361,7 @@ func appendFilter(args []string, filter PipeFilter, value string) []string {
 // so does the sequence an `| fill` asks for. SELECTION reaches every format,
 // because which fields to answer with is a question the operator asked out
 // loud rather than a rendering choice.
-func ApplyPipes(output string, ops []pipeOp, meta map[string]any, columns []ColumnOrder) (string, string) {
+func ApplyPipes(output string, ops []pipeOp, meta PipeChainMeta, columns []ColumnOrder) (string, string) {
 	request := columnsInChain(ops)
 	formatCount := 0
 	for _, op := range ops {
@@ -390,7 +391,11 @@ func ApplyPipes(output string, ops []pipeOp, meta map[string]any, columns []Colu
 			if op.arg == "" {
 				return "", "match requires a pattern"
 			}
-			result = applyMatch(result, op.arg)
+			matched, msg := applyMatch(result, op.arg)
+			if msg != "" {
+				return "", msg
+			}
+			result = matched
 		case pipeCount:
 			counted, msg := applyCount(result)
 			if msg != "" {
@@ -531,7 +536,31 @@ func ValidatePipes(ops []pipeOp) string {
 	if msg := validateRepeats(ops); msg != "" {
 		return msg
 	}
+	if msg := validateDisplayNarrowing(ops); msg != "" {
+		return msg
+	}
 	return ""
+}
+
+// validateDisplayNarrowing refuses a chain whose `| display` requests have no
+// field in common, because the answer would carry no fields at all and the
+// operator would have no way to see why.
+func validateDisplayNarrowing(ops []pipeOp) string {
+	var request ColumnOrder
+	seen := 0
+	for _, op := range ops {
+		if op.kind != pipeDisplay {
+			continue
+		}
+		seen++
+		request = narrowDisplay(request, parseDisplay(op.arg))
+	}
+	if seen < 2 || len(request) > 0 {
+		return ""
+	}
+	var tb textbuf.Buffer
+	return tb.Str("display selects no field: each display narrows the one before it, ").
+		Str("and these name nothing in common").String()
 }
 
 // validateRepeats refuses a second occurrence of an operator whose catalog
@@ -570,16 +599,83 @@ func hasLogOp(ops []pipeOp) bool {
 	return false
 }
 
-// applyMatch filters lines containing pattern (case-insensitive).
-func applyMatch(input, pattern string) string {
+// applyMatch keeps the rows holding the text, case-insensitively.
+//
+// It used to grep LINES of whatever string was in hand. On the default chain
+// that string is the dispatcher's compact JSON, which is one line, so a bare
+// `| match idle` answered every row or none: three peers in, three peers out.
+// The behavior only looked right when a format operator came first, and only
+// the second spelling is what an operator types.
+//
+// A rendered answer still greps lines, because after `| text` the rows ARE
+// lines and that is what the reader asked for.
+func applyMatch(input, pattern string) (string, string) {
 	lower := strings.ToLower(pattern)
+
+	var data any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err == nil {
+		rows, keys, key, ok := rowsInKeyed(data)
+		if !ok {
+			return "", rowOperatorRefusal("match", data)
+		}
+		keep := make([]int, 0, len(rows))
+		for i, row := range rows {
+			var hay textbuf.Buffer
+			if keys != nil {
+				// The identity key IS a value to a reader: it is the peer
+				// address `show bgp peer list` is keyed by.
+				hay.Str(strings.ToLower(keys[i])).Byte(' ')
+			}
+			appendValueText(&hay, row)
+			if strings.Contains(hay.String(), lower) {
+				keep = append(keep, i)
+			}
+		}
+		out, marshalErr := json.Marshal(selectRows(data, key, keys, rows, keep))
+		if marshalErr != nil {
+			return input, ""
+		}
+		return string(out), ""
+	}
+
 	var b textbuf.Buffer
 	for line := range strings.SplitSeq(input, "\n") {
 		if strings.Contains(strings.ToLower(line), lower) {
 			b.Str(line).Byte('\n')
 		}
 	}
-	return b.String()
+	return b.String(), ""
+}
+
+// appendValueText writes a row's VALUES, lowercased, for matching against.
+//
+// The field NAMES are deliberately left out. Matching the marshaled row would
+// make `| match state` keep every row that has a state field, which is every
+// row, and a filter that always matches is worse than one that never does.
+func appendValueText(buf *textbuf.Buffer, v any) {
+	switch typed := v.(type) {
+	case map[string]any:
+		keys := make([]string, 0, len(typed))
+		for name := range typed {
+			keys = append(keys, name)
+		}
+		sort.Strings(keys)
+		for _, name := range keys {
+			appendValueText(buf, typed[name])
+		}
+	case []any:
+		for _, item := range typed {
+			appendValueText(buf, item)
+		}
+	case string:
+		buf.Str(strings.ToLower(typed)).Byte(' ')
+	case nil:
+	default:
+		encoded, err := json.Marshal(typed)
+		if err == nil {
+			buf.Str(strings.ToLower(string(encoded))).Byte(' ')
+		}
+	}
 }
 
 // applyCount counts items and returns JSON {"count": N}.
@@ -655,7 +751,7 @@ func isFormatOp(k pipeKind) bool {
 	return k == pipeJSON || k == pipeNDJSON || k == pipeTable || k == pipeText || k == pipeYAML || k == pipeRaw
 }
 
-func injectPipeMeta(input string, meta map[string]any) string {
+func injectPipeMeta(input string, meta PipeChainMeta) string {
 	if len(meta) == 0 {
 		return input
 	}
@@ -713,22 +809,12 @@ func applyTake(input, arg, operator string, fromEnd bool) (string, string) {
 	if !ok {
 		return "", rowOperatorRefusal(operator, data)
 	}
-	// The rows go back in the spelling they came in. An identity-keyed answer
-	// stays keyed by identity: writing an array over it would answer the taken
-	// rows with the key that names each one gone.
-	var taken any = sliceN(rows, n, fromEnd)
-	if keys != nil {
-		kept := make(map[string]any, n)
-		for _, name := range sliceStrings(keys, n, fromEnd) {
-			kept[name] = rowByKey(data, key, name)
-		}
-		taken = kept
+	keep := make([]int, 0, n)
+	for i := range rows {
+		keep = append(keep, i)
 	}
-	if key == "" {
-		data = taken
-	} else if envelope, isMap := data.(map[string]any); isMap {
-		envelope[key] = taken
-	}
+	keep = sliceInts(keep, n, fromEnd)
+	data = selectRows(data, key, keys, rows, keep)
 	out, err := json.Marshal(data)
 	if err != nil {
 		return input, ""
@@ -736,41 +822,16 @@ func applyTake(input, arg, operator string, fromEnd bool) (string, string) {
 	return string(out), ""
 }
 
-// sliceStrings is sliceN over the identity keys, so the keys kept are the keys
-// of the rows kept.
-func sliceStrings(keys []string, n int, fromEnd bool) []string {
-	if n >= len(keys) {
-		return keys
+// sliceInts takes N row indices from one end, which is what `first` and `last`
+// each ask for.
+func sliceInts(idx []int, n int, fromEnd bool) []int {
+	if n >= len(idx) {
+		return idx
 	}
 	if fromEnd {
-		return keys[len(keys)-n:]
+		return idx[len(idx)-n:]
 	}
-	return keys[:n]
-}
-
-// rowByKey answers one row of an identity-keyed answer, whether the rows are
-// the whole answer or sit under a key of it.
-func rowByKey(data any, envelopeKey, rowKey string) any {
-	container := data
-	if envelopeKey != "" {
-		if envelope, isMap := data.(map[string]any); isMap {
-			container = envelope[envelopeKey]
-		}
-	}
-	if rows, isMap := container.(map[string]any); isMap {
-		return rows[rowKey]
-	}
-	return nil
-}
-
-func sliceN(arr []any, n int, fromEnd bool) []any {
-	if n >= len(arr) {
-		return arr
-	}
-	if fromEnd {
-		return arr[len(arr)-n:]
-	}
-	return arr[:n]
+	return idx[:n]
 }
 
 func applyFirstLines(input string, n int) string {

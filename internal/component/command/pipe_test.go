@@ -130,7 +130,10 @@ func TestParsePipe(t *testing.T) {
 func TestApplyMatch(t *testing.T) {
 	input := "peer1 [established]\npeer2 [idle]\npeer3 [Established]\n"
 
-	result := applyMatch(input, "established")
+	result, msg := applyMatch(input, "established")
+	if msg != "" {
+		t.Fatalf("match refused a rendered answer: %s", msg)
+	}
 	lines := strings.Split(strings.TrimRight(result, "\n"), "\n")
 
 	if len(lines) != 2 {
@@ -367,7 +370,10 @@ func TestApplyPipesEmpty(t *testing.T) {
 // PREVENTS: pattern truncation when spaces are present.
 func TestApplyMatchWithSpaces(t *testing.T) {
 	input := "line with some pattern here\nother line\n"
-	result := applyMatch(input, "some pattern")
+	result, msg := applyMatch(input, "some pattern")
+	if msg != "" {
+		t.Fatalf("match refused a rendered answer: %s", msg)
+	}
 	if !strings.Contains(result, "some pattern") {
 		t.Errorf("match should find multi-word pattern, got %q", result)
 	}
@@ -670,21 +676,44 @@ func TestParsePipeUnknownPreservesArgs(t *testing.T) {
 	}
 }
 
-// VALIDATES: match then json compact on partial JSON lines passes through.
-// PREVENTS: crash when json filter receives non-JSON from match output.
+// VALIDATES: match then json compact keeps the matching rows and renders them.
+// PREVENTS: match handing a later format operator something it cannot parse.
+//
+// This test used to feed match a pretty-printed single document and assert that
+// it extracted one LINE, which json compact then passed through unchanged. That
+// was the line-grep behavior: match ran over whatever string was in hand and
+// left broken JSON behind. match now acts on rows, so the chain stays valid
+// JSON from end to end, and a rowless answer is refused rather than shredded.
 func TestApplyPipesMatchThenJSON(t *testing.T) {
-	input := "{\n  \"address\": \"1.2.3.4\",\n  \"state\": \"established\"\n}"
+	input := `{"peers":[{"address":"1.2.3.4","state":"established"},{"address":"5.6.7.8","state":"idle"}]}`
 	ops := []pipeOp{
-		{kind: pipeMatch, arg: "address"},
+		{kind: pipeMatch, arg: "1.2.3.4"},
 		{kind: pipeJSON, arg: jsonCompact},
 	}
 	result, err := ApplyPipes(input, ops, nil, nil)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	// match extracts one line → not valid JSON → json compact passes through.
-	if !strings.Contains(result, "address") {
-		t.Errorf("expected address in output, got %q", result)
+	if !strings.Contains(result, "1.2.3.4") {
+		t.Errorf("expected the matching row in output, got %q", result)
+	}
+	if strings.Contains(result, "5.6.7.8") {
+		t.Errorf("match kept a row it should have dropped: %q", result)
+	}
+}
+
+// TestApplyPipesMatchRefusesADocument holds the other half of the contract:
+// match acts on rows, so an answer with none is refused by name rather than
+// grepped as text.
+func TestApplyPipesMatchRefusesADocument(t *testing.T) {
+	input := `{"address":"1.2.3.4","state":"established"}`
+	ops := []pipeOp{{kind: pipeMatch, arg: "address"}}
+	result, err := ApplyPipes(input, ops, nil, nil)
+	if err == "" {
+		t.Fatalf("match answered %q instead of refusing a rowless answer", result)
+	}
+	if !strings.HasPrefix(err, "match ") {
+		t.Errorf("refusal %q does not name the operator", err)
 	}
 }
 
@@ -869,7 +898,9 @@ func TestProcessPipesDefaultFunc(t *testing.T) {
 		{"match only uses custom", "monitor event | match state", "monitor event", true},
 	}
 
-	jsonInput := `{"key":"value"}`
+	// Rows, because `| match` acts on rows: a rowless answer is refused, and
+	// this table is about which FORMATTER runs, not about match.
+	jsonInput := `{"items":[{"key":"value"}]}`
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1209,7 +1240,11 @@ func TestFoldFiltersFirstNotRegistered(t *testing.T) {
 }
 
 func TestPipeMetadataInjected(t *testing.T) {
-	meta := map[string]any{"received": true, "family": "ipv4-unicast", "first": 100}
+	meta := PipeChainMeta{
+		{Op: "received"},
+		{Op: "family", Arg: "ipv4-unicast"},
+		{Op: "first", Arg: "100"},
+	}
 
 	// Map output: metadata injected directly.
 	mapInput := `{"count":42}`
@@ -1220,11 +1255,11 @@ func TestPipeMetadataInjected(t *testing.T) {
 	if !strings.Contains(result, `"pipe"`) {
 		t.Errorf("expected pipe metadata in map output, got %s", result)
 	}
-	if !strings.Contains(result, `"received":true`) {
-		t.Errorf("expected received:true in pipe metadata, got %s", result)
+	if !strings.Contains(result, `{"op":"received"}`) {
+		t.Errorf("expected the received step in pipe metadata, got %s", result)
 	}
-	if !strings.Contains(result, `"first":100`) {
-		t.Errorf("expected first:100 in pipe metadata, got %s", result)
+	if !strings.Contains(result, `{"op":"first","arg":"100"}`) {
+		t.Errorf("expected the first step in pipe metadata, got %s", result)
 	}
 
 	// Array output: wrapped as {"data": [...], "pipe": {...}}.
@@ -1263,7 +1298,7 @@ func TestPipeMetadataAbsentWhenNoPipes(t *testing.T) {
 
 func TestPipeMetadataTableSkipped(t *testing.T) {
 	input := `[{"name":"a","value":1},{"name":"b","value":2}]`
-	meta := map[string]any{"first": 2}
+	meta := PipeChainMeta{{Op: "first", Arg: "2"}}
 	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeTable}}, meta, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
@@ -1289,8 +1324,8 @@ func TestPipeMetadataIdentityPath(t *testing.T) {
 	if !strings.Contains(result, `"pipe"`) {
 		t.Errorf("identity path should inject pipe metadata, got %s", result)
 	}
-	if !strings.Contains(result, `"count":true`) {
-		t.Errorf("expected count:true in pipe metadata, got %s", result)
+	if !strings.Contains(result, `{"op":"count"}`) {
+		t.Errorf("expected the count step in pipe metadata, got %s", result)
 	}
 }
 
@@ -1923,5 +1958,100 @@ func TestApplyTakeKeepsIdentityKeys(t *testing.T) {
 	}
 	if !strings.Contains(got, "192.0.2.3") {
 		t.Errorf("last 1 kept the wrong peer: %s", got)
+	}
+}
+
+// TestApplyMatchFiltersRows is the measured defect: a bare `| match idle` over
+// three peers answered all three, because the default chain appends its format
+// operator at the END and match therefore ran over the dispatcher's compact
+// JSON, which is one line.
+func TestApplyMatchFiltersRows(t *testing.T) {
+	const answer = `{"peers":[{"address":"192.0.2.1","state":"established"},{"address":"192.0.2.2","state":"idle"},{"address":"198.51.100.9","state":"idle"}],"total":3}`
+
+	got, msg := applyMatch(answer, "idle")
+	if msg != "" {
+		t.Fatalf("match refused: %s", msg)
+	}
+	rows, _, ok := rowsIn(decode(t, got))
+	if !ok {
+		t.Fatalf("match lost the rows: %s", got)
+	}
+	if len(rows) != 2 {
+		t.Errorf("match idle kept %d of 3 rows, want 2: %s", len(rows), got)
+	}
+	if !strings.Contains(got, `"total":3`) {
+		t.Errorf("match dropped the aggregate beside the rows: %s", got)
+	}
+}
+
+// TestApplyMatchComposes proves nesting works, which the owner requires:
+// `match X | match Y` must narrow twice.
+func TestApplyMatchComposes(t *testing.T) {
+	const answer = `{"peers":[{"address":"192.0.2.1","state":"established"},{"address":"192.0.2.2","state":"idle"},{"address":"198.51.100.9","state":"idle"}]}`
+
+	once, msg := applyMatch(answer, "idle")
+	if msg != "" {
+		t.Fatalf("first match refused: %s", msg)
+	}
+	twice, msg := applyMatch(once, "192")
+	if msg != "" {
+		t.Fatalf("second match refused: %s", msg)
+	}
+	rows, _, ok := rowsIn(decode(t, twice))
+	if !ok || len(rows) != 1 {
+		t.Fatalf("match idle | match 192 kept %v rows, want 1: %s", len(rows), twice)
+	}
+	if !strings.Contains(twice, "192.0.2.2") {
+		t.Errorf("the surviving row is the wrong one: %s", twice)
+	}
+}
+
+// TestApplyMatchIgnoresFieldNames keeps a filter from always matching. Matching
+// the marshaled row would make `match state` keep every row that HAS a state.
+func TestApplyMatchIgnoresFieldNames(t *testing.T) {
+	const answer = `{"peers":[{"address":"192.0.2.1","state":"established"},{"address":"192.0.2.2","state":"idle"}]}`
+
+	got, msg := applyMatch(answer, "state")
+	if msg != "" {
+		t.Fatalf("match refused: %s", msg)
+	}
+	rows, _, ok := rowsIn(decode(t, got))
+	if !ok {
+		t.Fatalf("match lost the rows: %s", got)
+	}
+	if len(rows) != 0 {
+		t.Errorf("match state kept %d rows by matching the field name: %s", len(rows), got)
+	}
+}
+
+// TestApplyMatchSeesTheIdentityKey proves an identity-keyed answer can be
+// filtered by the thing that names each row. `show bgp peer list` is keyed by
+// peer address, so matching an address must work.
+func TestApplyMatchSeesTheIdentityKey(t *testing.T) {
+	const answer = `{"peers":{"192.0.2.1":{"state":"up"},"198.51.100.9":{"state":"up"}}}`
+
+	got, msg := applyMatch(answer, "192.0.2")
+	if msg != "" {
+		t.Fatalf("match refused: %s", msg)
+	}
+	if !strings.Contains(got, "192.0.2.1") || strings.Contains(got, "198.51.100.9") {
+		t.Errorf("match on the identity key kept the wrong rows: %s", got)
+	}
+}
+
+// TestPipeMetadataRecordsTheWholeChain proves a repeated operator is visible to
+// a tool. The metadata was a map keyed by operator name, so `match idle |
+// match 192` published only "192" and the key a tool author parses
+// under-reported the chain that actually ran.
+func TestPipeMetadataRecordsTheWholeChain(t *testing.T) {
+	meta := collectPipeMeta([]pipeOp{
+		{kind: pipeMatch, arg: "idle"},
+		{kind: pipeMatch, arg: "192"},
+	})
+	if len(meta) != 2 {
+		t.Fatalf("the chain recorded %d steps, want 2: %+v", len(meta), meta)
+	}
+	if meta[0].Arg != "idle" || meta[1].Arg != "192" {
+		t.Errorf("the chain is out of order or incomplete: %+v", meta)
 	}
 }

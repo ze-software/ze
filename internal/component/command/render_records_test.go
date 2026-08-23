@@ -452,8 +452,23 @@ func TestAStreamedRenderingRefusesToDropThePipeMetadata(t *testing.T) {
 	if answer.Type != rpc.AnswerTypeMap {
 		t.Fatalf("the answer states type %q, want %q: the walk passed the threshold", answer.Type, rpc.AnswerTypeMap)
 	}
-	if !strings.Contains(body, `"pipe":{"match":"show"}`) {
-		t.Errorf("the rendering dropped the pipe metadata: %.200q", body)
+	// Parsed rather than string-matched: the format operator round-trips the
+	// document through a generic map, so the step's own keys come out in
+	// alphabetical order and a literal comparison would pin that accident.
+	var envelope struct {
+		Pipe []struct {
+			Op  string `json:"op"`
+			Arg string `json:"arg"`
+		} `json:"pipe"`
+	}
+	if err := json.Unmarshal([]byte(body), &envelope); err != nil {
+		t.Fatalf("the rendering is not one JSON document: %v", err)
+	}
+	if len(envelope.Pipe) != 1 {
+		t.Fatalf("the rendering carries %d pipe steps, want 1: %.200q", len(envelope.Pipe), body)
+	}
+	if envelope.Pipe[0].Op != "match" || envelope.Pipe[0].Arg != "show" {
+		t.Errorf("the pipe metadata records %+v, want match show", envelope.Pipe[0])
 	}
 	if lines := strings.Count(body, "\n"); lines != 0 {
 		t.Errorf("the rendering is %d lines, want the one document the metadata rides in", lines+1)

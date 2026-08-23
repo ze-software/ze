@@ -156,7 +156,7 @@ func chainAnswersItsOwnDocument(ops []pipeOp) bool {
 // writeDocument collapses the records the walk held into the one document a
 // buffered rendering needs, renders it through the format the chain named, and
 // writes it.
-func writeDocument(w io.Writer, held []rpc.Record, key string, fields []string, answered bool, ops []pipeOp, meta map[string]any, columns []ColumnOrder) error {
+func writeDocument(w io.Writer, held []rpc.Record, key string, fields []string, answered bool, ops []pipeOp, meta PipeChainMeta, columns []ColumnOrder) error {
 	document, err := answerDocument(held, key, fields, answered)
 	if err != nil {
 		return err
@@ -249,7 +249,7 @@ func writeRecordJSON(w io.Writer, record rpc.Record) error {
 // envelope beside the rows (injectPipeMeta, pipe.go), and a stream has no
 // envelope, so `| first 10 | ndjson` renders its document rather than dropping
 // the `first` the operator asked to be told about.
-func streamsPerRecord(ops []pipeOp, fields []string, meta map[string]any) bool {
+func streamsPerRecord(ops []pipeOp, fields []string, meta PipeChainMeta) bool {
 	if len(fields) > 0 || len(meta) > 0 {
 		return false
 	}

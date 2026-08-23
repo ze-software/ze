@@ -642,3 +642,66 @@ func selectWholePayload(t *testing.T, payload string, keep map[string]struct{}) 
 	}
 	return string(out)
 }
+
+// TestDisplayNarrowsRatherThanReplaces covers the measured defect:
+// `display state | display address` answered {address}, a field the FIRST
+// display had already dropped. A second display widened the answer.
+func TestDisplayNarrowsRatherThanReplaces(t *testing.T) {
+	tests := []struct {
+		name  string
+		chain []pipeOp
+		want  ColumnOrder
+	}{
+		{
+			name:  "one request stands",
+			chain: []pipeOp{{kind: pipeDisplay, arg: "address state"}},
+			want:  ColumnOrder{"address", "state"},
+		},
+		{
+			name: "the second narrows the first",
+			chain: []pipeOp{
+				{kind: pipeDisplay, arg: "address state uptime"},
+				{kind: pipeDisplay, arg: "state address"},
+			},
+			// The order is the one the LAST request asked for.
+			want: ColumnOrder{"state", "address"},
+		},
+		{
+			name: "a field the first dropped does not come back",
+			chain: []pipeOp{
+				{kind: pipeDisplay, arg: "state"},
+				{kind: pipeDisplay, arg: "state address"},
+			},
+			want: ColumnOrder{"state"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := columnsInChain(tt.chain).display
+			if len(got) != len(tt.want) {
+				t.Fatalf("display = %v, want %v", got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("display = %v, want %v", got, tt.want)
+				}
+			}
+		})
+	}
+}
+
+// TestDisplayWithNothingInCommonIsRefused is the case narrowing creates: two
+// requests naming disjoint fields would answer rows with no fields at all, so
+// the chain is refused before it runs and the operator hears why.
+func TestDisplayWithNothingInCommonIsRefused(t *testing.T) {
+	msg := ValidatePipes([]pipeOp{
+		{kind: pipeDisplay, arg: "state"},
+		{kind: pipeDisplay, arg: "address"},
+	})
+	if msg == "" {
+		t.Fatal("display state | display address was accepted; it selects no field")
+	}
+	if !strings.HasPrefix(msg, "display ") {
+		t.Errorf("refusal %q does not name the operator", msg)
+	}
+}

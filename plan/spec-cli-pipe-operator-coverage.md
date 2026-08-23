@@ -180,7 +180,7 @@ This spec inserts one step and changes one:
   catalog.
 - `scripts/dev/gen_wiki_commands.py`, `website/tools/render-cli-catalog.py`,
   `render-command-equivalents.py`, `render-llms-txt.py`: the generators.
-- `scripts/dev/doc_drift.go` under `ze-doc-verify`: the gate.
+- `scripts/docvalid/doc_drift.go` under `ze-doc-verify`: the gate.
 
 ### Architectural Verification
 
@@ -246,8 +246,8 @@ This spec inserts one step and changes one:
 | Entry Point | Feature Code | Test |
 |-------------|--------------|------|
 | `ze help command --json` | `ShapeForCommand` -> catalog derivation | `TestWiringShapeReachesPublishedJSON` |
-| `ze cli -c "<testcmd> \| fill"` | `ValidatePipes` -> shape refusal | `test/plugin/pipe-shape-refusal.ci` |
-| `make ze-wiki-commands-update` | JSON -> `gen_wiki_commands.py` | `test/plugin/pipe-catalog-published.ci` |
+| `ze cli -c "<testcmd> \| fill"` | `ValidatePipes` -> shape refusal | `test/plugin/pipe-shape-refusal.ci` <!-- doc-links: ignore (this spec creates this file; the phase that does is named in the same row) --> |
+| `make ze-wiki-commands-update` | JSON -> `gen_wiki_commands.py` | `test/plugin/pipe-catalog-published.ci` <!-- doc-links: ignore (this spec creates this file; the phase that does is named in the same row) --> |
 
 A command registered in a test package, declaring shape `tab` with one address
 field, MUST:
@@ -330,13 +330,13 @@ not wired and the phase is not done.
 
 | File | Proves | Phase |
 |------|--------|-------|
-| `test/plugin/pipe-shape-refusal.ci` | `show version \| first 1` refused by name; `show bgp \| count` no longer answers 6 | 2 |
-| `test/plugin/pipe-chain-composes.ci` | `match X \| match Y` narrows over `ze cli -c`, and `display a \| display b` no longer widens | 3 |
-| `test/plugin/pipe-save.ci` | `\| save` writes the file and its content matches the piped answer | 5 |
-| `test/plugin/pipe-local-command.ci` | `show env list \| json` answers instead of `unknown command` | 4 |
-| `test/plugin/pipe-dual-registration.ci` | `ze show interface` and `ze cli -c "show interface"` answer identically | 4 |
-| `test/ui/pipe-interactive-save.et` | `\| save` inside an interactive session | 5 |
-| `test/plugin/pipe-catalog-published.ci` | `ze help command --json` per-command operator list matches the declared shape | 6 |
+| `test/plugin/pipe-shape-refusal.ci` | `show version \| first 1` refused by name; `show bgp \| count` no longer answers 6 | 2 <!-- doc-links: ignore (this spec creates this file; the phase that does is named in the same row) --> |
+| `test/plugin/pipe-chain-composes.ci` | `match X \| match Y` narrows over `ze cli -c`, and `display a \| display b` no longer widens | 3 <!-- doc-links: ignore (this spec creates this file; the phase that does is named in the same row) --> |
+| `test/plugin/pipe-save.ci` | `\| save` writes the file and its content matches the piped answer | 5 <!-- doc-links: ignore (this spec creates this file; the phase that does is named in the same row) --> |
+| `test/plugin/pipe-local-command.ci` | `show env list \| json` answers instead of `unknown command` | 4 <!-- doc-links: ignore (this spec creates this file; the phase that does is named in the same row) --> |
+| `test/plugin/pipe-dual-registration.ci` | `ze show interface` and `ze cli -c "show interface"` answer identically | 4 <!-- doc-links: ignore (this spec creates this file; the phase that does is named in the same row) --> |
+| `test/ui/pipe-interactive-save.et` | `\| save` inside an interactive session | 5 <!-- doc-links: ignore (this spec creates this file; the phase that does is named in the same row) --> |
+| `test/plugin/pipe-catalog-published.ci` | `ze help command --json` per-command operator list matches the declared shape | 6 <!-- doc-links: ignore (this spec creates this file; the phase that does is named in the same row) --> |
 
 ### Interop Tests (Scope: protocol)
 
@@ -359,7 +359,7 @@ Ze's own answer format and is covered by the round-trip unit test above.
 | `scripts/dev/gen_wiki_commands.py` | delete the operator literal |
 | `website/tools/render-cli-catalog.py`, `render-command-equivalents.py`, `render-llms-txt.py` | render the real list |
 | `website/tools/page_registry.py` | add `docs/architecture/api/commands.md` to `DOCS_MANIFEST` |
-| `scripts/dev/doc_drift.go` | the new gate check |
+| `scripts/docvalid/doc_drift.go` | the new gate check |
 | `docs/features/formatting.md`, `docs/guide/command-reference.md`, `docs/guide/cli.md`, `docs/guide/isis.md` | take the operator table from a generated include; stop re-listing |
 | `ai/rules/cli.md` and its point file | the two rules replacing the universal one |
 
@@ -369,7 +369,7 @@ Ze's own answer format and is covered by the round-trip unit test above.
 |------|---------|
 | `internal/component/command/pipe_catalog.go` | the operator contract table and its exported reader |
 | `internal/component/command/answer_shape.go` | `RegisterShape` / `ShapeForCommand` over the existing registry |
-| `docs/features/pipe-operators.generated.md` | the generated include every doc page links to |
+| `docs/features/pipe-operators.generated.md` | the generated include every doc page links to <!-- doc-links: ignore (this spec creates this file; the phase that does is named in the same row) --> |
 | the `.ci` / `.et` files named above | |
 
 ### Integration Checklist

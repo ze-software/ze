@@ -210,6 +210,40 @@ func rowKeys(v any) []string {
 	return keys
 }
 
+// selectRows rebuilds an answer keeping only the rows at the given indices, in
+// the SPELLING the answer used: an array stays an array, and a map keyed by
+// identity stays keyed, with the keys of the rows kept.
+//
+// Every row operator that removes rows goes through here, so none of them can
+// change the shape of the answer as a side effect of filtering it.
+func selectRows(data any, envelopeKey string, keys []string, rows []any, keep []int) any {
+	if keys == nil {
+		kept := make([]any, 0, len(keep))
+		for _, i := range keep {
+			kept = append(kept, rows[i])
+		}
+		return placeRows(data, envelopeKey, kept)
+	}
+	kept := make(map[string]any, len(keep))
+	for _, i := range keep {
+		kept[keys[i]] = rows[i]
+	}
+	return placeRows(data, envelopeKey, kept)
+}
+
+// placeRows puts a rebuilt row set back where it came from: under its key when
+// the answer is an envelope, or as the whole answer when it is not.
+func placeRows(data any, envelopeKey string, rows any) any {
+	if envelopeKey == "" {
+		return rows
+	}
+	if envelope, isMap := data.(map[string]any); isMap {
+		envelope[envelopeKey] = rows
+		return envelope
+	}
+	return rows
+}
+
 // ShapeOfAnswer derives the shape of a decoded answer. Every answer has one,
 // which is what lets an operator be refused on a command that declared nothing.
 func ShapeOfAnswer(v any) AnswerShape {

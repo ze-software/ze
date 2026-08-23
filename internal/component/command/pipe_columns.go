@@ -121,12 +121,42 @@ func columnsInChain(ops []pipeOp) columnRequest {
 	for _, op := range ops {
 		switch op.kind { //nolint:exhaustive // only the two column operators carry a request
 		case pipeDisplay:
-			request.display = parseDisplay(op.arg)
+			request.display = narrowDisplay(request.display, parseDisplay(op.arg))
 		case pipeFill:
 			request.fill, request.reverse, _ = parseFill(op.arg)
 		}
 	}
 	return request
+}
+
+// narrowDisplay composes two `| display` requests: the second NARROWS the
+// first, keeping the fields both name, in the order the second asked for.
+//
+// It used to assign, so the last request simply replaced the first, and
+// `display state | display address` WIDENED — it answered address, a field the
+// first request had already dropped. Narrowing is what a chain means everywhere
+// else: `match X | match Y` keeps the rows matching both.
+//
+// An empty intersection is refused by the validator rather than answered here,
+// so the operator hears why instead of receiving an answer with no fields.
+func narrowDisplay(current, next ColumnOrder) ColumnOrder {
+	if len(current) == 0 {
+		return next
+	}
+	if len(next) == 0 {
+		return current
+	}
+	have := make(map[string]bool, len(current))
+	for _, field := range current {
+		have[field] = true
+	}
+	narrowed := make(ColumnOrder, 0, len(next))
+	for _, field := range next {
+		if have[field] {
+			narrowed = append(narrowed, field)
+		}
+	}
+	return narrowed
 }
 
 // displayError returns the message a `| display` argument earns, and an empty
