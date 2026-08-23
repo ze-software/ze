@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | cli |
 | Depends | `plan/audit-pipe-operator-coverage.md`, `plan/audit-presentation-pipes.md`, `plan/audit-command-pipe-vs-subcommand.md` |
-| Phase | 1 of 6 |
+| Phase | 1 of 6 (phase 1 implemented 2026-08-23) |
 | Deferral shard | `plan/deferrals/cli-pipe-operator-coverage.md` |
 | Handoff | - |
 | Updated | 2026-08-23 |

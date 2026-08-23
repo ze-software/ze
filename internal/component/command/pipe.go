@@ -60,26 +60,6 @@ type pipeOp struct {
 	arg  string
 }
 
-// knownPipeOps maps operator names to their pipeKind.
-var knownPipeOps = map[string]pipeKind{
-	"match":   pipeMatch,
-	"count":   pipeCount,
-	"no-more": pipeNoMore,
-	"table":   pipeTable,
-	"text":    pipeText,
-	"yaml":    pipeYAML,
-	"raw":     pipeRaw,
-	"json":    pipeJSON,
-	"resolve": pipeResolve,
-	"origin":  pipeOrigin,
-	"ndjson":  pipeNDJSON,
-	"log":     pipeLog,
-	"first":   pipeFirst,
-	"last":    pipeLast,
-	"display": pipeDisplay,
-	"fill":    pipeFill,
-}
-
 // ParsePipe splits user input into the command and a chain of pipe operators.
 // Input "show bgp peer list | match established | count" returns ("show bgp peer list", [{match,"established"}, {count,""}]).
 func ParsePipe(input string) (command string, ops []pipeOp) {

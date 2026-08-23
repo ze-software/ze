@@ -424,6 +424,24 @@ func zeDispatch(args []string) int {
 	return 1
 }
 
+// pipeOperatorSubs answers the one-line operator summary shown in root help
+// and published by `ze help ai --json`, derived from the operator catalog. It
+// was a hand-typed list of ten, missing raw, no-more, log, display, fill and
+// origin.
+func pipeOperatorSubs() string {
+	var tb textbuf.Buffer
+	for i, op := range command.PipeOperatorCatalog() {
+		if i > 0 {
+			tb.Str(", ")
+		}
+		tb.Str(op.Name)
+		if hint := op.ArgHint(); hint != "" {
+			tb.Str(" ").Str(hint)
+		}
+	}
+	return tb.String()
+}
+
 func registerLocalCommands() {
 	registry.MustRegisterLocalMeta("show version", func(args []string) int {
 		return printVersion(slices.Contains(args, "--extended"))
@@ -473,10 +491,10 @@ func registerLocalCommands() {
 	registry.MustRegisterRootHandler("pipe", func(_ *registry.RuntimeContext, args []string) int {
 		return runPipe(args)
 	}, registry.Meta{
-		Description: "Apply pipe operators to stdin (format: json/table/yaml; filter: match/count/first/last; resolve)",
+		Description: "Apply pipe operators to stdin",
 		Mode:        "offline",
 		Section:     registry.SectionSystem,
-		Subs:        "json, table, text, yaml, ndjson, match <pattern>, count, first <n>, last <n>, resolve",
+		Subs:        pipeOperatorSubs(),
 	})
 	registry.MustRegisterLocalMeta("help command", printHelpCommand, registry.Meta{
 		Description: "List every command with its description. Use a filter to narrow the list.",

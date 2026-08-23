@@ -43,6 +43,30 @@ type commandPipe struct {
 	TakesArg    bool   `json:"takes-arg,omitempty"`
 }
 
+// globalPipeSummary answers the operators EVERY command that reaches the pipe
+// layer owes, derived from the operator catalog. The line was hand-typed and
+// wrong in both directions: it omitted raw and log, which are global, and
+// asserted match, count, resolve and origin, which act on rows and cannot apply
+// to an answer that holds one value.
+//
+// The operators a command owes for its SHAPE are published per command; this
+// line is only the class every command shares.
+func globalPipeSummary() string {
+	var tb textbuf.Buffer
+	first := true
+	for _, op := range command.PipeOperatorCatalog() {
+		if op.Class != command.ClassGlobal {
+			continue
+		}
+		if !first {
+			tb.Str(", ")
+		}
+		first = false
+		tb.Str(op.Name)
+	}
+	return tb.String()
+}
+
 // commandEntry is a single command in the catalog.
 type commandEntry struct {
 	Path        string        `json:"path"`
@@ -333,7 +357,7 @@ func printCommandVerbose(rw *helpfmt.RenderWriter, entries []commandEntry) {
 			tb.Reset().Str("  ").Colored(c.BrightYellow).Str("pipes:").Colored(c.Reset)
 			rw.Line(tb.Slice())
 			if e.GlobalPipes {
-				tb.Reset().Str("    ").Colored(c.Dim).Str("json, table, text, yaml, ndjson, match, count, resolve, origin, no-more").Colored(c.Reset)
+				tb.Reset().Str("    ").Colored(c.Dim).Str(globalPipeSummary()).Colored(c.Reset)
 				rw.Line(tb.Slice())
 			}
 			for _, p := range e.Pipes {

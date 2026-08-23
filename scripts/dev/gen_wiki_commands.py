@@ -22,6 +22,19 @@ def escape_pipe(s):
     return s.replace("|", "\\|")
 
 
+# GLOBAL_OPERATORS is filled from `ze pipe help --json` before rendering. The
+# generator holds no operator list of its own: it used to carry a hand-typed ten
+# and printed it on all 381 command entries, which is how six real operators went
+# unpublished. It is the argument for deriving this page, made by the page.
+GLOBAL_OPERATORS = []
+
+
+def load_operators(path):
+    """Read the operator catalog `ze pipe help --json` writes."""
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
 def render_detail(entry):
     """Render detailed info for a command."""
     lines = []
@@ -66,10 +79,9 @@ def render_detail(entry):
     if global_pipes or pipes:
         lines.append("")
         lines.append("**Pipes:**")
-        if global_pipes:
-            lines.append(
-                "Global: `json`, `table`, `text`, `yaml`, `ndjson`, `match`, `count`, `resolve`, `origin`, `no-more`"
-            )
+        if global_pipes and GLOBAL_OPERATORS:
+            names = ", ".join(f"`{name}`" for name in GLOBAL_OPERATORS)
+            lines.append(f"Global: {names}")
         if pipes:
             lines.append("")
             lines.append("Command-specific:")
@@ -89,6 +101,21 @@ def render_detail(entry):
 
 
 def main():
+    global GLOBAL_OPERATORS
+    ops_path = None
+    argv = sys.argv[1:]
+    if "--operators" in argv:
+        ops_path = argv[argv.index("--operators") + 1]
+    if ops_path is None:
+        sys.exit(
+            "gen_wiki_commands.py: --operators <path> is required.\n"
+            "  Write it with: ze pipe help --json > <path>\n"
+            "  The generator holds no operator list of its own."
+        )
+    GLOBAL_OPERATORS = [
+        op["name"] for op in load_operators(ops_path) if op.get("class") == "global"
+    ]
+
     data = json.load(sys.stdin)
 
     groups = defaultdict(list)

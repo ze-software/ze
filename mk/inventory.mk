@@ -70,7 +70,9 @@ ze-wiki-update: ze-wiki-commands-update
 	@echo "Wiki updated"
 
 ze-wiki-commands-update:
-	@$(ZEBIN_ZE) help command --json | python3 scripts/dev/gen_wiki_commands.py > ../wiki/command-catalog.md
+	@mkdir -p tmp
+	@$(ZEBIN_ZE) pipe help --json > tmp/pipe-operators.json
+	@$(ZEBIN_ZE) help command --json | python3 scripts/dev/gen_wiki_commands.py --operators tmp/pipe-operators.json > ../wiki/command-catalog.md
 	@echo "  -> ../wiki/command-catalog.md"
 
 ze-doc-drift-check:

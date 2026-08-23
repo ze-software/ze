@@ -11,9 +11,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -27,6 +29,9 @@ func runPipe(args []string) int {
 		return 1
 	}
 	if args[0] == "help" || args[0] == "-h" || args[0] == "--help" { //nolint:goconst // consistent pattern across cmd files
+		if slices.Contains(args, "--json") {
+			return printPipeCatalogJSON(os.Stdout)
+		}
 		pipeUsage()
 		return 0
 	}
@@ -60,34 +65,83 @@ func runPipe(args []string) int {
 	return 0
 }
 
+// pipeOperatorJSON is the machine-readable form of one operator's contract.
+// Before it, the only surface publishing all sixteen names to a machine was an
+// authenticated web completion endpoint, and every CLI surface carried a
+// hand-typed subset. A tool author reads this.
+type pipeOperatorJSON struct {
+	Name              string   `json:"name"`
+	Class             string   `json:"class"`
+	Arg               string   `json:"arg"`
+	ArgHint           string   `json:"arg-hint,omitempty"`
+	Repeat            string   `json:"repeat"`
+	Shapes            []string `json:"shapes"`
+	Description       string   `json:"description"`
+	NeedsAddressField bool     `json:"needs-address-field,omitempty"`
+}
+
+// printPipeCatalogJSON writes the operator catalog for `ze pipe help --json`.
+func printPipeCatalogJSON(w io.Writer) int {
+	ops := command.PipeOperatorCatalog()
+	out := make([]pipeOperatorJSON, 0, len(ops))
+	for _, op := range ops {
+		shapes := make([]string, 0, 3)
+		for _, shape := range op.Shapes() {
+			shapes = append(shapes, shape.String())
+		}
+		out = append(out, pipeOperatorJSON{
+			Name:              op.Name,
+			Class:             op.Class.String(),
+			Arg:               op.Arg.String(),
+			ArgHint:           op.ArgHint(),
+			Repeat:            op.Repeat.String(),
+			Shapes:            shapes,
+			Description:       op.Description,
+			NeedsAddressField: op.NeedsAddressField,
+		})
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(out); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
 func pipeUsage() {
+	// Both sections are derived from the operator catalog
+	// (internal/component/command/pipe_catalog.go). This page used to hold its
+	// own list of ten, one of five hand-copied lists that had drifted apart.
+	var global, data []helpfmt.HelpEntry
+	for _, op := range command.PipeOperatorCatalog() {
+		var nb textbuf.Buffer
+		nb.Str(op.Name)
+		if hint := op.ArgHint(); hint != "" {
+			nb.Str(" ").Str(hint)
+		}
+		entry := helpfmt.HelpEntry{Name: nb.String(), Desc: op.Description}
+		if op.Class == command.ClassGlobal {
+			global = append(global, entry)
+			continue
+		}
+		data = append(data, entry)
+	}
+
 	p := helpfmt.Page{
 		Command: "ze pipe",
 		Summary: "Apply pipe operators to stdin",
 		Usage:   []string{"<command> | ze pipe <operator> [args]"},
 		Sections: []helpfmt.HelpSection{
-			{Title: "Format Operators", Entries: []helpfmt.HelpEntry{
-				{Name: "json [compact]", Desc: "Format as JSON (pretty or compact)"},
-				{Name: "ndjson", Desc: "One compact JSON object per line"},
-				{Name: "table", Desc: "Box-drawing table"},
-				{Name: "text", Desc: "Space-aligned columns"},
-				{Name: "yaml", Desc: "YAML output"},
-			}},
-			{Title: "Filter Operators", Entries: []helpfmt.HelpEntry{
-				{Name: "match <pattern>", Desc: "Grep lines (case-insensitive)"},
-				{Name: "count", Desc: "Count items (JSON-aware)"},
-				{Name: "first <n>", Desc: "Take first N items"},
-				{Name: "last <n>", Desc: "Take last N items"},
-				{Name: "resolve", Desc: "Add reverse DNS names for IP values"},
-			}},
+			{Title: "Global Operators (act on any answer)", Entries: global},
+			{Title: "Row Operators (act where the answer has rows)", Entries: data},
 		},
 		Examples: []string{
-			"ze debug show | ze pipe match reactor",
-			"ze debug show | ze pipe count",
 			"ze show bgp peer list | ze pipe json compact",
 			"ze show bgp peer list | ze pipe yaml",
 			"ze show bgp peer list | ze pipe first 5",
-			"ze show bgp peer list | ze pipe resolve",
+			"ze show bgp peer list | ze pipe display address state",
+			"ze show bgp peer list | ze pipe match established | ze pipe count",
 		},
 	}
 	p.WriteErr()

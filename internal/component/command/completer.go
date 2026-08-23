@@ -38,25 +38,17 @@ func (c *TreeCompleter) SetActiveBackends(backends map[string]string) {
 	c.activeBackends = backends
 }
 
-// PipeOperators lists the available pipe operators for completion.
-var PipeOperators = []Suggestion{
-	{Text: "match", Description: "Filter lines matching pattern", Type: "pipe"},
-	{Text: "count", Description: "Count output items", Type: "pipe"},
-	{Text: "table", Description: "Render as table", Type: "pipe"},
-	{Text: "text", Description: "Space-aligned columns", Type: "pipe"},
-	{Text: "json", Description: "JSON output", Type: "pipe"},
-	{Text: "yaml", Description: "YAML output", Type: "pipe"},
-	{Text: "no-more", Description: "Disable paging", Type: "pipe"},
-	{Text: "resolve", Description: "Reverse DNS for IP addresses", Type: "pipe"},
-	{Text: "origin", Description: "ASN and network for IP addresses", Type: "pipe"},
-	{Text: "ndjson", Description: "One JSON object per line", Type: "pipe"},
-	{Text: "raw", Description: "Dispatcher JSON, unformatted", Type: "pipe"},
-	{Text: "log", Description: "Append each update (monitor)", Type: "pipe"},
-	{Text: "first", Description: "Take first N items", Type: "pipe"},
-	{Text: "last", Description: "Take last N items", Type: "pipe"},
-	{Text: "display", Description: "Answer with these fields, in this order", Type: "pipe"},
-	{Text: "fill", Description: "Bring the remaining columns back, in the command's order or a named one", Type: "pipe"},
-}
+// PipeOperators lists the available pipe operators for completion, derived
+// from the catalog so completion and the parser cannot drift apart. The list
+// used to be hand-written here, and completer_test.go compared it against
+// itself, so a name added to the parser was silently absent from completion.
+var PipeOperators = func() []Suggestion {
+	out := make([]Suggestion, 0, len(pipeCatalog))
+	for _, op := range pipeCatalog {
+		out = append(out, Suggestion{Text: op.Name, Description: op.Description, Type: "pipe"})
+	}
+	return out
+}()
 
 // pipeSubArgs maps pipe operators to their sub-argument completions.
 var pipeSubArgs = map[string][]Suggestion{
