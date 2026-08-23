@@ -1,0 +1,37 @@
+# Test: ze doctor --json accepts an mcp server entry that names no port
+# VALIDATES: the SECOND operator surface. `ze config validate` and `ze doctor`
+# reach MCP validation through different code -- cmd_validate.go builds its own
+# result, config.ValidateSemantics feeds the doctor bridge -- so a config the one
+# accepts and the other rejects is how an operator gets contradictory answers
+# about the same file. Both read the 8080 the schema promises.
+# PREVENTS: doctor rejecting the config an operator writes from the YANG.
+#
+# Owner ruling 2026-08-23: extractMCPBlock applies `refine port { default 8080; }`
+# rather than the YANG dropping it. This file asserted the refusal until then.
+#
+# The listener probe itself is not asserted here: it binds 127.0.0.1:8080, so
+# whether it reports doctor-listen-unavailable depends on what else holds that
+# port on the machine running the test. The extraction and the probe endpoint are
+# pinned together by TestListenerDefaultsAgreeWithMCPExtraction
+# (internal/component/config/listener_test.go), which needs no free port.
+#
+# Sibling: test/parse/mcp-listener-port-default.ci covers `ze config validate`,
+# and test/parse/mcp-listener-port-default-disabled.ci covers the switched-off
+# block that starts nothing.
+
+tmpfs=mcp-port-default.conf:terminator=EOF_CONF
+environment {
+    mcp {
+        enabled true
+        server primary {
+            ip 127.0.0.1
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json mcp-port-default.conf
+# The positive assertion first: doctor ran and produced its report. Without it a
+# doctor that printed nothing at all would satisfy the absence below.
+expect=stdout:contains="schema-version": 1
+expect=stdout:!contains=config-mcp-invalid

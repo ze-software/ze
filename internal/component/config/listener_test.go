@@ -2,6 +2,7 @@ package config
 
 import (
 	"net"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -638,20 +639,21 @@ func TestCollectListenersWithDefaults_EntryDefaultNotUsedForEmptyList(t *testing
 }
 
 // TestListenerDefaultsAgreeWithMCPExtraction ties the doctor default for mcp to
-// the extraction that decides whether an mcp listener exists at all.
+// the extraction that decides where an mcp listener binds.
 //
-// mcp is the service where the YANG refine and the daemon disagree: the refine
-// says port 8080, extractMCPBlock passes an EMPTY default port, and
-// ExtractMCPConfig returns ok=false whenever the first server carries none. So
-// neither an empty list nor an ip-only entry starts a listener, and a registered
-// default made ze doctor report a bind failure for something that does not exist.
+// ze-mcp-conf.yang declares `refine port { default 8080; }` for
+// environment/mcp/server and the Ze YANG compiler drops refine defaults, so
+// extractMCPBlock applies that port itself and listener_defaults.go registers the
+// same endpoint for the probe.
 //
-// Both halves are asserted together on purpose. Registering a default again, or
-// giving extractMCPBlock a real default port without registering one, each break
-// exactly one half, and either is a disagreement between the daemon and its
-// readiness check.
-// VALIDATES: no mcp endpoint is invented for a config that starts no mcp listener.
-// PREVENTS: the false positive the two registration kinds exist to stop.
+// Both halves are asserted together on purpose. Taking the default out of
+// extractMCPBlock, and taking the registration out of listener_defaults.go, each
+// break one half, and either leaves the daemon and its readiness check
+// disagreeing about where MCP listens.
+// VALIDATES: an mcp server entry that names no port binds 8080, and ze doctor
+// probes that same endpoint.
+// PREVENTS: the schema promising a port the daemon ignores, and a listener the
+// daemon starts that no probe reaches.
 func TestListenerDefaultsAgreeWithMCPExtraction(t *testing.T) {
 	schema := listenerTestSchema(t)
 	RegisterBuiltinListenerDefaults()
@@ -678,60 +680,52 @@ func TestListenerDefaultsAgreeWithMCPExtraction(t *testing.T) {
 	cases := []struct {
 		name  string
 		ports []string
-		// unwanted is the endpoint name no probe may carry. An entry that names
-		// BOTH ip and port is the operator's own endpoint and CollectListeners
-		// has always emitted it; the fix is that no endpoint is INVENTED for an
-		// entry that names no port, and that the daemon starts nothing.
-		unwanted string
+		// want is the port of every endpoint the daemon starts, in config order.
+		want []string
 	}{
-		{"empty server list", nil, "mcp"},
-		{"one entry, no port", []string{""}, "mcp"},
-		// The shape the first-entry-only gate let through: entry a is complete,
-		// so ok was true, and entry b reached the binder as "127.0.0.1:", which
-		// the kernel binds on a port it chooses.
-		{"first entry has a port, second does not", []string{"8080", ""}, "mcp b"},
+		{"empty server list", nil, []string{"8080"}},
+		{"one entry, no port", []string{""}, []string{"8080"}},
+		// One entry names a port and the other does not. The named port is the
+		// operator's and is never overwritten; only the silent entry takes 8080.
+		{"one entry names a port, the other does not", []string{"9090", ""}, []string{"9090", "8080"}},
 	}
 	for _, tc := range cases {
 		tree := mcpTree(tc.ports...)
-		_, ok := ExtractMCPConfig(tree)
-		assert.Falsef(t, ok, "%s: mcp must start no listener while any server names no port", tc.name)
-		for _, ep := range CollectListenersWithDefaults(tree, schema) {
-			assert.NotContainsf(t, ep.Service, tc.unwanted,
-				"%s: doctor would probe %s:%d for an mcp listener the daemon never starts", tc.name, ep.IP, ep.Port)
+		cfg, ok := ExtractMCPConfig(tree)
+		require.Truef(t, ok, "%s: an enabled mcp block must start a listener", tc.name)
+		var got []string
+		for _, s := range cfg.Servers {
+			got = append(got, s.Port)
 		}
-	}
+		assert.Equalf(t, tc.want, got, "%s: every server entry must carry a port", tc.name)
 
-	// The refusal must not be silent: nothing else can report it, because every
-	// MCPListenConfig.Validate call sits behind the same ok gate.
-	diags := ValidateSemantics(mcpTree("8080", ""))
-	found := false
-	for _, d := range diags {
-		if d.Code == "config-mcp-invalid" && strings.Contains(d.Message, "names no port") {
-			found = true
-			assert.Contains(t, d.Message, "b", "the diagnostic must name the offending server entry")
-			// The shipped YANG really does declare refine port default 8080, so
-			// denying a default outright would contradict the document the
-			// operator read to get here.
-			assert.Contains(t, d.Message, "8080",
-				"the message must name the schema default it is telling the operator not to rely on")
+		probed := map[uint16]bool{}
+		for _, ep := range CollectListenersWithDefaults(tree, schema) {
+			if strings.HasPrefix(ep.Service, "mcp") {
+				probed[ep.Port] = true
+			}
+		}
+		for _, port := range tc.want {
+			n, convErr := strconv.ParseUint(port, 10, 16)
+			require.NoError(t, convErr)
+			assert.Truef(t, probed[uint16(n)],
+				"%s: ze doctor probes no mcp listener on port %s, so the daemon binds a port the readiness check never reaches", tc.name, port)
 		}
 	}
-	assert.True(t, found, "an mcp block that starts no listener must say so, not fail silently")
 }
 
-// TestMCPMissingPortIsNotReportedForADisabledBlock verifies the three configs
-// that share ExtractMCPConfig's ok=false are told apart.
+// TestMCPPortDefaultFollowsTheEnabledGate verifies the default reaches only the
+// blocks that asked for a listener.
 //
-// Only one of them is a mistake. A block that is absent, and a block the operator
-// deliberately switched off, must validate exactly as they did before the
-// missing-port check existed -- `addError` sets Valid=false, so attributing a
-// disabled service to a missing port makes `ze config validate` exit 1 and
-// `ze doctor` error over a service nobody asked to run.
+// A synthesized endpoint is not an instruction to bind: an mcp block the
+// operator switched off, and a tree with no mcp block at all, must start nothing
+// and report nothing, exactly as they did before the default was applied.
 //
-// VALIDATES: MCPServersMissingPort answers the missing-port cause alone.
-// PREVENTS: a switched-off mcp block failing validation, which is a regression
-// against config that passes today.
-func TestMCPMissingPortIsNotReportedForADisabledBlock(t *testing.T) {
+// VALIDATES: ExtractMCPConfig keeps its `enabled` gate now that the port gate is
+// gone, and a portless entry raises no diagnostic on either operator surface.
+// PREVENTS: an upgrade starting MCP for a deployment that never enabled it, and
+// `ze config validate` rejecting the config an operator writes from the schema.
+func TestMCPPortDefaultFollowsTheEnabledGate(t *testing.T) {
 	withEnabled := func(enabled string) *Tree {
 		tree := NewTree()
 		env := NewTree()
@@ -740,7 +734,7 @@ func TestMCPMissingPortIsNotReportedForADisabledBlock(t *testing.T) {
 			mcp.Set("enabled", enabled)
 		}
 		srv := NewTree()
-		srv.Set("ip", "127.0.0.1") // no port, the shape the check reports
+		srv.Set("ip", "127.0.0.1") // no port: the default supplies it
 		mcp.AddListEntry("server", "a", srv)
 		env.SetContainer("mcp", mcp)
 		tree.SetContainer("environment", env)
@@ -757,30 +751,22 @@ func TestMCPMissingPortIsNotReportedForADisabledBlock(t *testing.T) {
 		{"enabled true", "true", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, len(MCPServersMissingPort(withEnabled(tc.enabled))) > 0,
-				"a portless server entry is only a mistake when mcp is switched on")
-			reported := false
-			for _, d := range ValidateSemantics(withEnabled(tc.enabled)) {
-				if strings.Contains(d.Message, "names no port") {
-					reported = true
-				}
+			cfg, ok := ExtractMCPConfig(withEnabled(tc.enabled))
+			assert.Equal(t, tc.want, ok, "only a switched-on mcp block starts a listener")
+			if ok {
+				require.Len(t, cfg.Servers, 1)
+				assert.Equal(t, "8080", cfg.Servers[0].Port, "the entry names no port, so the schema default supplies it")
 			}
-			assert.Equal(t, tc.want, reported, "the diagnostic must follow the enabled gate")
+			for _, d := range ValidateSemantics(withEnabled(tc.enabled)) {
+				assert.NotEqual(t, "config-mcp-invalid", d.Code,
+					"a server entry that omits the port is the shape the schema default exists for, not a mistake")
+			}
 		})
 	}
 
-	// An mcp block with no server entries at all is "on but unconfigured", not
-	// this mistake, and must stay quiet even when enabled.
-	bare := NewTree()
-	env := NewTree()
-	mcp := NewTree()
-	mcp.Set("enabled", "true")
-	env.SetContainer("mcp", mcp)
-	bare.SetContainer("environment", env)
-	assert.Empty(t, MCPServersMissingPort(bare), "an empty server list is not a missing-port mistake")
-
-	// No mcp block at all: nothing to say.
-	assert.Empty(t, MCPServersMissingPort(NewTree()), "an absent mcp block is not a missing-port mistake")
+	// No mcp block at all: nothing to start.
+	_, ok := ExtractMCPConfig(NewTree())
+	assert.False(t, ok, "an absent mcp block starts no listener")
 }
 
 // TestCollectListenersWithDefaults_DualStackEmptyList verifies a service whose

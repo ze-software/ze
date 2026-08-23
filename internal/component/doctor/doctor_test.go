@@ -1849,6 +1849,12 @@ var doctorDependencyCovered = map[string]string{
 	// listener/telemetry.
 	"listener/prometheus": "doctor-listen-unavailable",
 
+	// extractMCPBlock (internal/component/config/loader_extract.go) applies the
+	// YANG refine default of 8080 to every server entry that names no port, and
+	// synthesizes 127.0.0.1:8080 for an empty list, so every enabled mcp block
+	// yields an endpoint to probe.
+	"listener/mcp": "doctor-listen-unavailable",
+
 	// l2tp starts one listener per server entry and applies its own
 	// DefaultListenPort to an entry that omits the port
 	// (internal/component/l2tp/config.go, ParseParameters), which
@@ -1886,8 +1892,6 @@ var doctorDependencyExcluded = map[string]string{
 		"so an entry without a port carries none, and an empty server list starts no hub server",
 	"listener/bmp": "(*BMPPlugin).startReceiver (internal/component/bgp/plugins/bmp/bmp.go) joins ip and port verbatim, so an entry without a port binds an ephemeral one, " +
 		"and it iterates cfg.Servers so an empty list starts nothing at all",
-	"listener/mcp": "extractMCPBlock (internal/component/config/loader_extract.go) passes an EMPTY default port, and ExtractMCPConfig returns ok=false unless EVERY " +
-		"server names one, so no config that relies on a default starts an mcp listener; the YANG refine of 8080 never reaches the daemon",
 }
 
 // listenerProbeNetworks records the transports each schema-declared listener
@@ -1903,6 +1907,7 @@ var listenerProbeNetworks = map[string][]string{
 	// Go http.Server / grpc.Serve over a net.Listener: TCP.
 	"web":             {"tcp"},
 	"gnmi":            {"tcp"},
+	"mcp":             {"tcp"}, // startMCPServer (cmd/ze/hub/service_mcp.go) calls lc.Listen with "tcp"
 	"looking-glass":   {"tcp"},
 	"api-server-rest": {"tcp"},
 	"api-server-grpc": {"tcp"},

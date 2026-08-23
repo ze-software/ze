@@ -23,6 +23,7 @@ func RegisterBuiltinListenerDefaults() {
 	RegisterListenerDefault("web", "0.0.0.0", "3443")
 	RegisterListenerDefault("ssh", "127.0.0.1", "2222")
 	RegisterListenerDefault("gnmi", "0.0.0.0", "9339")
+	RegisterListenerDefault("mcp", loopbackIP, mcpDefaultPort)
 	RegisterListenerDefault("looking-glass", "0.0.0.0", "8443")
 	RegisterListenerDefault("api-server-rest", "0.0.0.0", "8081")
 	RegisterListenerDefault("api-server-grpc", "0.0.0.0", "50051")
@@ -34,12 +35,4 @@ func RegisterBuiltinListenerDefaults() {
 	// ParseParameters). So the entry fallback is real and the empty-list
 	// endpoint does not exist.
 	RegisterListenerEntryDefault("l2tp", "0.0.0.0", "1701")
-
-	// mcp is registered in NEITHER, and that is the whole point of reading the
-	// extraction rather than the YANG refine. The refine declares port 8080, but
-	// extractMCPBlock (loader_extract.go) passes an EMPTY default port and
-	// ExtractMCPConfig returns ok=false whenever the first server carries no
-	// port, so an empty list and an ip-only entry both start no listener at all.
-	// A default here would make ze-build doctor report a bind failure for a listener
-	// that does not exist.
 }

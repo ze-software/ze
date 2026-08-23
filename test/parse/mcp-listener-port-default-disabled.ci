@@ -1,0 +1,27 @@
+# Test: a DISABLED mcp block with a portless server entry starts nothing
+# VALIDATES: the `enabled` gate. ExtractMCPConfig returns ok=false for a block
+# the operator switched off, whatever its server entries say, so the port default
+# reaches only the blocks that asked for a listener.
+# PREVENTS: an upgrade starting MCP on 127.0.0.1:8080 for a deployment that never
+# enabled it. The default is applied inside the gate, never before it.
+#
+# `enabled` is OMITTED rather than written false: the YANG default is false, so
+# the omitted leaf is the shape an operator actually leaves behind, and it is the
+# one a naive tree walk is most likely to mis-read.
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1;
+	session { asn { local 65533; } }
+}
+environment {
+	mcp {
+		server alt {
+			ip 127.0.0.1;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

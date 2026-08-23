@@ -1,0 +1,35 @@
+# Test: ze config validate ACCEPTS an mcp server entry that names no port
+# VALIDATES: the operator-visible half of the port default. ze-mcp-conf.yang
+# declares `refine port { default 8080; }` for environment/mcp/server, the Ze
+# YANG compiler drops refine defaults, and extractMCPBlock
+# (internal/component/config/loader_extract.go) now applies the same 8080 the
+# schema promises. So the operator who reads the YANG and omits the port gets a
+# listener on 127.0.0.1:8080, and validation says the config is valid.
+# PREVENTS: the divergence returning -- a schema that promises a port the daemon
+# ignores, and a config refused for following the document it was written from.
+#
+# Owner ruling 2026-08-23: the daemon applies the default, rather than the YANG
+# dropping it, so mcp agrees with environment.web, environment.gnmi and
+# environment.api-server. This file asserted the opposite until that ruling.
+#
+# Sibling: mcp-multi-listener.ci proves two entries that spell out their ports
+# are accepted, and mcp-listener-port-default-disabled.ci proves a switched-off
+# block starts nothing whatever its entries say.
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1;
+	session { asn { local 65533; } }
+}
+environment {
+	mcp {
+		enabled true;
+		server primary {
+			ip 127.0.0.1;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid
