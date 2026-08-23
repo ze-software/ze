@@ -968,7 +968,7 @@ class Scenario:
         # A scenario MAY add environment variables for the ze container by
         # listing KEY=VALUE lines in a `ze-env` file beside its ze.conf.
         #
-        # This used to be one unconditional GODEBUG=tlsunsafeekm=1 applied to
+        # This used to be one unconditional `tlsunsafeekm` GODEBUG setting applied to
         # every scenario, then a per-scenario line in 04-eap-tls alone, so that a
         # run which did not name it genuinely ran without it. Go 1.27 REMOVED
         # that setting, and a removed key carrying its old value is a fatal error

@@ -89,8 +89,12 @@ A mismatch deletes the SA rather than installing the wrong mode.
 
 **Ze ships fail-closed on EAP-TLS over TLS 1.2 without RFC 7627.** A build-wide
 `go:debug tlsunsafeekm=1` directive weakened the export rule for every user to
-suit one peer version. It was removed. A lab that needs the weaker rule opts in per
-scenario.
+suit one peer version. It was removed. The lab then opted in per scenario, until
+Go 1.27 removed the setting from the toolchain: a removed key carrying its old
+value is a fatal error raised before `main()`, so the opt-in stopped the daemon
+instead of starting a session. Nothing opts in now, and there is no replacement.
+Ze reports the refusal instead, naming the peer, the negotiated version, RFC 7627
+and what an operator can change (`eapTLS12ExportRefused`).
 
 **A green test suite can be measuring nothing.** Three findings from the pilot
 are worth carrying:

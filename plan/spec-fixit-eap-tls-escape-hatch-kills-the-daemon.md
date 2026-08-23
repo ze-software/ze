@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 3/4 |
 | Deferral shard | - |
 | Handoff | - |
 | Updated | 2026-08-23 |
@@ -18,9 +18,13 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 the capability it enabled has no replacement.**
 
 `cmd/ze/main.go` carries the reasoning for a deliberate fail-closed choice and
-ends with the escape hatch: "An operator who must talk to such a peer sets
-`GODEBUG=tlsunsafeekm=1` in the environment, which is a decision they take
-knowingly and can audit."
+ends with the escape hatch: an operator who must talk to such a peer is told to
+set the `tlsunsafeekm` GODEBUG setting to its old value, "which is a decision
+they take knowingly and can audit". The instruction is quoted here without its
+assignment form on purpose: that form is what a reader pastes, and
+`TestNoShippedGuidanceNamesARemovedGODEBUG` refuses it everywhere. The verbatim
+text is preserved in `cmd/ze/testdata/godebug-guidance-defect.txt`, which is that
+test's fixture.
 
 Go 1.27 REMOVED that GODEBUG key. A removed key set to its old value is a fatal
 error raised before `runtime.main`, so the process dies before any Ze code runs.
@@ -38,9 +42,16 @@ start, with a message naming neither Ze nor EAP-TLS.
 2. **The capability is gone.** RFC 5216 Section 2.3 defines the EAP-TLS MSK as a
    `crypto/tls` ExportKeyingMaterial result. Go refuses that export on a TLS 1.2
    session that did not negotiate RFC 7627, so Ze cannot authenticate such a peer
-   at all. strongSwan 5.9.14 is one: it caps at TLS 1.2 and does not negotiate
-   7627. Before Go 1.27 an operator could opt in knowingly. Now there is no
-   supported way to reach that peer, and nothing in the tree says so.
+   at all. strongSwan 5.9.14 is one: it lands on TLS 1.2 by DEFAULT and does not
+   negotiate 7627. Correction, 2026-08-23, during implementation: that default is
+   not a cap. charon ships `version_max = 1.2` with the comment "default to TLS
+   1.2 until 1.3 is stable for use in EAP", and `charon.tls.version_max = 1.3` on
+   the same 5.9.14 image reaches an established SA, which
+   `test/interop-ipsec/scenarios/06-eap-tls13` and `25-responder-eap-tls13` both
+   run. So the peer IS reachable, by one line of PEER config, and every shipped
+   string that said otherwise was telling operators to give up on the cheapest
+   remedy. Before Go 1.27 an operator could also opt in on the ze side. That half
+   is gone with no replacement, and nothing in the tree said so.
 
 **Why the original decision was right and must not simply be reversed.** A
 `//go:debug tlsunsafeekm=1` line in `main.go` was written and removed on
@@ -100,7 +111,7 @@ block. The journal row is in `plan/journal/test-against-broken-path.md`.
 - [ ] `test/interop-ipsec/scenarios/04-eap-tls/ze-env` - sets the removed key, so the daemon dies at container start
 
 **Runtime evidence:**
-- [ ] A Go 1.27.0 binary run with `GODEBUG=tlsunsafeekm=1` fatals before `runtime.main`. Reproduced 2026-08-23 with a two-line program, so the failure is the toolchain's and not Ze's.
+- [ ] A Go 1.27.0 binary run with `tlsunsafeekm` set to its old value fatals before `runtime.main`. Reproduced 2026-08-23 with a two-line program, so the failure is the toolchain's and not Ze's.
 
 **Behavior to preserve:**
 - The fail-closed default. Ze must not weaken the export rule for every deployment.
@@ -127,8 +138,8 @@ block. The journal row is in `plan/journal/test-against-broken-path.md`.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Operator ↔ runtime | the `GODEBUG` environment variable | Yes, reproduced 2026-08-23 |
-| Ze ↔ crypto/tls | `ExportKeyingMaterial` on the negotiated session | No |
-| Ze ↔ peer | the EAP-TLS exchange | Yes, by scenario 04 failing with no IKE packet sent |
+| Ze ↔ crypto/tls | `ExportKeyingMaterial` on the negotiated session | Yes. `TestEAPTLSExportRefusalNamesTheCause` drives a real TLS 1.2 handshake whose export `crypto/tls` refuses, and `TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret` drives one it allows |
+| Ze ↔ peer | the EAP-TLS exchange | NO LONGER, and this change is what invalidated it. "Scenario 04 fails with no IKE packet sent" was the pre-fix observation: the daemon died at container start. With the `ze-env` assignment gone ze starts, so the boundary is now crossed and the exchange fails at the MSK export instead. Re-verifying it needs a lab run, which is AC-5 in "Outstanding" |
 
 ### Integration Points
 - `exportEAPTLSMSK` - the single place the export is attempted and the only place that can produce a diagnosable error
@@ -137,20 +148,50 @@ block. The journal row is in `plan/journal/test-against-broken-path.md`.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | The message is built where the refusal arrives, in `exportEAPTLSMSK`, and travels the `MethodResult.Err` / `PeerResult.Err` path the engine already logs. No new channel was opened |
+| No unintended coupling (components stay isolated) | Yes | `eapTLS12ExportRefused` reads `tls.ConnectionState` alone. The eap package gained no import and no dependency on the engine |
+| No duplicated functionality (extends existing, does not recreate) | Yes | The TLS 1.2 branch's existing wrap was replaced rather than added beside (`ai/rules/no-layering.md`). The test reuses the package's own `newEAPTLSPKI` and the production `verifyServerChain` |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | An authentication refusal is a control-plane path taken once for each failed session |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | N-A | No command, view, family, or handler was added |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Go offers no replacement knob for the unsafe EKM export in 1.27 | the removal note at `https://go.dev/doc/godebug#go-127` | a supported knob exists and the fix is to name it instead | read the Go 1.27 release notes and the `crypto/tls` source in GOROOT | unvalidated |
-| A-2 | The refusal is reachable and diagnosable inside Ze, so a clear error can replace a runtime fatal | `exportEAPTLSMSK` selects by negotiated version, so the TLS 1.2 branch is a place Ze controls | the error cannot be attributed and the fix is documentation only | read `exportEAPTLSMSK` and the `crypto/tls` error it receives | unvalidated |
-| A-3 | No deployment currently relies on the variable | it kills the daemon on Go 1.27, so any deployment that set it is already down | an operator on an older toolchain is relying on it and a removal surprises them | the release notes for the Go version Ze pins, and `go.mod` | unvalidated |
+| A-1 | Go offers no replacement knob for the unsafe EKM export in 1.27 | the removal note at `https://go.dev/doc/godebug#go-127` | a supported knob exists and the fix is to name it instead | read the Go 1.27 release notes and the `crypto/tls` source in GOROOT | confirmed |
+| A-2 | The refusal is reachable and diagnosable inside Ze, so a clear error can replace a runtime fatal | `exportEAPTLSMSK` selects by negotiated version, so the TLS 1.2 branch is a place Ze controls | the error cannot be attributed and the fix is documentation only | read `exportEAPTLSMSK` and the `crypto/tls` error it receives | confirmed |
+| A-3 | No deployment currently relies on the variable | it kills the daemon on Go 1.27, so any deployment that set it is already down | an operator on an older toolchain is relying on it and a removal surprises them | the release notes for the Go version Ze pins, and `go.mod` | confirmed |
+
+**A-1 evidence, read 2026-08-23 in `$(go env GOROOT)` at Go 1.27.0.** The
+`internal/godebugs` table carries the row <!-- doc-links: ignore (a GOROOT path, not a path in this repository) -->
+
+```
+{Name: "tlsunsafeekm", Removed: 27, Old: one},
+```
+
+and `doc/godebug.md` states the removal. In `crypto/tls`, `Conn.connectionStateLocked`
+selects `noEKMBecauseNoEMS` on `c.vers != VersionTLS13 && !c.extMasterSecret`, with no
+godebug guard left in the expression, and `noEKMBecauseNoEMS` returns the refusal
+unconditionally. `ConnectionState.ekm` is unexported and `ExportKeyingMaterial` is its
+only accessor, so no caller outside `crypto/tls` can reach the RFC 5705 PRF another
+way, and `tls.Config` exposes no extended-master-secret or export knob. There is no
+replacement.
+
+**A-2 evidence.** `exportEAPTLSMSK` (`internal/component/ike/eap/eap_tls.go`) receives
+the `crypto/tls` error and holds `cs.Version` and `cs.PeerCertificates`, which is every
+fact AC-2 asks the message to name. On the initiator path, which is the one scenario 04
+drives (`ze.conf`: `connection-type initiate`), the error reaches the operator through
+`handleEAPResponse` (`internal/component/ike/engine/fsm.go`), which logs `result.Err`.
+
+**A-3 evidence.** The fatal was reproduced on this host at Go 1.27.0 with a one-line
+program. With `tlsunsafeekm` set to its old value in the environment it exits 2 with
+
+```
+fatal error: removed GODEBUG "tlsunsafeekm" set to old value "1" in environment (https://go.dev/doc/godebug#go-127)
+```
+
+Ze has never been released, so no deployment exists to be surprised.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -170,8 +211,8 @@ block. The journal row is in `plan/journal/test-against-broken-path.md`.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| An EAP-TLS peer negotiating TLS 1.2 without RFC 7627 | → | `exportEAPTLSMSK` | `TestEAPTLSExportRefusalNamesTheCause`, and `test/ipsec/ipsec-eap-tls12-refusal-is-attributed.ci` for what an operator reads <!-- doc-links: ignore (this spec's AC-2 creates this file; the spec is ready and not yet authorised to run) --> |
-| The interop lab's EAP-TLS scenario against strongSwan 5.9.14 | → | the IKE EAP exchange | `test/interop-ipsec/scenarios/04-eap-tls` |
+| An EAP-TLS peer negotiating TLS 1.2 without RFC 7627 | → | `exportEAPTLSMSK` | `TestEAPTLSExportRefusalNamesTheCause`. The `.ci` this row first named was dropped: a `.ci` cannot reach the state, because it would need a TLS 1.2 peer that offers no RFC 7627 and Go's own client always offers it, so any Ze-driven peer authenticates. Only the Docker lab has such a peer, which is the row below |
+| The interop lab's EAP-TLS scenario against strongSwan 5.9.14 | → | the IKE EAP exchange | `test/interop-ipsec/scenarios/04-eap-tls`. NOT RUN in this phase, see "Outstanding" |
 
 ## Acceptance Criteria
 
@@ -195,8 +236,10 @@ block. The journal row is in `plan/journal/test-against-broken-path.md`.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestEAPTLSExportRefusalNamesTheCause` | `internal/component/ike/eap/` | validates AC-2: the refusal is attributed, not passed through raw | |
-| `TestNoShippedGuidanceNamesARemovedGODEBUG` | `cmd/ze/` | validates AC-4 structurally, so the next removed key cannot be left in a comment | |
+| `TestEAPTLSExportRefusalNamesTheCause` | `internal/component/ike/eap/eap_tls_export_refusal_test.go` | validates AC-2: the refusal is attributed, not passed through raw | green. Discriminates: with `eapTLS12ExportRefused` replaced by the old bare wrap, seven assertions go red |
+| `TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret` | same file | keeps AC-2 from reading as "TLS 1.2 never works": a TLS 1.2 session that carries RFC 7627 still exports a real MSK | green |
+| `TestEAPTLSAuthenticatorKeepsItsRefusalReason` | same file | AC-2 holds in the AUTHENTICATOR role too, which interop scenarios 08 and 25 drive. The message is worth nothing if the role that builds it discards it | green. Discriminates: remove `s.err = result.Err` from `handleMethod` and it reds |
+| `TestNoShippedGuidanceNamesARemovedGODEBUG` | `cmd/ze/godebug_guidance_test.go` | validates AC-4 structurally, so the next removed key cannot be left in a comment | green. Discriminates on both halves: restoring the `ze-env` assignment reds the first, and stripping the word "removed" from that file reds the second |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -206,8 +249,8 @@ block. The journal row is in `plan/journal/test-against-broken-path.md`.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ipsec-eap-tls12-refusal-is-attributed` | `test/ipsec/ipsec-eap-tls12-refusal-is-attributed.ci` | an operator reads the log after a TLS 1.2 EAP-TLS peer fails, and learns the peer, the TLS version and RFC 7627 rather than a raw crypto/tls string | <!-- doc-links: ignore (this spec's AC-2 creates this file; the spec is ready and not yet authorised to run) --> |
-| `04-eap-tls` | `test/interop-ipsec/scenarios/04-eap-tls` | the TLS 1.2 peer path against a real strongSwan, whatever its resolution | |
+| `ipsec-eap-tls12-refusal-is-attributed` | not created | an operator reads the log after a TLS 1.2 EAP-TLS peer fails, and learns the peer, the TLS version and RFC 7627 rather than a raw crypto/tls string | UNREACHABLE, verified rather than assumed. A `.ci` drives ze against ze, so both TLS endpoints are Go. `makeClientHello` (`crypto/tls`, `handshake_client.go`) sets `extendedMasterSecret: true` unconditionally, and the only branch that clears it is the ECH inner hello, which is TLS 1.3 only. `tls.Config` exposes no knob. So a Go client always offers RFC 7627 on TLS 1.2 and the export always succeeds: the state this test would assert on cannot be produced without a non-Go peer, which is the Docker lab |
+| `04-eap-tls` | `test/interop-ipsec/scenarios/04-eap-tls` | the TLS 1.2 peer path against a real strongSwan, whatever its resolution | NOT RUN, see "Outstanding" |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -223,8 +266,30 @@ block. The journal row is in `plan/journal/test-against-broken-path.md`.
 - `docs/guide/ipsec.md` - what an operator meeting a TLS 1.2 peer should expect
 
 ## Files to Create
-- `test/ipsec/ipsec-eap-tls12-refusal-is-attributed.ci` - the AC-2 proof, and the only functional evidence that does not need the Docker lab <!-- doc-links: ignore (this spec's AC-2 creates this file; the spec is ready and not yet authorised to run) -->
-- nothing else until A-1 is settled. Whether a replacement mechanism exists decides whether this spec adds code or removes a claim
+- `internal/component/ike/eap/eap_tls_export_refusal_test.go` - the AC-2 proof at the producer, driving a real TLS 1.2 handshake whose export `crypto/tls` refuses
+- `cmd/ze/godebug_guidance_test.go` - the AC-4 proof over every tracked file
+- `test/ipsec/ipsec-eap-tls12-refusal-is-attributed.ci` - NOT created. The TDD table records why: a `.ci` has two Go endpoints and a Go client always offers RFC 7627, so the state cannot be produced <!-- doc-links: ignore (the row exists to say this file was NOT created and why) -->
+
+## Outstanding (written 2026-08-23, at the end of the code phase)
+
+Two items are open and neither is a trim. Each needs its own agent.
+
+| # | What | Why it is not done here |
+|---|------|-------------------------|
+| 1 | AC-5: scenario `04-eap-tls` is not run and not resolved | `ze-env` no longer stops the daemon, so the scenario now fails at the refusal instead of at container start. Resolving it means repurposing `check.py` to assert the attributed refusal, or retiring the scenario. Both need a full Docker lab run to verify, and retiring it deletes tracked work, which needs the owner's word (`ai/rules/never-destroy-work.md`) |
+| 2 | The Required Reading row for RFC 7627 is still MUST CREATE | `ai/rules/protocol.md` makes the summary a precondition. Creating it pulls in a disposition in `rfc/enrolled.txt` or `rfc/not-enrolled.txt`, and enrolment would need every MUST classified, which `ai/rules/rfc-compliance.md` reserves to the owner. Ze implements none of RFC 7627: `crypto/tls` does. Nothing written in this phase quotes RFC 7627's normative text, so no claim rests on the unread document |
+
+One defect was found on the way, and it is FIXED rather than recorded, because
+AC-2 does not hold without it. `handleMethod`
+(`internal/component/ike/eap/eap.go`) read `MethodResult.Err` as a boolean and
+dropped it, so the RESPONDER half of every EAP method discarded its own
+diagnosis while the initiator half logged it. AC-2 is stated unqualified and
+interop scenarios 08 and 25 drive the responder role, so the message this spec
+exists to write was being built and thrown away for half of ze's roles.
+`Session.err`, `Session.Err()` and the `handleResponderEAP` log line close it,
+and `TestEAPTLSAuthenticatorKeepsItsRefusalReason` holds it. The row in
+`plan/journal/validated-value-discarded-by-its-caller.md` is updated to
+`fixed`.
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -238,7 +303,7 @@ block. The journal row is in `plan/journal/test-against-broken-path.md`.
 | Functional test for new RPC/API | N-A | no new RPC |
 | Pipe completeness | N-A | no new output |
 | Env var registration | No | `GODEBUG` is the Go runtime's, not a `ze.` key |
-| Doctor check for runtime dependencies | Yes | a doctor check can name a removed GODEBUG key present in the environment, which is a runtime condition an operator cannot otherwise diagnose |
+| Doctor check for runtime dependencies | No | The design-time answer was Yes and it is wrong. `ze doctor` is the same binary, so a removed setting in the environment fatals it before `main()` exactly as it fatals the daemon: the check could never run in the case it exists for. The Go runtime already reports that condition, by name and with the release note URL, which is why nothing here can improve on it. The reachable half is the guidance, and `TestNoShippedGuidanceNamesARemovedGODEBUG` owns it |
 | Prometheus counters/metrics | No | an authentication refusal is already logged |
 | BGP family surface | N-A | not BGP |
 
@@ -253,7 +318,7 @@ block. The journal row is in `plan/journal/test-against-broken-path.md`.
 | 6 | Has a user guide page? | Yes | `docs/guide/ipsec.md`, what a TLS 1.2 EAP-TLS peer now does |
 | 7 | Wire format changed? | No | none |
 | 8 | Plugin SDK/protocol changed? | No | none |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | RFC 5216 Section 2.3 is unreachable for TLS 1.2 without RFC 7627. `rfc/short/rfc5216.md` and the `docs/features/rfc-status.md` row must say so rather than implying the path works |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | Done in `docs/features/rfc-status.md`, RFC 5216 row: the coverage cell now states that the Section 2.3 export is unreachable on TLS 1.2 without RFC 7627, and that the peer reaches TLS 1.3 with one config change. `rfc/short/rfc5216.md` was deliberately NOT touched. Its `RFC5216-2.3-1` annotation says ze exports the 64-octet MSK with the RFC label, which is still exactly true: ze implements the derivation, and the peer's TLS stack fails to supply its input. Writing a `{gap}` there would claim a conformance failure ze does not have, and would move the count `check_gap_count_agreement` reads. `make ze-rfc-check` is green |
 | 10 | Test infrastructure changed? | Yes | the interop lab's `ze-env` for scenario 04 |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md` if it claims EAP-TLS parity with a daemon that still reaches such peers |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/system-architecture.md`, the design doc `cmd/ze/main.go` declares |
@@ -261,6 +326,7 @@ block. The journal row is in `plan/journal/test-against-broken-path.md`.
 | 14 | Prometheus counters added/changed? | No | none |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | none |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | grep `docs/` for anchors on `cmd/ze/main.go` and the eap package |
+| 16b | `docs/architecture/ike/ipsec-11-interop-eap.md`, the design doc `eap_tls_export_refusal_test.go` declares | No | Unaffected. It names no GODEBUG, no RFC 7627, and no TLS version condition (grepped 2026-08-23 for `godebug`, `tlsunsafe`, `7627`, `extended master`, `TLS 1.2`: zero hits), so nothing in it went stale. The TLS 1.2 limit is documented in `docs/guide/ipsec.md` and `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md`, which is where the fail-closed decision already lived |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | any example setting `GODEBUG` |
 
 ## Implementation Steps

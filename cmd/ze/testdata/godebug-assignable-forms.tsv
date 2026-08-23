@@ -1,0 +1,13 @@
+env file, bare	GODEBUG=tlsunsafeekm=1
+comma list, not first	GODEBUG=http2debug=1,tlsunsafeekm=1
+shell export	export GODEBUG=tlsunsafeekm=1
+env prefix before a command	env GODEBUG=tlsunsafeekm=1 ./ze bgp
+Dockerfile ENV	ENV GODEBUG=tlsunsafeekm=1
+docker -e argument	    "-e", "GODEBUG=tlsunsafeekm=1",
+docker --env argument	docker run --env GODEBUG=tlsunsafeekm=1 ze
+--env= on a continuation line	  --env=GODEBUG=tlsunsafeekm=1 \
+Markdown bullet	* GODEBUG=tlsunsafeekm=1
+shell comment	# export GODEBUG=tlsunsafeekm=1
+Go comment with a code span	// such a peer sets `GODEBUG=tlsunsafeekm=1` in the environment
+a value that is not the old one	GODEBUG=tlsunsafeekm=0
+YAML value	  GODEBUG: "GODEBUG=tlsunsafeekm=1"

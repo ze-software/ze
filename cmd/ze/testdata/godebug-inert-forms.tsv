@@ -1,0 +1,6 @@
+the setting named without an assignment	Go 1.27 removed the tlsunsafeekm GODEBUG setting.
+a different setting assigned	GODEBUG=http2debug=1
+a GODEBUG assignment naming nothing removed	GODEBUG=madvdontneed=1
+the name as a prefix of another	GODEBUG=tlsunsafeekmx=1
+the name as a suffix of another	GODEBUG=xtlsunsafeekm=1
+an empty value list	GODEBUG="$flags"

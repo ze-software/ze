@@ -233,10 +233,53 @@ func exportEAPTLSMSK(cs tls.ConnectionState) ([64]byte, error) {
 
 	exported, err := cs.ExportKeyingMaterial(eapTLSLabelRFC5216, nil, 64)
 	if err != nil {
-		return msk, fmt.Errorf("eap-tls: export MSK (RFC 5216 Section 2.3): %w", err)
+		return msk, eapTLS12ExportRefused(cs, err)
 	}
 	copy(msk[:], exported)
 	return msk, nil
+}
+
+// eapTLS12ExportRefused explains a refused TLS 1.2 key material export to the
+// operator who reads the log.
+//
+// crypto/tls refuses the export whenever the session is neither TLS 1.3 nor
+// carries the RFC 7627 extended master secret (Conn.connectionStateLocked selects
+// noEKMBecauseNoEMS on `c.vers != VersionTLS13 && !c.extMasterSecret`). RFC 5216
+// Section 2.3 defines the EAP-TLS MSK as that export, so the peer cannot
+// authenticate. strongSwan 5.9.14 lands here by DEFAULT rather than by
+// limitation: charon ships `version_max = 1.2` and negotiates no RFC 7627, but
+// `charon.tls.version_max = 1.3` on the same build reaches an established SA
+// (test/interop-ipsec/scenarios/06-eap-tls13). The first remedy in the message
+// below is therefore a peer config edit, not a peer upgrade.
+//
+// The message carries the remedies because there is no longer a way to override
+// the refusal. Go 1.27 removed the tlsunsafeekm setting, and the runtime raises a
+// fatal error before main() when that key is set to its old value, so an operator
+// who reaches for it stops the daemon instead of starting a session
+// (cmd/ze/main.go states the same thing for a reader of the source).
+//
+// The wrapped error keeps the crypto/tls sentence, which names the refusal ze
+// actually met rather than the one ze expects.
+func eapTLS12ExportRefused(cs tls.ConnectionState, err error) error {
+	return fmt.Errorf(
+		"eap-tls: cannot export the RFC 5216 Section 2.3 MSK for peer %s on %s. "+
+			"The export needs TLS 1.3, or a TLS 1.2 session that negotiated the RFC 7627 extended master secret. "+
+			"Move the peer to TLS 1.3 (RFC 9190), add RFC 7627 to its TLS 1.2 stack, or configure another EAP method: %w",
+		eapTLSPeerName(cs), tls.VersionName(cs.Version), err)
+}
+
+// eapTLSPeerName names the other end of the EAP-TLS exchange for a log line.
+//
+// Both roles require a certificate from the other end, so a completed handshake
+// has one: the authenticator sets RequireAndVerifyClientCert (newTLSMethod) and
+// the peer verifies the authenticator chain (PeerSession). The empty case is
+// therefore unreachable today, and it answers a placeholder rather than an empty
+// string so a log line never reads as if ze knew the peer and found no name.
+func eapTLSPeerName(cs tls.ConnectionState) string {
+	if len(cs.PeerCertificates) == 0 {
+		return "(no certificate)"
+	}
+	return cs.PeerCertificates[0].Subject.String()
 }
 
 type tlsState uint8

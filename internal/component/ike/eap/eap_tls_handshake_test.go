@@ -132,6 +132,11 @@ type hsResult struct {
 	server *tlsMethod
 	peer   *PeerSession
 
+	// sess is the authenticator Session the harness drove. It carries the
+	// method's refusal reason, which the EAP-Failure packet cannot
+	// (Session.Err, eap.go).
+	sess *Session
+
 	serverEAPSuccess bool
 	serverEAPFailure bool
 	serverMSK        [64]byte
@@ -188,7 +193,7 @@ func runEAPTLSHandshake(t *testing.T, serverCfg MethodConfig, peer *PeerSession)
 		t.Fatalf("authenticator method is %T, want *tlsMethod", sess.method)
 	}
 
-	res := &hsResult{server: method, peer: peer}
+	res := &hsResult{server: method, peer: peer, sess: sess}
 	req := sess.Begin()
 
 	for i := range 60 {

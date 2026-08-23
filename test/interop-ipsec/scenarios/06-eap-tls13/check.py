@@ -8,10 +8,11 @@ Validates: Ze's IKEv2 engine completes an EAP-TLS exchange with strongSwan on a
            SA is itself the proof that the TLS 1.3 path needs no weakened
            setting, because Go's ExportKeyingMaterial is unconditional only on
            TLS 1.3.
-Prevents:  a silent fall back to TLS 1.2 (which would need
-           GODEBUG=tlsunsafeekm=1 and so cannot pass here), EAP-TLS
-           fragmentation defects on the larger TLS 1.3 flights, and regressions
-           in RFC 9190 MSK export.
+Prevents:  a silent fall back to TLS 1.2 (which cannot pass here at all: Go
+           refuses the key material export without RFC 7627, and Go 1.27 removed
+           the GODEBUG that once lifted that refusal), EAP-TLS fragmentation
+           defects on the larger TLS 1.3 flights, and regressions in RFC 9190
+           MSK export.
 """
 
 import os

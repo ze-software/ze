@@ -267,7 +267,19 @@ func (ps *PeerSession) handleResponderEAP(sa *SA, msg *wire.Message, rawMsg []by
 	}
 	ps.sendResponderEAP(sa, msg.Header.MessageID, next, tr, remote, log)
 	if next.Code == eap.CodeFailure {
-		log.Warn("ike: EAP authentication failed", "peer", sa.PeerName)
+		// The method's own diagnosis, when it has one. An EAP-Failure packet
+		// carries no reason (RFC 3748 Section 4.2, requirement RFC3748-4.2-2: Code,
+		// Identifier and Length, no Type field), so without this the operator
+		// reads "authentication failed" and nothing else. The EAP-TLS MSK export
+		// refusal is the case that matters: it names the peer, the negotiated TLS
+		// version, RFC 7627 and what to change (exportEAPTLSMSK,
+		// internal/component/ike/eap). The initiator half already logs its
+		// equivalent in handleEAPResponse (fsm.go).
+		if err := sess.Err(); err != nil {
+			log.Warn("ike: EAP authentication failed", "peer", sa.PeerName, "error", err)
+		} else {
+			log.Warn("ike: EAP authentication failed", "peer", sa.PeerName)
+		}
 		sa.State = StateDead
 	}
 }

@@ -122,6 +122,16 @@ type Session struct {
 	identity   string
 	msk        [64]byte
 	state      sessionState
+
+	// err is why the method refused, kept because the EAP-Failure packet cannot
+	// carry a reason: RFC 3748 Section 4.2 gives Failure a Code, an Identifier and
+	// a Length and no Type field at all, which `Packet.Encode` implements and
+	// RFC3748-4.2-2 records. Without this the authenticator half of every method
+	// discards its own diagnosis and the operator reads "authentication failed"
+	// with nothing to act on. The EAP-TLS MSK export refusal is the case that
+	// forced it (exportEAPTLSMSK, eap_tls.go), because the whole point of that
+	// message is telling an operator what to change on the peer.
+	err error
 }
 
 type sessionState uint8
@@ -219,6 +229,13 @@ func (s *Session) Identity() string { return s.identity }
 // State returns whether the session completed successfully.
 func (s *Session) Succeeded() bool { return s.state == stateSuccess }
 
+// Err returns why the method refused the peer, or nil when the exchange failed
+// for a reason the method never saw: a peer that answered the Identity request
+// with something else, or a NAK of the offered method. The caller MUST log it
+// beside its own failure line, because RFC 3748 Section 4.2 leaves an EAP-Failure
+// packet no field to carry a reason in and this is the only place one exists.
+func (s *Session) Err() error { return s.err }
+
 // MSK returns the Master Session Key after successful authentication.
 func (s *Session) MSK() [64]byte {
 	return s.msk
@@ -248,6 +265,7 @@ func (s *Session) handleMethod(response *Packet) *Packet {
 
 	result := s.method.Process(response)
 	if result.Err != nil {
+		s.err = result.Err
 		s.state = stateFailure
 		return s.failure(response)
 	}
