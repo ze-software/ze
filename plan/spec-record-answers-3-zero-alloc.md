@@ -525,10 +525,20 @@ none of them. Diff under review: `e41a46fd6..e9f0a8b8f` (phases 1 to 6, plus the
 | N-6 | NOTE | `make ze-repository-check` reports `AddProcess has no cross-package non-test caller` and `audit-test-relaxation.py` reports two WEAKENED tests in `internal/component/firewall/plugins/irr/irr_test.go`. Neither is in this diff; both belong to other sessions' uncommitted work in this shared checkout | Neither belongs to this spec. Each is owned by the session whose uncommitted work carries it, and is named here so the next reader does not charge it to this commit |
 | N-7 | NOTE | A `misspell` red in `internal/component/plugin/process/manager.go` (another session's uncommitted hunk) blocked `make ze-lint-changed` | Fixed in place, one word in a comment, so the gate could give a real answer. Reported rather than folded in silently |
 
-### AC-4, decided and IMPLEMENTED
+### AC-4: the payload is settled, the streaming is NOT
 
-**Landed 2026-08-23.** `show bgp rib` answers flat rows: one envelope under
-`routes`, one row per route, each carrying `peer` and `direction` as fields.
+**Read this before believing the paragraph below.** AC-4 asks that rows STREAM
+and that the daemon never hold the whole table as one document. That is still
+outstanding. `jsonTerminal.drain` collects every row into a slice and marshals
+one document, `showPipeline` returns it as a `json.RawMessage`, and nothing in
+`rib_pipeline.go` produces a record generator. I claimed AC-4 implemented when
+the flat rows landed on 2026-08-23; that was wrong, and this paragraph is the
+correction. What landed is the payload half, which was the question blocking the
+streaming conversion rather than the conversion itself.
+
+**The payload half, landed 2026-08-23.** `show bgp rib` answers flat rows: one
+envelope under `routes`, one row per route, each carrying `peer` and `direction`
+as fields.
 `jsonTerminal.drain` builds them, `cmdRibShow` declares `tab` with the column
 order an operator reads a route in, and `peer` and `next-hop` are declared as
 the address fields so `| resolve` and `| origin` act on those and nothing else.
@@ -541,7 +551,16 @@ and `encoding/json` sorts object keys. A flat list has no such accident, so
 `TestShowRowsAreDeterministic` pins it. Mutation-proven: removing the sort
 reddens it on both its assertions, the sortedness and the run-to-run stability.
 
-The section below is the ruling as it stood before the implementation, kept
+**What is still owed for AC-4**, with the review's guidance for whoever takes it
+in the section below: convert `showPipeline` to the record path. The lock
+mechanism transfers from `bestPathRows`; the reference mechanism does not,
+because `inboundSource` and `protocolInboundSource` buffer a whole peer's
+`RouteItem`s inside `Next`, so a retain per item holds one peer's entire table.
+And `outboundSource` needs neither today only because `handleSent` writes
+`ribOut` under `peerMu.Lock`: a converted walk that releases the lock before
+yielding LOSES that cover and owes the sent half its own answer.
+
+The section below is the ruling as it stood before the payload landed, kept
 because it records what was decided and why.
 
 ### AC-4, as decided
