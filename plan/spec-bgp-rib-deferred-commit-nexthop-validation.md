@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | verification |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 6/6 |
 | Deferral shard | `plan/deferrals/fixit-commit-rail-nexthop-unvalidated.md` |
 | Handoff | verify |
-| Updated | 2026-08-11 |
+| Updated | 2026-08-23 |
 
 <!-- Handoff `verify`: the implementation session commits its work, sets Status to
      `verification`, and stops. A later Opus 5 session reviews that commit and closes
@@ -200,10 +200,10 @@ already return.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `(*MPReachNLRI).WriteTo` with SAFI 128 emits bytes identical to the deleted `vpnMPReachNLRI` for every next hop the rib rail can pass | `mpnlri.go` `nextHopOctets` adds `RDSize` for `SAFIVPN` and `WriteTo` writes 8 zero octets before each address; `commit.go` `buildVPNMPReachNLRI` writes the same fields in the same order | the VPN wire form changes and a peer rejects the UPDATE | `TestCommitVPNAnnounceCarriesTheRFC4364NextHop` pins the whole attribute value byte by byte, and `TestCommitService_VPNNextHopHasRD` stays green | unvalidated |
-| A-2 | `(*Transaction).QueueAnnounce` has no non-test caller, so no production path reaches `Commit` with routes today | grep over the tree: the only callers are `transaction/commit_manager_test.go`. `Peer.QueueAnnounce` and `OutgoingRIB.QueueAnnounce` are different methods on different types | the rail is live and the defect is shipping, which raises priority but changes no line of this spec | grep for `QueueAnnounce` at implementation time; record the result in the Implementation Summary | unvalidated |
-| A-3 | `attribute.ErrUnencodableNextHop` survives the wrapping `Commit` applies (`build update: %w`), so `errors.Is` holds at the `Commit` boundary | `commit.go` wraps with `%w` in both branches | the test asserts on a string instead of a sentinel, which is weaker | the new tests assert with `errors.Is` from `Commit`, not from the helper | unvalidated |
-| A-4 | No caller outside `internal/component/bgp/rib` names `vpnMPReachNLRI` or `buildVPNMPReachNLRI` | both are unexported and grep finds references only inside `commit.go` | the deletion breaks a build | `make ze-unit-pkg-test PKG=./internal/component/bgp/rib` plus `make ze-lint-changed` | unvalidated |
+| A-1 | `(*MPReachNLRI).WriteTo` with SAFI 128 emits bytes identical to the deleted `vpnMPReachNLRI` for every next hop the rib rail can pass | `mpnlri.go` `nextHopOctets` adds `RDSize` for `SAFIVPN` and `WriteTo` writes 8 zero octets before each address; `commit.go` `buildVPNMPReachNLRI` writes the same fields in the same order | the VPN wire form changes and a peer rejects the UPDATE | `TestCommitVPNAnnounceCarriesTheRFC4364NextHop` pins the whole attribute value byte by byte, and `TestCommitService_VPNNextHopHasRD` stays green | confirmed 2026-08-23: the byte test passed against the UNCHANGED code in phase 1 and passes against the core encoder after the deletion, with no assertion edited; `TestCommitService_VPNNextHopHasRD` never went red |
+| A-2 | `(*Transaction).QueueAnnounce` has no non-test caller, so no production path reaches `Commit` with routes today | grep over the tree: the only callers are `transaction/commit_manager_test.go`. `Peer.QueueAnnounce` and `OutgoingRIB.QueueAnnounce` are different methods on different types | the rail is live and the defect is shipping, which raises priority but changes no line of this spec | grep for `QueueAnnounce` at implementation time; record the result in the Implementation Summary | confirmed 2026-08-23: `gopls references` on `(*Transaction).QueueAnnounce` returns nine references, every one in `transaction/commit_manager_test.go`. The `peer.QueueAnnounce` call inside `(*reactorAPIAdapter).SendRoutes` is `(*Peer).QueueAnnounce` (`reactor/peer.go`), a different method on a different type |
+| A-3 | `attribute.ErrUnencodableNextHop` survives the wrapping `Commit` applies (`build update: %w`), so `errors.Is` holds at the `Commit` boundary | `commit.go` wraps with `%w` in both branches | the test asserts on a string instead of a sentinel, which is weaker | the new tests assert with `errors.Is` from `Commit`, not from the helper | confirmed 2026-08-23: `assert.ErrorIs` holds on all four rows of `TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm`, each driving `(*CommitService).Commit` |
+| A-4 | No caller outside `internal/component/bgp/rib` names `vpnMPReachNLRI` or `buildVPNMPReachNLRI` | both are unexported and grep finds references only inside `commit.go` | the deletion breaks a build | `make ze-unit-pkg-test PKG=./internal/component/bgp/rib` plus `make ze-lint-changed` | confirmed 2026-08-23: after the deletion `grep -rn "vpnMPReachNLRI\|buildVPNMPReachNLRI\|isVPNSAFI" internal/` returns nothing, the package is green, and the tree-wide lint reports no finding in any package this spec touches |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -342,7 +342,7 @@ proving the same requirement, so it adds proof and removes none
 | 9 | RFC behavior implemented, changed, or newly proven? | Yes | no summary edit is owed: RFC4760-3-2 already carries positive and negative tags (`rfc/enrolled.txt`), and this adds a third tagged proof on a new rail. Run `make ze-rfc-check` and confirm no counter moves; do NOT edit `rfc/short/rfc4760.md` or `docs/features/rfc-status.md` |
 | 10 | Test infrastructure changed? | No | one new test file using existing package helpers |
 | 11 | Affects daemon comparison? | No | no capability claim changes |
-| 12 | Internal architecture changed? | No | `docs/architecture/update-building.md` describes the rail as it stays; the deletion removes a duplicate encoder the doc never named |
+| 12 | Internal architecture changed? | No | `docs/architecture/update-building.md` describes the rail as it stays; the deletion removes a duplicate encoder the doc never named. The two design docs the changed files' `// Design:` headers name are unaffected: `docs/architecture/pool-architecture.md` (named by `internal/component/bgp/rib/commit.go`) documents RIB wire storage, and this change allocates one buffer fewer rather than changing where a buffer comes from; `docs/architecture/wire/attributes.md` (named by `internal/core/bgp/attribute/mpnlri.go`) documents the attribute wire forms, and the edit there is a doc comment with no encoding change |
 | 13 | Route metadata keys added/changed? | No | no metadata key touched |
 | 14 | Prometheus counters added/changed? | No | none added |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | no registration changes |
@@ -447,6 +447,57 @@ proving the same requirement, so it adds proof and removes none
 | An existing test in the package fails after phase 2 | The guard is too strict. Re-read `ValidateNextHops`: it refuses only `!IsValid()` |
 | Lint failure | Fix inline. If architectural → report |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## Discrimination Proof (2026-08-23)
+
+Every run below is a real execution, not a cached verdict: each reports a duration,
+and each mutation is to package source, which changes the `go test` cache key. Each
+mutation was verified to have LANDED with a non-empty diff against a pristine copy
+taken first, and each restore was a `cp` of that copy followed by a matching SHA-256.
+
+**Phase 1, before the guard existed.** The refusal test failed on all four rows for
+the stated reason, `Commit` returning a nil error, and the byte-exact VPN control
+passed against the unchanged encoder. A throwaway probe captured what the rail put
+on the wire:
+
+```
+ipv6:  mpreach value=00 02 01 00 00 20 20 01 0d b8
+       AFI=0x0002 SAFI=0x01 NHLen=0x00 Reserved=0x00 NLRI=2001:db8::/32
+vpnv4: mpreach value=00 01 80 18 00*24 00 18 c0 a8 01
+       AFI=0x0001 SAFI=0x80 NHLen=0x18 then 24 zero octets
+```
+
+**Mutation A, the guard deleted from `buildMPReachNLRI`.**
+
+```
+--- FAIL: TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm/grouped-ipv6
+--- FAIL: TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm/ungrouped-ipv6
+--- FAIL: TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm/grouped-vpnv4
+--- FAIL: TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm/ungrouped-vpnv4
+--- FAIL: TestCommitRefusalOfAnUnencodableNextHopIsLogged
+FAIL	github.com/ze-software/ze/internal/component/bgp/rib	0.578s
+```
+
+**Mutation B, `attribute.SAFI(fam.SAFI)` perturbed to `fam.SAFI+1`,** to prove the
+byte-exact control discriminates rather than passing on shape alone:
+
+```
+--- FAIL: TestCommitVPNAnnounceCarriesTheRFC4364NextHop
+--- FAIL: TestCommitService_VPNNextHopHasRD
+expected: 00 01 80 0c 00*8 0a 00 00 01 00 18 c0 a8 01
+actual  : 00 01 81 04 0a 00 00 01 00 18 c0 a8 01
+FAIL	github.com/ze-software/ze/internal/component/bgp/rib	0.579s
+```
+
+The Route Distinguisher disappears with the SAFI, which is the octet the control
+exists to hold. `TestCommitService_VPNNextHopHasRD` caught it too, so the pre-existing
+test and the new one are not proving the same thing twice by accident.
+
+**Restored, and green.**
+
+```
+ok  	github.com/ze-software/ze/internal/component/bgp/rib	1.965s
+```
 
 ## Design Insights
 - The size-versus-write invariant at the end of `packAttributesWithASPath` used to catch

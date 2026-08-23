@@ -1,4 +1,6 @@
 // Design: docs/architecture/pool-architecture.md — RIB wire storage
+// RFC: rfc/short/rfc4760.md — MP_REACH_NLRI wire format and the Length of Next Hop Network Address (Section 3)
+// RFC: rfc/short/rfc4364.md — VPN next hop carries an 8-octet Route Distinguisher (Section 4.3.4)
 
 package rib
 
@@ -13,7 +15,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
-	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -329,12 +330,17 @@ func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, as
 	// Build AS_PATH attribute
 	asPathAttr := c.buildASPathFromExplicit(asPath)
 
-	// Build NEXT_HOP or MP_REACH_NLRI
+	// Build NEXT_HOP or MP_REACH_NLRI. The MP_REACH branch refuses a next hop
+	// with no wire form, before any buffer is sized for it.
 	var nhAttr attribute.Attribute
 	if c.useTraditionalNLRI(fam, nextHop) {
 		nhAttr = &attribute.NextHop{Addr: nextHop}
 	} else {
-		nhAttr = c.buildMPReachNLRI(fam, nextHop, nlriBytes)
+		mpReach, err := c.buildMPReachNLRI(fam, nextHop, nlriBytes)
+		if err != nil {
+			return nil, err
+		}
+		nhAttr = mpReach
 	}
 
 	// For iBGP, ensure LOCAL_PREF
@@ -472,97 +478,35 @@ func (c *CommitService) buildASPathFromExplicit(asPath *attribute.ASPath) *attri
 	}
 }
 
-// buildMPReachNLRI builds an MP_REACH_NLRI attribute.
-// Handles VPN next-hop encoding (RD prefix) per RFC 4364.
-func (c *CommitService) buildMPReachNLRI(fam family.Family, nextHop netip.Addr, nlriBytes []byte) attribute.Attribute {
-	// Check if this is a VPN SAFI that needs RD in next-hop
-	if isVPNSAFI(fam.SAFI) {
-		return c.buildVPNMPReachNLRI(fam, nextHop, nlriBytes)
+// buildMPReachNLRI builds an MP_REACH_NLRI attribute for one family, and refuses
+// a next hop that cannot be encoded.
+//
+// One encoder serves every family, the VPN one included: (*MPReachNLRI).nextHopOctets
+// counts the 8-octet Route Distinguisher for SAFI 128 and WriteTo writes it, both
+// per RFC 4364 Section 4.3.4.
+//
+// RFC 4760 Section 3: "Length of Next Hop Network Address" is the field a peer
+// reads to determine the next hop's network-layer protocol. The zero netip.Addr
+// has no wire form, so it yields a length that attribute.ValidNextHopLens admits
+// for no AFI/SAFI pair, and the peer answers a malformed MP_REACH_NLRI with a
+// session reset (RFC 7606 Section 7.11). This rail sizes with attrSize and writes
+// with attribute.WriteAttrTo, so no CheckedWriteTo sits between it and the socket
+// and the refusal has to happen here. The two announce rails in the reactor call
+// the same ValidateNextHops for the same reason.
+func (c *CommitService) buildMPReachNLRI(fam family.Family, nextHop netip.Addr, nlriBytes []byte) (attribute.Attribute, error) {
+	mpReach := attribute.NewMPReachNLRI(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI), []netip.Addr{nextHop}, nlriBytes)
+
+	if err := mpReach.ValidateNextHops(); err != nil {
+		// The caller above the reactor discards this error, so the record is what
+		// reaches an operator.
+		slog.Warn("commit: announce refused, the next hop has no wire form",
+			"family", fam,
+			"nextHop", nextHop,
+			"error", err)
+		return nil, err
 	}
 
-	// Standard MP_REACH_NLRI
-	return attribute.NewMPReachNLRI(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI), []netip.Addr{nextHop}, nlriBytes)
-}
-
-// buildVPNMPReachNLRI builds MP_REACH_NLRI for VPN routes with RD in next-hop.
-// RFC 4364 Section 4.3.4: VPN next-hop is RD(8 bytes, all zeros) + IP.
-func (c *CommitService) buildVPNMPReachNLRI(fam family.Family, nextHop netip.Addr, nlriBytes []byte) attribute.Attribute {
-	// Build next-hop with RD prefix
-	var nhBytes []byte
-	if nextHop.Is4() {
-		// RD(8) + IPv4(4) = 12 bytes
-		nhBytes = make([]byte, 12)
-		// First 8 bytes are RD (all zeros)
-		copy(nhBytes[8:], nextHop.AsSlice())
-	} else {
-		// RD(8) + IPv6(16) = 24 bytes
-		nhBytes = make([]byte, 24)
-		copy(nhBytes[8:], nextHop.AsSlice())
-	}
-
-	// Build the value manually since MPReachNLRI.WriteTo() doesn't handle RD prefix
-	// Format: AFI(2) + SAFI(1) + NH_Len(1) + NextHop(with RD) + Reserved(1) + NLRI
-	valueLen := 2 + 1 + 1 + len(nhBytes) + 1 + len(nlriBytes)
-	value := make([]byte, valueLen)
-
-	// AFI
-	value[0] = byte(fam.AFI >> 8)
-	value[1] = byte(fam.AFI)
-	// SAFI
-	value[2] = byte(fam.SAFI)
-	// NH Length
-	value[3] = byte(len(nhBytes))
-	// Next-hop (with RD)
-	copy(value[4:], nhBytes)
-	// Reserved
-	value[4+len(nhBytes)] = 0
-	// NLRI
-	copy(value[4+len(nhBytes)+1:], nlriBytes)
-
-	// Return a custom MPReachNLRI that will pack correctly
-	// We need to use the raw bytes approach since the standard WriteTo doesn't handle RD
-	return &vpnMPReachNLRI{
-		afi:   attribute.AFI(fam.AFI),
-		safi:  attribute.SAFI(fam.SAFI),
-		value: value,
-	}
-}
-
-// vpnMPReachNLRI is a custom MPReachNLRI for VPN routes that includes RD in next-hop.
-type vpnMPReachNLRI struct {
-	afi   attribute.AFI
-	safi  attribute.SAFI
-	value []byte
-}
-
-func (m *vpnMPReachNLRI) Code() attribute.AttributeCode { return attribute.AttrMPReachNLRI }
-func (m *vpnMPReachNLRI) Flags() attribute.AttributeFlags {
-	return attribute.FlagOptional
-}
-func (m *vpnMPReachNLRI) Len() int { return len(m.value) }
-
-// WriteTo writes the pre-encoded value into buf at offset.
-func (m *vpnMPReachNLRI) WriteTo(buf []byte, off int) int {
-	return copy(buf[off:], m.value)
-}
-
-// WriteToWithContext writes pre-encoded value - context-independent.
-func (m *vpnMPReachNLRI) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
-	return m.WriteTo(buf, off)
-}
-
-// CheckedWriteTo validates capacity before writing.
-func (m *vpnMPReachNLRI) CheckedWriteTo(buf []byte, off int) (int, error) {
-	needed := m.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return m.WriteTo(buf, off), nil
-}
-
-// isVPNSAFI returns true if the SAFI indicates a VPN family.
-func isVPNSAFI(safi family.SAFI) bool {
-	return safi == 128 // MPLS VPN (RFC 4364)
+	return mpReach, nil
 }
 
 // isIBGP returns true if this is an iBGP session.

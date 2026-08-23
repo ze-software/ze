@@ -202,22 +202,18 @@ func (m *MPReachNLRI) nextHopOctets(nh netip.Addr) int {
 // message in reactor/reactor_api_batch.go, which is worded to this check and not
 // past it).
 //
-// Who asks, as of 2026-08-08. The two announce rails ask before they contribute
-// the attribute, because they are the callers that can name the route and the peer:
-// buildBatchAnnounceUpdate (reactor/reactor_api_batch.go) and buildRIBRouteUpdate
-// (reactor/peer_rib_routes.go). announceAttrs.add (reactor/announce_build.go) asks
+// Who asks, as of 2026-08-23. Every rail that ASSEMBLES this attribute asks before
+// it contributes one, because each is a caller that can name the route and the peer:
+// buildBatchAnnounceUpdate (reactor/reactor_api_batch.go), buildRIBRouteUpdate
+// (reactor/peer_rib_routes.go) and (*CommitService).buildMPReachNLRI
+// (component/bgp/rib/commit.go). announceAttrs.add (reactor/announce_build.go) asks
 // again for anything that reaches the plan without a pre-check, and it is the single
-// point those two rails reach the wire through. CheckedWriteTo below asks for its
+// point the first two rails reach the wire through. CheckedWriteTo below asks for its
 // own callers.
 //
-// One caller does NOT ask, and it does not reach that backstop either:
-// (*CommitService).buildMPReachNLRI (component/bgp/rib/commit.go) writes through
-// attribute.WriteAttrTo rather than through the plan, so an unresolved next hop
-// there reaches the wire as a Length of Next Hop Network Address octet of 0x00. That
-// rail has no non-test caller today ((*Transaction).QueueAnnounce,
-// component/bgp/transaction/commit_manager.go) and is recorded in
-// plan/deferrals/ad-hoc-2026-08-08-031d68b3.md. Do not read the paragraph above as
-// saying every assembling caller asks: two do, one does not.
+// The third rail reaches no such backstop: it writes through attribute.WriteAttrTo
+// rather than through the plan, so its own call is the only thing between an
+// unresolved next hop and a Length of Next Hop Network Address octet of 0x00.
 func (m *MPReachNLRI) ValidateNextHops() error {
 	for _, nh := range m.NextHops.Slice() {
 		if !nh.IsValid() {
