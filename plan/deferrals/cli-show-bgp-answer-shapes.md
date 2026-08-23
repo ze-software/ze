@@ -1,0 +1,14 @@
+# Deferrals: spec-cli-show-bgp-answer-shapes
+
+Rows deferred from spec-cli-show-bgp-answer-shapes, which is in progress. Each
+row names where the work goes, so nothing is recorded without a destination.
+
+The spec's Failure Routing says what lands here: a defect found in a phase that
+does NOT block that phase gets a destination and a row. A defect that blocks the
+phase is fixed in it.
+
+| Date | Source | What | Reason | Destination | Status |
+|------|--------|------|--------|-------------|--------|
+| 2026-08-24 | spec-cli-show-bgp-answer-shapes | The `resolve` and `origin` operators over a row set spelled as a map keyed by IDENTITY, so `show bgp peer list`, `show bgp peer detail`, `show bgp rib status` and `show bgp adj-rib-in` can resolve the addresses they are keyed by | `applyResolve` and `applyOrigin` act on a FIELD, and the address in these four answers is the map key rather than a field. `rowsInKeyed` already answers the identity keys, so the mechanism exists on the row side; what is missing is a decision about what the decorated key looks like in the rebuilt answer, which is a change to the operators rather than a declaration a command makes | a spec of its own, not yet written | deferred |
+| 2026-08-24 | spec-cli-show-bgp-answer-shapes | One name for the peer address across the `show bgp` tree. A row that IS a peer names its address `address` in `show bgp`, `show bgp peer statistics` and `show bgp rs peers`, and `peer` in `show bgp peer capabilities` and `show bgp health` | Synonym rotation, banned by habit 1 of the STE guideline in `ai/INSTRUCTIONS.md`: one concept, one name. It costs THIS spec nothing, because the declaration channel names whatever field each command writes, so fixing it here would widen the diff without making a single operator work that does not work already (`ai/rules/simplicity.md`) | a spec of its own, not yet written | deferred |
+| 2026-08-24 | spec-cli-show-bgp-answer-shapes | `show bgp decode` and `show bgp encode` answering structured data, so the operator chain reaches them at all | Both are offline handlers registered with `registry.MustRegisterLocal`. They print finished text and return an exit code, so they reach no `ResponseData`, no `ApplyPipes` and no declaration. `ai/rules/cli.md` requires a structured payload of every command, so this is a real gap; it is a change to two handlers' output contract rather than to what they declare | a spec of its own, not yet written | deferred |
