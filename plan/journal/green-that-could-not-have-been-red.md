@@ -6,7 +6,7 @@ greenness was structural rather than earned: nothing about the state of the
 product could have changed it.
 
 This is a sharper class than "vacuous test", because the mechanisms differ and
-only the consequence is shared. Seven are known, and they fail at seven different
+only the consequence is shared. Eight are known, and they fail at eight different
 points.
 
 Where the stimulus never reaches the defect's path, the green says the test
@@ -33,6 +33,22 @@ no trace in the output. A relaxation audit that reads assertions does not see it
 either, because a value in a map is not an assertion. A gate that reads a tunable
 and reports only its verdict needs a second reader for the tunable, or the
 tunable IS the escape hatch.
+
+The eighth is the only one where nothing is wrong with the signal. Every other
+mechanism here is a signal that FAILED to carry information. This one carries
+perfect information, accurately, about something you did not ask about: a real
+exit status, belonging to a different process from the one whose verdict you
+wanted. A wrapper's status is the wrapper's. Nothing in the output looks wrong
+because nothing IS wrong, except the referent.
+
+It is also the one no checker can reach. A tool can notice a bare `ok` with no
+duration, or a mutation that did not apply, or a threshold nobody read. Nothing
+can notice that a true statement answers a different question, because every
+part of it is true. What caught the one instance was a discipline rather than a
+tool: the reds were being read name by name, and seven were expected where six
+appeared. That is consistent with it being uncheckable, and it is the reason to
+read a gate's verdict from the gate's own last lines rather than from whatever
+reported it.
 
 The habit that catches the first four is the same, and it is cheap. Before you
 trust a green, break the thing it judges and watch it go red. A red you cannot
