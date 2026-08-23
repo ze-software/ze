@@ -83,6 +83,15 @@ func operatorsFor(cliPath string) ([]commandOperator, string) {
 			continue
 		}
 		switch {
+		case op.Class == command.ClassStream:
+			// `log` acts on a SEQUENCE of answers, so it means something only
+			// where the command keeps answering. Publishing it as always
+			// available asserted support a command that answers once cannot
+			// have: there is no second update to append.
+			out = append(out, commandOperator{
+				Name: op.Name, Class: op.Class.String(),
+				Available: "when-streaming", Description: op.Description,
+			})
 		case op.Class == command.ClassGlobal:
 			out = append(out, commandOperator{
 				Name: op.Name, Class: op.Class.String(),
@@ -126,13 +135,29 @@ func aliasesFor(cliPath string) []commandAlias {
 // only when its answer carries rows.
 func splitOperators(ops []commandOperator) (always, withRows []string) {
 	for _, op := range ops {
-		if op.Available == "always" {
+		switch op.Available {
+		case "always":
 			always = append(always, op.Name)
-			continue
+		case "when-streaming":
+			// Reported separately by the callers that show it; it belongs to
+			// neither half, because it depends on the command answering more
+			// than once rather than on what any one answer holds.
+		default:
+			withRows = append(withRows, op.Name)
 		}
-		withRows = append(withRows, op.Name)
 	}
 	return always, withRows
+}
+
+// streamingOperators answers the operators that act on a sequence of answers.
+func streamingOperators(ops []commandOperator) []string {
+	var out []string
+	for _, op := range ops {
+		if op.Available == "when-streaming" {
+			out = append(out, op.Name)
+		}
+	}
+	return out
 }
 
 // commandEntry is a single command in the catalog.
@@ -450,6 +475,11 @@ func printCommandVerbose(rw *helpfmt.RenderWriter, entries []commandEntry) {
 					label = "    on its rows: "
 				}
 				tb.Reset().Str(label).Colored(c.Dim).Join(withRows, ", ").Colored(c.Reset)
+				rw.Line(tb.Slice())
+			}
+			if streaming := streamingOperators(e.Operators); len(streaming) > 0 {
+				tb.Reset().Str("    while the command keeps answering: ").Colored(c.Dim).
+					Join(streaming, ", ").Colored(c.Reset)
 				rw.Line(tb.Slice())
 			}
 			for _, a := range e.Aliases {

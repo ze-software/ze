@@ -152,7 +152,7 @@ func (m Model) executeOperationalCommand(input string) tea.Cmd {
 				err: errNoDaemonConnectionOperationalModeRequires,
 			}
 		}
-		cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked(input, m.cliFormat)
+		cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatLocal(input, m.cliFormat)
 		if pipeErr != "" {
 			var tb2 textbuf.Buffer
 			return commandResultMsg{err: errors.New(tb2.Str("pipe error: ").Str(pipeErr).String())}

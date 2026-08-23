@@ -142,6 +142,36 @@ names.
 <!-- source: cmd/ze/ze_core_pipe.go -- printPipeCatalogJSON -->
 <!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog -->
 
+### Saving an answer: `| save <path>`
+
+`| save` writes the answer to a file and passes it through, so the terminal
+still shows it:
+
+```
+show bgp | json | save /tmp/peers.json
+```
+
+It writes the answer you are looking at, wherever `| save` sits in the chain.
+A chain that names no format has the configured default appended to its end, so
+a save applied in place would write the dispatcher's JSON rather than what the
+terminal showed.
+
+The file is created readable by its owner alone (`0600`), because an answer can
+carry peer addresses, keys and topology. The write is atomic: a failure leaves
+the destination as it was rather than truncated.
+
+**`| save` works where your own process runs the chain**: an interactive
+session, the monitors, and `ze pipe`. An interactive session is the one surface
+a shell redirect cannot reach, because the answer is drawn to a terminal and
+never reaches a pipe.
+
+**It is refused over `ze cli -c`, an SSH exec channel and the web**, by name.
+The daemon expands the chain on those surfaces, so the file would be written on
+the daemon's filesystem, with the daemon's privileges, at a path the caller
+chose. Redirect the output from your shell there; that already works.
+
+<!-- source: internal/component/command/pipe_save.go -->
+
 ### Configuration presentation
 
 Configuration uses the same separation between data and presentation. Operators

@@ -46,6 +46,7 @@ const (
 	pipeLast                    // | last N — take last N items
 	pipeDisplay                 // | display <field>... — the fields to answer with, in that order
 	pipeFill                    // | fill [<way>] [reverse] — bring the remaining fields back, in a named order
+	pipeSave                    // | save <path> — write the answer to a file
 	pipeUnknown                 // unrecognized operator
 	pipeInvalid                 // validation error produced while expanding an alias or folding a command filter
 )
@@ -95,7 +96,7 @@ func parsePipeOps(rest string) []pipeOp {
 
 		op := pipeOp{kind: kind}
 		switch kind { //nolint:exhaustive // only some operators take arguments
-		case pipeMatch, pipeDisplay, pipeFill:
+		case pipeMatch, pipeDisplay, pipeFill, pipeSave:
 			if len(fields) > 1 {
 				op.arg = textbuf.Join(fields[1:], " ")
 			}
@@ -439,6 +440,10 @@ func ApplyPipes(output string, ops []pipeOp, meta PipeChainMeta, columns []Colum
 			// renderers read it from tableStyle.
 		case pipeLog:
 			// Display-mode modifier, not a data transform. Handled by caller.
+		case pipeSave:
+			// Applied after the whole chain, below: what an operator means by
+			// saving is the answer they are looking at, and the configured
+			// default format is appended to the END of a chain that names none.
 		case pipeUnknown:
 			var tb textbuf.Buffer
 			return "", tb.Str("unknown pipe operator: ").Str(op.arg).String()
@@ -448,6 +453,11 @@ func ApplyPipes(output string, ops []pipeOp, meta PipeChainMeta, columns []Colum
 	}
 	if !metaInjected {
 		result = injectPipeMeta(result, meta)
+	}
+	if paths := savePathsInChain(ops); len(paths) > 0 {
+		if msg := applySaves(result, paths); msg != "" {
+			return "", msg
+		}
 	}
 	return result, ""
 }
@@ -539,7 +549,22 @@ func ValidatePipes(ops []pipeOp) string {
 	if msg := validateDisplayNarrowing(ops); msg != "" {
 		return msg
 	}
+	// The surface half of the save rules is checked by the entry point, which
+	// is the only place that knows whose filesystem the write would land on.
+	if msg := validateSaveOps(ops, true); msg != "" {
+		return msg
+	}
 	return ""
+}
+
+// validatePipesForSurface is ValidatePipes plus the rule that depends on WHICH
+// process expands the chain: `| save` writes a file, so it is refused when the
+// daemon is expanding the chain for a remote caller.
+func validatePipesForSurface(ops []pipeOp, saveAllowed bool) string {
+	if msg := ValidatePipes(ops); msg != "" {
+		return msg
+	}
+	return validateSaveOps(ops, saveAllowed)
 }
 
 // validateDisplayNarrowing refuses a chain whose `| display` requests have no
@@ -1086,13 +1111,34 @@ func configuredDefault(sessionFormat string) pipeKind {
 // configured format when no explicit format pipe (json, table, yaml, text) is
 // specified.
 //
+// This is the REMOTE form: the caller is a process expanding the chain on
+// somebody else's behalf, so `| save` is refused. The SSH exec channel and
+// every web surface use it. A process expanding a chain the operator typed into
+// it uses ProcessPipesDefaultFormatLocal instead.
+//
 // sessionFormat is the caller's per-session format override; pass "" for none.
 // See configuredDefault.
 func ProcessPipesDefaultFormatChecked(input, sessionFormat string) (command string, format func(string) string, errMsg string) {
+	return processPipesDefaultFormat(input, sessionFormat, false)
+}
+
+// ProcessPipesDefaultFormatLocal is ProcessPipesDefaultFormatChecked for a
+// chain the operator typed into THIS process, so the filesystem operators are
+// theirs to use: `| save` writes as them, and the operating system's
+// permissions are the whole answer to what they may write.
+//
+// The interactive client is the caller that needs it, and it is the surface a
+// shell redirect cannot reach: the answer is drawn to a terminal and never
+// reaches a pipe.
+func ProcessPipesDefaultFormatLocal(input, sessionFormat string) (command string, format func(string) string, errMsg string) {
+	return processPipesDefaultFormat(input, sessionFormat, true)
+}
+
+func processPipesDefaultFormat(input, sessionFormat string, saveAllowed bool) (command string, format func(string) string, errMsg string) {
 	command, ops := parsePipeChain(input)
 	columns := ColumnsForCommand(command)
 	command, ops, meta := foldFilters(command, ops)
-	if msg := ValidatePipes(ops); msg != "" {
+	if msg := validatePipesForSurface(ops, saveAllowed); msg != "" {
 		return command, nil, msg
 	}
 

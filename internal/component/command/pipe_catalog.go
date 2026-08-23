@@ -76,14 +76,28 @@ const (
 	// ClassData acts on rows or fields. A command owes these only where its
 	// shape supports them, and MUST refuse them by name where it does not.
 	ClassData
+	// ClassStream acts on a SEQUENCE of answers rather than on one, so it means
+	// something only where a command keeps answering: the monitors.
+	//
+	// `log` was in the global class and was inert on both surfaces a tool
+	// author uses. ApplyPipes calls it "handled by caller" and the exec channel
+	// is not that caller, so a one-shot answer accepted the word and did
+	// nothing with it. Publishing it as owed by every command asserted support
+	// that could not exist for a command answering once: there is no second
+	// update to append.
+	ClassStream
 )
 
 // String answers the class name used in published documentation.
 func (c PipeClass) String() string {
-	if c == ClassGlobal {
+	switch c {
+	case ClassGlobal:
 		return "global"
+	case ClassStream:
+		return "stream"
+	default:
+		return "data"
 	}
-	return "data"
 }
 
 // PipeArgKind is what an operator does with an argument, which ValidatePipes
@@ -233,8 +247,10 @@ var pipeCatalog = []PipeOperator{
 		Description: "Dispatcher JSON, unformatted"},
 	{Name: "no-more", Kind: pipeNoMore, Class: ClassGlobal, Arg: ArgNone, Repeat: RepeatIdempotent, shapes: anyShape,
 		Description: "Disable paging"},
-	{Name: "log", Kind: pipeLog, Class: ClassGlobal, Arg: ArgNone, Repeat: RepeatIdempotent, shapes: anyShape,
-		Description: "Append each update (monitor)"},
+	{Name: "log", Kind: pipeLog, Class: ClassStream, Arg: ArgNone, Repeat: RepeatIdempotent, shapes: anyShape,
+		Description: "Append each update instead of replacing it, where the command keeps answering"},
+	{Name: "save", Kind: pipeSave, Class: ClassGlobal, Arg: ArgPath, Repeat: RepeatCompose, shapes: anyShape,
+		Description: "Write the answer to a file"},
 	{Name: "match", Kind: pipeMatch, Class: ClassData, Arg: ArgText, Repeat: RepeatCompose, shapes: rowShapes,
 		Description: "Keep the rows holding this text"},
 	{Name: "count", Kind: pipeCount, Class: ClassData, Arg: ArgNone, Repeat: RepeatRefuse, shapes: rowShapes,
@@ -308,7 +324,7 @@ func RenderOperatorReference() string {
 		if arg == "" {
 			arg = "none"
 		}
-		repeat := "narrows further"
+		repeat := "applies again, in order"
 		switch op.Repeat {
 		case RepeatIdempotent:
 			repeat = "no effect"
@@ -317,8 +333,12 @@ func RenderOperatorReference() string {
 		case RepeatCompose:
 		}
 		class := "acts on any answer"
-		if op.Class == ClassData {
+		switch op.Class {
+		case ClassData:
 			class = "acts on rows"
+		case ClassStream:
+			class = "acts on a stream of updates"
+		case ClassGlobal:
 		}
 		b.WriteString("| `")
 		b.WriteString(op.Name)

@@ -11,12 +11,13 @@
 | `yaml` | acts on any answer | none | refused | YAML output |
 | `raw` | acts on any answer | none | refused | Dispatcher JSON, unformatted |
 | `no-more` | acts on any answer | none | no effect | Disable paging |
-| `log` | acts on any answer | none | no effect | Append each update (monitor) |
-| `match` | acts on rows | <text> | narrows further | Keep the rows holding this text |
+| `log` | acts on a stream of updates | none | no effect | Append each update instead of replacing it, where the command keeps answering |
+| `save` | acts on any answer | <path> | applies again, in order | Write the answer to a file |
+| `match` | acts on rows | <text> | applies again, in order | Keep the rows holding this text |
 | `count` | acts on rows | none | refused | Count the rows |
-| `first` | acts on rows | <n> | narrows further | Take first N rows |
-| `last` | acts on rows | <n> | narrows further | Take last N rows |
-| `display` | acts on rows | <field>... | narrows further | Answer with these fields, in this order |
+| `first` | acts on rows | <n> | applies again, in order | Take first N rows |
+| `last` | acts on rows | <n> | applies again, in order | Take last N rows |
+| `display` | acts on rows | <field>... | applies again, in order | Answer with these fields, in this order |
 | `fill` | acts on rows | [<option>] | refused | Bring the remaining columns back, in the command's order or a named one |
 | `resolve` | acts on rows | none | no effect | Reverse DNS for IP addresses |
 | `origin` | acts on rows | none | no effect | ASN and network for IP addresses |

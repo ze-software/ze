@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | cli |
 | Depends | `plan/audit-pipe-operator-coverage.md`, `plan/audit-presentation-pipes.md`, `plan/audit-command-pipe-vs-subcommand.md` |
-| Phase | 6 of 6 (phases 1, 2, 3 and 6 implemented 2026-08-23; 4 and 5 outstanding) |
+| Phase | 5 of 6 (phases 1, 2, 3, 5 and 6 implemented 2026-08-23; 4 outstanding) |
 | Deferral shard | `plan/deferrals/cli-pipe-operator-coverage.md` |
 | Handoff | - |
 | Updated | 2026-08-23 |
@@ -499,6 +499,35 @@ the same call the checker compares against, so a description or an argument kind
 that changes in the catalog and not on the page reddens as surely as a missing
 operator. Mutation-proven: renaming `fill` to `filll` on the page reddens
 `ze-doc-drift-check` by name.
+
+### Phase 5, as built
+
+`save` did not exist. Nothing in the CLI wrote an answer to a file: a caller
+redirected stdout from the shell, which works for `ze cli -c` and an exec
+channel and is unavailable inside an interactive session, where the answer is
+drawn to a terminal and never reaches a pipe. That session is where it was
+needed.
+
+**It is refused where the DAEMON expands the chain, by name.** The daemon
+expands for whoever connected, so a save honored on the SSH exec channel or any
+web surface would write on the daemon's filesystem, with the daemon's
+privileges, at a path the remote caller chose. That is a write primitive handed
+to anyone who can reach the CLI. The split is an explicit pair of entry points
+rather than a flag, and the REMOTE one keeps the existing name, so the safe
+behaviour is what an unexamined call gets.
+
+It writes the answer after the whole chain, wherever `| save` sits in it,
+because the configured default format is appended to the END of a chain naming
+none: a save applied in place would write the dispatcher's JSON while the
+terminal showed something else. The write is atomic and the file is `0600`.
+
+**AC-8 took its second branch: `log` left the global class.** It was published
+as owed by every command and did nothing on either surface a tool author uses.
+It acts on a SEQUENCE of answers, so for a command that answers once there is no
+second update to append, and no implementation could change that. It is now its
+own class, published per command as "while the command keeps answering". The
+owner's taxonomy said the same thing: the global class is formatting and saving,
+and `log` is neither.
 
 ## Design Insights
 

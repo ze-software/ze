@@ -75,6 +75,12 @@ func TestEveryOperatorStatesItsContract(t *testing.T) {
 		if op.Class == ClassData && op.Applies(ShapeDoc) {
 			t.Errorf("operator %q is data-dependent but applies to doc, which has no rows", op.Name)
 		}
+		// The third acts on a SEQUENCE of answers, so it says nothing about
+		// what one answer holds and must apply to every shape.
+		if op.Class == ClassStream && len(op.Shapes()) != 3 {
+			t.Errorf("operator %q acts on a stream but applies to %v; the shape of one answer does not decide it",
+				op.Name, op.Shapes())
+		}
 	}
 }
 
