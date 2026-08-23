@@ -71,3 +71,4 @@ is open.
 | 2026-08-23 | acb7c2cd | fix(adj-rib-in): a stored route keeps its whole RFC 2545 next hop | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
 | 2026-08-23 | acb7c2cd | fix(plugin): a restarted plugin runs its handshake again | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-23 | acb7c2cd | fix(plugin): a restarted plugin runs its handshake again | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
+| 2026-08-23 | acb7c2cd | docs(journal): two rows the plugin restart fix found | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
