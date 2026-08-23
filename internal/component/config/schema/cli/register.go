@@ -11,6 +11,7 @@ package cli
 import (
 	"sort"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -42,19 +43,43 @@ func init() {
 		Section:     registry.SectionConfiguration,
 		Subs:        subcommands(),
 	})
-	registry.MustRegisterLocal("show schema list", func(args []string) int {
-		return Run(append([]string{"list"}, args...), nil)
-	})
-	registry.MustRegisterLocal("show schema methods", func(args []string) int {
-		return Run(append([]string{"methods"}, args...), nil)
-	})
-	registry.MustRegisterLocal("show schema events", func(args []string) int {
-		return Run(append([]string{"events"}, args...), nil)
-	})
-	registry.MustRegisterLocal("show schema handlers", func(args []string) int {
-		return Run(append([]string{"handlers"}, args...), nil)
-	})
-	registry.MustRegisterLocal("show schema protocol", func(_ []string) int {
-		return Run([]string{"protocol"}, nil)
-	})
+	// These five answer with DATA, so their answers go through the pipe layer
+	// like any other command's. They printed a table and returned an exit code
+	// before, which is why `ze cli -c "show schema list | json"` answered
+	// `unknown command`: YANG declares a wire method for each and no daemon
+	// handler implements one.
+	registry.MustRegisterLocalData("show schema list", dataList, registry.Meta{
+		Description: "Every registered schema module, with its namespace.",
+		Mode:        "offline",
+	}, command.RenderLocalAnswer)
+	registry.MustRegisterLocalData("show schema methods", dataMethods, registry.Meta{
+		Description: "Every RPC a schema module declares. Narrow it with a module name.",
+		Mode:        "offline",
+	}, command.RenderLocalAnswer)
+	registry.MustRegisterLocalData("show schema events", dataEvents, registry.Meta{
+		Description: "Every notification a schema module declares. Narrow it with a module name.",
+		Mode:        "offline",
+	}, command.RenderLocalAnswer)
+	registry.MustRegisterLocalData("show schema handlers", dataHandlers, registry.Meta{
+		Description: "Which module serves each handler path.",
+		Mode:        "offline",
+	}, command.RenderLocalAnswer)
+	registry.MustRegisterLocalData("show schema protocol", dataProtocol, registry.Meta{
+		Description: "The hub architecture protocol version.",
+		Mode:        "offline",
+	}, command.RenderLocalAnswer)
+
+	// Four answer rows read against declared column names; `show schema
+	// protocol` answers ONE document, so it declares doc and the row operators
+	// are refused over it by name rather than answering something plausible.
+	command.RegisterShape([]string{"show schema list", "show schema methods",
+		"show schema events", "show schema handlers"}, command.ShapeTab)
+	command.RegisterShape([]string{"show schema protocol"}, command.ShapeDoc)
+
+	command.RegisterColumns([]string{"show schema list"},
+		command.ColumnOrder{"module", "namespace", "wants-config", "imports"})
+	command.RegisterColumns([]string{"show schema methods", "show schema events"},
+		command.ColumnOrder{"method", "module", "description"})
+	command.RegisterColumns([]string{"show schema handlers"},
+		command.ColumnOrder{"handler", "module"})
 }

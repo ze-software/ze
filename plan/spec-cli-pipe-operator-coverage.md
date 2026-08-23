@@ -549,10 +549,21 @@ with nothing listening.
 - `show env list`, `show env get` and `show env registered` are converted, with
   a declared shape and column order.
 
-**Still owed for AC-10:** the schema, storage, yang and config CLI families
-(17 of the 20 commands that declare a wire method no daemon handler
-implements). Each is the same conversion: a data handler beside the existing
-printer, a `RegisterLocalData` call, and a declared shape.
+**Still owed for AC-10:** the storage, yang and config CLI families (12 of the
+20 commands that declare a wire method no daemon handler implements). Each is
+the same conversion: a data handler beside the existing printer, a
+`RegisterLocalData` call, and a declared shape.
+
+The env family (3) and the schema family (5) are converted. Schema was cheap
+because four of its five commands already built a payload for a `--json` flag,
+so the data function was lifted out of the printer rather than invented, and the
+two spellings of each answer cannot disagree. Storage and yang have no `--json`
+path at all, so their payloads have to be designed from what their printers
+walk; that is the reason they are separable rather than mechanical.
+
+`show schema protocol` is the first command to declare `doc`. It answers one
+document, so every row operator is refused over it BEFORE it runs, which is the
+half of the derivation that needs a declaration rather than an answer.
 
 **Two defects this phase found in the earlier phases, both fixed here:**
 

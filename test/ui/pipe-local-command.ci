@@ -74,6 +74,25 @@ require('description' not in out, 'display kept a field it did not name: %r' % o
 code, out, err = run(['ze', 'cli', '-c', 'show env list | fill nosuchway'])
 require(code == 1, 'a bad fill argument exit=%d, want 1: %s%s' % (code, out, err))
 
+# 6. A second family, and the case a declared shape decides BEFORE the command
+#    runs: `show schema protocol` answers one document, so every row operator
+#    is refused over it by name. The refusal exits non-zero, so a script can
+#    tell it from an answer.
+code, out, err = run(['ze', 'cli', '-c', 'show schema protocol | json compact'])
+require(code == 0, 'schema protocol exit=%d: %s%s' % (code, out, err))
+require('version' in json.loads(out), 'schema protocol lost its payload: %r' % out)
+
+code, out, err = run(['ze', 'cli', '-c', 'show schema protocol | first 1'])
+require(code == 1, 'a row operator over a document exit=%d, want 1: %s%s' % (code, out, err))
+combined = out + err
+require('first' in combined, 'the refusal does not name the operator: %r' % combined)
+require('rows' in combined, 'the refusal does not say why: %r' % combined)
+
+# 7. The same family, where the answer DOES have rows.
+code, out, err = run(['ze', 'cli', '-c', 'show schema list | count'])
+require(code == 0, 'schema list count exit=%d: %s%s' % (code, out, err))
+require(count_of(out) > 0, 'schema list counted nothing: %r' % out)
+
 print('OK')
 EOF_PY
 
