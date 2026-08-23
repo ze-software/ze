@@ -14,7 +14,9 @@
 // expect=exit:code=0 on the same test skipped every BGP-level assertion, so the
 // test passed while no BGP ever ran. Per ai/rules/evidence.md the
 // harness must refuse a test it cannot run rather than run it vacuously.
-// See plan/spec-fixit-redistribute-establishment-stall.md (D1/D2).
+// The contract this enforces is docs/architecture/testing/ci-format.md, the
+// peer-block table naming which line each parser reads. Root-caused as D1/D2 in
+// spec-fixit-redistribute-establishment-stall.
 
 package runner
 
@@ -224,7 +226,7 @@ func validatePeerBlocks(r *Record) error {
 			"expect=bgp:conn=N:seq=N:hex=... (or an action=send/notification/rewrite/close/"+
 			"sighup/sigterm) to the block, or run the peer with --mode sink. Note expect=json "+
 			"is consumed by the test runner, NOT by ze-peer, so it does not make the peer "+
-			"listen. See plan/spec-fixit-redistribute-establishment-stall.md",
+			"listen. See docs/architecture/testing/ci-format.md",
 			cmd.Stdin, cmd.Seq, peerNoTestDataMessage)
 	}
 	return nil

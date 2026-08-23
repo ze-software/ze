@@ -39,7 +39,7 @@ func peerContractCI(t *testing.T, exec, block string) string {
 //
 // VALIDATES: F2 — the parser refuses a peer block that cannot test anything.
 // PREVENTS: The vacuous-green class that hid a non-running BGP session behind an
-// exit-code assertion (plan/spec-fixit-redistribute-establishment-stall.md D1).
+// exit-code assertion (spec-fixit-redistribute-establishment-stall, D1).
 func TestParseAndAdd_CheckPeerWithOnlyJSONExpectRejected(t *testing.T) {
 	ResetNickCounter()
 
@@ -238,7 +238,7 @@ func TestHasCheckPeer(t *testing.T) {
 //
 // VALIDATES: F1 — a ze-peer always governs, regardless of other assertions.
 // PREVENTS: The masking defect (D2) that hid D1
-// (plan/spec-fixit-redistribute-establishment-stall.md).
+// (spec-fixit-redistribute-establishment-stall).
 func TestIsSelfValidated(t *testing.T) {
 	code := 0
 	tests := []struct {

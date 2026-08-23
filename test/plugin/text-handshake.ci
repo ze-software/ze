@@ -13,7 +13,11 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=update:value=send-default-route
-# EOR sent via API command proves ze is functional after text handshake
+# The EOR below is ze's own initial-sync End-of-RIB, sent once the session is
+# established (RFC 4724 Section 2); receiving it proves ze is still functional
+# after the text handshake. The cmd=api line documents the equivalent API
+# command and executes nothing (docs/architecture/testing/ci-format.md,
+# "Consumers"): it is a report label, not the cause of the frame.
 cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER

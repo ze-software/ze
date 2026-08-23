@@ -4,15 +4,17 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-fixit-migrate-sleeps-infra (P0 carve-out); spec-redistribute-late-join-replay (closed, learned 1062) |
-| Phase | 4/6 |
-| Updated | 2026-08-17 |
+| Phase | 6/6 |
+| Updated | 2026-08-23 |
+| Deferral shard | `plan/deferrals/fixit-redistribute-establishment-stall.md` |
 
 Phase note (cell corrected 2026-07-22; the old "fix proposed, not implemented"
 was stale): F1-F3 are implemented (`internal/test/runner/peer_contract.go` with
 `isSelfValidated`/`validatePeerBlocks`, shared `peer.ConsumesLine` in
 `expect.go`) and F4 is complete (~~converted `eor-sent`/`local-preference`
 expectations in `bgp-redistribute-announce.ci` and
-`forward-mpreach-nexthop-self-two-peer.ci`~~). F5 and F6 remain open.
+`forward-mpreach-nexthop-self-two-peer.ci`~~). ~~F5 and F6 remain open.~~
+**F5 and F6 both closed 2026-08-23; see "What remained, and how it closed".**
 
 > **F4 SCOPE CORRECTION, measured over the tree on 2026-08-17.** The struck
 > parenthesis names two files and reads as "F4 is complete because two were
@@ -703,7 +705,7 @@ second bindable IPv6 loopback the earlier "left red on purpose" note deferred; I
 next-hop-self stays covered by `redistribute-as112-announce.ci`. Independently reviewed:
 SOUND (one stale-comment defect fixed). F5 and F6 remain open.
 
-| F5 (open, 2026-07-16) | **F2's own remedy text can produce a vacuous green.** `validatePeerBlocks` tells the author to "run the peer with `--mode sink`". Doing so makes `hasCheckPeer` false (`peer_contract.go`, re-verified 2026-08-17); `isSelfValidated` returns false ONLY for a check peer, so with the peer sinked the bare `rec.ExpectExitCode != nil` makes it TRUE. `runner_exec.go` gates the whole BGP branch on `!isSelfValidated(...)`, and `validateJSON` sits inside it (its own comment: "peer path only"). A file whose real assertions are `expect=json` therefore asserts NOTHING once sinked. The guard built to stop vacuous greens hands out a remedy that creates one -- the fail-open shape `ai/rules/evidence.md` names. **Still open, and LATENT: 28 `.ci` run a sinked peer and none combines `expect=json` with `expect=exit`, so no current green rests on it (measured 2026-08-17). The stale `:72` / `:1141` anchors are removed: `isSelfValidated` has moved, and a hand-typed line number is banned anyway (`ai/rules/evidence.md`)** | `internal/test/runner/peer_contract.go` (remedy text + `isSelfValidated`), `runner_exec.go` `validateJSON` (the gate) | Found by the test-219 F4 shard |
+| F5 (FIXED 2026-08-23) | **F2's own remedy text can produce a vacuous green.** `validatePeerBlocks` tells the author to "run the peer with `--mode sink`". Doing so makes `hasCheckPeer` false (`peer_contract.go`, re-verified 2026-08-17); `isSelfValidated` returns false ONLY for a check peer, so with the peer sinked the bare `rec.ExpectExitCode != nil` makes it TRUE. `runner_exec.go` gates the whole BGP branch on `!isSelfValidated(...)`, and `validateJSON` sits inside it (its own comment: "peer path only"). A file whose real assertions are `expect=json` therefore asserts NOTHING once sinked. The guard built to stop vacuous greens hands out a remedy that creates one -- the fail-open shape `ai/rules/evidence.md` names. **Still open, and LATENT: 28 `.ci` run a sinked peer and none combines `expect=json` with `expect=exit`, so no current green rests on it (measured 2026-08-17). The stale `:72` / `:1141` anchors are removed: `isSelfValidated` has moved, and a hand-typed line number is banned anyway (`ai/rules/evidence.md`)** | `internal/test/runner/peer_contract.go` (remedy text + `isSelfValidated`), `runner_exec.go` `validateJSON` (the gate) | Found by the test-219 F4 shard |
 
 -> Evidence (F5, reproduced not inferred): `forward-mpreach-nexthop-self-two-peer.ci`
 turns **PASS in 8.2s while asserting nothing** when sinked, because its only real
@@ -723,7 +725,7 @@ evaluation has no business being gated on the peer path at all.
 deliberately breaking `l2tp-statistics-show`'s `expect=stderr:contains` (red) and
 restoring it byte-exactly (green). The hole is real; those files do not sit in it.
 
-| F6 (open, 2026-07-16) | **Audit the 40 `test/plugin/*.ci` that carry `cmd=api`, where it is INERT.** The D-4 analysis above proves it for `test-pipe-first-last`; the CLASS is unsized. `cmd=api` is an encode-suite directive (`record_parse.go` sets `msg.Cmd`; the ONLY reader is `report.go`, the reporter), and ze-peer discards it (`internal/test/peer/expect.go`: `case "cmd": // Ignore - documentation only`). In `test/encode` the runner drives ze's API from it; in `test/plugin` nothing does, so any test relying on it to inject routes asserts against an EMPTY RIB. `grep -rl "cmd=api" test/plugin/` = **40 files**, re-measured 2026-08-17 and still 40. Split them: RELIES-ON (vacuous, must be converted to a real injection path such as `option=update:value=send-route:`) vs DOCUMENTS-ONLY (harmless, injection happens elsewhere). **Still open, and the class is UNAUDITED rather than known-bad: the two files sampled so far both inject through a `.run` plugin script, so their `cmd=api` is documentation. Two of forty settles nothing about the other thirty-eight** | `test/plugin/*.ci` (40 files); contract at `internal/test/peer/expect.go`, `record_parse.go`, `report.go` | Found by the test-506 F4 shard |
+| F6 (AUDITED 2026-08-23) | **Audit the 40 `test/plugin/*.ci` that carry `cmd=api`, where it is INERT.** The D-4 analysis above proves it for `test-pipe-first-last`; the CLASS is unsized. `cmd=api` is an encode-suite directive (`record_parse.go` sets `msg.Cmd`; the ONLY reader is `report.go`, the reporter), and ze-peer discards it (`internal/test/peer/expect.go`: `case "cmd": // Ignore - documentation only`). In `test/encode` the runner drives ze's API from it; in `test/plugin` nothing does, so any test relying on it to inject routes asserts against an EMPTY RIB. `grep -rl "cmd=api" test/plugin/` = **40 files**, re-measured 2026-08-17 and still 40. Split them: RELIES-ON (vacuous, must be converted to a real injection path such as `option=update:value=send-route:`) vs DOCUMENTS-ONLY (harmless, injection happens elsewhere). **Still open, and the class is UNAUDITED rather than known-bad: the two files sampled so far both inject through a `.run` plugin script, so their `cmd=api` is documentation. Two of forty settles nothing about the other thirty-eight** | `test/plugin/*.ci` (40 files); contract at `internal/test/peer/expect.go`, `record_parse.go`, `report.go` | Found by the test-506 F4 shard |
 
 -> Constraint (F6): this is a THIRD vacuity class, distinct from F1 and F2. F1 = the peer
 never bound. F2 = the peer declared nothing to check. F6 = the peer binds and asserts
@@ -1053,13 +1055,74 @@ ze-peer does with a peer block containing only `expect=json`
 - AC-2: root cause cited to `file:line`, with H1-H3 confirmed/refuted from goroutine evidence.
   → Met by the ROOT CAUSE section: D1 and D2, both cited to the producing functions.
 - AC-3: a single-peer redistribute session establishes while the observer polls the engine.
+  → Met. `bgp-redistribute-announce.ci` is that scenario and it PASSES, with its
+  peer now binding and its expectations enforced (E6/E9 recipe, re-run 2026-08-23).
 - AC-4: the 7 `bgp-redistribute-*` tests (+ api-raw/route-refresh if affected) converted off
   `time.sleep`, verified 3x + concurrently, baseline ratcheted.
   → Met, and wider than stated: all 9 class-A1 and all 21 class-A2 files (F4 scope
-  correction under the header).
+  correction under the header). All 9 A1 and 18 of 21 A2 PASS on 2026-08-23; the
+  three that do not are `bmp-lg-{disconnect,ingest,bestpath-isolation}`, which time
+  out identically with the runner rebuilt from HEAD, so they are not this work
+  (`plan/journal/test-against-broken-path.md`, row of 2026-08-23).
 - AC-5: no regression in `redistribute-as112-announce.ci` or the replay tests.
+  → Met. `redistribute-as112-announce` PASSES in the same run.
 
-### What actually remains: F5 and F6, and nothing else
+### What remained, and how it closed (2026-08-23)
+
+**F5 is FIXED at the source, and its vacuous green is reproduced and then
+killed.** `validateJSON` no longer sits inside the peer branch of
+`runOrchestrated` (`internal/test/runner/runner_exec.go`): it is called from the
+common tail, gated only on `hasJSONExpectations`
+(`internal/test/runner/runner_validate.go`). `expect=json` is a runner-side
+assertion that never reaches ze-peer, so the peer's mode has no say in whether it
+runs. `test/runner/json-assertion-survives-sink-peer.ci` pins it: a `--mode sink`
+peer plus `expect=exit:code=0` plus one `expect=json`, which is exactly the
+combination `isSelfValidated` answers true for.
+
+-> Evidence (A/B, both halves measured, not inferred). Mutating that file's
+expected NLRI to `203.0.113.77/32`, a prefix ze never announces, turns it RED with
+`message 101: no received message with NLRI [203.0.113.77/32] action add`. With
+`runner_exec.go` and `runner_validate.go` replaced by their HEAD versions and the
+isolated pair rebuilt, the SAME mutated file PASSES in 2.3s. That pass is F5,
+reproduced. `git show HEAD:` supplied the baseline and the working copies were
+restored from saved copies, so no git restore verb was used.
+
+-> Constraint: the blast radius was measured before the change, not after. Across
+every `.ci` and `.et` outside the decode and parse suites, ZERO carry a line-start
+`expect=json` while running no check-mode ze-peer, so no existing green rests on
+the old gating. `test/encode/tmpfs-ebgp.ci` looks like a counter-example and is
+not one: `cmd=api` does not create a RunCommand (`record_parse.go` `parseCmd`
+sets `msg.Cmd` and only `cmd=background|foreground|stop` append to
+`RunCommands`), so that file never reaches `runOrchestrated`.
+
+**F6 is AUDITED, all 40 files, and the class is EMPTY.** Every one of the 40
+`test/plugin/*.ci` carrying `cmd=api` establishes its premise by another path, so
+none is vacuous. Two of the 40 match only inside a comment
+(`filter-family-export-flowspec.ci`, `test-pipe-first-last.ci`, both already
+converted to a real injection path). Of the remaining 38, all run a check-mode
+ze-peer and 37 declare at least one non-EOR byte-exact `expect=bgp` frame, so a
+route provably reached the peer; all 40 pass under
+`make ze-functional-plugin-test`. The one file whose only wire assertion is the
+EOR, `plugin-registration.ci`, has its own `.run` send that EOR through
+`api.send`, and its premise is registration rather than routes.
+
+-> Decision (F6, the real find): the class was never route injection. It was one
+FALSE COMMENT and one FALSE DOC ROW, and the doc row is what seeded the belief.
+`docs/architecture/testing/ci-format.md` said `cmd=api` in two places and they
+contradicted each other: the peer-block table already read "nobody. It documents
+the command that produced the expected bytes", while the Consumers table read
+"Test runner (sends to ze-peer)". The Consumers row is corrected, and
+`test/plugin/text-handshake.ci` no longer claims "EOR sent via API command proves
+ze is functional" for a frame that is ze's own initial-sync EOR.
+
+-> Constraint: `cmd=api` executes nothing in ANY suite, not only in
+`test/plugin`. `msg.Cmd` has exactly two readers and both are in `report.go`, the
+failure reporter. The spec's earlier claim that "in `test/encode` the runner
+drives ze's API from it" is WRONG: `writeExpectFile` writes `rec.Expects`, and
+`record_parse.go` appends only `expect=bgp` and `action=` lines to it. In
+`tmpfs-ebgp.ci` the route comes from the peer's own config `update` block.
+
+### The frame as it stood on 2026-08-17 (kept: it is what the audit tested)
 
 Re-verified at the producers on 2026-08-17.
 
@@ -1115,3 +1178,223 @@ per-file fact.
 - [ ] Tests PASS after the fix
 - [ ] `make ze-standard-test` green
 - [ ] Review Gate: `/ze-review` clean (0 BLOCKER, 0 ISSUE)
+
+## Implementation Summary
+
+### What Was Implemented
+
+- **F5, the source fix.** `runOrchestrated` calls `validateJSON` from its common
+  tail instead of from inside the peer branch
+  (`internal/test/runner/runner_exec.go`), gated on the new
+  `hasJSONExpectations` (`internal/test/runner/runner_validate.go`) so a record
+  with no `expect=json` records no `json-match` step. A runner-side assertion is
+  no longer switched off by the peer's mode.
+- **F5, the test.** `test/runner/json-assertion-survives-sink-peer.ci`: a sink
+  peer, an `expect=exit:code=0`, and one `expect=json` over the UPDATE ze
+  originates from its own config, held to establishment by a `wait_peer_eor_sent`
+  observer so nothing races the shutdown.
+- **F6, the audit and its two corrections.** All 40 `cmd=api` files in
+  `test/plugin` classified; the Consumers row for `cmd=api` in
+  `docs/architecture/testing/ci-format.md` corrected from "Test runner (sends to
+  ze-peer)" to what the code does; the false premise in
+  `test/plugin/text-handshake.ci` replaced with the frame's real producer.
+
+-> Decision: `validatePeerBlocks`'s remedy text is left EXACTLY as it is. F5
+offered two fixes and the [workaround] was to warn the author about the
+consequence of sinking. With the [source] fix in, there is no consequence to warn
+about, and the remedy's existing sentence about `expect=json` not reaching
+ze-peer is still true of LISTENING, which is what that sentence is about.
+
+### Bugs Found/Fixed
+
+- One in scope: F5, covered by `test/runner/json-assertion-survives-sink-peer.ci`.
+- One walked into, out of scope, fixed because it stopped a gate:
+  `addrList` (`internal/plugins/iface/netlink/show_linux.go`) re-derived the
+  address family by comparing the label it had just built, `fam == "ipv6"`, which
+  is a sixth `goconst` site the package's other five each suppress by hand. It
+  reddened `make ze-lint-changed` under the linux tag. Hoisted to `isV6 :=
+  a.IP.To4() == nil` and passed straight to `addrOrigin`, which removes the site
+  rather than suppressing it.
+- Seven pre-existing `test/plugin` reds recorded, not fixed
+  (`plan/journal/test-against-broken-path.md`, 2026-08-23).
+
+### Documentation Updates
+
+- `docs/architecture/testing/ci-format.md`, "Consumers" table: the `cmd=api` row.
+  It contradicted the peer-block table 1000 lines above it in the same file, and
+  the Consumers row was the one that read as an execution promise.
+- No other category applies: this change adds no config, no CLI surface, no RPC,
+  no wire format and no runtime dependency. `grep -rn "cmd=api" docs/` returns
+  `docs/functional-tests.md` (three example lines, no claim about execution) and
+  `ci-format.md` (both tables, now in agreement).
+
+### Deviations from Plan
+
+- F5 offered two candidate fixes and the spec expected a choice. Only the
+  [source] fix was taken; the [workaround] would have left the mechanism intact.
+- F6 expected a RELIES-ON / DOCUMENTS-ONLY split with conversions to follow. The
+  split came out 40 to 0, so the deliverable turned out to be the doc row and the
+  comment that produced the belief, not any test conversion.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The spec stated that `test/encode` drives ze's API from `cmd=api`, which made the directive look load-bearing in one suite and inert in another | `cmd=api` executes nowhere. `record_parse.go` `parseCmd` stores it on the message and `report.go` is its only reader; `writeExpectFile` writes `rec.Expects`, to which only `expect=bgp` and `action=` lines are ever appended | Grepped `.Cmd` for readers before trusting the claim, then read `tmpfs-ebgp.ci` and found its route comes from the peer's config `update` block | Corrected in the F6 closing note and in the Consumers table of `docs/architecture/testing/ci-format.md` |
+| approach | The first pre-fix A/B run reported the fix in place and the mutation absent, which read as "the mutation did not take" | The whole compound Bash command had been refused by `.claude/hooks/pretool-bash.py` for containing `go build` without `-o bin/`, so none of its steps ran, including the two edits | Counted the mutated string before believing the run, per the discrimination rule | Split apply and run into separate calls, and counted the anchor after every mutation and every restore |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Fix the two harness defects D1/D2 (F1-F3) | Done | `internal/test/runner/peer_contract.go` `isSelfValidated`, `validatePeerBlocks`, `peerBindFailure`; wired at `runner_exec.go` and `record_parse.go` | Landed before this session; re-verified at the producers |
+| Convert the bucket (F4) | Done | all 9 class-A1 and all 21 class-A2 `.ci` | 9/9 and 18/21 pass; the 3 exceptions are not this work |
+| Close F5 (the remedy that creates a vacuous green) | Done | `runner_exec.go` common tail, `runner_validate.go` `hasJSONExpectations` | A/B measured both ways |
+| Close F6 (audit the 40 `cmd=api` files) | Done | `docs/architecture/testing/ci-format.md`, `test/plugin/text-handshake.ci` | 40 of 40 sound; two documents corrected |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Changed | struck as VOID on 2026-08-17 | Its premise is an engine stall that the ROOT CAUSE section disproves |
+| AC-2 | Done | ROOT CAUSE section D1/D2, each cited to its producing function | H1-H3 all refuted |
+| AC-3 | Done | `bgp-redistribute-announce` PASS | The observer polls throughout and the session establishes |
+| AC-4 | Done | 9 A1 + 18 of 21 A2 PASS | The 3 remaining are red with the runner rebuilt from HEAD |
+| AC-5 | Done | `redistribute-as112-announce` PASS | No regression |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Reactor establishment under an observer RPC | Changed | -- | The TDD plan was written for the false premise. No reactor defect exists, so no reactor test was written |
+| Replay-on-peer-up fires once | Done | `redistribute-as112-announce.ci` PASS | AC-5's guard |
+| `bgp-redistribute-announce.ci` on deterministic waits | Done | `test/plugin/bgp-redistribute-announce.ci` | Mutation-verified 2026-08-23 |
+| F5 regression test | Done | `test/runner/json-assertion-survives-sink-peer.ci` | Added this session |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/test/runner/runner_exec.go` | Done | F1 and F5 |
+| `internal/test/runner/record_parse.go` | Done | F2 |
+| `internal/test/cli/cmd_peer.go` + runner report | Done | F3, as `peerBindFailure` |
+| `test/plugin/bgp-redistribute-*.ci` and the wider bucket | Done | F4 |
+| `internal/component/bgp/**` | Changed | Deliberately untouched: no production defect exists |
+
+### Audit Summary
+
+- **Total items:** 18
+- **Done:** 15
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (AC-1 void, the reactor unit test, the reactor files -- all three recorded in Deviations or in the ROOT CAUSE section)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A single-peer redistribute session establishes while an observer polls the engine | functional | `bgp-redistribute-announce` PASS under `make ze-functional-plugin-test`, with the peer binding and both its wire and JSON expectations enforced |
+| The redistribute bucket asserts rather than passing vacuously | functional, mutation-verified | Changing that file's expected NLRI to `203.0.113.77/32` turns it RED with `message 101: no received message with NLRI [203.0.113.77/32] action add`. The spec's E4 records that same mutation PASSING before F1-F4 |
+| A guard against vacuous greens must not prescribe one | functional, A/B measured | `test/runner/json-assertion-survives-sink-peer.ci`: mutated NLRI is RED with the fix, and the same mutated file PASSES in 2.3s with `runner_exec.go` and `runner_validate.go` restored to their HEAD versions |
+| No test believes `cmd=api` injects routes | audit over the whole class | 40 of 40 `test/plugin` files establish their premise by another path; 37 of the 38 with a live directive assert a non-EOR byte-exact frame at a check-mode peer, and all 40 pass |
+| Late-join replay still works | functional | `redistribute-as112-announce` PASS |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| Audit the 40 `cmd=api` files (F6) | done | All 40 audited 2026-08-23; class empty. `docs/architecture/testing/ci-format.md` Consumers row and `test/plugin/text-handshake.ci` comment corrected |
+| The F2 guard's remedy creates a vacuous green (F5) | done | `runner_exec.go` common-tail `validateJSON`; `test/runner/json-assertion-survives-sink-peer.ci` |
+| Fix the 9 json-only `.ci` (F4 class A1) | done | All 9 carry a live `expect=bgp:` and no live `expect=exit`; all 9 PASS |
+| Fix the 21 declare-nothing `.ci` (F4 class A2) | done | All 21 run `--mode sink`; 18 PASS, and the 3 that do not fail identically with the runner rebuilt from HEAD |
+| Fix the 33 EOR-only runtime reds (F4 class B1) | done | Gated on `eor-sent` or on an equivalent sync barrier; none appears in the 2026-08-23 failure set |
+| Triage the 6 wire-content mismatches (F4 class B2) | done | Marked done 2026-08-14 in the shard; all 6 PASS on 2026-08-23 |
+| The 7 load-sensitive tests, `ipv6` remaining | done | `ipv6-announce-withdraw` PASSES; `config-edit-ssh` PASSES. `sysctl-list` failed in the parallel run and passed serially and is recorded in the journal row rather than here |
+
+Every row in `plan/deferrals/fixit-redistribute-establishment-stall.md` is
+terminal, so that shard is removed in commit A.
+
+**Three rows in FOREIGN shards named this spec as their Destination**, and a
+closure may not leave them pointing at a file it deletes. None is an acceptance
+criterion of this spec, so each keeps Status `deferred` and is re-homed at
+`plan/future/spec-ci-peer-harness-contract-backlog.md`, written for that purpose
+on the precedent of `plan/future/spec-harness-fail-open-guard-backlog.md`.
+Routing them into a live sibling spec would have set that spec's scope, which is
+Thomas's call and not a closure's.
+
+| Foreign row | Shard | Final status |
+|-------------|-------|--------------|
+| `eor-per-family.ci` has two producers of the same EOR pair and races itself | `plan/deferrals/ad-hoc-2026-07-27-dd843d81.md` | deferred, re-homed. Its premise is corrected in flight: `cmd=api` drives nothing, so the peer block is not the second producer it was thought to be |
+| `checker.go` matches one rule per message, so no `.ci` can assert two facts about one UPDATE | `plan/deferrals/fixit-as4path-missing-on-rewrite.md` | deferred, re-homed |
+| `bgp-rs-community-strip-multi-fastpath` intermittently hits `no established peers to send to` from `AnnounceEOR` | `plan/deferrals/mcp2026-1-stateless-core.md` | deferred, re-homed |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-redistribute-establishment-stall-ebf5d9b3-b158-40df-bba0-32a51591883e.md` (10 files, verdict=clean) |
+| `review_gate.py check` | `OK (0 code files, clean, hashes match)` |
+| Rounds | 1 |
+| Reviewer lenses used | evidence and producer-verification; discrimination and vacuity; simplicity and layering; stale comments; Go style (`docs/contributing/ze-style.md`); test-weakening audit; repository check |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The comment above the `isSelfValidated` branch still said the check peer's JSON expectations must match, describing a gate the change had moved | `internal/test/runner/runner_exec.go` | Rewritten to state that `expect=json` is not part of that decision |
+| 2 | ISSUE | Calling `validateJSON` unconditionally would have recorded a passing `json-match` step for records that declare no JSON expectation | `internal/test/runner/runner_exec.go` | `hasJSONExpectations` gate added, so the trace records the step only when the assertion exists |
+| 3 | ISSUE | `make ze-lint-changed` red under the linux tag on a sixth `goconst` site | `internal/plugins/iface/netlink/show_linux.go` `addrList` | Family hoisted to `isV6` and passed to `addrOrigin` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/runner/json-assertion-survives-sink-peer.ci` | yes | `ls test/runner/` lists it at 3.4K beside the five pre-existing files |
+| `internal/test/runner/runner_validate.go` | yes | `gopls symbols` lists `hasJSONExpectations` and `(*Runner).validateJSON` |
+| `test/plugin/bgp-redistribute-announce.ci` | yes | `grep -n '^expect=' ` shows one `expect=bgp:` and one `expect=json` and no `expect=exit` |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-2 | D1 and D2 cited to producing functions | `validatePeerBlocks` mirrors ze-peer's own bail and names it in its refusal text; `isSelfValidated` returns false for any check peer |
+| AC-3 | Single-peer redistribute establishes under an active observer | `bgp-redistribute-announce` PASS |
+| AC-4 | The bucket is converted and asserts | 9 A1 PASS; NLRI mutation on `bgp-redistribute-announce` gives `json-match` FAIL |
+| AC-5 | No regression | `redistribute-as112-announce` PASS |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| A sinked ze-peer with a runner-side JSON assertion and an exit-code assertion | `test/runner/json-assertion-survives-sink-peer.ci` | yes: read the file, and the mutated NLRI reaches `validateJSON` and fails there, which is only possible if the call ran outside the peer branch |
+| Single-peer redistribute with a polling observer | `test/plugin/bgp-redistribute-announce.ci` | yes: its peer block carries a live `expect=bgp:` so the peer binds, and its `expect=json` is enforced |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | The stall was never a re-entrancy or lock-order bug. The 122-goroutine dump held zero `[semacquire]`, and D1 explains every dial's `connection refused` |
+| R-1 | confirmed as not realised | Nothing reordered establishment against replay; no production file was touched, and `redistribute-as112-announce` passes |
+| R-2 | resolved | The tree builds; the isolated pair built and ran on 2026-08-23 |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `cmd=api` Consumers row | `record_parse.go` `parseCmd` stores `msg.Cmd`; its only readers are two `report.go` sites | yes |
+| Every other doc category | No config, CLI, RPC, wire format, plugin surface or runtime dependency changed; `grep -rn "cmd=api" docs/` returns only `functional-tests.md` examples and `ci-format.md` | yes |
+
+## Core Insight
+
+A guard that refuses one vacuous green can hand out another, and the two look
+nothing alike from inside the guard. F2 refuses a peer block that would leave
+ze-peer with nothing to check, and its remedy is to declare the peer scaffolding.
+That remedy was correct about the peer and silently wrong about the RUNNER,
+because one predicate, `hasCheckPeer`, was carrying two questions: does anything
+validate the wire, and does anything validate the file's own assertions. The
+answer was not a better warning. It was to stop asking the peer a question that
+was never about the peer.

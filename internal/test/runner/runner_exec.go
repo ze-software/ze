@@ -922,7 +922,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// ("the peer may not start"). That turned the one condition that
 				// detects a non-binding peer into a silent no-op for exactly the
 				// tests that could not otherwise notice. See
-				// plan/spec-fixit-redistribute-establishment-stall.md (D1) and
+				// spec-fixit-redistribute-establishment-stall (D1) and
 				// ai/rules/evidence.md.
 				//
 				// The process handle is recorded for EVERY peer, dialing or
@@ -1340,11 +1340,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	}
 
 	// Decide what governs this test's success: a test with a check-mode ze-peer is
-	// always governed by the BGP exchange (the peer must print "successful" and
-	// the JSON expectations must match); any other test is governed by the
-	// exit/output/file/logging assertions evaluated here. See isSelfValidated in
-	// peer_contract.go for why an exit-code assertion must not disable the peer
-	// path, and hasCheckPeer for why a sink/echo peer cannot govern.
+	// always governed by the BGP exchange (the peer must print "successful");
+	// any other test is governed by the exit/output/file/logging assertions
+	// evaluated here. See isSelfValidated in peer_contract.go for why an
+	// exit-code assertion must not disable the peer path, and hasCheckPeer for
+	// why a sink/echo peer cannot govern. expect=json is NOT part of this
+	// decision: it is a runner-side assertion and is evaluated below, for every
+	// path.
 	if !isSelfValidated(rec, hasCheckPeer(cmds)) {
 		// BGP peer path: each check-mode peer validates its own messages and
 		// prints peerSuccessToken on a clean exchange. EVERY one of them must,
@@ -1372,7 +1374,22 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			return false
 		}
 		recStep("peer-exchange", true, "")
-		// Peer reported success: validate JSON expectations (peer path only).
+	}
+
+	// expect=json is evaluated HERE, by the runner, and never by ze-peer:
+	// LoadExpectFile forwards only the lines peer.ConsumesLine accepts and drops
+	// json outright (internal/test/peer/expect.go). So it must not sit behind the
+	// peer branch. It did, and that made the remedy validatePeerBlocks hands out
+	// -- run the peer with --mode sink -- silently delete every JSON assertion in
+	// the file: sinking clears hasCheckPeer, isSelfValidated then returns true for
+	// any record with an exit-code or output assertion, and the whole branch was
+	// skipped. A guard against vacuous greens must not prescribe one.
+	// Evaluating it out here costs a peer test nothing: a failed peer exchange has
+	// already returned above, so the order is unchanged. rec.ReceivedRaw is
+	// populated from the peer capture in every mode (a sink peer prints
+	// "msg  recv" too, internal/test/peer/peer.go), so the assertion is evaluable
+	// wherever it is declared.
+	if hasJSONExpectations(rec) {
 		if jsonErr := r.validateJSON(rec); jsonErr != nil {
 			rec.Error = jsonErr
 			rec.FailureType = FailTypeJSONMismatch

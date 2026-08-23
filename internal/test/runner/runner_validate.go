@@ -27,6 +27,20 @@ import (
 	"github.com/ze-software/ze/internal/test/syslog"
 )
 
+// hasJSONExpectations reports whether the record declares any expect=json line.
+// The caller uses it to decide whether a "json-match" step belongs in the trace:
+// validateJSON returns nil for a record with no JSON expectation, and recording
+// a passing assertion for an assertion nobody wrote is the kind of false signal
+// this suite exists to remove.
+func hasJSONExpectations(rec *Record) bool {
+	for _, msg := range rec.Messages {
+		if msg.JSON != "" {
+			return true
+		}
+	}
+	return false
+}
+
 // validateJSON validates JSON expectations against decoded messages.
 // Returns nil if all validations pass or no JSON expectations exist.
 // Skips tests with ExaBGP envelope format JSON (contains "exabgp" key).

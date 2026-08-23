@@ -229,8 +229,9 @@ func addrList(link netlink.Link) []iface.AddrInfo {
 	}
 	result := make([]iface.AddrInfo, 0, len(addrs))
 	for _, a := range addrs {
+		isV6 := a.IP.To4() == nil
 		fam := "ipv4" //nolint:goconst // AFI label; see ifacenetlink.go for siblings
-		if a.IP.To4() == nil {
+		if isV6 {
 			fam = "ipv6" //nolint:goconst // AFI label; see ifacenetlink.go for siblings
 		}
 		ones, _ := a.Mask.Size()
@@ -242,7 +243,7 @@ func addrList(link netlink.Link) []iface.AddrInfo {
 			Tentative: a.Flags&ifaFlagTentative != 0,
 			// Classify SLAAC/RA vs static from the kernel IFA_F_* flags, and
 			// surface the RA/lease lifetimes (AC-6).
-			Origin:            addrOrigin(fam == "ipv6", a.Flags),
+			Origin:            addrOrigin(isV6, a.Flags),
 			ValidLifetime:     normalizeLifetime(a.ValidLft),
 			PreferredLifetime: normalizeLifetime(a.PreferedLft),
 		})

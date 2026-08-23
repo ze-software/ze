@@ -1,0 +1,117 @@
+# Test: expect=json is evaluated even when the ze-peer runs as a sink.
+#
+# VALIDATES: a runner-side JSON assertion is not silenced by the peer mode. The
+#   peer here is a sink and the record also carries expect=exit:code=0, which is
+#   exactly the combination that makes isSelfValidated (internal/test/runner/
+#   peer_contract.go) return true, and the whole BGP branch of runOrchestrated is
+#   gated on that being false.
+# PREVENTS: the fail-open shape that validatePeerBlocks used to prescribe. Its
+#   remedy for a check-mode peer with nothing to check is "run the peer with
+#   --mode sink"; doing that cleared hasCheckPeer, and every expect=json in the
+#   file stopped being evaluated while the test still reported PASS. expect=json
+#   never reaches ze-peer at all (LoadExpectFile drops it, internal/test/peer/
+#   expect.go), so the peer's mode has no business deciding whether it runs.
+#
+# Discrimination: the expectation below is the UPDATE ze originates from its own
+#   config. Change one NLRI, next-hop or attribute in it and this test MUST go
+#   red; if it stays green, the JSON assertion is being skipped again.
+
+# A sink ze-peer: it accepts the session and records what arrives, and it
+# validates nothing itself. That is the point -- the assertion under test is the
+# runner's, not the peer's.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+EOF_PEER
+
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","local-preference":200,"ipv4/unicast":[{"action":"add","nlri":["10.0.0.0/24"],"next-hop":"10.0.1.254"}]}
+
+# Observer: hold the daemon until the initial-sync EOR has reached the wire, so
+# the UPDATE above is always sent before shutdown, then stop ze cleanly so the
+# record's expect=exit:code=0 is satisfied.
+tmpfs=sink-json.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Wait for the peer's EOR, then shut the daemon down."""
+
+import sys
+
+from ze_api import API, runtime_fail
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    if not api.wait_peer_eor_sent():
+        runtime_fail('peer never reported eor-sent')
+
+    print('OK: eor-sent observed', file=sys.stderr)
+    api._call_engine('ze-plugin-engine:dispatch-command',
+                     {'command': 'request shutdown'})
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration: one iBGP peer that originates a single route from config.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external sink-json {
+		run ./sink-json.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				next-hop 10.0.1.254
+				local-preference 200
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0

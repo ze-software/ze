@@ -22,6 +22,7 @@ plan/spec-fixit-ipsec-interop-cli-credentials.md
 plan/spec-fixit-irr-empty-answer-clears-set.md
 plan/spec-fixit-parser-fuzz-gaps.md
 plan/spec-fixit-qemu-artifact-cache.md
+plan/spec-fixit-redistribute-establishment-stall.md
 plan/spec-fixit-tombstone-code-point-split.md
 plan/spec-fixit-tombstone-ebgp-transitive.md
 plan/spec-fixit-vpp-lcp-netns-default.md

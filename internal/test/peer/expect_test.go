@@ -22,7 +22,7 @@ import (
 //
 // VALIDATES: the exact set forwarded to ze-peer, including the exclusions.
 // PREVENTS: expect=json being assumed to reach ze-peer
-// (plan/spec-fixit-redistribute-establishment-stall.md D1).
+// (spec-fixit-redistribute-establishment-stall, D1).
 func TestConsumesLine(t *testing.T) {
 	consumed := []string{
 		"expect=bgp:conn=1:seq=1:hex=FFFF001304",
