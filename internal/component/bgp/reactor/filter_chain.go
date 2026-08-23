@@ -400,6 +400,45 @@ func formatFilterAttrs(attrs *filterAttrs) string {
 // policyFilterTimeout is the per-filter IPC timeout (spec: 5 seconds).
 const policyFilterTimeout = 5 * time.Second
 
+// filterTransport is the plugin-server surface a policy filter's IPC body talks
+// to. *pluginserver.Server satisfies it, and is what production passes.
+//
+// It exists because that type is CONCRETE and its answer arrives off a live
+// plugin socket, so two fail-closed branches of the body could not be driven at
+// all: an IPC error under a fail-closed on-error policy, and ze overriding a
+// filter's PolicyModify that touched an attribute the filter never declared.
+// Both set PolicyResponse.Failed, which is the flag that stops a plugin timeout
+// being counted as a policy decision, and a flag nothing can test is a flag a
+// refactor can drop in silence.
+//
+// It is NOT policyFilterSeam in another shape, and the two sit at different
+// layers of one function. That seam replaces the whole IPC body, so a test using
+// it drives the CHAIN over a canned answer and never enters the body. This one
+// replaces what the body TALKS TO, so a test using it drives the body itself.
+type filterTransport interface {
+	FilterInfo(pluginName, filterName string) (declaredAttrs []string, raw bool)
+	FilterOnError(pluginName, filterName string) rpc.OnErrorPolicy
+	CallFilterUpdate(ctx context.Context, pluginName string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error)
+}
+
+// filterAPI returns the transport the policy filter path talks to: the plugin
+// server in production, a test's stand-in when one is set.
+//
+// The nil check is load-bearing rather than defensive. A nil *pluginserver.Server
+// stored in an interface is NOT a nil interface, and every caller of this method
+// tests the result for nil to fail closed. Returning the typed nil would make
+// that guard read "the filter engine is present" for a daemon that has none, and
+// the route would go out unfiltered.
+func (r *Reactor) filterAPI() filterTransport {
+	if r.filterTransportSeam != nil {
+		return r.filterTransportSeam
+	}
+	if r.api == nil {
+		return nil
+	}
+	return r.api
+}
+
 // policyFilterFunc returns a PolicyFilterFunc that calls external plugins via IPC.
 // The reactor's API server is used to look up plugin connections.
 // rawPayload is the raw UPDATE body bytes for AC-15 (raw mode) - may be nil.
@@ -418,7 +457,8 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 		return r.policyFilterSeam
 	}
 	return func(pluginName, filterName, direction, peer string, peerAS uint32, updateText string) PolicyResponse {
-		if r.api == nil {
+		api := r.filterAPI()
+		if api == nil {
 			reactorLogger().Warn("policy filter: no API server", "plugin", pluginName, "filter", filterName)
 			// Failed: a guard MISS, the filter never ran. Mirrors the same
 			// condition in runEgressPolicyChainASN4, which reaches this state
@@ -427,7 +467,7 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 		}
 
 		// Look up filter declaration for AC-13 (attribute validation) and AC-15 (raw mode).
-		declaredAttrs, wantsRaw := r.api.FilterInfo(pluginName, filterName)
+		declaredAttrs, wantsRaw := api.FilterInfo(pluginName, filterName)
 
 		// AC-15: If filter declared raw=true, include the raw UPDATE body as bytes
 		// (encoding/json base64-encodes it; the plugin always receives a copy via
@@ -449,9 +489,9 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 			Raw:       rawBytes,
 		}
 
-		out, err := r.api.CallFilterUpdate(ctx, pluginName, input)
+		out, err := api.CallFilterUpdate(ctx, pluginName, input)
 		if err != nil {
-			onError := r.api.FilterOnError(pluginName, filterName)
+			onError := api.FilterOnError(pluginName, filterName)
 			reactorLogger().Warn("policy filter IPC error", "plugin", pluginName, "filter", filterName, "on-error", onError, "error", err)
 			if onError == rpc.OnErrorAccept {
 				return PolicyResponse{Action: PolicyAccept}

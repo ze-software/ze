@@ -294,6 +294,12 @@ type Reactor struct {
 	// comes off a live plugin socket. See filter_chain.go policyFilterFunc.
 	policyFilterSeam PolicyFilterFunc
 
+	// filterTransportSeam replaces what the policy filter's IPC body TALKS TO,
+	// where policyFilterSeam above replaces the body itself. Nil in production.
+	// See filterTransport (filter_chain.go) for which branches need it and why
+	// the seam above cannot reach them.
+	filterTransportSeam filterTransport
+
 	// Recent UPDATE cache for efficient forwarding via update-id
 	recentUpdates *RecentUpdateCache
 

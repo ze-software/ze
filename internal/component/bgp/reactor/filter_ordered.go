@@ -299,7 +299,7 @@ func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, 
 	// latter guards r.api itself first, so this branch fires for the forwarded
 	// path and is defense-in-depth for the originated one). See
 	// plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md (AC-1).
-	if r.api == nil {
+	if r.filterAPI() == nil {
 		slog.Warn("export filter: no API server -- fail-closed", "peer", destAddrStr)
 		// A guard MISS, not a policy decision: the chain never ran.
 		return egressStepResult{failed: true} // accept == false: suppress route for this peer
