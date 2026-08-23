@@ -892,6 +892,12 @@ type StructuredEvent struct {
 	RawMessage    any              // *types.RawMessage for wire messages, nil for synthetic events
 	Meta          map[string]any   // Route metadata (sent events only)
 	SourcePeerStr string           // Source peer address for ribOut stale-scoping (sent events only)
+	// UnheldRoles names the exclusive roles this plugin was told are claimed
+	// (ConfigureInput.Claims) that NO other process taking delivery of this
+	// event holds. A plugin that stood its own default behavior down for one of
+	// these roles MUST run that behavior for this event. For this peer, nothing
+	// else will. Peer-scoped events carry it. It is empty everywhere else.
+	UnheldRoles []string
 }
 
 // GetStructuredEvent returns a StructuredEvent from the pool.
@@ -922,6 +928,7 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.RawMessage = nil
 	se.Meta = nil
 	se.SourcePeerStr = ""
+	se.UnheldRoles = nil
 	structuredEventPool.Put(se)
 }
 

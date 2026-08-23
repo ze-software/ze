@@ -953,6 +953,16 @@ Stage 2 is part of the sequential handshake, so the decision is recorded before 
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.Claims -->
 <!-- source: pkg/plugin/sdk/sdk.go -- Plugin.ClaimActive -->
 
+### A claim is daemon-wide, and delivery is per-peer
+
+A claim says a role has an owner in this daemon. It cannot say the owner will act on a given peer, because Stage 2 runs before any session exists. Two things make the claim wrong for one peer, and the plugin that stood down can see neither: the claimant takes no delivery of that peer's events, because the peer's `attach process` blocks do not name it, or the claimant never reached Running at all.
+
+So the engine RETRACTS the claim, per event, for the peers it does not cover. Each peer-scoped event carries the claimed roles that no process being fed this event holds: `StructuredEvent.UnheldRoles` for a plugin on the direct bridge, and the `unheld-roles` member of the state event for a JSON one. A plugin that stood a role down MUST run its own default behaviour for an event that names it, because nothing else will. The list is absent whenever every claim holds, which is the common case and costs no bytes.
+
+`bgp-adj-rib-in` reads it at peer-up: it replays a peer that `bgp-rs` is not fed, and stands down for the peers `bgp-rs` drives. Without the retraction such a peer was served by nobody, because `bgp-rs` replays and forwards only peers it takes `state` delivery of.
+<!-- source: internal/component/plugin/server/startup_claims.go -- (*Server).UnheldRoles -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_claims.go -- (*AdjRIBInManager).replayDrivenElsewhere -->
+
 ## Peer-Up Barrier
 
 A plugin that decides on the peer-up event whether a peer may receive traffic declares `PeerUpBarrier: true`. The engine then holds that peer's initial-sync End-of-RIB until every barrier-declaring plugin subscribed to state events has taken delivery of the peer-up event, so "End-of-RIB sent" means "every barrier plugin has registered this peer".

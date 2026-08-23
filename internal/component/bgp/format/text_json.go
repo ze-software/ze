@@ -417,7 +417,7 @@ func attrFlagsClose(buf []byte, flags attribute.AttributeFlags, includeFlags boo
 // appendStateChangeJSON appends the ze-bgp state-change JSON envelope to buf,
 // terminated by '\n'. reason is only present for "down" events; "up" has no
 // close reason.
-func appendStateChangeJSON(buf []byte, peer *plugin.PeerInfo, state rpc.SessionState, reason string) []byte {
+func appendStateChangeJSON(buf []byte, peer *plugin.PeerInfo, state rpc.SessionState, reason string, unheldRoles []string) []byte {
 	buf = append(buf, `{"type":"bgp","bgp":{"message":{"type":"state"},`...)
 	buf = appendPeerJSON(buf, peer)
 	buf = append(buf, `,"state":"`...)
@@ -426,7 +426,33 @@ func appendStateChangeJSON(buf []byte, peer *plugin.PeerInfo, state rpc.SessionS
 		buf = append(buf, `","reason":"`...)
 		buf = append(buf, reason...)
 	}
-	buf = append(buf, `"}}`...)
+	buf = append(buf, '"')
+	buf = appendUnheldRolesJSON(buf, unheldRoles)
+	buf = append(buf, `}}`...)
 	buf = append(buf, '\n')
+	return buf
+}
+
+// appendUnheldRolesJSON appends the retracted-role list as a member of the
+// enclosing object, and appends nothing at all when the list is empty -- which
+// it is for every event on a daemon that runs no claiming plugin.
+//
+// Each token is escaped: an external plugin declares its own claims over the
+// Stage-1 RPC (rpc.RegistrationInput), so a token is not repository text and a
+// quote in one would otherwise break the framing of every state event.
+func appendUnheldRolesJSON(buf []byte, unheldRoles []string) []byte {
+	if len(unheldRoles) == 0 {
+		return buf
+	}
+	buf = append(buf, `,"unheld-roles":[`...)
+	for i, role := range unheldRoles {
+		if i > 0 {
+			buf = append(buf, ',')
+		}
+		buf = append(buf, '"')
+		buf = appendJSONString(buf, role)
+		buf = append(buf, '"')
+	}
+	buf = append(buf, ']')
 	return buf
 }

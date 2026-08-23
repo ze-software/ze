@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
@@ -188,19 +189,86 @@ func (s *Server) recordAdvertisedClaim(token, claimant string) {
 	s.advertisedClaims[token][claimant] = true
 }
 
-// unbackedClaims returns the advertised role tokens whose every claimant failed
-// to reach Running, sorted. An empty result means every advertisement is
-// honored (or nothing was ever advertised, the overwhelmingly common case).
-func (s *Server) unbackedClaims() []string {
+// advertisedClaimants copies the advertised-claim index out from under its
+// lock, as token -> claimant process names. It returns nil when nothing was
+// ever advertised. That is the common case, and it keeps the two readers below
+// off the lock on a daemon that runs no claiming plugin.
+//
+// Safe for concurrent use.
+func (s *Server) advertisedClaimants() map[string][]string {
 	s.advertisedClaimsMu.Lock()
+	defer s.advertisedClaimsMu.Unlock()
+
+	if len(s.advertisedClaims) == 0 {
+		return nil
+	}
 	advertised := make(map[string][]string, len(s.advertisedClaims))
 	for token, claimants := range s.advertisedClaims {
 		for claimant := range claimants {
 			advertised[token] = append(advertised[token], claimant)
 		}
 	}
-	s.advertisedClaimsMu.Unlock()
+	return advertised
+}
 
+// UnheldRoles returns the advertised exclusive-role tokens that NO process in
+// procs holds, sorted. It is the engine RETRACTING, for one event, a promise it
+// made before any peer started.
+//
+// advertiseClaims tells a plugin at Stage 2 that a role is claimed, and that
+// plugin stands its own default behavior down for it. The promise is necessarily
+// about the DAEMON, because Stage 2 runs before any session exists. Two things
+// make it wrong for one peer, and the plugin that stood down can see neither:
+//
+//   - The claimant takes no delivery of this peer's events. Delivery is
+//     per-peer: an `attach process <name> { receive ... }` block grants it, and
+//     PeerScopedProcs takes the overlap of that grant with what the plugin
+//     subscribed to. Take a peer that gives `state` to bgp-adj-rib-in and not
+//     to bgp-rs. The claimant cannot act on it, and the claim keeps the other
+//     plugin's peer-up replay off. Nobody serves that peer.
+//   - The claimant never reached Running. verifyAdvertisedClaims says so and
+//     can do nothing else, because the Stage-2 handshake is over by the time it
+//     is known.
+//
+// procs is the set the event is being delivered to, never the delivery graph's
+// edges alone: a process that is granted the event but has not subscribed to it
+// takes no delivery and will not act on it either.
+//
+// Safe for concurrent use.
+func (s *Server) UnheldRoles(procs []*process.Process) []string {
+	advertised := s.advertisedClaimants()
+	if len(advertised) == 0 {
+		return nil
+	}
+
+	var unheld []string
+	for token, claimants := range advertised {
+		if procsHoldRole(procs, claimants) {
+			continue
+		}
+		unheld = append(unheld, token)
+	}
+
+	slices.Sort(unheld)
+	return unheld
+}
+
+// procsHoldRole reports whether any process in procs is one of the claimants of
+// a role.
+func procsHoldRole(procs []*process.Process, claimants []string) bool {
+	for _, proc := range procs {
+		if slices.Contains(claimants, proc.Name()) {
+			return true
+		}
+	}
+	return false
+}
+
+// unbackedClaims returns the advertised role tokens whose every claimant failed
+// to reach Running, sorted. An empty result means every advertisement is
+// honored (or nothing was ever advertised, the overwhelmingly common case).
+func (s *Server) unbackedClaims() []string {
+	advertised := s.advertisedClaimants()
 	if len(advertised) == 0 {
 		return nil
 	}
@@ -247,12 +315,13 @@ func (s *Server) unbackedClaims() []string {
 // this case; removing it entirely is a worse outcome than the missing replay.
 //
 // So this is a guard that cannot deny and therefore must speak
-// (ai/rules/evidence.md). The residual gap is real and narrow: the
-// stood-down plugin stays stood down for the process lifetime. Closing it needs
-// a revocation the engine can deliver before StartPeers, which no current
-// engine->plugin channel provides -- the Stage-2 handshake is over by then, and
-// the post-startup fan-out is precisely the racing callback this design exists
-// to avoid.
+// (ai/rules/evidence.md). It used to leave a residual gap: the stood-down plugin
+// stayed stood down for the whole process lifetime. UnheldRoles closes that gap
+// for every peer-scoped event by retracting the advertisement on the event
+// itself. A claimant that never reached Running takes delivery of nothing, so it
+// holds no role for any peer. The retraction rides the event instead of arriving
+// before StartPeers, which keeps it off the racing post-startup fan-out. This
+// line stays because it names the daemon-wide degradation in one place.
 //
 // Called from signalStartupComplete, after every phase has settled (failed
 // plugins are already rolled back) and before SignalPluginStartupComplete, so

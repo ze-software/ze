@@ -2,6 +2,7 @@ package format
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"net/netip"
 	"strings"
 	"testing"
@@ -82,7 +83,7 @@ func TestFormatStateChange(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := string(AppendStateChange(nil, &peer, tt.state, tt.reason, tt.encoding))
+			got := string(AppendStateChange(nil, &peer, tt.state, tt.reason, nil, tt.encoding))
 			if got != tt.want {
 				t.Errorf("FormatStateChange() = %q, want %q", got, tt.want)
 			}
@@ -140,7 +141,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := string(AppendStateChange(nil, &tt.peer, rpc.SessionStateUp, "", plugin.EncodingJSON))
+			got := string(AppendStateChange(nil, &tt.peer, rpc.SessionStateUp, "", nil, plugin.EncodingJSON))
 			if got != tt.want {
 				t.Errorf("FormatStateChange() =\n  %s\nwant:\n  %s", got, tt.want)
 			}
@@ -1264,4 +1265,80 @@ func NewTestNLRI(prefix netip.Prefix, pathID uint32) nlri.NLRI {
 		fam = family.IPv6Unicast
 	}
 	return nlri.NewINET(fam, prefix, pathID)
+}
+
+// TestAppendStateChangeCarriesUnheldRoles pins the wire form of the engine's
+// per-event retraction of a claimed role.
+//
+// VALIDATES: a JSON state event carries `unheld-roles` when the engine names
+// one, carries no member at all when it names none, and escapes a token.
+// PREVENTS: a forked bgp-adj-rib-in never learning that the peer-up-replay
+// owner takes no delivery of this peer, and so leaving that peer unreplayed
+// (spec-fixit-stored-route-relay-hardening AC-4). A claim token comes from a
+// plugin's own Stage-1 declaration, so an unescaped one would break the framing
+// of every state event on the socket.
+func TestAppendStateChangeCarriesUnheldRoles(t *testing.T) {
+	peer := plugin.PeerInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
+
+	tests := []struct {
+		name     string
+		reason   string
+		unheld   []string
+		encoding string
+		want     string
+	}{
+		{
+			name:     "one role",
+			unheld:   []string{"bgp-peer-up-replay"},
+			encoding: plugin.EncodingJSON,
+			want:     `,"unheld-roles":["bgp-peer-up-replay"]}}`,
+		},
+		{
+			name:     "two roles keep the engine's order",
+			unheld:   []string{"bgp-peer-up-replay", "some-other-role"},
+			encoding: plugin.EncodingJSON,
+			want:     `,"unheld-roles":["bgp-peer-up-replay","some-other-role"]}}`,
+		},
+		{
+			name:     "beside a close reason",
+			reason:   "notification",
+			unheld:   []string{"bgp-peer-up-replay"},
+			encoding: plugin.EncodingJSON,
+			want:     `"reason":"notification","unheld-roles":["bgp-peer-up-replay"]}}`,
+		},
+		{
+			name:     "a token is escaped",
+			unheld:   []string{`role"with"quotes`},
+			encoding: plugin.EncodingJSON,
+			want:     `,"unheld-roles":["role\"with\"quotes"]}}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := string(AppendStateChange(nil, &peer, rpc.SessionStateDown, tt.reason, tt.unheld, tt.encoding))
+			if !strings.Contains(got, tt.want) {
+				t.Errorf("AppendStateChange() = %q, want it to contain %q", got, tt.want)
+			}
+			var decoded map[string]any
+			if err := json.Unmarshal([]byte(got), &decoded); err != nil {
+				t.Fatalf("the event must stay parseable JSON: %v (%q)", err, got)
+			}
+		})
+	}
+
+	t.Run("no role named means no member", func(t *testing.T) {
+		got := string(AppendStateChange(nil, &peer, rpc.SessionStateUp, "", nil, plugin.EncodingJSON))
+		if strings.Contains(got, "unheld-roles") {
+			t.Errorf("a daemon with nothing to retract must spend no bytes on it, got %q", got)
+		}
+	})
+
+	t.Run("the text form carries no bookkeeping", func(t *testing.T) {
+		got := string(AppendStateChange(nil, &peer, rpc.SessionStateUp, "",
+			[]string{"bgp-peer-up-replay"}, plugin.EncodingText))
+		if strings.Contains(got, "bgp-peer-up-replay") {
+			t.Errorf("the text form is a human line, got %q", got)
+		}
+	})
 }

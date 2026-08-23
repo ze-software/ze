@@ -227,7 +227,7 @@ func TestDaemonPeerDownDropsTheRules(t *testing.T) {
 	require.NotNil(t, b.rules.buildTable(), "the announcement must install the rule first")
 
 	down := string(format.AppendStateChange(nil, daemonPeer(), rpc.SessionStateDown,
-		"hold timer expired", plugin.EncodingJSON))
+		"hold timer expired", nil, plugin.EncodingJSON))
 	require.NoError(t, b.handleEvent(down))
 	assert.Nil(t, b.rules.buildTable(), "a peer that went down keeps no rules: %s", down)
 }

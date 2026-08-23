@@ -230,6 +230,14 @@ the work. That MUST NOT be inverted: standing down for an owner that never runs
 is worse than both running. If a claimant never reaches Running, the engine logs it
 (`verifyAdvertisedClaims`) but does not fail startup.
 
+**A claim is daemon-wide and delivery is per-peer, so the engine retracts it per
+event.** Each peer-scoped event carries the claimed roles that NO process being
+fed that event holds (`UnheldRoles`): `StructuredEvent.UnheldRoles` on the direct
+bridge, the `unheld-roles` member of the JSON event otherwise. A plugin that
+stood a role down MUST run its own default behaviour for an event that names the
+role, because for that peer nothing else will. An absent list means every claim
+holds, which is the common case.
+
 Reference: `bgp-rs` claims `bgp-peer-up-replay`
 (`internal/component/bgp/plugins/rs/register.go`); `bgp-adj-rib-in` stands down in
 `internal/component/bgp/plugins/adj_rib_in/rib_claims.go`.

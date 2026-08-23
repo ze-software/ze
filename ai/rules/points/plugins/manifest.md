@@ -58,6 +58,7 @@ exclusive-role-claims-blocking-for-cross-plugin-default ## Exclusive Role Claims
   why-stage-2-delivery-is-early-enough
   why-onallpluginsready-cannot-resolve-a-role
   an-unclaimed-role-reads-false-so-b-keeps-working
+  honour-the-per-event-retraction-of-a-claim
   the-bgp-rs-role-claim-reference
 peer-up-barrier-blocking-for-plugins-that-register-peers ## Peer-Up Barrier (BLOCKING for plugins that register peers)
   declare-peerupbarrier-when-you-gate-on-peer-up

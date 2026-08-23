@@ -1,0 +1,304 @@
+# Test: a peer the replay OWNER is not fed is replayed by adj-rib-in itself
+#
+# VALIDATES: spec-fixit-stored-route-relay-hardening AC-4 -- a peer whose config
+#            gives `state` to bgp-adj-rib-in and attaches bgp-rs nowhere is still
+#            replayed when it establishes. bgp-rs claims the peer-up-replay role
+#            for the whole daemon (rs/register.go, Registration.Claims), so
+#            bgp-adj-rib-in stands its own peer-up replay down. The engine now
+#            states per event which claimed roles have no holder among the
+#            processes it is feeding this peer (plugin/server/startup_claims.go,
+#            UnheldRoles), and adj-rib-in replays the peers nobody else drives.
+# PREVENTS: that peer being served by NOBODY. bgp-rs replays and forwards only the
+#           peers it takes `state` delivery of -- rs/server_forward.go
+#           selectForwardTargets keys on PeerState.Up, which only
+#           rs/server_handlers.go handleState sets -- so a daemon-wide stand-down
+#           left this peer with a permanent hole in its table and nothing said so.
+#
+# NON-VACUITY. Nothing else can put the source's route on this peer's wire, and
+# the two connections separate the two failures:
+#   conn=1 seq=1 -- ze's initial-sync End-of-RIB, the CONTROL. It proves the
+#                   session established and that ze writes to this peer's wire, so
+#                   a build where nothing works at all fails here, not at seq=2.
+#   conn=1 seq=2 -- the observer's marker prefix, a BARRIER rather than an
+#                   assertion. It is injected only once the source's route is
+#                   STORED, and matching it completes this connection's script, so
+#                   the peer closes it and ze re-dials. That is what makes the
+#                   second peer-up happen strictly after the store, with no timer.
+#   conn=2 seq=1 -- the SELF-REPLAY at peer-up, the SUBJECT.
+# Measured while writing this test: with bgp-rs loaded it OWNS forwarding, and it
+# logs `forward matched no target ... peers-known=1` for the source's UPDATE
+# because the dest is attached to it nowhere. So no live rail ever carries that
+# route here, no RIB plugin is loaded to announce it from a local table, and
+# standing the peer-up replay down reddens conn=2 while conn=1 stays green.
+#
+# THE REPLAY'S BYTES ARE THE LIVE RAIL'S BYTES. The replay goes through the same
+# forwardUpdateCore a live forward would, so exactly one egress transform applies
+# (RFC 4271 Section 5.1.2: ze prepends its own AS 65000 towards an external peer).
+# The conn=2 frame is byte-identical to the one
+# test/plugin/adj-rib-in-replay-on-peerup.ci asserts for this route and topology.
+
+# ---------------------------------------------------------------------------
+# Source peer -- eBGP, AS 65001, on 127.0.0.1. Its route is what gets stored.
+# ---------------------------------------------------------------------------
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=40s
+# The source must outlive the dest's assertions: if it closes, ze withdraws its
+# routes and the dest receives a withdrawal it has no rule for.
+option=linger:value=true
+
+# seq=1 -- ze's initial-sync End-of-RIB. The observer holds wait_peer_eor_sent()
+# before it injects the seq=2 marker, so the EOR is on the wire strictly first.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# seq=2 -- BARRIER, not an assertion. The observer injects 192.0.2.0/24 to THIS
+# peer only, once both sessions are established, so the announcement below cannot
+# be sent while the dest is still coming up.
+expect=bgp:conn=1:seq=2:contains=18C00002
+
+# seq=3 -- announce 10.0.0.0/24 with a POPULATED AS_PATH.
+#   ORIGIN:    40010100            IGP
+#   AS_PATH:   40020602010000FDE9  AS_SEQUENCE[65001], 4-byte ASNs
+#   NEXT_HOP:  40030401010101      1.1.1.1
+#   NLRI:      180A0000            10.0.0.0/24
+# attr len = 4+9+7 = 20 = 0x14; total = 19+2+2+20+4 = 47 = 0x2F.
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+EOF_SOURCE
+
+# ---------------------------------------------------------------------------
+# Dest peer -- eBGP, AS 65002, on 127.0.0.2. It attaches adj-rib-in and attaches
+# bgp-rs NOWHERE, which is the whole point of the test.
+# ---------------------------------------------------------------------------
+# The replayed frame is derived from the source frame by the one egress transform
+# RFC 4271 Section 5.1.2 requires towards an external peer:
+#   AS_PATH:   40020A02020000FDE80000FDE9   AS_SEQUENCE[65000, 65001]
+# attr len = 4+13+7 = 24 = 0x18; total = 19+2+2+24+4 = 51 = 0x33.
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=2
+option=timeout:value=40s
+option=bind:value=127.0.0.2
+
+# conn=1 seq=1 CONTROL -- ze's initial-sync End-of-RIB on the first session.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# conn=1 seq=2 BARRIER -- 203.0.113.0/24 (18 CB 00 71), injected by the observer
+# once the source's route is stored. It ends this connection's script, so the peer
+# closes the socket and ze re-dials with connect-retry 2s.
+expect=bgp:conn=1:seq=2:contains=18CB0071
+
+# conn=2 seq=1 SUBJECT -- the peer-up self-replay of the STORED source route.
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+EOF_DEST
+
+# ---------------------------------------------------------------------------
+# Observer: sequences the run. It never drives the replay itself.
+# ---------------------------------------------------------------------------
+tmpfs=unowned-peer.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Store a route, bounce a peer bgp-rs is not fed, prove adj-rib-in replays it."""
+import sys
+
+from ze_api import API, result_json_data, runtime_fail
+
+SOURCE = '127.0.0.1'
+DEST = '127.0.0.2'
+
+
+def dest_updates(api):
+    """Route-bearing UPDATEs written to the dest peer, End-of-RIB excluded.
+
+    updates-sent counts every UPDATE written, the initial-sync marker included
+    (IncrUpdatesSent, reactor/reactor_notify.go, sees only the message type), and
+    eor-sent is the separate marker counter, so the difference is route traffic.
+
+    Both are LIFETIME counters here: Peer.ClearStats zeroes them from
+    Peer.cleanup (reactor/peer_run.go), which runs when the peer STOPS, not
+    between the sessions of one peer. So this keeps counting across the reconnect
+    and the caller waits for a total rather than for a per-session count.
+    """
+    return (api.peer_counter('updates-sent', peer=DEST)
+            - api.peer_counter('eor-sent', peer=DEST))
+
+
+def dest_sessions(api):
+    """Lifetime session count for the dest peer."""
+    return api.peer_counter('connections-established', peer=DEST)
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Every poll carries an explicit budget and they sum well inside the 40s
+    # envelope, so a starved daemon reports the barrier that failed rather than an
+    # opaque runner timeout.
+    if not api.wait_peers_established(expected_peers=2, attempts=32):
+        runtime_fail('both peers did not establish')
+
+    if not api.wait_peer_eor_sent(peer='*', expected_peers=2, attempts=20):
+        runtime_fail('ze never sent its initial-sync EOR to both peers')
+
+    # Release the source's announcement: this marker goes to the SOURCE only and
+    # its NLRI (192.0.2.0/24 -> 18 C0 00 02) is what the source's seq=2 matches.
+    api.send(f'peer {SOURCE} update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.2.0/24')
+
+    # quiesce first so each poll behind it is a safety net rather than the
+    # mechanism: it drains the forward pool in one RPC.
+    api.quiesce()
+
+    # The route must be STORED before the dest bounces, or the second session's
+    # replay would be a correct no-op and this test would prove nothing.
+    status = api.dispatch_until(
+        'show bgp adj-rib-in status',
+        lambda r: result_json_data(r, {}).get('total-routes', 0) > 0,
+        attempts=20,
+    )
+    if result_json_data(status, {}).get('total-routes', 0) <= 0:
+        runtime_fail('adj-rib-in stored no route from the source peer')
+    print('OK: the source route is stored', file=sys.stderr)
+
+    sessions_before = dest_sessions(api)
+
+    # THE BOUNCE, driven by the dest's own script: this marker completes conn=1,
+    # the peer closes it, and ze re-dials. Nothing here times anything.
+    api.send(f'peer {DEST} update text origin igp nhop 2.2.2.2 nlri ipv4/unicast add 203.0.113.0/24')
+    api.quiesce()
+    if not api.wait_until(lambda: dest_updates(api) >= 1, attempts=20):
+        runtime_fail('the observer marker never reached the dest peer')
+    marker_updates = dest_updates(api)
+    print('OK: the marker closed the dest first session', file=sys.stderr)
+
+    if not api.wait_until(lambda: dest_sessions(api) > sessions_before, attempts=60):
+        runtime_fail('the dest peer never established a second session')
+    print('OK: dest established its second session', file=sys.stderr)
+
+    # THE SUBJECT. Nothing live is in flight on the second session, so the next
+    # route-bearing UPDATE written to this peer is the peer-up replay. Held before
+    # shutdown so the daemon outlives the write.
+    if not api.wait_until(lambda: dest_updates(api) > marker_updates, attempts=40):
+        runtime_fail('the dest peer was replayed nothing when it came back')
+    print('OK: dest was replayed the stored route', file=sys.stderr)
+
+    api.dispatch('request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ---------------------------------------------------------------------------
+# ze -- AS 65000, two external peers on separate loopbacks.
+# ---------------------------------------------------------------------------
+# bgp-rs is loaded and claims the peer-up-replay role, so adj-rib-in stands down
+# daemon-wide. The DEST peer attaches rs nowhere, so rs neither replays it nor
+# forwards to it: it is exactly the peer the claim cannot cover. No RIB plugin is
+# loaded, so no local table can announce to the dest either.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	external unowned-peer {
+		run ./unowned-peer.run
+		encoder json
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+}
+
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process unowned-peer {
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		timer { connect-retry 2; }
+
+		# `state` so adj-rib-in sees this peer come up, `send [ update ]` so it may
+		# originate the replayed UPDATE towards it (maySend,
+		# reactor/send_permission.go). bgp-rs is attached NOWHERE on this peer,
+		# which is the condition under test.
+		attach process adj-rib-in {
+			receive [ state ]
+			send [ update ]
+		}
+		attach process unowned-peer {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=40s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

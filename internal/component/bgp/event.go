@@ -354,6 +354,14 @@ type Event struct {
 	// State event field.
 	State string `json:"state,omitempty"`
 
+	// UnheldRoles names the exclusive roles this plugin was told are claimed
+	// that no other process taking delivery of this event holds. The engine
+	// states it per event because a claim is daemon-wide while delivery is
+	// per-peer (pluginserver.Server.UnheldRoles). A plugin that stood its own
+	// default behavior down for one of these roles runs that behavior for this
+	// event: for this peer, nothing else will.
+	UnheldRoles []string `json:"unheld-roles,omitempty"`
+
 	// UPDATE fields - new command-style format.
 	// Family operations are parsed from raw JSON (dynamic keys like "ipv4/unicast").
 	// Format: {"ipv4/unicast": [{"next-hop": "...", "action": "add", "nlri": [...]}]}.

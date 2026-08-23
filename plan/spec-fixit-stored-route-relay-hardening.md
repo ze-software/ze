@@ -294,7 +294,7 @@ entry from a deferred closure before it builds the next one, so the only retains
 outlive a route are the per-destination writes, which the chunk size never governed.
 That is the I-6 backpressure item, and it stays open.
 
-### I-3 — replay ownership is process-global, but replay driving is per-peer
+### I-3 — replay ownership is process-global, but replay driving is per-peer — DONE (2026-08-23)
 
 `replayOwned` is a process-wide `atomic.Bool`. Event delivery is per-peer, per-plugin
 (`internal/component/bgp/reactor/config.go`, `parseOneReceiveFlag` case `"state"`), so
@@ -302,6 +302,55 @@ a peer whose `process` block gives `state` to `bgp-adj-rib-in` but not to `bgp-r
 leaves NOBODY replaying: adj-rib-in stood down globally, bgp-rs never sees that peer.
 That is a config away, not a crash away. Scope the stand-down to peers the owner
 actually drives, or reject the config combination.
+
+#### I-3 FINDING (2026-08-23) — the peer is served by NOBODY, not merely unreplayed
+
+Read at the producers. `rs.peers[addr]` is created by `handleState` and by
+`handleOpen`, and only `handleState` ever sets `Up`
+(`internal/component/bgp/plugins/rs/server_handlers.go`); `selectForwardTargets`
+(`rs/server_forward.go`) skips every peer whose `Up` is false. So a peer that grants
+bgp-rs no `state` is not a forward target either. Measured in the functional
+fixture: with the source's UPDATE in flight, bgp-rs logs `forward matched no
+target ... peers-known=1`, and the dest peer's wire carries nothing but its own
+End-of-RIB for the whole run. The stand-down did not cost that peer its peer-up
+replay alone. It cost it every route.
+
+**The fix is a RETRACTION delivered on the event, and the claim is unchanged.**
+Two facts decide the stand-down and each has one producer. The CLAIM says the role
+has an owner in this daemon; it arrives at Stage 2, ordered before peers start, and
+that is what makes the first peer-up safe (I-1b). `Server.UnheldRoles`
+(`internal/component/plugin/server/startup_claims.go`) says which advertised roles
+NO process in THIS event's delivery set holds, computed over the `procs` slice
+`PeerScopedProcs` already built, so it needs no second registry and no new
+bookkeeping. `onPeerStateChange` (`internal/component/bgp/server/events.go`) puts
+the answer on every copy of the state event, and `replayDrivenElsewhere`
+(`adj_rib_in/rib_claims.go`) is the whole decision:
+`replayOwned && !contains(unheldRoles, claimPeerUpReplay)`.
+
+**Both delivery paths carry it, because a forked bgp-adj-rib-in is reachable
+(A-1).** `StructuredEvent.UnheldRoles` (`pkg/plugin/rpc/bridge.go`, cleared on
+pool return) serves the in-process bridge; `appendStateChangeJSON`
+(`internal/component/bgp/format/text_json.go`) emits an escaped `unheld-roles`
+array, and `Event.UnheldRoles` (`internal/component/bgp/event.go`) parses it. The
+text encoding carries nothing: it is a human line, and the SDK builds no event
+from one, so no plugin can act on it. Emitting the member only when it is non-empty
+keeps every state event on a non-claiming daemon byte-identical to before.
+
+**It also closes the gap `verifyAdvertisedClaims` documents.** A claimant that
+never reached Running takes delivery of nothing, so it holds no role for any peer
+and the retraction goes out for every one of them. That function's comment said no
+engine-to-plugin channel could carry a revocation before StartPeers; the answer was
+that the revocation belongs on the EVENT, not before the peers.
+
+**Mutation-verified in three registers.** `UnheldRoles` returning nil (the pre-fix
+producer) with the daemon REBUILT reddens `adj-rib-in-replay-unowned-peer.ci` at
+the subject while the control, the store and the reconnect stay green, and reddens
+four cases of `TestUnheldRolesRetractsAClaimForAPeerTheClaimantIsNotFed` plus
+`TestUnheldRolesOverTheRealDeliverySet`. `replayDrivenElsewhere` ignoring its
+argument reddens exactly the two self-replay cases of
+`TestSelfReplayCoversAPeerTheOwnerIsNotFed`, one per ingest path, leaving the
+stand-down cases green. `appendUnheldRolesJSON` returning its buffer unchanged
+reddens four cases of `TestAppendStateChangeCarriesUnheldRoles`.
 
 ### I-4 — the ownership claim does not survive an adj-rib-in respawn — DONE (2026-08-23)
 
@@ -572,7 +621,7 @@ seam is what a filter uses for surgery the text delta cannot express.
 | AC-1 | Peer-up replay from an ADD-PATH source | Routes are relayed, not refused; wire is well-formed for both add-path and non-add-path destinations |
 | AC-2 | Multi-path source (two path-ids, one prefix) | Both paths survive the replay, or the limitation is explicit and tested |
 | AC-3 | Forked adj-rib-in, replay whose routes exceed 16 MB | Chunked by bytes; every route arrives. **DONE 2026-08-23** -- `relayChunkEnd` (`adj_rib_in/relay_chunk.go`) cuts on the serialized byte budget and `relayRoutes` walks it. `TestRelayChunkStaysUnderFrameCeiling` marshals every chunk of a 130-route, 64 KiB-attribute replay and asserts each one lands below `rpc.MaxMessageSize`; `TestReplayLastIndexSurvivesMultiChunkRelay` drives the same shape through `handleCommand` and pins `last-index` and `replayed` across the boundary (R-2). Mutation-verified: restoring the 4096-route cut puts chunk 0 at 17 053 828 bytes and reddens three tests |
-| AC-4 | Peer gives `state` to adj-rib-in but not bgp-rs | Either that peer is still replayed, or the config is rejected — never silently unreplayed |
+| AC-4 | Peer gives `state` to adj-rib-in but not bgp-rs | That peer is still replayed. **DONE 2026-08-23** -- the claim stays daemon-wide and the engine RETRACTS it per event: `Server.UnheldRoles` (`internal/component/plugin/server/startup_claims.go`) names the advertised roles no process in the delivery set holds, `onPeerStateChange` puts them on every copy of the state event (`StructuredEvent.UnheldRoles`, and the `unheld-roles` JSON member for a forked plugin), and `replayDrivenElsewhere` (`adj_rib_in/rib_claims.go`) reads them in BOTH ingest paths. `test/plugin/adj-rib-in-replay-unowned-peer.ci` proves it end to end; three unit tests pin the pieces. Mutation-verified in three registers -- see the I-3 FINDING |
 | AC-5 | adj-rib-in respawns mid-life with bgp-rs loaded | Ownership is re-established; no duplicate announce on the next peer-up. **DONE 2026-08-23** -- `Server.restartPlugin` (`internal/component/plugin/server/reload_tx.go`) now respawns, releases the old process's name-keyed registrations and re-runs the 5-stage handshake (`restart.go`), so Stage 2's `advertiseClaims` re-delivers the claim before the replacement can receive any event. `TestRestartPluginReRunsTheStartupHandshake` drives it end to end with two real SDK plugins and asserts the replacement was configured again, was told the role is still claimed, and owns its command; `TestRestartPluginRefusesWhenRespawnIsNotEnabled` pins the refusal. Mutation-verified: with the pre-fix producer restored (no teardown, no handshake, and a silent nil for not-enabled) the first reports 1 configure against 2 and a nil command lookup, the second reports "an error is expected but got nil". **The trigger is unwired -- see the I-4 FINDING** |
 | AC-6 | `adj-rib-in-replay-on-peerup.ci` with the relay stubbed to error | Test goes RED (mutation-verified). **DONE 2026-08-07 — see I-5** |
 | AC-7 | An egress rail cannot carry out its decision: an in-process filter PANICS on the RS fast path (`forward_rs.go`) or on the LLGR stale re-advertise rail, or that rail's modifications cannot be built | No rail reports a failure of THIS speaker as a peer's policy. `reactorForwardRS` puts the destination on the skipped list so the plugin rail decides what it could not. `decideStaleReadvertise` returns `staleFilterFailed` or `staleBuildFailed`, and `AnnounceNLRIBatch` reports the matching cause wrapping `errStaleReadvertiseWithheld` instead of `ErrNoPeersAcceptedFamily`. The route is withheld fail-closed in every case; only the report changes. **REPLACED 2026-08-03 by Thomas's ruling — see "AC-7 replaced" below. DONE** |
@@ -818,6 +867,10 @@ path-id. Step 2's chunking bounds route count rather than bytes.
 | `TestRestartPluginRefusesWhenRespawnIsNotEnabled` | same file | a restart that did not happen is reported as one that did not | DONE 2026-08-23 (mutation-verified) |
 | `TestMidLifeAutoLoadDeliversPostStartup` | `internal/component/plugin/server/poststartup_test.go` | AC-12: a plugin auto-loaded by a reload runs its `OnAllPluginsReady` and reaches the plugin already holding the role | DONE 2026-08-23 (mutation-verified) |
 | `TestCommandRegistryRegisterAfterFreezeIsVisible` / `...DeprecatedAliasAfterFreezeIsVisible` | `internal/component/plugin/server/command_registry_test.go` | a command or alias registered after `Freeze` is resolvable, which is every command of a restarted or reload-loaded plugin | DONE 2026-08-23 (mutation-verified) |
+| `TestUnheldRolesRetractsAClaimForAPeerTheClaimantIsNotFed` | `internal/component/plugin/server/startup_claims_test.go` | AC-4: an advertised role with no holder in the delivery set is named, and one whose claimant is fed is not | DONE 2026-08-23 (mutation-verified) |
+| `TestUnheldRolesOverTheRealDeliverySet` | same file | AC-4 from the operator input that produces it: two peers, one attaching the claimant and one not, judged through `PeerScopedProcs` | DONE 2026-08-23 (mutation-verified). It drives the production path rather than a hand-built proc list, because the registry, the process table and the graph alone each answer the same for every peer |
+| `TestSelfReplayCoversAPeerTheOwnerIsNotFed` | `internal/component/bgp/plugins/adj_rib_in/rib_claims_test.go` | AC-4 at the consumer: the retraction turns self-replay back on for that peer, in BOTH ingest paths, and an unrelated role changes nothing | DONE 2026-08-23 (mutation-verified) |
+| `TestAppendStateChangeCarriesUnheldRoles` | `internal/component/bgp/format/text_test.go` | AC-4 on the JSON a forked plugin parses: the member is present, escaped, and absent when there is nothing to retract | DONE 2026-08-23 (mutation-verified) |
 | `TestCoordinatorRelayStoredRoute` | `internal/component/plugin/coordinator_test.go` | `ErrNoReactor` branch, the delegation, and that the destination, routes and error all cross unchanged | DONE 2026-08-23 (mutation-verified twice) |
 | `TestReactorForwardRSFilterPanicIsNotPolicy` | `internal/component/bgp/reactor/egress_filter_failure_test.go` | AC-7: a panicked filter puts the destination on the skipped list; a clean reject does not | DONE (mutation-verified) |
 | `TestDecideStaleReadvertiseFailureIsNotPolicy` | same file | AC-7: `staleFilterFailed` for a panic, `staleBuildFailed` for an unbuildable modification, `staleSuppress` only for a reject | DONE (mutation-verified) |
@@ -829,6 +882,7 @@ path-id. Step 2's chunking bounds route count rather than bytes.
 |------|----------|-------------------|--------|
 | `adj-rib-in-replay-addpath-source.ci` | `test/plugin/` | a route learned from an add-path source is replayed to an add-path peer AND to one without, each receiving the framing it negotiated | DONE 2026-08-19 (mutation-verified both ways: refusing an add-path source, and omitting the four path-id octets, each redden it; baseline green). Carries the RFC7911-3-1 positive and negative tags and an RFC7911-2-2 positive, which is the first functional-tier evidence for 3-1 |
 | `adj-rib-in-replay-on-peerup.ci` rewrite | `test/plugin/` | replay to an ESTABLISHED peer, asserted on wire bytes | DONE (mutation-verified, I-5) |
+| `adj-rib-in-replay-unowned-peer.ci` | `test/plugin/` | a peer that gives `state` to bgp-adj-rib-in and attaches bgp-rs nowhere is replayed when it establishes | DONE 2026-08-23 (mutation-verified with a REBUILT daemon: `UnheldRoles` returning nil reddens it at the subject while the control, the store and the reconnect stay green). The bounce is driven by the peer's own script -- a marker prefix the observer injects only once the route is STORED completes the first connection, so the peer closes it and ze re-dials. No timer decides anything. Authored in `test/draft/plugin/` and promoted green, stable at 30/30 under `stress-repro.py --any-failure` |
 | `adj-rib-in-replay-rfc2545-next-hop.ci` | `test/plugin/` | a route learned with an RFC 2545 form-2 next hop is replayed with both addresses, byte-identical to the live forward | DONE 2026-08-23 (mutation-verified with a REBUILT daemon: reverting the structured ingest reddens seq=2 while seq=1 stays green). Carries the RFC2545-3-1 and RFC2545-3-2 positives, the first functional-tier evidence for either over the relay rail |
 
 ## Files to Modify
@@ -845,6 +899,13 @@ path-id. Step 2's chunking bounds route count rather than bytes.
   add), `startup_autoload.go` (mid-life fan-out), `adhoc.go` (one spelling of the
   unbarriered handshake)
 - `test/plugin/adj-rib-in-replay-on-peerup.ci` — make it gate
+- The per-peer claim retraction (I-3, landed 2026-08-23): `plugin/server/startup_claims.go`
+  (`UnheldRoles`, `advertisedClaimants`, `procsHoldRole`), `bgp/server/events.go`
+  (compute once per state event), `pkg/plugin/rpc/bridge.go`
+  (`StructuredEvent.UnheldRoles`), `bgp/format/text.go` + `text_json.go`
+  (`unheld-roles`), `bgp/event.go` (`Event.UnheldRoles`), `adj_rib_in/rib_claims.go`
+  (`replayDrivenElsewhere`), plus `docs/guide/plugins.md` and one point under
+  `ai/rules/points/plugins/exclusive-role-claims-blocking-for-cross-plugin-default/`
 
 ### Documentation Update Checklist (BLOCKING)
 
@@ -893,12 +954,14 @@ document. Every one is listed here with what this spec does to it.
    that no `.ci` can reach without a 16 MB stored table
    (`ai/rules/testing.md`, "When Unit Tests Alone Are Sufficient", row 2).
 4. Ownership scope and respawn (I-3, I-4).
-   **I-4 DONE 2026-08-23 (AC-5, AC-12), I-3 STILL OPEN (AC-4).** The respawn half is
-   fixed at the engine: a restart re-runs the 5-stage handshake, and a mid-life
-   auto-load gets its post-startup callback. See the I-4 FINDING for what was actually
-   missing, for the two defects fixed on the path, and for the unwired `respawn`
-   trigger that a closure must not read as this spec's job. I-3 is untouched: nothing
-   here scopes `replayOwned` per peer.
+   **DONE 2026-08-23 (AC-4, AC-5, AC-12).** The respawn half is fixed at the engine:
+   a restart re-runs the 5-stage handshake, and a mid-life auto-load gets its
+   post-startup callback. See the I-4 FINDING for what was actually missing, for the
+   two defects fixed on the path, and for the unwired `respawn` trigger that a
+   closure must not read as this spec's job. The scope half is fixed at the engine
+   too: the claim stays daemon-wide and the engine retracts it per event for the
+   peers its holder takes no delivery of. See the I-3 FINDING for why the peer was
+   losing every route rather than only its replay.
 5. Make `adj-rib-in-replay-on-peerup.ci` gate (I-5); mutation-verify.
 6. The smaller gaps (I-6).
 7. `make ze-precommit-verify`, `make ze-unit-reactor-test-race`, per-test stress-repro; independent review to clean.

@@ -4,6 +4,8 @@
 
 package adj_rib_in
 
+import "slices"
+
 // claimPeerUpReplay is the exclusive-role token bgp-rs declares to take peer-up
 // replay over from this plugin (rs/server_handlers.go ClaimPeerUpReplay declares
 // the same spelling; rs/register.go puts it in Registration.Claims). The engine
@@ -47,4 +49,32 @@ func (r *AdjRIBInManager) applyStartupClaims(claimActive func(role string) bool)
 		logger().Info("peer-up replay ownership declared by another plugin at startup; self-replay disabled",
 			"role", claimPeerUpReplay)
 	}
+}
+
+// replayDrivenElsewhere reports whether another plugin drives peer-up replay for
+// the peer whose state event carries unheldRoles.
+//
+// Two facts decide it and the engine states both, because neither is visible
+// from inside this plugin.
+//
+// The CLAIM says a role has an owner in this daemon. It arrives at Stage 2,
+// before any session can establish, which is what makes the first peer-up safe
+// (applyStartupClaims above).
+//
+// unheldRoles says that owner takes no delivery of THIS peer's events, so the
+// claim does not reach it (pluginserver.Server.UnheldRoles). Delivery is
+// per-peer and a claim is not. Take a peer whose `attach process` block gives
+// `state` to this plugin and not to bgp-rs. bgp-rs cannot replay it, and it
+// never becomes a forward target either: selectForwardTargets keys on peer.Up
+// (rs/server_forward.go), which only handleState sets. Standing down there
+// serves that peer to nobody.
+//
+// An absent statement means the claim stands. That is the direction the engine
+// speaks in: it retracts a promise it made, and says nothing when the promise
+// holds.
+func (r *AdjRIBInManager) replayDrivenElsewhere(unheldRoles []string) bool {
+	if !r.replayOwned.Load() {
+		return false
+	}
+	return !slices.Contains(unheldRoles, claimPeerUpReplay)
 }

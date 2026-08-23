@@ -231,9 +231,15 @@ func AppendRouteRefresh(buf []byte, peer *plugin.PeerInfo, decoded DecodedRouteR
 // State events are separate from BGP protocol messages.
 // State is SessionStateUp or SessionStateDown.
 // reason is the close reason (empty for "up"): "tcp-failure", "notification", etc.
-func AppendStateChange(buf []byte, peer *plugin.PeerInfo, state rpc.SessionState, reason, encoding string) []byte {
+//
+// unheldRoles names the exclusive roles no process taking delivery of this event
+// holds (pluginserver.Server.UnheldRoles). It reaches a JSON consumer, which is
+// every plugin the SDK parses events for. The text form is a human line and
+// carries no engine bookkeeping, so a text consumer never sees the retraction --
+// and none can act on one, because the SDK builds no event from a text line.
+func AppendStateChange(buf []byte, peer *plugin.PeerInfo, state rpc.SessionState, reason string, unheldRoles []string, encoding string) []byte {
 	if encoding == plugin.EncodingJSON {
-		return appendStateChangeJSON(buf, peer, state, reason)
+		return appendStateChangeJSON(buf, peer, state, reason, unheldRoles)
 	}
 	return appendStateChangeText(buf, peer, state, reason)
 }

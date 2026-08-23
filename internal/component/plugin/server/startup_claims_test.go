@@ -16,6 +16,7 @@ import (
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -371,4 +372,123 @@ func TestVerifyAdvertisedClaimsSpeaks(t *testing.T) {
 	if buf.Len() != 0 {
 		t.Fatalf("no advertisement must produce no output, got %q", buf.String())
 	}
+}
+
+// TestUnheldRolesRetractsAClaimForAPeerTheClaimantIsNotFed pins the per-event
+// retraction of a daemon-wide claim.
+//
+// VALIDATES: UnheldRoles names an advertised role when no process in the
+// delivery set holds it, and names nothing when one of them does.
+// PREVENTS: a peer whose config attaches bgp-adj-rib-in but not bgp-rs being
+// served by nobody -- adj-rib-in stands down for the daemon-wide claim while
+// bgp-rs, taking no delivery of that peer's state, never replays it and never
+// makes it a forward target (rs/server_forward.go selectForwardTargets).
+func TestUnheldRolesRetractsAClaimForAPeerTheClaimantIsNotFed(t *testing.T) {
+	const role = "bgp-peer-up-replay"
+
+	owner := process.NewProcess(plugin.PluginConfig{Name: "bgp-rs"})
+	stoodDown := process.NewProcess(plugin.PluginConfig{Name: "bgp-adj-rib-in"})
+
+	t.Run("nothing advertised retracts nothing", func(t *testing.T) {
+		s := &Server{}
+		assert.Empty(t, s.UnheldRoles([]*process.Process{stoodDown}),
+			"a daemon where no plugin claims a role has nothing to retract")
+	})
+
+	t.Run("claimant fed this peer holds the role", func(t *testing.T) {
+		s := &Server{}
+		s.recordAdvertisedClaim(role, "bgp-rs")
+		assert.Empty(t, s.UnheldRoles([]*process.Process{stoodDown, owner}),
+			"the claimant takes delivery, so the Stage-2 promise holds for this peer")
+	})
+
+	t.Run("claimant not fed this peer holds nothing", func(t *testing.T) {
+		s := &Server{}
+		s.recordAdvertisedClaim(role, "bgp-rs")
+		assert.Equal(t, []string{role}, s.UnheldRoles([]*process.Process{stoodDown}),
+			"the claimant takes no delivery, so the plugin that stood down must act")
+	})
+
+	t.Run("an empty delivery set holds nothing", func(t *testing.T) {
+		s := &Server{}
+		s.recordAdvertisedClaim(role, "bgp-rs")
+		assert.Equal(t, []string{role}, s.UnheldRoles(nil),
+			"an event delivered to nobody is held by nobody")
+	})
+
+	t.Run("one claimant of several is enough", func(t *testing.T) {
+		s := &Server{}
+		s.recordAdvertisedClaim(role, "bgp-rs")
+		s.recordAdvertisedClaim(role, "rs-under-another-name")
+		second := process.NewProcess(plugin.PluginConfig{Name: "rs-under-another-name"})
+		assert.Empty(t, s.UnheldRoles([]*process.Process{second}),
+			"the role has a holder here, whichever claimant it is")
+	})
+
+	t.Run("every advertised role is judged on its own", func(t *testing.T) {
+		s := &Server{}
+		s.recordAdvertisedClaim(role, "bgp-rs")
+		s.recordAdvertisedClaim("some-other-role", "bgp-adj-rib-in")
+		assert.Equal(t, []string{role}, s.UnheldRoles([]*process.Process{stoodDown}),
+			"the role whose claimant IS fed must not be retracted with the one that is not")
+	})
+}
+
+// TestUnheldRolesOverTheRealDeliverySet drives the retraction from the operator
+// input that produces it: a peer's `attach process` blocks.
+//
+// VALIDATES: the set UnheldRoles judges is the set the event is delivered to,
+// so a peer that attaches the stood-down plugin and not the claimant retracts
+// the role, and one that attaches both does not.
+// PREVENTS: the retraction being computed over the registry, the process table,
+// or the delivery graph alone. Each of those answers the same for every peer,
+// which is the daemon-wide answer the claim already gives.
+func TestUnheldRolesOverTheRealDeliverySet(t *testing.T) {
+	const (
+		role      = "bgp-peer-up-replay"
+		owner     = "bgp-rs"
+		stoodDown = "bgp-adj-rib-in"
+		bothPeer  = "10.0.0.1"
+		alonePeer = "10.0.0.2"
+	)
+
+	s, err := NewServer(&ServerConfig{}, &mockReactor{})
+	require.NoError(t, err)
+	s.recordAdvertisedClaim(role, owner)
+
+	ns, _, stateET := graphIDs(t)
+	ownerProc := process.NewProcess(plugin.PluginConfig{Name: owner})
+	stoodDownProc := process.NewProcess(plugin.PluginConfig{Name: stoodDown})
+	for _, proc := range []*process.Process{ownerProc, stoodDownProc} {
+		s.Subscriptions().Add(proc, &Subscription{
+			Namespace: ns,
+			EventType: stateET,
+			Direction: events.DirUnspecified,
+		})
+	}
+
+	s.UpdateDeliveryGraph(graphNS, []DeliveryPeer{
+		{
+			Addr: bothPeer,
+			Bindings: []plugin.PeerProcessBinding{
+				{PluginName: owner, ReceiveAll: true},
+				{PluginName: stoodDown, ReceiveAll: true},
+			},
+		},
+		{
+			Addr:     alonePeer,
+			Bindings: []plugin.PeerProcessBinding{{PluginName: stoodDown, ReceiveAll: true}},
+		},
+	})
+
+	unheldFor := func(peerAddr string) []string {
+		procs := s.PeerScopedProcs(ns, stateET, events.DirUnspecified, peerAddr, "")
+		require.NotEmpty(t, procs, "the fixture must feed %s something", peerAddr)
+		return s.UnheldRoles(procs)
+	}
+
+	assert.Empty(t, unheldFor(bothPeer),
+		"the peer attaches the claimant, so the claim holds for it")
+	assert.Equal(t, []string{role}, unheldFor(alonePeer),
+		"the peer attaches only the plugin that stood down, so nothing here holds the role")
 }

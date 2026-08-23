@@ -153,7 +153,11 @@ type AdjRIBInManager struct {
 	routeRelayer func(destination string, routes []rpc.StoredRoute) error
 
 	// replayOwned is set when another plugin owns peer-up replay (bgp-rs). While
-	// set, this plugin does NOT self-replay on peer-up.
+	// set, this plugin does NOT self-replay on peer-up -- except for a peer the
+	// owner takes no delivery of, which the engine states on the state event
+	// itself and replayDrivenElsewhere (rib_claims.go) reads. The flag is
+	// daemon-wide because a claim is; the exception is per-peer because delivery
+	// is.
 	//
 	// Both used to fire. bgp-rs does NOT withhold a replaying peer from its
 	// forward targets (rs/server_forward.go selectForwardTargets keys on peer.Up
@@ -614,9 +618,9 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 	}
 	r.mu.Unlock()
 
-	if isUp && !r.replayOwned.Load() {
-		// No other plugin owns peer-up replay, so nothing else tracks a cut and
-		// nothing else forwards these routes: replay all of them.
+	if isUp && !r.replayDrivenElsewhere(se.UnheldRoles) {
+		// No other plugin drives peer-up replay for THIS peer, so nothing else
+		// tracks a cut and nothing else forwards these routes: replay all of them.
 		routes, _ := r.buildReplayRoutes(peerAddr, 0, unboundedReplay())
 		if err := r.relayRoutes(se.PeerAddress, routes); err != nil {
 			logger().Error("peer-up replay failed", "peer", se.PeerAddress, "routes", len(routes), "error", err)
@@ -818,10 +822,10 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 	}
 	r.mu.Unlock()
 
-	if isUp && !r.replayOwned.Load() {
-		// Replay all known routes to the newly-up peer: no other plugin owns
-		// peer-up replay, so nothing else tracks a cut and nothing else forwards
-		// these routes.
+	if isUp && !r.replayDrivenElsewhere(event.UnheldRoles) {
+		// Replay all known routes to the newly-up peer: no other plugin drives
+		// peer-up replay for THIS peer, so nothing else tracks a cut and nothing
+		// else forwards these routes.
 		// buildReplayRoutes takes RLock internally; relayRoutes does I/O.
 		// Both must run outside the write lock to avoid deadlock.
 		routes, _ := r.buildReplayRoutes(peerAddr, 0, unboundedReplay())

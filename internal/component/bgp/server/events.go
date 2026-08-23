@@ -98,8 +98,9 @@ func getStructuredEvent(peer *plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.St
 }
 
 // getStructuredStateEvent returns a StructuredEvent for a peer state change.
-func getStructuredStateEvent(peer *plugin.PeerInfo, state rpc.SessionState, reason string) *rpc.StructuredEvent {
+func getStructuredStateEvent(peer *plugin.PeerInfo, state rpc.SessionState, reason string, unheldRoles []string) *rpc.StructuredEvent {
 	se := rpc.GetStructuredEvent()
+	se.UnheldRoles = unheldRoles
 	se.PeerAddress = peer.AddrStr()
 	se.PeerName = peer.Name
 	se.PeerGroup = peer.GroupName
@@ -566,6 +567,14 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 
 	logger().Debug("OnPeerStateChange", "peer", peerAddr, "state", state, "reason", reason, "count", len(procs))
 
+	// The claimed roles that NO process being fed this peer holds, computed once
+	// for the whole event and carried on every copy of it. A plugin that stood a
+	// role down at Stage 2 reads it to learn the claim does not cover THIS peer;
+	// Server.UnheldRoles states why the daemon-wide answer is not enough. It
+	// costs one map read on a daemon where nothing ever claimed a role, which is
+	// every daemon running neither bgp-rs nor another claiming plugin.
+	unheldRoles := s.UnheldRoles(procs)
+
 	// Arm the peer-up barrier before the first delivery. Its expected count is
 	// the barrier-declaring plugins among the ones this event is ACTUALLY being
 	// delivered to: counting a declared-but-unsubscribed plugin would make every
@@ -606,7 +615,7 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 		}
 		enc := proc.Encoding()
 		if _, ok := fmtCache.get(enc); !ok {
-			scratch := format.AppendStateChange(scratchArr[:0], peer, state, reason, enc)
+			scratch := format.AppendStateChange(scratchArr[:0], peer, state, reason, unheldRoles, enc)
 			fmtCache.set(enc, string(scratch))
 		}
 	}
@@ -620,7 +629,7 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 		var delivery process.EventDelivery
 		results := make(chan process.EventResult, 1)
 		if proc.HasStructuredHandler() {
-			se := getStructuredStateEvent(peer, state, reason)
+			se := getStructuredStateEvent(peer, state, reason, unheldRoles)
 			delivery = process.EventDelivery{Event: se, Result: results}
 		} else {
 			output, _ := fmtCache.get(proc.Encoding())
@@ -665,7 +674,7 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 		if jsonOutput, ok := fmtCache.get("json"); ok {
 			return jsonOutput
 		}
-		return string(format.AppendStateChange(scratchArr[:0], peer, state, reason, "json"))
+		return string(format.AppendStateChange(scratchArr[:0], peer, state, reason, unheldRoles, "json"))
 	})
 }
 
