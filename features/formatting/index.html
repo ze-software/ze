@@ -62,6 +62,8 @@ offline to already-captured output.</p>
 <li><a href="#piping-inline">Piping inline</a></li>
 <li><a href="#scripting-against-the-daemon-raw">Scripting against the daemon: | raw</a></li>
 <li><a href="#the-offline-way-ze-pipe">The offline way: ze pipe</a></li>
+<li><a href="#asking-the-product-ze-pipe-help-json">Asking the product: ze pipe help --json</a></li>
+<li><a href="#saving-an-answer-save-path">Saving an answer: | save &amp;lt;path&amp;gt;</a></li>
 <li><a href="#configuration-presentation">Configuration presentation</a></li>
 <li><a href="#column-order">Column order</a></li>
 <li><a href="#choosing-the-columns-display-and-fill">Choosing the columns: | display and | fill</a></li>
@@ -118,6 +120,10 @@ show bgp peer list | first 5
 </code></pre>
 <p>A chain takes one format operator: <code>json</code>, <code>ndjson</code>, <code>table</code>, <code>text</code>, <code>yaml</code>
 or <code>raw</code>. Two together are rejected. Filter and display operators chain freely.</p>
+<p>The complete, current set is generated from the operator catalog:
+<a href="https://github.com/ze-software/ze/blob/main/docs/features/pipe-operators.generated.md" target="_blank" rel="noopener"><code>pipe-operators.generated.md</code></a>. It is the list to
+build a tool against, and <code>ze-doc-verify</code> fails when it and the product
+disagree. The table below describes what each operator does for a reader.</p>
 <table>
 <thead>
 <tr>
@@ -226,8 +232,8 @@ through one helper, rather than composing the pipe itself.</p>
 <p>Scripts and pipelines outside an interactive session apply the same
 operators to any captured JSON via <code>ze pipe</code>:</p>
 <pre><code>ze show host cpu | ze pipe table
-ze debug show | ze pipe match reactor
-ze debug show | ze pipe count
+ze show bgp peer list | ze pipe match established
+ze show bgp peer list | ze pipe count
 ze show bgp peer list | ze pipe yaml
 ze show bgp peer list | ze pipe first 5
 </code></pre>
@@ -235,7 +241,65 @@ ze show bgp peer list | ze pipe first 5
 arguments, and writes the result to stdout. It's the same operator table
 above, minus the display-only operators that only make sense inside a live
 session (<code>log</code>, <code>no-more</code>).</p>
+<p><code>ze pipe help</code> lists every operator, split into the two classes below.</p>
 <!-- source: cmd/ze/ze_core_pipe.go -- runPipe, pipeUsage -->
+
+<h3 id="asking-the-product-ze-pipe-help-json">Asking the product: <code>ze pipe help --json</code></h3>
+<p>Do not hand-copy the operator list into a tool. <code>ze pipe help --json</code> answers
+the whole language, and it is generated from the same table the parser reads,
+so it cannot fall behind:</p>
+<pre><code>ze pipe help --json
+</code></pre>
+<p>Each entry carries the operator's <code>name</code>, its <code>class</code>, the <code>shapes</code> of answer
+it acts on, whether it takes an <code>arg</code>, what a second occurrence in one chain
+means (<code>repeat</code>), and a one-line <code>description</code>.</p>
+<p>The two classes are the contract:</p>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>global</code></td>
+<td>acts on the answer whatever it holds. Every command that reaches the pipe layer owes these</td>
+</tr>
+<tr>
+<td><code>data</code></td>
+<td>acts on rows or fields, so a command owes it only where its answer has them</td>
+</tr>
+</tbody>
+</table>
+<p><code>shapes</code> names the answer shapes the operator applies to, using the same words
+the answer head uses on the wire: <code>doc</code> for one document or one value, <code>map</code>
+for rows that describe themselves, <code>tab</code> for rows read against declared column
+names.</p>
+<!-- source: cmd/ze/ze_core_pipe.go -- printPipeCatalogJSON -->
+<!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog -->
+
+<h3 id="saving-an-answer-save-path">Saving an answer: <code>| save &lt;path&gt;</code></h3>
+<p><code>| save</code> writes the answer to a file and passes it through, so the terminal
+still shows it:</p>
+<pre><code>show bgp | json | save /tmp/peers.json
+</code></pre>
+<p>It writes the answer you are looking at, wherever <code>| save</code> sits in the chain.
+A chain that names no format has the configured default appended to its end, so
+a save applied in place would write the dispatcher's JSON rather than what the
+terminal showed.</p>
+<p>The file is created readable by its owner alone (<code>0600</code>), because an answer can
+carry peer addresses, keys and topology. The write is atomic: a failure leaves
+the destination as it was rather than truncated.</p>
+<p><strong><code>| save</code> works where your own process runs the chain</strong>: an interactive
+session, the monitors, and <code>ze pipe</code>. An interactive session is the one surface
+a shell redirect cannot reach, because the answer is drawn to a terminal and
+never reaches a pipe.</p>
+<p><strong>It is refused over <code>ze cli -c</code>, an SSH exec channel and the web</strong>, by name.
+The daemon expands the chain on those surfaces, so the file would be written on
+the daemon's filesystem, with the daemon's privileges, at a path the caller
+chose. Redirect the output from your shell there; that already works.</p>
+<!-- source: internal/component/command/pipe_save.go -->
 
 <h3 id="configuration-presentation">Configuration presentation</h3>
 <p>Configuration uses the same separation between data and presentation. Operators
@@ -531,7 +595,7 @@ already produced. A command filter stops it being produced.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 22:14 UTC</span>
                 </div>
             </div>
         </footer>

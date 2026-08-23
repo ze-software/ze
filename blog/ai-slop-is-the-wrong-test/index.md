@@ -2,6 +2,8 @@
 
 *2026-08-03 by Thomas Mangin*
 
+Authorship says little about whether code belongs in a network operating system. Constraints, review, tests and measurements decide that.
+
 Ze is an AI-written NOS. I decide the architecture, the tradeoffs, what the code must never break and what gets rejected. Claude turns that into implementation.
 
 That is also how I use it for these articles. I am lazy, and my time is limited. I want the time I do have spent on the judgement, the corrections and the parts only I can supply.

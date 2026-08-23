@@ -56,6 +56,7 @@
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#architecture">Architecture</a></li>
 <li><a href="#configuration">Configuration</a></li>
+<li><a href="#which-edits-restart-a-tunnel">Which edits restart a tunnel</a></li>
 <li><a href="#ike-features">IKE features</a></li>
 <li><a href="#ikev2-responder-role">IKEv2 responder role</a></li>
 <li><a href="#pre-shared-secret-encoding">Pre-shared secret encoding</a></li>
@@ -63,6 +64,7 @@
 <li><a href="#certificate-chain-length">Certificate chain length</a></li>
 <li><a href="#hash-and-url-certificates">Hash and URL certificates</a></li>
 <li><a href="#eap-tls-with-tls-13">EAP-TLS with TLS 1.3</a></li>
+<li><a href="#eap-tls-with-tls-12-needs-rfc-7627">EAP-TLS with TLS 1.2 needs RFC 7627</a></li>
 <li><a href="#denial-of-service-protection">Denial-of-service protection</a></li>
 <li><a href="#diffie-hellman-group-correction">Diffie-Hellman group correction</a></li>
 <li><a href="#rekeying">Rekeying</a></li>
@@ -178,6 +180,33 @@ vpn {
 }
 </code></pre>
 <p>Traffic selectors are not listed per tunnel. Route-based IPsec encrypts traffic that the routing table forwards through the bound XFRM interface. The generated <a href="https://ze-software.net/reference/configuration/#xfrm-interfaces">configuration reference</a> documents the XFRM interface leaves.</p>
+<h2 id="which-edits-restart-a-tunnel">Which edits restart a tunnel</h2>
+<p>Committing a change to ANY leaf inside a <code>peer</code> block restarts that peer, and so does a
+change to the <code>ike-group</code> or <code>esp-group</code> that peer names. The tunnel drops, Ze re-negotiates
+it, and the new configuration is what the new IKE SA and its Child SA carry. There is no
+list of leaves that count and leaves that do not: the whole peer configuration and both
+resolved groups are compared, so a leaf that Ze gains in a later release restarts the tunnel
+from the day it exists.</p>
+<p>Rotating a cipher is the case worth naming, because it edits no peer block at all. A peer
+holds the NAME of its groups and none of the crypto, so <code>ike-group IKE-1 { proposal 1 {
+encryption ...</code> restarts every peer that names <code>IKE-1</code> and no other.</p>
+<p>A commit that leaves a peer's block and its two groups unchanged does not touch that peer,
+whatever else in the configuration moved. Adding a second peer, editing a firewall rule or
+changing a log level leaves a running tunnel carrying traffic.</p>
+<p>Three consequences are worth planning around:</p>
+<ul>
+<li><strong>A tunnel bounce is how a narrowing takes effect.</strong> Narrowing a peer's
+  <code>traffic-selector</code> list to stop carrying a prefix works, and it costs the tunnel a
+  re-negotiation. RFC 7296 Section 2.9.2 leaves no other route: a Child SA cannot be
+  narrowed in place.</li>
+<li><strong>Batch peer edits into one commit.</strong> Three commits touching one peer bounce it three
+  times. One commit carrying all three edits bounces it once.</li>
+<li><strong>A group is shared, so an edit to it bounces every peer that names it.</strong> Give a peer its
+  own group when you want to rotate its crypto without touching the others.</li>
+</ul>
+<!-- source: internal/component/ike/engine/reconcile.go -- reconcilePeers, peerConfigChanged -->
+<!-- source: internal/component/ike/ipsec/types.go -- SiteToSitePeer.Equal -->
+
 <h2 id="ike-features">IKE features</h2>
 <table>
 <thead>
@@ -464,6 +493,45 @@ Go keys ticket encryption on that instance. No other session can redeem a ticket
 one. EAP-TLS session resumption is therefore not available.</p>
 <!-- source: internal/component/ike/eap/eap_tls.go -- indicateSuccess, newTLSMethod -->
 
+<h2 id="eap-tls-with-tls-12-needs-rfc-7627">EAP-TLS with TLS 1.2 needs RFC 7627</h2>
+<p>RFC 5216 Section 2.3 derives the EAP-TLS MSK from a TLS key material export, and Go
+refuses that export on a TLS 1.2 session that did not negotiate the RFC 7627 extended
+master secret. Ze cannot authenticate such a peer. It says so rather than failing
+silently: the log line names the peer, the negotiated version, RFC 7627 and the answers
+below.</p>
+<p>strongSwan 5.9.14 is such a peer, by default rather than by limitation. charon ships
+<code>version_max = 1.2</code> in <code>/etc/strongswan.d/charon.conf</code>, with the comment "default to TLS
+1.2 until 1.3 is stable for use in EAP", and it implements no extended master secret. Set
+<code>charon.tls.version_max = 1.3</code> and the same 5.9.14 build reaches an established SA, which
+is what <code>test/interop-ipsec/scenarios/06-eap-tls13</code> runs.</p>
+<table>
+<thead>
+<tr>
+<th>Answer</th>
+<th>What to change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Move the peer to TLS 1.3</td>
+<td>RFC 9190 covers EAP-TLS over TLS 1.3, and the export is unconditional there. This is the preferred answer, and on strongSwan it is one line: <code>charon.tls.version_max = 1.3</code></td>
+</tr>
+<tr>
+<td>Add RFC 7627 to the peer's TLS 1.2 stack</td>
+<td>The export then works, and ze needs no change</td>
+</tr>
+<tr>
+<td>Configure another EAP method</td>
+<td>EAP-MSCHAPv2 derives its key without a TLS export</td>
+</tr>
+</tbody>
+</table>
+<p>Ze offers no setting that lifts the refusal, and there is nothing to add to the
+environment. Go 1.27 removed the <code>tlsunsafeekm</code> GODEBUG setting that once lifted it. A
+removed setting carrying its old value is a fatal error that the Go runtime raises before
+the daemon starts, so setting it stops ze rather than reaching the peer.</p>
+<!-- source: internal/component/ike/eap/eap_tls.go -- exportEAPTLSMSK, eapTLS12ExportRefused -->
+
 <h2 id="denial-of-service-protection">Denial-of-service protection</h2>
 <p>RFC 7296 Section 2.6 names two attacks on an IKE responder: state and CPU exhaustion
 from initiation requests with forged source addresses. The answer is a COOKIE. Ze
@@ -598,12 +666,16 @@ in order, because RFC 7296 reads the order as the preference order.</p>
 program exactly is narrowed FURTHER, never rounded outward: an address range that is not a
 prefix becomes the largest prefix inside it, and a port range that is neither all ports nor
 one port becomes its first port. A rekey is never narrowed below the scope in use.</p>
-<p>A peer whose selectors narrow while a tunnel is up proposes exactly that at its next rekey.
-Ze refuses such a rekey with <code>TS_UNACCEPTABLE</code> instead of replacing the SA with a narrower
-one. RFC 7296 Section 2.9.2 gives the reason: a rekey that needs a narrower scope means the
-policy changed, and the SA should have been deleted when the change took effect. The log
-line names both selector sets. Narrow the selectors on BOTH ends, or clear the peer, rather
-than waiting for the rekey timer.</p>
+<p>Editing a peer's <code>traffic-selector</code> list and committing restarts that peer. The tunnel
+drops and comes back carrying the new selectors, and the kernel policy follows. This is
+what RFC 7296 Section 2.9.2 asks for: a rekey that would need a narrower scope means the
+policy changed, and the SA should have been deleted when the change took effect. Narrowing
+a live tunnel by waiting for the rekey timer is not an option the protocol offers.</p>
+<p>A REMOTE peer whose selectors narrow while a tunnel is up proposes exactly that at its next
+rekey. Ze refuses such a rekey with <code>TS_UNACCEPTABLE</code> instead of replacing the SA with a
+narrower one, and the log line names both selector sets. A repeating refusal means the
+other end narrowed its policy and left its tunnel up. Narrow the selectors on the Ze end
+too, or clear the peer.</p>
 <p>The same floor applies to a rekey Ze STARTS. Ze installs the selectors the peer answered
 with, never the retired SA's, so both ends program the same traffic. An answer narrower
 than the scope in use is refused: Ze keeps the SA that is carrying traffic, sends no error
@@ -918,7 +990,7 @@ ungated.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 14:05 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 22:14 UTC</span>
                 </div>
             </div>
         </footer>

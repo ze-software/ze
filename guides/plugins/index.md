@@ -830,9 +830,34 @@ p.OnExecuteCommand(func(serial, command string, args []string, peer string) (str
 
 `Key` names the envelope the rows belong under. `Rows` is an
 `iter.Seq[sdk.Record]`, and each record carries one `Item` the command produced
-or one `Fault` it rejected. A `Row` appends its own JSON, so a producer can hand
-back one row value for every row of the walk.
+or one `Fault` it rejected. A `Row` appends its own JSON into the buffer the
+writer owns, so a walk of a million rows allocates for none of them. The row is
+appended before the yield that carried it returns and nothing keeps a reference
+to it, so a producer can hand back one row value for every row of the walk and
+refill it in place.
 <!-- source: pkg/plugin/records.go -- Row, Record, Records -->
+
+`Fields` names the columns when every row of the walk shares one schema. Declare
+them and each row is a JSON array of values in that order, so the names travel
+once on the head instead of on every row:
+
+```go
+return "done", sdk.Records{
+	Key:    "sessions",
+	Fields: []string{"peer", "state", "uptime"},
+	Rows:   sessionColumnRows(),
+}, nil
+```
+
+An operator sees the same objects either way. The engine reads the names off the
+head and puts each value back under its own name. Declaring a schema therefore
+changes what the wire carries and never what the command answers.
+
+A row MUST then carry exactly one value for each name, in the same order. The two
+are read against each other by POSITION. A short row would gain a column it never
+carried, and a long one would lose a value, so such a row is refused rather than
+repaired.
+<!-- source: pkg/plugin/rpc/answer_row.go -- checkRowArity, zipRow -->
 
 Three rules bind a handler that answers this way.
 
@@ -914,7 +939,7 @@ Dependencies are declared in the plugin's registration, not in config. The engin
 | Hard | `Dependencies` | Startup fails with `ErrMissingDependency`. |
 | Optional | `OptionalDependencies` | Silently skipped. Plugin owner handles runtime absence (typically a one-shot WARN + feature disabled). |
 
-`bgp-rs` uses `bgp-adj-rib-in` optionally: when both are loaded, replay-on-peer-up works; when `bgp-adj-rib-in` is absent, forwarding still works and a single WARN log announces that replay is disabled. `bgp-rs` forwards via the typed `Plugin.ForwardCached` / `ReleaseCached` fast path (rs-fastpath-3) instead of the legacy text-RPC `bgp cache forward <id> <sel>` pipeline. See [architecture/api/commands](https://github.com/ze-software/ze/blob/main/docs/architecture/api/commands.md#fast-path-typed-sdk-rs-fastpath-3) for the full SDK surface.
+`bgp-rs` uses `bgp-adj-rib-in` optionally: when both are loaded, replay-on-peer-up works; when `bgp-adj-rib-in` is absent, forwarding still works and a single WARN log announces that replay is disabled. `bgp-rs` forwards via the typed `Plugin.ForwardCached` / `ReleaseCached` fast path (rs-fastpath-3) instead of the legacy text-RPC `bgp cache forward <id> <sel>` pipeline. See [architecture/api/commands](../../architecture/api/commands/index.md#fast-path-typed-sdk-rs-fastpath-3) for the full SDK surface.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.Dependencies + Registration.OptionalDependencies -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- flushBatch via Plugin.ForwardCached -->
 
@@ -927,6 +952,16 @@ Stage 2 is part of the sequential handshake, so the decision is recorded before 
 `bgp-rs` claims `bgp-peer-up-replay`; `bgp-adj-rib-in` stands its own replay down when that claim is active. The decision must not be re-derived from `OnAllPluginsReady`: that callback is fanned out on detached goroutines that race session establishment, and when the ownership decision was taken there both plugins replayed, so a peer received a byte-identical duplicate UPDATE. An unclaimed or unresolvable role reads `false`, which is the fail-closed direction: nobody promised to do this, so keep doing it yourself.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.Claims -->
 <!-- source: pkg/plugin/sdk/sdk.go -- Plugin.ClaimActive -->
+
+### A claim is daemon-wide, and delivery is per-peer
+
+A claim says a role has an owner in this daemon. It cannot say the owner will act on a given peer, because Stage 2 runs before any session exists. Two things make the claim wrong for one peer, and the plugin that stood down can see neither: the claimant takes no delivery of that peer's events, because the peer's `attach process` blocks do not name it, or the claimant never reached Running at all.
+
+So the engine RETRACTS the claim, per event, for the peers it does not cover. Each peer-scoped event carries the claimed roles that no process being fed this event holds: `StructuredEvent.UnheldRoles` for a plugin on the direct bridge, and the `unheld-roles` member of the state event for a JSON one. A plugin that stood a role down MUST run its own default behaviour for an event that names it, because nothing else will. The list is absent whenever every claim holds, which is the common case and costs no bytes.
+
+`bgp-adj-rib-in` reads it at peer-up: it replays a peer that `bgp-rs` is not fed, and stands down for the peers `bgp-rs` drives. Without the retraction such a peer was served by nobody, because `bgp-rs` replays and forwards only peers it takes `state` delivery of.
+<!-- source: internal/component/plugin/server/startup_claims.go -- (*Server).UnheldRoles -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_claims.go -- (*AdjRIBInManager).replayDrivenElsewhere -->
 
 ## Peer-Up Barrier
 

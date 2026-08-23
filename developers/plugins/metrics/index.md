@@ -203,9 +203,34 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_managed_config_changed_pushed_total` | Counter | | managed (hub server) |
 | `ze_plugin_write_watchdog_total` | CounterVec | transport | plugin (server) |
 | `ze_iface_owned_devices` | GaugeVec | owner | iface (owned-device registry) |
+| `ze_iface_link_events_coalesced_total` | CounterVec | name | iface (link event queue) |
+| `ze_iface_carrier_resyncs_total` | CounterVec | name | iface (carrier resync) |
+| `ze_iface_resolver_events_dropped_total` | CounterVec | name | iface (resolver fan-out) |
 | `ze_iface_ra_sent_total` | CounterVec | interface | iface-ra |
 | `ze_iface_ra_solicited_total` | CounterVec | interface | iface-ra |
+
+The three iface link-event counters answer the same question from different
+points on the path, and none of them reports a lost final state. A rising
+`ze_iface_link_events_coalesced_total` says the queue's worker fell behind the
+kernel, which a config commit causes because it holds the lock that worker
+takes. Nothing is lost when it rises: the queue keeps the state each interface
+ENDED in. A rising `ze_iface_carrier_resyncs_total` says the recorded route
+metric contradicted live carrier and ze moved the route to agree, which happens
+when a route install failed or a device was already down at start. A rising
+`ze_iface_resolver_events_dropped_total` names a LOGICAL interface whose
+subscriber was too slow, so the fan-out discarded the OLDEST event buffered for
+it to make room for the newest. That subscriber has lost the middle of a burst
+and still sees the state the interface ended in.
+
+Only the first two are read together. `ze_iface_link_events_coalesced_total`
+rising while `ze_iface_carrier_resyncs_total` stays flat is the healthy shape
+under load: the worker was behind and the event path still carried every
+interface to its final state. The resync counter moving is the one that says a
+transition never arrived at all.
+
 <!-- source: internal/component/iface/rate.go -- ownedDevices gauge registration -->
+<!-- source: internal/component/iface/link_queue.go -- coalesced and resync counters -->
+<!-- source: internal/component/iface/resolve.go -- onLinkEvent and sendLatest, the discard counter -->
 <!-- source: internal/component/iface/device_owner.go -- updateOwnedDeviceGauge -->
 <!-- source: internal/plugins/iface/ra/ifacera.go -- SetMetricsRegistry, incSent, incSolicited -->
 <!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer metric registration -->

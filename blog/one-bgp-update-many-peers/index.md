@@ -2,6 +2,8 @@
 
 *2026-08-04 by Thomas Mangin*
 
+Every peer gets an independent policy decision. Ze reuses an encoding only when the received UPDATE and the complete result of that decision match.
+
 [ExaBGP](https://github.com/Exa-Networks/exabgp) was never meant to be a router. I wrote it so an ordinary process could speak BGP: announce a service or anycast prefix, inject a blackhole or FlowSpec rule, and turn received messages into text or JSON that another program could use. Most ExaBGP installations use it as a route announcer, and that narrow focus is still one of its strengths.
 
 There are optional Adj-RIB-In and Adj-RIB-Out caches in the code, mostly to support a peer session and replay announcements. ExaBGP has no Loc-RIB, performs no best-path selection, does not itself forward a route learned from one peer to another, and does not manipulate the FIB. The routing decision belongs to the configuration, or to the process using its API.

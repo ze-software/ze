@@ -1798,7 +1798,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 </tr>
 <tr>
 <td><code>cmd=api:</code></td>
-<td>Test runner (sends to ze-peer)</td>
+<td>nobody. <code>parseCmd</code> stores the text on the message and only the failure reporter prints it, so the line documents the command that produced the expected bytes and executes nothing. A test that expects it to inject routes asserts against an empty RIB</td>
 </tr>
 <tr>
 <td><code>cmd=foreground:</code>, <code>cmd=background:</code></td>
@@ -2187,7 +2187,7 @@ expect=completion:contains=router-id,local-as,peer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 22:14 UTC</span>
                 </div>
             </div>
         </footer>

@@ -48,23 +48,37 @@
             </noscript>
         </div>
 
-        <main id="top" tabindex="-1">
-            <section aria-labelledby="post-title">
-                <div class="journey-hero reveal">
+        <main id="top" class="site-main-wide" tabindex="-1">
+            <section class="blog-article-shell" aria-labelledby="post-title">
+                <div class="journey-hero blog-article-hero reveal">
                     <span class="journey-eyebrow">Article</span>
                     <h1 id="post-title">How Ze keeps BGP traffic away from the garbage collector</h1>
-                    <p><time datetime="2026-08-04">2026-08-04</time> by Thomas Mangin</p>
+                    <p>Ze controls allocation by making ownership and lifetime explicit: borrow immutable wire data, copy at ownership boundaries and return bounded storage.</p>
                 </div>
+                <div class="blog-article-meta"><time datetime="2026-08-04">2026-08-04</time><span>by Thomas Mangin</span></div>
+
                 <p class="post-back"><a href="../">&larr; All articles</a></p>
             </section>
-            <section class="md-content reveal" data-table-columns="off" data-code-copy="off">
+            <nav class="blog-article-toc reveal" aria-label="Article sections">
+                <p class="blog-article-toc-label">In this article</p>
+                <ol>
+                    <li><a href="#one-update-one-backing-buffer">One UPDATE, one backing buffer</a></li>
+                    <li><a href="#copy-at-ownership-boundaries">Copy at ownership boundaries</a></li>
+                    <li><a href="#storage-follows-lifetime">Storage follows lifetime</a></li>
+                    <li><a href="#long-lived-routes-share-canonical-attributes">Long-lived routes share canonical attributes</a></li>
+                    <li><a href="#write-directly-into-the-destination">Write directly into the destination</a></li>
+                    <li><a href="#allocation-is-a-contract">Allocation is a contract</a></li>
+                    <li><a href="#what-transfers-to-other-systems">What transfers to other systems</a></li>
+                </ol>
+            </nav>
+            <section class="md-content blog-article-content reveal" data-table-columns="off" data-code-copy="off">
 <p>The Common Gateway Interface let an HTTP server invoke an external program to produce a webpage. ExaBGP applied the same separation to BGP: it managed the sessions and the wire messages, while ordinary processes exchanged decoded events and route announcements with it.</p>
 <p>That separation worked. Applications received convenient Python objects instead of parsing raw BGP bytes. Transcoding BGP data is expensive, so I wrote ExaBGP with performance in mind from the start, but there is only so much any program can do about the interpreter underneath it. Large announcements and full-table decoding showed where Python's object model spends its memory. An allocation which looks harmless on its own is repeated for every route, every attribute, every value and the cost becomes obvious.</p>
 <p>Ze is written in Go and follows one rule about memory: the received wire representation stays immutable, readers borrow views of it while its owner is alive, a copy happens when the representation or the lifetime changes, and owned storage returns to a bounded pool. The backing arrays still belong to Go's managed heap. Keeping traffic away from the garbage collector, as the title puts it, means that the work Ze repeats thousands of times a second creates almost no new heap objects.</p>
 <p>Rust developers will recognise their borrow checker in that description, without a compiler to enforce it. Zig and Odin developers will recognise arena allocation.</p>
 <p>The rest of this article follows one BGP UPDATE through that design, from the receive buffer to the RIB and out to each peer, then shows the tests which keep the design intact.</p>
 <p><em>This article was co-authored with Claude. The architecture, design decisions, measurements and conclusions come from my work on ExaBGP and Ze. Claude helped organise the material and draft the text.</em></p>
-<h2>One UPDATE, one backing buffer</h2>
+<h2 id="one-update-one-backing-buffer">One UPDATE, one backing buffer</h2>
 <p>When processing BGP messages, the normal receive and forwarding path is:</p>
 <pre><code class="language-text">TCP connection
   reusable 4 KiB or 64 KiB receive storage
@@ -82,7 +96,7 @@ TCP write completes, then each owner releases its storage
 <p>The received UPDATE remains a read-only wire message. When Ze needs part of it, such as its path attributes or announced prefixes, it creates a byte-slice view over the relevant bytes in the receive buffer. Iterators examine attributes and prefixes one at a time. Requesting the next hop parses only that attribute; the communities and AS path stay exactly as they arrived.</p>
 <p>Creating these slice views allocates no heap memory and copies no bytes. Each view is an ordinary Go slice over the receive buffer, so the garbage collector keeps those bytes alive for as long as anything still holds the view. What a view cannot survive is reuse. Once the receive path releases the buffer back to its pool, the next read fills the same memory, and a view kept past that point reads a later message. Go has no way to say where that release point is, so the rule lives in Ze's API.</p>
 <p>Before the receive step returns, ownership of the buffer passes to Ze's recent UPDATE cache. The cache keeps the original bytes available to forwarding and other consumers. Normally it returns the buffer to the pool after every consumer has acknowledged the UPDATE and any explicit retention has been released; a safety valve can evict stalled entries.</p>
-<h2>Copy at ownership boundaries</h2>
+<h2 id="copy-at-ownership-boundaries">Copy at ownership boundaries</h2>
 <p>Copying an UPDATE for every consumer would move the same bytes again and again, so Ze copies when ownership or representation changes:</p>
 <table>
 <thead>
@@ -116,7 +130,7 @@ TCP write completes, then each owner releases its storage
 </table>
 <p>A consumer which needs a longer lifetime takes an owned snapshot; anything which finishes inside the current step keeps borrowing the original bytes. Forwarding borrows the input too, when source and destination negotiated the same encoding. Policy changes are written into storage owned by the destination peer, so the cost of copy-on-modify falls on the destinations which actually need different bytes.</p>
 <p>A lifetime error has to be loud, and a Go slice carries no ownership information to make it so. In builds compiled with the <code>debug</code> tag, Ze overwrites a receive buffer with the repeating bytes <code>DE AD BE EF</code> before returning it to the pool. A stale reader then sees poison instead of bytes from a later UPDATE. Released attribute slots use the same guard. Without the <code>debug</code> tag, the compiler removes this diagnostic path.</p>
-<h2>Storage follows lifetime</h2>
+<h2 id="storage-follows-lifetime">Storage follows lifetime</h2>
 <p>Receive input, peer output, slow fan-out and temporary scratch data have different owners. Giving them one pool would mix their limits and their failure behaviour.</p>
 <table>
 <thead>
@@ -155,13 +169,13 @@ TCP write completes, then each owner releases its storage
 <p>Scratch values which are cheap to recreate can use Go's <a href="https://pkg.go.dev/sync#Pool" target="_blank" rel="noopener"><code>sync.Pool</code></a>. Any cached item may disappear without notice, so correctness must not depend on retrieving an item which was previously returned. Bidirectional Forwarding Detection packets are one example: their fixed maximum size suits equal reusable buffers, and encoding writes directly into borrowed packet storage.</p>
 <p>Pooling exchanges allocation churn for retained capacity. It works well for repeated fixed-size operations with clear release points. Variable lifetimes, unbounded retention or ambiguous ownership need a different design.</p>
 <p>The <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/buffer-architecture.md" target="_blank" rel="noopener">buffer-first architecture</a>, <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/pool-architecture.md" target="_blank" rel="noopener">pool architecture</a> and <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/forward-congestion-pool.md" target="_blank" rel="noopener">forward congestion design</a> record the current sizes, limits and exhaustion rules.</p>
-<h2>Long-lived routes share canonical attributes</h2>
+<h2 id="long-lived-routes-share-canonical-attributes">Long-lived routes share canonical attributes</h2>
 <p>Receive storage solves short lifetimes. A routing information base, or RIB, keeps its routes long after the input has been released. Many of those routes share their origin, autonomous system path, local preference, next hop and communities. Copying a complete attribute set into every route would waste a great deal of memory.</p>
 <p>Ze interns each attribute separately. Interning stores one canonical value and gives routes a compact handle to it. Routes with different Multi-Exit Discriminator values can still share every other equal attribute.</p>
 <p>The first occurrence of each distinct value is copied into pool-owned storage. A later equal value increments a reference count, and the route keeps a 32-bit handle. Reading a live handle returns a view of the canonical bytes.</p>
 <p>Busy attribute types are partitioned by a content hash so unrelated routes do not contend on one lock. Types with few possible values remain in one partition, because extra locks would consume memory without improving concurrency.</p>
 <p>Released values leave holes, so incremental compaction moves live entries in small batches while preserving their handles. This avoids one large pause across the routing table.</p>
-<h2>Write directly into the destination</h2>
+<h2 id="write-directly-into-the-destination">Write directly into the destination</h2>
 <p>Convenient encoders often create a byte sequence which the caller immediately copies into a network buffer. Ze gives its encoders caller-owned storage instead. They write at a supplied position and report how many bytes they used. Variable-length sections reserve their length field, write their contents, then fill in the length.</p>
 <p>Filters record the changes required for one destination in reusable working storage allocated outside the destination loop. That storage is reset for the next peer while retaining its backing arrays. Common changes fit inline. Exceptional size may grow onto the heap, and counters make those cases visible.</p>
 <p>The warm common path rejects unexplained allocation. Memory should come from the caller, a bounded pool or storage already owned by the operation. New ownership, exceptional input and cold pool growth may still require heap memory.</p>
@@ -173,7 +187,7 @@ TCP write completes, then each owner releases its storage
 <p>Extraction makes ownership explicit. <code>Slice</code> freezes the buffer and returns a borrowed string view without allocating; the view is valid only until the buffer is reset or released. <code>String</code> returns owned text, copying inline data so it can outlive the buffer, though heap-backed data can transfer its storage instead. Tests guard both lifetime contracts, and pooled buffers reset for reuse.</p>
 <p>Language choice does not supply this behaviour automatically. Rust makes ownership visible to the compiler, but cloning still allocates and copies. Go uses a tracing collector, yet bounded reuse can leave it with very little repeated work. The <a href="https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html" target="_blank" rel="noopener">Rust ownership guide</a> and <a href="https://go.dev/doc/gc-guide" target="_blank" rel="noopener">Go garbage collector guide</a> describe different memory models, and unnecessary data movement is expensive under both.</p>
 <p>In an <a href="https://www.youtube.com/watch?v=9Cswiqrq6So" target="_blank" rel="noopener">interview about OCaml and systems programming</a>, Xavier Leroy makes a related point: manual memory management does not guarantee faster software. Uncertain ownership encourages copies made only to regain sole ownership. Garbage-collected languages can share data safely, and Rust has borrowing and shared ownership when it needs them. What decides the result is the lifetime design, decided well before the language on the label.</p>
-<h2>Allocation is a contract</h2>
+<h2 id="allocation-is-a-contract">Allocation is a contract</h2>
 <p>Ze uses allocation assertions for operations which should request no heap memory once their pools are warm. Benchmarks also measure time, but nanosecond results depend on the compiler and the machine. The durable claims concern ownership and allocation:</p>
 <table>
 <thead>
@@ -234,7 +248,7 @@ TCP write completes, then each owner releases its storage
 </table>
 <p>The executable evidence lives in the <a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/bench_test.go" target="_blank" rel="noopener">BFD packet benchmark</a>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/attrpool/benchmark_test.go" target="_blank" rel="noopener">attribute-pool benchmarks</a> and <a href="https://github.com/ze-software/ze/tree/main/internal/component/bgp/reactor" target="_blank" rel="noopener">BGP hot-path tests</a>.</p>
 <p>These checks say nothing about route convergence, TCP behaviour or every allocation the daemon makes. Session creation, maps, control-plane state, external serialisation, pool growth and exceptional spill paths all still allocate. What the checks buy is that a regression in a guarded common path fails during development, instead of becoming unexplained operator pressure.</p>
-<h2>What transfers to other systems</h2>
+<h2 id="what-transfers-to-other-systems">What transfers to other systems</h2>
 <p>None of this is free. Reuse keeps capacity you have already paid for, and in exchange it asks you to say who owns what. Every pool needs a byte limit, every borrowed view needs a release point, every stale access needs a diagnostic which fails loudly during development, and running out of memory has to leave the process in a safe state. That is a lot of bookkeeping for an operation which runs twice. It is cheap for one which runs a million times.</p>
 <p>If you want to apply this elsewhere, the useful exercise is to take one item, follow it from input to final output, and name its owner at every stage. Where the name changes, you have found a copy, and it is either one you need or one you can remove. Where the name is unclear, you have found the bug you will spend an afternoon on later.</p>
 <p>Compared with ExaBGP's object path, an UPDATE in Ze enters one receive buffer, is examined through views, shares canonical attributes with the routes already in the table, and is copied only when a destination needs different bytes or a longer lifetime. Changing language removed one ceiling. Most of the rest came from changing the representation and the ownership model, which a direct port would have carried over untouched.</p>
@@ -249,7 +263,7 @@ TCP write completes, then each owner releases its storage
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 22:14 UTC</span>
                 </div>
             </div>
         </footer>

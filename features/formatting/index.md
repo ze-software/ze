@@ -43,6 +43,11 @@ show bgp peer list | first 5
 A chain takes one format operator: `json`, `ndjson`, `table`, `text`, `yaml`
 or `raw`. Two together are rejected. Filter and display operators chain freely.
 
+The complete, current set is generated from the operator catalog:
+[`pipe-operators.generated.md`](https://github.com/ze-software/ze/blob/main/docs/features/pipe-operators.generated.md). It is the list to
+build a tool against, and `ze-doc-verify` fails when it and the product
+disagree. The table below describes what each operator does for a reader.
+
 | Operator | Kind | Description |
 |----------|------|-------------|
 | `table` | format | Box-drawing table rendering |
@@ -93,8 +98,8 @@ operators to any captured JSON via `ze pipe`:
 
 ```
 ze show host cpu | ze pipe table
-ze debug show | ze pipe match reactor
-ze debug show | ze pipe count
+ze show bgp peer list | ze pipe match established
+ze show bgp peer list | ze pipe count
 ze show bgp peer list | ze pipe yaml
 ze show bgp peer list | ze pipe first 5
 ```
@@ -104,7 +109,68 @@ arguments, and writes the result to stdout. It's the same operator table
 above, minus the display-only operators that only make sense inside a live
 session (`log`, `no-more`).
 
+`ze pipe help` lists every operator, split into the two classes below.
+
 <!-- source: cmd/ze/ze_core_pipe.go -- runPipe, pipeUsage -->
+
+### Asking the product: `ze pipe help --json`
+
+Do not hand-copy the operator list into a tool. `ze pipe help --json` answers
+the whole language, and it is generated from the same table the parser reads,
+so it cannot fall behind:
+
+```
+ze pipe help --json
+```
+
+Each entry carries the operator's `name`, its `class`, the `shapes` of answer
+it acts on, whether it takes an `arg`, what a second occurrence in one chain
+means (`repeat`), and a one-line `description`.
+
+The two classes are the contract:
+
+| Class | Meaning |
+|-------|---------|
+| `global` | acts on the answer whatever it holds. Every command that reaches the pipe layer owes these |
+| `data` | acts on rows or fields, so a command owes it only where its answer has them |
+
+`shapes` names the answer shapes the operator applies to, using the same words
+the answer head uses on the wire: `doc` for one document or one value, `map`
+for rows that describe themselves, `tab` for rows read against declared column
+names.
+
+<!-- source: cmd/ze/ze_core_pipe.go -- printPipeCatalogJSON -->
+<!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog -->
+
+### Saving an answer: `| save <path>`
+
+`| save` writes the answer to a file and passes it through, so the terminal
+still shows it:
+
+```
+show bgp | json | save /tmp/peers.json
+```
+
+It writes the answer you are looking at, wherever `| save` sits in the chain.
+A chain that names no format has the configured default appended to its end, so
+a save applied in place would write the dispatcher's JSON rather than what the
+terminal showed.
+
+The file is created readable by its owner alone (`0600`), because an answer can
+carry peer addresses, keys and topology. The write is atomic: a failure leaves
+the destination as it was rather than truncated.
+
+**`| save` works where your own process runs the chain**: an interactive
+session, the monitors, and `ze pipe`. An interactive session is the one surface
+a shell redirect cannot reach, because the answer is drawn to a terminal and
+never reaches a pipe.
+
+**It is refused over `ze cli -c`, an SSH exec channel and the web**, by name.
+The daemon expands the chain on those surfaces, so the file would be written on
+the daemon's filesystem, with the daemon's privileges, at a path the caller
+chose. Redirect the output from your shell there; that already works.
+
+<!-- source: internal/component/command/pipe_save.go -->
 
 ### Configuration presentation
 

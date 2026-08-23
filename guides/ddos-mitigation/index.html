@@ -375,7 +375,7 @@ server-driven mitigation commands.</p>
 <td><code>startup-grace</code></td>
 <td><code>90</code></td>
 <td>0-3600 s</td>
-<td>Seconds after startup where only extreme spikes (&gt;5x floor) trigger</td>
+<td>Seconds after startup where only an extreme spike (&gt;5x floor) or an armed bandwidth trigger fires</td>
 </tr>
 <tr>
 <td><code>bps-trigger-enable</code></td>
@@ -440,6 +440,12 @@ server-driven mitigation commands.</p>
 samples. The p99 is recalculated every 10 samples. Samples collected during an
 active attack or above the current threshold are excluded from the baseline to
 prevent poisoning.</p>
+<p>That exclusion has one damped exception, and without it the detector latches: a
+permanent rise in offered load (a new customer, a migrated service) would hold
+the threshold under the new level for good. One sample in every 3600 consecutive
+above-threshold samples enters the window, which is one per hour at the default
+<code>check-interval</code>. A 300-sample window then follows a sustained new level after 4
+to 13 hours, and any flood shorter than that leaves the threshold where it was.</p>
 <p><strong>Bandwidth (BPS) trigger:</strong> amplification floods (NTP, memcached, CLDAP) are
 low-PPS but very high bandwidth, so a packet-rate threshold alone misses them. A
 parallel bandwidth baseline (same rolling window and poisoning guard, in bytes/s)
@@ -815,7 +821,7 @@ degrades to a coarse generic-flood drop.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 22:14 UTC</span>
                 </div>
             </div>
         </footer>

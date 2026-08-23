@@ -2,6 +2,8 @@
 
 *2026-08-04 by Thomas Mangin*
 
+Ze controls allocation by making ownership and lifetime explicit: borrow immutable wire data, copy at ownership boundaries and return bounded storage.
+
 The Common Gateway Interface let an HTTP server invoke an external program to produce a webpage. ExaBGP applied the same separation to BGP: it managed the sessions and the wire messages, while ordinary processes exchanged decoded events and route announcements with it.
 
 That separation worked. Applications received convenient Python objects instead of parsing raw BGP bytes. Transcoding BGP data is expensive, so I wrote ExaBGP with performance in mind from the start, but there is only so much any program can do about the interpreter underneath it. Large announcements and full-table decoding showed where Python's object model spends its memory. An allocation which looks harmless on its own is repeated for every route, every attribute, every value and the cost becomes obvious.

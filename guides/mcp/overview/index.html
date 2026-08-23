@@ -102,6 +102,9 @@ ze --mcp 9718 config.conf
     }
 }
 </code></pre>
+<p>A server entry that omits <code>port</code> binds 8080, the default the YANG declares. A
+server entry that omits <code>ip</code> binds 127.0.0.1. An <code>mcp</code> block with no <code>server</code>
+entry at all binds 127.0.0.1:8080.</p>
 <p><strong>Environment variable:</strong></p>
 <pre><code class="language-bash">export ze_mcp_listen=127.0.0.1:9718
 # or simply:
@@ -800,7 +803,7 @@ keeps naming the taskId that <code>task-call</code> produced.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 22:14 UTC</span>
                 </div>
             </div>
         </footer>

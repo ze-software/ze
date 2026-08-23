@@ -925,6 +925,24 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td>iface (owned-device registry)</td>
 </tr>
 <tr>
+<td><code>ze_iface_link_events_coalesced_total</code></td>
+<td>CounterVec</td>
+<td>name</td>
+<td>iface (link event queue)</td>
+</tr>
+<tr>
+<td><code>ze_iface_carrier_resyncs_total</code></td>
+<td>CounterVec</td>
+<td>name</td>
+<td>iface (carrier resync)</td>
+</tr>
+<tr>
+<td><code>ze_iface_resolver_events_dropped_total</code></td>
+<td>CounterVec</td>
+<td>name</td>
+<td>iface (resolver fan-out)</td>
+</tr>
+<tr>
 <td><code>ze_iface_ra_sent_total</code></td>
 <td>CounterVec</td>
 <td>interface</td>
@@ -938,7 +956,26 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 </tr>
 </tbody>
 </table>
+<p>The three iface link-event counters answer the same question from different
+points on the path, and none of them reports a lost final state. A rising
+<code>ze_iface_link_events_coalesced_total</code> says the queue's worker fell behind the
+kernel, which a config commit causes because it holds the lock that worker
+takes. Nothing is lost when it rises: the queue keeps the state each interface
+ENDED in. A rising <code>ze_iface_carrier_resyncs_total</code> says the recorded route
+metric contradicted live carrier and ze moved the route to agree, which happens
+when a route install failed or a device was already down at start. A rising
+<code>ze_iface_resolver_events_dropped_total</code> names a LOGICAL interface whose
+subscriber was too slow, so the fan-out discarded the OLDEST event buffered for
+it to make room for the newest. That subscriber has lost the middle of a burst
+and still sees the state the interface ended in.</p>
+<p>Only the first two are read together. <code>ze_iface_link_events_coalesced_total</code>
+rising while <code>ze_iface_carrier_resyncs_total</code> stays flat is the healthy shape
+under load: the worker was behind and the event path still carried every
+interface to its final state. The resync counter moving is the one that says a
+transition never arrived at all.</p>
 <!-- source: internal/component/iface/rate.go -- ownedDevices gauge registration -->
+<!-- source: internal/component/iface/link_queue.go -- coalesced and resync counters -->
+<!-- source: internal/component/iface/resolve.go -- onLinkEvent and sendLatest, the discard counter -->
 <!-- source: internal/component/iface/device_owner.go -- updateOwnedDeviceGauge -->
 <!-- source: internal/plugins/iface/ra/ifacera.go -- SetMetricsRegistry, incSent, incSolicited -->
 <!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer metric registration -->
@@ -1126,7 +1163,7 @@ atomic pointer, periodic update loop, and per-peer label cleanup.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 22:14 UTC</span>
                 </div>
             </div>
         </footer>

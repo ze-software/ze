@@ -2,6 +2,8 @@
 
 *2026-08-06 by Thomas Mangin*
 
+A feature is unfinished until every support claim can be traced from the standard through tests, known gaps and the exact change being committed.
+
 I ended [AI slop is the wrong test](../ai-slop-is-the-wrong-test/) with this line: the code is cheap, the proof is the expensive part. This post is the missing explanation.
 
 When people hear that Ze is an AI-written network operating system, they usually imagine the worst version of that idea. Ask a model for a routing feature, glance at the diff, run a quick test, merge it. That would be reckless.

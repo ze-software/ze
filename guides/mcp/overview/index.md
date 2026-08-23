@@ -28,6 +28,10 @@ environment {
 }
 ```
 
+A server entry that omits `port` binds 8080, the default the YANG declares. A
+server entry that omits `ip` binds 127.0.0.1. An `mcp` block with no `server`
+entry at all binds 127.0.0.1:8080.
+
 **Environment variable:**
 ```bash
 export ze_mcp_listen=127.0.0.1:9718

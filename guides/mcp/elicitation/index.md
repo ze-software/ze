@@ -250,4 +250,4 @@ empty `inputResponses`, which drives the re-ask path).
 
 - [MCP Overview](../overview/index.md) -- tools, transport and configuration
 - [MCP Architecture](https://github.com/ze-software/ze/blob/main/docs/architecture/mcp/overview.md) -- internals
-- [MCP API Methods](https://github.com/ze-software/ze/blob/main/docs/architecture/api/commands.md#mcp-methods) -- the method table
+- [MCP API Methods](../../../architecture/api/commands/index.md#mcp-methods) -- the method table

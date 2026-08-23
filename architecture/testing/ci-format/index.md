@@ -1254,7 +1254,7 @@ Different components consume different line types:
 | `stdin=` | Test runner (pipes to processes) |
 | `tmpfs=` | Test runner (writes to temp) |
 | `option=` | Test runner + ze-peer |
-| `cmd=api:` | Test runner (sends to ze-peer) |
+| `cmd=api:` | nobody. `parseCmd` stores the text on the message and only the failure reporter prints it, so the line documents the command that produced the expected bytes and executes nothing. A test that expects it to inject routes asserts against an empty RIB |
 | `cmd=foreground:`, `cmd=background:` | Test runner (process orchestration) |
 | `expect=exit:`, `stdout:`, `stderr:`, `json:`, `syslog:`, `file:` | Test runner |
 | `reject=stderr:`, `reject=syslog:` | Test runner (negative expectations) |

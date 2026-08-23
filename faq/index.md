@@ -1,75 +1,91 @@
 # Frequently asked questions
 
-The questions people tend to ask before they spend time on Ze. If yours is not here, ask on [Discord](https://discord.gg/T8s7CjPDne) or open an [issue](https://github.com/ze-software/ze/issues).
+Straight answers about what Ze does, where it is ready, and what adopting it involves. Ask on [Discord](https://discord.gg/T8s7CjPDne) or open an [issue](https://github.com/ze-software/ze/issues) when your question is missing.
+
+## Product and readiness
+
+Start here if you are deciding whether Ze belongs in your network.
 
 **What is Ze?**
 
-Ze is an open-source configuration and protocol engine. The network operating system built on it speaks BGP, manages Linux network interfaces, programs the FIB, and serves its configuration over SSH, a web UI, API, and MCP.
+Ze is an open-source configuration and protocol engine. The repository also builds a Linux network operating system around that engine. It speaks BGP, manages network interfaces, programs the FIB, and serves one configuration over SSH, a web UI, API, and MCP.
 
-That operating surface is not hardwired into the core. The core holds a message bus, a config provider and a plugin manager; BGP, interface management and other subsystems register themselves with their own YANG and extend the config tree where they belong.
-
-Once a subsystem declares its model, Ze derives the CLI, completion, validation, web editor and MCP tools from the schema.
+The core is a protocol-agnostic supervisor with an event bus, configuration provider, and plugin manager. Each subsystem registers its own YANG model. Ze uses that model to derive the CLI, completion, validation, web editor, generated reference, and MCP tools.
 
 **Is Ze ready for production?**
 
-Not yet, and the site says so everywhere on purpose. The routing core is heavily tested, but production exposure is still limited and the configuration syntax can still change before the first release.
+No. Ze is pre-release software. The BGP engine is substantial and heavily tested, but production exposure remains limited, and both APIs and configuration syntax can still change.
 
-The right place for Ze today is a lab: build a route server, migrate an ExaBGP config, stand up a looking glass, run the interop labs against real FRR or BIRD, and report where it breaks. The [roadmap](https://ze-software.net/project/roadmap/) explains what remains before a stable release.
-
-**Why would I use Ze instead of BIRD, FRR, or GoBGP?**
-
-Those projects are mature, and Ze does not pretend otherwise. The [comparison page](https://ze-software.net/compare/) is blunt about where they are still ahead.
-
-Ze's difference is the model: the core stays protocol-agnostic, and subsystems bring YANG with them. One schema feeds the CLI, validation, web editor, generated references and MCP tools, while plugins extend the daemon without a second operator surface.
+Use Ze in a lab today. Build a route server, migrate an ExaBGP configuration, run the interop labs against FRR or BIRD, and report failures. The [roadmap](https://ze-software.net/project/roadmap/) lists the release work, while the [quality pages](https://ze-software.net/quality/) show the evidence already available.
 
 **What can Ze actually do today?**
 
-The BGP implementation is broad: IPv4 and IPv6 unicast, labeled unicast, VPNv4 and VPNv6, EVPN, FlowSpec, add-path, graceful restart in several flavours, RPKI, route reflection, and a growing list of families and capabilities.
+Ze has a broad BGP implementation, YANG-modeled configuration with commit and rollback, Linux interface and FIB management, an SSH CLI, a web interface, APIs, observability, and a plugin system.
 
-OSPFv2, OSPFv3, IS-IS, and MPLS are in the core. Around that sit a firewall, VPN, PPPoE and L2TP access concentration, flow export, and appliance packaging. The [features page](https://ze-software.net/features/) marks each capability by status, and the [comparison page](https://ze-software.net/compare/) puts every protocol feature next to the other daemons.
+OSPF, IS-IS, MPLS, firewall, VPN, PPPoE, and L2TP code also exists, but those areas remain experimental. Use the [feature catalog](https://ze-software.net/features/) for current status instead of treating this answer as a compatibility matrix.
+
+**Why would I use Ze instead of BIRD, FRR, or GoBGP?**
+
+Choose a mature daemon when you need an established production platform today. Ze is worth evaluating when you want its configuration model, generated operator surfaces, plugin architecture, ExaBGP migration path, or built-in evidence tooling.
+
+The core remains protocol-agnostic, and each subsystem brings its own YANG model. One schema drives configuration, validation, CLI, web, generated reference, and MCP. The [comparison pages](https://ze-software.net/compare/) show where Ze leads, where it differs, and where the mature projects remain ahead.
+
+## Running and adopting Ze
+
+Practical questions about trying Ze without committing a network to it.
+
+**Where does Ze run?**
+
+The daemon runs on Linux under systemd or another process supervisor. Development builds work on macOS and Linux with the supported Go toolchain. Windows is not a supported development or runtime platform.
+
+Start with the [quickstart](https://ze-software.net/guides/quickstart/). Use the [appliance lab](https://ze-software.net/labs/appliance-install/) when you want an immutable boot image for a VM or dedicated hardware.
 
 **I run ExaBGP. Can I move to Ze?**
 
-That is one of the paths Ze is built for. Ze aims for an easy migration from ExaBGP rather than perfect compatibility.
+Yes. Ze includes `ze config migrate` for configuration conversion and a compatibility bridge that lets existing ExaBGP process scripts run while you port them.
 
-There is a config converter (`ze config migrate`) and a compatibility bridge that lets existing ExaBGP process scripts run with Ze as the engine while you port them over. The [ExaBGP migration usage example](https://ze-software.net/use-cases/exabgp-migration/) walks through the conversion, the known differences, and when it is worth rewriting a plugin against the native Ze SDK.
-
-**What license is Ze under, and what does that mean for me?**
-
-Ze is free software under the [GNU Affero General Public License v3](https://ze-software.net/license/). You can run it, read it, modify it, and redistribute it.
-
-The AGPL adds one obligation beyond the GPL: if you offer a modified Ze to others over a network, you have to make your modified source available to those users. Running an unmodified Ze to route your own traffic carries no such obligation.
-
-**I want to contribute. What is the CLA about?**
-
-Contributions require a signed-off commit (`git commit -s`), which certifies agreement to the [Contributor License Agreement](https://ze-software.net/contribute/). You keep your copyright.
-
-What you grant is a broad license that lets the maintainer relicense the project, for example to offer a commercial license alongside the AGPL if that ever helps Ze reach more people. Ze stays AGPLv3 for everyone regardless. The [contributor guide](https://ze-software.net/contribute/guide/) covers the rest of the process.
+The [ExaBGP migration guide](https://ze-software.net/use-cases/exabgp-migration/) covers conversion, known differences, and the point where a native Ze plugin becomes the better choice.
 
 **The daemon or the appliance: which should I run?**
 
-The same binary and the same config drive both. Run it as a **daemon** when you are fitting Ze into infrastructure you already operate under systemd or another process manager.
+Start with the daemon. It fits into Linux infrastructure you already supervise and is easier to inspect while Ze is still pre-release.
 
-Build it as an **appliance** when you want a purpose-built box: a read-only root filesystem, no shell, no package manager, and automatic supervision, produced with gokrazy. Start with the daemon if you are unsure.
-
-**Does the AI and MCP support mean Ze needs an LLM to run?**
-
-No. Ze runs entirely on its own. The MCP server is an optional surface derived from the same schema and command catalogue. It lets an AI assistant ask what the running daemon, including compiled-in plugins, can do and then operate it.
+The appliance packages the same binary and configuration into a read-only system with automatic supervision, no package manager, and no interactive shell. Use it when you want a purpose-built router image rather than another managed Linux host.
 
 **Will my configuration keep working as Ze changes?**
 
-Until the first release, treat the configuration syntax as not yet frozen. Breaking changes are called out in the [changes log](https://ze-software.net/project/changes/), and the policy is no silent breakage: a change that affects your config should come with either an automatic migration or a clear error.
+Treat configuration syntax as unstable until the first release. Breaking changes belong in the [change log](https://ze-software.net/project/changes/) and should arrive with an automatic migration or a clear error. Silent reinterpretation is a bug.
 
-Stabilising the syntax so it stays stable is an explicit milestone on the [roadmap](https://ze-software.net/project/roadmap/).
+Configuration stability is an explicit milestone on the [roadmap](https://ze-software.net/project/roadmap/).
+
+**Does Ze need an LLM to run?**
+
+No. Ze runs without an AI service. MCP is an optional operator interface generated from the same schemas and command catalog as the CLI and web interface. It lets an authorized assistant discover and operate the capabilities compiled into a running daemon.
+
+## Project and support
+
+How the project is licensed, maintained, and supported.
+
+**What does the AGPLv3 license mean for me?**
+
+You can run, inspect, modify, and redistribute Ze under the [GNU Affero General Public License v3](https://ze-software.net/license/). Running an unmodified Ze for your own network does not require publishing your configuration.
+
+If you modify Ze and let users interact with that modified version over a network, the AGPL requires you to offer those users the corresponding source. Read the license itself when the distinction matters to a deployment.
+
+**What does the contributor agreement grant?**
+
+A signed-off commit (`git commit -s`) confirms agreement to the [Contributor License Agreement](https://ze-software.net/contribute/). You keep your copyright.
+
+The agreement lets the maintainer offer Ze under additional license terms, including a commercial license. Every contribution remains available to the public under AGPLv3. The [contributor guide](https://ze-software.net/contribute/guide/) covers the submission process.
 
 **Who builds Ze, and how is it funded?**
 
-Ze is developed by Thomas Mangin, with his time supported by [Exa Networks](https://exa.net.uk), the ISP that has backed this work since 2009 when it began with ExaBGP.
+Thomas Mangin develops Ze, with engineering time supported by [Exa Networks](https://exa.net.uk). The ISP has backed the work since it began with ExaBGP in 2009.
 
-There is no subscription, no paid support tier, and no separate commercial entity today. The [contribute page](https://ze-software.net/contribute/) has the detail.
+Ze currently has no subscription, paid support tier, or separate commercial entity. The [contribute page](https://ze-software.net/contribute/) explains how the project is maintained and how to help.
 
-**How do I get help, or report a security problem?**
+**How do I get help or report a security problem?**
 
-For questions and discussion, use [Discord](https://discord.gg/T8s7CjPDne) or the [issue tracker](https://github.com/ze-software/ze/issues).
+Use [Discord](https://discord.gg/T8s7CjPDne) for discussion and the [issue tracker](https://github.com/ze-software/ze/issues) for reproducible bugs and feature requests.
 
-For anything security-sensitive, such as a bug an unauthenticated peer could trigger, follow the [security policy](https://ze-software.net/security/) and report it privately instead of opening a public issue.
+Follow the [security policy](https://ze-software.net/security/) for anything security-sensitive. Report vulnerabilities privately instead of opening a public issue.

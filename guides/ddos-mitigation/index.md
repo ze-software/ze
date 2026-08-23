@@ -232,7 +232,7 @@ server-driven mitigation commands.
 | `baseline-window` | `300` | 10-86400 | Rolling baseline window in samples (~seconds at 1 Hz) |
 | `threshold-multiplier` | `3.00` | 1.00-100.00 | Baseline p99 multiplier for the dynamic PPS threshold |
 | `absolute-floor` | `5000` | 1+ PPS | Minimum PPS threshold regardless of baseline |
-| `startup-grace` | `90` | 0-3600 s | Seconds after startup where only extreme spikes (>5x floor) trigger |
+| `startup-grace` | `90` | 0-3600 s | Seconds after startup where only an extreme spike (>5x floor) or an armed bandwidth trigger fires |
 | `bps-trigger-enable` | `true` | bool | Enable the bandwidth (BPS) trigger alongside the PPS threshold |
 | `bps-threshold-multiplier` | `3.00` | 1.00-100.00 | Baseline p99 multiplier for the bandwidth trigger |
 | `bps-floor` | `50000000` | 1+ bits/s | Minimum bandwidth (bits/s) below which the BPS trigger is inert (default 50 Mbps) |
@@ -252,6 +252,13 @@ The baseline is a rolling window of the last `baseline-window` non-attack
 samples. The p99 is recalculated every 10 samples. Samples collected during an
 active attack or above the current threshold are excluded from the baseline to
 prevent poisoning.
+
+That exclusion has one damped exception, and without it the detector latches: a
+permanent rise in offered load (a new customer, a migrated service) would hold
+the threshold under the new level for good. One sample in every 3600 consecutive
+above-threshold samples enters the window, which is one per hour at the default
+`check-interval`. A 300-sample window then follows a sustained new level after 4
+to 13 hours, and any flood shorter than that leaves the threshold where it was.
 
 **Bandwidth (BPS) trigger:** amplification floods (NTP, memcached, CLDAP) are
 low-PPS but very high bandwidth, so a packet-rate threshold alone misses them. A
