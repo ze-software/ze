@@ -86,11 +86,18 @@ which triggers the child cleanup inside `maintainSA`, but the child may not
 exist yet if the session is still in IKE_SA_INIT. The explicit child removal
 after `Stop` in reconcile covers that race.
 
-**A new peer field must join the comparison.** `peerConfigChanged` decides
-whether to restart a session. A field added to the peer struct and left out of
-that comparison means config changes to it never take effect.
+**A new peer field needs no edit to the comparison.** `peerConfigChanged`
+decides whether to restart a session, and it asks one question:
+`ipsec.SiteToSitePeer.Equal`, which compares the whole peer value. A member
+added to the struct is compared on the day it is added, so a config change to it
+restarts the session and reaches the wire. Subtracting a member from that
+comparison is allowed, and it has to be done by name with the reason recorded on
+`Equal`. It used to be the other way round: two hand-written field lists, one
+here and one in `Changed`, that did not even name the same eight members, and a
+member left out of both was ignored in silence.
 
 <!-- source: internal/component/ike/engine/reconcile.go -- reconcilePeers, peerConfigChanged, Stop -->
+<!-- source: internal/component/ike/ipsec/types.go -- SiteToSitePeer.Equal -->
 
 **One field cannot carry both the KEYMAT role and the selector orientation.**
 `ChildSA.Selectors` is stored in TSi/TSr order. `ChildSA.SelectorsLocalIsTSi`

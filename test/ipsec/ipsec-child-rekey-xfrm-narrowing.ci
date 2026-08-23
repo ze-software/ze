@@ -24,13 +24,16 @@
 # noop one, and every kernel assertion below is about peer-a.
 #
 # WHY peer-b NEEDS ze_test_ike_rekey_ts_local. A Ze peer proposes sa.PeerCfg at its rekey
-# (proposeChildTSPayloads, engine/rekey.go), startPeerSession copies that config when the
-# session starts, and peerConfigChanged compares no traffic selector (engine/reconcile.go).
-# A live SA therefore proposes the selectors it was born with, and those always cover the
-# scope it installed, so two Ze daemons alone cannot reach Section 2.9.2's case where "the
-# policy was changed in a way such that the currently used SA is against the policy". The
-# override narrows the local half of THIS request alone, which is the peer that section
-# describes. Production sets no such key (engine/testport.go, narrowedRekeyPairs).
+# (proposeChildTSPayloads, engine/rekey.go), and startPeerSession copies that config when
+# the session starts. An operator who narrows a peer's selectors now RESTARTS that peer
+# (peerConfigChanged, engine/reconcile.go), which is what RFC 7296 Section 2.9.2 asks for,
+# so the narrowed set travels on a fresh IKE_SA_INIT and the old scope is gone before
+# anything proposes against it. A live SA therefore still proposes selectors that cover the
+# scope it installed, and two Ze daemons alone still cannot reach Section 2.9.2's case
+# where "the policy was changed in a way such that the currently used SA is against the
+# policy". The override narrows the local half of THIS request alone, which is the peer
+# that section describes. Production sets no such key (engine/testport.go,
+# narrowedRekeyPairs).
 #
 # WHY THE SELECTORS CARRY A PORT. A prefix pair is symmetric under an orientation error:
 # swapping the two halves of a policy whose only asymmetry is the prefix produces the

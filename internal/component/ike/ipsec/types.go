@@ -370,6 +370,18 @@ type IKEProposal struct {
 	DHGroup    DHGroup
 }
 
+// Equal reports whether two ESP groups are the same, including their proposals. A peer's
+// SiteToSitePeer holds the group's NAME, so a peer comparison alone cannot see an operator
+// rotating a cipher inside the group the peer points at. peerConfigChanged
+// (engine/reconcile.go) asks this as well, because the running session holds the RESOLVED
+// group and nothing refreshes it.
+//
+// Total for the same reason SiteToSitePeer.Equal is: a member added to the group, or to
+// ESPProposal, is compared on the day it is added.
+func (g ESPGroup) Equal(h ESPGroup) bool {
+	return reflect.DeepEqual(g, h)
+}
+
 // IKEGroup is a named set of IKE proposals with shared DPD and lifetime settings.
 type IKEGroup struct {
 	Name        string
@@ -378,6 +390,14 @@ type IKEGroup struct {
 	CloseAction CloseAction
 	DPD         DPDConfig
 	Proposals   []IKEProposal
+}
+
+// Equal reports whether two IKE groups are the same, including their proposals and their
+// DPD settings. It answers the same question ESPGroup.Equal answers, for the other half of
+// a peer's crypto, and for the same reason: the peer holds a NAME and the running session
+// holds the resolved group.
+func (g IKEGroup) Equal(h IKEGroup) bool {
+	return reflect.DeepEqual(g, h)
 }
 
 // AuthConfig holds peer authentication settings.
@@ -429,9 +449,9 @@ type AuthConfig struct {
 }
 
 // Equal reports whether two authentication configurations are the same. It is the ONE
-// producer of that answer, and both peersEqual and remoteAccessEqual call it. A reload
-// decision therefore cannot disagree between a site-to-site peer and the remote-access
-// profile.
+// producer of that answer for the remote-access profile, and SiteToSitePeer.Equal reaches
+// the same comparison for a peer through its Auth member. A reload decision therefore
+// cannot disagree between a site-to-site peer and the remote-access profile.
 //
 // The comparison is deliberately structural rather than a list of field names. Every
 // scalar field is compared by the `==` below, so a leaf added later is covered the day it
@@ -440,11 +460,12 @@ type AuthConfig struct {
 // the session never renegotiates, because nothing noticed the change.
 //
 // reflect.DeepEqual is what makes that total. A hand-written field list is the shape this
-// package already got wrong. peersEqual named six auth fields, and remoteAccessEqual used
-// struct equality. The two therefore disagreed about what "changed" meant, and a seventh
-// field would have had to be remembered twice. Reload is a cold path, because it runs when
-// an operator commits. The reflection therefore costs nothing that matters, and
-// healthcheck/config.go and reactor_api.go already take the same trade for the same reason.
+// package already got wrong. The peer comparison named six auth fields, and
+// remoteAccessEqual used struct equality. The two therefore disagreed about what "changed"
+// meant, and a seventh field would have had to be remembered twice. Reload is a cold path,
+// because it runs when an operator commits. The reflection therefore costs nothing that
+// matters, and healthcheck/config.go and reactor_api.go already take the same trade for
+// the same reason.
 func (a AuthConfig) Equal(b AuthConfig) bool {
 	return reflect.DeepEqual(a, b)
 }
@@ -500,6 +521,37 @@ type SiteToSitePeer struct {
 	// and setting it true is the operator stating that a silent downgrade to tunnel mode
 	// is worse than no tunnel at all.
 	TransportRequired bool
+}
+
+// Equal reports whether two site-to-site peer configurations are the same. It is the ONE
+// producer of that answer: peerConfigChanged (engine/reconcile.go) asks it whether a
+// reload gave a running session a configuration it is no longer serving, and Changed asks
+// it which peers a new config file moved. The two therefore cannot disagree about what
+// "changed" means.
+//
+// The comparison is TOTAL, and that is the point. It subtracts no member, so a member
+// added to SiteToSitePeer is compared on the day it is added and the conservative answer,
+// which is "this peer changed", is what an unclassified member draws.
+//
+// The alternative shape is a list of field names, and this package got that shape wrong
+// twice over. The reload guard named eight members and this function named a DIFFERENT
+// eight, so the two disagreed, and TrafficSelectors, Mode and TransportRequired were in
+// neither. An operator narrowed a live peer's traffic selectors, the commit succeeded,
+// `show configuration` agreed, and the tunnel kept carrying the prefix the edit removed.
+//
+// Subtracting a member later is allowed, and it MUST be done by NAME with the reason
+// stated here. A member absorbed by a running session without a restart, or one that
+// changes on every parse without an operator edit, is a decision somebody made. A member
+// nobody thought about is not, and omission MUST NOT be how the two are told apart.
+// TestPeerConfigChangedIsFailClosed (engine/reconcile_test.go) walks every member, so a
+// member added tomorrow that this comment does not classify reddens that test.
+//
+// reflect.DeepEqual compares every member, and it follows the *net.IPNet in each
+// TrafficSelectorPolicy to the prefix it points at rather than comparing pointers.
+// Reload is a cold path, because it runs when an operator commits, so the reflection costs
+// nothing that matters. AuthConfig.Equal above takes the same trade for the same reason.
+func (p SiteToSitePeer) Equal(q SiteToSitePeer) bool {
+	return reflect.DeepEqual(p, q)
 }
 
 // EAPUser is a remote-access EAP user entry.
@@ -573,8 +625,7 @@ func (c *IPsecConfig) Changed(old *IPsecConfig) []string {
 			changed = append(changed, name)
 			continue
 		}
-		newPeer := newPeers[name]
-		if !peersEqual(&oldPeer, &newPeer) {
+		if !oldPeer.Equal(newPeers[name]) {
 			changed = append(changed, name)
 		}
 	}
@@ -628,15 +679,4 @@ func remoteAccessEqual(a, b *RemoteAccessConfig) bool {
 		}
 	}
 	return true
-}
-
-func peersEqual(a, b *SiteToSitePeer) bool {
-	return a.IKEGroup == b.IKEGroup &&
-		a.ESPGroup == b.ESPGroup &&
-		a.ConnectionType == b.ConnectionType &&
-		a.LocalAddress == b.LocalAddress &&
-		a.RemoteAddress == b.RemoteAddress &&
-		a.VTIBind == b.VTIBind &&
-		a.IfID == b.IfID &&
-		a.Auth.Equal(b.Auth)
 }

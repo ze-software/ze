@@ -60,13 +60,15 @@ var ikeRekeyTSLocalFn = func() string { return coreenv.Get(envKeyIKERekeyTSLocal
 // unset, which is every production run.
 //
 // It exists because one case of RFC 7296 Section 2.9.2 is otherwise unreachable between two
-// Ze daemons. A rekey proposal comes from sa.PeerCfg (proposeChildTSPayloads, rekey.go),
-// which startPeerSession copies when the session starts and nothing writes again;
-// peerConfigChanged compares no traffic selector, so a config reload neither restarts the
-// session nor refreshes the copy (reconcile.go). A live SA therefore proposes the selectors
-// it was born with, and those always cover the scope it installed. Section 2.9.2 names the
-// opposite case, where "the policy was changed in a way such that the currently used SA is
-// against the policy", and this key is what produces a peer in it.
+// Ze daemons, and it stays unreachable after spec-fixit-ipsec-peer-reload-ignored. A rekey
+// proposal comes from sa.PeerCfg (proposeChildTSPayloads, rekey.go), which startPeerSession
+// copies when the session starts and nothing writes again. An operator who narrows a peer's
+// traffic selectors now RESTARTS that peer (peerConfigChanged, reconcile.go), which is what
+// Section 2.9.2 asks for, so the narrowed selectors travel on a fresh IKE_SA_INIT and the
+// old scope is gone before anything proposes against it. A live SA therefore still proposes
+// selectors that cover the scope it installed. Section 2.9.2 names the opposite case, where
+// "the policy was changed in a way such that the currently used SA is against the policy",
+// and this key is still the only thing that produces a Ze peer in it.
 // test/ipsec/ipsec-child-rekey-xfrm-narrowing.ci is the caller that sets it.
 //
 // It is an env var rather than a YANG leaf because it states nothing an operator would

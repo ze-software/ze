@@ -1,0 +1,334 @@
+# Functional test: an unrelated commit while an IPsec tunnel carries traffic.
+# VALIDATES: spec-fixit-ipsec-peer-reload-ignored AC-2 -- a reload that changes no member
+#            of a running peer restarts nothing, and the kernel keeps the states and the
+#            policies the tunnel installed.
+# PREVENTS: R-1, which is the way the fix for AC-1 can overshoot. peerConfigChanged now
+#           compares the WHOLE ipsec.SiteToSitePeer value rather than eight named members
+#           (ipsec.SiteToSitePeer.Equal), so a member that differed between two parses of
+#           one unchanged file would restart every peer on every commit. A tunnel that
+#           bounces whenever an operator commits anything is a worse defect than the one
+#           the totality removes.
+#
+# WHAT MAKES THE COMMIT UNRELATED. peer-a's `peer peer-b` block is byte-identical in the
+# two config files. The second file adds a SEPARATE peer, peer-quiet, which responds on
+# 127.0.0.3 and which nothing ever contacts. So the reload has real work to do and none of
+# it is on the running session.
+#
+# THE TWO HALVES OF THE CLAIM, and why neither alone is enough:
+#   - reject=stderr ike: stopping peer proves nothing was restarted. That string is
+#     logged in exactly one place, the removal loop of reconcilePeers, and shutdown does
+#     not log it.
+#   - expect=stderr peer-quiet proves the reload was APPLIED. Without it a SIGHUP that
+#     reached nobody would pass this test by changing nothing at all.
+# The driver adds the kernel half: the ESP SPIs and the tunnel's policies are read before
+# the commit and re-read across a settle window, and a restart removes both synchronously
+# inside the OnConfigure handler, so a bounce cannot hide inside that window.
+#
+# WHY peer-a IS THE DAEMON THIS TEST RELOADS, AND WHY ITS FILE IS ze-bgp.conf. Only a
+# command whose binary is literally `ze` gets its `-` replaced by a config FILE and gets a
+# daemon.pid written for it (zeReadyFileEnabled and the substitution loop in
+# runner_exec.go both test `binName == "ze"`). peer-b launches through `env` to set its own
+# dataplane, so its binary is `env`, its config is PIPED to stdin, and it publishes no pid.
+# peer-a is therefore the only daemon with a file to rewrite and a pid to signal, and its
+# file takes the default name ze-bgp.conf because it is the only block that reaches
+# zeConfigFileName (runner_config.go).
+#
+# WHY ONE DATAPLANE AND NOT TWO. The kernel keys an XFRM state on (src, dst, spi, proto)
+# and the two ends of one negotiated Child SA are the SAME two states, so a second
+# XfrmStateAdd answers EEXIST. peer-a therefore runs the real xfrm backend and peer-b the
+# noop one, and every kernel assertion below is about peer-a.
+#
+# WHY THESE PREFIXES. The policies are real and node-wide for the life of the test, so
+# they name RFC 5737 documentation addresses no traffic can be using. They are halves of
+# TEST-NET-3, distinct as printed strings from the TEST-NET-1 halves and quarters
+# ipsec-child-rekey-xfrm.ci and ipsec-child-rekey-xfrm-narrowing.ci install, from the
+# TEST-NET-2 halves ipsec-peer-reload-applies-selectors.ci installs, and from the
+# TEST-NET-2/3 /24 pair ipsec-teardown-leaves-nothing.ci installs.
+#
+# Gated option=needs-linux:caps=net-admin: peer-a programs real XFRM state, so this SKIPs
+# on a host without CAP_NET_ADMIN (the unprivileged dev box) and runs as root in the QEMU
+# VM, where `fsuite ipsec` in scripts/evidence/qemu-all-tests.sh executes the suite.
+
+option=needs-linux:caps=net-admin
+# Serialize against every other real-XFRM ipsec test. `ip xfrm state` and
+# `ip xfrm policy` are NODE-WIDE, so a sibling running concurrently adds SPIs and
+# policies this test's readers cannot tell from its own.
+option=exclusive:group=ipsec-xfrm
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=120s
+option=env:var=ze_log_ike:value=info
+
+tmpfs=quiet.py:mode=755:terminator=EOF_QUIET
+#!/usr/bin/env python3
+"""Commit an unrelated change under a live tunnel and watch the kernel not move.
+
+The tunnel's ESP SPIs and its policy selectors are read once it is up, the config file
+gains a second peer that nothing contacts, SIGHUP commits it, and the same two sets are
+re-read across a settle window. A restart removes the states and the policies inside the
+OnConfigure handler, so any bounce shows inside that window.
+"""
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import time
+
+from ze_api import wait_until
+
+# The two halves of the negotiated selector. Every policy this tunnel installs names one
+# of them, and nothing else on the box does.
+LOCAL_NET = "203.0.113.0/25"
+REMOTE_NET = "203.0.113.128/25"
+
+# The settle window, in seconds. reconcilePeers stops a peer synchronously while it
+# handles the config, so a bounce is visible within a few polls of the SIGHUP; the window
+# is long enough that a slow VM cannot make a bounce look like stability.
+SETTLE_SECONDS = 8.0
+POLL_DELAY = 0.25
+
+
+def run(*cmd):
+    out = subprocess.run(cmd, capture_output=True, text=True)
+    if out.returncode != 0:
+        sys.exit(f"{' '.join(cmd)} failed: {out.stderr.strip()}")
+    return out.stdout
+
+
+def spis():
+    """Every ESP SPI the kernel currently holds a state for."""
+    return frozenset(re.findall(r"\bspi (0x[0-9a-fA-F]+)", run("ip", "xfrm", "state")))
+
+
+def policies():
+    """This tunnel's policy selectors, one normalised string per policy."""
+    found = []
+    selector = None
+    for line in run("ip", "xfrm", "policy").splitlines():
+        fields = line.split()
+        if not fields:
+            continue
+        if fields[0] == "src":
+            selector = " ".join(fields) if (LOCAL_NET in fields or REMOTE_NET in fields) else None
+        elif selector is not None and fields[0] == "dir":
+            found.append(f"{selector} | {fields[1]}")
+            selector = None
+    return frozenset(found)
+
+
+if not wait_until(lambda: len(spis()) >= 2 and len(policies()) >= 2, attempts=400, delay=0.25):
+    sys.exit(f"the tunnel never reached the kernel: states={sorted(spis())} policies={sorted(policies())}")
+before_spis, before_policies = spis(), policies()
+print("INSTALLED:", " ".join(sorted(before_spis)))
+print("POLICIES:", " | ".join(sorted(before_policies)))
+
+# The unrelated commit. peer-b's block is byte-identical in the new file; peer-quiet is
+# what the reload has to act on.
+if not wait_until(lambda: os.path.exists("daemon.pid"), attempts=200, delay=0.05):
+    sys.exit("daemon.pid never appeared, so there is no daemon to reload")
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+shutil.copy("config2.conf", "ze-bgp.conf")
+os.kill(pid, signal.SIGHUP)
+print("RELOADED: sent SIGHUP to pid", pid)
+
+deadline = time.monotonic() + SETTLE_SECONDS
+while time.monotonic() < deadline:
+    now_spis, now_policies = spis(), policies()
+    if now_spis != before_spis:
+        print("BOUNCED: the ESP states moved under an unrelated commit")
+        print("  before:", " ".join(sorted(before_spis)))
+        print("  after: ", " ".join(sorted(now_spis)))
+        sys.exit(1)
+    if now_policies != before_policies:
+        print("BOUNCED: the policies moved under an unrelated commit")
+        print("  before:", " | ".join(sorted(before_policies)))
+        print("  after: ", " | ".join(sorted(now_policies)))
+        sys.exit(1)
+    time.sleep(POLL_DELAY)
+
+print("STABLE:", " ".join(sorted(spis())))
+print("POLICY-STABLE:", " | ".join(sorted(policies())))
+EOF_QUIET
+
+# peer-a's config AFTER the unrelated commit. The `peer peer-b` block is byte-identical
+# to the peer-a block below; peer-quiet is the whole difference.
+tmpfs=config2.conf:terminator=EOF_CONFIG2
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-b {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				mode tunnel
+				traffic-selector 1 {
+					protocol 6
+					local {
+						prefix 203.0.113.0/25
+						port 179
+					}
+					remote {
+						prefix 203.0.113.128/25
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+			peer peer-quiet {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.3
+				remote-address 127.0.0.4
+				mode tunnel
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-5678
+				}
+			}
+		}
+	}
+}
+EOF_CONFIG2
+
+# ── peer-b (background, noop dataplane): binds 127.0.0.2, never reloads ──
+stdin=peer-b:terminator=EOF_PEER_B
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-a {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				mode tunnel
+				traffic-selector 1 {
+					protocol 6
+					local {
+						prefix 203.0.113.128/25
+					}
+					remote {
+						prefix 203.0.113.0/25
+						port 179
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_PEER_B
+
+# ── peer-a (background, REAL xfrm): binds 127.0.0.1, and is the daemon reloaded ──
+stdin=peer-a:terminator=EOF_PEER_A
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-b {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				mode tunnel
+				traffic-selector 1 {
+					protocol 6
+					local {
+						prefix 203.0.113.0/25
+						port 179
+					}
+					remote {
+						prefix 203.0.113.128/25
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_PEER_A
+
+cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze -:stdin=peer-b:name=peer-b
+cmd=background:seq=2:exec=ze -:stdin=peer-a:name=peer-a
+cmd=foreground:seq=3:exec=python3 quiet.py:timeout=110s
+# signal=term, not the default kill: peer-a's policies are REAL and node-wide, and the
+# release that removes them runs on the way out of runEngine. A SIGKILLed peer-a leaves
+# them in the kernel for the rest of the suite, where ipsec-teardown-leaves-nothing.ci
+# asserts the XFRM tables are empty.
+cmd=stop:seq=4:name=peer-a:signal=term
+cmd=stop:seq=5:name=peer-b:signal=term
+
+expect=exit:code=0
+expect=stdout:contains=INSTALLED:
+expect=stdout:contains=RELOADED:
+expect=stdout:contains=STABLE:
+expect=stdout:contains=POLICY-STABLE:
+# The reload really happened: peer-quiet exists only in the second config file, and
+# reconcilePeers logs the peer name when it starts the session for it.
+expect=stderr:contains=peer-quiet
+# Nothing was restarted. reconcilePeers' removal loop is the only producer of this line.
+reject=stderr:pattern=ike: stopping peer
+reject=stdout:pattern=BOUNCED
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

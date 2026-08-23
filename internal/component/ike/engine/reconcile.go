@@ -354,7 +354,18 @@ func reconcilePeers(
 	peersMu.RLock()
 	for name, ps := range active {
 		newPeer, ok := desired[name]
-		if !ok || peerConfigChanged(ps, newPeer) {
+		if !ok {
+			removing = append(removing, toStop{name, ps})
+			continue
+		}
+		// The groups are looked up here, not in the start loop alone, because a peer
+		// names its groups and the running session holds the RESOLVED ones. A group
+		// that is gone from the new config resolves to the zero value, which differs
+		// from whatever the session is running, so the peer is stopped. That is the
+		// same answer a fresh daemon gives it: the start loop below refuses to start a
+		// peer whose groups do not resolve, so a reloaded daemon that kept it running
+		// would disagree with a restarted one about the same file.
+		if peerConfigChanged(ps, newPeer, newCfg.IKEGroups[newPeer.IKEGroup], newCfg.ESPGroups[newPeer.ESPGroup]) {
 			removing = append(removing, toStop{name, ps})
 		}
 	}
@@ -411,16 +422,33 @@ func reconcilePeers(
 	}
 }
 
-func peerConfigChanged(ps *PeerSession, newPeer ipsec.SiteToSitePeer) bool {
-	old := ps.peerCfg
-	return old.RemoteAddress != newPeer.RemoteAddress ||
-		old.LocalAddress != newPeer.LocalAddress ||
-		old.IKEGroup != newPeer.IKEGroup ||
-		old.ESPGroup != newPeer.ESPGroup ||
-		old.ConnectionType != newPeer.ConnectionType ||
-		old.Auth.Mode != newPeer.Auth.Mode ||
-		old.Auth.PSK != newPeer.Auth.PSK ||
-		old.Auth.Certificate != newPeer.Auth.Certificate
+// peerConfigChanged reports whether a reload handed this running session a configuration
+// it is no longer serving. Three whole values decide it, each compared in full
+// (ipsec.SiteToSitePeer.Equal, ipsec.IKEGroup.Equal, ipsec.ESPGroup.Equal), so no member
+// is ignored by omission and a member added tomorrow forces the conservative answer until
+// somebody classifies it there.
+//
+// The GROUPS are compared as well as the peer, because a peer names its groups and holds
+// no crypto of its own. startPeerSession copies the RESOLVED ike-group and esp-group onto
+// the session and nothing refreshes them, so an operator who rotates a cipher inside
+// `ike-group` edits no peer block at all: the peer half compares equal, and without this
+// the commit would succeed while the tunnel kept negotiating the algorithm the operator
+// replaced.
+//
+// The conservative answer is a restart: reconcilePeers stops the session and starts a
+// fresh one, and startPeerSession is the only writer of ps.peerCfg. Every later reader
+// takes the config from that field, directly or through the copy sa.PeerCfg holds
+// (initiator.go, responder.go), so the restart is what carries an edit to the wire.
+//
+// RFC 7296 Section 2.9.2 asks for exactly that when the edit narrows the traffic
+// selectors: "If the rekeyed SA would ever need to have a narrower scope than the
+// currently used SA, that would mean that the policy was changed in a way such that the
+// currently used SA is against the policy. In that case, the SA should have been already
+// deleted after the policy change took effect." Restarting the peer deletes it.
+func peerConfigChanged(ps *PeerSession, newPeer ipsec.SiteToSitePeer, newIKE ipsec.IKEGroup, newESP ipsec.ESPGroup) bool {
+	return !ps.peerCfg.Equal(newPeer) ||
+		!ps.ikeGroup.Equal(newIKE) ||
+		!ps.espGroup.Equal(newESP)
 }
 
 func startPeerSession(

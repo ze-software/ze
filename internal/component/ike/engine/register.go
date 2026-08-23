@@ -4,6 +4,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -25,6 +26,78 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+// peersWithoutLocalAddress counts the peers that named no local-address of their own, so
+// the engine has to take one from the configured `interface`. It bounds nothing: the
+// population is the peer map, which the config parser already built.
+func peersWithoutLocalAddress(cfg *ipsec.IPsecConfig) int {
+	count := 0
+	for name := range cfg.Peers {
+		if cfg.Peers[name].LocalAddress == "" {
+			count++
+		}
+	}
+	return count
+}
+
+// peersNeedInterfaceAddress reports whether ANY peer depends on the configured interface
+// for its local address. It is the condition that turns a failed interface read from a
+// warning into a refusal: a configuration whose every peer carries its own local-address
+// is unaffected by the interface, so refusing it would be refusing a working config.
+func peersNeedInterfaceAddress(cfg *ipsec.IPsecConfig) bool {
+	return peersWithoutLocalAddress(cfg) > 0
+}
+
+// ikeConfigStaging carries a reload's configuration from the VERIFY phase that parsed it
+// to the APPLY phase that commits it, and refuses an apply that has nothing staged.
+//
+// The plugin protocol splits a reload in two, and the apply request carries diff sections
+// rather than the configuration, so an engine that does not stash what verify parsed has
+// nothing to apply. `stage` and `commit` both run on the SDK's dispatch goroutine, which
+// serves one callback at a time, so the field needs no lock.
+//
+// commit CONSUMES the staged value, which is what makes a second apply refuse rather than
+// re-apply a configuration the coordinator already committed. A verify whose transaction
+// is then abandoned leaves a value here, and the next verify overwrites it: verify always
+// precedes the apply of its own transaction.
+//
+// apply MUST be non-nil. It is the engine's whole apply path, and a zero-valued staging
+// would answer every reload with a nil-pointer panic rather than a refusal.
+type ikeConfigStaging struct {
+	pending *ipsec.IPsecConfig
+	apply   func(*ipsec.IPsecConfig) error
+}
+
+// stage records the configuration the verify phase accepted. The caller MUST have
+// validated it first: stage performs no checks of its own.
+func (s *ikeConfigStaging) stage(cfg *ipsec.IPsecConfig) { s.pending = cfg }
+
+// commit applies the staged configuration and clears it. It MUST be called after stage,
+// within the same transaction, and it returns errIKEApplyWithoutVerify when it is not.
+func (s *ikeConfigStaging) commit() error {
+	cfg := s.pending
+	s.pending = nil
+	if cfg == nil {
+		// Fail closed. runVerify and runApply select their participants with the SAME
+		// predicate (filterDiffs, config/transaction/orchestrator.go), so an apply that
+		// reaches this engine without a verify having staged its config is a protocol
+		// violation rather than a normal state. Reporting success here would tell the
+		// operator the commit landed while the engine kept the previous configuration,
+		// which is this spec's own defect in miniature: a successful commit, a
+		// `sighup reload complete`, and no change on the wire. The ddos-local plugin
+		// refuses the same case for the same reason (errApplyWithoutVerify,
+		// internal/plugins/ddos/local/register.go).
+		return errIKEApplyWithoutVerify
+	}
+	return s.apply(cfg)
+}
+
+// errIKEApplyWithoutVerify rejects a config-apply that arrives with no configuration
+// staged by config-verify. The reload transaction drives both phases over one participant
+// set, so this state cannot be reached by a conforming coordinator, and reporting success
+// for it would leave the engine running the previous configuration while the operator is
+// told the commit landed.
+var errIKEApplyWithoutVerify = errors.New("ike config apply: no verified config staged (config-apply arrived without config-verify); refusing to report success over the previous config")
 
 var (
 	loggerPtr      atomic.Pointer[slog.Logger]
@@ -331,23 +404,17 @@ func runEngine(conn net.Conn) int {
 		}()
 	}
 
-	// Reject a structurally valid but self-inconsistent config before it is
-	// applied: a peer naming an undefined ike-group or esp-group, a certificate
-	// reference the PKI store cannot resolve, an EAP-TLS peer with no trust
-	// anchor, or a malformed remote-access pool.
-	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		if err := validateIPsecSections(sections); err != nil {
-			return fmt.Errorf("ike config: %w", err)
-		}
-		return nil
-	})
-
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		cfg, err := parseIPsecSections(sections)
-		if err != nil {
-			return fmt.Errorf("ike config: %w", err)
-		}
-
+	// applyIPsecConfig is the ONE place a parsed configuration becomes running state,
+	// and both delivery paths reach it: OnConfigure carries the configuration the
+	// daemon starts with, and OnConfigApply carries every reload after that.
+	//
+	// It runs on the SDK's dispatch goroutine, which serves one callback at a time, so
+	// the transport pointers and activeCfg it assigns need no lock.
+	//
+	// It returns an error for ONE condition, and the two callers answer it differently:
+	// a configuration whose peers depend on `interface` for their local address, when
+	// that interface cannot supply one. See the branch below for why.
+	applyIPsecConfig := func(cfg *ipsec.IPsecConfig) error {
 		// RFC 7296 Section 2.6. Published before any peer is reconciled, so an
 		// initiation that arrives during the reconcile is judged against the config
 		// being applied rather than the one being replaced.
@@ -356,14 +423,42 @@ func runEngine(conn net.Conn) int {
 		if cfg.Interface != "" {
 			ifIP, ifErr := resolveInterfaceAddr(cfg.Interface)
 			switch {
-			case ifErr != nil:
-				// Report the lookup failure itself. Reporting "no IPv4 address"
-				// here names the wrong cause, and it sends the operator to the
-				// interface configuration when the lookup never ran.
-				log.Warn("ike: cannot read interface addresses, peers without local-address will fail",
-					"interface", cfg.Interface, "error", ifErr)
-			case ifIP == "":
-				log.Warn("ike: no IPv4 address on interface, peers without local-address will fail", "interface", cfg.Interface)
+			case ifErr != nil, ifIP == "":
+				// The lookup failed, or the interface has no IPv4 address. Every peer
+				// that named no local-address of its own is now unbindable, and the
+				// engine MUST NOT proceed as though it were.
+				//
+				// This is a REFUSAL rather than a warning because of what reload does
+				// with the result. The peers keep the empty LocalAddress the parser
+				// gave them, peerConfigChanged compares that against the address the
+				// running sessions resolved successfully at startup, and every one of
+				// them is stopped and restarted into the state this branch's own
+				// message calls "will fail". A transient interface read would take
+				// down every working tunnel on the box.
+				//
+				// The two callers differ, deliberately. OnConfigApply returns this, so
+				// the transaction rolls back and the running tunnels are left exactly
+				// as they are. OnConfigure LOGS it and continues, because at startup
+				// there is no previous configuration to fall back to and no running
+				// tunnel to protect: refusing there would take the whole engine down
+				// for a condition the operator can read in the log and repair.
+				//
+				// The failure itself is reported rather than "no IPv4 address" when
+				// the lookup never ran, because that names the wrong cause and sends
+				// the operator to the interface configuration.
+				if peersNeedInterfaceAddress(cfg) {
+					if ifErr != nil {
+						return fmt.Errorf("ike config: cannot read addresses of interface %q (%w), and %d peer(s) have no local-address of their own",
+							cfg.Interface, ifErr, peersWithoutLocalAddress(cfg))
+					}
+					return fmt.Errorf("ike config: interface %q has no IPv4 address, and %d peer(s) have no local-address of their own",
+						cfg.Interface, peersWithoutLocalAddress(cfg))
+				}
+				if ifErr != nil {
+					log.Warn("ike: cannot read interface addresses", "interface", cfg.Interface, "error", ifErr)
+				} else {
+					log.Warn("ike: no IPv4 address on interface", "interface", cfg.Interface)
+				}
 			default:
 				for name := range cfg.Peers {
 					peer := cfg.Peers[name]
@@ -474,6 +569,55 @@ func runEngine(conn net.Conn) int {
 
 		log.Info("ike engine configured", "peers", len(cfg.Peers))
 		return nil
+	}
+
+	staging := &ikeConfigStaging{apply: applyIPsecConfig}
+
+	// Reject a structurally valid but self-inconsistent config before it is
+	// applied: a peer naming an undefined ike-group or esp-group, a certificate
+	// reference the PKI store cannot resolve, an EAP-TLS peer with no trust
+	// anchor, or a malformed remote-access pool.
+	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		if err := validateIPsecSections(sections); err != nil {
+			return fmt.Errorf("ike config: %w", err)
+		}
+		cfg, err := parseIPsecSections(sections)
+		if err != nil {
+			return fmt.Errorf("ike config: %w", err)
+		}
+		staging.stage(cfg)
+		return nil
+	})
+
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		cfg, err := parseIPsecSections(sections)
+		if err != nil {
+			return fmt.Errorf("ike config: %w", err)
+		}
+		if applyErr := applyIPsecConfig(cfg); applyErr != nil {
+			// Startup, not reload: see applyIPsecConfig's interface branch. There is
+			// no running tunnel to protect and no previous configuration to keep, so
+			// the engine reports the condition and serves the peers that CAN bind.
+			log.Warn("ike: peers without local-address will fail", "error", applyErr)
+		}
+		return nil
+	})
+
+	// The reload half. Without this handler the SDK answers config-apply OK and calls
+	// nothing (sdk_callbacks.go, OnConfigApply), so every reload verified the operator's
+	// edit, reported success, and left the engine running the configuration it started
+	// with. reconcilePeers was reachable from startup and from operator `clear` alone.
+	//
+	// The diff sections are not read. The engine reconciles the whole peer set against
+	// what is running (reconcilePeers), so the WHOLE configuration is what it needs, and
+	// a diff would be a second description of a change the reconciler already computes.
+	//
+	// No ApplyBudget is declared beside WantsConfig below, so the orchestrator's
+	// 30-second default bounds this (computeTieredDeadline, config/transaction). The
+	// work is one Stop plus one start for each peer whose configuration changed, and a
+	// Stop returns as soon as the session goroutine reaches its stopCh.
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		return staging.commit()
 	})
 
 	ctx, cancel := sdk.SignalContext()

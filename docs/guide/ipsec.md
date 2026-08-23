@@ -76,6 +76,37 @@ vpn {
 
 Traffic selectors are not listed per tunnel. Route-based IPsec encrypts traffic that the routing table forwards through the bound XFRM interface. The generated [configuration reference](https://ze-software.net/reference/configuration/#xfrm-interfaces) documents the XFRM interface leaves.
 
+## Which edits restart a tunnel
+
+Committing a change to ANY leaf inside a `peer` block restarts that peer, and so does a
+change to the `ike-group` or `esp-group` that peer names. The tunnel drops, Ze re-negotiates
+it, and the new configuration is what the new IKE SA and its Child SA carry. There is no
+list of leaves that count and leaves that do not: the whole peer configuration and both
+resolved groups are compared, so a leaf that Ze gains in a later release restarts the tunnel
+from the day it exists.
+
+Rotating a cipher is the case worth naming, because it edits no peer block at all. A peer
+holds the NAME of its groups and none of the crypto, so `ike-group IKE-1 { proposal 1 {
+encryption ...` restarts every peer that names `IKE-1` and no other.
+
+A commit that leaves a peer's block and its two groups unchanged does not touch that peer,
+whatever else in the configuration moved. Adding a second peer, editing a firewall rule or
+changing a log level leaves a running tunnel carrying traffic.
+
+Three consequences are worth planning around:
+
+- **A tunnel bounce is how a narrowing takes effect.** Narrowing a peer's
+  `traffic-selector` list to stop carrying a prefix works, and it costs the tunnel a
+  re-negotiation. RFC 7296 Section 2.9.2 leaves no other route: a Child SA cannot be
+  narrowed in place.
+- **Batch peer edits into one commit.** Three commits touching one peer bounce it three
+  times. One commit carrying all three edits bounces it once.
+- **A group is shared, so an edit to it bounces every peer that names it.** Give a peer its
+  own group when you want to rotate its crypto without touching the others.
+
+<!-- source: internal/component/ike/engine/reconcile.go -- reconcilePeers, peerConfigChanged -->
+<!-- source: internal/component/ike/ipsec/types.go -- SiteToSitePeer.Equal -->
+
 ## IKE features
 
 | Feature | Detail |
@@ -320,6 +351,33 @@ one. EAP-TLS session resumption is therefore not available.
 
 <!-- source: internal/component/ike/eap/eap_tls.go -- indicateSuccess, newTLSMethod -->
 
+## EAP-TLS with TLS 1.2 needs RFC 7627
+
+RFC 5216 Section 2.3 derives the EAP-TLS MSK from a TLS key material export, and Go
+refuses that export on a TLS 1.2 session that did not negotiate the RFC 7627 extended
+master secret. Ze cannot authenticate such a peer. It says so rather than failing
+silently: the log line names the peer, the negotiated version, RFC 7627 and the answers
+below.
+
+strongSwan 5.9.14 is such a peer, by default rather than by limitation. charon ships
+`version_max = 1.2` in `/etc/strongswan.d/charon.conf`, with the comment "default to TLS
+1.2 until 1.3 is stable for use in EAP", and it implements no extended master secret. Set
+`charon.tls.version_max = 1.3` and the same 5.9.14 build reaches an established SA, which
+is what `test/interop-ipsec/scenarios/06-eap-tls13` runs.
+
+| Answer | What to change |
+|--------|----------------|
+| Move the peer to TLS 1.3 | RFC 9190 covers EAP-TLS over TLS 1.3, and the export is unconditional there. This is the preferred answer, and on strongSwan it is one line: `charon.tls.version_max = 1.3` |
+| Add RFC 7627 to the peer's TLS 1.2 stack | The export then works, and ze needs no change |
+| Configure another EAP method | EAP-MSCHAPv2 derives its key without a TLS export |
+
+Ze offers no setting that lifts the refusal, and there is nothing to add to the
+environment. Go 1.27 removed the `tlsunsafeekm` GODEBUG setting that once lifted it. A
+removed setting carrying its old value is a fatal error that the Go runtime raises before
+the daemon starts, so setting it stops ze rather than reaching the peer.
+
+<!-- source: internal/component/ike/eap/eap_tls.go -- exportEAPTLSMSK, eapTLS12ExportRefused -->
+
 ## Denial-of-service protection
 
 RFC 7296 Section 2.6 names two attacks on an IKE responder: state and CPU exhaustion
@@ -454,12 +512,17 @@ program exactly is narrowed FURTHER, never rounded outward: an address range tha
 prefix becomes the largest prefix inside it, and a port range that is neither all ports nor
 one port becomes its first port. A rekey is never narrowed below the scope in use.
 
-A peer whose selectors narrow while a tunnel is up proposes exactly that at its next rekey.
-Ze refuses such a rekey with `TS_UNACCEPTABLE` instead of replacing the SA with a narrower
-one. RFC 7296 Section 2.9.2 gives the reason: a rekey that needs a narrower scope means the
-policy changed, and the SA should have been deleted when the change took effect. The log
-line names both selector sets. Narrow the selectors on BOTH ends, or clear the peer, rather
-than waiting for the rekey timer.
+Editing a peer's `traffic-selector` list and committing restarts that peer. The tunnel
+drops and comes back carrying the new selectors, and the kernel policy follows. This is
+what RFC 7296 Section 2.9.2 asks for: a rekey that would need a narrower scope means the
+policy changed, and the SA should have been deleted when the change took effect. Narrowing
+a live tunnel by waiting for the rekey timer is not an option the protocol offers.
+
+A REMOTE peer whose selectors narrow while a tunnel is up proposes exactly that at its next
+rekey. Ze refuses such a rekey with `TS_UNACCEPTABLE` instead of replacing the SA with a
+narrower one, and the log line names both selector sets. A repeating refusal means the
+other end narrowed its policy and left its tunnel up. Narrow the selectors on the Ze end
+too, or clear the peer.
 
 The same floor applies to a rekey Ze STARTS. Ze installs the selectors the peer answered
 with, never the retired SA's, so both ends program the same traffic. An answer narrower

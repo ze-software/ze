@@ -37,6 +37,72 @@ the goroutine setting SA state.
 <!-- source: internal/component/ike/engine/fsm.go -- reconnectDelay -->
 <!-- source: internal/component/ike/engine/reconcile.go -- peerConfigChanged -->
 
+**A reload restarts a peer whose configuration differs in ANY member, and
+leaves every other peer alone.** `peerConfigChanged` compares three whole values
+rather than a list of member names: the peer (`ipsec.SiteToSitePeer.Equal`) and
+the two RESOLVED crypto groups (`ipsec.IKEGroup.Equal`, `ipsec.ESPGroup.Equal`).
+
+The groups are there because a peer holds their NAMES and none of the crypto.
+`startPeerSession` copies the resolved groups onto the `PeerSession` and nothing
+refreshes them, so an operator rotating a cipher edits no peer block at all: the
+peer half compares equal, and the tunnel would keep negotiating the algorithm
+that was replaced. `reconcilePeers` resolves both groups against the new config
+before it asks, and a group that is gone resolves to the zero value, which stops
+the peer. That is the same answer a fresh daemon gives: the start loop refuses a
+peer whose groups do not resolve.
+
+Two more properties follow, and both are load-bearing.
+
+A member added to `SiteToSitePeer` forces a restart from the day it is added, so
+an operator's edit cannot be ignored because nobody remembered to list it. A
+member that MUST NOT force a restart is subtracted by name, with the reason
+recorded on `Equal`. Omission is not how the two are told apart.
+
+A reload that edits nothing restarts nothing. That needs every member to be
+stable across two parses of one file, which `TestSiteToSitePeerEqualAcrossTwoParses`
+holds: a peer whose selectors and allow list arrive behind fresh pointers on
+each parse still compares equal. Without it, a total comparison would bounce
+every tunnel on every commit.
+
+**A reload that cannot be applied is REFUSED, not half-applied.** `interface`
+supplies the local address of every peer that names none, so a failed interface
+read leaves those peers unbindable. `applyIPsecConfig` returns an error for that
+case and `OnConfigApply` propagates it, so the transaction rolls back and the
+running tunnels are untouched. Without it the peers would carry an empty
+`LocalAddress`, differ from the sessions that resolved one at startup, and be
+restarted into a state the engine's own message calls "will fail".
+`OnConfigure` logs the same condition and continues instead, because at startup
+there is no running tunnel to protect and no previous configuration to keep.
+
+The restart is also the only way an edit reaches the wire. `startPeerSession` is
+the only writer of `ps.peerCfg`, `initiator.go` and `responder.go` copy that
+value into `sa.PeerCfg`, and `proposeChildTSPayloads` reads it to build the TSi
+and TSr of the next CREATE_CHILD_SA. A session left running keeps proposing the
+selectors it was born with. RFC 7296 Section 2.9.2 asks for the restart in the
+narrowing case: a rekey that would need a narrower scope means the policy
+changed, and the SA "should have been already deleted after the policy change
+took effect".
+
+**A reload reaches the engine through `OnConfigApply`, and an apply with nothing
+staged is refused.** The plugin protocol splits a reload into a verify phase and
+an apply phase, and the apply request carries diff sections rather than the
+configuration, so `ikeConfigStaging` carries what verify parsed across to apply.
+An apply that finds nothing staged returns `errIKEApplyWithoutVerify`: both
+phases pick their participants with one predicate (`filterDiffs`), so that state
+is a protocol violation, and answering OK would report the commit landed while
+the engine kept the configuration it was already running.
+
+The engine registered no `OnConfigApply` at all until
+spec-fixit-ipsec-peer-reload-ignored. The SDK answers a config-apply with OK when
+no handler is registered, so every reload verified the operator's edit, reported
+success, and applied nothing: `reconcilePeers` was reachable from startup and
+from operator `clear` alone.
+
+<!-- source: internal/component/ike/ipsec/types.go -- SiteToSitePeer.Equal, IKEGroup.Equal, ESPGroup.Equal, IPsecConfig.Changed -->
+<!-- source: internal/component/ike/engine/register.go -- applyIPsecConfig, ikeConfigStaging, peersNeedInterfaceAddress -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigApply -->
+<!-- source: internal/component/ike/engine/rekey.go -- proposeChildTSPayloads -->
+
 **PSK AUTH comparison is constant time.** A byte-at-a-time comparison leaks
 timing that lets an attacker brute-force the derived key one byte at a time.
 

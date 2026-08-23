@@ -111,13 +111,70 @@ def docker_run(name, image, ip, volumes=None, caps=None, extra_args=None, cmd=No
         raise RuntimeError("docker run %s failed: %s" % (name, result.stderr.strip()))
 
 
-def docker_rm(name):
-    subprocess.run(
-        ["docker", "rm", "-f", name],
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
+def docker_rm(name, strict=False):
+    """Remove a container. Two contracts, selected by `strict`.
+
+    The same removal runs at two moments that owe opposite answers, so it
+    mirrors `docker_rm` in test/interop/interop.py, which carries the full
+    reasoning.
+
+    The default is the CLEANUP contract and raises nothing. `Scenario.teardown`
+    runs from the runner's `finally`, so an exception here escapes that
+    `finally` and the run ends with no summary, discarding every tally the suite
+    had accumulated.
+
+    `strict=True` is the PRE-CLEAN contract and must raise. `Scenario.setup`
+    removes leftovers BEFORE starting its own containers, and a removal that
+    failed silently there leaves this scenario running beside an earlier run's
+    daemon on the same address. Nothing downstream catches that: a container
+    THIS scenario starts collides by name and `docker_run` raises, but a stale
+    peer it never starts does not, and `docker network create` accepts a network
+    that already exists.
+
+    Three failure shapes, and all of them leave the container standing.
+
+      * the call never answers. `TimeoutExpired`.
+      * docker answers with an error. `docker rm -f` on a container that does
+        not exist exits 0 with no output, so a non-zero exit here is always a
+        real failure and never the ordinary nothing-to-remove case.
+      * the call cannot run at all. `subprocess.run` reports a missing or
+        unusable docker binary as an `OSError`.
+    """
+    try:
+        result = subprocess.run(
+            ["docker", "rm", "-f", name],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired:
+        if strict:
+            raise RuntimeError(
+                "docker rm -f %s timed out after 30s: a leftover container "
+                "would race this scenario" % name
+            )
+        print(
+            "--- docker rm %s timed out after 30s, container can be left behind ---"
+            % name
+        )
+        return
+    except OSError as exc:
+        if strict:
+            raise RuntimeError(
+                "docker rm -f %s could not run (%s): a leftover container "
+                "would race this scenario" % (name, exc)
+            )
+        print(
+            "--- docker rm %s could not run (%s), container can be left behind ---"
+            % (name, exc)
+        )
+        return
+    if strict and result.returncode != 0:
+        raise RuntimeError(
+            "docker rm -f %s failed (exit %d): %s -- a leftover container would "
+            "race this scenario"
+            % (name, result.returncode, (result.stderr or "").strip() or "no stderr")
+        )
 
 
 def docker_logs(container, lines=50):
@@ -736,6 +793,57 @@ def resolve_pki_placeholders(content, pki_dir, read=None):
     return _PKI_PLACEHOLDER.sub(lambda m: cache[m.group(1)], content)
 
 
+def find_pki_dir(scenario_dir):
+    """The PKI directory a scenario uses: its own, else the shared one, else None."""
+    local = os.path.join(scenario_dir, "pki")
+    if os.path.isdir(local):
+        return os.path.abspath(local)
+    shared = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pki")
+    if os.path.isdir(shared) and os.path.isfile(os.path.join(shared, "ca.pem")):
+        return os.path.abspath(shared)
+    return None
+
+
+def render_ze_conf(source, pki_dir, dest):
+    """Render one ze config source into the file the ze container mounts.
+
+    Two edits, both made here rather than in twenty fixtures. The PKI placeholders
+    resolve to key material, and ZE_CLI_CONFIG appends the SSH listener plus the account
+    `ze_cli` authenticates as. The daemon starts no listener unless its config asks for
+    one (`infraSetup`, cmd/ze/hub/infra_setup.go), so a scenario without the block
+    answers every `ze cli` call with a credential error. `_render_scenario_dir`
+    (test/interop/interop.py) appends the same two blocks for the BGP lab.
+
+    The write is IN PLACE rather than a write-and-rename. `dest` is the host side of a
+    bind mount, and a rename would leave the container looking at the old inode, so a
+    reload would read the file it was already running.
+    """
+    with open(source, encoding="utf-8") as fh:
+        content = fh.read()
+    resolved = resolve_pki_placeholders(content, pki_dir)
+    with open(dest, "w", encoding="utf-8") as fh:
+        fh.write(resolved.rstrip("\n") + "\n" + ZE_CLI_CONFIG)
+    return dest
+
+
+def reload_ze_config(scenario_dir, source):
+    """Commit a new ze configuration under a running daemon, and return its path.
+
+    This is the interop lab's operator: it rewrites the config file the ze container
+    mounts and sends SIGHUP, which is what `commit` does on a real box. `source` names a
+    file beside the scenario's ze.conf, and it is rendered through the same pipeline
+    setup uses, so the two configs differ only where the fixture says they differ.
+
+    Signal 1 is tini, the image ENTRYPOINT, and tini forwards every signal it receives
+    to ze (Dockerfile.ze).
+    """
+    dest = os.path.join(scenario_dir, "ze.conf.resolved")
+    render_ze_conf(os.path.join(scenario_dir, source), find_pki_dir(scenario_dir), dest)
+    docker_exec(ZE_CONTAINER, ["sh", "-c", "kill -HUP 1"])
+    log_info("reloaded ze with %s" % source)
+    return dest
+
+
 # --- Scenario lifecycle ------------------------------------------------------
 
 
@@ -746,39 +854,21 @@ class Scenario:
         self.name = os.path.basename(scenario_dir.rstrip("/"))
 
     def _find_pki_dir(self):
-        local = os.path.join(self.scenario_dir, "pki")
-        if os.path.isdir(local):
-            return os.path.abspath(local)
-        shared = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pki")
-        if os.path.isdir(shared) and os.path.isfile(os.path.join(shared, "ca.pem")):
-            return os.path.abspath(shared)
-        return None
+        return find_pki_dir(self.scenario_dir)
 
     def _prepare_ze_conf(self, ze_conf, pki_dir):
         """Write the copy of ze.conf the container mounts, and return its path.
 
-        Two edits, both made here rather than in sixteen fixtures. The PKI
-        placeholders resolve to key material, and ZE_CLI_CONFIG appends the SSH
-        listener plus the account `ze_cli` authenticates as. The daemon starts no
-        listener unless its config asks for one (`infraSetup`,
-        cmd/ze/hub/infra_setup.go), so a scenario without the block answers every
-        `ze cli` call with a credential error. `_render_scenario_dir`
-        (test/interop/interop.py) appends the same two blocks for the BGP lab.
-
-        Every scenario gets a rendered copy, because the append always changes
-        the text. The config parser merges two top-level blocks of one name, so a
-        scenario that already declares `environment { log }` keeps it.
+        Every scenario gets a rendered copy, because render_ze_conf's append always
+        changes the text. The config parser merges two top-level blocks of one name, so
+        a scenario that already declares `environment { log }` keeps it.
         """
-        with open(ze_conf, encoding="utf-8") as f:
-            content = f.read()
-        resolved = resolve_pki_placeholders(content, pki_dir)
-        tmp_conf = ze_conf + ".resolved"
-        with open(tmp_conf, "w", encoding="utf-8") as f:
-            f.write(resolved.rstrip("\n") + "\n" + ZE_CLI_CONFIG)
-        return tmp_conf
+        return render_ze_conf(ze_conf, pki_dir, ze_conf + ".resolved")
 
     def setup(self):
-        self.teardown()
+        # PRE-CLEAN, not cleanup: a removal that failed here would leave this
+        # scenario running beside a leftover daemon, so it must deny.
+        self.teardown(strict=True)
 
         result = subprocess.run(
             ["docker", "network", "create", "--subnet=%s" % SUBNET, NETWORK],
@@ -879,10 +969,11 @@ class Scenario:
         # listing KEY=VALUE lines in a `ze-env` file beside its ze.conf.
         #
         # This used to be one unconditional GODEBUG=tlsunsafeekm=1 applied to
-        # every scenario. Only 04-eap-tls needs it, and setting it lab-wide made
-        # the weakening invisible and unprovable: no scenario could show that ze
-        # authenticates without it. Per-scenario, a run that does not name it
-        # genuinely runs without it.
+        # every scenario, then a per-scenario line in 04-eap-tls alone, so that a
+        # run which did not name it genuinely ran without it. Go 1.27 REMOVED
+        # that setting, and a removed key carrying its old value is a fatal error
+        # raised before main(), so the line stopped ze at container start. No
+        # scenario sets it now, and none may: see 04-eap-tls/ze-env.
         ze_env_file = os.path.join(self.scenario_dir, "ze-env")
         if os.path.isfile(ze_env_file):
             with open(ze_env_file, encoding="utf-8") as fh:
@@ -915,10 +1006,17 @@ class Scenario:
             cmd=["start", "/etc/ze/ze.conf"],
         )
 
-    def teardown(self):
-        docker_rm(ZE_CONTAINER)
-        docker_rm(SWAN_CONTAINER)
-        docker_rm(FRR_CONTAINER)
+    def teardown(self, strict=False):
+        """Remove the containers and the network.
+
+        `strict` picks the same two contracts as `docker_rm`, and for the same
+        reason: `setup` calls this to PRE-CLEAN and must not proceed on a
+        removal that failed, while the runner's `finally` must not lose the
+        run's summary to one.
+        """
+        docker_rm(ZE_CONTAINER, strict=strict)
+        docker_rm(SWAN_CONTAINER, strict=strict)
+        docker_rm(FRR_CONTAINER, strict=strict)
         subprocess.run(
             ["docker", "network", "rm", NETWORK],
             capture_output=True,

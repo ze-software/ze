@@ -1,11 +1,13 @@
 package ipsec
 
 import (
+	"net"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/secret"
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
 )
 
 // makeESPTree builds a config tree with vpn { ipsec { esp-group <name> { ... } } }.
@@ -477,6 +479,135 @@ func TestParseInvalidInterfaceRef(t *testing.T) {
 	}
 }
 
+// makeReloadPeerTree builds a whole config tree carrying one peer, its groups, and the
+// members SiteToSitePeer.Equal has to compare through a pointer or a slice: two
+// traffic-selector rows, and (for x509) a certificate-url-allow leaf-list.
+//
+// It does NOT go through makePeerTree. That helper is shared with rfc7296_test.go, whose
+// file header carries an RFC-requirement tag outside every func span, and `tag_scope`
+// (scripts/dev/rfc_tagged_scope.py) widens tagged-test scope to the WHOLE file when a tag
+// sits there. Growing that helper's peerOpts to carry these leaves would drag an
+// RFC-tagged file into a change that has nothing to do with RFC 7296 Section 2.15, and the
+// commit would owe a test/rfc-changed.md row for it. A local builder costs less.
+func makeReloadPeerTree(peerName, authMode string) *config.Tree {
+	tree := config.NewTree()
+	ipsec := tree.GetOrCreateContainer("vpn").GetOrCreateContainer("ipsec")
+
+	espEntry := config.NewTree()
+	espProp := config.NewTree()
+	espProp.Set("encryption", "aes128gcm")
+	espEntry.AddListEntry("proposal", "1", espProp)
+	ipsec.AddListEntry("esp-group", "ESP-1", espEntry)
+
+	ikeEntry := config.NewTree()
+	ikeProp := config.NewTree()
+	ikeProp.Set("encryption", "aes128gcm")
+	ikeProp.Set("hash", "sha256")
+	ikeProp.Set("dh-group", "14")
+	ikeEntry.AddListEntry("proposal", "1", ikeProp)
+	ipsec.AddListEntry("ike-group", "IKE-1", ikeEntry)
+
+	peerEntry := config.NewTree()
+	peerEntry.Set("ike-group", "IKE-1")
+	peerEntry.Set("esp-group", "ESP-1")
+	peerEntry.Set("connection-type", "respond")
+	peerEntry.Set("local-address", "192.0.2.10")
+	peerEntry.Set("remote-address", "192.0.2.1")
+
+	auth := peerEntry.GetOrCreateContainer("authentication")
+	auth.Set("mode", authMode)
+	auth.Set("local-id", "ze.example.net")
+	auth.Set("remote-id", "peer.example.net")
+	switch authMode {
+	case "pre-shared-secret":
+		auth.Set("pre-shared-secret", "reload-fixture-secret")
+	default:
+		x509 := auth.GetOrCreateContainer("x509")
+		x509.Set("ca-certificate", "test-ca")
+		x509.Set("certificate", "test-cert")
+		// certificate-url-allow is the one []netip.Prefix a peer config holds, and
+		// parseAuthPolicy refuses it unless hash-and-url is on and certificate-url is
+		// set, so the three leaves travel together.
+		auth.Set("hash-and-url", "true")
+		auth.Set("certificate-url", "http://cert.example.net/ze.der")
+		auth.AppendValue("certificate-url-allow", "203.0.113.0/24")
+		auth.AppendValue("certificate-url-allow", "198.51.100.0/24")
+	}
+
+	peerEntry.GetOrCreateContainer("vti").Set("bind", "vti0")
+
+	first := config.NewTree()
+	first.GetOrCreateContainer("local").Set("prefix", "10.1.0.0/16")
+	first.GetOrCreateContainer("remote").Set("prefix", "10.2.0.0/16")
+	peerEntry.AddListEntry("traffic-selector", "1", first)
+
+	second := config.NewTree()
+	second.Set("protocol", "6")
+	secondLocal := second.GetOrCreateContainer("local")
+	secondLocal.Set("prefix", "10.3.0.0/24")
+	secondLocal.Set("port", "179")
+	second.GetOrCreateContainer("remote").Set("prefix", "10.4.0.0/24")
+	peerEntry.AddListEntry("traffic-selector", "2", second)
+
+	ipsec.GetOrCreateContainer("site-to-site").AddListEntry("peer", peerName, peerEntry)
+	return tree
+}
+
+// VALIDATES: SiteToSitePeer.Equal is TOTAL and still answers "nothing changed" for a
+// reload that edited nothing. The two peers come from two independent parses of the same
+// configuration, which is exactly what a reload hands the comparison, so every member
+// travels through the parser rather than through a struct copy: the *net.IPNet in each
+// traffic selector and the []netip.Prefix in the auth policy are equal VALUES behind
+// different pointers and different backing arrays.
+//
+// Both authentication modes run, because they populate DIFFERENT members. x509 is the
+// only one that reaches certificate-url-allow, and pre-shared-secret is the mode most
+// deployments use, so an instability in the secret's own decode path would otherwise be
+// invisible here.
+//
+// PREVENTS: R-1. A comparison over a whole struct restarts every peer on every commit if
+// any member is unstable across a parse, and a tunnel that bounces whenever an operator
+// commits anything is a worse defect than the one the totality removes. It also prevents a
+// later parser change from reintroducing that instability: a map walk feeding a slice
+// member reddens this test the day it lands.
+func TestSiteToSitePeerEqualAcrossTwoParses(t *testing.T) {
+	for _, authMode := range []string{"x509", "pre-shared-secret"} {
+		t.Run(authMode, func(t *testing.T) {
+			parse := func() SiteToSitePeer {
+				t.Helper()
+				cfg, err := ParseIPsecConfig(makeReloadPeerTree("branch-1", authMode))
+				if err != nil {
+					t.Fatalf("ParseIPsecConfig: %v", err)
+				}
+				peer, ok := cfg.Peers["branch-1"]
+				if !ok {
+					t.Fatal("peer branch-1 missing from the parsed config")
+				}
+				return peer
+			}
+
+			first := parse()
+			second := parse()
+
+			if len(first.TrafficSelectors) != 2 {
+				t.Fatalf("setup: parsed %d traffic selectors, want 2; the fixture must exercise the pointer-bearing member",
+					len(first.TrafficSelectors))
+			}
+			if authMode == "x509" && len(first.Auth.CertificateURLAllow) != 2 {
+				t.Fatalf("setup: parsed %d allowed prefixes, want 2; the fixture must exercise the slice member",
+					len(first.Auth.CertificateURLAllow))
+			}
+			if authMode == "pre-shared-secret" && first.Auth.PSK == "" {
+				t.Fatal("setup: the pre-shared secret did not reach the parsed peer")
+			}
+			if !first.Equal(second) {
+				t.Errorf("two parses of one configuration compared unequal, so every commit would restart this peer:\nfirst  = %+v\nsecond = %+v",
+					first, second)
+			}
+		})
+	}
+}
+
 func TestIPsecConfigChanged(t *testing.T) {
 	old := &IPsecConfig{
 		Peers: map[string]SiteToSitePeer{
@@ -511,6 +642,68 @@ func TestIPsecConfigChanged(t *testing.T) {
 	if !gotSet["added"] {
 		t.Error("'added' should be in changed list")
 	}
+}
+
+// VALIDATES: Changed reports a peer whose ONLY edit is a member the old field list left
+// out. It listed IKEGroup, ESPGroup, ConnectionType, LocalAddress, RemoteAddress, VTIBind,
+// IfID and Auth, so TrafficSelectors, Mode and TransportRequired were invisible to it.
+//
+// PREVENTS: half a fix. Changed and peerConfigChanged (engine/reconcile.go) were two
+// hand-written field lists over one type, and they did not even name the same eight
+// members. Repairing the engine's list and leaving this one would put the same defect one
+// caller away.
+func TestIPsecConfigChangedSeesEveryPeerMember(t *testing.T) {
+	base := SiteToSitePeer{
+		Name:          "branch-1",
+		RemoteAddress: "192.0.2.1",
+		TrafficSelectors: []TrafficSelectorPolicy{
+			{Number: "1", LocalPrefix: mustCIDR(t, "10.1.0.0/16"), RemotePrefix: mustCIDR(t, "10.2.0.0/16")},
+		},
+		Mode:              dataplane.ModeTunnel,
+		TransportRequired: true,
+	}
+
+	cases := []struct {
+		member string
+		edit   func(p *SiteToSitePeer)
+	}{
+		{"TrafficSelectors", func(p *SiteToSitePeer) {
+			p.TrafficSelectors = []TrafficSelectorPolicy{
+				{Number: "1", LocalPrefix: mustCIDR(t, "10.1.0.0/24"), RemotePrefix: mustCIDR(t, "10.2.0.0/16")},
+			}
+		}},
+		{"Mode", func(p *SiteToSitePeer) { p.Mode = dataplane.ModeTransport }},
+		{"TransportRequired", func(p *SiteToSitePeer) { p.TransportRequired = false }},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.member, func(t *testing.T) {
+			old := &IPsecConfig{Peers: map[string]SiteToSitePeer{"branch-1": base}}
+			edited := base
+			tc.edit(&edited)
+			updated := &IPsecConfig{Peers: map[string]SiteToSitePeer{"branch-1": edited}}
+
+			changed := updated.Changed(old)
+			if len(changed) != 1 || changed[0] != "branch-1" {
+				t.Errorf("editing %s gave Changed() = %v, want [branch-1]", tc.member, changed)
+			}
+		})
+	}
+
+	unchanged := &IPsecConfig{Peers: map[string]SiteToSitePeer{"branch-1": base}}
+	same := &IPsecConfig{Peers: map[string]SiteToSitePeer{"branch-1": base}}
+	if got := unchanged.Changed(same); len(got) != 0 {
+		t.Errorf("editing nothing gave Changed() = %v, want none", got)
+	}
+}
+
+func mustCIDR(t *testing.T, prefix string) *net.IPNet {
+	t.Helper()
+	_, n, err := net.ParseCIDR(prefix)
+	if err != nil {
+		t.Fatalf("prefix %q: %v", prefix, err)
+	}
+	return n
 }
 
 func TestIPsecConfigChangedRemoteAccess(t *testing.T) {
