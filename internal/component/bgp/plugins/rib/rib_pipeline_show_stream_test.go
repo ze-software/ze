@@ -1,6 +1,7 @@
 package rib
 
 import (
+	"encoding/json"
 	"net/netip"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -101,4 +103,52 @@ func TestShowPipelineNoLockAcrossWrite(t *testing.T) {
 
 	assert.False(t, w.locked, "peerMu was held while an answer line was written")
 	assert.Equal(t, rows+2, w.lines, "the walk must stream for this to have been tested")
+}
+
+// TestShowPipelineOrdersTheSameWithAndWithoutATerminal pins that one command
+// has ONE row order.
+//
+// `show bgp rib` streams; `show bgp rib | json` builds a document through
+// jsonTerminal. The terminal used to re-sort its rows by peer, direction,
+// family and prefix, which gave the same command two orderings depending only
+// on whether the operator typed `| json`. The streaming path cannot match a
+// global sort, because sorting a stream means holding every row.
+//
+// VALIDATES: both paths yield the sources' own order, which is deterministic
+// because each source sorts its peer list at construction.
+// PREVENTS: a re-sort returning to either path and splitting the order again.
+func TestShowPipelineOrdersTheSameWithAndWithoutATerminal(t *testing.T) {
+	r := newTestRIBManager(t)
+	fam := family.IPv4Unicast
+	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001)
+	for _, peer := range []string{"198.51.100.7", "192.0.2.1", "203.0.113.9"} {
+		peerRIB := storage.NewPeerRIB(peer)
+		peerRIB.Insert(fam, attrBytes, []byte{24, 10, 0, 0}, true)
+		peerRIB.Insert(fam, attrBytes, []byte{24, 10, 0, 1}, true)
+		r.bgpPeers[netip.MustParseAddr(peer)] = peerRIB
+	}
+
+	streamed := showRowKeys(t, r)
+
+	var document map[string]any
+	require.NoError(t, json.Unmarshal(
+		mustMarshal(t, r.showPipeline("*", []string{"received", "json"})), &document))
+	rows, ok := document["routes"].([]any)
+	require.True(t, ok, "the json terminal answers a routes list, got %v", document)
+
+	fromTerminal := make([]string, 0, len(rows))
+	for _, raw := range rows {
+		row, isRow := raw.(map[string]any)
+		require.True(t, isRow)
+		peer, _ := row["peer"].(string)
+		direction, _ := row["direction"].(string)
+		famName, _ := row["family"].(string)
+		prefix, _ := row["prefix"].(string)
+		var key textbuf.Buffer
+		fromTerminal = append(fromTerminal, key.Str(peer).Byte('|').Str(direction).
+			Byte('|').Str(famName).Byte('|').Str(prefix).String())
+	}
+
+	assert.Equal(t, streamed, fromTerminal,
+		"the streamed and buffered answers order the same rows differently")
 }

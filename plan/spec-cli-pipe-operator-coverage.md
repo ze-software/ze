@@ -640,6 +640,39 @@ phase 3 correctly began refusing. Both are fixed, and the second is strengthened
 rather than relaxed: its machine-format arm now parses the answer and asserts it
 carries no rows, where it used to assert an empty string.
 
+## Review Gate
+
+**This is a SELF-review and that is a real limitation, not a formality.** The
+independent review that `spec-record-answers-3-zero-alloc` got was run by a
+context that had written none of the code, and it found a BLOCKER that six
+phases of the author's own testing had not. This session was instructed not to
+spawn agents, so the same separation was not available. What follows is a
+deliberate re-read of the diff looking for defects, and it found one real
+issue; it should be read as weaker evidence than an independent pass, and a
+later reviewer should not treat this section as one.
+
+Diff reviewed: `f30a58b12..6b0eb49e3`, the six phases plus the config family.
+
+### Findings
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| I-1 | ISSUE | `show bgp rib` had TWO row orderings for one command. `jsonTerminal.drain` re-sorted by peer, direction, family and prefix, while the streaming path yields the sources' own order. Which one a caller got depended only on whether `\| json` was typed, and the streaming path cannot match a global sort because sorting a stream means holding every row | FIXED. The terminal no longer re-sorts; both paths yield the sources' order, which is deterministic because each source sorts its PEER LIST at construction. `TestShowPipelineOrdersTheSameWithAndWithoutATerminal` compares the two answers row for row and is mutation-proven: re-adding a sort to the terminal reddens it by name |
+| N-1 | NOTE | `rowSet` treats a map whose every value is an object as identity-keyed rows. That is a heuristic, and `show config dump` is the case where it is wrong: a configuration tree looks exactly like that | Answered by `validateDeclaredShape` rather than by a better heuristic. A command that knows it holds one document says so, and the declaration wins over the guess |
+| N-2 | NOTE | `sortRouteRows` was added, then removed within the same spec | Recorded because the reason is worth keeping: it was correct while the terminal was the only path, and became a divergence the moment a second path existed. The peer-list sort that replaced it is what makes both paths deterministic |
+| N-3 | NOTE | The `save` operator writes a file, and its refusal on daemon-expanded chains is enforced at ONE call site pair | The safe form keeps the existing name, so an unexamined caller gets the refusal. A new remote surface that copies the local entry point by name would defeat it, and nothing gates that |
+| N-4 | NOTE | 232 of 252 commands declare no shape | Deliberate. An undeclared command is refused from its answer, so the refusal is universal on day one rather than a property of the annotated set. The published page says `with-rows` for those rather than claiming support |
+
+**1 ISSUE found, 1 fixed, 0 outstanding.**
+
+### What this review did NOT cover
+
+- The `.ci` and `.et` corpus beyond the files this spec changed. The
+  shape-change blast radius was found by the pre-push gate, not by reading.
+- Any surface that consumes `ze help command --json` outside this repository.
+- The website generators' rendered output, which another session holds
+  uncommitted.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and

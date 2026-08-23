@@ -1106,7 +1106,13 @@ func (jt *jsonTerminal) drain() {
 	}
 
 	jt.meta.Count = count
-	sortRouteRows(rows)
+
+	// The rows are NOT re-sorted here. They arrive in the sources' own order,
+	// which is deterministic because each source sorts its PEER LIST at
+	// construction, and that is the same order the streaming path yields. A
+	// sort here would give one command two orderings, depending only on whether
+	// `| json` was typed, and the streaming path cannot match it: sorting a
+	// stream means holding every row, which is the thing streaming avoids.
 
 	data, _ := json.Marshal(map[string]any{"routes": rows})
 	jt.meta.JSON = string(data)
@@ -1120,27 +1126,6 @@ const (
 	rowKeyPeer      = "peer"
 	rowKeyDirection = "direction"
 )
-
-// sortRouteRows puts the rows in a stable order.
-//
-// It is not cosmetic. The sources walk `r.bgpPeers`, which is a map, so the
-// order rows arrive in is Go's map order and differs between runs. The shape
-// this replaced hid that: it keyed an object by peer, and encoding/json sorts
-// object keys, so the answer came out sorted without anybody arranging it. A
-// flat list has no such accident, and an answer that reorders itself between
-// identical runs is one no test can assert and no reader can diff.
-func sortRouteRows(rows []map[string]any) {
-	sort.Slice(rows, func(i, j int) bool {
-		for _, key := range [...]string{rowKeyPeer, rowKeyDirection, "family", "prefix"} {
-			a, _ := rows[i][key].(string)
-			b, _ := rows[j][key].(string)
-			if a != b {
-				return a < b
-			}
-		}
-		return false
-	})
-}
 
 func (jt *jsonTerminal) Meta() PipelineMeta {
 	if !jt.drained {
