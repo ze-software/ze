@@ -1261,3 +1261,232 @@ func TestSplitter_ZeroAllocAfterWarmup(t *testing.T) {
 		t.Errorf("Splitter.Split fast-path: got %v allocs/op, want ≤ 2", allocs)
 	}
 }
+
+// =============================================================================
+// VPN (SAFI 128) chunk sizing: the Route Distinguisher is per-chunk overhead
+// =============================================================================
+
+// vpnIPv4NLRIEntries returns count VPN-IPv4 NLRI entries, each 15 octets.
+//
+// RFC 4364 Section 4.3.4: a VPN-IPv4 NLRI is a length octet stating the bit
+// count of everything after it, then the label stack, the 8-octet Route
+// Distinguisher, and the prefix. For a /24 that is 24 + 64 + 24 = 112 bits, so
+// the entry is 1 + 14 = 15 octets. ChunkMPNLRI sizes it the same way
+// (vpnNLRISize in chunk_mp_nlri.go).
+func vpnIPv4NLRIEntries(count int) []byte {
+	nlri := make([]byte, 0, count*15)
+	for i := range count {
+		nlri = append(nlri, 112, // 112 bits follow: label(24) + RD(64) + prefix(24)
+			0x00, 0x01, 0x01, // label 16, bottom of stack
+			0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, byte(i), // RD type 0, AS 100
+			10, 0, byte(i)) // 10.0.i.0/24
+	}
+	return nlri
+}
+
+// vpnIPv6NLRIEntries returns count VPN-IPv6 NLRI entries, each 20 octets.
+//
+// RFC 4659 Section 3.2: the prefix "consists of an 8-octet Route Distinguisher
+// followed by an IPv6 prefix". For a /64 that is 24 + 64 + 64 = 152 bits, so the
+// entry is 1 + 19 = 20 octets.
+func vpnIPv6NLRIEntries(count int) []byte {
+	nlri := make([]byte, 0, count*20)
+	for i := range count {
+		nlri = append(nlri, 152, // 152 bits follow: label(24) + RD(64) + prefix(64)
+			0x00, 0x01, 0x01, // label 16, bottom of stack
+			0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, byte(i), // RD type 0, AS 100
+			0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01, 0x00, byte(i)) // 2001:db8:1:i::/64
+	}
+	return nlri
+}
+
+// TestSplitMPReachNLRI_VPNChunkFitsMaxAttrSize checks that every chunk of a
+// SAFI 128 split encodes inside the maxAttrSize it was given, with an IPv4 next
+// hop. The method measures the ENCODED size, chunk.Len(), rather than any figure
+// the splitter derived, so the assertion cannot inherit the splitter's own
+// arithmetic.
+//
+// The encoded overhead here is 17 octets: AFI(2) + SAFI(1) + NH_Len(1) + RD(8) +
+// IPv4(4) + Reserved(1). At maxAttrSize 40 the NLRI space is 23 octets, so one
+// 15-octet entry fits and a chunk encodes 32 octets. A splitter that omits the
+// RD computes an overhead of 9, an NLRI space of 31, packs two entries, and
+// encodes 47 octets: seven past the ceiling it was handed.
+//
+// VALIDATES: AC-1. Each VPN chunk fits maxAttrSize, and the NLRI survives.
+// PREVENTS: an MP_REACH_NLRI attribute larger than the budget the caller
+// reserved for it, which on the send path becomes an UPDATE larger than the
+// peer's maximum message size.
+func TestSplitMPReachNLRI_VPNChunkFitsMaxAttrSize(t *testing.T) {
+	const maxAttrSize = 40
+
+	nlri := vpnIPv4NLRIEntries(8)
+	mp := &attribute.MPReachNLRI{
+		AFI:      attribute.AFIIPv4,
+		SAFI:     attribute.SAFIVPN,
+		NextHops: attribute.NewNextHopAddrs([]netip.Addr{netip.MustParseAddr("192.168.1.1")}),
+		NLRI:     nlri,
+	}
+
+	chunks, err := splitMPReachNLRI(mp, maxAttrSize)
+	require.NoError(t, err)
+	require.Greater(t, len(chunks), 1, "8 VPN entries cannot fit one 40-octet attribute")
+
+	reassembled := make([]byte, 0, len(nlri))
+	for i, chunk := range chunks {
+		assert.LessOrEqualf(t, chunk.Len(), maxAttrSize,
+			"chunk %d encodes %d octets, past the %d-octet attribute budget",
+			i, chunk.Len(), maxAttrSize)
+		reassembled = append(reassembled, chunk.NLRI...)
+	}
+	assert.Equal(t, nlri, reassembled, "every NLRI octet must survive the split")
+}
+
+// TestSplitMPReachNLRI_VPNIPv6NextHopChunkFitsMaxAttrSize is the same property
+// for a VPN-IPv6 next hop, whose encoded form is RD(8) + IPv6(16) = 24 octets.
+//
+// RFC 4659 Section 3.2.1.1 sets the Length of Next Hop Network Address to 24 when
+// only a global address is present.
+//
+// The encoded overhead is 29 octets and the NLRI entries are 20. At maxAttrSize
+// 64 the NLRI space is 35, so one entry fits and a chunk encodes 49 octets. A
+// splitter that omits the RD computes an overhead of 21, an NLRI space of 43,
+// packs two entries, and encodes 69 octets.
+//
+// VALIDATES: AC-2. The RD term is counted for an IPv6 next hop too.
+// PREVENTS: fixing the IPv4 case with a constant that only holds for a 4-octet
+// address.
+func TestSplitMPReachNLRI_VPNIPv6NextHopChunkFitsMaxAttrSize(t *testing.T) {
+	const maxAttrSize = 64
+
+	nlri := vpnIPv6NLRIEntries(6)
+	mp := &attribute.MPReachNLRI{
+		AFI:      attribute.AFIIPv6,
+		SAFI:     attribute.SAFIVPN,
+		NextHops: attribute.NewNextHopAddrs([]netip.Addr{netip.MustParseAddr("2001:db8::1")}),
+		NLRI:     nlri,
+	}
+
+	chunks, err := splitMPReachNLRI(mp, maxAttrSize)
+	require.NoError(t, err)
+	require.Greater(t, len(chunks), 1, "6 VPN-IPv6 entries cannot fit one 64-octet attribute")
+
+	reassembled := make([]byte, 0, len(nlri))
+	for i, chunk := range chunks {
+		assert.LessOrEqualf(t, chunk.Len(), maxAttrSize,
+			"chunk %d encodes %d octets, past the %d-octet attribute budget",
+			i, chunk.Len(), maxAttrSize)
+		reassembled = append(reassembled, chunk.NLRI...)
+	}
+	assert.Equal(t, nlri, reassembled, "every NLRI octet must survive the split")
+}
+
+// TestSplitUpdate_VPNChunksFitMaxMessageSize drives the entry point the daemon
+// calls, Splitter.Split, with the 4096-octet ceiling sendUpdateWithSplit
+// (reactor/peer_send.go) and fwdSplitParsedUpdate (reactor/forward_body.go) pass
+// it. The method measures each emitted Update.Len(nil), which is what reaches
+// the socket.
+//
+// The base attributes are ORIGIN (4 octets) and AS_PATH (17 octets), so the
+// chunk budget is 4096 - 23 - 21 - 4 = 4048 octets of attribute value. With the
+// RD counted the overhead is 17, the NLRI space 4031, and 268 15-octet entries
+// give a 4037-octet attribute inside a 4085-octet UPDATE. Without it the
+// overhead reads 9, the NLRI space 4039, and 269 entries encode a 4052-octet
+// attribute inside a 4100-octet UPDATE: four octets past the ceiling.
+//
+// RFC requirement: RFC8654-4-2 positive -- the splitter keeps every UPDATE it
+// emits inside the maximum message size it was given, so a VPN announcement
+// re-chunked for a peer that did not negotiate extended messages stays legal.
+//
+// VALIDATES: AC-3. The chunk-size property holds at the daemon's entry point.
+// PREVENTS: an over-size UPDATE drawing a NOTIFICATION (Message Header Error,
+// Bad Message Length) and resetting the session, and a chunk written past the
+// region splitUpdateWithMP reserved for it.
+func TestSplitUpdate_VPNChunksFitMaxMessageSize(t *testing.T) {
+	const maxSize = 4096
+
+	nlri := vpnIPv4NLRIEntries(400) // 6000 octets, well past one message
+	mpValue := []byte{
+		0x00, 0x01, // AFI IPv4
+		128,                                            // SAFI VPN
+		12,                                             // next-hop length: RD(8) + IPv4(4)
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // RD, zero per RFC 4364 Section 4.3.2
+		192, 168, 1, 1, // next hop
+		0x00, // reserved
+	}
+	mpValue = append(mpValue, nlri...)
+
+	// 21 octets of base attributes, which is what the chunk budget is measured after.
+	attrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x0e, // AS_PATH, 14 octets
+		0x02, 0x03, // AS_SEQUENCE, 3 ASNs
+		0x00, 0x00, 0xfd, 0xe8, 0x00, 0x00, 0xfd, 0xe9, 0x00, 0x00, 0xfd, 0xea,
+		0x90, 0x0e, // MP_REACH_NLRI, optional and extended length
+		byte(len(mpValue) >> 8), byte(len(mpValue)),
+	}
+	attrs = append(attrs, mpValue...)
+
+	u := &Update{PathAttributes: attrs}
+	require.Greater(t, u.Len(nil), maxSize, "the fixture must need a split")
+
+	chunks, err := collectChunks(t, u, maxSize, false)
+	require.NoError(t, err)
+	require.Greater(t, len(chunks), 1, "6000 octets of VPN NLRI cannot fit one message")
+
+	reassembled := make([]byte, 0, len(nlri))
+	for i, chunk := range chunks {
+		assert.LessOrEqualf(t, chunk.Len(nil), maxSize,
+			"emitted UPDATE %d is %d octets, past the %d-octet maximum message size",
+			i, chunk.Len(nil), maxSize)
+
+		info := findMPAttribute(chunk.PathAttributes, attribute.AttrMPReachNLRI)
+		require.Truef(t, info.found, "chunk %d carries no MP_REACH_NLRI", i)
+		mp, err := attribute.ParseMPReachNLRI(info.value)
+		require.NoErrorf(t, err, "chunk %d does not parse", i)
+		reassembled = append(reassembled, mp.NLRI...)
+	}
+	assert.Equal(t, nlri, reassembled, "every NLRI octet must survive the split")
+}
+
+// TestSplitMPReachNLRI_VPNOverheadTooLargeCountsRD walks the boundary of the
+// overhead guard for a SAFI 128 attribute with one IPv4 next hop, whose encoded
+// overhead is 17 octets and whose NLRI entries are 15.
+//
+// VALIDATES: AC-5, and the Boundary Tests row of the spec. 17 and below leave no
+// room for any NLRI; 31 has room for the overhead but not for one entry; 32 is
+// the smallest size that chunks.
+// PREVENTS: an overhead guard that admits a size the attribute could never
+// encode at, which turns a clear refusal into a mis-sized chunk downstream.
+func TestSplitMPReachNLRI_VPNOverheadTooLargeCountsRD(t *testing.T) {
+	newMP := func() *attribute.MPReachNLRI {
+		return &attribute.MPReachNLRI{
+			AFI:      attribute.AFIIPv4,
+			SAFI:     attribute.SAFIVPN,
+			NextHops: attribute.NewNextHopAddrs([]netip.Addr{netip.MustParseAddr("192.168.1.1")}),
+			NLRI:     vpnIPv4NLRIEntries(8),
+		}
+	}
+
+	t.Run("overhead alone fills the budget", func(t *testing.T) {
+		chunks, err := splitMPReachNLRI(newMP(), 17)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrMPOverheadTooLarge)
+		assert.Nil(t, chunks, "no chunk may be produced when the overhead does not fit")
+	})
+
+	t.Run("overhead fits but no NLRI entry does", func(t *testing.T) {
+		_, err := splitMPReachNLRI(newMP(), 31)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrNLRITooLarge)
+	})
+
+	t.Run("smallest size that chunks", func(t *testing.T) {
+		chunks, err := splitMPReachNLRI(newMP(), 32)
+		require.NoError(t, err)
+		require.Greater(t, len(chunks), 1)
+		for i, chunk := range chunks {
+			assert.Equalf(t, 32, chunk.Len(),
+				"chunk %d must hold exactly the overhead and one 15-octet entry", i)
+		}
+	})
+}

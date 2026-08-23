@@ -616,16 +616,21 @@ func SplitMPReachNLRIWithAddPath(mp *attribute.MPReachNLRI, maxAttrSize int, add
 		return []*attribute.MPReachNLRI{mp}, nil
 	}
 
-	// Calculate overhead: AFI(2) + SAFI(1) + NH_Len(1) + NextHops + Reserved(1)
-	nhLen := 0
-	for _, nh := range mp.NextHops.Slice() {
-		if nh.Is4() {
-			nhLen += 4
-		} else {
-			nhLen += 16
-		}
-	}
-	overhead := 2 + 1 + 1 + nhLen + 1
+	// Per-chunk overhead: everything the attribute encodes except its NLRI.
+	//
+	// RFC 4760 Section 3: the value is AFI(2) + SAFI(1) + Length of Next Hop Network
+	// Address(1) + the next hops + Reserved(1) + NLRI.
+	// RFC 4364 Section 4.3.2: a VPN-IPv4 next hop "is encoded as a VPN-IPv4 address
+	// with an RD of 0", so the field is RD(8) + IPv4(4). RFC 4659 Section 3.2.1.1
+	// says the same for VPN-IPv6, "whose 8-octet RD is set to zero", and fixes the
+	// Length of Next Hop Network Address at 24 for one global address.
+	//
+	// The count comes from the attribute rather than from the next-hop address
+	// family, so this size query and the write in (*MPReachNLRI).WriteTo can never
+	// come to different answers. Len() is the fixed fields plus nextHopOctets summed
+	// over the next hops plus the NLRI, so subtracting the NLRI leaves the overhead
+	// exactly, for every SAFI and for a family added later with its own next-hop rule.
+	overhead := mp.Len() - len(mp.NLRI)
 
 	if overhead >= maxAttrSize {
 		return nil, fmt.Errorf("%w: overhead %d, max %d", ErrMPOverheadTooLarge, overhead, maxAttrSize)

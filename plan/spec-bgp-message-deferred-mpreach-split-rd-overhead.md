@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | verification |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 3/4 |
 | Deferral shard | `plan/deferrals/fixit-mpreach-split-undercounts-rd.md` |
 | Handoff | verify |
-| Updated | 2026-08-11 |
+| Updated | 2026-08-23 |
 
 <!-- Handoff `verify`: the implementation session commits its work, sets Status to
      `verification`, and stops. A later Opus 5 session reviews that commit and closes. -->
@@ -94,9 +94,9 @@ query and a write can never come to different answers, for every SAFI.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| `message` package ↔ `core/bgp/attribute` | `SplitMPReachNLRIWithAddPath` asks the attribute for its own encoded size instead of re-deriving it | No |
-| Reactor ↔ `message` splitter | `Splitter.Split` / `SplitCompliant` with the peer's maximum message size | No |
-| ze ↔ peer | the emitted UPDATE on the wire, which must stay inside the negotiated maximum | No |
+| `message` package ↔ `core/bgp/attribute` | `SplitMPReachNLRIWithAddPath` asks the attribute for its own encoded size instead of re-deriving it | Yes: the overhead is `mp.Len() - len(mp.NLRI)` (`internal/component/bgp/message/update_split.go`), and no `Is4()` remains in that file |
+| Reactor ↔ `message` splitter | `Splitter.Split` / `SplitCompliant` with the peer's maximum message size | Yes: `TestSplitUpdate_VPNChunksFitMaxMessageSize` drives `Splitter.Split` at 4096, and `./internal/component/bgp/reactor` is green |
+| ze ↔ peer | the emitted UPDATE on the wire, which must stay inside the negotiated maximum | Yes: every emitted `Update.Len(nil)` is asserted at or below 4096. With the fix reverted, UPDATE 0 measured 4100 |
 
 ### Integration Points
 - `(*MPReachNLRI).Len()` - already exported, already the size the writer uses. The splitter subtracts `len(mp.NLRI)` from it to get the overhead.
@@ -106,21 +106,21 @@ query and a write can never come to different answers, for every SAFI.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | The splitter reads the encoded size through the attribute's own `Len()`. It no longer inspects next-hop addresses at all |
+| No unintended coupling (components stay isolated) | Yes | `message` learns nothing about the Route Distinguisher. `RDSize` and `nextHopOctets` stay unexported inside `core/bgp/attribute` |
+| No duplicated functionality (extends existing, does not recreate) | Yes | The second size derivation is deleted, not wrapped: `grep -n "Is4()" internal/component/bgp/message/update_split.go` returns nothing |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | `Len()` reads fields and allocates nothing, and the chunk path is untouched. `TestSplitter_ZeroAllocAfterWarmup` still passes |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | Nothing registers, and the change REMOVES a per-family branch rather than adding one |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `(*MPReachNLRI).Len()` counts exactly the octets `WriteTo` writes | `internal/core/bgp/attribute/mpnlri.go`: `Len`, `nextHopLen`, `nextHopOctets` and `WriteTo` share `nextHopOctets` | the new overhead is wrong for some SAFI and chunks are mis-sized in the other direction | `TestSplitUpdate_VPNChunksFitMaxMessageSize` measures the ENCODED chunk, not a re-derived number | unvalidated |
-| A-2 | Each chunk carries the parent's AFI, SAFI and next hops, so one overhead figure is right for every chunk | `SplitMPReachNLRIWithAddPath` builds each chunk with `attribute.NewMPReachNLRI` from the parent's fields | one chunk could need more overhead than the budget allowed | the size assertion runs over EVERY chunk, not the first | unvalidated |
-| A-3 | The splitter is the only remaining site that derives an MP_REACH next-hop size from the address family | grep of `Is4()` over `internal/component/bgp` and `internal/core/bgp`: the one size derivation is the loop in `SplitMPReachNLRIWithAddPath` | the same defect stays live on another rail | re-run the grep at implementation time and record the hits in the commit message | unvalidated |
-| A-4 | No existing test pins a VPN chunk count that the smaller NLRI space changes | `TestSplitMPReachNLRI_VPN` asserts chunk count greater than one and NLRI preservation only | an existing test goes red and the fix looks like a regression | run `make ze-unit-pkg-test PKG=./internal/component/bgp/message` before and after the edit | unvalidated |
+| A-1 | `(*MPReachNLRI).Len()` counts exactly the octets `WriteTo` writes | `internal/core/bgp/attribute/mpnlri.go`: `Len`, `nextHopLen`, `nextHopOctets` and `WriteTo` share `nextHopOctets` | the new overhead is wrong for some SAFI and chunks are mis-sized in the other direction | `TestSplitUpdate_VPNChunksFitMaxMessageSize` measures the ENCODED chunk, not a re-derived number | confirmed 2026-08-23: `WriteTo` sets the Length of Next Hop octet from `nextHopLen()`, writes the RD under `SAFIVPN`, skips an address with no wire form, then writes Reserved(1) and the NLRI. Its `pos - off` matches `Len()` term for term |
+| A-2 | Each chunk carries the parent's AFI, SAFI and next hops, so one overhead figure is right for every chunk | `SplitMPReachNLRIWithAddPath` builds each chunk with `attribute.NewMPReachNLRI` from the parent's fields | one chunk could need more overhead than the budget allowed | the size assertion runs over EVERY chunk, not the first | confirmed 2026-08-23: each chunk is built by `attribute.NewMPReachNLRI(mp.AFI, mp.SAFI, nhs, chunk)` from the parent's fields, and each new test asserts over every chunk in the returned slice |
+| A-3 | The splitter is the only remaining site that derives an MP_REACH next-hop size from the address family | grep of `Is4()` over `internal/component/bgp` and `internal/core/bgp`: the one size derivation is the loop in `SplitMPReachNLRIWithAddPath` | the same defect stays live on another rail | re-run the grep at implementation time and record the hits in the commit message | confirmed 2026-08-23: `grep -rn "Is4()" internal/component/bgp internal/core/bgp` re-run. Every other hit chooses a BRANCH (which attribute to add, which encode path to take, which prefix to match), never a byte count. The one size derivation was the loop in `SplitMPReachNLRIWithAddPath`, and it is gone |
+| A-4 | No existing test pins a VPN chunk count that the smaller NLRI space changes | `TestSplitMPReachNLRI_VPN` asserts chunk count greater than one and NLRI preservation only | an existing test goes red and the fix looks like a regression | run `make ze-unit-pkg-test PKG=./internal/component/bgp/message` before and after the edit | confirmed 2026-08-23: before the edit only the four NEW tests failed; after it the whole package passes, with no existing assertion edited. `TestSplitMPReachNLRI_VPN` still splits at `maxAttrSize` 100 and still preserves its NLRI |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -166,12 +166,12 @@ query and a write can never come to different answers, for every SAFI.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestSplitMPReachNLRI_VPNChunkFitsMaxAttrSize` | `internal/component/bgp/message/update_split_test.go` | AC-1: every chunk of a SAFI 128 split with an IPv4 next hop encodes within `maxAttrSize`, NLRI preserved | |
-| `TestSplitMPReachNLRI_VPNIPv6NextHopChunkFitsMaxAttrSize` | `internal/component/bgp/message/update_split_test.go` | AC-2: the same with a 24-octet VPN-IPv6 next hop | |
-| `TestSplitUpdate_VPNChunksFitMaxMessageSize` | `internal/component/bgp/message/update_split_test.go` | AC-3: `Splitter.Split` at a 4096-octet ceiling emits only UPDATEs that fit it | |
-| `TestSplitMPReachNLRI_VPNOverheadTooLargeCountsRD` | `internal/component/bgp/message/update_split_test.go` | AC-5: the overhead guard counts the RD | |
-| `TestSplitMPReachNLRI_Overflow`, `TestSplitMPReachNLRI_VPN`, `TestSplitUpdate_FlowSpec_Split`, `TestSplitUpdateWithAddPath_IPv6` (existing, unedited) | `internal/component/bgp/message/update_split_test.go` | AC-4: non-VPN behavior unchanged, VPN NLRI still preserved | |
-| `TestSplitUpdateWithMPPreservesIPv4Fields`, `TestSplitUpdateWithMPEmitsOneFieldPerChunk` (existing, unedited) | `internal/component/bgp/message/update_split_mixed_test.go` | AC-4: the mixed-shape rail is unchanged | |
+| `TestSplitMPReachNLRI_VPNChunkFitsMaxAttrSize` | `internal/component/bgp/message/update_split_test.go` | AC-1: every chunk of a SAFI 128 split with an IPv4 next hop encodes within `maxAttrSize`, NLRI preserved | passing; red with the fix reverted (chunk 0 encoded 47 against a 40-octet budget) |
+| `TestSplitMPReachNLRI_VPNIPv6NextHopChunkFitsMaxAttrSize` | `internal/component/bgp/message/update_split_test.go` | AC-2: the same with a 24-octet VPN-IPv6 next hop | passing; red with the fix reverted (chunk 0 encoded 69 against a 64-octet budget) |
+| `TestSplitUpdate_VPNChunksFitMaxMessageSize` | `internal/component/bgp/message/update_split_test.go` | AC-3: `Splitter.Split` at a 4096-octet ceiling emits only UPDATEs that fit it | passing; red with the fix reverted (UPDATE 0 measured 4100 octets) |
+| `TestSplitMPReachNLRI_VPNOverheadTooLargeCountsRD` | `internal/component/bgp/message/update_split_test.go` | AC-5: the overhead guard counts the RD, and the Boundary Tests row (17, 31, 32) | passing; red with the fix reverted, and red again under a separate mutation that subtracts one from the new overhead |
+| `TestSplitMPReachNLRI_Overflow`, `TestSplitMPReachNLRI_VPN`, `TestSplitUpdate_FlowSpec_Split`, `TestSplitUpdateWithAddPath_IPv6` (existing, unedited) | `internal/component/bgp/message/update_split_test.go` | AC-4: non-VPN behavior unchanged, VPN NLRI still preserved | passing, unedited |
+| `TestSplitUpdateWithMPPreservesIPv4Fields`, `TestSplitUpdateWithMPEmitsOneFieldPerChunk` (existing, unedited) | `internal/component/bgp/message/update_split_mixed_test.go` | AC-4: the mixed-shape rail is unchanged | passing, unedited |
 
 Fixture arithmetic the new tests rely on, so no number in them is a guess:
 
@@ -195,13 +195,13 @@ given. That gap is what makes the test discriminate.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| N-A, not applicable: no `.ci` can reach this path today | `test/` | A `.ci` would have to make ze-build re-split a SAFI 128 UPDATE, which needs an ingress UPDATE larger than the destination's ceiling. The bulk injector that builds such an UPDATE, `option=update:value=send-bulk` (`internal/test/peer/expect.go`), emits IPv4 unicast prefixes only, and the announce rail's builders never hand the splitter an UPDATE above the peer's own maximum. Extending the injector to MP and VPN NLRI is test infrastructure, not this fix; it is recorded under Known Limitations. `TestSplitUpdate_VPNChunksFitMaxMessageSize` drives the same entry point the daemon calls, `Splitter.Split`, with the same 4096-octet ceiling | |
+| N-A, not applicable: no `.ci` can reach this path today | `test/` | A `.ci` would have to make ze-build re-split a SAFI 128 UPDATE, which needs an ingress UPDATE larger than the destination's ceiling. The bulk injector that builds such an UPDATE, `option=update:value=send-bulk` (`internal/test/peer/expect.go`), emits unicast prefixes only, and the announce rail's builders never hand the splitter an UPDATE above the peer's own maximum. Extending the injector to VPN NLRI is test infrastructure, not this fix; it is recorded under Known Limitations. `TestSplitUpdate_VPNChunksFitMaxMessageSize` drives the same entry point the daemon calls, `Splitter.Split`, with the same 4096-octet ceiling | confirmed 2026-08-23, with one correction to the reason. `parseBulkSpec` derives the family from the prefix (`internal/test/peer/inject.go`), so the injector reaches IPv6 unicast through MP_REACH too (`buildV6Unicast`, AFI 2 SAFI 1), not IPv4 alone. It has no SAFI 128 path, so the conclusion is unchanged: no `.ci` reaches a VPN split |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-vpn-frr` (existing, run as a regression check) | `test/interop/scenarios/` | FRR | The VPNv4 encode rail still produces UPDATEs FRR accepts, with the RD intact and the session stable. Command: `make ze-interop-test INTEROP_SCENARIO=bgp-vpn-frr` | |
-| No new scenario | `test/interop/scenarios/` | - | The change IS wire-visible: chunk boundaries move under SAFI 128, and today an over-size UPDATE would draw a NOTIFICATION from the peer. A scenario that reached it would have to negotiate RFC 8654 extended messages on the ingress session and a 4096-octet ceiling on the egress one. No scenario in `test/interop/scenarios/` negotiates extended messages, and the peer-side injector cannot yet build a VPN UPDATE above 4096 octets, so a scenario written today would split nothing and pass with the defect in place. That is the vacuity trap `ai/rules/interop-and-goal-validation.md` names, so the proof is placed at the splitter entry point instead | |
+| `bgp-vpn-frr` (existing, run as a regression check) | `test/interop/scenarios/` | FRR | The VPNv4 encode rail still produces UPDATEs FRR accepts, with the RD intact and the session stable. Command: `make ze-interop-test INTEROP_SCENARIO=bgp-vpn-frr` | PASS 2026-08-23: session Established, ipv4/vpn negotiated, 10.99.0.0/24 and 10.99.1.0/24 present at FRR, RD 65001:100 verified, session stable |
+| No new scenario | `test/interop/scenarios/` | - | The change IS wire-visible: chunk boundaries move under SAFI 128, and today an over-size UPDATE would draw a NOTIFICATION from the peer. A scenario that reached it would have to negotiate RFC 8654 extended messages on the ingress session and a 4096-octet ceiling on the egress one. No scenario in `test/interop/scenarios/` negotiates extended messages, and the peer-side injector cannot yet build a VPN UPDATE above 4096 octets, so a scenario written today would split nothing and pass with the defect in place. That is the vacuity trap `ai/rules/interop-and-goal-validation.md` names, so the proof is placed at the splitter entry point instead | confirmed 2026-08-23: the injector has no SAFI 128 path (`internal/test/peer/inject.go` builds IPv4 unicast or AFI 2 SAFI 1), so no new scenario is written |
 
 ## Files to Modify
 - `internal/component/bgp/message/update_split.go` - `SplitMPReachNLRIWithAddPath`: delete the next-hop loop, derive the overhead from the attribute, and update the comment above the calculation to name the RD and RFC 4364 Section 4.3.4
@@ -244,7 +244,7 @@ given. That gap is what makes the test discriminate.
 | 13 | Route metadata keys added/changed? | N-A | No metadata |
 | 14 | Prometheus counters added/changed? | N-A | No counter |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | Nothing registers |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/architecture/update-building.md` carries a source anchor over `update_split.go` naming `Splitter` and `Split`. Re-read that anchor's claims after the edit and confirm each still holds; the expected outcome is no edit |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes, and neither doc needs an edit | `docs/architecture/update-building.md` carries a source anchor over `update_split.go` naming `Splitter` and `Split`; re-read after the edit, every claim still holds, because the entry points and the scratch contract do not move. `docs/architecture/wire/messages.md` is the `// Design:` header of `update_split.go`; it describes the BGP message types and states nothing about splitting, per-chunk overhead, the Length of Next Hop Network Address field or SAFI 128, so no statement in it changes |
 | 17 | Existing docs show config/CLI/API examples for this area? | No | No example shows split arithmetic |
 
 ## Implementation Steps
@@ -325,7 +325,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 
 | Site | Comment to carry |
 |------|------------------|
-| The overhead derivation in `SplitMPReachNLRIWithAddPath` | RFC 4760 Section 3 for the attribute layout, and RFC 4364 Section 4.3.4 for the 8-octet RD in front of a VPN next hop, stating that the count comes from the attribute so the two can never disagree |
+| The overhead derivation in `SplitMPReachNLRIWithAddPath` | RFC 4760 Section 3 for the attribute layout, and for the 8-octet RD in front of a VPN next hop, RFC 4364 Section **4.3.2** and RFC 4659 Section 3.2.1.1, stating that the count comes from the attribute so the two can never disagree. Correction 2026-08-23: this row said Section 4.3.4, which is "How VPN-IPv4 NLRI Is Carried in BGP" and states the NLRI encoding, not the next hop. Section 4.3.2 is the one that says a VPN-IPv4 next hop "is encoded as a VPN-IPv4 address with an RD of 0". Ten existing comments carry the same wrong section and are recorded in `plan/journal/reference-checked-claim-unchecked.md` |
 | `TestSplitUpdate_VPNChunksFitMaxMessageSize` | The tag `// RFC requirement: RFC8654-4-2 positive` followed by what the test holds, in the form `scripts/dev/rfc_tagged_scope.py` reads. The requirement is already listed in `rfc/short/rfc8654.md` and already carries both polarities over the builder rail; this adds the splitter rail as evidence and removes no kind, so the evidence ratchet is unaffected |
 
 ## Checklist
