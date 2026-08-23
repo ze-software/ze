@@ -125,7 +125,7 @@ holds zero rows and should not be left behind as an empty file.
   (ready, unstarted), `spec-ze-website-0-umbrella` (design), and three `future`
   CLI specs.
 
-## 6. Two blockers that are nobody's fault and will still be there
+## 6. Blockers, and one claim of mine that was wrong
 
 - **`make ze-doc-verify` and `ze-lint-changed` are RED for reasons outside this
   work.** A source anchor in `docs/guide/web-interface.md` broken by another
@@ -135,11 +135,34 @@ holds zero rows and should not be left behind as an empty file.
   `internal/component/config/toplugin_order_test.go`; and 7 doc-links
   references, 5 of them stranded by the `8f3a80bf9` closure. Regenerating
   PACKAGE-MAP would carry their packages into your commit. Leave it.
-- **Verification debt cannot be cleared by anyone.** 648 open rows across 28
-  session shards, zero ever closed. `ze-precommit-verify` runs
-  `ze-lint-changed`, `ze-doc-verify` and `ze-doc-links-check`, all three of
-  which are red on other sessions' work. Debt is attributed PER SESSION and the
-  gate that clears it is TREE-GLOBAL, so a session can only discharge its debt
-  by making the whole shared tree green including files it must not touch. That
-  state does not occur with several sessions live. Raised with the owner; it is
-  his call, not something to fix in passing.
+- **Verification debt: 654 open, 272 cleared. It IS clearable — run
+  `make ze-verify-debt-clear`.** I first reported this as "648 open, zero ever
+  cleared, structurally unclearable". That was WRONG in both halves and the
+  correction is worth more than the original claim, so it stays here in full.
+
+  The number came from `grep -c "| closed |"`, and the schema's token is
+  `cleared`. A word that appears nowhere in the corpus returns zero from every
+  shard, so I read a vocabulary mistake as a fact about the mechanism. The rule
+  that catches exactly this, `prove a search can find before you report a
+  zero`, was already in `ai/rules/evidence.md` (`5cf32fb90`, committed hours
+  earlier the same day).
+
+  I then built a structural explanation that FIT the false zero: debt is
+  attributed per session, the clearing gate is tree-global, therefore a session
+  can never discharge its debt while other sessions hold untracked files. Every
+  premise was true and checked. The conclusion was not, because `047f64f53`
+  ("judge the commit in a worktree, not the shared tree", 2026-08-22) already
+  made `clear_debt` run every gate inside a throwaway worktree at HEAD, which
+  carries no untracked files from anyone. Two of the three reds I cited — the
+  misspell findings and the PACKAGE-MAP staleness — do not exist there. 248 of
+  the 272 cleared rows went through that path.
+
+  The lesson is the one I had just handed another session and then walked into:
+  **a true premise chain does not make a conclusion measured.** I diagnosed the
+  tree I was standing in rather than the gate the clearing pass actually runs,
+  and `make ze-verify-debt-clear` would have settled it in under a minute.
+
+  What survives: debt is attributed per session and NOTHING SCHEDULES A
+  CLEARING RUN. 28 shards holding 654 open rows is what the pre-`047f64f53`
+  behaviour left behind. Running the pass is a real, available task for the
+  next session, and it is probably worth doing before anything else here.
