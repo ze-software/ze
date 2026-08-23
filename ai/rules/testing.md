@@ -528,6 +528,10 @@ Measured on 2026-08-23, converting `show bgp rib` from `{adj-rib-in: {peer: [rou
 
 The new-name half cost more. `extractRoutes` (`internal/component/lg/handler_ui.go`) held a branch reading `routes` for a different, already-flat producer, ABOVE the grouped-shape branch. Once `show bgp rib` answered `routes`, that branch became the path every RIB answer took and returned the rows untouched, so no row carried `peer-address` and the attributes stayed wrapped. The looking-glass graph drew nothing. **No search for the old key reaches that file, and neither does a search for consumers of that command, because it consumes a generic payload.**
 
+**The audit is owed AGAIN for the fix, and this is the half a reader will miss.** The natural reading of the rule above is "audit the consumers before you change the shape". But a repair to a shape change is itself a shape change. It lands in a function whose branches each carry a prior contract, so it earns its own pass over both populations.
+
+Same function, same hour. The first repair to `extractRoutes` normalized every element and dropped what it could not. That broke `TestExtractRoutes/prefixes fallback`. For some producers `prefixes` is a list of bare prefix STRINGS, and that branch had always passed its elements through untouched. The final version states each branch's prior contract instead. Flat branches pass through what they cannot normalize. The grouped branch still skips non-records. It was found only because an existing test sat in the package.
+
 **It stayed quiet because the colliding branch did not fail.** It returned a valid empty result, and `No routes found` reads as a true answer about an empty RIB. A branch that accepts what it cannot handle and answers plausibly is the shape this file collects. Refusing would have been loud and correct.
 
 **The pre-push gate caught it, and the focused tests did not.** Six red fixtures across the looking-glass and MCP suites, none in the package that changed. A focused run covers the code you edited, and a shape change is defined by who READS it.
