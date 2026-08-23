@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | config |
 | Depends | - |
-| Phase | - |
+| Phase | 1/6 |
 | Deferral shard | - |
 | Handoff | - |
-| Updated | 2026-08-18 |
+| Updated | 2026-08-22 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -99,11 +99,11 @@ backend `GetInterface` call inline on the same goroutine.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Kernel ↔ netlink library | subscription socket, 64-deep channel | No |
-| Monitor ↔ event bus | synchronous emit on the read-loop goroutine | No |
-| Subscriber ↔ worker | `linkEventCh`, cap 16, lossy | No |
-| Worker ↔ config apply | `dhcpMu`, held across DHCP client stop and start | No |
-| Component ↔ backend | route add and remove over netlink | No |
+| Kernel ↔ netlink library | subscription socket, 64-deep channel | Yes: unchanged, and the read loop no longer blocks in front of it |
+| Monitor ↔ event bus | synchronous emit on the read-loop goroutine | Yes: `Subscribe` in `pkg/ze/eventbus.go` states the handler contract, `TestSubscribersHandOffRatherThanApply` and `TestLinkEventHandlerMakesNoBackendCall` hold it |
+| Subscriber ↔ worker | `linkEventQueue`, one entry per subject, coalescing | Yes: `TestLinkQueueKeepsFinalStateUnderPressure` |
+| Worker ↔ config apply | `dhcpMu`, held across DHCP client stop and start | Yes: unchanged, and only the worker takes it now |
+| Component ↔ backend | route add and remove over netlink | Yes: `applyLinkEvent` is the only route caller, on the worker's goroutine |
 
 ### Integration Points
 - `nonBlockingNotify` and the cap-1 reconcile channels - the existing coalescing idiom to follow
@@ -113,10 +113,10 @@ backend `GetInterface` call inline on the same goroutine.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | every carrier and router event reaches a route call through `linkEventQueue` and `applyLinkEvent`; no subscriber calls a handler |
+| No unintended coupling (components stay isolated) | Yes | the queue, the resync and the drop counter are internal to the iface component; no consumer gained an import |
+| No duplicated functionality (extends existing, does not recreate) | Yes | the queue reuses `nonBlockingNotify` over a cap-1 wake channel, and the resync reuses the rate tracker's existing 1 Hz dump rather than adding a netlink call |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | `pushResync` stores the caller's carrier map by reference, and says the caller must not write to it afterwards |
 | Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
 
 ## Risks & Assumptions
@@ -124,10 +124,10 @@ backend `GetInterface` call inline on the same goroutine.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Coalescing to last-state-wins is safe because the route handlers are idempotent by `routeMetricState` | the handlers and the existing metric tests in `internal/component/iface/route_metric_test.go` | Dropping intermediate transitions could lose a state machine step, and the fix would need every event | A unit test that enqueues down then up while the worker is blocked, and asserts the route ends at the base metric | unvalidated |
-| A-2 | A blocking send would stall the monitor's read loop and time out a commit through the address-settlement path | the settlement rule in the iface operation path depends on address events arriving within its window | Blocking would be the simplest fix and this spec is over-built | A test that blocks the worker and asserts the address settlement still completes under the coalescing design | unvalidated |
-| A-3 | The overflow is reachable in practice during a commit, not only in theory | `reconcileDHCP` does client stop and start under the lock; the queue is 16 deep | The severity is lower and the fix can be limited to observability | A test or QEMU scenario that flaps enough interfaces during an apply to overflow the queue, with the drop counter proving it | unvalidated |
-| A-4 | The router-discovered and router-lost handlers can hop to a worker without changing IPv6 route behavior | they perform the same class of work as the link handlers, under the same lock | The hop reorders IPv6 route moves against DHCP events | The IPv6 metric tests must stay green with the handlers moved behind a queue | unvalidated |
+| A-1 | Coalescing to last-state-wins is safe because the route handlers are idempotent by `routeMetricState` | the handlers and the existing metric tests in `internal/component/iface/route_metric_test.go` | Dropping intermediate transitions could lose a state machine step, and the fix would need every event | A unit test that enqueues down then up while the worker is blocked, and asserts the route ends at the base metric | confirmed: `TestCoalescedUpRestoresBaseMetric` ends at the base metric and also asserts the superseded DOWN reached no route call at all |
+| A-2 | A blocking send would stall the monitor's read loop and time out a commit through the address-settlement path | the settlement rule in the iface operation path depends on address events arriving within its window | Blocking would be the simplest fix and this spec is over-built | A test that blocks the worker and asserts the address settlement still completes under the coalescing design | confirmed by a stronger route than the one planned: `Subscribe` in `pkg/ze/eventbus.go` states that a handler MUST NOT block on I/O, so a blocking send is refused by contract rather than by its consequences. `TestSubscribersHandOffRatherThanApply` fails inside 5s against a subscriber that does the work itself |
+| A-3 | The overflow is reachable in practice during a commit, not only in theory | `reconcileDHCP` does client stop and start under the lock; the queue is 16 deep | The severity is lower and the fix can be limited to observability | A test or QEMU scenario that flaps enough interfaces during an apply to overflow the queue, with the drop counter proving it | confirmed in a unit test, NOT yet on a running daemon. `TestLinkQueueKeepsFinalStateUnderPressure` blocks the worker the way a commit does and pushes 65 subjects, and restoring the 16-deep bound plus the drop makes it red at `require.Len(final, 65)`. The daemon-level half is what the missing functional test owes |
+| A-4 | The router-discovered and router-lost handlers can hop to a worker without changing IPv6 route behavior | they perform the same class of work as the link handlers, under the same lock | The hop reorders IPv6 route moves against DHCP events | The IPv6 metric tests must stay green with the handlers moved behind a queue | confirmed: the IPv6 metric tests in `internal/component/iface/route_metric_test.go` are green with the handlers behind the queue, and `TestLinkQueueAppliesKeysInArrivalOrder` pins that coalescing changes the VALUE at a position and never the position, so a router event that arrived before a carrier event is still applied before it |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -153,7 +153,8 @@ backend `GetInterface` call inline on the same goroutine.
 | The worker drains a coalesced entry | → | `handleLinkUp` in `internal/component/iface/register.go` | `TestCoalescedUpRestoresBaseMetric` |
 | An IPv6 router event arrives during a config apply | → | the router event worker | `TestRouterEventDoesNotBlockTheMonitorLoop` |
 | A queue entry is coalesced or dropped | → | the new counter | `TestLinkQueueCoalesceCounted` |
-| A real link flaps on a running daemon during a commit | → | the whole chain to the kernel route table | `internal/component/iface/link_flap_integration_linux_test.go` |
+| A real link flaps on a running daemon during a commit | → | the whole chain to the kernel route table | `test/plugin/iface-link-flap-during-commit.ci` |
+| A real link flaps against the kernel with the drain driven by the test | → | the monitor, the subscribers and `applyLinkEvent` | `internal/component/iface/link_flap_integration_linux_test.go` |
 
 ## Acceptance Criteria
 
@@ -170,7 +171,7 @@ backend `GetInterface` call inline on the same goroutine.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Disables and re-enables an interface inside one commit | config apply → DHCP reconcile → link events → route metric | `internal/component/iface/link_flap_integration_linux_test.go` |
+| 1 | Disables and re-enables an interface inside one commit | config apply → DHCP reconcile → link events → route metric | `test/plugin/iface-link-flap-during-commit.ci` on a running daemon; `internal/component/iface/link_flap_integration_linux_test.go` at the kernel boundary |
 | 2 | Pulls and replugs a cable while a commit runs | kernel → monitor → queue → worker → route | `TestLinkQueueKeepsFinalStateUnderPressure` |
 | 3 | Looks for evidence that events were lost | counter and log output | `TestLinkQueueCoalesceCounted` |
 
@@ -179,12 +180,16 @@ backend `GetInterface` call inline on the same goroutine.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestLinkQueueKeepsFinalStateUnderPressure` | `internal/component/iface/link_queue_test.go` | AC-1 and AC-2: last state wins when the queue is saturated | |
-| `TestCoalescedUpRestoresBaseMetric` | `internal/component/iface/route_metric_test.go` | the coalesced state reaches the metric state machine and moves the route once | |
-| `TestLinkQueueCoalesceCounted` | `internal/component/iface/link_queue_test.go` | AC-3: coalescing increments the counter and logs the interface | |
-| `TestRouterEventDoesNotBlockTheMonitorLoop` | `internal/component/iface/link_queue_test.go` | AC-4: the router handlers hand off instead of locking inline | |
-| `TestLearnedMetricSurvivesTheLinkBounce` | `internal/component/iface/route_metric_test.go` | existing test must stay green: the queue change preserves idempotence | |
-| `TestExtractedWorkerStartsAndStops` | `internal/component/iface/link_queue_test.go` | R-1: the extracted worker keeps its lifecycle, including shutdown | |
+| `TestLinkQueueKeepsFinalStateUnderPressure` | `internal/component/iface/link_queue_test.go` | AC-1 and AC-2: last state wins when the queue is saturated | green; red at `require.Len(final, 65)` when `push` is bounded at 16 and drops beyond, which is the pre-fix producer |
+| `TestCoalescedUpRestoresBaseMetric` | `internal/component/iface/route_metric_test.go` | the coalesced state reaches the metric state machine and moves the route once | green; the `assert.Empty(fb.routeAdds)` half is what a non-coalescing queue fails, because it applies the superseded DOWN |
+| `TestLinkQueueCoalesceCounted` | `internal/component/iface/link_queue_test.go` | AC-3: coalescing increments the counter and logs the interface | green |
+| `TestRouterEventDoesNotBlockTheMonitorLoop` | `internal/component/iface/link_queue_test.go` | AC-4: the router handlers hand off instead of locking inline | green, and NOT sufficient on its own: it builds the queue itself and registers no subscriber, so it stays green against a subscriber that applies inline. `TestSubscribersHandOffRatherThanApply` is the one that fails there |
+| `TestSubscribersHandOffRatherThanApply` | `internal/component/iface/link_queue_test.go` | AC-4 at the wiring layer: `subscribeLinkEvents` pushes rather than working, proven over a bus that dispatches synchronously | green; red at its 5s deadline when the router subscriber applies inline |
+| `TestLinkEventHandlerMakesNoBackendCall` | `internal/component/iface/resolve_test.go` | AC-4: `onLinkEvent` reaches no backend on the emitter's goroutine, and still reaches a deferred mac/match binding | green; red at "made 1 backend calls" with the pre-fix `GetInterface` restored |
+| `TestResolverDropIsCounted` | `internal/component/iface/resolve_test.go` | AC-3 on the second discard path: the resolver fan-out drop is counted per logical name | green; red at "counter is -1, want 3" with the counter call removed |
+| `TestSubscribePermMACAppeared` | `internal/component/iface/resolve_test.go` | behaviour guard: an appearing device still reaches a deferred mac/match binding after the backend call is gone | green against both producers by design; it is the guard that refused a first fix which reached the binding a tick late |
+| `TestLearnedMetricSurvivesTheLinkBounce` | `internal/component/iface/route_metric_test.go` | existing test must stay green: the queue change preserves idempotence | green |
+| `TestExtractedWorkerStartsAndStops` | `internal/component/iface/link_queue_test.go` | R-1: the extracted worker keeps its lifecycle, including shutdown | green |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -195,7 +200,12 @@ backend `GetInterface` call inline on the same goroutine.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `iface-link-flap-during-commit` | `internal/component/iface/link_flap_integration_linux_test.go` | a link flaps while a config commit runs, and the default route metric afterwards matches the live carrier | |
+| `iface-link-flap-during-commit` | `test/plugin/iface-link-flap-during-commit.ci` | a link flaps 101 times while a config commit holds `dhcpMu`, six rounds, and the kernel's IPv6 default route ends at the metric live carrier calls for each time | green. Three assertions per round: the route reaches `254 + 1024`, `ze_iface_link_events_coalesced_total{zeflapv0}` rose (the burst outran the worker, measured 85-100), and `ze_iface_carrier_resyncs_total{zeflapv0}` never moves (no transition was lost). Red-and-green measured 2026-08-22 in the arm64 QEMU VM: against a queue restored to the pre-fix producer the resync counter rose by 4 and the run failed; against HEAD it is 0 and the run passes in 39.9s. Run it with `make ze-qemu-needs-linux-test`, or one test with `make ze-qemu-debug RUN='bin/ze-test-linux-arm64 bgp plugin 308'` |
+| `TestIntegrationLinkFlapDuringCommitKeepsTheRouteMetric` | `internal/component/iface/link_flap_integration_linux_test.go` | the same chain from a real kernel carrier to a real kernel route, with the drain driven by the test | green. `//go:build integration && linux`; it does not run ze, which is why the `.ci` above exists |
+
+**AC-5's stated outcome is NOT on its own a discriminating assertion, and the `.ci` above does not rest on it.** AC-6's carrier resync repairs a contradicted route metric within one rate-tracker tick (`resyncCarrierState`, `internal/component/iface/link_queue.go`; the tick is `SubscribeCollectNotify` in `register.go`), so the route reaches the right metric under the dropping producer too, about a second later. The fact that separates the two is whether the self-heal had to fire, which is what `ze_iface_carrier_resyncs_total` reports.
+
+Two bounds were measured while building it, and both constrain the test rather than the product. A SIGHUP over an UNCHANGED config never reaches the iface component's apply, so it takes `dhcpMu` for no time at all and stalls no worker; each round therefore flips a DHCP hostname first. And above roughly 400 transitions the kernel's own netlink socket drops notifications before ze sees them (`LinkSubscribe`, `internal/plugins/iface/netlink/monitor_linux.go`, sends into a 64-deep channel from a goroutine that blocks on it), which would make the resync assertion judge the socket rather than the queue; the driver reads `/proc/net/netlink` and fails the run if it happens.
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -204,14 +214,24 @@ backend `GetInterface` call inline on the same goroutine.
 
 ## Files to Modify
 - `internal/component/iface/register.go` - extract the subscriber, queue and worker out of `runEngine`; coalesce per interface; move the router handlers behind the worker; count and log a coalesced entry
-- `internal/component/iface/resolve.go` - stop calling the backend inline on the monitor goroutine
-- `internal/component/iface/rate.go` - register the new counter alongside the existing iface metric family
-- `docs/architecture/iface/netlink-monitor.md` - document the delivery guarantee the monitor and its consumers now provide
+- `internal/component/iface/resolve.go` - stop calling the backend inline on the monitor goroutine, and count the fan-out drop
+- `internal/component/iface/rate.go` - register the new counters alongside the existing iface metric family
+- `docs/architecture/iface/management.md` - document the delivery guarantee, for the queue and for the resolver fan-out
+- `docs/architecture/iface/logical-name-resolution.md` - the design doc `resolve.go` declares; it describes how an appearing device reaches a mac/match binding, which is what changed to remove the backend call
+- `docs/features/interfaces.md` - the design doc `rate.go` declares; it carries the iface counter list
+- `docs/plugin-development/metrics.md` - the metric inventory the three iface link-event counters belong in
+
+`docs/architecture/iface/netlink-monitor.md` was named here at design time and is
+NOT the right page: it documents the `monitor system netlink` CLI command, whose
+sources are `internal/component/iface/cmd/monitor_netlink*.go`. It says nothing
+about how the iface monitor plugin delivers events to in-process subscribers.
+`docs/architecture/iface/management.md` is that page and carries the guarantee.
 
 ## Files to Create
 - `internal/component/iface/link_queue.go` - the extracted queue and worker, so a test can drive them
 - `internal/component/iface/link_queue_test.go` - unit coverage for the queue
-- `internal/component/iface/link_flap_integration_linux_test.go` - functional proof, `needs-linux`
+- `internal/component/iface/link_flap_integration_linux_test.go` - kernel-level proof, `needs-linux`
+- `test/plugin/iface-link-flap-during-commit.ci` - AC-5 on a running daemon, `needs-linux:caps=net-admin`
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -225,8 +245,8 @@ backend `GetInterface` call inline on the same goroutine.
 | Functional test for new RPC/API | Yes | `internal/component/iface/link_flap_integration_linux_test.go` |
 | Pipe completeness | N-A | no new command output |
 | Env var registration | N-A | no `environment/` leaf |
-| Doctor check for runtime dependencies | Yes | a check that acted-on route metric state agrees with live carrier, with a diagnostic code, since the failure is otherwise invisible |
-| Prometheus counters/metrics | Yes | a coalesced or dropped link event counter registered beside `ze_iface_owned_devices` |
+| Doctor check for runtime dependencies | N-A | This spec adds no runtime dependency: no binary, no kernel feature, no external service. The row said `Yes` at design time for a different check, one comparing acted-on route metric state against live carrier, and that check is not implementable and is not wanted. Not implementable: acted-on state lives in the daemon's `activeDHCP` and `activeRouters` maps, and `doctorCheckContext` (`internal/component/doctor/registry.go:32`) carries `Tree`, `ConfigDir`, `Plugins` (a `[]zeplugin.PluginConfig`, config rather than a live dispatcher), `Store` and `Platform`, so no registered check can read them. Not wanted: a check re-deriving the same comparison from sysfs carrier and the kernel route table would be a second source of truth racing the first, and it would report every window in which the daemon has not yet converged. The in-daemon `resyncCarrierState` (`internal/component/iface/link_queue.go`) already repairs a contradiction within a second and counts it in `ze_iface_carrier_resyncs_total`, which is what AC-6 is verified by and what `test/plugin/iface-link-flap-during-commit.ci` asserts stays at zero |
+| Prometheus counters/metrics | Yes | `ze_iface_link_events_coalesced_total{name}` and `ze_iface_carrier_resyncs_total{name}` register in `bindMetricsRegistry` (`internal/component/iface/rate.go`) beside `ze_iface_owned_devices`, and `ze_iface_resolver_events_dropped_total{name}` joins them for the resolver fan-out drop. The label is `name` on all three: the interface for the first two, the LOGICAL interface for the third. All three are listed in `docs/plugin-development/metrics.md` |
 | BGP family surface (new SAFI / capability / attribute) | N-A | not BGP |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -241,7 +261,7 @@ backend `GetInterface` call inline on the same goroutine.
 | 7 | Wire format changed? | No | no wire format |
 | 8 | Plugin SDK/protocol changed? | No | the event bus contract is unchanged, it is now honored |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | no RFC requirement involved |
-| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` if the new `.ci` needs a link-flap helper |
+| 10 | Test infrastructure changed? | No | the new `.ci` needs no runner change and no helper: it uses `option=needs-linux:caps=net-admin`, a tmpfs driver plugin and `$PORT2` telemetry, all of which `docs/architecture/testing/ci-format.md` already documents. `docs/functional-tests.md` lists suites, not tests, and the `plugin` suite is unchanged |
 | 11 | Affects daemon comparison? | No | no comparison claim |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/iface/netlink-monitor.md` gains the delivery guarantee; `docs/architecture/core-design.md` anchors the monitor and registration |
 | 13 | Route metadata keys added/changed? | No | no metadata key |
@@ -287,7 +307,7 @@ backend `GetInterface` call inline on the same goroutine.
 | Data flow | No handler blocks the emitter goroutine; every hand-off is bounded |
 | Rule: `ai/rules/goroutine-lifecycle.md` | The extracted worker has a defined start and stop |
 | Rule: `ai/rules/evidence.md` | A-2 and A-3 are settled by tests, not by reasoning about the queue depth |
-| Registration over hardcoding | The counter and the doctor check register through the existing registries |
+| Registration over hardcoding | The three counters register through `bindMetricsRegistry`, reached by the component's `ConfigureMetrics` hook. There is no doctor check; see the Integration Checklist for why |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
@@ -295,7 +315,7 @@ backend `GetInterface` call inline on the same goroutine.
 | Queue testable outside `runEngine` | `internal/component/iface/link_queue_test.go` exists and drives it |
 | No silent drop | grep the subscribers: no bare `default:` without a counter increment |
 | No inline lock on the emitter goroutine | grep the subscribers for `dhcpMu` taken in a handler body |
-| Functional proof | `make ze-qemu-needs-linux-test` runs the new `.ci` green |
+| Functional proof | `make ze-qemu-needs-linux-test` runs `test/plugin/iface-link-flap-during-commit.ci` green |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -322,7 +342,7 @@ backend `GetInterface` call inline on the same goroutine.
 |----------|------------------------|-----------|
 | Coalesce per interface, last state wins | Blocking send; a bigger buffer; a post-apply reconciliation sweep | Blocking stalls the monitor read loop and risks timing out a commit through address settlement. A bigger buffer moves the threshold and keeps the loss. Coalescing is lossless for the only thing the consumer uses, the final state, and the repository already uses this idiom for its reconcile wakeups |
 | Treat the inline-lock handlers as part of the same defect | Fix only the drop | The drop is a symptom of the reader stalling; leaving the stall in place means the kernel-side queue overflows next, one layer further away from anything that can report it |
-| Add a counter and a doctor check | Fix the loss silently | A failure with no signal was undetectable for the lifetime of this defect; the fix must leave the next occurrence visible |
+| Add counters, and no doctor check | Fix the loss silently; or add a doctor check as well | A failure with no signal was undetectable for the lifetime of this defect, so the fix must leave the next occurrence visible. Counters do that from inside the daemon, where the state lives. A doctor check cannot reach that state and would have to re-derive it from the kernel, racing the daemon's own convergence |
 
 ## Known Limitations
 - Coalescing repairs state lost inside this process. It cannot repair state that diverged before the daemon started; a reconciliation sweep is the answer to that and is scoped as AC-6's implementation choice in Phase 5.

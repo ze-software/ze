@@ -1,0 +1,492 @@
+# Test: a link flaps while a config commit holds the lock the link worker
+#       needs, and the running daemon still ends with its default route at the
+#       metric live carrier calls for -- without the self-heal repairing it.
+#
+# VALIDATES: spec-fixit-link-event-drop-loses-carrier-state AC-5, on a RUNNING
+#            daemon. Every part of the path is production wiring: the netlink
+#            monitor's read loop, the subscribers subscribeLinkEvents registers
+#            (internal/component/iface/link_queue.go), the worker runEngine
+#            starts on the same queue, and the route calls applyLinkEvent makes.
+# PREVENTS:  the unrecoverable loss. Those subscribers used to push into a
+#            16-deep channel with a `default:` branch that dropped on a full
+#            buffer, and a config commit was when it filled: OnConfigApply holds
+#            dhcpMu across reconcileDHCP while it stops and starts DHCP clients,
+#            and the worker takes that same lock for every apply. The route
+#            handlers are idempotent by routeMetricState, so nothing in the
+#            event stream repairs a state that was dropped.
+#
+# READ THIS BEFORE TRUSTING THE ROUTE ASSERTION. The route metric ALONE cannot
+# discriminate this defect on a running daemon, and a test that asserted only
+# the metric would be vacuous. Phase 3 of the same spec added the carrier
+# resync: the rate tracker pushes live carrier state every second
+# (SubscribeCollectNotify, internal/component/iface/register.go) and
+# resyncCarrierState (link_queue.go) repairs any interface whose acted-on route
+# metric contradicts it, so the END STATE converges within about a second
+# whether or not one event survived. What separates the two producers is
+# whether that self-heal had to fire. Each round therefore asserts three
+# things, and the test needs all three:
+#
+#   1. the kernel's ::/0 route on zeflapv0 reaches 254 + 1024
+#      AC-5's own words: the metric matches live carrier after the commit.
+#   2. ze_iface_link_events_coalesced_total{name=zeflapv0} rose this round
+#      The burst really did outrun the worker. Without this the test goes
+#      quietly vacuous the day the drain keeps up, and a queue under no
+#      pressure says nothing about a queue that drops. Measured 85-100 per
+#      round on the arm64 QEMU VM.
+#   3. ze_iface_carrier_resyncs_total{name=zeflapv0} never moves
+#      No transition was lost: the event path alone carried the link to its
+#      final state. This is the assertion the dropping producer fails.
+#
+# (3) is an absence, and an absence is evidence only when the mechanism behind
+# it is alive. It is: TestCarrierResyncRepairsAContradictedRouteMetric
+# (internal/component/iface/route_metric_test.go) drives resyncCarrierState into
+# a repair and reads countCarrierResync, and (2) proves the same metric family
+# is registered and scraped in THIS run, so a zero here is a measured zero and
+# not a missing registry.
+#
+# MEASURED, 2026-08-22, arm64 QEMU VM, against a queue restored to the pre-fix
+# producer (a 16-deep FIFO of individual events, drop on full, no coalescing,
+# with the drop still counted so the run fails on (3) rather than on a missing
+# counter):
+#
+#   producer      resync delta, rounds 0..5
+#   fixed queue   0 0 0 0 0 0
+#   pre-fix FIFO  0 1 1 0 1 1
+#
+# The pre-fix producer loses the final transition in about two rounds in three,
+# not in every one: when the burst ends the buffer usually has room again, so a
+# single burst is not enough. Six rounds put the chance of missing the
+# regression at (1/3)^6, which is 0.14%. That is why this test runs rounds
+# rather than one burst, and why the round count must not be cut.
+#
+# WHY THE COMMIT IS A REAL CONFIG CHANGE. Each round flips a DHCP hostname in
+# the config file before the SIGHUP, so the reload reaches reconcileDHCP and
+# stops and starts all forty clients under dhcpMu. A SIGHUP over an UNCHANGED
+# config does not reach the iface component's apply at all and the worker is
+# never blocked: measured, that variant recorded zero applies. The client count
+# is what makes the hold long enough to cover a burst -- measured 45-86ms with
+# one client, 224-335ms with four, 1.1-3.3s with forty.
+#
+# WHY 101 TRANSITIONS AND NOT MORE. The upper bound is the netlink socket, not
+# the queue. LinkSubscribe (internal/plugins/iface/netlink/monitor_linux.go)
+# sends into a 64-deep Go channel from a goroutine that blocks on it, so a
+# burst the monitor cannot read fast enough overflows the KERNEL's socket
+# buffer and the transition is lost before ze sees it. That loss is outside
+# this spec and it makes (3) unattainable for any producer: at 401 transitions
+# it was measured. The driver reads /proc/net/netlink and fails the run if it
+# happens.
+#
+# The stimulus for the default route is an injected neighbour carrying
+# NTF_ROUTER, the flag the kernel sets when it receives a Router Advertisement
+# (RFC 4861). handleNeighUpdate (internal/plugins/iface/netlink/
+# monitor_linux.go) turns it into router-discovered and handleRouterDiscovered
+# (internal/component/iface/register.go) installs ::/0 at the unit's
+# route-priority. Injecting the neighbour rather than sending a real RA keeps
+# the subject of this test the carrier queue.
+#
+# There is deliberately no reject= on the resync's own log line. That line is
+# log.Info and the functional runner starts the daemon above Info, so such a
+# reject could never fire; the counter is the readable form of the same fact.
+#
+# needs-linux:caps=net-admin: creating a veth pair, moving a carrier and
+# installing routes all need CAP_NET_ADMIN, which the verify runner does not
+# have. Runs as root under `make ze-qemu-needs-linux-test`.
+#
+# KERNEL STATE THIS TEST OWNS: the veth pair zeflapv0/zeflapv1 and the dummy
+# zeflapd0, all created from the config and deleted by the daemon at shutdown;
+# the address block 2001:db8:f1a9::/64; the neighbour fe80::f1a9 on zeflapv0;
+# and the IPv6 default route through it. Nothing else under test/ names those
+# devices or that prefix. The default route is node-wide for as long as the run
+# lasts, which is the one piece of state here that is not device-local: it sits
+# at metric 254 through a veth whose far end is this test's own, and it goes
+# with the device at shutdown.
+option=needs-linux:caps=net-admin
+
+tmpfs=iface-link-flap-during-commit.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Flap a carrier through a running daemon while a commit blocks its link worker.
+
+The burst goes through `ip -batch`, one process for all 101 transitions, so the
+kernel produces them faster than the worker could reprogram a route for each
+one. A shell loop forking `ip` 101 times would not.
+"""
+
+import os
+import re
+import signal
+import subprocess
+import sys
+import time
+import urllib.request
+
+from ze_api import API
+from ze_api import runtime_fail
+
+DEV = "zeflapv0"
+PEER = "zeflapv1"
+GATEWAY = "fe80::f1a9"
+LLADDR = "02:00:00:00:f1:a9"
+# The route-priority the config writes on DEV's unit.
+BASE_METRIC = 254
+# deprioritizedMetric (internal/component/iface/register.go). Hardcoded on
+# purpose: if that constant moves, this test fails loudly and says which number
+# it expected, which a silently-derived offset would hide.
+DEPRIORITIZED_OFFSET = 1024
+DOWN_METRIC = BASE_METRIC + DEPRIORITIZED_OFFSET
+# Odd, and the first line is down, so the link settles DOWN. See the header for
+# both bounds on this number.
+TRANSITIONS = 101
+ROUNDS = 6
+# How much of the commit to let run before the burst starts. The reload has to
+# reach the dhcpMu block, and the hold that follows lasts 1.1-3.3s, so the
+# whole burst lands inside it.
+COMMIT_SETTLE = 1.0
+# Two rate-tracker ticks. The tracker pushes live carrier once a second, so a
+# repair this round needed has been counted by the time this expires.
+RESYNC_WINDOW = 1.6
+METRICS_URL = "http://127.0.0.1:$PORT2/metrics"
+
+
+def run(args, check=True):
+    result = subprocess.run(args, capture_output=True, text=True, check=False)
+    if check and result.returncode != 0:
+        runtime_fail(f'{" ".join(args)}: exit {result.returncode}: {result.stderr.strip()}')
+    return result
+
+
+def wait_until(what, probe, timeout=20.0, interval=0.02):
+    """Poll probe until it returns something other than None."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        value = probe()
+        if value is not None:
+            return value
+        time.sleep(interval)
+    runtime_fail(f'timed out after {timeout}s waiting for {what}')
+
+
+def carrier(dev):
+    """The kernel's live carrier for dev: "1", "0", or None when unreadable."""
+    try:
+        with open(f'/sys/class/net/{dev}/carrier') as handle:
+            return handle.read().strip()
+    except OSError:
+        return None
+
+
+def default_metric():
+    """The metric the kernel holds ze's IPv6 default route on DEV at."""
+    out = run(["ip", "-6", "route", "show", "default", "dev", DEV]).stdout
+    found = re.search(r'\bmetric (\d+)', out)
+    return int(found.group(1)) if found else None
+
+
+def netlink_drops():
+    """Total Drops across every netlink socket. The kernel dropping a link
+    notification is a loss ahead of ze, not in its queue, and it would make the
+    resync assertion unreachable for any producer."""
+    with open("/proc/net/netlink") as handle:
+        lines = handle.read().splitlines()
+    if not lines:
+        return -1
+    header = lines[0].split()
+    if "Drops" not in header:
+        return -1
+    col = header.index("Drops")
+    total = 0
+    for line in lines[1:]:
+        cols = line.split()
+        if len(cols) > col:
+            try:
+                total += int(cols[col])
+            except ValueError:
+                pass
+    return total
+
+
+def scrape():
+    with urllib.request.urlopen(METRICS_URL, timeout=5.0) as resp:
+        return resp.read().decode()
+
+
+def counter(body, metric, name):
+    """The value of metric{name="<name>"}, or None when it has no such sample."""
+    pattern = re.compile(
+        r'^' + re.escape(metric) + r'\{[^}]*name="' + re.escape(name) + r'"[^}]*\} ([0-9.e+-]+)$',
+        re.M)
+    found = pattern.search(body)
+    return float(found.group(1)) if found else None
+
+
+def coalesced_now():
+    return counter(scrape(), 'ze_iface_link_events_coalesced_total', DEV) or 0.0
+
+
+def resyncs_now():
+    return counter(scrape(), 'ze_iface_carrier_resyncs_total', DEV) or 0.0
+
+
+def commit(pid):
+    """Flip the DHCP hostname and reload. The flip is what makes this a real
+    config change: reconcileDHCP then stops and starts every client on zeflapd0
+    under dhcpMu, which is the lock the link worker takes for every apply. A
+    SIGHUP over an unchanged config never reaches that code."""
+    path = "ze-bgp.conf"
+    with open(path) as handle:
+        text = handle.read()
+    text = text.replace("hostname flap-a", "hostname flap-Z") \
+               .replace("hostname flap-b", "hostname flap-a") \
+               .replace("hostname flap-Z", "hostname flap-b")
+    with open(path, "w") as handle:
+        handle.write(text)
+    os.kill(pid, signal.SIGHUP)
+
+
+def dispatch(api, command):
+    try:
+        resp = api._call_engine(
+            'ze-plugin-engine:dispatch-command', {'command': command})
+    except Exception as e:  # unwired command -> loud RED, never a vacuous pass
+        return {'status': 'error', 'error': f'engine call raised: {e}'}
+    if resp is None:
+        return {'status': 'error', 'error': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=10.0)
+
+    try:
+        # ze creates the pair from the config. Both ends go up here: the daemon
+        # owns DEV, and PEER is only the far side of the segment, which nothing
+        # configures. Moving PEER's ADMIN state is what moves DEV's CARRIER
+        # while DEV stays admin up, so its address and connected route survive.
+        wait_until(
+            f'{DEV} and {PEER} to exist',
+            lambda: True if os.path.exists(f'/sys/class/net/{DEV}')
+            and os.path.exists(f'/sys/class/net/{PEER}') else None)
+        run(["ip", "link", "set", DEV, "up"])
+        run(["ip", "link", "set", PEER, "up"])
+        wait_until(f'{DEV} carrier to come up',
+                   lambda: True if carrier(DEV) == "1" else None)
+
+        # `nud permanent` keeps the kernel from probing this neighbour into
+        # NUD_FAILED, which would emit router-lost and take the route away.
+        run(["ip", "-6", "neigh", "replace", GATEWAY, "lladdr", LLADDR,
+             "dev", DEV, "router", "nud", "permanent"])
+        wait_until(
+            f'the daemon to install ::/0 via {GATEWAY} on {DEV} at metric {BASE_METRIC}',
+            lambda: True if default_metric() == BASE_METRIC else None)
+
+        batch = os.path.abspath("flap.batch")
+        with open(batch, "w") as handle:
+            for i in range(TRANSITIONS):
+                handle.write(f'link set {PEER} {"down" if i % 2 == 0 else "up"}\n')
+        with open("daemon.pid") as handle:
+            pid = int(handle.read().strip())
+
+        drops_before = netlink_drops()
+        resyncs_before = resyncs_now()
+        stalled = 0
+        pressures = []
+
+        for round_no in range(ROUNDS):
+            pressure_before = coalesced_now()
+
+            commit(pid)
+            time.sleep(COMMIT_SETTLE)
+            run(["ip", "-force", "-batch", batch])
+
+            # The worker is blocked on dhcpMu, so the route has not moved yet.
+            # Counted rather than asserted per round: a faster machine could
+            # release the lock first, and the pressure assertion below is the
+            # guard that keeps this test honest either way.
+            if default_metric() == BASE_METRIC:
+                stalled += 1
+
+            wait_until(
+                f'round {round_no}: the default route on {DEV} to reach metric {DOWN_METRIC}',
+                lambda: True if default_metric() == DOWN_METRIC else None,
+                timeout=15.0)
+            time.sleep(RESYNC_WINDOW)
+
+            pressure = coalesced_now() - pressure_before
+            pressures.append(pressure)
+            if pressure <= 0:
+                runtime_fail(
+                    f'round {round_no}: ze_iface_link_events_coalesced_total for {DEV} did not '
+                    f'move, so the burst never outran the worker and this run says nothing '
+                    f'about a queue under pressure')
+            if carrier(DEV) != "0" or default_metric() != DOWN_METRIC:
+                runtime_fail(
+                    f'round {round_no}: carrier={carrier(DEV)!r} metric={default_metric()!r}, '
+                    f'want carrier "0" at metric {DOWN_METRIC}')
+
+            run(["ip", "link", "set", PEER, "up"])
+            wait_until(f'round {round_no}: carrier back up',
+                       lambda: True if carrier(DEV) == "1" else None)
+            wait_until(f'round {round_no}: the route back at metric {BASE_METRIC}',
+                       lambda: True if default_metric() == BASE_METRIC else None)
+            time.sleep(RESYNC_WINDOW)
+
+        dropped = netlink_drops() - drops_before
+        if dropped != 0:
+            runtime_fail(
+                f'the kernel dropped {dropped} netlink notifications during this run: those '
+                f'transitions never reached ze, so the resync assertion below would judge the '
+                f'socket rather than the queue. Lower TRANSITIONS.')
+
+        resyncs = resyncs_now() - resyncs_before
+        if resyncs != 0:
+            runtime_fail(
+                f'ze_iface_carrier_resyncs_total for {DEV} rose by {resyncs:g}, want 0: the '
+                f'route metric contradicted live carrier and the resync had to repair it, '
+                f'which means the event path LOST a transition. The metric is right now only '
+                f'because the self-heal put it there.')
+        if stalled < ROUNDS // 2:
+            runtime_fail(
+                f'only {stalled} of {ROUNDS} rounds found the worker still blocked when the '
+                f'burst ended: the commit is no longer stalling it, so these rounds no longer '
+                f'reproduce the condition AC-5 names')
+
+        print(f'OK: {ROUNDS} rounds of {TRANSITIONS} transitions during commits, '
+              f'stalled={stalled}, pressure={pressures}, resyncs=0', file=sys.stderr)
+    finally:
+        run(["ip", "-6", "neigh", "del", GATEWAY, "dev", DEV], check=False)
+        run(["ip", "link", "set", PEER, "up"], check=False)
+        dispatch(api, 'request shutdown')
+        api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external iface-link-flap-during-commit {
+		run ./iface-link-flap-during-commit.run
+		encoder json
+	}
+}
+
+# route-priority is what makes ze own this interface's IPv6 default routes:
+# suppressRAForConfig publishes it and handleRouterDiscovered installs ::/0 at
+# it. Without it the kernel keeps its own RA default routes and the daemon has
+# no route to move (writtenRoutePriorities, internal/component/iface/register.go).
+#
+# zeflapd0 carries forty DHCP clients that will never find a server. They exist
+# for their RESTART cost, not for a lease: each commit flips their hostname, so
+# reconcileDHCP stops and starts all forty inside dhcpMu and the link worker
+# waits 1.1-3.3s for that lock. That wait is the condition AC-5 names.
+interface {
+	backend netlink
+	veth zeflapv0 {
+		peer zeflapv1
+		unit 0 {
+			route-priority 254
+			ipv6 {
+				address [ 2001:db8:f1a9::1/64 ]
+			}
+		}
+	}
+	dummy zeflapd0 {
+		unit 0 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 1 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 2 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 3 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 4 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 5 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 6 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 7 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 8 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 9 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 10 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 11 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 12 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 13 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 14 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 15 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 16 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 17 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 18 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 19 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 20 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 21 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 22 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 23 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 24 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 25 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 26 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 27 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 28 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 29 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 30 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 31 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 32 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 33 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 34 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 35 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 36 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 37 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 38 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+		unit 39 { ipv4 { dhcp { enabled true; hostname flap-a } } }
+	}
+}
+
+# $PORT2, not a literal: a hardcoded telemetry port sits outside the per-test
+# range the runner leases, so another concurrent test can take it and every
+# scrape here fails on a collision that has nothing to do with carrier events.
+telemetry {
+	prometheus {
+		enabled true
+		server flap {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=180s
+expect=exit:code=0
+expect=stderr:contains=OK: 6 rounds of 101 transitions during commits
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=unknown method

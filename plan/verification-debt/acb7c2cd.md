@@ -46,3 +46,4 @@ is open.
 | 2026-08-23 | acb7c2cd | plan: close spec-fixit-shutdown-waits-out-a-deadlock | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-23 | acb7c2cd | plan: close spec-fixit-firewall-irr-term-fails-validation | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-23 | acb7c2cd | rules: restore a mutated file by copy, never by a banned verb | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-23 | acb7c2cd | test(iface): a carrier burst during a commit loses no transition | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
