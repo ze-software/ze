@@ -630,8 +630,11 @@ ze-docker-lab-build:
 # scripts/codegen/feature_tags.go). Two file populations fall outside that build
 # and were reported on by nothing, in CI or locally:
 #
-#   - //go:build integration     77 tracked files, 38 packages, the mandatory home
-#                                for kernel-facing tests (ai/rules/platform-linux.md)
+#   - //go:build integration     82 tracked files on 2026-08-23, 38 packages, the
+#                                mandatory home for kernel-facing tests
+#                                (ai/rules/platform-linux.md). That count grows,
+#                                and the coverage does not need re-earning: the
+#                                pass keys on the TAG, never on a file list
 #   - //go:build linux           invisible on a non-Linux host, so every netlink,
 #                                nftables and XFRM file on a dev machine
 #
@@ -644,9 +647,13 @@ ze-docker-lab-build:
 # (ai/rules/plugins.md).
 #
 # Adding `integration` to the generated tag list instead would have changed
-# nothing on a dev machine: 75 of the 77 files are `integration && linux`, and
-# measured on darwin the tag alone reaches 0 of them. See
-# plan/spec-fixit-lint-blind-to-integration-tag.md.
+# nothing on a dev machine: 80 of the 82 files are `integration && linux`, and
+# measured on darwin the tag alone reaches 0 of them.
+#
+# What these two passes still do NOT reach is every other build tag. The
+# personality tags among them (ze_installer, ze_distro, ze_appliance, ze_setup)
+# cannot share one pass, because each names a mutually exclusive build. See
+# plan/journal/gate-excludes-part-of-its-population.md.
 ZE_LINT_PKGS := ./cmd/ze/... ./internal/... ./pkg/... ./test/...
 
 # Memory half of the linter ceiling; the worker half is ZE_LINT_RUN's `-j`
