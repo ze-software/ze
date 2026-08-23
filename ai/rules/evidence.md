@@ -277,6 +277,21 @@ Measured overnight on 2026-08-22 into 2026-08-23. One session reported that a jo
 
 Measured the same night. A session reported `ze-rules-lint` red at HEAD. The commit that fixed it had landed about twenty minutes earlier. The verdict was true when it ran and stale when it was sent. **A verdict you RECEIVE MUST be re-run before you act on it.** The sender was not careless. HEAD is not a fixed noun in a shared checkout.
 
+Finding a defect and closing its record are two acts, and different sessions do
+them. The session that fixes the code usually arrived from another task. It
+closes the one record it was working from, or none. A backlog of recorded
+defects therefore drifts in one direction: an entry is added when a defect is
+found and left in place when it is fixed. It becomes a more accurate account of
+what was once wrong than of what is wrong now. A count read from such a backlog
+overstates the work remaining, and a session that plans from it plans work that
+is already done.
+
+**A recorded defect MUST be re-verified at its producer before you act on it or
+count it.** **A defect you fix MUST have every record of it closed, not only the
+record you worked from.** Search the backlog for the symptom and for the symbol
+before you close the work. The fixing code often carries a comment describing the
+defect it removed. A record that comment contradicts is closed, not reopened.
+
 ## Records You Author
 
 **The section above governs a record you READ. This one governs a record you
