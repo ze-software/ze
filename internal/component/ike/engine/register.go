@@ -583,7 +583,7 @@ func runEngine(conn net.Conn) int {
 	// and that swaps the PROCESS-WIDE store: a verify that adopted a candidate's
 	// certificates would leave a REJECTED config's PKI installed in a running daemon.
 	// parsePKIFromJSON's own comment states that contract, and validateIPsecSections
-	// already honours it by resolving names against a throwaway candidate set.
+	// already honors it by resolving names against a throwaway candidate set.
 	//
 	// One precondition is NOT enforced in code and belongs to whoever changes the
 	// registration below. Both parsers answer a delivery carrying NO `vpn` section

@@ -40,7 +40,7 @@ import (
 // signature), so a deterministic wire-legal value is what remains, and stale
 // pooled octets are the alternative. No producer in the tree can build one of the
 // three attributes with such an address; the fallback exists so that the next one
-// that tries is bounded rather than corrupting its neighbour.
+// that tries is bounded rather than corrupting its neighbor.
 func writeIPv4AddressField(buf []byte, off int, addr netip.Addr) {
 	field := buf[off : off+4]
 	if addr.Is4() || addr.Is4In6() {

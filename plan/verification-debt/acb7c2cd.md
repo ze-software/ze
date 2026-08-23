@@ -112,3 +112,6 @@ is open.
 | 2026-08-23 | acb7c2cd | fix(bgp): take the lock on every read of a reloadable peer field | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
 | 2026-08-23 | acb7c2cd | fix(bgp): take the lock on every read of a reloadable peer field | discovery-index freshness | ai/PACKAGE-MAP.md regenerates from the whole working tree, and concurrent agents hold uncommitted sources. | open |
 | 2026-08-23 | acb7c2cd | docs(journal): three finds from the BGP reactor sweep | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-23 | acb7c2cd | fix(lint): clear six findings the full gate caught in today's commits | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-23 | acb7c2cd | fix(lint): clear six findings the full gate caught in today's commits | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
+| 2026-08-23 | acb7c2cd | fix(lint): clear six findings the full gate caught in today's commits | discovery-index freshness | ai/PACKAGE-MAP.md regenerates from the whole working tree, and five specs' uncommitted work is still in it. | open |

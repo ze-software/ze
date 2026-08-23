@@ -332,13 +332,16 @@ func TestOriginatorIDWriteToStaysWithinLen(t *testing.T) {
 		t.Run(form.name, func(t *testing.T) {
 			t.Parallel()
 			orig := OriginatorID(form.addr)
-			buf := canaryBuf(64)
+			// A different buffer size and offset from the sibling cases on
+			// purpose: the bound must hold wherever the value lands, not only
+			// at the one offset every other case happens to use.
+			buf := canaryBuf(48)
 
-			n := orig.WriteTo(buf, 7)
+			n := orig.WriteTo(buf, 11)
 
 			assert.Equal(t, 4, n)
 			assert.Equal(t, orig.Len(), n, "Len must promise exactly what WriteTo writes")
-			assertOnlyRegionWritten(t, buf, 7, form.field[:])
+			assertOnlyRegionWritten(t, buf, 11, form.field[:])
 		})
 	}
 }

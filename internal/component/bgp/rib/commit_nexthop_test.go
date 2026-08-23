@@ -29,7 +29,7 @@ func unencodableNextHopRoutes() []struct {
 		{"grouped-ipv6", true, NewRoute(newIPv6NLRI("2001:db8::/32"), netip.Addr{}, attrs)},
 		{"ungrouped-ipv6", false, NewRoute(newIPv6NLRI("2001:db8::/32"), netip.Addr{}, attrs)},
 		{"grouped-vpnv4", true, NewRoute(newVPNv4NLRI("192.168.1.0/24"), netip.Addr{}, attrs)},
-		{"ungrouped-vpnv4", false, NewRoute(newVPNv4NLRI("192.168.1.0/24"), netip.Addr{}, attrs)},
+		{"ungrouped-vpnv4", false, NewRoute(newVPNv4NLRI("10.42.0.0/16"), netip.Addr{}, attrs)},
 	}
 }
 
@@ -187,6 +187,10 @@ type warnCapture struct {
 
 func (w *warnCapture) Enabled(context.Context, slog.Level) bool { return true }
 
+// Handle takes slog.Record by value because slog.Handler fixes this signature;
+// gocritic's hugeParam cannot be satisfied without breaking the interface.
+//
+//nolint:gocritic // slog.Handler requires the value receiver for record
 func (w *warnCapture) Handle(_ context.Context, record slog.Record) error {
 	w.records = append(w.records, record.Clone())
 	return nil
