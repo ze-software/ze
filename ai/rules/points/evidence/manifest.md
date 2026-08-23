@@ -51,6 +51,7 @@ claims-about-project-state ## Claims About the State of the Project
   foreign-system-semantics
   never-label-an-assumption-measured
   correct-the-document-where-the-stale-claim-lived
+  a-peer-correction-is-a-claim-not-evidence
 records-you-author ## Records You Author
   rule
   read-the-parser-before-writing-the-field
