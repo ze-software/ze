@@ -359,7 +359,7 @@ that instruction; both are recorded under "Reds attributed" below.
 - `test/plugin/interface-type-show.ci`, `test/plugin/interface-errors-show.ci`: the `Exercises:` header names the wire method and handler the producer actually registers.
 - `test/parse/cli-generate-wireguard-keypair.ci`: the header's tmpfs-mode claim is corrected at the producer, and the dangling spec path becomes a bare stem.
 - `plan/deferrals/` (9 files, 12 live rows): Destination re-pointed to the successor spec; 3 terminal rows keep the reference as a bare stem.
-- `plan/spec-fixit-ipsec-interop-cli-credentials.md`: its citation of this spec is restated, naming the shard that holds the row and the successor spec.
+- `spec-fixit-ipsec-interop-cli-credentials`: its citation of this spec is restated, naming the shard that holds the row and the successor spec. That spec CLOSED on 2026-08-23, so its stem is written bare: a `plan/` path would cite a file the tree no longer holds.
 - This spec: the TDD table's wrong test name corrected.
 
 ### Run 2 (over the fixes)

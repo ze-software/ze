@@ -51,3 +51,4 @@ is open.
 | 2026-08-23 | acb7c2cd | close: remove spec-fixit-ipsec-interop-cli-credentials | ze-precommit-verify (not FRESH-green) | Removes one markdown file and carries no code. The previous commit's reason applies unchanged. | open |
 | 2026-08-23 | acb7c2cd | lint: close the integration-tag spec and home what the passes miss | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-23 | acb7c2cd | plan: close fixit-lint-blind-to-integration-tag | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-23 | acb7c2cd | plan: ze tells operators to set a GODEBUG that kills the daemon | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
