@@ -1437,13 +1437,18 @@ class TestLedgerRender(unittest.TestCase):
             _tag("RFC7606-2-1", "negative", file="n_test.go", line=9),
         ]
         out = R.render_shards(reqs, tags, {"rfc7606"})["rfc7606"]
-        self.assertIn("p_test.go:7", out)
-        self.assertIn("n_test.go:9", out)
+        self.assertIn("`p_test.go` (unit/verify)", out)
+        self.assertIn("`n_test.go` (unit/verify)", out)
 
     def test_citation_order_independent_of_scan_order(self):
         """os.walk yields files in filesystem order, so the render must sort citations
         by (file, line) — otherwise the ledger churns across machines and the freshness
-        gate (AC-20) flags a stale ledger that is not actually wrong."""
+        gate (AC-20) flags a stale ledger that is not actually wrong.
+
+        The sort still runs on (file, line) even though the line is no longer RENDERED.
+        It is what makes the collapse below deterministic: the surviving citation is the
+        one whose tag comes first in the file, on every machine.
+        """
         reqs = [_req("RFC7606-2-1")]
         tags = [
             _tag("RFC7606-2-1", "negative", file="a_test.go", line=5),
@@ -1453,9 +1458,39 @@ class TestLedgerRender(unittest.TestCase):
         forward = R.render_shards(reqs, list(tags), {"rfc7606"})["rfc7606"]
         backward = R.render_shards(reqs, list(reversed(tags)), {"rfc7606"})["rfc7606"]
         self.assertEqual(forward, backward)
-        # sorted by (file, line): a:5 < a:90 (numeric, not lexical) < z:1
-        self.assertLess(forward.index("a_test.go:5"), forward.index("a_test.go:90"))
-        self.assertLess(forward.index("a_test.go:90"), forward.index("z_test.go:1"))
+        self.assertLess(forward.index("a_test.go"), forward.index("z_test.go"))
+
+    def test_two_tags_in_one_unit_render_one_citation(self):
+        """Several inline tags in one file collapse to a single citation.
+
+        The line is gone from the render, so two tags in `a_test.go` would otherwise
+        emit the identical string twice and tell the reader nothing by repeating it.
+        The count of inline cases inside a unit was never a fact a generated page could
+        keep current, and the unit that enforces the requirement is what the row is for.
+        """
+        reqs = [_req("RFC7606-2-1")]
+        tags = [
+            _tag("RFC7606-2-1", "negative", file="a_test.go", line=5),
+            _tag("RFC7606-2-1", "negative", file="a_test.go", line=90),
+        ]
+        out = R.render_shards(reqs, tags, {"rfc7606"})["rfc7606"]
+        self.assertEqual(1, out.count("`a_test.go`"))
+
+    def test_no_line_number_reaches_a_rendered_citation(self):
+        """The whole point: an edit ABOVE a tag must not rewrite this page.
+
+        Asserted over the citation columns rather than the row, because the Note column
+        carries authored prose that legitimately cites producer code.
+        """
+        reqs = [_req("RFC7606-2-1")]
+        tags = [
+            _tag("RFC7606-2-1", "positive", file="p_test.go", line=7),
+            _tag("RFC7606-2-1", "negative", file="n_test.go", line=9),
+        ]
+        out = R.render_shards(reqs, tags, {"rfc7606"})["rfc7606"]
+        row = [ln for ln in out.splitlines() if ln.startswith("| `RFC7606-2-1`")][0]
+        cited = row.split("|")[4] + row.split("|")[5]
+        self.assertNotRegex(cited, r"\.go:\d+")
 
 
 _CI_FILE = "test/plugin/rfc7606-reset.ci"
@@ -1489,16 +1524,16 @@ class TestLedgerEvidenceTier(unittest.TestCase):
             ]
         )
         self.assertIn(
-            "`internal/x_test.go:3` (unit/verify)",  # <!-- doc-links: ignore (fixture path, deliberately absent) -->
+            "`internal/x_test.go` (unit/verify)",  # <!-- doc-links: ignore (fixture path, deliberately absent) -->
             out,
         )
-        self.assertIn(f"`{_CI_FILE}:7` (functional/verify)", out)
+        self.assertIn(f"`{_CI_FILE}` (functional/verify)", out)
 
     def test_interop_link_is_labelled_nightly(self):
         out = self._render(
             [_tag("RFC7606-2-1", "positive", file=_INTEROP_FILE, line=51)]
         )
-        self.assertIn(f"`{_INTEROP_FILE}:51` (interop/nightly)", out)
+        self.assertIn(f"`{_INTEROP_FILE}` (interop/nightly)", out)
 
     def test_nightly_only_marker_rendered(self):
         """AC-11: a requirement whose ONLY evidence is nightly says so on its row."""
@@ -2091,8 +2126,10 @@ class TestShardShow(unittest.TestCase):
 _PRE_SPLIT_ROWS = {
     "RFC4271-10-1": (
         "| `RFC4271-10-1` | MUST | 10 | "
-        "`internal/component/bgp/reactor/rfc4271_test.go:269` (unit/verify) | "
-        "`internal/component/bgp/reactor/rfc4271_test.go:293` (unit/verify) |  |"
+        "`internal/component/bgp/reactor/rfc4271_test.go` "
+        "`TestRFC4271HoldTimeConfigurablePerPeer` (unit/verify) | "
+        "`internal/component/bgp/reactor/rfc4271_test.go` "
+        "`TestRFC4271PerPeerHoldTimeSurvivesNegotiation` (unit/verify) |  |"
     ),
     "RFC7606-2-4": "| `RFC7606-2-4` | MAY | 2 | -- | -- |  |",
     "RFC4659-4-3": (
