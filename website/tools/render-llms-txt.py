@@ -363,8 +363,11 @@ def command_meta(command):
     method = clean(command.get("wire-method"))
     if method:
         meta.append("wire %s" % method)
-    if command.get("global-pipes"):
-        meta.append("pipes")
+    operators = command.get("operators", [])
+    if operators:
+        # The names, not a flag. This page is what an AI tool reads, and a bare
+        # `pipes` marker told it a pipeline existed without naming one operator.
+        meta.append("pipes: " + " ".join(o["name"] for o in operators))
     args = command.get("args") or []
     if args:
         meta.append(
@@ -386,7 +389,7 @@ def render_cli_inventory():
         % ", ".join("%s %s" % (count, mode) for mode, count in sorted(modes.items()))
     )
     lines.append(
-        "`daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes` means the command supports the shared output pipeline."
+        "`daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes:` lists the operators the command accepts after a `|`. An operator absent from that list is refused by name."
     )
     lines.append("")
     for root in sorted(roots):

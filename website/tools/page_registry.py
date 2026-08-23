@@ -27,6 +27,7 @@ class MarkdownPage:
 # learns one color convention across the whole site.
 DOCS_MANIFEST = {
     "architecture.md": None,
+    "architecture/api/commands.md": "automate",
     "architecture/config/deprecated-options.md": "operate",
     "architecture/testing/interop.md": "routing",
     "features.md": None,

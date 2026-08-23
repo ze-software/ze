@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | cli |
 | Depends | `plan/audit-pipe-operator-coverage.md`, `plan/audit-presentation-pipes.md`, `plan/audit-command-pipe-vs-subcommand.md` |
-| Phase | 2 of 6 (phases 1 and 2 implemented 2026-08-23) |
+| Phase | 6 of 6 (phases 1, 2, 3 and 6 implemented 2026-08-23; 4 and 5 outstanding) |
 | Deferral shard | `plan/deferrals/cli-pipe-operator-coverage.md` |
 | Handoff | - |
 | Updated | 2026-08-23 |
@@ -462,6 +462,43 @@ one.
 A refusal that arrives after the command has run reaches the caller as the
 formatted string, so `command.IsPipeError` marks it and `ze pipe` exits
 non-zero. Known Limitations records the surfaces that still exit 0.
+
+### Phase 6, as built, and why it ran before 4 and 5
+
+Phase order was stated as forced only in one direction: 6 cannot publish a
+derivation that 1 and 2 have not built, and 3 must land before 4 multiplies the
+paths that run a chain. Nothing forces 4 or 5 ahead of 6, and 6 is the
+deliverable the owner named, so it ran third.
+
+What it publishes, per command:
+
+- the operators that ALWAYS apply, and separately the ones that apply only when
+  the answer carries rows. That split is what a caller acts on.
+- the shape the command declared, absent when it declared none.
+- the named chains (aliases), which `ze help command --json` had never read, so
+  they published on `show command help` alone.
+
+`global-pipes` is gone. It was a boolean that named no operator and was set
+unconditionally for every command carrying a wire method.
+
+**Two honesty rules the building forced, both narrowing what is published:**
+
+`resolve` and `origin` are published for a command only when it DECLARES a field
+holding an IP address. `show bgp` declares `address` and publishes them; nothing
+else does, so nothing else publishes them. Publishing them everywhere would have
+asserted support nothing could honor, which is the failure this surface exists
+to end.
+
+An undeclared command publishes its row operators as `with-rows` rather than as
+supported. That is the truth: the operator is applied to the answer in hand and
+refused by name when it has none. 232 of 252 commands are undeclared today, and
+the published page says so per command rather than averaging it away.
+
+**The gate is exact.** `docs/features/pipe-operators.generated.md` is written by
+the same call the checker compares against, so a description or an argument kind
+that changes in the catalog and not on the page reddens as surely as a missing
+operator. Mutation-proven: renaming `fill` to `filll` on the page reddens
+`ze-doc-drift-check` by name.
 
 ## Design Insights
 

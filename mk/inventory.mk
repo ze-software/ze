@@ -70,13 +70,15 @@ ze-wiki-update: ze-wiki-commands-update
 	@echo "Wiki updated"
 
 ze-wiki-commands-update:
-	@mkdir -p tmp
-	@$(ZEBIN_ZE) pipe help --json > tmp/pipe-operators.json
-	@$(ZEBIN_ZE) help command --json | python3 scripts/dev/gen_wiki_commands.py --operators tmp/pipe-operators.json > ../wiki/command-catalog.md
+	@$(ZEBIN_ZE) help command --json | python3 scripts/dev/gen_wiki_commands.py > ../wiki/command-catalog.md
 	@echo "  -> ../wiki/command-catalog.md"
 
 ze-doc-drift-check:
 	@$(GO_RUN) scripts/docvalid/doc_drift.go
+
+.PHONY: ze-docs-pipe-operators-update
+ze-docs-pipe-operators-update: ## Regenerate the published pipe operator table from the operator catalog
+	@$(GO_RUN) scripts/docvalid/doc_drift.go --write-generated
 
 ze-command-contract-check:
 	@$(GO_RUN) scripts/docvalid/commands.go

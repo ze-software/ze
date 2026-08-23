@@ -43,28 +43,96 @@ type commandPipe struct {
 	TakesArg    bool   `json:"takes-arg,omitempty"`
 }
 
-// globalPipeSummary answers the operators EVERY command that reaches the pipe
-// layer owes, derived from the operator catalog. The line was hand-typed and
-// wrong in both directions: it omitted raw and log, which are global, and
-// asserted match, count, resolve and origin, which act on rows and cannot apply
-// to an answer that holds one value.
+// commandOperator is one pipe operator as it applies to ONE command.
+type commandOperator struct {
+	Name  string `json:"name"`
+	Class string `json:"class"`
+	// Available is "always" when the operator applies whatever the answer
+	// holds, and "with-rows" when it applies only to an answer that carries
+	// rows. A command that has declared its shape reports "always" for every
+	// operator that shape supports, because then it is known before the command
+	// runs. An undeclared command reports "with-rows" for the row operators:
+	// they are applied to the answer in hand and refused by name when it has
+	// none, so the answer decides.
+	Available   string `json:"available"`
+	Description string `json:"description"`
+}
+
+// commandAlias is a chain this command names.
+type commandAlias struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Expansion   string `json:"expansion"`
+}
+
+// operatorsFor answers what one command supports, derived from the operator
+// catalog and the shape the command declared.
 //
-// The operators a command owes for its SHAPE are published per command; this
-// line is only the class every command shares.
-func globalPipeSummary() string {
-	var tb textbuf.Buffer
-	first := true
+// Nothing here enumerates commands: the catalog states each operator's
+// contract, the command states its own shape, and this is the join.
+func operatorsFor(cliPath string) ([]commandOperator, string) {
+	shape, declared := command.ShapeForCommand(cliPath)
+	hasAddress := len(command.AddressFieldsForCommand(cliPath)) > 0
+	out := make([]commandOperator, 0, 16)
 	for _, op := range command.PipeOperatorCatalog() {
-		if op.Class != command.ClassGlobal {
+		// `| resolve` and `| origin` act on a field holding an IP address, and
+		// no shape says a field does. Publishing them for a command that has
+		// declared none would assert support nothing can honor, which is the
+		// failure this whole surface exists to end.
+		if op.NeedsAddressField && !hasAddress {
 			continue
 		}
-		if !first {
-			tb.Str(", ")
+		switch {
+		case op.Class == command.ClassGlobal:
+			out = append(out, commandOperator{
+				Name: op.Name, Class: op.Class.String(),
+				Available: "always", Description: op.Description,
+			})
+		case declared && op.Applies(shape):
+			out = append(out, commandOperator{
+				Name: op.Name, Class: op.Class.String(),
+				Available: "always", Description: op.Description,
+			})
+		case declared:
+			// The declared shape cannot support it, so it is refused before the
+			// command runs and is not published as supported at all.
+		default:
+			out = append(out, commandOperator{
+				Name: op.Name, Class: op.Class.String(),
+				Available: "with-rows", Description: op.Description,
+			})
 		}
-		first = false
-		tb.Str(op.Name)
 	}
-	return tb.String()
+	if !declared {
+		return out, ""
+	}
+	return out, shape.String()
+}
+
+// aliasesFor answers the chains a command names.
+func aliasesFor(cliPath string) []commandAlias {
+	declared := command.AliasesForCommand(cliPath)
+	if len(declared) == 0 {
+		return nil
+	}
+	out := make([]commandAlias, 0, len(declared))
+	for _, a := range declared {
+		out = append(out, commandAlias{Name: a.Name, Description: a.Description, Expansion: a.Expansion})
+	}
+	return out
+}
+
+// splitOperators separates what a command always supports from what it supports
+// only when its answer carries rows.
+func splitOperators(ops []commandOperator) (always, withRows []string) {
+	for _, op := range ops {
+		if op.Available == "always" {
+			always = append(always, op.Name)
+			continue
+		}
+		withRows = append(withRows, op.Name)
+	}
+	return always, withRows
 }
 
 // commandEntry is a single command in the catalog.
@@ -77,8 +145,18 @@ type commandEntry struct {
 	TaskSupport string        `json:"task-support,omitempty"`
 	Args        []commandArg  `json:"args,omitempty"`
 	Pipes       []commandPipe `json:"pipes,omitempty"`
-	GlobalPipes bool          `json:"global-pipes,omitempty"`
-	Subcommands []string      `json:"subcommands,omitempty"`
+	// Operators is what this command supports, per operator, replacing the
+	// `global-pipes` boolean. A boolean said only "this command reaches the
+	// pipe layer"; it named no operator, and a tool author reading it had to
+	// guess the set from prose that named ten of sixteen.
+	Operators []commandOperator `json:"operators,omitempty"`
+	// AnswerShape is the shape the command DECLARED, absent when it declared
+	// none. It decides which operators are always available.
+	AnswerShape string `json:"answer-shape,omitempty"`
+	// Aliases are the chains this command names. `ze help command --json` never
+	// read them before, so they published on `show command help` alone.
+	Aliases     []commandAlias `json:"pipe-aliases,omitempty"`
+	Subcommands []string       `json:"subcommands,omitempty"`
 }
 
 // printHelpCommand implements `ze help command [filter...] [--json] [--verbose]`.
@@ -152,8 +230,9 @@ func collectCommands() []commandEntry {
 				Description: desc,
 				Mode:        mode,
 				WireMethod:  wireMethod,
-				GlobalPipes: true,
 			}
+			e.Operators, e.AnswerShape = operatorsFor(cliPath)
+			e.Aliases = aliasesFor(cliPath)
 			if node != nil {
 				e.Args = extractArgs(node)
 				e.Subcommands = extractSubcommands(node)
@@ -353,11 +432,29 @@ func printCommandVerbose(rw *helpfmt.RenderWriter, entries []commandEntry) {
 		}
 
 		// Pipes
-		if e.GlobalPipes || len(e.Pipes) > 0 {
+		if len(e.Operators) > 0 || len(e.Pipes) > 0 || len(e.Aliases) > 0 {
 			tb.Reset().Str("  ").Colored(c.BrightYellow).Str("pipes:").Colored(c.Reset)
 			rw.Line(tb.Slice())
-			if e.GlobalPipes {
-				tb.Reset().Str("    ").Colored(c.Dim).Str(globalPipeSummary()).Colored(c.Reset)
+			// Split by availability, because the difference is what a caller
+			// acts on: one set works whatever the answer holds, the other
+			// works when the answer has rows and is refused by name when it
+			// does not.
+			always, withRows := splitOperators(e.Operators)
+			if len(always) > 0 {
+				tb.Reset().Str("    always: ").Colored(c.Dim).Join(always, ", ").Colored(c.Reset)
+				rw.Line(tb.Slice())
+			}
+			if len(withRows) > 0 {
+				label := "    when the answer has rows: "
+				if e.AnswerShape != "" {
+					label = "    on its rows: "
+				}
+				tb.Reset().Str(label).Colored(c.Dim).Join(withRows, ", ").Colored(c.Reset)
+				rw.Line(tb.Slice())
+			}
+			for _, a := range e.Aliases {
+				tb.Reset().Str("    ").Str(a.Name).Str("  ").Colored(c.Dim).
+					Str(a.Description).Str(" (= ").Str(a.Expansion).Str(")").Colored(c.Reset)
 				rw.Line(tb.Slice())
 			}
 			for _, p := range e.Pipes {

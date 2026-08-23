@@ -387,7 +387,7 @@ error: unknown pipe operator: nosuchoperator
 ## 6. The rule, and why it is the wrong rule
 
 `ai/rules/cli.md` and
-`ai/rules/points/cli/directives/support-every-pipe-operator-in-every-command-that-produces-output.md`
+`ai/rules/points/cli/directives/support-every-pipe-operator-in-every-command-that-produces-output.md`  <!-- doc-links: ignore (the point this audit judged; it was replaced by answer-every-global-operator-in-every-command-that-produces-output and answer-every-operator-the-answer-shape-supports-and-refuse-the-rest-by-name, which is the change section 6 asked for. Repointing it would destroy the record of what was audited) -->
 both state: every command that produces output MUST support all pipe operators.
 
 Counted against that rule, **38 commands violate it on every surface** and 8 more

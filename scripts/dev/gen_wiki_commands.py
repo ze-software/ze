@@ -22,17 +22,11 @@ def escape_pipe(s):
     return s.replace("|", "\\|")
 
 
-# GLOBAL_OPERATORS is filled from `ze pipe help --json` before rendering. The
-# generator holds no operator list of its own: it used to carry a hand-typed ten
-# and printed it on all 381 command entries, which is how six real operators went
-# unpublished. It is the argument for deriving this page, made by the page.
-GLOBAL_OPERATORS = []
-
-
-def load_operators(path):
-    """Read the operator catalog `ze pipe help --json` writes."""
-    with open(path, encoding="utf-8") as fh:
-        return json.load(fh)
+# The generator holds NO operator list. It used to carry a hand-typed ten and
+# printed it on all 381 command entries, which is how six real operators went
+# unpublished and how every `clear` command was told it supported them. Each
+# entry now carries what that command supports, derived from the operator
+# catalog and the shape the command declared.
 
 
 def render_detail(entry):
@@ -74,14 +68,31 @@ def render_detail(entry):
             vals = ", ".join(a.get("values", []))
             lines.append(f"| `{a['name']}` | {a['type']} | {req} | {vals} |")
 
-    global_pipes = entry.get("global-pipes", False)
+    operators = entry.get("operators", [])
     pipes = entry.get("pipes", [])
-    if global_pipes or pipes:
+    aliases = entry.get("pipe-aliases", [])
+    if operators or pipes or aliases:
         lines.append("")
         lines.append("**Pipes:**")
-        if global_pipes and GLOBAL_OPERATORS:
-            names = ", ".join(f"`{name}`" for name in GLOBAL_OPERATORS)
-            lines.append(f"Global: {names}")
+        always = [o["name"] for o in operators if o.get("available") == "always"]
+        with_rows = [o["name"] for o in operators if o.get("available") == "with-rows"]
+        if always:
+            names = ", ".join(f"`{name}`" for name in always)
+            lines.append(f"Always: {names}")
+        if with_rows:
+            names = ", ".join(f"`{name}`" for name in with_rows)
+            lines.append("")
+            lines.append(
+                f"When the answer has rows: {names} "
+                "-- this command has not declared its answer shape, so each of "
+                "these applies to an answer that carries rows and is refused by "
+                "name over one that does not."
+            )
+        if aliases:
+            lines.append("")
+            lines.append("Named chains:")
+            for a in aliases:
+                lines.append(f"- `{a['name']}` -- {a['description']} (`{a['expansion']}`)")
         if pipes:
             lines.append("")
             lines.append("Command-specific:")
@@ -101,21 +112,6 @@ def render_detail(entry):
 
 
 def main():
-    global GLOBAL_OPERATORS
-    ops_path = None
-    argv = sys.argv[1:]
-    if "--operators" in argv:
-        ops_path = argv[argv.index("--operators") + 1]
-    if ops_path is None:
-        sys.exit(
-            "gen_wiki_commands.py: --operators <path> is required.\n"
-            "  Write it with: ze pipe help --json > <path>\n"
-            "  The generator holds no operator list of its own."
-        )
-    GLOBAL_OPERATORS = [
-        op["name"] for op in load_operators(ops_path) if op.get("class") == "global"
-    ]
-
     data = json.load(sys.stdin)
 
     groups = defaultdict(list)
@@ -156,7 +152,7 @@ def main():
             or e.get("subcommands")
             or e.get("backend")
             or e.get("task-support")
-            or e.get("global-pipes")
+            or e.get("operators")
             or "\n" in e.get("description", "")
         ]
         if detailed:

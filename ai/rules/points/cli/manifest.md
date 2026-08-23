@@ -7,7 +7,8 @@ related: evidence, performance, protocol, repo-maintenance, git-safety
 directives ## Directives
   put-a-closed-keyword-before-every-user-supplied-value
   follow-the-cli-patterns-in-every-command
-  support-every-pipe-operator-in-every-command-that-produces-output
+  answer-every-global-operator-in-every-command-that-produces-output
+  answer-every-operator-the-answer-shape-supports-and-refuse-the-rest-by-name
   answer-with-structured-data-never-pre-rendered-text
   keep-state-in-a-field-or-a-column-never-a-sigil
   say-what-failed-why-and-what-to-do-next-in-every-error

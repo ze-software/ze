@@ -43,6 +43,11 @@ show bgp peer list | first 5
 A chain takes one format operator: `json`, `ndjson`, `table`, `text`, `yaml`
 or `raw`. Two together are rejected. Filter and display operators chain freely.
 
+The complete, current set is generated from the operator catalog:
+[`pipe-operators.generated.md`](pipe-operators.generated.md). It is the list to
+build a tool against, and `ze-doc-verify` fails when it and the product
+disagree. The table below describes what each operator does for a reader.
+
 | Operator | Kind | Description |
 |----------|------|-------------|
 | `table` | format | Box-drawing table rendering |

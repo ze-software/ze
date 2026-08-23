@@ -170,6 +170,16 @@ func registerColumns() {
 func registerShapes() {
 	command.RegisterShape([]string{cmdBgp}, command.ShapeTab)
 	command.RegisterShape([]string{cmdBgpPeerList}, command.ShapeTab)
+
+	// `| resolve` and `| origin` act on a field holding an IP address, and no
+	// shape says a field does. `show bgp`'s peer rows carry the peer address in
+	// an "address" field, so both operators are honest here and are published.
+	//
+	// `show bgp peer list` declares none deliberately: its rows are keyed BY
+	// the address and carry no address field, so the transforms would find
+	// nothing to decorate and publishing them would assert support the answer
+	// cannot honor.
+	command.RegisterAddressFields([]string{cmdBgp}, "address")
 	for _, child := range cmdBgpChildren {
 		command.RegisterShape([]string{child})
 	}

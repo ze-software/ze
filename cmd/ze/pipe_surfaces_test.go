@@ -87,33 +87,41 @@ func TestPipeRootSubsNamesEveryOperator(t *testing.T) {
 }
 
 // TestVerboseHelpNamesTheGlobalOperators holds `ze help command --verbose` to
-// the class it is actually reporting. The line is printed under GlobalPipes, so
-// it may name the operators every command owes and no others. It named ten,
-// which both omitted two globals (raw, log) and asserted four data-dependent
-// operators (match, count, resolve, origin) that a doc-shaped answer cannot
-// support.
+// what it is actually reporting. It printed one hand-typed line of ten for
+// every command, which was wrong in both directions: it omitted two globals
+// (raw, log) and asserted four row operators (match, count, resolve, origin)
+// that an answer holding one value cannot support.
+//
+// It now reports the command's OWN operators, split by whether they always
+// apply or apply only to an answer carrying rows.
 func TestVerboseHelpNamesTheGlobalOperators(t *testing.T) {
-	var buf bytes.Buffer
-	rw := helpfmt.NewRenderWriter(&buf)
-	printCommandVerbose(rw, []commandEntry{{
+	entry := commandEntry{
 		Path:        "show test",
 		Description: "a command that reaches the pipe layer",
-		GlobalPipes: true,
-	}})
+	}
+	entry.Operators, entry.AnswerShape = operatorsFor(entry.Path)
+
+	var buf bytes.Buffer
+	rw := helpfmt.NewRenderWriter(&buf)
+	printCommandVerbose(rw, []commandEntry{entry})
 	out := buf.String()
 
 	for _, op := range command.PipeOperatorCatalog() {
 		named := namesOperator(out, op.Name)
-		switch op.Class {
-		case command.ClassGlobal:
-			if !named {
-				t.Errorf("verbose help omits global operator %q", op.Name)
-			}
-		case command.ClassData:
-			if named {
-				t.Errorf("verbose help names data-dependent operator %q on the global line", op.Name)
-			}
+		// An undeclared command publishes every global always, and every row
+		// operator as depending on the answer. The two that need a declared
+		// address field are published by neither, because nothing could honor
+		// them.
+		want := !op.NeedsAddressField
+		if named != want {
+			t.Errorf("verbose help names %q = %v, want %v", op.Name, named, want)
 		}
+	}
+	if !strings.Contains(out, "always:") {
+		t.Errorf("verbose help does not separate what always applies: %q", out)
+	}
+	if !strings.Contains(out, "when the answer has rows:") {
+		t.Errorf("verbose help does not say which operators depend on the answer: %q", out)
 	}
 }
 

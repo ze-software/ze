@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+
+	"github.com/ze-software/ze/internal/component/command"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -38,6 +40,8 @@ import (
 func main() {
 	strict := flag.Bool("strict", false, "exit 2 instead of 1 when drift is found")
 	rootFlag := flag.String("root", "", "repository root to check")
+	writeGenerated := flag.Bool("write-generated", false,
+		"rewrite the generated documentation this tool checks, instead of checking it")
 	flag.Parse()
 
 	root := *rootFlag
@@ -48,6 +52,15 @@ func main() {
 			fmt.Fprintf(os.Stderr, "check-doc-drift: %v\n", err)
 			os.Exit(1)
 		}
+	}
+
+	if *writeGenerated {
+		if err := writeGeneratedDocs(root); err != nil {
+			fmt.Fprintln(os.Stderr, "check-doc-drift:", err)
+			os.Exit(1)
+		}
+		fmt.Println("wrote", pipeOperatorReferencePath)
+		return
 	}
 
 	issues := runChecks(root)
@@ -98,6 +111,7 @@ func runChecks(root string) []issue {
 	issues = append(issues, checkFunctionalTestsMD(root, releaseGateSuites)...)
 	issues = append(issues, checkMakefileHelp(root, releaseGateSuites)...)
 	issues = append(issues, checkForbiddenDocClaims(root)...)
+	issues = append(issues, checkPipeOperatorReference(root)...)
 	issues = append(issues, unreadableFiles...)
 
 	return issues
@@ -1007,4 +1021,49 @@ func findModuleRoot() (string, error) {
 		}
 		dir = parent
 	}
+}
+
+// pipeOperatorReferencePath is the generated operator table every documentation
+// page links to instead of listing the operators itself.
+const pipeOperatorReferencePath = "docs/features/pipe-operators.generated.md"
+
+// checkPipeOperatorReference fails when the published operator table and the
+// operator catalog disagree.
+//
+// This is the gate the whole surface needed. The set used to be hand-copied
+// into five places and no two agreed: Tab completion had all sixteen, two
+// different pages had two different tens, and `display` and `fill` appeared in
+// none of the lists a user or a tool could reach. Nothing could see that,
+// because no check compared a published list against the product.
+//
+// The comparison is exact rather than a name-by-name search, so a description
+// or an argument kind that changes in the catalog and not on the page is caught
+// as well as a missing operator.
+func checkPipeOperatorReference(root string) []issue {
+	path := filepath.Join(root, pipeOperatorReferencePath)
+	published, err := os.ReadFile(path) //nolint:gosec // repository-relative documentation path
+	if err != nil {
+		return []issue{{
+			File:    pipeOperatorReferencePath,
+			Message: "the generated pipe operator reference is missing",
+			Detail:  "run `make ze-docs-pipe-operators-update`",
+		}}
+	}
+	want := command.RenderOperatorReference()
+	if string(published) == want {
+		return nil
+	}
+	return []issue{{
+		File:    pipeOperatorReferencePath,
+		Message: "the published pipe operator table and the operator catalog disagree",
+		Detail: "the catalog in internal/component/command/pipe_catalog.go is the source; " +
+			"run `make ze-docs-pipe-operators-update`",
+	}}
+}
+
+// writeGeneratedDocs rewrites the generated documentation this tool checks, so
+// the writer and the checker are one program and cannot render differently.
+func writeGeneratedDocs(root string) error {
+	path := filepath.Join(root, pipeOperatorReferencePath)
+	return os.WriteFile(path, []byte(command.RenderOperatorReference()), 0o644) //nolint:gosec // generated documentation
 }

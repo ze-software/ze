@@ -37,6 +37,22 @@ MODE_LABELS = {
 }
 
 
+
+def split_operators(command):
+    """Split a command's operators into the ones that always apply and the ones
+    that apply only to an answer carrying rows.
+
+    The page said `Global pipes: yes` and named no operator, so a tool author
+    reading it learned that SOME pipeline existed and nothing about which words
+    it accepted. The names come from the command catalog, which derives them
+    from the operator catalog and the shape each command declared.
+    """
+    operators = command.get("operators", [])
+    always = [o["name"] for o in operators if o.get("available") == "always"]
+    with_rows = [o["name"] for o in operators if o.get("available") == "with-rows"]
+    return always, with_rows
+
+
 def slugify(prefix, text):
     return prefix + SLUG_RE.sub("-", text.lower()).strip("-")
 
@@ -547,7 +563,14 @@ def render_ze_detail(command):
     out.append('<div><dt>Registry path</dt><dd><code>%s</code></dd></div>' % html.escape(command["path"]))
     out.append('<div><dt>Mode</dt><dd>%s</dd></div>' % html.escape(mode or "not listed"))
     out.append('<div><dt>Wire method</dt><dd><code>%s</code></dd></div>' % html.escape(command.get("wire-method", "not listed")))
-    out.append('<div><dt>Global pipes</dt><dd>%s</dd></div>' % ("yes" if command.get("global-pipes") else "no"))
+    always, with_rows = split_operators(command)
+    if always:
+        out.append('<div><dt>Pipes, always</dt><dd>%s</dd></div>' % ", ".join(always))
+    if with_rows:
+        label = "Pipes, on its rows" if command.get("answer-shape") else "Pipes, when the answer has rows"
+        out.append('<div><dt>%s</dt><dd>%s</dd></div>' % (label, ", ".join(with_rows)))
+    if not always and not with_rows:
+        out.append('<div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>')
     out.append("</dl>")
     out.append('<h3>Description</h3><p>%s</p>' % html.escape(command.get("description", "No description listed.")).replace("\n", "<br>"))
     out.append("<h3>Arguments</h3>")
@@ -703,7 +726,8 @@ def render_detail_markdown(row, mapping, vendor_ids, vendor_labels):
         "- Registry path: `%s`" % md_cell(command["path"]),
         "- Mode: %s" % md_cell(MODE_LABELS.get(command.get("mode", ""), command.get("mode", ""))),
         "- Wire method: `%s`" % md_cell(command.get("wire-method", "not listed")),
-        "- Global pipes: %s" % ("yes" if command.get("global-pipes") else "no"),
+        "- Pipes, always: %s" % (", ".join(split_operators(command)[0]) or "none"),
+        "- Pipes, on rows: %s" % (", ".join(split_operators(command)[1]) or "none"),
         "",
         one_line(command.get("description", "No description listed.")),
         "",
