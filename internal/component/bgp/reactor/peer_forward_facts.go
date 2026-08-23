@@ -131,14 +131,23 @@ func (p *Peer) refreshForwardFactsIfLiveFrom(connected []netip.Prefix) {
 func (p *Peer) buildForwardFacts() *peerForwardFacts {
 	s := p.settings
 
-	// ExportFilters is read under p.mu because it is one of the mutable fields:
-	// resolveDynamicPeerSettings (reactor_dynamic.go) and applyHotSwappableSettings
-	// (peer_settings_apply.go) both write it on the pointed-to struct under this
-	// lock. Every other field read below is set at construction and never mutated
-	// (the contract on Peer.Settings, peer.go).
+	// ExportFilters and PeerAS are read under p.mu because both are mutable, and both
+	// writers hold this lock: applyHotSwappableSettings (peer_settings_apply.go) writes the
+	// filter pair from the config-reload goroutine, and resolveDynamicPeerSettings
+	// (reactor_dynamic.go) writes PeerAS and the filter pair on a dynamic peer's
+	// establishment.
+	//
+	// IsEBGP is taken here rather than at the struct literal below because it compares
+	// LocalAS against PeerAS. Called outside the lock it would be a second, unsynchronized
+	// read of the same mutable field.
+	//
+	// Every other field read below is set at construction and never mutated (the contract
+	// on Peer.Settings, peer.go).
 	p.mu.RLock()
 	sendCtxID := p.sendCtxID
 	exportFilters := s.ExportFilters
+	peerAS := s.PeerAS
+	isEBGP := s.IsEBGP()
 	p.mu.RUnlock()
 
 	ctx := p.sendCtx.Load()
@@ -158,8 +167,8 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 
 		localAS:       s.LocalAS,
 		globalLocalAS: s.GlobalLocalAS,
-		peerAS:        s.PeerAS,
-		isEBGP:        s.IsEBGP(),
+		peerAS:        peerAS,
+		isEBGP:        isEBGP,
 
 		rsClient:         s.RSClient,
 		rrClient:         s.RouteReflectorClient,
@@ -177,7 +186,7 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 
 		filterInfo: filterapi.PeerFilterInfo{
 			Address: s.Address,
-			PeerAS:  s.PeerAS,
+			PeerAS:  peerAS,
 			// LocalAS is the effective per-peer local AS (per-peer local-as
 			// override when set, otherwise the global local-as). Filling it here
 			// lets egress filters read dest.LocalAS instead of re-parsing the raw

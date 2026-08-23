@@ -4,6 +4,7 @@ package reactor
 
 import (
 	"net/netip"
+	"strings"
 	"sync"
 	"testing"
 
@@ -85,4 +86,88 @@ func TestDynamicPeerSettingsRace(t *testing.T) {
 	wg.Wait()
 
 	require.Equal(t, uint32(65001), peer.PeerAS(), "PeerAS resolved from the OPEN")
+}
+
+// TestDynamicPeerSettingsFilterReadRacesTheReload proves resolveDynamicPeerSettings
+// reads the filter pair under p.mu.
+//
+// Goal: ImportFilters and ExportFilters are two of the three hot-swappable settings
+// fields, and applyHotSwappableSettings (peer_settings_apply.go) writes both from the
+// config-reload goroutine under p.mu. resolveDynamicPeerSettings read them with no
+// lock, on the establishment goroutine, which is a data race on a two-word slice
+// header: the reader can take the new pointer with the old length.
+//
+// Method: one goroutine re-resolves the dynamic peer, as each reconnection does, while
+// this one applies a reload. The verdict is the race detector, so the test is run by
+// `make ze-unit-reactor-test-race`. The closing assertions are the second half: a
+// resolved chain still comes out of the accessor, and every name is one the two writers
+// can actually produce, never a shape a torn header would leave.
+//
+// VALIDATES: the establishment read of ImportFilters/ExportFilters is serialized with
+// the reload write of the same fields.
+// PREVENTS: an unlocked read of a slice header the reload goroutine rewrites.
+func TestDynamicPeerSettingsFilterReadRacesTheReload(t *testing.T) {
+	settings := NewPeerSettings(netip.MustParseAddr("185.1.69.11"), 65000, 0, 0x01020304)
+	settings.IsDynamic = true
+	settings.ImportFilters = []filterapi.FilterRef{{Name: "in-$remote_as"}}
+	settings.ExportFilters = []filterapi.FilterRef{{Name: "out-$remote_as"}}
+
+	peer := NewPeer(settings)
+	session := NewSession(settings)
+	session.mu.Lock()
+	session.peerOpen = &message.Open{MyAS: 65001, BGPIdentifier: 0x0a0b0c0d}
+	session.mu.Unlock()
+
+	// Resolve once synchronously so the template is captured whatever order the two
+	// goroutines below are scheduled in. Without it the reload can land first and the
+	// capture would latch that chain instead, which is a different test.
+	peer.resolveDynamicPeerSettings(session)
+
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+
+	// Writer: each reconnection of a dynamic peer re-resolves the filter chains.
+	wg.Go(func() {
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			peer.resolveDynamicPeerSettings(session)
+		}
+	})
+
+	// The second writer: a config reload publishes a new filter pair onto the running
+	// peer, through the same path peerSettingsSwapPlan chose for it.
+	//
+	// 1000 rather than the 4000 the test above uses, because each iteration here reaches
+	// refreshForwardFactsIfLive and so reads the host interface table. This target runs at
+	// -count=20, so a syscall per iteration is paid 20 times over.
+	for i := range 1000 {
+		next := NewPeerSettings(settings.Address, 65000, 0, 0x01020304)
+		next.ImportFilters = []filterapi.FilterRef{{Name: "in-$remote_as"}, {Name: "reload-in"}}
+		next.ExportFilters = []filterapi.FilterRef{{Name: "out-$remote_as"}}
+		if i%2 == 0 {
+			next.ImportFilters = next.ImportFilters[:1]
+		}
+		peer.applyHotSwappableSettings(next, hotSwappableSettings)
+	}
+
+	close(stop)
+	wg.Wait()
+
+	require.Equal(t, uint32(65001), peer.PeerAS(), "PeerAS resolved from the OPEN")
+	for _, ref := range peer.ImportFilters() {
+		require.NotEmpty(t, ref.Name)
+		require.True(t,
+			ref.Name == "in-65001" || ref.Name == "in-$remote_as" || ref.Name == "reload-in",
+			"import filter name written by neither writer: %q", ref.Name)
+	}
+	for _, ref := range peer.ExportFilters() {
+		require.NotEmpty(t, ref.Name)
+		require.True(t,
+			ref.Name == "out-65001" || strings.Contains(ref.Name, "$remote_as"),
+			"export filter name written by neither writer: %q", ref.Name)
+	}
 }

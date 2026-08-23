@@ -405,20 +405,33 @@ func (p *Peer) resolveDynamicPeerSettings(session *Session) {
 		remoteAS = open.ASN4
 	}
 
-	// These reads and the dyn* template capture run on the establishment goroutine, the
-	// only writer of these fields, so they need no lock here. resolveDynamicPeerSettings
-	// is never called concurrently with itself for one peer (a peer has one session at a
-	// time). Compute the resolved filter slices before taking p.mu so resolveFilterVars
-	// (which allocates) runs outside the lock.
+	// Address and LocalAS are set at construction and never mutated, which is the contract
+	// on Peer.Settings (peer.go), so they are read without the lock.
 	remoteIP := p.settings.Address.String()
 	localAS := p.settings.LocalAS
 
+	// The filter pair is NOT in that population. ImportFilters and ExportFilters are two of
+	// the three hot-swappable fields, and applyHotSwappableSettings (peer_settings_apply.go)
+	// writes both from the config-reload goroutine, under p.mu, while this session runs. So
+	// both are read under p.mu here. The establishment goroutine is not their only writer,
+	// and a slice header is two words: an unlocked read can take the new pointer with the
+	// old length.
+	//
+	// The dyn* template capture below stays outside the lock. Those two fields are touched
+	// by this function alone, a peer has one session at a time, so resolveDynamicPeerSettings
+	// is never concurrent with itself. resolveFilterVars allocates and runs outside the lock
+	// for the same reason.
+	p.mu.RLock()
+	importFilters := p.settings.ImportFilters
+	exportFilters := p.settings.ExportFilters
+	p.mu.RUnlock()
+
 	// Resolve from the original unresolved templates (set on first call, preserved across reconnections).
-	if p.dynImportFilters == nil && len(p.settings.ImportFilters) > 0 {
-		p.dynImportFilters = p.settings.ImportFilters
+	if p.dynImportFilters == nil && len(importFilters) > 0 {
+		p.dynImportFilters = importFilters
 	}
-	if p.dynExportFilters == nil && len(p.settings.ExportFilters) > 0 {
-		p.dynExportFilters = p.settings.ExportFilters
+	if p.dynExportFilters == nil && len(exportFilters) > 0 {
+		p.dynExportFilters = exportFilters
 	}
 	var newImport, newExport []filterapi.FilterRef
 	if p.dynImportFilters != nil {
