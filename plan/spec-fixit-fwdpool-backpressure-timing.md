@@ -268,3 +268,185 @@ so `forward_pool.go` in the tree was never edited.
 | AC-1 | rewritten | unmodified | `make _ze-unit-pkg-test-impl PKG=./internal/component/bgp/reactor RUN='TestFwdPool\|TestForwardPool'` ok in 2.33s; the whole package ok in 155s |
 | AC-2 | rewritten | unmodified | race-built package binary, 250 iterations at `GOMAXPROCS=8` under 48 CPU burners on 32 cores: 0 failures, slowest iteration 5.09s wall. The pre-fix `require.Eventually` budget was 2s, so that slowest iteration is inside the window the old test failed in |
 | AC-5 | - | - | `plan/known-failures/` carries no shard for either test |
+
+---
+
+<!-- Closure sections. The three checklists below were absent from this spec and
+     were authored at closure, from the evidence each step produced. -->
+
+## Deliverables Checklist
+
+| Deliverable | Verification method | Evidence |
+|-------------|---------------------|----------|
+| Both waits in `TestFwdPool_BackpressureBehavior` read a condition | read the test at each wait site | `internal/component/bgp/reactor/forward_pool_test.go`, `TestFwdPool_BackpressureBehavior`. The park wait polls `w.pending.Load() == 1` against a full `w.ch`. The completion wait is `ok2 := <-dispatched` and carries no deadline |
+| Both waits in `TestForwardPoolBackpressurePropagation` read a condition | read the test at each wait site | same file, `TestForwardPoolBackpressurePropagation`. Same predicate, and `<-dispatched` for completion |
+| A failed assertion reports instead of hanging the package | force the assertion red and time the run | the rewritten tests red in 1.00s against a mutated `Dispatch`. The pre-fix tests under the same mutation printed `Condition satisfied` and then sat until the test timeout fired |
+| `forward_pool.go` is not modified | `git show --stat c08237575` | the commit carries no `forward_pool.go` path |
+
+## Security Review Checklist
+
+| Concern | Checked | Finding |
+|---------|---------|---------|
+| Untrusted input | the diff is test-only and every value is a literal the test builds | none |
+| Allocation from a caller-controlled size | the diff adds no `make` call | none |
+| Race or TOCTOU in the new predicate | the predicate reads `pool.workers` under `pool.mu` and reads `w.pending` through `atomic.Int32` | none. 860 race-instrumented executions reported no data race |
+| Shipped surface reached | `forward_pool.go` is unmodified, so no production path changes | none |
+
+## Documentation Update Checklist
+
+| Category | Update needed | Evidence |
+|----------|---------------|----------|
+| feature list, user guide, config syntax, CLI reference, API/RPC, plugin SDK, wire format, comparison table | No | the diff changes no user-visible behavior, and `forward_pool.go` is unmodified |
+| test infrastructure | No | no target, runner, or harness changed. `make ze-unit-reactor-test-race` is the same command it was |
+| architecture design | No | `grep -rn forward_pool docs/ ai/` returns 61 anchors. Every one names `forward_pool.go`, `forward_pool_barrier.go`, `forward_pool_congestion.go`, `forward_pool_weight*.go`, or `forward_pool_property_test.go`. None names `forward_pool_test.go`, and none of the anchored files is in the diff |
+| doctor checks | No | the diff adds no runtime dependency: no file path, socket, port, module, binary, or certificate |
+| RFC status | No | neither test carries an `RFC requirement:` tag, and the diff adds none. `scripts/dev/audit-test-relaxation.py c08237575~1` reports 13 RFC-tagged findings and names no reactor forward-pool file |
+| `docs/architecture/core-design.md`, the design document `forward_pool.go` declares in its `// Design:` header | No | `forward_pool.go` is not in the diff, so nothing that document describes changed. Its one anchor for this file, at `docs/architecture/core-design.md`, names `fwdBatchHandler` and `fwdWriteDeadlineDefault`, and neither symbol is touched |
+| `.claude/rules/design-principles.md`, the second document that header declares | No | same reason. The diff changes no zero-copy or copy-on-modify behavior, because it changes no production file |
+
+## Implementation Summary
+
+### What Was Implemented
+- `TestFwdPool_BackpressureBehavior` and `TestForwardPoolBackpressurePropagation` (`internal/component/bgp/reactor/forward_pool_test.go`) now prove the parked state instead of waiting out a clock. The park wait polls `len(w.ch) == cap(w.ch)` together with `w.pending.Load() == 1`, which `fwdPool.Dispatch` raises before its blocking send and lowers in both arms of the select after it. A non-blocking receive on `dispatched` follows, so the test also states that the parked dispatch has not returned.
+- The completion wait is a bare receive on the dispatch goroutine's own channel. It carries no deadline, and that is the step both pre-fix failures landed on.
+- `TestFwdPool_BackpressureBehavior` releases its handler from a `defer` registered after the `pool.Stop()` defer, guarded by `atomic.Bool.CompareAndSwap`. A failed assertion now reports in one second where it used to hang the package until the `go test` timeout.
+- `forward_pool.go` is unmodified. `fwdWorker.pending` already carried the condition, and `TestFwdPool_StopUnblocksDispatch` already read it that way.
+
+### Bugs Found/Fixed
+- The pre-fix `require.Never` passed with backpressure deleted. Measured at closure: a pre-fix binary with a 150ms delay before the fourth dispatch, run against a `Dispatch` whose blocking send was mutated into a dropping `default:` arm, PASSES in 0.15s. The rewritten test under the same mutation and the same delay FAILS in 1.00s. Covered by both rewritten tests.
+- The pre-fix test hung the whole package on any red. Reproduced at closure: the pre-fix binary under the mutation printed `Condition satisfied` at the `require.Never`, then sat in `defer pool.Stop()` until the 60s test timeout panicked with a goroutine dump. Covered by the deferred `release()`.
+
+### Documentation Updates
+- None. The grep in the Documentation Update Checklist above is the proof: no anchored doc claim names `forward_pool_test.go`, and no anchored file is in the diff.
+- `make ze-doc-verify` was not run, because no documentation file was edited.
+
+### Deviations from Plan
+- None against the implementation steps. A-2 and A-3 were both broken during design, and the spec records both with the producing function.
+- The commit that carries this work, `c08237575`, also carries two unrelated repairs: `test/plugin/as112-probe-anycast-not-loopback.ci` and two marker comments in `internal/component/cli/client/main.go`. That bundling costs this commit its single focus (`ai/rules/git-safety.md`, "Commit Granularity"). It is recorded, not rewritten: history is never rewritten to reclaim a boundary.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2 assumed the worker takes a batch, so channel occupancy after three dispatches is not deterministically two | `fwdPool.runWorker` calls `drainBatch` and only then `safeBatchHandle`, so the drain finishes before the handler signals `handlerStarted`, and it drains a channel the test has not written to yet. The fill is deterministic and step 1 of the test is sound | read `fwdPool.runWorker` (`internal/component/bgp/reactor/forward_pool.go`) | no test change followed. The spec records A-2 broken |
+| assumption | A-3 assumed the pool exposes no observable for the blocked state, so the fix would have to add one | `fwdWorker.pending` already carries it, `fwdPool.Dispatch` maintains it, and `TestFwdPool_StopUnblocksDispatch` already reads it | read the `fwdWorker` struct and `fwdPool.Dispatch` | `forward_pool.go` was left unmodified. R-3 does not apply: no new state and no new accessor |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The flaky test is fixed rather than quarantined | Done | `internal/component/bgp/reactor/forward_pool_test.go`, `TestFwdPool_BackpressureBehavior` | 4 failures in 43 pre-fix runs of `-count=20`, 0 in 43 post-fix runs under the same load |
+| The twin test carrying the same shape is fixed in the same pass | Done | same file, `TestForwardPoolBackpressurePropagation` | identical predicate and identical completion wait |
+| The backpressure claim survives unchanged | Done | same file, both tests | a mutation that deletes backpressure reds both tests. The pre-fix pair passes under it |
+| No `plan/known-failures/` shard | Done | `plan/known-failures/` | a grep for either test name over that directory returns nothing |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | both tests pass | a race-built package binary of the tree at HEAD ran both tests and exited 0 in 0.00s each |
+| AC-2 | Done | 43 invocations of `-test.count=20` under 32 CPU burners on 16 cores at `GOMAXPROCS=2` | 860 executions of each test, 0 failures. The AC asked for 200 iterations at `GOMAXPROCS=8`. The load run is harsher on both axes: 2x oversubscription against 1.5x, and a quarter of the parallelism |
+| AC-3 | Done | read both tests | the only durations left are `require.Eventually`'s 1s budget and 1ms tick, both carrying the comment that names the condition the loop waits on. The completion wait is a bare channel receive |
+| AC-4 | Done | a `default:` arm in `fwdPool.Dispatch`'s send select that drops the item | both rewritten tests FAIL in 1.00s. Both pre-fix tests PASS in 0.15s when the fourth dispatch is delayed 150ms. The mutation was applied through `go test -overlay`, so `forward_pool.go` in the tree was never edited |
+| AC-5 | Done | `plan/known-failures/` | no shard exists for either test |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestFwdPool_BackpressureBehavior` | Done | `internal/component/bgp/reactor/forward_pool_test.go` | rewritten, green under load, red under the mutation |
+| `TestForwardPoolBackpressurePropagation` | Done | same file | rewritten, green under load, red under the mutation |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/reactor/forward_pool_test.go` | Done | 107 lines changed in `c08237575` |
+| `internal/component/bgp/reactor/forward_pool.go` | Unchanged, as planned | `git show --stat c08237575` names no such path |
+
+### Audit Summary
+- **Total items:** 11
+- **Done:** 11
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The test stops failing under load | load run of a race-built binary | 43 invocations of `-test.count=20` under 32 CPU burners on 16 cores at `GOMAXPROCS=2`: pre-fix 4 failures, post-fix 0, over 860 executions each. Every pre-fix failure landed on the 2s `require.Eventually`, each at 2.10s to 2.17s, which is that budget expiring |
+| The test still discriminates | mutation run | `fwdPool.Dispatch`'s blocking send mutated into a dropping `default:` arm through `go test -overlay`. Rewritten tests FAIL in 1.00s. Mutation application verified by requiring exactly one occurrence of the inserted marker in the overlaid source and zero in the tree, and by the behavioral difference: the same test code passes in 0.00s against the unmodified `Dispatch` |
+| The rewrite is worth doing, not cosmetic | mutation run against the pre-fix code | the pre-fix pair PASSES in 0.15s with backpressure deleted when the fourth dispatch is delayed 150ms. That is the vacuity the rewrite removes |
+| A red reports instead of hanging | timed red | pre-fix under the mutation: `Condition satisfied`, then a hang to the 60s timeout. Rewritten under the mutation: FAIL in 1.00s |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| `TestFwdPool_BackpressureBehavior` fails under `make ze-unit-reactor-test-race` (row 7 of `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`) | done | fixed in `c08237575` and closed by this spec |
+
+The shard is NOT removed. Two rows in it are still live and homed elsewhere:
+the child-2 `.ci` substitution row and the child-3 AC-9 dead-code row, each
+pointing at its own spec.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-fwdpool-backpressure-timing-ebf5d9b3-b158-40df-bba0-32a51591883e.md`, recorded over `internal/component/bgp/reactor/forward_pool_test.go` |
+| `review_gate.py check` | clean. `review_gate: OK (0 code files, clean, hashes match)`. It reports zero code files because the code landed in `c08237575` and commit A carries only spec, deferral and journal text |
+| Rounds | 1 |
+| Reviewer lenses used | removed-behavior audit, logic and concurrency, simplicity and duplication, style pass over the changed Go, documentation drift, security and allocation |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | no BLOCKER and no ISSUE found | - | - |
+
+Three NOTEs were recorded and none blocks. The predicate takes `pool.mu.Lock()`
+where a read lock would do, and it matches the sibling test that already reads
+`pending` that way. The 13-line predicate is copied between the two tests rather
+than shared. The completion wait states why it carries no deadline but does not
+name what catches a genuine hang, which is the `go test` timeout.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/reactor/forward_pool_test.go` | Yes | `gopls symbols` on it lists `TestFwdPool_BackpressureBehavior` and `TestForwardPoolBackpressurePropagation` |
+| `internal/component/bgp/reactor/forward_pool.go` | Yes, unmodified | `gopls symbols` lists `(*fwdPool).Dispatch` and the `fwdWorker` struct with its `pending` field |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | both tests pass | race-built binary of HEAD, both tests, exit 0 |
+| AC-2 | no failure under CPU oversubscription | 43 invocations of `-test.count=20`, 32 burners on 16 cores, `GOMAXPROCS=2`: 0 failures in 860 executions |
+| AC-3 | no assertion rests on an elapsed duration | read both wait sites: `require.Eventually` over `pending` with a comment naming the condition, then a bare `<-dispatched` |
+| AC-4 | the mutation reds both tests | both FAIL in 1.00s. Marker count in the overlaid source is 1, in the tree 0 |
+| AC-5 | no known-failure shard | a grep over `plan/known-failures/` returns nothing for either test name |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| The reactor dispatches into a per-peer channel that is already full | none. This spec repairs a unit test and adds no user-facing behavior | Yes. `fwdPool.Dispatch` blocks on a full `w.ch` and both rewritten tests prove it. `make ze-unit-reactor-test-race` is the driving surface |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | the failure is in the test. Every pre-fix failure landed on the 2s completion budget, and the post-fix binary is clean over the same load with `forward_pool.go` unchanged |
+| A-2 | broken | `fwdPool.runWorker` drains before it hands the batch to the handler |
+| A-3 | broken | `fwdWorker.pending` already existed and `TestFwdPool_StopUnblocksDispatch` already read it |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| No doc names `forward_pool_test.go` | `grep -rn forward_pool docs/ ai/`: 61 hits, none naming that file | Yes |
+| No anchored file is in the diff | the diff touches one file, and no `<!-- source: -->` anchor names it | Yes |
+
+## Core Insight
+
+`require.Never` over "a goroutine has not finished yet" asserts nothing when the
+goroutine may not have started. It reports the same green for a parked
+dispatcher and for a dispatcher the scheduler has not run. The condition the
+test wanted was already in the product, on `fwdWorker.pending`, and reading it
+made the assertion both stronger and deadline-free.
