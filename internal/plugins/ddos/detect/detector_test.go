@@ -303,3 +303,140 @@ func TestDetectorNoEventWhenDisabled(t *testing.T) {
 		t.Error("should not emit AttackDetected when disabled")
 	}
 }
+
+// adaptTestConfig warms under the default 5000 pps absolute floor, so ordinary
+// traffic is quiet and any lasting level above the floor drives the detector
+// active. The BPS path is off, which isolates the packet-rate baseline.
+func adaptTestConfig() *Config {
+	cfg := DefaultConfig()
+	cfg.Enabled = true
+	cfg.ConfirmDuration = 1
+	cfg.ClearConsecutive = 2
+	cfg.StartupGrace = 0
+	cfg.BpsTriggerEnable = false
+	return cfg
+}
+
+// warmAtNormalLoad runs one full window of ordinary traffic, so the packet-rate
+// baseline is full and its p99 settles at normalPps. It waits for the periodic
+// save the last tick spawns, so the caller can read the baseline off the lock.
+func warmAtNormalLoad(d *detector, cfg *Config, normalPps float64) {
+	for range cfg.BaselineWindow {
+		d.onRates([]trafficstat.InterfaceEntry{{Name: "xe0", RxPps: normalPps}})
+	}
+	d.wg.Wait()
+}
+
+// VALIDATES: a permanent step change in offered load raises the baseline, so the
+// detector leaves the attack state instead of latching in it.
+// PREVENTS: (*baseline).Add refusing every above-threshold sample with no way
+// back. A new customer, a migrated service, or any lasting traffic shift held p99
+// down, kept the threshold under the new level, and left the detector active for
+// good against traffic that is not an attack.
+func TestDetectorAdaptsToASustainedLoadIncrease(t *testing.T) {
+	cfg := adaptTestConfig()
+	d := newDetector(cfg, newDTestBus(), nil)
+	warmAtNormalLoad(d, cfg, 1000)
+
+	before := d.baseline.Threshold()
+	step := []trafficstat.InterfaceEntry{{Name: "xe0", RxPps: 20000}}
+	d.onRates(step)
+	if d.sm.State() != stateActive {
+		t.Fatalf("state on the step change: got %v, want active (threshold %v)", d.sm.State(), before)
+	}
+
+	// The window p99 needs 4 admitted samples to follow the new level, and recalc
+	// runs on every 10th admitted sample, so 13 admissions is the worst case. The
+	// state machine then needs its clear-consecutive ticks to leave the attack.
+	bound := 13*slowAdaptSamples + cfg.ClearConsecutive + 1
+	adaptedAt := 0
+	for tick := 2; tick <= bound; tick++ {
+		d.onRates(step)
+		if d.sm.State() == stateIdle {
+			adaptedAt = tick
+			break
+		}
+	}
+	d.wg.Wait()
+
+	if adaptedAt == 0 {
+		t.Fatalf("detector never left the attack state over %d ticks at a sustained 20000 pps: threshold %v, was %v",
+			bound, d.baseline.Threshold(), before)
+	}
+	if d.baseline.Threshold() <= 20000 {
+		t.Errorf("threshold after the adapt: got %v, want above the sustained 20000 pps", d.baseline.Threshold())
+	}
+	t.Logf("baseline followed a sustained 20000 pps after %d ticks: threshold %v -> %v", adaptedAt, before, d.baseline.Threshold())
+}
+
+// VALIDATES: a sustained ATTACK leaves the threshold where it was, so a flood
+// cannot use the slow-adapt path to raise the bar that detects it.
+// PREVENTS: repairing the latch by simply admitting above-threshold samples. That
+// passes the adapt test above and lets an attack train its own baseline within
+// one recalc cadence.
+func TestDetectorHoldsTheThresholdThroughASustainedAttack(t *testing.T) {
+	cfg := adaptTestConfig()
+	d := newDetector(cfg, newDTestBus(), nil)
+	warmAtNormalLoad(d, cfg, 1000)
+
+	before := d.baseline.Threshold()
+	// Two hours of unbroken flood at the default 1-second check-interval. That is
+	// two slow-adapt admissions, and the window p99 needs four to move.
+	attack := []trafficstat.InterfaceEntry{{Name: "xe0", RxPps: 500000}}
+	for range 2 * slowAdaptSamples {
+		d.onRates(attack)
+	}
+	d.wg.Wait()
+
+	if got := d.baseline.Threshold(); got != before {
+		t.Errorf("threshold after a sustained attack: got %v, want %v unchanged", got, before)
+	}
+	if d.sm.State() != stateActive {
+		t.Errorf("state during a sustained attack: got %v, want active", d.sm.State())
+	}
+}
+
+// VALIDATES: an armed bandwidth trigger fires inside the startup-grace window, so
+// an amplification flood is detected on a restart that restored a warm BPS
+// baseline.
+// PREVENTS: applyTick computing bpsAbove AFTER the grace return. Grace discarded
+// every tick whose packet rate was below AbsoluteFloor*5, which is exactly the
+// low-PPS shape amplification has, so a restored and Ready BPS baseline was
+// ignored for the whole grace window.
+func TestApplyTick_BpsTriggerFiresDuringStartupGrace(t *testing.T) {
+	useBaselineStore(t)
+	cfg := bpsTestConfig()
+	cfg.StartupGrace = 90 // the default: the whole test runs inside the grace window
+
+	// The restart: a persisted bandwidth baseline at 10000 B/s restores Ready at
+	// tick 1, so its threshold is ~30000 B/s before grace has expired.
+	pps := baselineState{Samples: makeSamples(cfg.BaselineWindow, 50), Count: cfg.BaselineWindow, P99Cache: 50}
+	bps := baselineState{Samples: makeSamples(cfg.BaselineWindow, 10000), Count: cfg.BaselineWindow, P99Cache: 10000}
+	if err := saveBaselines(pps, bps); err != nil {
+		t.Fatal(err)
+	}
+
+	bus := newDTestBus()
+	d := newDetector(cfg, bus, nil)
+	d.restore()
+	if !d.baselineBps.Ready() {
+		t.Fatal("restored BPS baseline is not Ready")
+	}
+
+	var detected *ddosevent.AttackDetected
+	ddosevent.Detected.Subscribe(bus, func(e *ddosevent.AttackDetected) { detected = e })
+
+	// Amplification: 50 pps, far below AbsoluteFloor*5, so the packet-rate escape
+	// from grace stays shut; 500000 B/s (4 Mbps), above the restored BPS threshold.
+	for range 3 {
+		d.onRates([]trafficstat.InterfaceEntry{{Name: "xe0", RxPps: 50, RxBps: 500000}})
+	}
+	d.wg.Wait()
+
+	if detected == nil {
+		t.Fatal("BPS trigger did not fire inside the startup-grace window")
+	}
+	if d.tickNum > cfg.StartupGrace {
+		t.Fatalf("test ran past the grace window: tickNum %d, startup-grace %d", d.tickNum, cfg.StartupGrace)
+	}
+}

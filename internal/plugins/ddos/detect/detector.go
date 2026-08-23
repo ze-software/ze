@@ -290,16 +290,6 @@ func (d *detector) tickInfos(infos []iface.InterfaceInfo) pendingEmits {
 // lock is released: nothing is emitted here, because a fan-out under d.mu parks
 // the detector behind the responders' kernel reconcile (see the emitMu field doc).
 func (d *detector) applyTick(maxPps, maxBps float64, maxPpsIface, maxBpsIface string) pendingEmits {
-	if d.tickNum <= d.cfg.StartupGrace {
-		if maxPps < d.cfg.AbsoluteFloor*5 {
-			// Drain like every other exit: returning the zero value here would
-			// strand an event a previous tick staged. Inert today (nothing stages
-			// across ticks), and the exit that breaks the discipline is the one a
-			// later staging site will forget about.
-			return d.drainPending()
-		}
-	}
-
 	threshold := d.baseline.Threshold()
 	ppsAbove := maxPps > threshold
 
@@ -308,10 +298,32 @@ func (d *detector) applyTick(maxPps, maxBps float64, maxPpsIface, maxBpsIface st
 	// fires during warm-up (bandwidth is more FP-prone than packet rate). bps-floor is
 	// configured in bits/sec; the BPS baseline floor is bytes/sec (RxBps is bytes/sec),
 	// so newDetector already divided it by 8.
+	//
+	// Computed BEFORE the startup grace below, because grace consults it.
 	bpsAbove := false
 	if d.cfg.BpsTriggerEnable && d.baselineBps.Ready() {
 		bpsAbove = maxBps > d.baselineBps.Threshold()
 	}
+
+	// Startup grace discards the opening ticks so a cold PPS baseline cannot fire
+	// on its own warm-up. Two facts escape it, and each one is evidence a cold
+	// baseline did not produce: a packet rate well clear of the absolute floor, and
+	// a bandwidth trigger that is armed and firing. The bandwidth half matters most
+	// after a restart, where restore can leave the BPS baseline Ready at tick 1
+	// while grace still runs. Amplification is the one attack shape that is low PPS
+	// and high bandwidth, so the packet-rate escape alone is blind to exactly the
+	// class the BPS trigger exists to catch.
+	if d.tickNum <= d.cfg.StartupGrace {
+		ppsQuiet := maxPps < d.cfg.AbsoluteFloor*5
+		if ppsQuiet && !bpsAbove {
+			// Drain like every other exit: returning the zero value here would
+			// strand an event a previous tick staged. Inert today (nothing stages
+			// across ticks), and the exit that breaks the discipline is the one a
+			// later staging site will forget about.
+			return d.drainPending()
+		}
+	}
+
 	above := ppsAbove || bpsAbove
 	// Attribute a new detection to the bandwidth path only when the packet-rate path
 	// would not have fired on its own (drives ze_ddos_detect_bps_trigger_total).

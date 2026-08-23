@@ -49,6 +49,12 @@ that should trigger: the spike raises p99 and the comparison then finds nothing
 above it. Ze checks the threshold first, and `baseline.Add` excludes samples taken
 while the interface is above the threshold or already attacking.
 
+The exclusion admits one sample per `slowAdaptSamples` consecutive above-threshold
+samples, and any sample below the threshold restarts that run. Without a way back
+the guard latches on a permanent rise in offered load, which is not an attack and
+never ends. The damping factor is the whole separation between the two cases, so
+`baseline.go` states the timescale it implies.
+
 This was implemented in the wrong order once, and the symptom was a detector that
 never triggered.
 

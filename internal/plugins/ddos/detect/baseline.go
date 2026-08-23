@@ -14,6 +14,10 @@ type baseline struct {
 	samples    []float64
 	count      int
 	p99Cache   float64
+	// attackRun counts the consecutive samples marked attacking. It drives the
+	// slow-adapt admission in admit, and it is transient: a restart starts the
+	// adapt clock again rather than resuming a run.
+	attackRun int
 }
 
 func newBaseline(window int, multiplier, floor float64) *baseline {
@@ -25,8 +29,30 @@ func newBaseline(window int, multiplier, floor float64) *baseline {
 	}
 }
 
+// slowAdaptSamples is how many CONSECUTIVE attacking samples the baseline
+// refuses before it admits one. It is the only thing that separates an attack
+// from a permanent rise in offered load. One sample cannot tell the two apart,
+// and how long the level lasts can.
+//
+// Refusing every attacking sample is what stops an attack from raising the
+// threshold that detects it. With no way back it also latches: a new customer, a
+// migrated service, or any lasting traffic shift then holds the detector active
+// for good against traffic that is not an attack.
+//
+// The count is in samples, so wall-clock time scales with check-interval. At the
+// default 1 second, one sample is admitted per hour of unbroken above-threshold
+// traffic. The p99 of a 300-sample window is its 4th largest sample, so a
+// sustained new level moves the threshold after 4 to 13 admissions, which is 4 to
+// 13 hours. The spread is the every-10th-sample recalc cadence below. An attack
+// shorter than that leaves the threshold where it was.
+const slowAdaptSamples = 3600
+
+// Add offers one sample to the rolling window. attacking marks a sample the
+// detector does not trust as normal traffic: it is above the threshold, or the
+// state machine is in an attack state. Such a sample is refused, apart from the
+// one in slowAdaptSamples that admit lets through.
 func (b *baseline) Add(pps float64, attacking bool) {
-	if attacking {
+	if !b.admit(attacking) {
 		return
 	}
 	if len(b.samples) < b.window {
@@ -39,6 +65,23 @@ func (b *baseline) Add(pps float64, attacking bool) {
 	if b.count%10 == 0 {
 		b.recalc()
 	}
+}
+
+// admit reports whether this sample enters the window. A sample that is not
+// marked attacking always enters, and it ends the current run, so a condition
+// that flaps never accumulates towards the slow adapt. An attacking sample
+// enters when its run reaches slowAdaptSamples, and the run then starts again.
+func (b *baseline) admit(attacking bool) bool {
+	if !attacking {
+		b.attackRun = 0
+		return true
+	}
+	b.attackRun++
+	if b.attackRun < slowAdaptSamples {
+		return false
+	}
+	b.attackRun = 0
+	return true
 }
 
 func (b *baseline) recalc() {
