@@ -52,72 +52,22 @@ func cmdDump(args []string) int {
 
 	configPath := fs.Arg(0)
 
-	data, err := cliio.ReadFile(configPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading config: %v\n", err)
-		return 1
+	res, code := resolveDump(configPath, *stripPrivate)
+	if code != 0 {
+		return code
 	}
-
-	schema, err := config.YANGSchema()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return 1
-	}
-	p := config.NewParser(schema)
-	tree, err := p.Parse(string(data))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing config: %v\n", err)
-		return 1
-	}
-
-	if warnings := p.Warnings(); len(warnings) > 0 {
-		fmt.Fprintf(os.Stderr, "Warnings:\n")
-		for _, w := range warnings {
-			fmt.Fprintf(os.Stderr, "  %s\n", w)
-		}
-		fmt.Fprintln(os.Stderr)
-	}
-
-	// Resolve the bgp{} section through the always-on seam. On a binary built
-	// without the BGP engine (//go:build ze_bgp) a config with no bgp{} block
-	// resolves to an empty tree and the dump proceeds from the parsed tree
-	// alone; one WITH a bgp{} block is an error rather than a silently
-	// BGP-less dump (the seam fails closed).
-	bgpTree, err := infra.ResolveBGPTree(tree)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error resolving config: %v\n", err)
-		return 1
-	}
-
-	mode := config.DisplayEncode
-	if *stripPrivate {
-		mode = config.DisplayStrip
-	}
-	sensitiveKeys := config.SensitiveKeys(schema)
-
-	// Mask ze:bcrypt leaves with the placeholder BEFORE dumping. Bcrypt is
-	// one-way, so it is always the strip placeholder, never $9$ (reversible; the
-	// parser also refuses $9$ on a bcrypt leaf). MaskBcrypt clones, so the on-disk
-	// config is untouched. The sensitive/$9$ masking below skips a value that is
-	// already the placeholder, so a bcrypt leaf whose name also happens to be
-	// ze:sensitive in another module is not re-encoded as $9$.
-	tree = config.MaskBcrypt(tree, schema)
 
 	if *jsonOutput {
-		// Build full dump with resolved BGP section.
-		dumpMap := tree.ToMap()
-		dumpMap["bgp"] = bgpTree
-		maskMapValues(dumpMap, sensitiveKeys, mode)
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		if err := enc.Encode(dumpMap); err != nil {
+		if err := enc.Encode(res.dumpMap); err != nil {
 			fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
 			return 1
 		}
 		return 0
 	}
 
-	printConfig(bgpTree, tree, sensitiveKeys, mode)
+	printConfig(res.bgpTree, res.tree, res.sensitiveKeys, res.mode)
 	return 0
 }
 
@@ -217,4 +167,86 @@ func printTreeMap(m map[string]any, indent string, sensitiveKeys map[string]bool
 			fmt.Printf("%s%s: %s\n", indent, k, display)
 		}
 	}
+}
+
+// dumpResult is everything cmdDump's two output paths need from one parse: the
+// resolved map the JSON and data paths answer with, and the pieces printConfig
+// renders for a reader.
+type dumpResult struct {
+	dumpMap       map[string]any
+	bgpTree       map[string]any
+	tree          *config.Tree
+	sensitiveKeys map[string]bool
+	mode          config.DisplayMode
+}
+
+// resolveDump parses a config file and answers the fully resolved tree, with
+// sensitive values masked, exactly as `--json` emits it.
+//
+// It is the payload half of cmdDump, lifted so `show config dump` can answer
+// with DATA and the two spellings cannot drift. Everything above the return is
+// what cmdDump did before the split, unchanged.
+func resolveDump(configPath string, stripPrivate bool) (dumpResult, int) {
+
+	data, err := cliio.ReadFile(configPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading config: %v\n", err)
+		return dumpResult{}, 1
+	}
+
+	schema, err := config.YANGSchema()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return dumpResult{}, 1
+	}
+	p := config.NewParser(schema)
+	tree, err := p.Parse(string(data))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing config: %v\n", err)
+		return dumpResult{}, 1
+	}
+
+	if warnings := p.Warnings(); len(warnings) > 0 {
+		fmt.Fprintf(os.Stderr, "Warnings:\n")
+		for _, w := range warnings {
+			fmt.Fprintf(os.Stderr, "  %s\n", w)
+		}
+		fmt.Fprintln(os.Stderr)
+	}
+
+	// Resolve the bgp{} section through the always-on seam. On a binary built
+	// without the BGP engine (//go:build ze_bgp) a config with no bgp{} block
+	// resolves to an empty tree and the dump proceeds from the parsed tree
+	// alone; one WITH a bgp{} block is an error rather than a silently
+	// BGP-less dump (the seam fails closed).
+	bgpTree, err := infra.ResolveBGPTree(tree)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error resolving config: %v\n", err)
+		return dumpResult{}, 1
+	}
+
+	mode := config.DisplayEncode
+	if stripPrivate {
+		mode = config.DisplayStrip
+	}
+	sensitiveKeys := config.SensitiveKeys(schema)
+
+	// Mask ze:bcrypt leaves with the placeholder BEFORE dumping. Bcrypt is
+	// one-way, so it is always the strip placeholder, never $9$ (reversible; the
+	// parser also refuses $9$ on a bcrypt leaf). MaskBcrypt clones, so the on-disk
+	// config is untouched. The sensitive/$9$ masking below skips a value that is
+	// already the placeholder, so a bcrypt leaf whose name also happens to be
+	// ze:sensitive in another module is not re-encoded as $9$.
+	tree = config.MaskBcrypt(tree, schema)
+
+	dumpMap := tree.ToMap()
+	dumpMap["bgp"] = bgpTree
+	maskMapValues(dumpMap, sensitiveKeys, mode)
+	return dumpResult{
+		dumpMap:       dumpMap,
+		bgpTree:       bgpTree,
+		tree:          tree,
+		sensitiveKeys: sensitiveKeys,
+		mode:          mode,
+	}, 0
 }

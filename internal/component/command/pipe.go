@@ -560,11 +560,14 @@ func ValidatePipes(ops []pipeOp) string {
 // validatePipesForSurface is ValidatePipes plus the rule that depends on WHICH
 // process expands the chain: `| save` writes a file, so it is refused when the
 // daemon is expanding the chain for a remote caller.
-func validatePipesForSurface(ops []pipeOp, saveAllowed bool) string {
+func validatePipesForSurface(command string, ops []pipeOp, saveAllowed bool) string {
 	if msg := ValidatePipes(ops); msg != "" {
 		return msg
 	}
-	return validateSaveOps(ops, saveAllowed)
+	if msg := validateSaveOps(ops, saveAllowed); msg != "" {
+		return msg
+	}
+	return validateDeclaredShape(command, ops)
 }
 
 // validateDisplayNarrowing refuses a chain whose `| display` requests have no
@@ -586,6 +589,70 @@ func validateDisplayNarrowing(ops []pipeOp) string {
 	var tb textbuf.Buffer
 	return tb.Str("display selects no field: each display narrows the one before it, ").
 		Str("and these name nothing in common").String()
+}
+
+// validateDeclaredShape refuses an operator the command's DECLARED shape cannot
+// support, before the command runs.
+//
+// The answer's own shape refuses too, at apply time, and that covers every
+// command including the ones that declare nothing. This exists for the case the
+// answer cannot decide: `show config dump` answers a nested configuration tree,
+// and a tree whose one top-level key holds a map of maps is indistinguishable
+// from rows keyed by identity. The command knows it is one document; the
+// payload does not say so.
+//
+// It is also what makes the published surface true. `ze help command --json`
+// lists a declared command's operators FROM this shape, so without the refusal
+// the catalog would promise nine operators and the runtime would accept
+// fifteen.
+func validateDeclaredShape(command string, ops []pipeOp) string {
+	shape, declared := ShapeForCommand(command)
+	if !declared {
+		return ""
+	}
+	addressFields := len(AddressFieldsForCommand(command)) > 0
+
+	for _, op := range ops {
+		entry, known := lookupPipeOperatorByKind(op.kind)
+		if !known {
+			continue
+		}
+		if entry.NeedsAddressField && !addressFields {
+			var tb textbuf.Buffer
+			return tb.Str(entry.Name).Str(" cannot apply here: no field of this ").
+				Str("command's answer is declared to hold an IP address").String()
+		}
+		if entry.Applies(shape) {
+			continue
+		}
+		// The command is not named: parsePipeChain answers the command WITH its
+		// arguments, so naming it here would echo a file path back at an
+		// operator who just typed it.
+		var tb textbuf.Buffer
+		return tb.Str(entry.Name).Str(" cannot apply here: this command answers ").
+			Str(shapeDescription(shape)).Str(", and ").Str(entry.Name).
+			Str(" acts on rows").String()
+	}
+	return ""
+}
+
+// shapeDescription says what a shape holds, in the words a refusal reads best
+// with.
+func shapeDescription(shape AnswerShape) string {
+	if shape == ShapeDoc {
+		return "one document"
+	}
+	return "rows"
+}
+
+// lookupPipeOperatorByKind answers the catalog entry for a parsed operator.
+func lookupPipeOperatorByKind(kind pipeKind) (PipeOperator, bool) {
+	for _, op := range pipeCatalog {
+		if op.Kind == kind {
+			return op, true
+		}
+	}
+	return PipeOperator{}, false
 }
 
 // validateRepeats refuses a second occurrence of an operator whose catalog
@@ -1138,7 +1205,7 @@ func processPipesDefaultFormat(input, sessionFormat string, saveAllowed bool) (c
 	command, ops := parsePipeChain(input)
 	columns := ColumnsForCommand(command)
 	command, ops, meta := foldFilters(command, ops)
-	if msg := validatePipesForSurface(ops, saveAllowed); msg != "" {
+	if msg := validatePipesForSurface(command, ops, saveAllowed); msg != "" {
 		return command, nil, msg
 	}
 

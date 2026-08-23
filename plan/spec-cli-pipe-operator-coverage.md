@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | cli |
 | Depends | `plan/audit-pipe-operator-coverage.md`, `plan/audit-presentation-pipes.md`, `plan/audit-command-pipe-vs-subcommand.md` |
-| Phase | 4 of 6 (phases 1, 2, 3, 5, 6 done; 4 mechanism done, four families outstanding) |
+| Phase | 6 of 6 (all phases implemented 2026-08-23) |
 | Deferral shard | `plan/deferrals/cli-pipe-operator-coverage.md` |
 | Handoff | - |
 | Updated | 2026-08-23 |
@@ -549,9 +549,9 @@ with nothing listening.
 - `show env list`, `show env get` and `show env registered` are converted, with
   a declared shape and column order.
 
-**Still owed for AC-10:** the config CLI family. The six commands were read and
-they do NOT all want converting, so the work is smaller than six and the reading
-is recorded here rather than left to be redone.
+**AC-10 is met.** The config family landed on 2026-08-23 and it was the last.
+Three of its six converted and three deliberately did not; the reading that
+decided which is below, kept because it is the answer rather than a plan.
 
 | Command | Answer today | Disposition |
 |---------|--------------|-------------|
@@ -565,12 +565,25 @@ is recorded here rather than left to be redone.
 So three convert, three do not, and one of the three that do not is a real
 feature request in disguise.
 
-**Why this spec stops here rather than finishing them.** The config family is
-the most load-bearing of the five and the only one where a wrong payload
-reaches an operator's running configuration rather than an introspection
-command. The other four were converted by lifting a payload that already
-existed; these need one written. That is a different kind of work and it
-belongs at the start of a session rather than the end of one.
+**How the config family went, since it was the one flagged as riskiest.**
+`show config dump` reuses the map `--json` already emitted: `resolveDump` is
+that path lifted into a function both spellings call, so they cannot disagree.
+`history` and `ls` needed payloads written, and both turned a printed prefix
+into a FIELD: `[data] <key>` became `{source, path}`, and the `draft` line
+printed above the revisions became a row like any other, so a row operator can
+reach it.
+
+**It also exposed the last gap between the published surface and the runtime,
+which this spec then closed.** `show config dump` answers a nested
+configuration tree, and a tree whose one top-level key holds a map of maps is
+indistinguishable from rows keyed by identity. So the ANSWER said rows,
+`| first 1` was accepted, and it returned a fragment of the config, while
+`ze help command --json` published nine operators for it from the DECLARED
+shape. `validateDeclaredShape` refuses an operator the declared shape cannot
+support before the command runs, which is what AC-3 asked for and what makes the
+catalog true rather than aspirational. An undeclared command is still left to
+its answer, so the refusal stays universal rather than becoming a property of
+the commands somebody annotated.
 
 Converted: env (3), schema (5), storage `ls` and `registered` (2), yang `tree`
 and `completion` (2). Twelve of twenty.

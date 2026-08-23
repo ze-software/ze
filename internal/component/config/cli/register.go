@@ -17,6 +17,7 @@ import (
 	"os"
 	"sort"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -76,9 +77,13 @@ func init() {
 	})
 
 	// Non-storage shortcuts: read the candidate/running config without the blob.
-	registry.MustRegisterLocalMeta("show config dump", func(args []string) int {
-		return Run(append([]string{"dump"}, args...))
-	}, registry.Meta{Description: "Show the fully resolved config tree as JSON. What you see is exactly what the daemon uses."})
+	// dump answers with DATA: one nested document, the same map `--json`
+	// emits. It printed and returned an exit code before, which is why
+	// `ze cli -c "show config dump x.conf | json"` answered `unknown command`.
+	registry.MustRegisterLocalData("show config dump", dataDump, registry.Meta{
+		Description: "Show the fully resolved config tree as JSON. What you see is exactly what the daemon uses.",
+		Mode:        "offline",
+	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalMeta("show config diff", func(args []string) int {
 		return Run(append([]string{"diff"}, args...))
 	}, registry.Meta{Description: "Show what changed between the running and candidate configurations."})
@@ -93,10 +98,22 @@ func init() {
 	}, registry.Meta{Description: "Show how components and peers depend on each other (DOT graph format)."})
 
 	// Storage-backed shortcuts: resolve the blob store lazily at dispatch.
-	registry.MustRegisterLocalMeta("show config history", storageShortcut("history"),
-		registry.Meta{Description: "List config snapshots with timestamps and commit messages."})
-	registry.MustRegisterLocalMeta("show config ls", storageShortcut("ls"),
-		registry.Meta{Description: "List all config snapshots stored in the blob store."})
+	registry.MustRegisterLocalData("show config history", dataHistory, registry.Meta{
+		Description: "List config snapshots with timestamps and commit messages.",
+		Mode:        "offline",
+	}, command.RenderLocalAnswer)
+	registry.MustRegisterLocalData("show config ls", dataLs, registry.Meta{
+		Description: "List all config snapshots stored in the blob store.",
+		Mode:        "offline",
+	}, command.RenderLocalAnswer)
+
+	// dump is ONE document, so the row operators are refused over it by name.
+	// history and ls answer rows.
+	command.RegisterShape([]string{"show config dump"}, command.ShapeDoc)
+	command.RegisterShape([]string{"show config history", "show config ls"}, command.ShapeTab)
+	command.RegisterColumns([]string{"show config history"},
+		command.ColumnOrder{"revision", "timestamp", "path", "state"})
+	command.RegisterColumns([]string{"show config ls"}, command.ColumnOrder{"source", "path"})
 	registry.MustRegisterLocalMeta("show config cat", storageShortcut("cat"),
 		registry.Meta{Description: "Print the full configuration text for a stored snapshot."})
 }

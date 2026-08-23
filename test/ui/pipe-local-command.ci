@@ -93,6 +93,28 @@ code, out, err = run(['ze', 'cli', '-c', 'show schema list | count'])
 require(code == 0, 'schema list count exit=%d: %s%s' % (code, out, err))
 require(count_of(out) > 0, 'schema list counted nothing: %r' % out)
 
+# 8. The config family, and the case only a DECLARED shape can decide.
+#    `show config dump` answers a nested configuration tree. A tree whose one
+#    top-level key holds a map of maps is indistinguishable from rows keyed by
+#    identity, so the answer alone says "rows" and `| first 1` returned a
+#    fragment of the config. The command declares `doc`, and the chain is
+#    refused before it runs.
+conf = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'ze-pipe-local-dump.conf')
+with open(conf, 'w') as fh:
+    fh.write('bgp {\n\tpeer p1 {\n\t\tconnection {\n\t\t\tremote {\n\t\t\t\tip 10.0.0.1\n'
+             '\t\t\t}\n\t\t}\n\t\tsession {\n\t\t\tasn {\n\t\t\t\tlocal 65000\n'
+             '\t\t\t\tremote 65001\n\t\t\t}\n\t\t}\n\t}\n}\n')
+
+code, out, err = run(['ze', 'cli', '-c', 'show config dump %s | json compact' % conf])
+require(code == 0, 'config dump exit=%d: %s%s' % (code, out, err))
+require('10.0.0.1' in out, 'config dump lost its payload: %r' % out[:200])
+
+code, out, err = run(['ze', 'cli', '-c', 'show config dump %s | first 1' % conf])
+require(code == 1, 'a row operator over a declared document exit=%d, want 1: %s%s' % (code, out, err))
+combined = out + err
+require('one document' in combined, 'the refusal does not say why: %r' % combined)
+require(conf not in combined, 'the refusal echoes the file path back: %r' % combined)
+
 print('OK')
 EOF_PY
 

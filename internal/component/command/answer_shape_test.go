@@ -2,6 +2,7 @@ package command
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -157,5 +158,78 @@ func TestEmptyAnswerHasZeroRowsRatherThanNone(t *testing.T) {
 	// none of it is rows.
 	if _, _, ok := rowsIn(decode(t, `{"version":"ze dev"}`)); ok {
 		t.Error("a single-value answer reports rows")
+	}
+}
+
+// TestDeclaredShapeRefusesBeforeTheCommandRuns covers the case the ANSWER
+// cannot decide.
+//
+// `show config dump` answers a nested configuration tree. A tree whose one
+// top-level key holds a map of maps is indistinguishable from rows keyed by
+// identity, so the answer's own shape says "rows" and `| first 1` was accepted
+// and answered a fragment of the config. The command knows it holds one
+// document; the payload does not say so.
+//
+// It is also what keeps the published catalog true: `ze help command --json`
+// lists a declared command's operators FROM its shape, so without this the
+// catalog promised nine operators while the runtime accepted fifteen.
+//
+// VALIDATES: an operator the declared shape cannot support is refused BEFORE
+// the command runs.
+// PREVENTS: the published surface and the runtime disagreeing, which is the
+// defect this whole spec exists to end.
+func TestDeclaredShapeRefusesBeforeTheCommandRuns(t *testing.T) {
+	ResetShapesForTest()
+	t.Cleanup(ResetShapesForTest)
+	RegisterShape([]string{"show doc thing"}, ShapeDoc)
+	RegisterShape([]string{"show row thing"}, ShapeTab)
+
+	rowOps := []pipeOp{{kind: pipeFirst, arg: "1"}}
+
+	msg := validateDeclaredShape("show doc thing /some/file.conf", rowOps)
+	if msg == "" {
+		t.Fatal("a row operator over a declared doc was accepted")
+	}
+	if !strings.HasPrefix(msg, "first ") {
+		t.Errorf("refusal %q does not name the operator", msg)
+	}
+	if !strings.Contains(msg, "one document") {
+		t.Errorf("refusal %q does not say why", msg)
+	}
+	// The command is resolved by longest prefix, so an argument must not stop
+	// the refusal; and it must not be echoed back either, because it is a path
+	// the operator just typed.
+	if strings.Contains(msg, "/some/file.conf") {
+		t.Errorf("refusal echoes the command's argument: %q", msg)
+	}
+
+	if msg := validateDeclaredShape("show row thing", rowOps); msg != "" {
+		t.Errorf("a row operator over a declared tab was refused: %s", msg)
+	}
+	// An undeclared command is left to its answer, which is what makes the
+	// refusal universal rather than a property of annotated commands.
+	if msg := validateDeclaredShape("show undeclared thing", rowOps); msg != "" {
+		t.Errorf("an undeclared command was refused before running: %s", msg)
+	}
+}
+
+// TestDeclaredShapeRefusesTheAddressOperators keeps `| resolve` and `| origin`
+// off a command that declares no address field, which is what stops them
+// decorating a value that happens to parse as an address.
+func TestDeclaredShapeRefusesTheAddressOperators(t *testing.T) {
+	ResetShapesForTest()
+	ResetAddressFieldsForTest()
+	t.Cleanup(ResetShapesForTest)
+	t.Cleanup(ResetAddressFieldsForTest)
+	RegisterShape([]string{"show rows nofields"}, ShapeTab)
+	RegisterShape([]string{"show rows withfields"}, ShapeTab)
+	RegisterAddressFields([]string{"show rows withfields"}, "address")
+
+	ops := []pipeOp{{kind: pipeOrigin}}
+	if msg := validateDeclaredShape("show rows nofields", ops); msg == "" {
+		t.Error("origin was accepted on a command declaring no address field")
+	}
+	if msg := validateDeclaredShape("show rows withfields", ops); msg != "" {
+		t.Errorf("origin was refused on a command that declares one: %s", msg)
 	}
 }
