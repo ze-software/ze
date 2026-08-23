@@ -107,6 +107,17 @@ func (b *recordingBackend) last() ([]firewall.Table, bool) {
 	return b.applied[len(b.applied)-1], true
 }
 
+// setsByName indexes an applied table's sets so a test can assert on one by
+// name. The order the plugin emits them in is not the point. What matters is
+// which sets are declared, and whether the right one carries elements.
+func setsByName(tbl firewall.Table) map[string]firewall.Set {
+	byName := make(map[string]firewall.Set, len(tbl.Sets))
+	for _, s := range tbl.Sets {
+		byName[s.Name] = s
+	}
+	return byName
+}
+
 // useRecordingBackend makes this test's applies land in memory instead of the
 // kernel. The backend name is the test's own, because a registration is global
 // and refusing a duplicate is how the registry protects it.
@@ -202,8 +213,19 @@ func TestRefreshNameProgramsWhatItLearned(t *testing.T) {
 	if len(applied) != 1 || applied[0].Name != "ze_wan" {
 		t.Fatalf("applied %+v, want the ze_wan table the configured term names", applied)
 	}
-	if len(applied[0].Sets) != 1 || applied[0].Sets[0].Name != "irr_v4_AS-TEST" {
+	// The fixture answers IPv4 only, and the table must still declare BOTH
+	// family sets. The parser emits a term per family, whatever the entry
+	// announces. A table missing one therefore has a term naming a set no
+	// owner declares, and ApplyAll holds the whole table back for it.
+	declared := setsByName(applied[0])
+	if _, ok := declared["irr_v4_AS-TEST"]; !ok {
 		t.Fatalf("applied table carries sets %+v, want irr_v4_AS-TEST", applied[0].Sets)
+	}
+	if _, ok := declared["irr_v6_AS-TEST"]; !ok {
+		t.Fatalf("applied table carries sets %+v, want irr_v6_AS-TEST", applied[0].Sets)
+	}
+	if len(declared["irr_v4_AS-TEST"].Elements) == 0 {
+		t.Fatalf("the v4 set reached the backend empty: %+v", declared["irr_v4_AS-TEST"])
 	}
 }
 
@@ -394,14 +416,20 @@ func TestReconfigureKeepsFetchedPrefixes(t *testing.T) {
 	if len(applied) != 1 || applied[0].Name != "ze_wan" {
 		t.Fatalf("applied %+v, want the ze_wan table the configured term names", applied)
 	}
-	if len(applied[0].Sets) != 1 || applied[0].Sets[0].Name != "irr_v4_AS-TEST" {
+	// Both family sets, as above: the fixture answers IPv4 only and the table
+	// still declares the IPv6 set the term's twin names.
+	declared := setsByName(applied[0])
+	if _, ok := declared["irr_v4_AS-TEST"]; !ok {
 		t.Fatalf("applied table carries sets %+v, want irr_v4_AS-TEST", applied[0].Sets)
 	}
-	// One prefix lowers to an interval pair, so the count is not the prefix
+	if _, ok := declared["irr_v6_AS-TEST"]; !ok {
+		t.Fatalf("applied table carries sets %+v, want irr_v6_AS-TEST", applied[0].Sets)
+	}
+	// One prefix lowers to an interval PAIR, so the count is not the prefix
 	// count. Any element at all is the proof: an empty set is what a rebuilt
 	// store produced, and the table was held back for it.
-	if len(applied[0].Sets[0].Elements) == 0 {
-		t.Fatalf("the set reached the backend empty: %+v", applied[0].Sets[0])
+	if len(declared["irr_v4_AS-TEST"].Elements) == 0 {
+		t.Fatalf("the v4 set reached the backend empty: %+v", declared["irr_v4_AS-TEST"])
 	}
 }
 

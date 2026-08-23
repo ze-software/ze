@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | config |
 | Depends | - |
 | Phase | 5/5 |
 | Deferral shard | - |
 | Handoff | - |
-| Updated | 2026-08-18 |
+| Updated | 2026-08-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -372,3 +372,190 @@ the sets and the terms in one owner. Only the table-term form is dead.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `MatchInSet.ProvidedType` (`internal/component/firewall/model.go`) states the element type of a set a DIFFERENT registry owner supplies. `irrSetMatch` and `expandIRRTermV6` (`internal/component/firewall/config.go`) are its only producers, for the four IRR leaves alone.
+- `validateMatch` (`internal/component/firewall/validate.go`) accepts a match carrying it and checks the field and family against that type. A match without it still has to name a set the table declares, so the unknown-set guard is unchanged for everything an operator can type.
+- `dropTablesMissingAProvidedSet` and `unresolvedProvidedSet` (`internal/component/firewall/registry.go`) hold back the one table whose term names a provided set nobody registered, program the rest, and log `table held back` at WARN.
+- `PrefixStore.UseClients` (`internal/component/resolve/irr/store/store.go`) points the store at new resolvers on a reload instead of `configureStore` building a second one, so the store verify read is the store the apply uses.
+- `verifyRefs` and `warnUncachedRefs` (`internal/component/firewall/plugins/irr/irr.go`) cover table terms, so the actionable IRR message reaches the table form; `extractRefsFromConfig` (`config.go`) reads all four leaves out of every table term.
+- `buildTermSets` and `familySet` (`internal/component/firewall/plugins/irr/sets.go`) declare BOTH family sets for any entry the plugin holds data for. Found by the closure review; see Bugs Found/Fixed.
+- Docs: `docs/guide/firewall.md` states the workflow, the errors an operator can see and the `inet` constraint; `docs/architecture/firewall/firewall-irr.md` documents the provided-type register, the per-table wait, and the family pairing.
+
+### Bugs Found/Fixed
+- **An ASN or AS-SET announcing one family cost the operator the WHOLE table.** Found by this closure's review, reproduced, and fixed here. `expandIRRTermV6` emits an IPv6 twin of every IRR term because the parser cannot see the prefix data, while `buildSets` emitted a set only for a family that announced prefixes. So for an IPv4-only entry the twin named `irr_v6_<name>`, no owner declared it, and `dropTablesMissingAProvidedSet` removed the operator's entire table from the applied snapshot while the commit reported success. An AS-SET with no IPv6 space is the ordinary case, and the AS-TEST fixture answers both families, so nothing reached it. `buildTermSets` now declares both sets, the family with no prefixes carrying no elements, which is what its term must read. Covered by `TestBuildTermSetsPairsTheFamilies`, `TestConfigureAcceptsIRRTableTermWithOneFamily`, and the AS-V4ONLY half of `test/plugin/firewall-irr-table-term-commit.ci`.
+
+### Documentation Updates
+- `docs/architecture/firewall/firewall-irr.md`: new section "A table term declares both families or neither", anchored on `sets.go -- buildTermSets` and `config.go -- expandIRRTermV6`.
+- `docs/guide/firewall.md`: the workflow, the `table held back` line and how to end it, and the `inet` family constraint. Landed in `e049941d6`.
+- `make ze-doc-verify`: PASSED, 3025 digest anchors resolve.
+
+### Deviations from Plan
+- The approved design was a registered provider of set names. The implementation states the type on the MATCH instead. A provider registered at init can only claim a NAMESPACE, so it would accept `source-address "@irr_v4_typo"` typed by hand; a provider registered from config cannot be consulted safely because owners register in no fixed order. Recorded in Key Design Decisions.
+- `ApplyAll` holds back one TABLE rather than the whole merged snapshot. Recorded and amended in Key Design Decisions.
+- `engine.go` needed no check reordering. Validation stops refusing an IRR name, so the plugin's verify hook is what speaks for an uncached reference.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3 assumed validation could consult a registered provider of set names without weakening the guard | A registration can only claim a namespace, which accepts a hand-typed name inside it | Phase 2 design | The match states the type instead; recorded in Key Design Decisions |
+| approach | The first `ApplyAll` answer held back the WHOLE merged snapshot until every provided set resolved | On a cold cache no supplier ever arrives, so copp, the DDoS tables and the policy routes stayed out of the kernel too | `firewall-irr-cold-cache-recovers.ci` | Narrowed to one table in `20ad3ebb6` |
+| escalation | The two producers of the IRR family pair disagreed: the parser emits both terms unconditionally, the plugin emitted sets per announced family | An IPv4-only entry is ordinary, so the common case lost its whole table | This closure's review, reproduced through `ApplyAll` | Fixed by `buildTermSets`; journalled under `guard-added-to-one-half-of-a-pair` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A table term matching by ASN or AS-SET can be committed | Done | `validateMatch` (`internal/component/firewall/validate.go`) | `ProvidedType` carries the type the supplying owner will register |
+| The documented operator workflow is a config the parser accepts | Done | `docs/guide/firewall.md` | Proven end to end by `test/plugin/firewall-irr-table-term-commit.ci` |
+| The actionable IRR error reaches the table form | Done | `verifyRefs`, `uncachedRefMessage` (`internal/component/firewall/plugins/irr/irr.go`) | `extractRefsFromConfig` reads the four leaves from table terms |
+| The interface-binding form is unchanged | Done | `buildIfaceTables` (`internal/component/firewall/plugins/irr/sets.go`) | Still uses `buildSets`; it emits an accept term per family |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestValidateTablesAcceptsIRRTermMatch`, `TestConfigureAcceptsIRRTableTerm`, `TestConfigureAcceptsIRRTableTermWithOneFamily`, `firewall-irr-table-term-commit.ci` | Both the dual-stack and the single-family entry reach the kernel |
+| AC-2 | Done | `TestParseAndValidateSourceASN` (four subtests), `TestVerifyRejectsUncachedTableTerm` | All four leaves parse, validate and produce a v4 match plus its v6 twin |
+| AC-3 | Done | `TestVerifyRejectsUncachedTableTerm`, `firewall-irr-table-term-uncached-reject.ci` | Message names the entry and the fetch command |
+| AC-4 | Done | `TestValidateTablesStillRefusesUnknownSet` | Also refuses a hand-written name inside the IRR namespace |
+| AC-5 | Done | `TestValidateTablesStillRefusesSetTypeMismatch` | Field/type and set/table family disagreements both still refuse |
+| AC-6 | Done | `firewall-irr-iface-commit.ci`, `firewall-irr-iface-reject.ci`, `firewall-irr-iface-no-blackhole.ci` | All three pass; `buildIfaceTables` is untouched |
+| AC-7 | Done | `firewall-irr-table-term-commit.ci`, `docs/guide/firewall.md` | The guide's step 3 config is the one the test commits |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestValidateTablesAcceptsIRRTermMatch` | Done | `internal/component/firewall/validate_test.go` | |
+| `TestValidateTablesStillRefusesUnknownSet` | Done | `internal/component/firewall/validate_test.go` | The negative test A-3 owes |
+| `TestValidateTablesStillRefusesSetTypeMismatch` | Done | `internal/component/firewall/validate_test.go` | |
+| `TestParseAndValidateSourceASN` | Done | `internal/component/firewall/config_test.go` | |
+| `TestVerifyRejectsUncachedTableTerm` | Done | `internal/component/firewall/plugins/irr/verify_test.go` | |
+| `TestConfigureAcceptsIRRTableTerm` | Done | `internal/component/firewall/engine_test.go` | |
+| `TestConfigureAcceptsIRRTableTermWithOneFamily` | Done | `internal/component/firewall/engine_test.go` | Added by this closure |
+| `TestBuildTermSetsPairsTheFamilies` | Done | `internal/component/firewall/plugins/irr/sets_test.go` | Added by this closure |
+| `TestReconfigureKeepsFetchedPrefixes` | Done | `internal/component/firewall/plugins/irr/irr_test.go` | Assertion strengthened to the family pair |
+| `TestReconfigureToAnotherServerKeepsFetchedPrefixes` | Done | `internal/component/firewall/plugins/irr/irr_test.go` | |
+| `firewall-irr-table-term-commit` | Done | `test/plugin/firewall-irr-table-term-commit.ci` | Two AS-SETs: dual-stack and IPv4-only |
+| `firewall-irr-table-term-uncached-reject` | Done | `test/plugin/firewall-irr-table-term-uncached-reject.ci` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/resolve/irr/store/store.go` | Done | `UseClients` |
+| `internal/component/firewall/validate.go` | Done | `validateMatch` reads `ProvidedType` |
+| `internal/component/firewall/registry.go` | Done | `dropTablesMissingAProvidedSet` replaced the registry-exposure plan |
+| `internal/component/firewall/plugins/irr/irr.go` | Done | `verifyRefs`, `warnUncachedRefs`, `configureStore` |
+| `internal/component/firewall/engine.go` | Changed | No ordering change was needed; the file lost its `StoreLastApplied` calls to `ApplyAll` instead |
+| `internal/component/firewall/config_test.go` | Done | `TestParseAndValidateSourceASN` validates as well as parses |
+| `docs/guide/firewall.md` | Done | |
+| `docs/architecture/firewall/firewall-irr.md` | Done | |
+| `internal/component/firewall/validate_test.go` | Done | Created |
+| `test/plugin/firewall-irr-table-term-commit.ci` | Done | Created |
+| `test/plugin/firewall-irr-table-term-uncached-reject.ci` | Done | Created |
+| `internal/component/firewall/plugins/irr/sets.go` | Changed | Not in the plan: `buildTermSets`, added by the closure review |
+| `internal/test/mock/irr/irr.go` | Changed | Not in the plan: the AS-V4ONLY fixture the single-family case needs |
+
+### Audit Summary
+- **Total items:** 36
+- **Done:** 33
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3, recorded in Deviations and in Files from Plan
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A firewall table term matching by ASN or AS-SET can be committed at all | functional | `test/plugin/firewall-irr-table-term-commit.ci` PASS in a privileged Linux container, 2026-08-23. Reverting `buildTermSets` to `buildSets` reds it: `firewall: table "wan" not found; no firewall tables have been applied` |
+| The kernel ruleset carries the committed rule | functional | The same test reads back `from-as-test`, `from-as-test_v6`, `from-v4only` and `from-v4only_v6` through `show firewall ruleset wan` |
+| The documented operator workflow succeeds as written | functional | The `.ci` config is the guide's step 3; `make ze-doc-verify` PASSED |
+| The commit-rejection promise the guide makes is reachable | functional | `test/plugin/firewall-irr-table-term-uncached-reject.ci` PASS; `TestVerifyRejectsUncachedTableTerm` asserts the exact message |
+| The unknown-set guard still refuses a typo | unit | `TestValidateTablesStillRefusesUnknownSet`, which also refuses `source-address "@irr_v4_AS13335"` typed by hand |
+| The interface-binding form is unaffected | functional | `firewall-irr-iface-commit`, `firewall-irr-iface-reject` and `firewall-irr-iface-no-blackhole` all PASS |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none | done | The spec metadata declares no deferral shard, and `plan/deferrals/fixit-firewall-irr-term-fails-validation.md` does not exist |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-firewall-irr-term-fails-validation-ebf5d9b3-b158-40df-bba0-32a51591883e.md` |
+| `review_gate.py check` | clean (`review_gate: OK ... hashes match`) |
+| Rounds | 2 |
+| Reviewer lenses used | wiring and functional coverage; guard audit and fail-closed; removed-behavior and test-rewrite audit; logic, allocation and style pass |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | An ASN or AS-SET announcing one family lost the operator's WHOLE table. The parser emits an IPv6 twin of every IRR term while the plugin declared a set only per announced family, so the twin named a set no owner declared and `dropTablesMissingAProvidedSet` removed the table while the commit reported success | `buildIRRTables`, `buildSets` (`internal/component/firewall/plugins/irr/sets.go`) | `buildTermSets` declares both family sets for any entry with data, the family with none declared empty. Tests: `TestBuildTermSetsPairsTheFamilies`, `TestConfigureAcceptsIRRTableTermWithOneFamily`, AS-V4ONLY in `firewall-irr-table-term-commit.ci` |
+| 2 | ISSUE | `TestBuildSetsEmptyBoth` claimed to prevent "buildSets emitting an empty set for a family that answered nothing", which the fix makes deliberate for a table term | `internal/component/firewall/plugins/irr/sets_test.go` | Comment rewritten to the invariant that survives: an entry announcing NOTHING yields no set and no table |
+| 3 | ISSUE | Two tests pinned the old one-set contract against an IPv4-only fixture, so each would have passed a table missing its IPv6 set | `TestRefreshNameProgramsWhatItLearned`, `TestReconfigureKeepsFetchedPrefixes` (`internal/component/firewall/plugins/irr/irr_test.go`) | `assertTermSets` asserts the stronger contract: both sets declared, the announced family carrying elements |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/firewall/validate_test.go` | Yes | `TestValidateTablesAcceptsIRRTermMatch` at :511, `TestValidateTablesStillRefusesUnknownSet` at :536, `TestValidateTablesStillRefusesSetTypeMismatch` at :566 |
+| `test/plugin/firewall-irr-table-term-commit.ci` | Yes | `ls test/plugin/` lists it, 6.5K after the AS-V4ONLY addition |
+| `test/plugin/firewall-irr-table-term-uncached-reject.ci` | Yes | `ls test/plugin/` lists it, 4.9K |
+| `test/plugin/firewall-irr-cold-cache-recovers.ci` | Yes | `ls test/plugin/` lists it, 6.5K |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | A cached table term validates, commits and reaches the kernel | `make ze-unit-pkg-test PKG=./internal/component/firewall/...` ok 1.990s; `firewall-irr-table-term-commit` PASS 906ms in the container |
+| AC-2 | All four leaves behave the same | `TestParseAndValidateSourceASN` runs `source-asn`, `source-as-set`, `destination-asn` and `destination-as-set`, and validates each |
+| AC-3 | An uncached reference is refused with the IRR message | `TestVerifyRejectsUncachedTableTerm` asserts `firewall irr: no cached prefix data for AS99999; run 'update firewall irr asn 99999' first`; `firewall-irr-table-term-uncached-reject` PASS 6.0s |
+| AC-4 | A set no owner provides is still refused | `TestValidateTablesStillRefusesUnknownSet` requires `match references unknown set "typo_set"`, and the same for a hand-written `@irr_v4_AS13335` |
+| AC-5 | Field and family disagreements still refuse | `TestValidateTablesStillRefusesSetTypeMismatch`, three cases |
+| AC-6 | The interface form is unchanged | `firewall-irr-iface-commit`, `firewall-irr-iface-reject` and `firewall-irr-iface-no-blackhole` PASS in the 12/12 suite run |
+| AC-7 | The guide's workflow succeeds end to end | `firewall-irr-table-term-commit` PASS; `make ze-doc-verify` PASSED |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| A config with a table term using `source-asn` | `test/plugin/firewall-irr-table-term-commit.ci` | Yes. Read: `config2.conf` carries `term from-as-test` and `term from-v4only`, and the observer reads the ruleset back through `show firewall ruleset wan` |
+| A config naming a set no owner provides | unit, `TestValidateTablesStillRefusesUnknownSet` | Yes. Driven from `ValidateTables`, which is what `parseAndVerifyFirewallSections` calls |
+| A config naming an AS-SET with no cached data | `test/plugin/firewall-irr-table-term-uncached-reject.ci` | Yes. `reject=stderr:pattern=references unknown set` proves the IRR message wins, not the set-reference one |
+| A commit of a table term with cached data | unit, `TestConfigureAcceptsIRRTableTerm` and `TestConfigureAcceptsIRRTableTermWithOneFamily` | Yes. Both drive `parseAndVerifyFirewallSections`, then `RegisterTables` plus `ApplyAll` |
+| The operator commits the documented workflow on a running daemon | `test/plugin/firewall-irr-table-term-commit.ci` | Yes. SIGHUP reload, then a kernel readback |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | The rejection was unconditional: `firewall-irr-table-term-commit.ci` fetches first and the commit was still refused with the fix reverted |
+| A-2 | confirmed | `firewall-irr-iface-commit` and `firewall-irr-iface-reject` carry no firewall table and both pass |
+| A-3 | broken as stated | A registration can only claim a namespace. `MatchInSet.ProvidedType` replaced it, and `TestValidateTablesStillRefusesUnknownSet` proves the guard did not become an exemption |
+| A-4 | confirmed | `MatchInSet` has one other producer, `parseAddressMatch` in `internal/plugins/policyroute/translate.go`, and it sets no `ProvidedType`. copp and ddos-local emit none |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| "A table term declares both families or neither" | `buildTermSets` (`internal/component/firewall/plugins/irr/sets.go`), read after writing | Yes |
+| "the table holding it is not programmed and the daemon logs `table held back`" | `dropTablesMissingAProvidedSet` (`internal/component/firewall/registry.go`) emits that exact WARN | Yes |
+| "the table family must be `inet`" | `validateSetFamilyCompat` refuses an ipv6 set in `ip` and an ipv4 set in `ip6`; `buildIRRTables` registers `FamilyInet` | Yes |
+| "the refusal names the entry and the command that fetches it" | `uncachedRefMessage` (`internal/component/firewall/plugins/irr/irr.go`) | Yes |
+| Doc gates | `make ze-doc-verify` PASSED, 3025 digest anchors resolve | Yes |
+
+## Core Insight
+
+Two producers derived one paired artifact by different rules. The config parser
+emits an IPv6 twin of every IRR term because it cannot see the prefix data, and
+the plugin emitted a set only for a family that announced prefixes. Neither is
+wrong alone, and the pair is broken for the ordinary input: an AS-SET with no
+IPv6 space. The fixture answered both families, so every test agreed with both
+producers and none of them tested the pair.
+
+The rule that falls out: when one producer emits a pair unconditionally, its
+counterpart must too, and the fixture must carry the asymmetric case.

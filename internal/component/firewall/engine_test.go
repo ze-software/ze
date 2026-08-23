@@ -208,3 +208,70 @@ func TestConfigureAcceptsIRRTableTerm(t *testing.T) {
 	}
 	assert.Len(t, merged.Chains[0].Terms, 2, "the v4 term and its v6 twin must both reach the backend")
 }
+
+// VALIDATES: AC-1, AC-2 -- an ASN or AS-SET announcing ONE family still lands
+// the operator's table in the kernel. It drives the merge from the same entry
+// point as TestConfigureAcceptsIRRTableTerm. The registered tables are what the
+// firewall-irr owner builds for an IPv4-only entry: both set names, the IPv6
+// one empty (buildTermSets,
+// internal/component/firewall/plugins/irr/sets.go).
+// PREVENTS: the common case losing the whole table. expandIRRTermV6
+// (config.go) emits the IPv6 twin for every IRR term, because the parser
+// cannot see the prefix data. A v4-only entry therefore left the twin naming
+// an undeclared set. dropTablesMissingAProvidedSet (registry.go) then removed
+// the operator's ENTIRE table while the commit reported success.
+func TestConfigureAcceptsIRRTableTermWithOneFamily(t *testing.T) {
+	resetBackends()
+	resetTables()
+	t.Cleanup(func() {
+		resetBackends()
+		resetTables()
+	})
+
+	data := `{"firewall":{"backend":"nft","table":{"wan":{"family":"inet","chain":{"input":{"type":"filter","hook":"input","priority":"0","policy":"drop","term":{"from-cloudflare":{"from":{"source-asn":"13335"},"then":{"accept":""}}}}}}}}}`
+	sections := []sdk.ConfigSection{{Root: configRootFirewall, Data: data}}
+
+	cfg, err := parseAndVerifyFirewallSections(sections)
+	require.NoError(t, err, "an IRR table term must pass the verify path")
+
+	var applied []Table
+	require.NoError(t, RegisterBackend("irr-one-family-nft", func() (Backend, error) {
+		return &countingBackend{onApply: func(d []Table) { applied = d }}, nil
+	}))
+	prev := defaultBackendForAutoload
+	defaultBackendForAutoload = "irr-one-family-nft"
+	t.Cleanup(func() { defaultBackendForAutoload = prev })
+
+	RegisterTables("firewall", cfg.Tables)
+	// What buildTermSets produces for an entry holding IPv4 prefixes only: the
+	// IPv6 set is declared and carries no element, so its term matches nothing.
+	RegisterTables("firewall-irr", []Table{{
+		Name:   "ze_wan",
+		Family: FamilyInet,
+		Sets: []Set{
+			{Name: "irr_v4_AS13335", Type: SetTypeIPv4, Flags: SetFlagInterval, Elements: []SetElement{{Value: "1.1.1.0"}, {Value: "1.1.2.0", IntervalEnd: true}}},
+			{Name: "irr_v6_AS13335", Type: SetTypeIPv6, Flags: SetFlagInterval},
+		},
+	}})
+	require.NoError(t, ApplyAll(), "the merged ruleset must apply")
+
+	require.Len(t, applied, 1, "an IPv4-only entry must not cost the operator the whole table")
+	merged := applied[0]
+	declared := make(map[string]SetType, len(merged.Sets))
+	for _, s := range merged.Sets {
+		declared[s.Name] = s.Type
+	}
+	require.Len(t, merged.Chains, 1)
+	assert.Len(t, merged.Chains[0].Terms, 2, "the v4 term and its v6 twin must both reach the backend")
+	for _, term := range merged.Chains[0].Terms {
+		for _, m := range term.Matches {
+			in, ok := m.(MatchInSet)
+			if !ok {
+				continue
+			}
+			got, ok := declared[in.SetName]
+			assert.True(t, ok, "term %q references set %q, which the merged table does not declare", term.Name, in.SetName)
+			assert.Equal(t, in.ProvidedType, got, "set %q type disagrees with what the match expects", in.SetName)
+		}
+	}
+}

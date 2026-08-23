@@ -30,9 +30,16 @@ Deterministic fake IRR whois server for functional tests.
 Responds to RPSL !i (AS-SET expansion) and !a4/!a6 (prefix lookup) queries.
 
 Known AS-SETs:
-  AS-TEST  -> members: AS65001, AS65002, AS65003
-             ipv4: 10.0.0.0/24, 10.0.1.0/24, 172.16.0.0/16
-             ipv6: 2001:db8::/32
+  AS-TEST    -> members: AS65001, AS65002, AS65003
+               ipv4: 10.0.0.0/24, 10.0.1.0/24, 172.16.0.0/16
+               ipv6: 2001:db8::/32
+  AS-V4ONLY  -> members: AS65004
+               ipv4: 192.0.2.0/24
+               ipv6: none, so !a6 answers "D" (key not found)
+
+An AS-SET announcing one family is ordinary, and it is the case a fixture
+answering both families cannot reach. The IPv6 query returns not-found rather
+than an error, so the entry caches with an empty IPv6 family.
 
 With -empty-after-first, every query is answered once with its data and then
 with "D" (key not found) forever after. It models an IRR server that has a bad
@@ -73,10 +80,18 @@ Flags:
 	}
 }
 
+// irrResponses maps an RPSL query to its answer. A query absent from the map
+// answers "D" (key not found). That is how AS-V4ONLY has no IPv6: an AS-SET
+// announcing one family answers exactly that way. lookupFamilyPrefixes
+// (internal/component/resolve/irr/client.go) reads it as an empty family
+// rather than a failed lookup.
 var irrResponses = map[string]string{
 	"!iAS-TEST":  "A3\nAS65001 AS65002 AS65003\nC\n",
 	"!a4AS-TEST": "A3\n10.0.0.0/24 10.0.1.0/24 172.16.0.0/16\nC\n",
 	"!a6AS-TEST": "A1\n2001:db8::/32\nC\n",
+
+	"!iAS-V4ONLY":  "A1\nAS65004\nC\n",
+	"!a4AS-V4ONLY": "A1\n192.0.2.0/24\nC\n",
 }
 
 // servedQueries records which queries have already been answered with data, so

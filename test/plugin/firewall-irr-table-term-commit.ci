@@ -2,16 +2,27 @@
 # VALIDATES: spec-fixit-firewall-irr-term-fails-validation AC-1, AC-2, AC-7 --
 #            the operator workflow the firewall guide documents, end to end:
 #            fetch the prefixes, commit a term whose from-block names the AS-SET,
-#            and find the rule in the kernel ruleset.
+#            and find the rule in the kernel ruleset. Two AS-SETs are committed:
+#            AS-TEST announces both families, AS-V4ONLY announces IPv4 alone.
 # PREVENTS:  the table form staying dead. ValidateTables refused every IRR term
 #            with `match references unknown set "irr_v4_AS-TEST"`, because the
 #            set belongs to the firewall-irr owner and the two owners meet only
 #            at ApplyAll.
+#            It also prevents the single-family case costing the operator the
+#            WHOLE table. The parser emits an IPv6 twin of every IRR term
+#            because it cannot see the prefix data (expandIRRTermV6,
+#            internal/component/firewall/config.go), so an IPv4-only AS-SET left
+#            that twin naming a set no owner declared and
+#            dropTablesMissingAProvidedSet
+#            (internal/component/firewall/registry.go) removed the whole table
+#            while the commit reported success. An AS-SET with no IPv6 space is
+#            the common case, which a fixture answering both families never
+#            reaches.
 #
 # Flow:
 # 1. The daemon starts with no firewall table, so nothing references the set yet.
-# 2. The observer fetches AS-TEST from the mock IRR server.
-# 3. trigger.sh swaps in a config carrying the table term and sends SIGHUP.
+# 2. The observer fetches AS-TEST and AS-V4ONLY from the mock IRR server.
+# 3. trigger.sh swaps in a config carrying both table terms and sends SIGHUP.
 # 4. The observer waits for the reload, then reads the kernel ruleset back.
 
 # This test programs nftables, so it needs CAP_NET_ADMIN, not merely Linux.
@@ -36,7 +47,7 @@ option=timeout:value=30s
 
 tmpfs=firewall-irr-table-term-commit.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-"""Fetch an AS-SET, commit a table term matching it, read the ruleset back."""
+"""Fetch two AS-SETs, commit a table term for each, read the ruleset back."""
 import os
 import sys
 from ze_api import API, runtime_fail, result_json_data
@@ -52,8 +63,21 @@ def main():
     result = api.dispatch_until_done('update firewall irr as-set AS-TEST')
     if result.get('status') != 'done':
         runtime_fail(f'update failed: {result}')
-    if result_json_data(result, {}).get('ipv4-count', 0) < 1:
-        runtime_fail(f'no prefixes cached for AS-TEST: {result}')
+    data = result_json_data(result, {})
+    if data.get('ipv4-count', 0) < 1 or data.get('ipv6-count', 0) < 1:
+        runtime_fail(f'AS-TEST must cache both families: {result}')
+
+    # AS-V4ONLY announces IPv4 and no IPv6, which is the ordinary case for most
+    # networks. Its term still reaches the kernel as two rules, so the table
+    # must declare the IPv6 set too, empty.
+    result = api.dispatch_until_done('update firewall irr as-set AS-V4ONLY')
+    if result.get('status') != 'done':
+        runtime_fail(f'update failed for AS-V4ONLY: {result}')
+    data = result_json_data(result, {})
+    if data.get('ipv4-count', 0) < 1:
+        runtime_fail(f'no IPv4 prefixes cached for AS-V4ONLY: {result}')
+    if data.get('ipv6-count', 0) != 0:
+        runtime_fail(f'AS-V4ONLY must cache no IPv6 prefixes: {result}')
 
     with open('observer.fetched', 'w') as f:
         f.write('ok')
@@ -63,21 +87,22 @@ def main():
 
     result = api.dispatch_until(
         'show firewall ruleset wan',
-        lambda res: res.get('status') == 'done' and 'from-as-test' in str(result_json_data(res, {})),
+        lambda res: res.get('status') == 'done' and 'from-v4only_v6' in str(result_json_data(res, {})),
         attempts=100,
         delay=0.1,
     )
     dumped = str(result_json_data(result, {}))
     if result.get('status') != 'done':
         runtime_fail(f'ruleset dump failed after the commit: {result}')
-    if 'from-as-test' not in dumped:
-        runtime_fail(f'the committed IRR term is not in the kernel ruleset: {dumped}')
-    if 'from-as-test_v6' not in dumped:
-        runtime_fail(f'the IPv6 twin of the committed term is missing: {dumped}')
+    for term in ('from-as-test', 'from-as-test_v6', 'from-v4only', 'from-v4only_v6'):
+        if term not in dumped:
+            runtime_fail(f'term {term} is not in the kernel ruleset: {dumped}')
     # The dump lists terms, not sets. A programmed match-in-set rule is the
     # proof the set is on the table: lowerMatchInSet refuses to lower a match
     # against a set the table does not carry, and the whole apply fails with it.
-    print('OK: the table term and its IPv6 twin are in the kernel ruleset', file=sys.stderr)
+    # from-v4only_v6 is therefore the single-family assertion: it names
+    # irr_v6_AS-V4ONLY, a set the AS-SET has no prefixes for.
+    print('OK: both table terms and their IPv6 twins are in the kernel ruleset', file=sys.stderr)
 
     api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
     api.wait_for_shutdown()
@@ -88,7 +113,7 @@ EOF_RUN
 
 tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
 #!/bin/sh
-# Swap in the config carrying the table term once the prefixes are cached.
+# Swap in the config carrying the table terms once the prefixes are cached.
 while [ ! -f daemon.pid ]; do sleep 0.1; done
 while [ ! -f daemon.ready ]; do sleep 0.1; done
 while [ ! -f observer.fetched ]; do sleep 0.1; done
@@ -119,6 +144,14 @@ firewall {
 			term from-as-test {
 				from {
 					source-as-set AS-TEST;
+				}
+				then {
+					accept;
+				}
+			}
+			term from-v4only {
+				from {
+					source-as-set AS-V4ONLY;
 				}
 				then {
 					accept;
@@ -174,5 +207,5 @@ cmd=background:seq=1:exec=ze-test irr --port $PORT2
 cmd=background:seq=2:exec=sh trigger.sh
 cmd=foreground:seq=3:exec=ze --plugin ze.firewall-irr -:stdin=ze-fw:timeout=30s
 expect=exit:code=0
-expect=stderr:pattern=table term and its IPv6 twin are in the kernel ruleset
+expect=stderr:pattern=both table terms and their IPv6 twins are in the kernel ruleset
 reject=stderr:pattern=references unknown set

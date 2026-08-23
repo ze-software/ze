@@ -85,18 +85,24 @@ func TestBuildSetsEmptyV6(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-3 -- an entry with no prefixes produces no set AND no table, so
-// nothing empty reaches the kernel through the table-term consumer.
-// PREVENTS: buildSets emitting an empty set for a family that answered nothing.
-// An empty nftables set matches no packet, so an accept term naming one accepts
-// nothing. The set would also RESOLVE, so dropTablesMissingAProvidedSet
-// (internal/component/firewall/registry.go) would stop holding the operator's
-// table back and would program a term that filters everything out. The zero-set
-// answer is what keeps that table out of the kernel until prefixes arrive.
+// VALIDATES: AC-3 -- an entry announcing NOTHING produces no set and no table,
+// so nothing empty reaches the kernel through the table-term consumer.
+// PREVENTS: either builder answering for an entry that holds no prefixes at
+// all. An empty nftables set matches no packet, so an accept term naming one
+// accepts nothing. The set would also RESOLVE.
+// dropTablesMissingAProvidedSet (internal/component/firewall/registry.go)
+// would then stop holding the operator's table back, and would program a term
+// that filters everything out. The zero-set answer is what keeps that table
+// out of the kernel until prefixes arrive. An entry announcing ONE family is a
+// different
+// case and is covered by TestBuildTermSetsPairsTheFamilies.
 func TestBuildSetsEmptyBoth(t *testing.T) {
 	sets := buildSets("AS13335", nil, nil)
 	if len(sets) != 0 {
 		t.Errorf("expected 0 sets for empty prefix lists, got %d", len(sets))
+	}
+	if termSets := buildTermSets("AS13335", nil, nil); len(termSets) != 0 {
+		t.Errorf("expected 0 term sets for empty prefix lists, got %d", len(termSets))
 	}
 
 	// The consumer, not just the builder: a term naming an entry with no
@@ -106,6 +112,74 @@ func TestBuildSetsEmptyBoth(t *testing.T) {
 	tables := buildIRRTables(ps, []irrRef{{Name: "AS13335", TableName: "ze_wan"}})
 	if len(tables) != 0 {
 		t.Fatalf("an entry with no prefixes produced %d table(s): %+v", len(tables), tables)
+	}
+}
+
+// VALIDATES: AC-1, AC-2 -- an entry announcing ONE family still declares BOTH
+// sets, because expandIRRTermV6 (internal/component/firewall/config.go) emits
+// the IPv6 twin of every IRR term whatever the entry announces. The family with
+// no prefixes is declared with no elements, so its term matches nothing.
+// PREVENTS: the whole table being held back for an IPv4-only ASN or AS-SET,
+// which is the common case. buildSets answered one set for such an entry. The
+// v6 twin then named a set no owner declared, and
+// dropTablesMissingAProvidedSet (internal/component/firewall/registry.go)
+// removed the operator's ENTIRE table while the commit reported success.
+func TestBuildTermSetsPairsTheFamilies(t *testing.T) {
+	v4 := []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")}
+	v6 := []netip.Prefix{netip.MustParsePrefix("2001:db8::/32")}
+
+	tests := []struct {
+		name        string
+		v4, v6      []netip.Prefix
+		wantV4Elems int
+		wantV6Elems int
+	}{
+		{name: "v4 only", v4: v4, wantV4Elems: 2, wantV6Elems: 0},
+		{name: "v6 only", v6: v6, wantV4Elems: 0, wantV6Elems: 2},
+		{name: "both", v4: v4, v6: v6, wantV4Elems: 2, wantV6Elems: 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sets := buildTermSets("AS13335", tt.v4, tt.v6)
+			if len(sets) != 2 {
+				t.Fatalf("a term needs both families declared, got %d set(s): %+v", len(sets), sets)
+			}
+			if sets[0].Name != "irr_v4_AS13335" || sets[0].Type != firewall.SetTypeIPv4 {
+				t.Errorf("set[0] = {%q %v}, want {irr_v4_AS13335 ipv4_addr}", sets[0].Name, sets[0].Type)
+			}
+			if sets[1].Name != "irr_v6_AS13335" || sets[1].Type != firewall.SetTypeIPv6 {
+				t.Errorf("set[1] = {%q %v}, want {irr_v6_AS13335 ipv6_addr}", sets[1].Name, sets[1].Type)
+			}
+			if len(sets[0].Elements) != tt.wantV4Elems {
+				t.Errorf("v4 elements = %d, want %d", len(sets[0].Elements), tt.wantV4Elems)
+			}
+			if len(sets[1].Elements) != tt.wantV6Elems {
+				t.Errorf("v6 elements = %d, want %d", len(sets[1].Elements), tt.wantV6Elems)
+			}
+			for _, s := range sets {
+				if s.Flags&firewall.SetFlagInterval == 0 {
+					t.Errorf("set %q must carry SetFlagInterval", s.Name)
+				}
+			}
+		})
+	}
+
+	// The consumer: the table an IPv4-only entry produces declares the IPv6
+	// set the v6 twin names, so the merged table resolves every provided set.
+	ps := store.New(nil, nil, "")
+	ps.Put("AS13335", v4, nil)
+	tables := buildIRRTables(ps, []irrRef{{Name: "AS13335", TableName: "ze_wan"}})
+	if len(tables) != 1 {
+		t.Fatalf("an IPv4-only entry produced %d table(s), want 1", len(tables))
+	}
+	declared := make(map[string]bool, len(tables[0].Sets))
+	for _, s := range tables[0].Sets {
+		declared[s.Name] = true
+	}
+	for _, want := range []string{"irr_v4_AS13335", "irr_v6_AS13335"} {
+		if !declared[want] {
+			t.Errorf("the table does not declare %q: %+v", want, tables[0].Sets)
+		}
 	}
 }
 

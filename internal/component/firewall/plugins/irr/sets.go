@@ -25,30 +25,62 @@ func setNames(name string) (v4, v6 string) {
 	return v4, v6
 }
 
+// familySet builds one family's interval set. limit caps the elements, and the
+// two families share one budget, so the caller passes what the other family
+// left. A family with no prefixes yields a set with no elements, which is a
+// valid nftables set and matches no address.
+func familySet(name string, setType firewall.SetType, prefixes []netip.Prefix, limit int) firewall.Set {
+	return firewall.Set{
+		Name:     name,
+		Type:     setType,
+		Flags:    firewall.SetFlagInterval,
+		Elements: prefixesToIntervalElements(prefixes, limit),
+	}
+}
+
+// buildSets returns a set for each family the entry announces, and nothing for
+// a family that announces none. buildIfaceTables is the caller: it emits an
+// accept term per family under the same condition, so it never names a set it
+// did not declare. A table term needs buildTermSets instead.
 func buildSets(name string, v4, v6 []netip.Prefix) []firewall.Set {
 	v4Name, v6Name := setNames(name)
 	var sets []firewall.Set
 
 	if len(v4) > 0 {
-		elements := prefixesToIntervalElements(v4, maxPrefixEntries)
-		sets = append(sets, firewall.Set{
-			Name:     v4Name,
-			Type:     firewall.SetTypeIPv4,
-			Flags:    firewall.SetFlagInterval,
-			Elements: elements,
-		})
+		sets = append(sets, familySet(v4Name, firewall.SetTypeIPv4, v4, maxPrefixEntries))
 	}
 	if len(v6) > 0 {
-		remaining := max(maxPrefixEntries-len(v4), 0)
-		elements := prefixesToIntervalElements(v6, remaining)
-		sets = append(sets, firewall.Set{
-			Name:     v6Name,
-			Type:     firewall.SetTypeIPv6,
-			Flags:    firewall.SetFlagInterval,
-			Elements: elements,
-		})
+		sets = append(sets, familySet(v6Name, firewall.SetTypeIPv6, v6, max(maxPrefixEntries-len(v4), 0)))
 	}
 	return sets
+}
+
+// buildTermSets returns the sets a table TERM needs for one entry, which is
+// both families or neither.
+//
+// The parser cannot see the prefix data. expandIRRTermV6
+// (internal/component/firewall/config.go) emits an IPv6 twin for every IRR
+// term, whatever the entry announces. An ASN or AS-SET announcing only IPv4 is
+// ordinary, and buildSets answers with one set for it. The twin would then name
+// a set no owner declares. dropTablesMissingAProvidedSet
+// (internal/component/firewall/registry.go) holds back the operator's WHOLE
+// table for it, and the commit reports success with nothing in the kernel.
+//
+// The family that announced nothing is declared with no elements. That is what
+// its term must read: no address of that family belongs to this entry.
+//
+// An entry announcing nothing at all still yields no set. A cold cache
+// therefore keeps holding the table back until prefixes arrive, which
+// test/plugin/firewall-irr-cold-cache-recovers.ci asserts.
+func buildTermSets(name string, v4, v6 []netip.Prefix) []firewall.Set {
+	if len(v4) == 0 && len(v6) == 0 {
+		return nil
+	}
+	v4Name, v6Name := setNames(name)
+	return []firewall.Set{
+		familySet(v4Name, firewall.SetTypeIPv4, v4, maxPrefixEntries),
+		familySet(v6Name, firewall.SetTypeIPv6, v6, max(maxPrefixEntries-len(v4), 0)),
+	}
 }
 
 func prefixesToIntervalElements(prefixes []netip.Prefix, limit int) []firewall.SetElement {
@@ -210,7 +242,7 @@ func buildIRRTables(ps *store.PrefixStore, refs []irrRef) []firewall.Table {
 		if entry == nil {
 			continue
 		}
-		sets := buildSets(ref.Name, entry.IPv4, entry.IPv6)
+		sets := buildTermSets(ref.Name, entry.IPv4, entry.IPv6)
 		if len(sets) == 0 {
 			continue
 		}

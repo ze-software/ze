@@ -84,6 +84,26 @@ port beats a blackholed one.
 tables it built from what it fetched. Nothing else does on a cold cache:
 `refresh-interval` defaults to 0.
 
+### A table term declares both families or neither
+
+<!-- source: internal/component/firewall/plugins/irr/sets.go -- buildTermSets -->
+<!-- source: internal/component/firewall/config.go -- expandIRRTermV6 -->
+
+The parser cannot see the prefix data. It emits an IPv6 twin of every IRR term,
+whatever the entry announces. An ASN or AS-SET announcing IPv4 and no IPv6 is
+ordinary. So the plugin declares BOTH set names for any entry it has data for.
+The family that announced nothing gets a set with no elements. That set matches
+no address, which is what the twin must read.
+
+Declaring one family instead cost the operator the whole table. The twin named a
+set no owner declared. `dropTablesMissingAProvidedSet` held the table back, and
+the commit reported success with nothing in the kernel.
+
+An entry announcing nothing at all still yields no set. A cold cache therefore
+keeps holding the table back until prefixes arrive. `buildIfaceTables` keeps
+`buildSets`, which answers per family. It emits an accept term per family under
+the same condition, so it never names a set it did not declare.
+
 ### A reload reconfigures the plugin
 
 <!-- source: internal/component/firewall/plugins/irr/irr.go -- configure, configureStore -->
