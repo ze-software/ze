@@ -280,3 +280,39 @@ func hexByte(n int) string {
 	const digits = "0123456789abcdef"
 	return string([]byte{digits[(n>>4)&0xF], digits[n&0xF]})
 }
+
+// TestRelayPayloadKeepsRFC2545LinkLocalNextHop verifies the reconstruction puts
+// the WHOLE stored next-hop field back on the wire.
+//
+// VALIDATES: RFC 2545 Section 3 form 2. A route learned with a 32-octet global
+// plus link-local next hop is replayed with the same 32 octets, under the same
+// Length octet of 32. That is what makes the replayed copy byte-identical to
+// what the live forward rail relays (RFC2545-3-1, RFC2545-3-2).
+// PREVENTS: the reconstruction silently narrowing the field. The writer sizes
+// from len(nextHop) and maxNextHopLen is 0xFF, so this side was already correct;
+// this test is the pair-check for the ingest fix, which is where the truncation
+// was (ai/rules/testing.md: pair the check).
+func TestRelayPayloadKeepsRFC2545LinkLocalNextHop(t *testing.T) {
+	global := "20010db8000000000000000000000001"
+	linkLocal := "fe800000000000000000000000000001"
+	pair := global + linkLocal
+
+	// Source UPDATE: ORIGIN, AS_PATH, MP_REACH(ipv6/unicast, form-2 next hop).
+	mpValue := "0002" + "01" + "20" + pair + "00" + "3020010db80001"
+	mpValueBytes := mustHex(t, mpValue)
+	mpAttr := "800e" + hexByte(len(mpValueBytes)) + mpValue
+	attrs := mustHex(t, "4001010040020602010000FBF1"+mpAttr)
+
+	nlri := mustHex(t, "3020010db80001")
+	got := buildRelay(t, attrs, mustHex(t, pair), nlri, family.IPv6Unicast)
+
+	out := wireu.NewWireUpdate(got, 0)
+	mp, err := out.MPReach()
+	require.NoError(t, err)
+	require.NotNil(t, mp, "reconstructed body must carry MP_REACH")
+
+	nh := mp.NextHopBytes()
+	require.Len(t, nh, 32, "RFC 2545 form 2 is 32 octets, and the Length octet states it")
+	require.Equal(t, pair, hex.EncodeToString(nh),
+		"the global address first, the link-local address second, both unchanged")
+}

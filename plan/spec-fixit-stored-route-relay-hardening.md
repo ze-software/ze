@@ -344,20 +344,51 @@ could not see. GREEN once restored. `make ze-functional-plugin-test` 558/558.
 
 ### I-6 — smaller relay gaps
 
-- RFC 2545 32-byte next hop (global + link-local) is truncated to 16, so a replay
+- ~~RFC 2545 32-byte next hop (global + link-local) is truncated to 16, so a replay
   diverges from what a live forward relays verbatim and an on-link peer loses the
-  link-local next hop. **The producer is `MPReachWire.NextHop`
-  (`internal/component/bgp/wireu/mpwire.go`), not `nhopHexFromAddr`**: it returns one
-  `netip.Addr` and copies the first 16 octets for AFI 2, so the link-local half is
-  gone before `nhopHexFromAddr` (`adj_rib_in/nlri_hex.go`) encodes what is left.
-  Re-verified at the producer on 2026-08-23; the deferral shard's RFC 2545 row carries
-  the same correction. BOTH ingest paths hold it: the structured one through
-  `mpReach.NextHop()` in `handleReceivedStructured`, and `mpReach.NextHop().String()`
-  for complex families; the legacy one through `nhopToHex(op.NextHop)` in
-  `handleReceived`, whose JSON event carries an address string that cannot express the
-  two-address form at all. The RELAY side is already correct: `maxNextHopLen` is 0xFF
-  and `mpReachValueLen` sizes from `len(nextHop)` (`reactor/relay_payload.go`), so
-  only the STORE truncates, and the fix belongs at ingest.
+  link-local next hop.~~ **DONE 2026-08-23.**
+
+  **The producer was `MPReachWire.NextHop` (`internal/component/bgp/wireu/mpwire.go`),
+  not `nhopHexFromAddr`**: it returns one `netip.Addr` and keeps the first 16 octets
+  for AFI 2, so the link-local half was gone before `nhopHexFromAddr`
+  (`adj_rib_in/nlri_hex.go`) encoded what was left. The deferral shard's RFC 2545 row
+  carries the same correction; the spec text here named the wrong function.
+
+  **The RELAY side was already correct** -- `maxNextHopLen` is 0xFF and
+  `mpReachValueLen` sizes from `len(nextHop)` (`reactor/relay_payload.go`) -- so only
+  the STORE truncated, and the fix is at ingest. `MPReachWire.NextHopBytes` returns
+  the whole field as the source framed it, and `NextHop` is rewritten to read it, so
+  the two accessors cannot disagree about the length octet.
+
+  **BOTH ingest paths are fixed, because both carried it.** The structured one takes
+  `NextHopBytes` for simple and complex families alike, and `installComplexNLRIs`
+  takes hex rather than an address string. The legacy one reads the field out of the
+  raw attribute block through `mpReachNextHopHex` (`adj_rib_in/nlri_hex.go`), and
+  falls back to the event's address string for a family the block's MP_REACH does not
+  name: that event carries an address string, which cannot express the two-address
+  form at all, so fixing only the in-process path would have left a forked
+  bgp-adj-rib-in storing 16 octets.
+
+  **Proof.** `TestMPReachWireNextHopBytesRFC2545` (`wireu/mpwire_test.go`) covers 16,
+  32, 15 and a declared-longer-than-present field.
+  `TestHandleReceivedStructuredStoresWholeRFC2545NextHop` and
+  `TestHandleReceivedStoresWholeRFC2545NextHop` (`adj_rib_in/nlri_hex_test.go`) pin
+  each ingest path, `TestHandleReceivedKeepsEventNextHopWithoutMPReach` bounds the
+  legacy change, and `TestMPReachNextHopHexRefusesWhatItCannotRead` covers the
+  derivation's own edges. `TestRelayPayloadKeepsRFC2545LinkLocalNextHop`
+  (`reactor/relay_payload_test.go`) is the pair-check at the writer.
+  `test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci` carries the RFC2545-3-1 and
+  RFC2545-3-2 positives at functional tier: the destination receives the same 87-byte
+  UPDATE twice, once from the live forward and once from the replay, and both carry
+  the 32-octet pair under a Length octet of 0x20.
+
+  **Mutation-verified in both registers.** Each ingest mutation reddens its own unit
+  test with the truncation visible (64 hex chars expected, 32 received). Reverting the
+  structured path and REBUILDING the daemon reddens the `.ci` at the destination's
+  seq=2 while seq=1 stays green, reporting
+  `expected=00020120...`, `got=00020110...` -- the Length octet and the missing 16
+  octets. The `.ci` was authored in `test/draft/plugin/` and promoted green
+  (`ai/rules/testing.md`).
 - Complex families (VPN, EVPN, Flowspec) store the WHOLE MP_REACH NLRI block for the
   first NLRI and skip the rest (`adj_rib_in/rib.go`), so a replay re-announces every
   NLRI of the originating UPDATE — the failure the strip-and-resynthesize design
@@ -743,6 +774,7 @@ path-id. Step 2's chunking bounds route count rather than bytes.
 |------|----------|-------------------|--------|
 | `adj-rib-in-replay-addpath-source.ci` | `test/plugin/` | a route learned from an add-path source is replayed to an add-path peer AND to one without, each receiving the framing it negotiated | DONE 2026-08-19 (mutation-verified both ways: refusing an add-path source, and omitting the four path-id octets, each redden it; baseline green). Carries the RFC7911-3-1 positive and negative tags and an RFC7911-2-2 positive, which is the first functional-tier evidence for 3-1 |
 | `adj-rib-in-replay-on-peerup.ci` rewrite | `test/plugin/` | replay to an ESTABLISHED peer, asserted on wire bytes | DONE (mutation-verified, I-5) |
+| `adj-rib-in-replay-rfc2545-next-hop.ci` | `test/plugin/` | a route learned with an RFC 2545 form-2 next hop is replayed with both addresses, byte-identical to the live forward | DONE 2026-08-23 (mutation-verified with a REBUILT daemon: reverting the structured ingest reddens seq=2 while seq=1 stays green). Carries the RFC2545-3-1 and RFC2545-3-2 positives, the first functional-tier evidence for either over the relay rail |
 
 ## Files to Modify
 - `internal/component/bgp/reactor/reactor_api_relay.go` — lift `errRelayAddPath`; context choice

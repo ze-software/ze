@@ -96,7 +96,7 @@ func TestHandleReceivedAddPathStoresIdentifier(t *testing.T) {
 		},
 	})
 
-	route := onlyStoredRoute(t, r, "10.0.0.1")
+	route := onlyStoredRoute(t, r)
 	assert.Equal(t, "180a0000", route.NLRIHex, "the four Path Identifier octets are not stored in the bytes")
 	assert.Equal(t, uint32(7), route.PathID)
 	assert.Equal(t, rpc.NLRIFramingPrefixOnly, route.NLRIFraming)
@@ -190,8 +190,11 @@ func TestBuildReplayRoutesCarriesFraming(t *testing.T) {
 
 // onlyStoredRoute returns the single route stored for a peer, failing when the
 // count is not one.
-func onlyStoredRoute(t *testing.T, r *AdjRIBInManager, peer string) *RawRoute {
+func onlyStoredRoute(t *testing.T, r *AdjRIBInManager) *RawRoute {
 	t.Helper()
+	// Every caller drives the one source peer testPeerJSON names, so the address
+	// is a property of the fixture rather than an argument.
+	const peer = "10.0.0.1"
 	routes, ok := r.ribIn[netip.MustParseAddr(peer)]
 	require.True(t, ok, "no entry for peer %s", peer)
 	require.Equal(t, 1, routes.Len(), "expected exactly one stored route")
@@ -202,4 +205,160 @@ func onlyStoredRoute(t *testing.T, r *AdjRIBInManager, peer string) *RawRoute {
 	})
 	require.NotNil(t, out)
 	return out
+}
+
+// rfc2545Attrs builds an attribute block whose MP_REACH_NLRI carries an IPv6
+// next hop in RFC 2545 Section 3 form 2. The global address is 2001:db8::1 and
+// the link-local address fe80::1 follows it, under a Length octet of 32. The
+// NLRI is 2001:db8:1::/48.
+func rfc2545Attrs() (attrHex, nextHopHex, nlriHex string) {
+	nextHopHex = "20010db8000000000000000000000001" + "fe800000000000000000000000000001"
+	nlriHex = "3020010db80001"
+	// AFI 2, SAFI 1, Next Hop Length 32, the pair, Reserved, the NLRI.
+	mpValue := "0002" + "01" + "20" + nextHopHex + "00" + nlriHex
+	// 4 + 32 + 1 + 7 = 44 octets of value, so the header is 80 0e 2c.
+	mpAttr := "800e2c" + mpValue
+	attrHex = "40010100" + "40020602010000fde9" + mpAttr
+	return attrHex, nextHopHex, nlriHex
+}
+
+// TestHandleReceivedStructuredStoresWholeRFC2545NextHop pins the structured
+// ingest path against RFC 2545 Section 3.
+//
+// VALIDATES: the stored next hop is the WHOLE Network Address of Next Hop field,
+// so a 32-octet global plus link-local pair survives into RawRoute.NHopHex.
+// PREVENTS: the truncation this replaces. MPReachWire.NextHop returns one
+// netip.Addr and keeps the first 16 octets, so the store dropped the link-local
+// half. RFC 2545's own pitfall list names the consequence: a speaker holding
+// only the global address cannot rebuild form 2. The relay then emitted 16
+// octets where the live forward rail relays the source's 32, and an on-link peer
+// lost the next hop it resolves on its own link (RFC2545-3-1, RFC2545-3-2).
+func TestHandleReceivedStructuredStoresWholeRFC2545NextHop(t *testing.T) {
+	r := newTestManager(t)
+
+	attrHex, nextHopHex, nlriHex := rfc2545Attrs()
+	attrBytes, err := hex.DecodeString(attrHex)
+	require.NoError(t, err)
+	// Withdrawn Routes Length 0, then the attribute section, then no body NLRI:
+	// an IPv6 route travels inside MP_REACH.
+	body := append([]byte{0x00, 0x00, byte(len(attrBytes) >> 8), byte(len(attrBytes))}, attrBytes...)
+
+	ctxID, regErr := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
+	require.NoError(t, regErr)
+	wu := wireu.NewWireUpdate(body, ctxID)
+	attrs, err := wu.Attrs()
+	require.NoError(t, err)
+
+	r.handleReceivedStructured(&rpc.StructuredEvent{
+		EventType:   rpc.EventKindUpdate,
+		PeerAddress: "10.0.0.1",
+		RawMessage: &bgptypes.RawMessage{
+			Type:       msgtype.TypeUPDATE,
+			WireUpdate: wu,
+			AttrsWire:  attrs,
+		},
+	})
+
+	route := onlyStoredRoute(t, r)
+	assert.Equal(t, nextHopHex, route.NHopHex,
+		"both halves of the RFC 2545 pair must reach storage")
+	assert.Len(t, route.NHopHex, 64, "32 octets, not 16")
+	assert.Equal(t, nlriHex, route.NLRIHex)
+}
+
+// TestHandleReceivedStoresWholeRFC2545NextHop pins the SIBLING ingest path, the
+// one a forked bgp-adj-rib-in takes.
+//
+// VALIDATES: the legacy JSON path reads the next hop out of the raw attribute
+// block, which holds the field verbatim.
+// PREVENTS: fixing only the in-process path. The event's own next-hop is an
+// address STRING, so it can never express form 2, and a forked plugin would have
+// gone on storing 16 octets while the in-process one stored 32
+// (ai/rules/completion.md: the sibling path is in scope).
+func TestHandleReceivedStoresWholeRFC2545NextHop(t *testing.T) {
+	r := newTestManager(t)
+
+	attrHex, nextHopHex, nlriHex := rfc2545Attrs()
+
+	r.handleReceived(&bgp.Event{
+		Message:       &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 101},
+		Peer:          testPeerJSON(t),
+		RawAttributes: attrHex,
+		RawNLRI:       map[family.Family]string{family.IPv6Unicast: nlriHex},
+		FamilyOps: map[family.Family][]bgp.FamilyOperation{
+			family.IPv6Unicast: {{
+				// The string the event carries names the global address alone.
+				// It is the value this path used to store.
+				NextHop: "2001:db8::1",
+				Action:  routeaction.Add,
+				NLRIs:   []any{map[string]any{"prefix": "2001:db8:1::/48"}},
+			}},
+		},
+	})
+
+	route := onlyStoredRoute(t, r)
+	assert.Equal(t, nextHopHex, route.NHopHex,
+		"the raw MP_REACH field wins over the event's address string")
+	assert.Len(t, route.NHopHex, 64, "32 octets, not 16")
+}
+
+// TestHandleReceivedKeepsEventNextHopWithoutMPReach bounds the change above.
+//
+// VALIDATES: a legacy IPv4 unicast announcement, which carries its next hop in
+// the well-known NEXT_HOP attribute and no MP_REACH at all, still stores the
+// event's address.
+// PREVENTS: the MP_REACH read becoming the only source. One UPDATE can carry
+// MP_REACH for one family and body NLRI for IPv4 unicast. So the field is used
+// only for the family that attribute names.
+func TestHandleReceivedKeepsEventNextHopWithoutMPReach(t *testing.T) {
+	r := newTestManager(t)
+
+	r.handleReceived(&bgp.Event{
+		Message:       &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 102},
+		Peer:          testPeerJSON(t),
+		RawAttributes: "40010100" + "40020602010000fde9" + "4003040a000001",
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]bgp.FamilyOperation{
+			family.IPv4Unicast: {{
+				NextHop: "10.0.0.1",
+				Action:  routeaction.Add,
+				NLRIs:   []any{map[string]any{"prefix": "10.0.0.0/24"}},
+			}},
+		},
+	})
+
+	route := onlyStoredRoute(t, r)
+	assert.Equal(t, "0a000001", route.NHopHex)
+}
+
+// TestMPReachNextHopHexRefusesWhatItCannotRead covers the derivation's own edges.
+//
+// VALIDATES: mpReachNextHopHex reports nothing rather than something wrong when
+// the block is absent, unparseable, or carries no MP_REACH.
+// PREVENTS: a guard whose zero value looks like an answer. "" is what routes the
+// caller back to the event's address string, so each of these must produce it
+// (ai/rules/evidence.md).
+func TestMPReachNextHopHexRefusesWhatItCannotRead(t *testing.T) {
+	attrHex, nextHopHex, _ := rfc2545Attrs()
+
+	got, fam := mpReachNextHopHex(attrHex)
+	assert.Equal(t, nextHopHex, got)
+	assert.Equal(t, family.IPv6Unicast, fam)
+
+	for _, tc := range []struct {
+		name string
+		in   string
+	}{
+		{"empty", ""},
+		{"not-hex", "zz"},
+		{"odd-length", "400101"},
+		{"no-mp-reach", "40010100" + "4003040a000001"},
+		{"mp-reach-declares-more-than-it-holds", "800e050002012000"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			hexOut, famOut := mpReachNextHopHex(tc.in)
+			assert.Empty(t, hexOut)
+			assert.Equal(t, family.Family{}, famOut)
+		})
+	}
 }

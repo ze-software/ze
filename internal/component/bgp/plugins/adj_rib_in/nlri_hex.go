@@ -1,6 +1,7 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — Adj-RIB-In raw hex storage
 // RFC: rfc/short/rfc4271.md -- Section 4.3, the [length][prefix] NLRI encoding
 // RFC: rfc/short/rfc7911.md -- Section 3, the four-octet Path Identifier prepended to it
+// RFC: rfc/short/rfc2545.md -- Section 3, the 16-or-32-octet IPv6 next-hop field
 // Detail: rib.go — the ingest paths that call these helpers
 //
 // The wire-hex helpers the Adj-RIB-In ingest paths use to turn an event's bytes
@@ -20,6 +21,7 @@ import (
 	"net"
 	"net/netip"
 
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -170,6 +172,49 @@ func nhopHexFromAddr(addr netip.Addr) string {
 	}
 	b := addr.As16()
 	return hex.EncodeToString(b[:])
+}
+
+// mpReachNextHopHex reports the MP_REACH_NLRI next-hop field of a raw attribute
+// block, hex-encoded, together with the family that attribute carries.
+//
+// The WHOLE field, exactly as the source framed it. RFC 2545 Section 3 lets an
+// IPv6 next hop be a global address followed by a link-local one. A route stored
+// with the global half alone can never be re-advertised in the form the source
+// sent (RFC2545-3-1, RFC2545-3-2).
+//
+// A relayed route IS a re-advertisement, and the live forward rail relays the
+// source's own bytes. So 16 stored octets for a 32-octet field put the two rails
+// on different wire.
+//
+// Returns ("", zero family) when the block holds no MP_REACH_NLRI, or cannot be
+// indexed. The caller then falls back to the event's own next-hop string, which
+// is all a legacy IPv4 unicast announcement carries.
+func mpReachNextHopHex(attrHex string) (string, family.Family) {
+	if attrHex == "" {
+		return "", family.Family{}
+	}
+	packed, err := hex.DecodeString(attrHex)
+	if err != nil {
+		return "", family.Family{}
+	}
+	idx, err := attribute.BuildSpanIndex(packed)
+	if err != nil {
+		return "", family.Family{}
+	}
+	span, ok := idx.Find(attribute.AttrMPReachNLRI)
+	if !ok {
+		return "", family.Family{}
+	}
+	end := int(span.Offset) + int(span.Length)
+	if end > len(packed) {
+		return "", family.Family{}
+	}
+	mp := wireu.MPReachWire(packed[span.Offset:end])
+	nh := mp.NextHopBytes()
+	if len(nh) == 0 {
+		return "", family.Family{}
+	}
+	return hex.EncodeToString(nh), mp.Family()
 }
 
 func legacyNextHop(attrs *attribute.AttributesWire) string {

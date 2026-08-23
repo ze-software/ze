@@ -1,6 +1,7 @@
 package wireu
 
 import (
+	"bytes"
 	"net/netip"
 	"testing"
 
@@ -785,5 +786,73 @@ func TestIPv4WithdrawNLRIIterator(t *testing.T) {
 
 	if count != 1 {
 		t.Errorf("Iterator yielded %d prefixes, want 1", count)
+	}
+}
+
+// TestMPReachWireNextHopBytesRFC2545 covers RFC 2545 Section 3's next-hop field
+// at both permitted widths and at the boundaries around them.
+//
+// VALIDATES: NextHopBytes returns the WHOLE field, so a 32-octet global plus
+// link-local pair survives, while NextHop keeps giving the global address alone.
+// PREVENTS: storing 16 octets for a 32-octet field. RFC 2545's own pitfall list
+// names it: a speaker that keeps only the global address cannot rebuild form 2
+// on a later advertisement. A replayed route and a live forward of the same
+// route then go on the wire differently, and an on-link peer loses the
+// link-local next hop (RFC2545-3-1, RFC2545-3-2).
+func TestMPReachWireNextHopBytesRFC2545(t *testing.T) {
+	global := netip.MustParseAddr("2001:db8::1").As16()
+	linkLocal := netip.MustParseAddr("fe80::1").As16()
+	nlri := []byte{0x00, 48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01}
+
+	build := func(nh []byte) MPReachWire {
+		data := []byte{0x00, 0x02, 0x01, byte(len(nh))}
+		data = append(data, nh...)
+		return MPReachWire(append(data, nlri...))
+	}
+
+	cases := []struct {
+		name    string
+		wire    MPReachWire
+		wantLen int
+		wantNH  string
+	}{
+		{"form-1-global-only", build(global[:]), 16, "2001:db8::1"},
+		{"form-2-global-then-link-local", build(append(append([]byte{}, global[:]...), linkLocal[:]...)), 32, "2001:db8::1"},
+		// One octet under the smaller form. RFC 2545 permits 16 or 32 and
+		// nothing between, so both accessors refuse it.
+		{"fifteen-octets", build(global[:15]), 15, ""},
+		// The field the header declares runs past the attribute.
+		{"declared-longer-than-present", MPReachWire{0x00, 0x02, 0x01, 0x20, 0x01, 0x02}, 0, ""},
+		{"header-only", MPReachWire{0x00, 0x02, 0x01}, 0, ""},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.wire.NextHopBytes()
+			if len(got) != tc.wantLen {
+				t.Fatalf("NextHopBytes() len = %d, want %d", len(got), tc.wantLen)
+			}
+			nh := tc.wire.NextHop()
+			if tc.wantNH == "" {
+				if nh.IsValid() {
+					t.Errorf("NextHop() = %s, want invalid", nh)
+				}
+				return
+			}
+			if nh != netip.MustParseAddr(tc.wantNH) {
+				t.Errorf("NextHop() = %s, want %s", nh, tc.wantNH)
+			}
+		})
+	}
+
+	// The pair is ordered, and the order is what makes form 2 usable: the global
+	// address is first and the link-local address second (RFC 2545 Section 3).
+	form2 := build(append(append([]byte{}, global[:]...), linkLocal[:]...))
+	nh := form2.NextHopBytes()
+	if !bytes.Equal(nh[:16], global[:]) {
+		t.Errorf("first 16 octets are not the global address")
+	}
+	if !bytes.Equal(nh[16:], linkLocal[:]) {
+		t.Errorf("last 16 octets are not the link-local address")
 	}
 }

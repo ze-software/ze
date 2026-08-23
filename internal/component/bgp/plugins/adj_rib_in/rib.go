@@ -410,12 +410,20 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		nlriBytes := mpReach.NLRIBytes()
 		if len(nlriBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
+			// The WHOLE next-hop field, not a decoded address. RFC 2545 Section 3
+			// lets an IPv6 next hop be a global address followed by a link-local
+			// one, and MPReachWire.NextHop keeps only the global half.
+			//
+			// The relay re-advertises a stored route, and the live forward rail
+			// relays the source's own bytes. So 16 stored octets for a 32-octet
+			// field put the two rails on different wire, and cost an on-link peer
+			// the link-local next hop it needs (RFC2545-3-1, RFC2545-3-2).
+			nhopHex := hex.EncodeToString(mpReach.NextHopBytes())
 			if isSimplePrefixFamily(fam) {
-				nhopHex := nhopHexFromAddr(mpReach.NextHop())
 				r.installStructuredNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID)
 			} else {
 				// Complex families: fall back to Event path for correct NLRI handling.
-				r.installComplexNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, mpReach.NextHop().String(), msg.MessageID)
+				r.installComplexNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID)
 			}
 		}
 	}
@@ -501,11 +509,14 @@ func (r *AdjRIBInManager) removeStructuredNLRIs(peerAddr netip.Addr, fam family.
 // installComplexNLRIs handles non-simple-prefix families (VPN, EVPN) via wireNLRIsToAny.
 // These are rare in benchmarks and their wire format prevents direct prefix extraction.
 // Caller must hold r.mu.
-func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopStr string, msgID uint64) {
+//
+// nhopHex is the MP_REACH next-hop field as the source framed it. It used to be
+// an address STRING, which lost the link-local half of an RFC 2545 Section 3
+// pair before it ever reached storage.
+func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID uint64) {
 	if attrHex == "" {
 		return
 	}
-	nhopHex := nhopToHex(nhopStr)
 	if nhopHex == "" {
 		return
 	}
@@ -644,6 +655,13 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	// The event's own next-hop is an address STRING, so it cannot express the
+	// two-address form RFC 2545 Section 3 defines for an IPv6 next hop. The raw
+	// attribute block CAN: it carries the MP_REACH_NLRI field verbatim. Read it
+	// once here, because one UPDATE carries at most one MP_REACH and the block is
+	// the whole UPDATE's (RFC2545-3-1, RFC2545-3-2).
+	mpNhopHex, mpFam := mpReachNextHopHex(event.GetRawAttributesHex())
+
 	for fam, ops := range event.FamilyOps {
 		// Split raw NLRI hex into individual prefixes for simple families.
 		// For complex families (VPN, EVPN), splitRawNLRIHex returns nil
@@ -676,7 +694,15 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 					if event.GetRawAttributesHex() == "" {
 						continue
 					}
+					// The MP_REACH field wins for the family that attribute
+					// carries, because it is the only source here that holds a
+					// 32-octet RFC 2545 pair whole. Every other family, IPv4
+					// unicast through the legacy NEXT_HOP attribute among them,
+					// still takes the event's address string.
 					nhopHex := nhopToHex(op.NextHop)
+					if mpNhopHex != "" && mpFam == fam {
+						nhopHex = mpNhopHex
+					}
 					if nhopHex == "" {
 						continue
 					}

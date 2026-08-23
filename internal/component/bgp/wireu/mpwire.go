@@ -1,5 +1,6 @@
 // Design: docs/architecture/wire/messages.md — wire UPDATE lazy parsing
 // RFC: rfc/short/rfc4760.md — MP_REACH_NLRI / MP_UNREACH_NLRI wire access
+// RFC: rfc/short/rfc2545.md — Section 3, the 16-or-32-octet IPv6 next-hop field
 
 package wireu
 
@@ -44,22 +45,45 @@ func (m MPReachWire) Family() family.Family {
 	}
 }
 
+// NextHopBytes returns the Network Address of Next Hop field exactly as the
+// source framed it, as a view into the attribute bytes.
+// RFC 4760 Section 3: the field's width is the octet that precedes it.
+//
+// The WHOLE field, never a decoded address. RFC 2545 Section 3 lets an IPv6 next
+// hop carry a global address followed by a link-local one. NextHop below keeps
+// only the first 16 octets of that pair.
+//
+// A caller that STORES a route for later re-advertisement MUST use this instead.
+// The global half alone cannot rebuild the form the source sent (RFC2545-3-1,
+// RFC2545-3-2).
+//
+// Returns nil when the attribute is shorter than the field it declares.
+func (m MPReachWire) NextHopBytes() []byte {
+	if len(m) < 4 {
+		return nil
+	}
+	nhLen := int(m[3])
+	if len(m) < 4+nhLen {
+		return nil
+	}
+	return m[4 : 4+nhLen]
+}
+
 // NextHop returns the first next-hop address from the attribute.
 // RFC 4760 Section 3: Next Hop Network Address field.
 // Returns invalid Addr if data is malformed, too short, or the AFI is not
 // IPv4/IPv6 (VPN/EVPN next-hops are family-specific and not decoded here).
 // Callers MUST check IsValid() before use.
+//
+// A 32-octet RFC 2545 field yields the GLOBAL address alone. Use NextHopBytes
+// when the link-local half matters, which it does for anything that will put
+// these bytes back on the wire.
 func (m MPReachWire) NextHop() netip.Addr {
-	if len(m) < 4 {
+	nhBytes := m.NextHopBytes()
+	nhLen := len(nhBytes)
+	if nhLen == 0 {
 		return netip.Addr{}
 	}
-
-	nhLen := int(m[3])
-	if len(m) < 4+nhLen {
-		return netip.Addr{}
-	}
-
-	nhBytes := m[4 : 4+nhLen]
 
 	// Parse based on AFI and NH length
 	afi := m.AFI()
