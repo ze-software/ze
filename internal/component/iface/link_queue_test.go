@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/rtproto"
 )
@@ -342,6 +343,83 @@ func TestRouterEventDoesNotBlockTheMonitorLoop(t *testing.T) {
 	require.Len(t, routers, 2, "two routers on one interface are two subjects, not one")
 	assert.False(t, routers["fe80::1"], "fe80::1 ended lost")
 	assert.True(t, routers["fe80::2"], "fe80::2 ended discovered")
+}
+
+// TestSubscribersHandOffRatherThanApply drives the SUBSCRIBERS, not the queue.
+//
+// VALIDATES: AC-4 at the layer that decides it. The test above proves the queue
+// never blocks a pusher; it constructs the queue itself and never registers a
+// subscriber, so it stays green if subscribeLinkEvents goes back to calling
+// handleRouterDiscovered inline under dhcpMu. This one emits on a bus that
+// dispatches synchronously, the way EmitEngineEvent does, and holds the apply
+// lock throughout: an inline handler would deadlock the emit.
+// PREVENTS: the wiring rotting behind a passing queue test. Until this test the
+// only coverage of subscribeLinkEvents was
+// link_flap_integration_linux_test.go, which needs a kernel, so on a
+// non-Linux workstation nothing read the wiring at all.
+func TestSubscribersHandOffRatherThanApply(t *testing.T) {
+	// applyLock stands for dhcpMu, held by a config apply for the whole test.
+	var applyLock sync.Mutex
+	applyLock.Lock()
+
+	var mu sync.Mutex
+	var applied []linkEventEntry
+	q := newLinkEventQueue(slog.Default())
+	q.start(func(key linkEventKey, value linkEventValue) {
+		applyLock.Lock()
+		defer applyLock.Unlock()
+		mu.Lock()
+		applied = append(applied, linkEventEntry{key: key, value: value})
+		mu.Unlock()
+	})
+
+	bus := newEmitBus()
+	subscribeLinkEvents(bus, q, nil)
+
+	emitted := make(chan struct{})
+	go func() {
+		defer close(emitted)
+		for _, ev := range []struct{ eventType, payload string }{
+			{ifaceevents.EventRouterDiscovered, `{"name":"eth1","router-ip":"fe80::1"}`},
+			{ifaceevents.EventDown, `{"name":"eth1","index":3}`},
+			{ifaceevents.EventUp, `{"name":"eth1","index":3}`},
+		} {
+			if _, err := bus.Emit(ifaceevents.Namespace, ev.eventType, ev.payload); err != nil {
+				t.Errorf("emit %s: %v", ev.eventType, err)
+				return
+			}
+		}
+	}()
+
+	select {
+	case <-emitted:
+	case <-time.After(5 * time.Second):
+		applyLock.Unlock()
+		t.Fatal("a subscriber did the work itself and blocked the emitter for the whole config apply")
+	}
+
+	applyLock.Unlock() // the commit finishes
+	q.stop()
+
+	mu.Lock()
+	defer mu.Unlock()
+	var router, carrier *linkEventValue
+	for i := range applied {
+		switch applied[i].key.class {
+		case linkEventRouter:
+			require.Equal(t, "fe80::1", applied[i].key.routerIP)
+			router = &applied[i].value
+		case linkEventCarrier:
+			require.Equal(t, "eth1", applied[i].key.ifaceName)
+			carrier = &applied[i].value
+		default:
+			t.Fatalf("unexpected event class %d", applied[i].key.class)
+		}
+	}
+	require.NotNil(t, router, "the router subscriber must push, so the worker applies it")
+	assert.True(t, router.present, "the event was router-discovered")
+	require.NotNil(t, carrier, "the carrier subscribers must push, so the worker applies them")
+	assert.True(t, carrier.present, "UP is the state eth1 ended in, whatever the worker drained before it")
 }
 
 // TestCarrierResyncRepairsAContradictedRouteMetric proves ze reads live carrier

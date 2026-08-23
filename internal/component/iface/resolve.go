@@ -1,7 +1,7 @@
 // Design: docs/architecture/iface/logical-name-resolution.md -- shared logical-name resolver
 // Overview: iface.go -- Binding / LinkEvent value types
 // Related: dispatch.go -- GetInterface backend dispatch this builds on
-// Related: events/events.go -- monitor event namespace + constants
+// Related: package internal/core/iface/events -- monitor event namespace and constants
 
 package iface
 
@@ -41,11 +41,13 @@ type resolver struct {
 	osNames   map[string]string   // logical -> os (only entries that override)
 	logicalOf map[string][]string // os -> logical names bound to it
 	// permMACs maps a logical name to the normalized MAC its mac/match selector
-	// binds to; permMACOf is the reverse (MAC -> logical names) so a device
-	// event can reach the names that select it. Both empty when no mac/match
-	// selector is configured (the common case).
-	permMACs  map[string]string
-	permMACOf map[string][]string
+	// binds to. Empty when no mac/match selector is configured, which is the
+	// common case. A reverse map (MAC -> logical names) sat beside it until
+	// 2026-08-22, to answer "which names select THIS device" from a device's
+	// MAC. Nothing asks that any more: reading a device's MAC inside a link
+	// event handler meant a backend call on the monitor's read loop, and
+	// logicalsForLocked reaches the same names without it.
+	permMACs map[string]string
 	// boundOS records the kernel device each logical name last resolved to. It
 	// outlives a cache invalidation so a down/delete event for a device whose
 	// MAC can no longer be read still reaches the mac/match binding it backed.
@@ -74,10 +76,17 @@ func Addresses(name string) ([]AddrInfo, error) { return globalResolver.addresse
 // Subscribe registers for link events on the logical name and returns a
 // buffered channel plus a cancel func. The channel receives appeared/up/down
 // events even for an interface that does not exist yet (it fires when the
-// device appears). On a full channel events are dropped; the consumer should
-// re-Resolve on the next event it does receive. Cancel removes the
-// subscription and closes the channel; it leaks no goroutine because event
-// fan-out is synchronous in the monitor handler.
+// device appears).
+//
+// A subscriber that falls behind loses the OLDEST events buffered for it, never
+// the newest, so the state the interface ENDED in always arrives (sendLatest).
+// A consumer MAY therefore hold state across events; it MUST NOT assume it saw
+// every transition. Each loss is counted in
+// ze_iface_resolver_events_dropped_total.
+//
+// The caller MUST call cancel. It removes the subscription and closes the
+// channel; it leaks no goroutine because event fan-out is synchronous in the
+// monitor handler.
 func Subscribe(name string) (<-chan LinkEvent, func()) { return globalResolver.subscribe(name) }
 
 func (r *resolver) resolve(name string) (Binding, error) {
@@ -277,38 +286,77 @@ func (r *resolver) subscribe(name string) (<-chan LinkEvent, func()) {
 }
 
 // onLinkEvent invalidates the cache for every logical name bound to kernelName
-// and fans the event out to each one's subscribers. Sends are non-blocking and
-// performed under the lock (cancel holds the same lock when it closes a
-// channel, so there is no send-on-closed race); a full channel drops the event
-// (the consumer recovers on the next event or a re-Resolve).
+// and fans the event out to each one's subscribers.
+//
+// It does NO I/O. It runs on the netlink monitor's read loop, because
+// EmitEngineEvent (internal/component/plugin/server/engine_event.go) calls a
+// subscriber synchronously on the emitter's goroutine, and pkg/ze/eventbus.go
+// states that such a handler "MUST NOT block on I/O". A backend call here stops
+// the loop, and the kernel-side subscription queue overflows behind it, one
+// layer further from anything that can report it.
+//
+// Sends are non-blocking and performed under the lock (cancel holds the same
+// lock when it closes a channel, so there is no send-on-closed race). A full
+// channel loses its OLDEST event rather than this one, and COUNTS the loss, so
+// a subscriber that falls behind is late and never stranded. sendLatest says
+// why that direction is the load-bearing one.
 func (r *resolver) onLinkEvent(kernelName string, kind LinkEventKind, index int) {
-	// For an up/appeared event, learn the device's hardware MAC so a deferred
-	// mac/match binding can attach to a freshly appeared device. Done outside
-	// the lock (a backend call) and only when mac/match selectors exist, so the
-	// common path pays nothing. On a down event the device may already be gone
-	// (GetInterface would fail); the boundOS reverse map carries the last-known
-	// binding for that case instead.
-	var devMatchMAC string
-	if kind != LinkDown && r.hasPermMACMatches() {
-		if info, err := GetInterface(kernelName); err == nil {
-			devMatchMAC = deviceMatchMAC(info)
-		}
-	}
-
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for _, logical := range r.logicalsForLocked(kernelName, devMatchMAC) {
+
+	for _, logical := range r.logicalsForLocked(kernelName, kind != LinkDown) {
 		delete(r.cache, logical)
 		ev := LinkEvent{Name: logical, Kind: kind, Index: index}
 		for _, c := range r.subs[logical] {
-			select {
-			case c <- ev:
-			default:
-				loggerPtr.Load().Debug("iface resolver: subscriber channel full, dropping event",
+			if sendLatest(c, ev) {
+				countResolverEventDropped(logical)
+				loggerPtr.Load().Warn("iface resolver: subscriber channel full, discarded the oldest event",
 					"interface", logical, "kind", string(kind))
 			}
 		}
 	}
+}
+
+// sendLatest delivers ev to c, discarding the OLDEST buffered event when c is
+// full so the state an interface ENDED in always reaches the subscriber. It
+// reports whether an event was discarded, which the caller counts and logs.
+//
+// The direction is the whole point. A bare non-blocking send discards the
+// NEWEST, and that is unrecoverable for a consumer that accumulates rather than
+// recomputes. Sender.onLinkEvent (internal/plugins/iface/ra/sender_linux.go)
+// records a down in state.linkDown, and its timer branch returns without
+// rearming while that flag is set, so the next up event is the only thing that
+// can restart router advertisements. Lose that one event and the interface
+// stops advertising for the life of the process. Three consumers do re-attempt
+// on a timer (30s for the IS-IS, OSPF and OSPFv3 rescans, 5s for the LDP
+// discovery retry) and VRRP recomputes readiness on every wake-up, but a
+// guarantee that holds for every subscriber is what a per-consumer audit cannot
+// keep: the audit that said this drop was safe counted five subscribers when
+// the tree held six.
+//
+// No channel operation here blocks, because the caller runs on the netlink
+// monitor's read loop. The receive is non-blocking because a consumer can empty
+// c between the send above it and it. The second send is non-blocking so a
+// second sender, added later, cannot stall that loop either; today the caller
+// holds r.mu and there is none, so it always succeeds.
+//
+// The caller MUST hold r.mu: cancel takes the same lock when it closes c, so
+// there is no send-on-closed race.
+func sendLatest(c chan LinkEvent, ev LinkEvent) bool {
+	select {
+	case c <- ev:
+		return false
+	default: // c is full; make room below rather than discarding ev
+	}
+	select {
+	case <-c:
+	default: // a consumer emptied c since the send above, so there is room
+	}
+	select {
+	case c <- ev:
+	default: // unreachable under r.mu; the caller still counts and logs the loss
+	}
+	return true
 }
 
 // hasSelector reports whether the logical name carries a hardware selector --
@@ -326,22 +374,28 @@ func (r *resolver) hasSelector(name string) bool {
 	return ok
 }
 
-// hasPermMACMatches reports whether any mac/match selector is configured, so
-// onLinkEvent can skip the per-event backend MAC lookup in the common case.
-func (r *resolver) hasPermMACMatches() bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return len(r.permMACs) > 0
-}
-
 // logicalsForLocked returns every logical name a monitor event for kernelName
 // must reach: kernelName itself (the default identity mapping), names whose
 // os-name selector points at it, names whose mac/match binding last resolved to
 // it (so a down event invalidates them even though the device's MAC is no
-// longer readable), and -- when devMatchMAC is known (an up/appeared event) --
-// names whose mac/match selector equals the device's hardware MAC, so a freshly
-// appeared device reaches a previously-deferred binding. Caller holds r.mu.
-func (r *resolver) logicalsForLocked(kernelName, devMatchMAC string) []string {
+// longer readable), and -- when the device is appearing or coming up -- every
+// mac/match name that does not currently know its device.
+//
+// That last set is how a freshly appeared device reaches a binding it was never
+// bound to. It is deliberately a SUPERSET of the names whose selector matches
+// this device's MAC, because knowing which ones match means reading the MAC,
+// and the only way to read it here is a backend call on the monitor's read
+// loop, which pkg/ze/eventbus.go forbids a subscriber to make. Every consumer
+// answers a link event by re-resolving, so the extra names cost one Resolve
+// each and reach the same answer.
+//
+// The set is empty in the steady state and stays small: a mac/match name leaves
+// it as soon as it resolves, because a successful Resolve caches its binding,
+// and it re-enters only when an event for its own device invalidates that
+// cache. A name with no mac/match selector is never in it.
+//
+// Caller holds r.mu.
+func (r *resolver) logicalsForLocked(kernelName string, appearing bool) []string {
 	seen := make(map[string]struct{})
 	var out []string
 	add := func(ln string) {
@@ -360,9 +414,11 @@ func (r *resolver) logicalsForLocked(kernelName, devMatchMAC string) []string {
 			add(ln)
 		}
 	}
-	if devMatchMAC != "" {
-		for _, ln := range r.permMACOf[normalizeMAC(devMatchMAC)] {
-			add(ln)
+	if appearing {
+		for ln := range r.permMACs {
+			if _, known := r.cache[ln]; !known {
+				add(ln)
+			}
 		}
 	}
 	return out
@@ -378,20 +434,17 @@ func (r *resolver) setMapping(logicalToOS, logicalToMAC map[string]string) {
 		rev[osn] = append(rev[osn], ln)
 	}
 	macs := make(map[string]string, len(logicalToMAC))
-	macRev := make(map[string][]string, len(logicalToMAC))
 	for ln, mac := range logicalToMAC {
 		n := normalizeMAC(mac)
 		if n == "" {
 			continue
 		}
 		macs[ln] = n
-		macRev[n] = append(macRev[n], ln)
 	}
 	r.mu.Lock()
 	r.osNames = logicalToOS
 	r.logicalOf = rev
 	r.permMACs = macs
-	r.permMACOf = macRev
 	r.cache = make(map[string]Binding)
 	r.boundOS = make(map[string]string)
 	r.mu.Unlock()

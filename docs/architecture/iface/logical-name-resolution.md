@@ -130,7 +130,19 @@ The cache is keyed by the logical name and the cached ifindex is a hint. Any
 arrives as `down`, so invalidate-on-down covers deletion. There is no deleted
 topic to subscribe to.
 
-<!-- source: internal/component/iface/resolve.go -- recordBinding, cache invalidation -->
+Invalidation happens inside `onLinkEvent` itself, not over a subscriber
+channel, so it is never subject to the discard below.
+
+A `created` or `up` event also wakes every `mac/match` name that does not
+currently know its device, and that set is how a freshly appeared device
+reaches a binding it was never bound to. It is deliberately a superset of the
+names whose selector equals the device's MAC: knowing which ones match means
+reading the MAC, and the only way to read it here is a backend call on the
+monitor's read loop, which the event bus forbids a subscriber to make. Each
+woken name re-resolves and reaches the same answer. The set is empty in the
+steady state, because a successful resolve caches its binding.
+
+<!-- source: internal/component/iface/resolve.go -- recordBinding, cache invalidation, logicalsForLocked -->
 
 ## Event reality differs from the older prose
 
@@ -144,7 +156,13 @@ it. Verify a claim about the event stream against `monitor_linux.go`.
 
 The resolver fan-out sends non-blocking under its own mutex, the same lock
 `cancel` holds when it closes a channel, so there is no send-on-closed race. A
-drop is logged. An empty `default:` branch is refused by the pretool hook.
+full subscriber channel loses its OLDEST buffered event, never the one that
+just arrived, so no subscriber can be left believing the wrong final state.
+Each discard is logged and counted in `ze_iface_resolver_events_dropped_total`.
+`docs/architecture/iface/management.md` carries why that direction matters. An
+empty `default:` branch is refused by the pretool hook.
+
+<!-- source: internal/component/iface/resolve.go -- sendLatest, onLinkEvent -->
 
 ## The consumer side is a standing gate, not a one-time migration
 

@@ -53,3 +53,6 @@ is open.
 | 2026-08-23 | acb7c2cd | plan: close fixit-lint-blind-to-integration-tag | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-23 | acb7c2cd | plan: ze tells operators to set a GODEBUG that kills the daemon | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-23 | acb7c2cd | docs(links): drop the baseline row the closed lint spec left behind | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-23 | acb7c2cd | fix(iface): the resolver keeps the state an interface ended in | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-23 | acb7c2cd | fix(iface): the resolver keeps the state an interface ended in | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
+| 2026-08-23 | acb7c2cd | plan: close spec-fixit-link-event-drop-loses-carrier-state | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |

@@ -42,6 +42,17 @@ type ifaceMetrics struct {
 	// (link_queue.go, resyncCarrierState). A non-zero count says an event was
 	// never delivered or a route install failed, and names the interface.
 	carrierResyncs metrics.CounterVec
+	// resolverEventsDropped counts link events the resolver discarded because a
+	// subscriber's channel was full (sendLatest, resolve.go). The label is the
+	// LOGICAL interface name the subscriber registered under, not the kernel
+	// device.
+	//
+	// The event discarded is the OLDEST one buffered, never the one that just
+	// arrived, so the state an interface ENDED in still reaches the subscriber.
+	// A rising count therefore says a consumer is slow and has lost some of the
+	// middle of a burst. It never says the consumer was left believing the
+	// wrong final state.
+	resolverEventsDropped metrics.CounterVec
 }
 
 var ifaceMetricsPtr atomic.Pointer[ifaceMetrics]
@@ -68,6 +79,8 @@ func bindMetricsRegistry(reg metrics.Registry) {
 			"Carrier and router events superseded in the link queue before the worker took them", []string{"name"}),
 		carrierResyncs: reg.CounterVec("ze_iface_carrier_resyncs_total",
 			"Interfaces whose route metric the carrier resync repaired", []string{"name"}),
+		resolverEventsDropped: reg.CounterVec("ze_iface_resolver_events_dropped_total",
+			"Oldest resolver link events discarded to make room on a full subscriber channel", []string{"name"}),
 	}
 	ifaceMetricsPtr.Store(m)
 }
@@ -357,5 +370,13 @@ func countLinkEventCoalesced(ifaceName string) {
 func countCarrierResync(ifaceName string) {
 	if m := ifaceMetricsPtr.Load(); m != nil {
 		m.carrierResyncs.With(ifaceName).Inc()
+	}
+}
+
+// countResolverEventDropped records that the fan-out discarded a buffered event
+// for the logical name to make room on a full subscriber channel.
+func countResolverEventDropped(logicalName string) {
+	if m := ifaceMetricsPtr.Load(); m != nil {
+		m.resolverEventsDropped.With(logicalName).Inc()
 	}
 }

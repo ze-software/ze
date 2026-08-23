@@ -510,3 +510,156 @@ func TestPermMACDownInvalidatesBoundDevice(t *testing.T) {
 		t.Fatal("after the device is gone, resolve must not serve a stale binding")
 	}
 }
+
+// countingBackend records how many times a link event handler reached the
+// backend. Every other method comes from the embedded stub.
+type countingBackend struct {
+	*resolveStubBackend
+	mu    sync.Mutex
+	calls int
+}
+
+func (b *countingBackend) GetInterface(name string) (*InterfaceInfo, error) {
+	b.mu.Lock()
+	b.calls++
+	b.mu.Unlock()
+	return b.resolveStubBackend.GetInterface(name)
+}
+
+func (b *countingBackend) ListInterfaces() ([]InterfaceInfo, error) {
+	b.mu.Lock()
+	b.calls++
+	b.mu.Unlock()
+	return b.resolveStubBackend.ListInterfaces()
+}
+
+func (b *countingBackend) count() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.calls
+}
+
+// TestLinkEventHandlerMakesNoBackendCall holds the event bus handler contract on
+// the one handler that broke it.
+//
+// VALIDATES: AC-4 -- no handler calls the backend on the emitter's goroutine.
+// EmitEngineEvent (internal/component/plugin/server/engine_event.go) runs a
+// subscriber synchronously on the caller's goroutine, and for a link event that
+// caller is the netlink monitor's read loop. pkg/ze/eventbus.go states that such
+// a handler "MUST NOT block on I/O".
+// PREVENTS: the stall that overflows the kernel-side queue. onLinkEvent called
+// GetInterface for every up or appeared event whenever ANY mac/match selector
+// was configured, to learn the device's MAC. The backend is pluggable, so that
+// call is a plugin round-trip on a VPP box, taken on the read loop.
+//
+// The mapping below is what made the old code call: it configures a mac/match
+// selector, so `hasPermMACMatches` was true and the lookup ran. The second half
+// of the assertion is why the fix is not a deletion -- the deferred binding must
+// still be reached, which logicalsForLocked now does without knowing the MAC.
+func TestLinkEventHandlerMakesNoBackendCall(t *testing.T) {
+	backend := &countingBackend{resolveStubBackend: &resolveStubBackend{ifaces: map[string]*InterfaceInfo{
+		"eth5": {Name: "eth5", OsName: "eth5", Index: 5, State: "up", PermanentMAC: "aa:bb:cc:dd:ee:05"},
+	}}}
+	withResolveBackend(t, backend)
+
+	r := freshResolver()
+	r.setMapping(nil, map[string]string{"uplink": "aa:bb:cc:dd:ee:05"})
+	bus := newEmitBus()
+	r.bindEvents(bus)
+
+	ch, cancel := r.subscribe("uplink")
+	defer cancel()
+
+	if _, err := bus.Emit(ifaceevents.Namespace, ifaceevents.EventUp, `{"name":"eth5","index":5}`); err != nil {
+		t.Fatalf("emit: %v", err)
+	}
+
+	if got := backend.count(); got != 0 {
+		t.Errorf("the link event handler made %d backend calls on the emitter goroutine, want 0", got)
+	}
+	select {
+	case ev := <-ch:
+		if ev.Name != "uplink" || ev.Kind != LinkUp {
+			t.Errorf("unexpected event: %+v", ev)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("the deferred mac/match binding must still be reached without the backend call")
+	}
+}
+
+// TestResolverDropIsCounted proves the one place that still discards a link
+// event says so.
+//
+// VALIDATES: AC-3 -- a discarded event is counted and named. The resolver
+// fan-out never blocks the netlink monitor's read loop, so a subscriber that
+// falls behind loses an event. What it must not do is lose one silently.
+// PREVENTS: the invisibility this spec exists for, met a second time. The
+// discard carried a Debug line and no counter, so an operator whose IS-IS
+// circuit came back a rescan late had nothing to read.
+//
+// WHICH event is discarded is the separate guarantee, held by
+// TestResolverKeepsTheFinalStateWhenTheChannelFills below.
+func TestResolverDropIsCounted(t *testing.T) {
+	reg := bindCapturingMetrics(t)
+
+	r := freshResolver()
+	ch, cancel := r.subscribe("eth0")
+	defer cancel()
+
+	// subscribe hands out a channel 8 deep and nothing is reading it, so the
+	// ninth event onwards has nowhere to go.
+	const capacity = 8
+	const overflow = 3
+	for range capacity + overflow {
+		r.onLinkEvent("eth0", LinkUp, 1)
+	}
+
+	counter := reg.counterVecs["ze_iface_resolver_events_dropped_total"]
+	if counter == nil {
+		t.Fatal("bindMetricsRegistry must create the resolver drop counter")
+	}
+	if got := counter.value("eth0"); got != float64(overflow) {
+		t.Errorf("dropped counter for eth0 is %v, want %d", got, overflow)
+	}
+	if len(ch) != capacity {
+		t.Errorf("subscriber holds %d events, want the full %d", len(ch), capacity)
+	}
+}
+
+// TestResolverKeepsTheFinalStateWhenTheChannelFills holds the fan-out to the
+// guarantee its consumers depend on.
+//
+// VALIDATES: a subscriber that cannot keep up loses an EARLIER event, never the
+// state the interface ended in. sendLatest (resolve.go) discards the oldest
+// buffered event to make room; a bare non-blocking send discards the newest.
+// PREVENTS: stranding a consumer that accumulates rather than recomputes.
+// Sender.onLinkEvent (internal/plugins/iface/ra/sender_linux.go) sets
+// state.linkDown on a down, and its timer branch returns without rearming while
+// that flag is set, so the next up is the only thing that can restart router
+// advertisements. Discarding THAT event stopped advertisements on the interface
+// for the life of the process, and no timer anywhere repaired it.
+func TestResolverKeepsTheFinalStateWhenTheChannelFills(t *testing.T) {
+	r := freshResolver()
+	ch, cancel := r.subscribe("eth0")
+	defer cancel()
+
+	// subscribe hands out a channel 8 deep and nothing is reading it, so the
+	// burst below overruns it well before the final transition arrives.
+	const capacity = 8
+	for range capacity + 4 {
+		r.onLinkEvent("eth0", LinkUp, 1)
+	}
+	r.onLinkEvent("eth0", LinkDown, 1)
+
+	var got []LinkEvent
+	for len(ch) > 0 {
+		got = append(got, <-ch)
+	}
+	if len(got) != capacity {
+		t.Fatalf("subscriber holds %d events, want the full %d", len(got), capacity)
+	}
+	if last := got[len(got)-1]; last.Kind != LinkDown {
+		t.Errorf("the last event delivered is %q, want %q: a consumer that pauses on down and resumes only on up is stranded when the final state is the one discarded",
+			string(last.Kind), string(LinkDown))
+	}
+}

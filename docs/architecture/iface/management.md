@@ -104,6 +104,53 @@ two definitely contradict each other. A recorded state of "unknown" is not a
 contradiction: a DHCP lease sets it on every renewal, and repairing it would
 re-install the route the client has just installed.
 
+## The resolver fan-out discards the oldest, never the newest
+
+A second subscriber reads the same three events: the logical-name resolver. It
+invalidates its cached binding for every logical name the device backs, then
+fans a `LinkEvent` out to that name's subscribers. Those are the IS-IS, OSPF,
+OSPFv3, LDP and VRRP transports, and the router-advertisement sender.
+
+It does no I/O either, for the same reason. Until 2026-08-22 it asked the
+backend for the device's hardware MAC on every `up` and `appeared` event, so a
+freshly appeared device could reach a mac/match binding it had never been bound
+to. That was a plugin round-trip on the read loop wherever the backend is not
+the kernel. It now reaches those bindings without the MAC: an appearing device
+wakes every mac/match name that does not currently know its device, and each
+woken consumer re-resolves and gets the same answer. The set is empty in the
+steady state, because a successful resolve caches its binding.
+
+Its per-subscriber sends stay non-blocking, so a subscriber that falls behind
+loses an event rather than stalling the read loop. WHICH event it loses is the
+guarantee. `sendLatest` discards the OLDEST event buffered for that subscriber
+and delivers the new one, so the state an interface ENDED in always arrives.
+The subscriber is then late by the middle of a burst, and never left believing
+the wrong final state. Each discard is counted in
+`ze_iface_resolver_events_dropped_total`, labelled with the logical name.
+
+The direction is load-bearing, and a per-consumer audit is what it replaces.
+Three consumers re-attempt on a timer (30 seconds for the IS-IS, OSPF and
+OSPFv3 rescans, 5 seconds for the LDP discovery retry) and VRRP recomputes
+readiness on every wake-up, so for those four a lost event costs latency. The
+router-advertisement sender does not: `Sender.onLinkEvent` records a down in
+`state.linkDown`, and its timer branch returns without rearming while that flag
+is set, so the next `up` is the only thing that can restart advertisements.
+Discarding the newest stopped advertisements on that interface for the life of
+the process. Note also what the audit missed: it counted five subscribers when
+the tree held six. One guarantee at the producer is what the next subscriber
+inherits without anyone re-deriving it.
+
+The two rescans are also narrower than "recompute from a full listing".
+`RescanInterfaces` re-opens an enabled circuit that is closed. It never closes
+one, and it reads no carrier state, so it repairs a lost `up` and not a lost
+`down`. A circuit left open on a down link is then closed by the protocol's own
+adjacency timer, which is the same outcome as a link that dies with no
+notification at all.
+
 <!-- source: internal/component/iface/link_queue.go -- the queue, the worker and the carrier resync -->
 <!-- source: internal/component/iface/register.go -- the subscribers that push and the handlers the worker calls -->
+<!-- source: internal/component/iface/resolve.go -- onLinkEvent, sendLatest, logicalsForLocked and the discard counter -->
+<!-- source: internal/plugins/iface/ra/sender_linux.go -- Sender.onLinkEvent, state.linkDown and the timer branch that does not rearm -->
+<!-- source: internal/plugins/isis/transport/transport.go -- rescanInterval, RescanInterfaces -->
+<!-- source: internal/plugins/ldp/register.go -- ldpInterfaceRetry, waitForInterface -->
 <!-- source: internal/component/plugin/server/engine_event.go -- EmitEngineEvent dispatches subscribers on the caller's goroutine -->

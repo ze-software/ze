@@ -39,7 +39,7 @@
 #
 # (3) is an absence, and an absence is evidence only when the mechanism behind
 # it is alive. It is: TestCarrierResyncRepairsAContradictedRouteMetric
-# (internal/component/iface/route_metric_test.go) drives resyncCarrierState into
+# (internal/component/iface/link_queue_test.go) drives resyncCarrierState into
 # a repair and reads countCarrierResync, and (2) proves the same metric family
 # is registered and scraped in THIS run, so a zero here is a measured zero and
 # not a missing registry.
