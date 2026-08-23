@@ -81,3 +81,4 @@ is open.
 | 2026-08-23 | acb7c2cd | fix(test-runner): a sinked peer no longer deletes the file's JSON checks | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-23 | acb7c2cd | fix(test-runner): a sinked peer no longer deletes the file's JSON checks | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
 | 2026-08-23 | acb7c2cd | plan: close spec-fixit-redistribute-establishment-stall | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-23 | acb7c2cd | plan: drop the shard of a closed spec, every row terminal | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
