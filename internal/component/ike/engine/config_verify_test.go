@@ -307,3 +307,58 @@ func TestValidateIPsecSectionsResolvesAgainstCandidatePKI(t *testing.T) {
 		t.Errorf("error %q does not name the unresolvable CA", err)
 	}
 }
+
+// VALIDATES: the parser the reload's VERIFY phase stages with is side-effect free too.
+// parseVPNSections reads the `vpn` section and ignores a `pki` one, so a candidate's
+// certificates are never installed by the act of staging it.
+//
+// PREVENTS: the sibling above passing while the handler still adopts the PKI.
+// TestValidateIPsecSectionsDoesNotMutatePKIStore covers validateIPsecSections, and
+// validateIPsecSections was never the risk: OnConfigVerify (register.go) calls it and
+// THEN parses again to stage the result. That second parse was parseIPsecSections, which
+// calls pki.Load on any `pki` section it is handed, so the verify handler as a whole
+// adopted a candidate's PKI even though the function this file already tested did not.
+// The two tests are a PAIR: neither one alone covers the handler.
+//
+// This is unreachable today because the runtime root set is WantsConfig ["vpn"] alone, so
+// no `pki` section reaches verify. The test does not rely on that: it hands the parser a
+// pki section directly, which is exactly the delivery a widened root set would produce.
+func TestStagingParseDoesNotMutatePKIStore(t *testing.T) {
+	const probe = "stage-probe-ca"
+	if pki.GetCA(probe) != nil {
+		t.Fatalf("test premise broken: %s is already in the live store", probe)
+	}
+
+	// Both halves are VALID here, unlike the sibling's rejected fixture. A staging parse
+	// runs on a config that passed validation, so the case that matters is the one where
+	// nothing refuses the delivery and the side effect would simply happen.
+	sections := []sdk.ConfigSection{
+		{Root: "pki", Data: `{"ca": {"` + probe + `": {"certificate": "` + testCADER(t) + `"}}}`},
+		vpnSection(`{
+		  "vpn": {
+		  "ipsec": {
+		    "site-to-site": {
+		      "peer": {
+		        "branch": {
+		          "authentication": {"mode": "pre-shared-secret", "pre-shared-secret": "staging-probe-secret"}
+		        }
+		      }
+		    }
+		  }
+		  }
+		}`)[0],
+	}
+
+	cfg, err := parseVPNSections(sections)
+	if err != nil {
+		t.Fatalf("parseVPNSections: %v", err)
+	}
+	if _, ok := cfg.Peers["branch"]; !ok {
+		t.Fatal("test premise broken: the vpn half did not parse, so the pki half proves nothing")
+	}
+
+	if pki.GetCA(probe) != nil {
+		t.Error("the staging parse installed the candidate PKI into the live store: " +
+			"a verify that is later rejected would leave the running daemon holding it")
+	}
+}

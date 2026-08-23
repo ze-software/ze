@@ -577,11 +577,28 @@ func runEngine(conn net.Conn) int {
 	// applied: a peer naming an undefined ike-group or esp-group, a certificate
 	// reference the PKI store cannot resolve, an EAP-TLS peer with no trust
 	// anchor, or a malformed remote-access pool.
+	//
+	// The staging parse is parseVPNSections and MUST stay so. parseIPsecSections,
+	// which OnConfigure below uses, calls pki.Load on any `pki` section it is handed,
+	// and that swaps the PROCESS-WIDE store: a verify that adopted a candidate's
+	// certificates would leave a REJECTED config's PKI installed in a running daemon.
+	// parsePKIFromJSON's own comment states that contract, and validateIPsecSections
+	// already honours it by resolving names against a throwaway candidate set.
+	//
+	// One precondition is NOT enforced in code and belongs to whoever changes the
+	// registration below. Both parsers answer a delivery carrying NO `vpn` section
+	// with an EMPTY config and a nil error, which staged and committed would stop
+	// every peer on the box. That cannot happen while the runtime root set is
+	// WantsConfig ["vpn"] alone, because the plugin is then a participant only when
+	// `vpn` has diffs, and a removed root still arrives as `vpn` carrying "{}".
+	// ConfigRoots ["vpn","pki"] in the registry above is WIDER on purpose: it feeds
+	// the offline verifier, which never stages anything. Making the two agree would
+	// arm both hazards at once.
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		if err := validateIPsecSections(sections); err != nil {
 			return fmt.Errorf("ike config: %w", err)
 		}
-		cfg, err := parseIPsecSections(sections)
+		cfg, err := parseVPNSections(sections)
 		if err != nil {
 			return fmt.Errorf("ike config: %w", err)
 		}
