@@ -424,6 +424,7 @@ register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/core/capture` | defines the on-disk format of a Ze protocol event capture: a JSONL stream whose first line is a version header and whose every later line is one event |  |
 | `internal/core/cliio` | resolves the conventional "-" CLI token to stdin (when reading) or stdout (when writing), so every filename-accepting command supports pipes through one shared, tier-legal helper instead of ad-hoc... |  |
 | `internal/core/clock` | provides injectable abstractions for time operations |  |
+| `internal/core/configvalue` | reads a YANG leaf-list or a YANG list out of the config map that Tree.ToMap produces (internal/component/config/tree.go) |  |
 | `internal/core/cos` | holds the shared registry of named class-of-service QoS profiles and their resolver |  |
 | `internal/core/crashlog` | captures stderr output (including Go panic traces) and forwards it to syslog and a crash file on disk |  |
 | `internal/core/ddosevent` | defines the destination-oriented DDoS attack detection event contract |  |

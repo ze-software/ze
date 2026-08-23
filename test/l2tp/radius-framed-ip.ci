@@ -227,3 +227,8 @@ cmd=foreground:seq=3:exec=python3 l2tp-peer.py $PORT:timeout=10s
 expect=exit:code=0
 expect=stdout:contains=OK: tunnel established with RADIUS framed-ip + named pool config
 expect=stderr:contains=l2tp-pool: configured
+# The count, not just the line. `named-pool gold` above is a YANG list, which
+# Tree.ToMap renders as a map of pool name to entry, so a parser that asserted
+# []any on it built an EMPTY named table while still logging "configured". This
+# assertion is what tells the two apart.
+expect=stderr:contains=named-pools=1

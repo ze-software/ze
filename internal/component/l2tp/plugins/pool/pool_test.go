@@ -287,8 +287,12 @@ func TestPoolHandleNamedPoolNotFound(t *testing.T) {
 	}
 }
 
+// The named-pool fixture is a map of pool name to entry, which is what
+// Tree.ToMap emits for a YANG list. It used to be an array of entries each
+// carrying a "name" field, a shape no producer emits, so the test passed while
+// the parser discarded every named pool in every real config.
 func TestParseNamedPoolConfig(t *testing.T) {
-	data := `{"l2tp":{"pool":{"ipv4":{"gateway":"10.0.0.254","start":"10.0.0.1","end":"10.0.0.10"},"named-pool":[{"name":"gold","gateway":"10.1.0.254","start":"10.1.0.1","end":"10.1.0.5"},{"name":"silver","gateway":"10.2.0.254","start":"10.2.0.1","end":"10.2.0.3"}]}}}`
+	data := `{"l2tp":{"pool":{"ipv4":{"gateway":"10.0.0.254","start":"10.0.0.1","end":"10.0.0.10"},"named-pool":{"gold":{"gateway":"10.1.0.254","start":"10.1.0.1","end":"10.1.0.5"},"silver":{"gateway":"10.2.0.254","start":"10.2.0.1","end":"10.2.0.3"}}}}}`
 
 	result, err := parseFullPoolConfig(data)
 	if err != nil {
@@ -321,8 +325,11 @@ func TestParseNamedPoolConfig(t *testing.T) {
 	}
 }
 
+// A keyed YANG list carries its name as the map key, so an empty key is the
+// only nameless entry the parser can meet. The fixture used to omit a "name"
+// field from an array entry, which is a shape no producer emits.
 func TestParseNamedPoolMissingName(t *testing.T) {
-	data := `{"l2tp":{"pool":{"ipv4":{"gateway":"10.0.0.254","start":"10.0.0.1","end":"10.0.0.10"},"named-pool":[{"gateway":"10.1.0.254","start":"10.1.0.1","end":"10.1.0.5"}]}}}`
+	data := `{"l2tp":{"pool":{"ipv4":{"gateway":"10.0.0.254","start":"10.0.0.1","end":"10.0.0.10"},"named-pool":{"":{"gateway":"10.1.0.254","start":"10.1.0.1","end":"10.1.0.5"}}}}}`
 
 	_, err := parseFullPoolConfig(data)
 	if err == nil {

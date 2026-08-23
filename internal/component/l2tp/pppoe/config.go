@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/core/configvalue"
 )
 
 const (
@@ -90,7 +91,7 @@ func ExtractParameters(tree map[string]any) (Parameters, error) {
 	if acName, ok := pppoe["ac-name"].(string); ok && acName != "" {
 		p.ACName = acName
 	}
-	p.ServiceNames = cfgStrings(pppoe["service-name"])
+	p.ServiceNames = configvalue.LeafList(pppoe["service-name"])
 	if timeout, ok := cfgFloat(pppoe["cookie-timeout"]); ok && timeout > 0 {
 		p.CookieTimeout = time.Duration(timeout) * time.Second
 	}
@@ -137,7 +138,7 @@ func ExtractParameters(tree map[string]any) (Parameters, error) {
 		}
 		ic := InterfaceConfig{
 			Name:         name,
-			ServiceNames: cfgStrings(body["service-name"]),
+			ServiceNames: configvalue.LeafList(body["service-name"]),
 			MaxSessions:  p.MaxSessions,
 		}
 		if maxSess, ok := cfgFloat(body["max-sessions"]); ok && maxSess > 0 {
@@ -147,23 +148,6 @@ func ExtractParameters(tree map[string]any) (Parameters, error) {
 	}
 
 	return p, nil
-}
-
-// cfgStrings coerces a YANG leaf-list to a slice. Tree.ToMap collapses a
-// single-member leaf-list to a bare string and emits several members as a
-// []string, so both shapes are the producer's and both are read here.
-func cfgStrings(v any) []string {
-	switch s := v.(type) {
-	case string:
-		if s == "" {
-			return nil
-		}
-		return []string{s}
-	case []string:
-		return append([]string(nil), s...)
-	default:
-		return nil
-	}
 }
 
 // cfgBool coerces a config value (native JSON bool or the string form "true"/

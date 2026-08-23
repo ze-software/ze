@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -591,8 +592,11 @@ func parseFullPoolConfig(data string) (poolConfigResult, error) {
 		result.found = true
 	}
 
-	if namedList, ok := poolBlock["named-pool"].([]any); ok {
-		named, err := parseNamedPools(namedList)
+	// configvalue.ListEntries, not a []any assertion: Tree.ToMap renders a YANG
+	// list as a map of list key to entry at every count, so the assertion found
+	// nothing whatever the operator wrote and every named pool was lost.
+	if entries := configvalue.ListEntries(poolBlock["named-pool"]); len(entries) > 0 {
+		named, err := parseNamedPools(entries)
 		if err != nil {
 			return poolConfigResult{}, err
 		}
@@ -611,8 +615,8 @@ func parseFullPoolConfig(data string) (poolConfigResult, error) {
 		result.found = true
 	}
 
-	if v6NamedList, ok := poolBlock["named-ipv6-pool"].([]any); ok {
-		named, err := parseNamedIPv6Pools(v6NamedList)
+	if entries := configvalue.ListEntries(poolBlock["named-ipv6-pool"]); len(entries) > 0 {
+		named, err := parseNamedIPv6Pools(entries)
 		if err != nil {
 			return poolConfigResult{}, err
 		}
@@ -679,22 +683,20 @@ func parseIPv4Pool(ipv4Block map[string]any) (*ipv4Pool, error) {
 	return newIPv4Pool(gateway, start, end, dnsPrimary, dnsSecondary), nil
 }
 
-func parseNamedPools(list []any) (map[string]*ipv4Pool, error) {
-	pools := make(map[string]*ipv4Pool, len(list))
-	for _, item := range list {
-		entry, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		name, _ := entry["name"].(string)
-		if name == "" {
+// parseNamedPools builds the Framed-Pool table. The pool name is the list KEY,
+// because Tree.ToMap uses it as the map key and does not repeat it as a field
+// inside the entry, so reading a "name" leaf out of the entry finds nothing.
+func parseNamedPools(entries []configvalue.ListEntry) (map[string]*ipv4Pool, error) {
+	pools := make(map[string]*ipv4Pool, len(entries))
+	for _, entry := range entries {
+		if entry.Key == "" {
 			return nil, fmt.Errorf("%s: named-pool requires a name", Name)
 		}
-		pool, err := parseIPv4Pool(entry)
+		pool, err := parseIPv4Pool(entry.Fields)
 		if err != nil {
-			return nil, fmt.Errorf("%s: named-pool %q: %w", Name, name, err)
+			return nil, fmt.Errorf("%s: named-pool %q: %w", Name, entry.Key, err)
 		}
-		pools[name] = pool
+		pools[entry.Key] = pool
 	}
 	return pools, nil
 }
@@ -722,22 +724,19 @@ func parseIPv6PDPool(block map[string]any) (*ipv6PrefixPool, error) {
 	return newIPv6PrefixPool(prefix, delegLen)
 }
 
-func parseNamedIPv6Pools(list []any) (map[string]*ipv6PrefixPool, error) {
-	pools := make(map[string]*ipv6PrefixPool, len(list))
-	for _, item := range list {
-		entry, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		name, _ := entry["name"].(string)
-		if name == "" {
+// parseNamedIPv6Pools builds the Framed-Pool prefix-delegation table. As with
+// parseNamedPools, the pool name is the list KEY rather than a field.
+func parseNamedIPv6Pools(entries []configvalue.ListEntry) (map[string]*ipv6PrefixPool, error) {
+	pools := make(map[string]*ipv6PrefixPool, len(entries))
+	for _, entry := range entries {
+		if entry.Key == "" {
 			return nil, fmt.Errorf("%s: named-ipv6-pool requires a name", Name)
 		}
-		pool, err := parseIPv6PDPool(entry)
+		pool, err := parseIPv6PDPool(entry.Fields)
 		if err != nil {
-			return nil, fmt.Errorf("%s: named-ipv6-pool %q: %w", Name, name, err)
+			return nil, fmt.Errorf("%s: named-ipv6-pool %q: %w", Name, entry.Key, err)
 		}
-		pools[name] = pool
+		pools[entry.Key] = pool
 	}
 	return pools, nil
 }

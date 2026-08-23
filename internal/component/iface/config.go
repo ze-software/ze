@@ -16,6 +16,7 @@ import (
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
+	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/cos"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -420,10 +421,10 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 			if stp, ok := m["stp"].(string); ok {
 				entry.STP = stp == yangTrue
 			}
-			// parseStringList, not a []any assertion: a leaf-list carrying ONE
+			// configvalue.LeafList, not a []any assertion: a leaf-list carrying ONE
 			// value arrives as a bare string, and the assertion dropped it. A
 			// bridge with a single member enslaved nothing, with no error.
-			entry.Members = parseStringList(m, "member")
+			entry.Members = configvalue.LeafList(m["member"])
 			cfg.Bridge = append(cfg.Bridge, entry)
 		}
 	}
@@ -826,7 +827,7 @@ func parseWireguardPeer(name string, m map[string]any) (WireguardPeerSpec, error
 		}
 	}
 
-	peer.AllowedIPs = parseStringList(m, "allowed-ips")
+	peer.AllowedIPs = configvalue.LeafList(m["allowed-ips"])
 
 	if kaStr, ok := m["persistent-keepalive"].(string); ok && kaStr != "" {
 		ka, err := strconv.ParseUint(kaStr, 10, 16)
@@ -976,7 +977,7 @@ func parseUnits(m map[string]any, parentCoS string) ([]unitEntry, error) {
 				u.RoutePriority = int(priority)
 				u.RoutePrioritySet = true
 			}
-			u.SysctlProfiles = parseStringList(um, "sysctl-profile")
+			u.SysctlProfiles = configvalue.LeafList(um["sysctl-profile"])
 			var err error
 			u.IPv4, err = parseIPv4Settings(um)
 			if err != nil {
@@ -1157,7 +1158,7 @@ func parseIPv4Settings(um map[string]any) (*ipv4Settings, error) {
 	}
 	s := &ipv4Settings{}
 	set := false
-	s.Addresses = parseStringList(v4, "address")
+	s.Addresses = configvalue.LeafList(v4["address"])
 	for _, a := range s.Addresses {
 		p, err := netip.ParsePrefix(a)
 		if err != nil {
@@ -1240,7 +1241,7 @@ func parseIPv6Settings(um map[string]any) (*ipv6Settings, error) {
 	}
 	s := &ipv6Settings{}
 	set := false
-	s.Addresses = parseStringList(v6, "address")
+	s.Addresses = configvalue.LeafList(v6["address"])
 	for _, a := range s.Addresses {
 		p, err := netip.ParsePrefix(a)
 		if err != nil {
@@ -1362,24 +1363,4 @@ func parseDHCPv6Config(um map[string]any) *dhcpv6UnitConfig {
 		cfg.DUID = v
 	}
 	return cfg
-}
-
-func parseStringList(m map[string]any, key string) []string {
-	v, ok := m[key]
-	if !ok {
-		return nil
-	}
-	switch val := v.(type) {
-	case []any:
-		var result []string
-		for _, item := range val {
-			if s, ok := item.(string); ok {
-				result = append(result, s)
-			}
-		}
-		return result
-	case string:
-		return []string{val}
-	}
-	return nil
 }

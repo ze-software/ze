@@ -27,16 +27,22 @@ func newV6RIEngine(t *testing.T) *engine {
 // v6RIConfig parses a config whose OSPFv3 sub-config enables RI at the given scopes.
 func v6RIConfig(t *testing.T, scopes ...string) ospfConfig {
 	t.Helper()
-	scopeJSON := `"area","as"`
-	if len(scopes) > 0 {
+	// Mirror what Tree.ToMap emits: a bare string at exactly one member, a JSON
+	// array at two or more. Always emitting an array fed a shape no producer
+	// makes, so the single-scope cases below exercised a path the daemon never
+	// takes.
+	scopeJSON := `["area","as"]`
+	if len(scopes) == 1 {
+		scopeJSON = `"` + scopes[0] + `"`
+	} else if len(scopes) > 1 {
 		parts := make([]string, len(scopes))
 		for i, s := range scopes {
 			parts[i] = `"` + s + `"`
 		}
-		scopeJSON = strings.Join(parts, ",")
+		scopeJSON = `[` + strings.Join(parts, ",") + `]`
 	}
 	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"1.1.1.1","address-family":{"ipv6":{`+
-		`"router-information":{"enabled":true,"scope":[`+scopeJSON+`]},`+
+		`"router-information":{"enabled":true,"scope":`+scopeJSON+`},`+
 		`"areas":{"area":{"0":{"area-id":"0"}}},`+
 		`"interfaces":{"interface":{"eth0":{"name":"eth0","area":"0","network-type":"point-to-point"}}}}}}}`), nil)
 	if err != nil {

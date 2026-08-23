@@ -315,7 +315,7 @@ func decomposeSelectorAddressChange(t *testing.T) []tx.ConfigOperation {
 	t.Helper()
 	const active = `{"interface":{"backend":"test","ethernet":{"wan":{"mac":{"match":"aa:bb:cc:00:00:01"}}}}}`
 	const candidate = `{"interface":{"backend":"test","ethernet":{"wan":{"mac":{"match":"aa:bb:cc:00:00:01"},` +
-		`"unit":{"0":{"ipv4":{"address":["10.0.0.1/24"]}}}}}}}`
+		`"unit":{"0":{"ipv4":{"address":"10.0.0.1/24"}}}}}}}`
 
 	ops, err := decomposeIfaceOperations(context.Background(), tx.DecomposeRequest{
 		TransactionID: "tx-iface-selector",

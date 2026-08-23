@@ -70,6 +70,35 @@ keyword key2 {
 }
 ```
 
+### What a reader receives
+
+`(*Tree).ToMap` lowers the parsed tree to `map[string]any` for delivery, and the
+shape it emits for a leaf-list or a list is not the one the node type suggests.
+An in-process component receives that map unchanged. A plugin receives it
+marshaled to JSON, which turns a `[]string` into a `[]any`.
+
+| Node | Members | In process | After JSON |
+|------|---------|------------|------------|
+| leaf-list | none active | key absent | key absent |
+| leaf-list | exactly one | bare `string` | bare `string` |
+| leaf-list | two or more | `[]string` | `[]any` |
+| list | any count, one included | `map[string]any` keyed by the list key | `map[string]any` keyed by the list key |
+
+Two consequences decide how a reader is written. A leaf-list is not always a
+slice, so asserting one drops the value at exactly one member. A list is never a
+slice at any count, and its key leaf is the map key rather than a field inside
+the entry, so asserting a slice drops it at every count.
+
+Read both through `internal/core/configvalue` (`LeafList`, `ListEntries`) rather
+than asserting a type. The obligation is stated in the configuration rule.
+
+A list is delivered as a map, so the operator's ENTRY ORDER does not survive
+lowering. A `list` declared `ordered-by user` whose semantics depend on that
+order cannot recover it from the delivered map.
+
+<!-- source: internal/component/config/tree.go -- (*Tree).ToMap -->
+<!-- source: internal/core/configvalue/configvalue.go -- LeafList, ListEntries -->
+
 ### Inactive prefix (deactivate / activate)
 
 Any structural statement may be prefixed with `inactive: ` to mark it

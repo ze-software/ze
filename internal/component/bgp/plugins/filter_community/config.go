@@ -17,6 +17,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/configvalue"
 )
 
 // Community type constants.
@@ -162,11 +164,7 @@ func parseCommunityDefinitions(bgpCfg map[string]any) (communityDefs, error) {
 			if !ok {
 				continue
 			}
-			// `value` is a leaf-list in YANG but the config loader may pass
-			// either []any (JSON round-trip), []string (ToMap() multi-value), or
-			// a bare string (ToMap() single-value). Normalise via the same helper
-			// used for leaf-list fields elsewhere in this file.
-			valueStrs := anySliceToStrings(namedBlock["value"])
+			valueStrs := configvalue.LeafList(namedBlock["value"])
 			if len(valueStrs) == 0 {
 				return nil, fmt.Errorf("community %s %q: no values defined", entry.key, name)
 			}
@@ -240,8 +238,8 @@ func parseFilterConfig(peerCfg map[string]any) filterConfig {
 
 	if ingress, ok := filterBlock["ingress"].(map[string]any); ok {
 		if community, ok := ingress["community"].(map[string]any); ok {
-			fc.ingressTag = anySliceToStrings(community["tag"])
-			fc.ingressStrip = anySliceToStrings(community["strip"])
+			fc.ingressTag = configvalue.LeafList(community["tag"])
+			fc.ingressStrip = configvalue.LeafList(community["strip"])
 			fc.relationTag = optBool(community["relation-tag"])
 			fc.relationFunction = optUint32(community["relation-function"])
 			fc.scrubOwnGA = optBool(community["scrub-own-ga"])
@@ -252,8 +250,8 @@ func parseFilterConfig(peerCfg map[string]any) filterConfig {
 
 	if egress, ok := filterBlock["egress"].(map[string]any); ok {
 		if community, ok := egress["community"].(map[string]any); ok {
-			fc.egressTag = anySliceToStrings(community["tag"])
-			fc.egressStrip = anySliceToStrings(community["strip"])
+			fc.egressTag = configvalue.LeafList(community["tag"])
+			fc.egressStrip = configvalue.LeafList(community["strip"])
 		}
 	}
 
@@ -369,7 +367,7 @@ func optUint32(v any) *uint32 {
 // and 0 is a real function number that would then be kept without anyone
 // asking for it.
 func uint32List(v any) []uint32 {
-	strs := anySliceToStrings(v)
+	strs := configvalue.LeafList(v)
 	if len(strs) > 0 {
 		out := make([]uint32, 0, len(strs))
 		for _, s := range strs {
@@ -451,36 +449,6 @@ func appendUnique(a, b []string) []string {
 		}
 	}
 	return result
-}
-
-// anySliceToStrings converts a value to []string. Handles: []any (from JSON
-// round-trip), []string (from ToMap() multi-values), and bare string (from
-// ToMap() single-value).
-func anySliceToStrings(v any) []string {
-	switch s := v.(type) {
-	case []any:
-		result := make([]string, 0, len(s))
-		for _, item := range s {
-			if str, ok := item.(string); ok {
-				result = append(result, str)
-			}
-		}
-		if len(result) == 0 {
-			return nil
-		}
-		return result
-	case []string:
-		if len(s) == 0 {
-			return nil
-		}
-		return s
-	case string:
-		if s == "" {
-			return nil
-		}
-		return []string{s}
-	}
-	return nil
 }
 
 // parseStandardWire parses a standard community string (ASN:value) to

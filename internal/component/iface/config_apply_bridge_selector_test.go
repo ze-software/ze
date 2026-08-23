@@ -245,8 +245,8 @@ func TestListingFailureIsReportedAtTheLevelOfWhatItCosts(t *testing.T) {
 // leaf-list carrying ONE value arrives as a bare string. The assertion failed,
 // the slice stayed empty, and a bridge configured with a single member enslaved
 // nothing at all -- with no error, on the most ordinary bridge an operator
-// writes. parseStringList exists for exactly this and every sibling leaf-list
-// already used it.
+// writes. internal/core/configvalue exists for exactly this, and every sibling
+// leaf-list in this file reads through it.
 func TestBridgeMemberListSurvivesOneMember(t *testing.T) {
 	for _, tc := range []struct {
 		name string

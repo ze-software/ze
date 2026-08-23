@@ -159,7 +159,7 @@ func TestOSPFRIShowFunctional(t *testing.T) {
 	// v2 with stub-router advertised.
 	v4 := riFnRegister(t, `{"ospf":{"router-id":"1.1.1.1","opaque":true,`+
 		`"max-metric":{"router-lsa":{"always":"true"}},`+
-		`"router-information":{"enabled":true,"scope":["area"]},`+
+		`"router-information":{"enabled":true,"scope":"area"},`+
 		`"areas":{"area":{"0":{"area-id":"0"}}},`+
 		`"interfaces":{"interface":{"eth0":{"name":"eth0","area":"0"}}}}}`)
 	v4.originateSelfLSAs()

@@ -29,6 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/network"
@@ -117,29 +118,6 @@ func configNumber(v any) (float64, bool) {
 	}
 }
 
-// configLeafList coerces a YANG leaf-list value into a string slice. Tree.ToMap
-// renders a single-element leaf-list as a bare scalar and a multi-element one as
-// a []any, so both forms are handled.
-func configLeafList(v any) []string {
-	switch list := v.(type) {
-	case string:
-		if list == "" {
-			return nil
-		}
-		return []string{list}
-	case []any:
-		out := make([]string, 0, len(list))
-		for _, item := range list {
-			if s, ok := item.(string); ok {
-				out = append(out, s)
-			}
-		}
-		return out
-	default:
-		return nil
-	}
-}
-
 func parseLDPConfig(sections []sdk.ConfigSection) (ldpConfig, error) {
 	cfg := ldpConfig{
 		HelloInterval: DefaultHelloInterval,
@@ -183,7 +161,7 @@ func parseLDPConfig(sections []sdk.ConfigSection) (ldpConfig, error) {
 		if v, ok := configNumber(tree["keepalive-time"]); ok && v > 0 {
 			cfg.KeepaliveTime = time.Duration(v) * time.Second
 		}
-		cfg.Interfaces = append(cfg.Interfaces, configLeafList(tree["interfaces"])...)
+		cfg.Interfaces = append(cfg.Interfaces, configvalue.LeafList(tree["interfaces"])...)
 	}
 	return cfg, nil
 }

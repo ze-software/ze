@@ -8,6 +8,8 @@ import (
 	"net/netip"
 	"sort"
 	"strconv"
+
+	"github.com/ze-software/ze/internal/core/configvalue"
 )
 
 // Defaults for the router-advertisement container. Each one repeats the
@@ -228,7 +230,7 @@ func raParseRDNSS(rm map[string]any, cfg *raUnitConfig) error {
 	if !ok {
 		return nil
 	}
-	for _, s := range parseStringList(dm, "server") {
+	for _, s := range configvalue.LeafList(dm["server"]) {
 		addr, err := netip.ParseAddr(s)
 		if err != nil {
 			return fmt.Errorf("router-advertisement rdnss server %q: %w", s, err)

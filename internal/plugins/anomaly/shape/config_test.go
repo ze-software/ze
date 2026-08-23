@@ -13,7 +13,7 @@ import (
 func TestParseConfigLeaves(t *testing.T) {
 	data := `{"anomaly":{"shape":{"mode":"armed","action":"drop","limit-rate":500,` +
 		`"limit-unit":"second","limit-burst":10,"auto-revert-ttl":120,` +
-		`"blast-radius-cap":8,"kill-switch":true,"allowlist":["10.0.0.0/8"]}}}`
+		`"blast-radius-cap":8,"kill-switch":true,"allowlist":"10.0.0.0/8"}}}`
 	cfg, err := ParseConfig(data)
 	if err != nil {
 		t.Fatal(err)
@@ -38,7 +38,7 @@ func TestParseConfig_StringValuedDelivery(t *testing.T) {
 	data := `{"anomaly":{"shape":{` +
 		`"mode":"armed","action":"drop","limit-rate":"500","limit-unit":"minute",` +
 		`"limit-burst":"10","auto-revert-ttl":"120","blast-radius-cap":"8",` +
-		`"kill-switch":"true","allowlist":["10.0.0.0/8"]}}}`
+		`"kill-switch":"true","allowlist":"10.0.0.0/8"}}}`
 	cfg, err := ParseConfig(data)
 	if err != nil {
 		t.Fatal(err)

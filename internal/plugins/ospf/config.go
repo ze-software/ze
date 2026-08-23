@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
@@ -1130,13 +1131,13 @@ func parseFastReroute(m map[string]any) fastRerouteConfig {
 func parseRouterInformation(m map[string]any) routerInformationConfig {
 	cfg := routerInformationConfig{present: true}
 	cfg.Enabled = configBool(m["enabled"], false)
-	if list, ok := m["scope"].([]any); ok {
-		for _, item := range list {
-			if s, ok := item.(string); ok {
-				if sc, ok := routerInfoScope(s); ok && !cfg.HasScope(sc) {
-					cfg.Scopes = append(cfg.Scopes, sc)
-				}
-			}
+	// configvalue.LeafList, not a []any assertion: Tree.ToMap collapses a
+	// one-member leaf-list to a bare string, so the assertion emptied the scope
+	// list whenever the operator named exactly one scope, and the default below
+	// then substituted BOTH scopes -- a wrong value rather than a missing one.
+	for _, s := range configvalue.LeafList(m["scope"]) {
+		if sc, ok := routerInfoScope(s); ok && !cfg.HasScope(sc) {
+			cfg.Scopes = append(cfg.Scopes, sc)
 		}
 	}
 	if cfg.Enabled && len(cfg.Scopes) == 0 {
@@ -1489,8 +1490,10 @@ var errInstanceIDRange = errors.New("instance-id must be 0..255 (RFC 6549 8-bit 
 
 // configInstanceIDs coerces the `instance-id` leaf-list into a sorted, de-duplicated
 // []uint8. Tree.ToMap renders a single-element leaf-list as a bare scalar and a
-// multi-element one as a []any, mirroring configLeafList in the IS-IS resolver. An out-of-
-// range value is rejected (never truncated). An absent leaf yields nil (base instance 0).
+// multi-element one as a []string in process or a []any over JSON: the three shapes
+// configvalue.LeafList reads, and all three are read here. The coercion stays local
+// because it yields NUMBERS, and LeafList yields strings. An out-of-range value is
+// rejected (never truncated). An absent leaf yields nil (base instance 0).
 func configInstanceIDs(v any) ([]uint8, error) {
 	var raw []any
 	switch list := v.(type) {
@@ -1498,6 +1501,14 @@ func configInstanceIDs(v any) ([]uint8, error) {
 		return nil, nil
 	case []any:
 		raw = list
+	case []string:
+		// The in-process delivery path. Without this arm the whole slice falls
+		// to default and becomes ONE item that configNumber cannot read, so
+		// every configured instance-id is lost rather than one of them.
+		raw = make([]any, len(list))
+		for i, s := range list {
+			raw[i] = s
+		}
 	default:
 		raw = []any{list}
 	}

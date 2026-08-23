@@ -112,6 +112,10 @@ config-string-coercion ## Config String Coercion
   the-mechanical-check
   the-check-that-finds-a-missing-string-arm
   allowlist-only-a-genuine-non-config-coercion
+config-list-shapes ## Config List Shapes
+  the-shapes-a-leaf-list-and-a-list-arrive-in
+  read-a-leaf-list-or-a-list-through-configvalue
+  test-a-leaf-list-reader-at-one-member
 examples ## Examples
   what-the-coercion-helper-example-shows
   example-a-string-tolerant-coercion-helper

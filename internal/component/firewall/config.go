@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/configorder"
+	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/dscp"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -173,20 +175,25 @@ func parseChain(name string, m map[string]any) (Chain, error) {
 		}
 	}
 
-	if termMap, ok := m["term"].(map[string]any); ok {
-		for tName, tv := range termMap {
-			tm, ok := tv.(map[string]any)
-			if !ok {
-				continue
-			}
-			term, err := parseTerm(tName, tm)
-			if err != nil {
-				return Chain{}, fmt.Errorf("term %q: %w", tName, err)
-			}
-			chain.Terms = append(chain.Terms, term)
-			if v6 := expandIRRTermV6(term); v6 != nil {
-				chain.Terms = append(chain.Terms, *v6)
-			}
+	// Terms are evaluated first-match-wins, and the backend emits one nft rule
+	// per term in this slice order, so Terms IS the rule order in the kernel.
+	// The `term` list is `ordered-by user` (yang/ze-firewall-conf.yang), and
+	// configorder.Entries is what carries the operator's order across the JSON
+	// boundary. Ranging the delivered map directly, which is what this did
+	// until 2026-08-23, gave every chain a rule order drawn from Go's
+	// randomized map iteration and shuffled it on each config load.
+	terms, err := configorder.Entries(m, "term", "name")
+	if err != nil {
+		return Chain{}, err
+	}
+	for _, entry := range terms {
+		term, err := parseTerm(entry.Key, entry.Map)
+		if err != nil {
+			return Chain{}, fmt.Errorf("term %q: %w", entry.Key, err)
+		}
+		chain.Terms = append(chain.Terms, term)
+		if v6 := expandIRRTermV6(term); v6 != nil {
+			chain.Terms = append(chain.Terms, *v6)
 		}
 	}
 
@@ -1280,13 +1287,10 @@ func parseFlowtable(name string, m map[string]any) (Flowtable, error) {
 		ft.Priority = int32(pri)
 	}
 
-	if devs, ok := m["device"].([]any); ok {
-		for _, d := range devs {
-			if ds, ok := d.(string); ok {
-				ft.Devices = append(ft.Devices, ds)
-			}
-		}
-	}
+	// configvalue.LeafList, not a []any assertion: Tree.ToMap collapses a
+	// one-member leaf-list to a bare string, so the assertion left a flowtable
+	// configured with a single device holding no devices and offloading nothing.
+	ft.Devices = configvalue.LeafList(m["device"])
 
 	return ft, nil
 }

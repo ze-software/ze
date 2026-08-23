@@ -8,6 +8,8 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/configvalue"
 )
 
 const (
@@ -108,13 +110,13 @@ func ParseConfig(data string) (*Config, error) {
 	if b, ok := cfgBool(m["kill-switch"]); ok {
 		cfg.KillSwitch = b
 	}
-	if v, ok := m["allowlist"].([]any); ok {
-		for _, item := range v {
-			if s, ok := item.(string); ok {
-				if p, err := netip.ParsePrefix(s); err == nil {
-					cfg.Allowlist = append(cfg.Allowlist, p)
-				}
-			}
+	// configvalue.LeafList, not a []any assertion: Tree.ToMap collapses a
+	// one-member leaf-list to a bare string, so the assertion dropped the whole
+	// allowlist whenever the operator named exactly one protected prefix, and
+	// the responder then armed against it.
+	for _, s := range configvalue.LeafList(m["allowlist"]) {
+		if p, err := netip.ParsePrefix(s); err == nil {
+			cfg.Allowlist = append(cfg.Allowlist, p)
 		}
 	}
 	return cfg, nil

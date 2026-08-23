@@ -18,7 +18,7 @@ import (
 // PREVENTS: Generic transaction code parsing interface schema semantics.
 func TestIfaceOperationDecomposerAddressAddRemove(t *testing.T) {
 	active := `{"interface":{"backend":"test","dummy":{"dum0":{"unit":{"default":{"ipv4":{"address":"10.0.0.1/24"}}}}}}}`
-	candidate := `{"interface":{"backend":"test","dummy":{"dum0":{"unit":{"default":{"ipv4":{"address":["10.0.0.2/24"]}}}}}}}`
+	candidate := `{"interface":{"backend":"test","dummy":{"dum0":{"unit":{"default":{"ipv4":{"address":"10.0.0.2/24"}}}}}}}`
 
 	ops, err := decomposeIfaceOperations(context.Background(), tx.DecomposeRequest{
 		TransactionID: "tx-iface-op",

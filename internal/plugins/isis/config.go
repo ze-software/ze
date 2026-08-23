@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/plugins/isis/transport"
 	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
@@ -286,28 +287,6 @@ func configString(v any) string {
 	return ""
 }
 
-// configLeafList coerces a YANG leaf-list value into a string slice. A single
-// element renders as a bare scalar, several as a []any.
-func configLeafList(v any) []string {
-	switch list := v.(type) {
-	case string:
-		if list == "" {
-			return nil
-		}
-		return []string{list}
-	case []any:
-		out := make([]string, 0, len(list))
-		for _, item := range list {
-			if s, ok := item.(string); ok {
-				out = append(out, s)
-			}
-		}
-		return out
-	default:
-		return nil
-	}
-}
-
 // listEntry is one entry of a keyed YANG list (key + child map), used for the
 // interface and key-chains lists.
 type listEntry struct {
@@ -392,7 +371,7 @@ func parseISISConfig(sections []configSection) (Config, error) {
 
 // applyTree reads the unwrapped `isis` tree into cfg.
 func applyTree(cfg *Config, tree map[string]any) error {
-	for _, s := range configLeafList(tree["net"]) {
+	for _, s := range configvalue.LeafList(tree["net"]) {
 		net, err := types.ParseNET(s)
 		if err != nil {
 			return fmt.Errorf("isis: invalid net %q: %w", s, err)

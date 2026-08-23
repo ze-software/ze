@@ -35,7 +35,7 @@ func TestRIShowRender(t *testing.T) {
 	// v2 engine: RI enabled with max-metric so the stub-router bit is advertised.
 	v4, _ := newRedistEngine(t, `{"ospf":{"router-id":"1.1.1.1","opaque":true,`+
 		`"max-metric":{"router-lsa":{"always":"true"}},`+
-		`"router-information":{"enabled":true,"scope":["area"]},`+
+		`"router-information":{"enabled":true,"scope":"area"},`+
 		`"areas":{"area":{"0":{"area-id":"0"}}},`+
 		`"interfaces":{"interface":{"eth0":{"name":"eth0","area":"0"}}}}}`)
 	if err := registerRIConsumer(v4); err != nil {
