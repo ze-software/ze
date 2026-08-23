@@ -51,6 +51,12 @@ var (
 	ErrRespawnLimitExceeded = errors.New("respawn limit exceeded")
 	ErrProcessDisabled      = errors.New("process disabled due to respawn limit")
 	ErrProcessNotFound      = errors.New("process not found")
+	// ErrRespawnNotEnabled reports that the plugin config enables no respawn, so
+	// nothing was restarted. It is an error rather than a silent nil because the
+	// caller asks for a restart of a plugin it already knows is broken. To answer
+	// "done" while the broken process keeps running is the fail-open direction a
+	// guard must never take (ai/rules/evidence.md).
+	ErrRespawnNotEnabled = errors.New("respawn not enabled for plugin")
 )
 
 // pluginMetrics holds Prometheus metrics for plugin health.
@@ -414,23 +420,34 @@ const reportSourcePlugin = "plugin"
 const reportCodePluginCrash = "plugin-crash"
 const reportCodePluginDown = "plugin-down"
 
-// Respawn restarts a process, enforcing respawn limits.
+// Respawn restarts a process, enforcing respawn limits. It returns the NEW
+// process on success, and a nil process with a non-nil error on every other
+// path.
+//
+// The new process is RETURNED because a restart is only half done when this
+// returns. The process is spawned, and it has run no startup handshake, so it
+// carries no registration, no delivered config, no subscriptions and no
+// exclusive-role claim set. The engine owns that handshake
+// (Server.restartPlugin, internal/component/plugin/server/reload_tx.go), and it
+// cannot run one on a process this method keeps to itself.
+//
+// Returns ErrRespawnNotEnabled if the plugin config enables no respawn.
 // Returns ErrRespawnLimitExceeded if limit exceeded within window.
 // Returns ErrProcessDisabled if process was previously disabled.
 // Returns ErrProcessNotFound if process name not in configuration.
 // Returns error if ProcessManager was not started (ctx is nil).
-func (pm *ProcessManager) Respawn(name string) error {
+func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
 	// Check if ProcessManager was started
 	if pm.ctx == nil {
-		return errors.New("process manager not started")
+		return nil, errors.New("process manager not started")
 	}
 
 	// Check if already disabled
 	if pm.disabled[name] {
-		return ErrProcessDisabled
+		return nil, ErrProcessDisabled
 	}
 
 	// Find config
@@ -442,7 +459,7 @@ func (pm *ProcessManager) Respawn(name string) error {
 		}
 	}
 	if cfg == nil {
-		return ErrProcessNotFound
+		return nil, ErrProcessNotFound
 	}
 
 	// Validated: this is a real crash of a known, enabled plugin (AC-17).
@@ -451,7 +468,7 @@ func (pm *ProcessManager) Respawn(name string) error {
 
 	// Check respawn enabled
 	if !cfg.RespawnEnabled && !cfg.Respawn {
-		return nil // Respawn not enabled, nothing to do
+		return nil, ErrRespawnNotEnabled
 	}
 
 	now := time.Now()
@@ -474,7 +491,7 @@ func (pm *ProcessManager) Respawn(name string) error {
 			map[string]any{"limit": RespawnLimit, "window_seconds": int(RespawnWindow.Seconds())})
 		logger().Warn("respawn limit exceeded, process disabled",
 			"process", name, "limit", RespawnLimit, "window", RespawnWindow)
-		return ErrRespawnLimitExceeded
+		return nil, ErrRespawnLimitExceeded
 	}
 
 	// Check cumulative limit (prevents cycling indefinitely across windows)
@@ -488,7 +505,7 @@ func (pm *ProcessManager) Respawn(name string) error {
 			map[string]any{"total_respawns": pm.totalRespawns[name], "limit": MaxTotalRespawns})
 		logger().Warn("cumulative respawn limit exceeded, process disabled",
 			"process", name, "total", pm.totalRespawns[name], "limit", MaxTotalRespawns)
-		return ErrRespawnLimitExceeded
+		return nil, ErrRespawnLimitExceeded
 	}
 
 	// Record this respawn
@@ -517,7 +534,7 @@ func (pm *ProcessManager) Respawn(name string) error {
 		newProc.SetAcceptor(pm.acceptor)
 	}
 	if err := newProc.StartWithContext(pm.ctx); err != nil {
-		return err
+		return nil, err
 	}
 	// A spawn clears the re-entry guard, exactly as startConfigs does. Stop cancels
 	// pm.ctx before it waits, and startInternal (process.go) does not read that
@@ -535,7 +552,7 @@ func (pm *ProcessManager) Respawn(name string) error {
 		pm.pmetrics.restarts.With(name).Inc()
 	}
 
-	return nil
+	return newProc, nil
 }
 
 // clearProcessCallbacks nils out metrics callbacks on the named process.

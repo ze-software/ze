@@ -235,7 +235,7 @@ func TestProcessManagerRespawnLimit(t *testing.T) {
 	// Attempt respawns beyond limit.
 	// Wait for each crash to complete before respawning again.
 	for range RespawnLimit + 2 {
-		respawnErr := pm.Respawn("crash")
+		_, respawnErr := pm.Respawn("crash")
 		if errors.Is(respawnErr, ErrRespawnLimitExceeded) || errors.Is(respawnErr, ErrProcessDisabled) {
 			break // Limit reached
 		}
@@ -265,7 +265,7 @@ func TestProcessManagerCumulativeRespawnLimit(t *testing.T) {
 	// after each batch (simulates window expiry). The cumulative counter never resets.
 	var hitLimit bool
 	for batch := range MaxTotalRespawns {
-		respawnErr := pm.Respawn("cycle")
+		_, respawnErr := pm.Respawn("cycle")
 		if errors.Is(respawnErr, ErrRespawnLimitExceeded) || errors.Is(respawnErr, ErrProcessDisabled) {
 			hitLimit = true
 			break
@@ -283,7 +283,7 @@ func TestProcessManagerCumulativeRespawnLimit(t *testing.T) {
 
 	// The next respawn after MaxTotalRespawns should be rejected
 	if !hitLimit {
-		finalErr := pm.Respawn("cycle")
+		_, finalErr := pm.Respawn("cycle")
 		assert.ErrorIs(t, finalErr, ErrRespawnLimitExceeded, "should hit cumulative limit")
 	}
 
@@ -302,7 +302,7 @@ func TestProcessManagerRespawnNotStarted(t *testing.T) {
 
 	// Don't call pm.Start() - ctx is nil
 
-	err := pm.Respawn("test")
+	_, err := pm.Respawn("test")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not started")
 }
@@ -323,7 +323,7 @@ func TestProcessManagerRespawnSuccess(t *testing.T) {
 
 	// First few respawns should succeed.
 	for i := range 3 {
-		err := pm.Respawn("run")
+		_, err := pm.Respawn("run")
 		require.NoError(t, err, "respawn %d should succeed", i)
 		require.Eventually(t, func() bool {
 			return pm.isRunning("run")
@@ -744,7 +744,7 @@ func TestPluginCrashReportBus(t *testing.T) {
 	defer pm.Stop()
 
 	// First respawn: plugin-crash error should appear.
-	_ = pm.Respawn("crash")
+	_, _ = pm.Respawn("crash")
 
 	errs := report.Errors(0)
 	found := false
@@ -759,7 +759,7 @@ func TestPluginCrashReportBus(t *testing.T) {
 
 	// Exhaust respawn limit to trigger plugin-down warning.
 	for range RespawnLimit + 2 {
-		respawnErr := pm.Respawn("crash")
+		_, respawnErr := pm.Respawn("crash")
 		if errors.Is(respawnErr, ErrRespawnLimitExceeded) || errors.Is(respawnErr, ErrProcessDisabled) {
 			break
 		}

@@ -345,6 +345,13 @@ type mockReactor struct {
 	// cacheRegisterCalls counts registrations per name. The real cache logs
 	// "BUG: duplicate RegisterConsumer" on a repeat, so once is the contract.
 	cacheRegisterCalls map[string]int
+
+	// relay* record the last RelayStoredRoute this reactor was handed, and
+	// relayErr is what it answers with.
+	relayCalled bool
+	relayDest   netip.Addr
+	relayRoutes []rpc.StoredRoute
+	relayErr    error
 }
 
 func (m *mockReactor) Peers() []PeerInfo {
@@ -408,9 +415,59 @@ func (m *mockReactor) ForwardUpdatesDirect([]uint64, []netip.AddrPort, string, S
 	return nil
 }
 
-// RelayStoredRoute satisfies plugin.ReactorRelayCoordinator; this stub relays
-// nothing because these tests exercise command dispatch, not the forward rail.
-func (m *mockReactor) RelayStoredRoute(_ netip.Addr, _ []rpc.StoredRoute, _ Sender) error {
-	return nil
+// RelayStoredRoute satisfies plugin.ReactorRelayCoordinator. It relays nothing
+// because these tests exercise the delegation, not the forward rail, and records
+// what it was handed so a test can prove the arguments crossed unchanged.
+func (m *mockReactor) RelayStoredRoute(destination netip.Addr, routes []rpc.StoredRoute, _ Sender) error {
+	m.relayCalled = true
+	m.relayDest = destination
+	m.relayRoutes = routes
+	return m.relayErr
 }
 func (m *mockReactor) ReleaseUpdates([]uint64, string) error { return nil }
+
+// TestCoordinatorRelayStoredRoute verifies both branches of the relay
+// delegation: no reactor answers ErrNoReactor, and a registered reactor receives
+// the destination and the routes unchanged and its answer is returned.
+//
+// VALIDATES: the peer-up replay's engine entry point. The plugin server holds
+// the Coordinator as its ReactorLifecycle, so this method is what every
+// relay-stored-route RPC from bgp-adj-rib-in passes through.
+// PREVENTS: the delegation silently dropping a route slice or swallowing the
+// reactor's error, either of which turns a failed replay into a reported one.
+func TestCoordinatorRelayStoredRoute(t *testing.T) {
+	dest := netip.MustParseAddr("192.0.2.7")
+	routes := []rpc.StoredRoute{
+		{SourcePeer: "198.51.100.1", Family: "ipv4/unicast", NLRIHex: "180a0000"},
+		{SourcePeer: "198.51.100.2", Family: "ipv4/unicast", NLRIHex: "10c000"},
+	}
+
+	c := NewCoordinator(map[string]any{})
+	if err := c.RelayStoredRoute(dest, routes, Sender{}); !errors.Is(err, ErrNoReactor) {
+		t.Fatalf("without a reactor: expected ErrNoReactor, got %v", err)
+	}
+
+	m := &mockReactor{}
+	if err := c.SetReactor(m); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.RelayStoredRoute(dest, routes, Sender{}); err != nil {
+		t.Fatalf("with a reactor: expected the reactor's nil, got %v", err)
+	}
+	if !m.relayCalled {
+		t.Fatal("expected RelayStoredRoute to reach the reactor")
+	}
+	if m.relayDest != dest {
+		t.Errorf("destination = %v, want %v", m.relayDest, dest)
+	}
+	if !reflect.DeepEqual(m.relayRoutes, routes) {
+		t.Errorf("routes = %+v, want %+v", m.relayRoutes, routes)
+	}
+
+	// The reactor's failure is the caller's failure: a replay that could not be
+	// delivered must not read as one that was.
+	m.relayErr = errors.New("relay refused")
+	if err := c.RelayStoredRoute(dest, routes, Sender{}); !errors.Is(err, m.relayErr) {
+		t.Errorf("expected the reactor's error back, got %v", err)
+	}
+}

@@ -110,7 +110,7 @@ func TestPluginRestartMetric(t *testing.T) {
 	defer pm.cancel()
 
 	// First respawn should increment counter.
-	err := pm.Respawn("cycle")
+	_, err := pm.Respawn("cycle")
 	require.NoError(t, err)
 
 	body := scrapeMetrics(t, reg)
@@ -118,7 +118,7 @@ func TestPluginRestartMetric(t *testing.T) {
 		"restart counter should be 1 after first respawn")
 
 	// Second respawn should increment to 2.
-	err = pm.Respawn("cycle")
+	_, err = pm.Respawn("cycle")
 	require.NoError(t, err)
 
 	body = scrapeMetrics(t, reg)
@@ -199,7 +199,7 @@ func TestPluginMetricsDeletedOnDisable(t *testing.T) {
 	pm.ctx, pm.cancel = context.WithCancel(t.Context())
 	defer pm.cancel()
 	for range RespawnLimit + 1 {
-		_ = pm.Respawn("crash-metrics")
+		_, _ = pm.Respawn("crash-metrics")
 	}
 
 	// Plugin should be disabled.

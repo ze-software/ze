@@ -362,7 +362,8 @@ func TestARespawnedPluginStillGetsItsEngineWait(t *testing.T) {
 
 	// The reload-rollback path, run against a manager Stop has already flagged.
 	released.Store(false)
-	require.NoError(t, pm.Respawn("test-stop-respawn-waits"))
+	_, respawnErr := pm.Respawn("test-stop-respawn-waits")
+	require.NoError(t, respawnErr)
 	require.Eventually(t, func() bool {
 		proc := pm.GetProcess("test-stop-respawn-waits")
 		return proc != nil && proc.Running()

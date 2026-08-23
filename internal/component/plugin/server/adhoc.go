@@ -42,19 +42,10 @@ func (s *Server) HandleAdHocPluginSession(reader io.ReadCloser, writer io.WriteC
 	proc.SetConn(pluginipc.NewMuxPluginConn(mux))
 	proc.SetRunning(true)
 
-	// Run 5-stage handshake. With s.coordinator == nil (ad-hoc session,
-	// not part of tier-ordered startup), all stageTransition calls return
-	// true immediately — no barriers to wait on.
-	s.coordinatorMu.Lock()
-	savedCoordinator := s.coordinator
-	s.coordinator = nil
-	s.coordinatorMu.Unlock()
-
-	s.handleProcessStartupRPC(proc)
-
-	s.coordinatorMu.Lock()
-	s.coordinator = savedCoordinator
-	s.coordinatorMu.Unlock()
+	// Run the 5-stage handshake outside any tier barrier: an ad-hoc session is
+	// not part of tier-ordered startup, so every stageTransition returns true
+	// immediately (runUnbarrieredStartupHandshake, restart.go).
+	s.runUnbarrieredStartupHandshake(proc)
 
 	if proc.Stage() < plugin.StageRunning {
 		return fmt.Errorf("handshake incomplete: reached stage %d", proc.Stage())

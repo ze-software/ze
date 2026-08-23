@@ -186,9 +186,18 @@ func (r *CommandRegistry) AddBuiltin(name string) {
 
 // Register adds commands for a process.
 // Returns results for each command (success or failure reason).
+//
+// If frozen, publishes a new snapshot reflecting the addition, exactly as
+// Unregister does for a removal. Freeze happens once startup's phases are over
+// (signalStartupComplete, startup.go), and registration does NOT stop there: a
+// plugin auto-loaded by a config reload and a plugin restarted after a broken
+// rollback both declare their commands afterwards. Without the republish, Lookup
+// keeps answering from a snapshot those commands are not in, so the plugin runs
+// with every command it declared invisible.
 func (r *CommandRegistry) Register(proc *process.Process, defs []CommandDef) []RegisterResult {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	defer r.republishFrozen()
 
 	results := make([]RegisterResult, len(defs))
 	now := time.Now()
@@ -296,9 +305,14 @@ func (r *CommandRegistry) UnregisterAll(proc *process.Process) {
 // Requiring the canonical to be already registered is safe because a plugin's
 // deprecated aliases (CommandDeprecatedNames) reference that same plugin's
 // commands, which startup registers immediately before the aliases.
+//
+// If frozen, publishes a new snapshot reflecting the addition, for the reason
+// Register states: an alias declared after Freeze is otherwise absent from the
+// snapshot Lookup reads.
 func (r *CommandRegistry) registerDeprecated(proc *process.Process, oldName, newName string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	defer r.republishFrozen()
 
 	if err := validateCommandName(oldName); err != nil {
 		return fmt.Errorf("deprecated alias %q: %w", oldName, err)

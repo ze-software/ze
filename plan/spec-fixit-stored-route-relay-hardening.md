@@ -303,7 +303,7 @@ leaves NOBODY replaying: adj-rib-in stood down globally, bgp-rs never sees that 
 That is a config away, not a crash away. Scope the stand-down to peers the owner
 actually drives, or reject the config combination.
 
-### I-4 — the ownership claim does not survive an adj-rib-in respawn
+### I-4 — the ownership claim does not survive an adj-rib-in respawn — DONE (2026-08-23)
 
 `SendPostStartup` has one call site, inside `signalStartupComplete`
 (`internal/component/plugin/server/startup.go`). A mid-life respawn
@@ -311,6 +311,52 @@ actually drives, or reject the config combination.
 `Respawn`) receives no post-startup callback, and `replayOwned` resets with the
 process, so a respawned adj-rib-in resumes self-replay and the duplicate announce
 returns. Re-deliver post-startup on respawn, or make the claim re-confirmable.
+
+#### I-4 FINDING (2026-08-23) — the claim is not the half that was missing
+
+Read at the producers. The lost claim is a SYMPTOM, and the item's two proposed
+fixes both treat it as the disease.
+
+**A respawn re-enters no handshake at all.** `ProcessManager.Respawn`
+(`internal/component/plugin/process/manager.go`) builds the replacement with
+`NewProcess` and calls `newProc.StartWithContext`, and nothing else. The 5-stage
+handshake is driven by `Server.handleProcessStartupRPC`
+(`internal/component/plugin/server/startup.go`), whose only two non-test callers
+are `runPluginPhase` and `HandleAdHocPluginSession`; neither is on the respawn
+path. So the replacement was left holding no Stage-1 registration, no delivered
+config, no subscriptions, no registered commands and no claim set, behind a pipe
+the engine never read. The claim is one of six things it never received.
+
+**So the fix is the handshake, not a new claim channel.** `Server.restartPlugin`
+now respawns, releases the old process's name-keyed registrations
+(`releasePluginRegistrations`, `internal/component/plugin/server/restart.go`, so
+Stage 1 is not refused the plugin's own name), then runs the handshake and starts
+the runtime handler (`restartHandshake`, same file). Stage 2 then delivers the
+claim through `advertiseClaims`, which is the ordered declarative route I-1b
+already established. No second channel was added.
+
+**The TRIGGER is unreachable in a shipped daemon, and that is a separate defect.**
+`ProcessManager.Respawn` returns before doing anything unless
+`cfg.RespawnEnabled || cfg.Respawn` (`manager.go`), and NOTHING outside a test
+sets either field: `plugin.PluginConfig` declares them
+(`internal/component/plugin/types.go`), `cmd/ze/hub/main.go` copies `pc.Respawn`
+from a `plugin.PluginConfig` that nobody wrote, and no YANG leaf reaches them. So
+`restartPlugin` is a no-op for every plugin the daemon can be configured with, and
+the broken-plugin recovery it serves has never run in production. Journal row in
+`plan/journal/unwired-feature.md`. Wiring the operator-facing `respawn` option is a
+FEATURE and is out of this spec: what this spec owed was that the mechanism behind
+the trigger be correct, which it now is and which the tests drive directly.
+
+**Two defects on the path were fixed with it.** `ProcessManager.Respawn` returned a
+bare `nil` when respawn was not enabled, indistinguishable from a completed
+restart by the caller that had just been told the plugin is broken; it now returns
+`ErrRespawnNotEnabled` and the new process on success. And
+`CommandRegistry.Register` wrote the mutable map without republishing the frozen
+snapshot (`internal/component/plugin/server/command_registry.go`), so every command
+registered after `signalStartupComplete` froze the registry was invisible to
+`Lookup` -- which is every command of a restarted plugin AND of a plugin
+auto-loaded by a config reload. `Unregister` had always republished; only the
+addition did not. Journal row in `plan/journal/guard-added-to-one-half-of-a-pair.md`.
 
 ### I-5 — `test/plugin/adj-rib-in-replay-on-peerup.ci` does not gate — DONE (2026-08-07)
 
@@ -401,8 +447,14 @@ could not see. GREEN once restored. `make ze-functional-plugin-test` 558/558.
   so a test sees the chunks the engine sees rather than the whole replay.
   `TestReplayCommandReportsRelayFailure` (`adj_rib_in/relay_chunk_test.go`) drives the
   `statusError` path and asserts the cause reaches the caller.
-- `Coordinator.RelayStoredRoute` has no test — neither the `ErrNoReactor` branch nor
-  the delegation is exercised.
+- ~~`Coordinator.RelayStoredRoute` has no test — neither the `ErrNoReactor` branch nor
+  the delegation is exercised.~~ **DONE 2026-08-23.** `TestCoordinatorRelayStoredRoute`
+  (`internal/component/plugin/coordinator_test.go`) drives both branches and asserts
+  the destination and the route slice cross unchanged and the reactor's error comes
+  back. The mock records what it was handed rather than only that it ran, because a
+  delegation that drops the routes or swallows the error turns a failed replay into a
+  reported one. Mutation-verified twice: reporting the no-reactor case as success, and
+  dropping the routes while swallowing the error, each redden it.
 - ~~`relay_payload_test.go` asserts `n <= size` where `n == size` is the real
   contract.~~ **DONE 2026-08-23.** `buildRelay` requires equality. A SHORT write
   overflows nothing: `buildRelayUpdate` hands the `WireUpdate` `buf[:n]`, and
@@ -521,7 +573,7 @@ seam is what a filter uses for surgery the text delta cannot express.
 | AC-2 | Multi-path source (two path-ids, one prefix) | Both paths survive the replay, or the limitation is explicit and tested |
 | AC-3 | Forked adj-rib-in, replay whose routes exceed 16 MB | Chunked by bytes; every route arrives. **DONE 2026-08-23** -- `relayChunkEnd` (`adj_rib_in/relay_chunk.go`) cuts on the serialized byte budget and `relayRoutes` walks it. `TestRelayChunkStaysUnderFrameCeiling` marshals every chunk of a 130-route, 64 KiB-attribute replay and asserts each one lands below `rpc.MaxMessageSize`; `TestReplayLastIndexSurvivesMultiChunkRelay` drives the same shape through `handleCommand` and pins `last-index` and `replayed` across the boundary (R-2). Mutation-verified: restoring the 4096-route cut puts chunk 0 at 17 053 828 bytes and reddens three tests |
 | AC-4 | Peer gives `state` to adj-rib-in but not bgp-rs | Either that peer is still replayed, or the config is rejected — never silently unreplayed |
-| AC-5 | adj-rib-in respawns mid-life with bgp-rs loaded | Ownership is re-established; no duplicate announce on the next peer-up |
+| AC-5 | adj-rib-in respawns mid-life with bgp-rs loaded | Ownership is re-established; no duplicate announce on the next peer-up. **DONE 2026-08-23** -- `Server.restartPlugin` (`internal/component/plugin/server/reload_tx.go`) now respawns, releases the old process's name-keyed registrations and re-runs the 5-stage handshake (`restart.go`), so Stage 2's `advertiseClaims` re-delivers the claim before the replacement can receive any event. `TestRestartPluginReRunsTheStartupHandshake` drives it end to end with two real SDK plugins and asserts the replacement was configured again, was told the role is still claimed, and owns its command; `TestRestartPluginRefusesWhenRespawnIsNotEnabled` pins the refusal. Mutation-verified: with the pre-fix producer restored (no teardown, no handshake, and a silent nil for not-enabled) the first reports 1 configure against 2 and a nil command lookup, the second reports "an error is expected but got nil". **The trigger is unwired -- see the I-4 FINDING** |
 | AC-6 | `adj-rib-in-replay-on-peerup.ci` with the relay stubbed to error | Test goes RED (mutation-verified). **DONE 2026-08-07 — see I-5** |
 | AC-7 | An egress rail cannot carry out its decision: an in-process filter PANICS on the RS fast path (`forward_rs.go`) or on the LLGR stale re-advertise rail, or that rail's modifications cannot be built | No rail reports a failure of THIS speaker as a peer's policy. `reactorForwardRS` puts the destination on the skipped list so the plugin rail decides what it could not. `decideStaleReadvertise` returns `staleFilterFailed` or `staleBuildFailed`, and `AnnounceNLRIBatch` reports the matching cause wrapping `errStaleReadvertiseWithheld` instead of `ErrNoPeersAcceptedFamily`. The route is withheld fail-closed in every case; only the report changes. **REPLACED 2026-08-03 by Thomas's ruling — see "AC-7 replaced" below. DONE** |
 | AC-8 | Destination peer whose remote role was never recorded, source with a non-empty `role { export }` set (R6-1) | The suppression is counted under its own reason (`role-unrecorded`) and carries recordDrop's first-occurrence WARN, so it is never reported as an export-set decision. **DONE** |
@@ -529,7 +581,7 @@ seam is what a filter uses for surgery the text delta cannot express.
 | AC-9 | An export or import policy filter returns a raw override of 1..3 bytes (R6-2) | The route is suppressed (export) / dropped (import) and says so; it is never forwarded unmodified. **DONE** |
 | AC-10 | A zero-dispatch FAILURE branch of `forwardUpdateCore`: read-buffer pool exhaustion in the EBGP wire build and in both transcode acquisitions, a `buildFwdBody` failure, and both dispatch attempts failing on a stopped pool | Each counts as a DROP, never as a policy suppression, and a test drives at least one branch per producer. Today only two failure branches are covered (nil forward facts, and a failing egress step), so a future `suppressedCount++` on one of these paths would reopen the fail-open with every test green. Added 2026-08-14 from `plan/deferrals/fixit-bgp-egress-rail-divergence.md`, which named this spec as its destination while no criterion here enumerated it |
 | AC-11 | The two non-decided `PolicyReject` producers that no test drives: a filter IPC error under a fail-closed `FilterOnError`, and the AC-13 undeclared-attribute override | Both set `Failed`, and removing the flag from either turns a test RED. `Reactor.api` is a concrete `*pluginserver.Server` rather than an interface, so this needs a live plugin server or an injection seam. Added 2026-08-14 from the same shard, for the same reason |
-| AC-12 | bgp-rs joins MID-LIFE, auto-loaded by a config reload that adds the `bgp` root (`startup_autoload.go` `autoLoadForNewConfigPaths`), while bgp-adj-rib-in is already running | Exactly one plugin replays on the next peer-up. Today neither channel reaches this case: Stage 2 runs per handshake, so an already-configured bgp-adj-rib-in is never re-told, and the backstop `claimReplayOwnership` fires only from `OnAllPluginsReady`, which the engine produces once at startup. This is the mirror of AC-5, whose direction is the adj-rib-in respawn. Added 2026-08-14 by the closure review of `spec-fixit-bgp-egress-rail-divergence` |
+| AC-12 | bgp-rs joins MID-LIFE, auto-loaded by a config reload that adds the `bgp` root (`startup_autoload.go` `autoLoadForNewConfigPaths`), while bgp-adj-rib-in is already running | Exactly one plugin replays on the next peer-up. Today neither channel reaches this case: Stage 2 runs per handshake, so an already-configured bgp-adj-rib-in is never re-told, and the backstop `claimReplayOwnership` fires only from `OnAllPluginsReady`, which the engine produces once at startup. This is the mirror of AC-5, whose direction is the adj-rib-in respawn. Added 2026-08-14 by the closure review of `spec-fixit-bgp-egress-rail-divergence`. **DONE 2026-08-23** -- `autoLoadForNewConfigPaths` (`startup_autoload.go`) now delivers the post-startup callback to the plugins THAT phase started, and to nobody else (`sendPostStartupToNames`, `internal/component/plugin/server/poststartup.go`), so a mid-life bgp-rs runs its `OnAllPluginsReady` and its `claimReplayOwnership` backstop reaches the running bgp-adj-rib-in. The names rather than every running process, because a second delivery re-runs an already-run handler. The deadlock `sendPostStartupToAll` records does not reach the mid-life path: peers are already running, so a handler waiting on peer activity waits on peers nothing is holding back. `TestMidLifeAutoLoadDeliversPostStartup` (`poststartup_test.go`) drives a real reload-time auto-load and asserts the claim reaches the holder; mutation-verified, the pre-fix producer leaves it "Condition never satisfied" after 5s. The function's own comment said it signaled the plugins while it signaled only the reactor |
 
 ### Q-1 — RULED BY THOMAS, 2026-08-03: an UNRECORDED role KEEPS matching `export { unknown }`
 
@@ -762,8 +814,11 @@ path-id. Step 2's chunking bounds route count rather than bytes.
 | `TestRelayChunkAlwaysAdvances` | same file | a route larger than the budget still forms a chunk, so the walk terminates | DONE 2026-08-23 (mutation-verified) |
 | `TestReplayLastIndexSurvivesMultiChunkRelay` | same file | R-2: a multi-chunk replay reports one `last-index` over ALL its routes, and one `replayed` | DONE 2026-08-23 (mutation-verified) |
 | `TestReplayCommandReportsRelayFailure` | same file | a relay failure surfaces as `statusError` carrying the cause and the destination | DONE 2026-08-23 |
-| `TestReplayOwnershipRespawn` | `internal/component/bgp/plugins/adj_rib_in/rib_test.go` | ownership re-established after respawn; no duplicate | |
-| `TestCoordinatorRelayStoredRouteNoReactor` | `internal/component/plugin/coordinator_test.go` | `ErrNoReactor` branch and the delegation | |
+| `TestRestartPluginReRunsTheStartupHandshake` | `internal/component/plugin/server/restart_test.go` | ownership re-established after respawn; no duplicate | DONE 2026-08-23 (mutation-verified). It lives at the ENGINE, not in `adj_rib_in/rib_test.go` as this row first said: what a respawn loses is the whole handshake, and the claim is one of six things it carries. Two real SDK plugins, one declaring the role and one standing down for it |
+| `TestRestartPluginRefusesWhenRespawnIsNotEnabled` | same file | a restart that did not happen is reported as one that did not | DONE 2026-08-23 (mutation-verified) |
+| `TestMidLifeAutoLoadDeliversPostStartup` | `internal/component/plugin/server/poststartup_test.go` | AC-12: a plugin auto-loaded by a reload runs its `OnAllPluginsReady` and reaches the plugin already holding the role | DONE 2026-08-23 (mutation-verified) |
+| `TestCommandRegistryRegisterAfterFreezeIsVisible` / `...DeprecatedAliasAfterFreezeIsVisible` | `internal/component/plugin/server/command_registry_test.go` | a command or alias registered after `Freeze` is resolvable, which is every command of a restarted or reload-loaded plugin | DONE 2026-08-23 (mutation-verified) |
+| `TestCoordinatorRelayStoredRoute` | `internal/component/plugin/coordinator_test.go` | `ErrNoReactor` branch, the delegation, and that the destination, routes and error all cross unchanged | DONE 2026-08-23 (mutation-verified twice) |
 | `TestReactorForwardRSFilterPanicIsNotPolicy` | `internal/component/bgp/reactor/egress_filter_failure_test.go` | AC-7: a panicked filter puts the destination on the skipped list; a clean reject does not | DONE (mutation-verified) |
 | `TestDecideStaleReadvertiseFailureIsNotPolicy` | same file | AC-7: `staleFilterFailed` for a panic, `staleBuildFailed` for an unbuildable modification, `staleSuppress` only for a reject | DONE (mutation-verified) |
 | `TestAnnounceNLRIBatchStaleFailureIsNotFamilyMismatch` | same file | AC-7 at the entry point: each failure carries its own cause wrapping `errStaleReadvertiseWithheld` and is NOT `ErrNoPeersAcceptedFamily`; a reject still is | DONE (mutation-verified) |
@@ -781,7 +836,14 @@ path-id. Step 2's chunking bounds route count rather than bytes.
 - `internal/component/bgp/reactor/relay_payload.go` — path-id framing; RFC 2545 next hop
 - `internal/component/bgp/plugins/adj_rib_in/rib.go` — storage framing, byte-budget chunking, ownership scope
 - `pkg/plugin/rpc/types.go` — `StoredRoute` path-id field, if that is the chosen route
-- `internal/component/plugin/server/startup.go` / `process/manager.go` — post-startup on respawn
+- `internal/component/plugin/server/startup.go` / `process/manager.go` — post-startup on respawn.
+  Landed 2026-08-23 as: `restart.go` (new: `releasePluginRegistrations`,
+  `runUnbarrieredStartupHandshake`, `restartHandshake`), `poststartup.go` (new: the
+  fan-out moved out of `startup.go`, plus `sendPostStartupToNames`), `reload_tx.go`
+  (`restartPlugin`), `process/manager.go` (`Respawn` returns the new process,
+  `ErrRespawnNotEnabled`), `command_registry.go` (republish the frozen snapshot on
+  add), `startup_autoload.go` (mid-life fan-out), `adhoc.go` (one spelling of the
+  unbarriered handshake)
 - `test/plugin/adj-rib-in-replay-on-peerup.ci` — make it gate
 
 ### Documentation Update Checklist (BLOCKING)
@@ -831,6 +893,12 @@ document. Every one is listed here with what this spec does to it.
    that no `.ci` can reach without a 16 MB stored table
    (`ai/rules/testing.md`, "When Unit Tests Alone Are Sufficient", row 2).
 4. Ownership scope and respawn (I-3, I-4).
+   **I-4 DONE 2026-08-23 (AC-5, AC-12), I-3 STILL OPEN (AC-4).** The respawn half is
+   fixed at the engine: a restart re-runs the 5-stage handshake, and a mid-life
+   auto-load gets its post-startup callback. See the I-4 FINDING for what was actually
+   missing, for the two defects fixed on the path, and for the unwired `respawn`
+   trigger that a closure must not read as this spec's job. I-3 is untouched: nothing
+   here scopes `replayOwned` per peer.
 5. Make `adj-rib-in-replay-on-peerup.ci` gate (I-5); mutation-verify.
 6. The smaller gaps (I-6).
 7. `make ze-precommit-verify`, `make ze-unit-reactor-test-race`, per-test stress-repro; independent review to clean.

@@ -230,7 +230,9 @@ func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string
 		return nil, fmt.Errorf("config-path auto-load startup: %w", err)
 	}
 
-	// Signal post-startup to newly loaded plugins.
+	// Tell the reactor that a plugin phase has settled. This is a sync.Once
+	// inside the reactor, so on a reload it changes nothing; the first startup
+	// already closed the channel.
 	if s.reactor != nil {
 		s.reactor.SignalPluginStartupComplete()
 	}
@@ -239,6 +241,17 @@ func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string
 	for i, p := range plugins {
 		started[i] = p.Name
 	}
+
+	// Deliver the post-startup callback to the plugins this phase started, and
+	// to nobody else (poststartup.go). Nothing else delivers it to them: the
+	// daemon-wide fan-out runs once, from signalStartupComplete, and it has
+	// already happened by the time a reload can add a config root. A plugin that
+	// takes an exclusive role over from a plugin already running announces it
+	// from its OnAllPluginsReady handler, which is what this callback runs, and
+	// the Stage-2 declaration cannot reach the running plugin because Stage 2
+	// runs per handshake.
+	s.sendPostStartupToNames(started)
+
 	return started, nil
 }
 

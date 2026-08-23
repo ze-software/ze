@@ -233,59 +233,6 @@ func (s *Server) signalStartupComplete() {
 	s.startupDoneOnce.Do(func() { close(s.startupDone) })
 }
 
-// sendPostStartupToAll delivers the post-startup callback to every running
-// plugin. Each delivery runs in its own goroutine with a bounded timeout, so
-// one slow or broken plugin cannot delay notification to the rest. Errors are
-// logged at Debug level because they are expected during shutdown races
-// (connection closed before callback arrives).
-//
-// It deliberately does NOT wait. Waiting was tried (2026-07-25) to make
-// OnAllPluginsReady handlers ordered before peer startup, so that a handler
-// configuring how peer-up is processed could not lose a race against session
-// establishment. It DEADLOCKS: this function is called immediately before
-// SignalPluginStartupComplete -> StartPeers, and a handler that waits on peer
-// activity (a test observer waiting for routes to reach Adj-RIB-In, for
-// instance) then blocks the very peers it is waiting for, until the
-// postStartupTimeout fires. Three functional tests failed that way.
-//
-// So the ordering between a post-startup handler and peer startup is NOT
-// guaranteed, and anything that needs to be in place before the first peer-up
-// must not rely on this callback. That state is DECLARED instead: a plugin puts
-// it in its registration (registry.Registration.Claims) and the engine delivers
-// the resolved set on the Stage-2 configure callback, which is part of the
-// sequential handshake and therefore completes before peers start. See
-// startup_claims.go. Do not move such a decision back onto this fan-out.
-func (s *Server) sendPostStartupToAll() {
-	pm := s.procManager.Load()
-	if pm == nil {
-		return
-	}
-	for _, proc := range pm.AllProcesses() {
-		if proc == nil || !proc.Running() {
-			continue
-		}
-		conn := proc.Conn()
-		if conn == nil {
-			continue
-		}
-		name := proc.Name()
-		go func(c *plugipc.PluginConn, pluginName string) {
-			ctx, cancel := context.WithTimeout(s.ctx, postStartupTimeout)
-			defer cancel()
-			if err := c.SendPostStartup(ctx); err != nil {
-				logger().Debug("post-startup callback failed", "plugin", pluginName, "error", err)
-			}
-		}(conn, name)
-	}
-}
-
-// postStartupTimeout bounds the wait for a plugin to process the post-startup
-// callback. Plugins with expensive OnAllPluginsReady handlers (e.g., those
-// that issue a DispatchCommand to another plugin) must complete within this
-// window or the callback is abandoned; this prevents one slow handler from
-// blocking engine bookkeeping.
-const postStartupTimeout = 10 * time.Second
-
 // WaitForStartupComplete blocks until all plugin startup phases are done.
 // Returns a non-nil error if a config-path plugin failed during startup
 // (e.g., invalid BGP config) or if the context deadline is exceeded.
@@ -451,27 +398,13 @@ func (s *Server) removePluginFamilies(name string) {
 	family.UnregisterFamilyBatch(regs)
 }
 
+// rollbackStartupProcess stops proc, removes every engine-side registration it
+// made (releasePluginRegistrations, restart.go), and then gives up the plugin's
+// ProcessManager slot and its loaded marker. A RESTART keeps those two, which is
+// why the removal half is its own function.
 func (s *Server) rollbackStartupProcess(proc *process.Process) {
 	proc.Stop()
-	if proc.Stage() >= plugin.StageRunning {
-		proc.WaitRuntimeCleanup()
-	} else {
-		s.cleanupProcess(proc)
-	}
-
-	if s.registry != nil {
-		s.registry.Unregister(proc.Name())
-	}
-	if s.capInjector != nil {
-		s.capInjector.RemovePluginCapabilities(proc.Name())
-	}
-	s.removePluginFamilies(proc.Name())
-	// The pipe aliases leave with the plugin, on both paths that reach here: a
-	// startup that failed at any stage, and a running plugin the operator
-	// removed from the config. A name that outlived its plugin answers a
-	// command nobody serves, and it refuses that plugin its own name when it
-	// starts again.
-	command.UnregisterPluginAliases(proc.Name())
+	s.releasePluginRegistrations(proc)
 	if pm := s.procManager.Load(); pm != nil {
 		pm.RemoveProcess(proc.Name())
 	}

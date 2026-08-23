@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -841,4 +842,55 @@ func TestCommandRegistry_CommandCountsByProcess(t *testing.T) {
 
 	// A process that registered nothing reads zero rather than being absent-and-wrong.
 	assert.Equal(t, 0, counts["never-registered"])
+}
+
+// TestCommandRegistryRegisterAfterFreezeIsVisible verifies a command registered
+// after Freeze can be looked up.
+//
+// VALIDATES: registration does not stop at Freeze. A plugin auto-loaded by a
+// config reload, and a plugin restarted after a broken rollback, both declare
+// their commands afterwards.
+// PREVENTS: Register writing the mutable map while Lookup keeps answering from a
+// snapshot taken before it, so every command the plugin declared is invisible
+// and the plugin runs unreachable. Unregister republished from the start; only
+// the addition did not.
+func TestCommandRegistryRegisterAfterFreezeIsVisible(t *testing.T) {
+	registry := NewCommandRegistry()
+	first := process.NewProcess(plugin.PluginConfig{Name: "frozen-first"})
+	late := process.NewProcess(plugin.PluginConfig{Name: "frozen-late"})
+
+	registry.Register(first, []CommandDef{{Name: "show first", Description: "First"}})
+	registry.Freeze()
+
+	results := registry.Register(late, []CommandDef{{Name: "show late", Description: "Late"}})
+	require.Len(t, results, 1)
+	require.True(t, results[0].OK, "registration itself must succeed")
+
+	cmd := registry.Lookup("show late")
+	require.NotNil(t, cmd, "a command registered after Freeze must be resolvable")
+	assert.Same(t, late, cmd.Process)
+
+	assert.NotNil(t, registry.Lookup("show first"), "the frozen snapshot must keep what it held")
+}
+
+// TestCommandRegistryDeprecatedAliasAfterFreezeIsVisible verifies a deprecated
+// alias registered after Freeze resolves to its canonical command.
+//
+// VALIDATES: the alias half of the same property. A plugin declares its aliases
+// immediately after its commands, so both halves cross Freeze together.
+// PREVENTS: fixing the command path and leaving the alias path answering from a
+// stale snapshot, which would make the plugin's old command names disappear on
+// exactly the reloads its new ones survive.
+func TestCommandRegistryDeprecatedAliasAfterFreezeIsVisible(t *testing.T) {
+	registry := NewCommandRegistry()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "frozen-alias"})
+
+	registry.Freeze()
+
+	registry.Register(proc, []CommandDef{{Name: "show new", Description: "New"}})
+	require.NoError(t, registry.registerDeprecated(proc, "show old", "show new"))
+
+	cmd := registry.Lookup("show old")
+	require.NotNil(t, cmd, "an alias registered after Freeze must resolve")
+	assert.Equal(t, "show new", cmd.Name)
 }

@@ -396,9 +396,24 @@ func (s *Server) restartPluginFn() transaction.RestartFunc {
 	}
 }
 
-// restartPlugin performs a best-effort restart of a broken plugin. Called by
-// the orchestrator when a rollback ack reports CodeBroken. The spawner owns
-// the respawn logic; the bridge only decides WHEN to restart.
+// restartPlugin restarts a broken plugin. Called by the orchestrator when a
+// rollback ack reports CodeBroken. The spawner owns the respawn policy (limits,
+// the disabled set); this function owns everything the engine must do around it.
+//
+// The respawn is only half of a restart. It replaces the PROCESS and runs no
+// startup handshake, so the replacement holds no registration, no delivered
+// config, no subscriptions, no commands and no exclusive-role claim set. The
+// three steps below are ordered and none is optional:
+//
+//  1. Respawn, which stops the old process and spawns its replacement.
+//  2. Release the old process's name-keyed registrations, so Stage 1 of the
+//     replacement's handshake is not refused its own plugin's name.
+//  3. Run the handshake on the replacement and start its runtime handler.
+//
+// Step 2 runs AFTER step 1 on purpose: a respawn that is refused (respawn not
+// enabled for this plugin, limit exceeded, plugin disabled) must leave the
+// running plugin exactly as it found it, and a teardown before the refusal would
+// unregister a plugin that is still serving.
 func (s *Server) restartPlugin(pluginName string) error {
 	if s.spawner == nil {
 		return fmt.Errorf("no plugin spawner available to restart %s", pluginName)
@@ -407,8 +422,18 @@ func (s *Server) restartPlugin(pluginName string) error {
 	if pm == nil {
 		return fmt.Errorf("no process manager available to restart %s", pluginName)
 	}
-	if err := pm.Respawn(pluginName); err != nil {
+
+	old := pm.GetProcess(pluginName)
+	newProc, err := pm.Respawn(pluginName)
+	if err != nil {
 		return fmt.Errorf("respawn %s: %w", pluginName, err)
+	}
+
+	if old != nil {
+		s.releasePluginRegistrations(old)
+	}
+	if err := s.restartHandshake(newProc); err != nil {
+		return fmt.Errorf("restart handshake %s: %w", pluginName, err)
 	}
 	return nil
 }
