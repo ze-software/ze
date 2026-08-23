@@ -9,7 +9,14 @@
 #            made every clean stop wait 3.0s + 0.5s and log "resources it installed
 #            may be left behind", on a daemon that had released everything.
 
-option=skip-os:value=darwin
+# No skip-os. Nothing here is platform-specific: the cycle this test pins lives in
+# Reactor.cleanup and ProcessManager.Stop, which have no build-tagged variant. The
+# file carried option=skip-os:value=darwin until 2026-08-23, and that skip made the
+# ONE functional proof of a defect no gate could see invisible on the primary
+# development machine. Measured with the skip removed: 5 of 5 pass on darwin in 1.1s
+# to 2.3s against this 30s budget, and with both ownership guards reverted the same
+# darwin run fails on `reject=stderr:pattern=may be left behind` 3.001s after the
+# shutdown request. It discriminates here; do not skip it here.
 
 option=timeout:value=30s
 

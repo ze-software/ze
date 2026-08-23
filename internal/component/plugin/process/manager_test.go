@@ -329,3 +329,47 @@ func TestARestartedManagerStillWaitsForItsEngines(t *testing.T) {
 	assert.True(t, released.Load(),
 		"the second stop returned before the engine released: the guard was never cleared by the respawn")
 }
+
+// VALIDATES: the re-entry guard is cleared by EVERY spawn site, not only by the one
+// that starts a manager. Respawn (manager.go) is the second: it is reached from
+// Server.restartPlugin (internal/component/plugin/server/reload_tx.go) when a reload
+// rollback reports a broken plugin, and it puts a live process in pm.processes
+// without going through startConfigs.
+//
+// PREVENTS: the guard becoming the leak it was added to avoid. Stop cancels pm.ctx
+// before it waits, and Process.startInternal (internal/component/plugin/process/process.go)
+// never reads that context: it makes the pipe, sets running, and starts the engine
+// goroutine whatever the context says. So a respawn landing after a Stop's engine wait
+// leaves a LIVE engine behind a flag that is still set, and the next Stop takes the
+// second-entry path and returns before that engine releases what it installed.
+func TestARespawnedPluginStillGetsItsEngineWait(t *testing.T) {
+	var released atomic.Bool
+	registerRunEngine(t, "test-stop-respawn-waits", func(conn net.Conn) int {
+		drainUntilClosed(conn)
+		time.Sleep(slowReleaseDelay)
+		released.Store(true)
+		return 0
+	})
+
+	// RespawnEnabled is what Server.restartPlugin's plugins carry: without it Respawn
+	// returns nil having done nothing (manager.go, the "Respawn not enabled" branch).
+	pm := NewProcessManager([]plugin.PluginConfig{{
+		Name: "test-stop-respawn-waits", Internal: true, Encoder: "json", RespawnEnabled: true,
+	}})
+	require.NoError(t, pm.Start())
+	pm.Stop()
+	require.True(t, released.Load(), "the first stop did not wait for the release")
+
+	// The reload-rollback path, run against a manager Stop has already flagged.
+	released.Store(false)
+	require.NoError(t, pm.Respawn("test-stop-respawn-waits"))
+	require.Eventually(t, func() bool {
+		proc := pm.GetProcess("test-stop-respawn-waits")
+		return proc != nil && proc.Running()
+	}, 5*time.Second, 10*time.Millisecond, "the respawn never produced a running process, so this stop proves nothing")
+
+	pm.Stop()
+
+	assert.True(t, released.Load(),
+		"the stop after a respawn returned before the respawned engine released: Respawn left the re-entry guard set")
+}

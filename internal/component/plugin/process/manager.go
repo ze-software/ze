@@ -175,11 +175,15 @@ func (pm *ProcessManager) StartMore(configs []plugin.PluginConfig) error {
 // (incremental spawn). The shared map lets AllProcesses return every process
 // regardless of which spawn phase created it.
 func (pm *ProcessManager) startConfigs(configs []plugin.PluginConfig) error {
-	// Every spawn goes through here, so this is where the re-entry guard Stop sets
-	// is cleared. A manager holding live processes MUST have a Stop that waits for
-	// them: leaving the flag set after a spawn would give the next Stop the
-	// second-entry path and skip the engine wait, which is the release this wait
-	// exists to land.
+	// A manager holding live processes MUST have a Stop that waits for them, so
+	// every spawn clears the re-entry guard Stop sets. Leaving it set after a spawn
+	// gives the next Stop the second-entry path and skips the engine wait, which is
+	// the release that wait exists to land.
+	//
+	// This is one of THREE spawn sites, not the only one: Respawn and AddProcess also
+	// put a process in pm.processes and each clears the flag itself. Stop cancels
+	// pm.ctx, but Process.startInternal (process.go) never reads that context, so a
+	// respawn racing a shutdown starts a live engine under a canceled context.
 	pm.stopping.Store(false)
 	for _, cfg := range configs {
 		proc := NewProcess(cfg)
@@ -354,6 +358,9 @@ func (pm *ProcessManager) AddProcess(name string, proc *Process) {
 	pm.wireMetrics(proc)
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
+	// The third spawn site, and it clears the re-entry guard for the same reason as
+	// the other two: the manager now holds a process whose engine a Stop must wait for.
+	pm.stopping.Store(false)
 	pm.processes[name] = proc
 }
 
@@ -512,6 +519,12 @@ func (pm *ProcessManager) Respawn(name string) error {
 	if err := newProc.StartWithContext(pm.ctx); err != nil {
 		return err
 	}
+	// A spawn clears the re-entry guard, exactly as startConfigs does. Stop cancels
+	// pm.ctx before it waits, and startInternal (process.go) does not read that
+	// context, so a Respawn landing after a Stop's engine wait leaves a LIVE engine
+	// behind a flag that would send the next Stop down the second-entry path and
+	// skip its release.
+	pm.stopping.Store(false)
 	pm.processes[name] = newProc
 
 	// Successful restart clears the plugin-down warning.

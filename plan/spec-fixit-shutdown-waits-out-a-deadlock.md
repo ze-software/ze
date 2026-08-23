@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | plugin |
 | Depends | - |
 | Phase | 6/6 |
 | Deferral shard | `-` |
 | Handoff | - |
-| Updated | 2026-08-19 |
+| Updated | 2026-08-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -131,13 +131,17 @@ A and B are not exclusive, and B alone does not remove the double ownership.
 - The hub's shutdown sequence, which already gives `eng.Stop` a 3s budget and warns when it is missed.
 
 ### Architectural Verification
+
+<!-- Answered after the fix landed. Every row read No before it, which is what the
+     cycle was. -->
+
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | Shutdown runs hub -> `Server.Stop` -> `ProcessManager.Stop` -> `Process.WaitEngine` in one direction. `Reactor.cleanup` (`internal/component/bgp/reactor/reactor.go`) no longer calls back up into the server that hosts it |
+| No unintended coupling (components stay isolated) | Yes | The reactor reads a borrowed server and never stops it. The guard is `!r.externalServer`, set once at construction from `!config.Standalone` (`reactor.go`, `New`), the same predicate `abortStartup` already applied |
+| No duplicated functionality (extends existing, does not recreate) | Yes | No new type and no new lifecycle. Two existing conditions gained an existing predicate, and `ProcessManager` gained one `atomic.Bool` field |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | Shutdown ordering only. No buffer and no encoding path is touched |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | No plugin is named anywhere in the fix. `ProcessManager.Stop` treats every process the same way, and the reactor guard tests ownership rather than a plugin name |
 
 ## Risks & Assumptions
 
@@ -252,7 +256,7 @@ A and B are not exclusive, and B alone does not remove the double ownership.
 | 5 | Plugin added/changed? | Yes | `docs/architecture/api/process-protocol.md`: who owns a plugin's lifecycle and who may stop the server |
 | 6 | Has a user guide page? | No | |
 | 7 | Wire format changed? | No | |
-| 8 | Plugin SDK/protocol changed? | Yes | the Stop/Wait contract, if candidate B is taken |
+| 8 | Plugin SDK/protocol changed? | No | Candidate B was rejected, so `(*Server).Stop` keeps its signature and its blocking behaviour. No SDK surface moved |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | |
 | 10 | Test infrastructure changed? | No | The `.ci` is a new test, not new infrastructure |
 | 11 | Affects daemon comparison? | No | |
@@ -262,6 +266,8 @@ A and B are not exclusive, and B alone does not remove the double ownership.
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | Grep for anchors naming `manager.go`, `server.go`, `reactor.go` |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | Check the shutdown sequence description in `docs/architecture/` |
+| 18 | `docs/architecture/core-design.md`, the design doc `reactor.go` declares? | No | Its only shutdown claim is the Engine bullet, "Engine supervises startup/shutdown order", which stays true: the fix moves who stops the plugin server, not who supervises the order. `grep -in "cleanup\|api.Stop\|plugin server" docs/architecture/core-design.md` returns no claim about which component stops that server |
+| 19 | `docs/architecture/hub-architecture.md`, the design doc `cmd/ze/hub/main.go` declares? | No | `cmd/ze/hub/main.go` was NOT modified: ownership stayed where it was, so the conditional entry in Files to Modify never fired. `grep -in "shutdown\|apiServer\|plugin server\|Stop()" docs/architecture/hub-architecture.md` returns two lines, both bare path references in a component list, neither an ordering claim |
 
 ## Implementation Steps
 
@@ -353,6 +359,221 @@ A and B are not exclusive, and B alone does not remove the double ownership.
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
-- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
+- [ ] Learned summary written as a row in `plan/journal/<class>.md` (`plan/learned/NNN-*.md` is no longer a destination)
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+The cycle is cut by candidate A, applied as an ownership guard, in `bde0241cf`
+(pushed). `Reactor.cleanup` (`internal/component/bgp/reactor/reactor.go`) stops and
+waits for `r.api` only when `!r.externalServer`, the predicate `abortStartup` in the
+same file already used. Ownership is fixed at construction: `New` sets
+`externalServer: !config.Standalone`, so the guard reads a property of the reactor
+rather than of the call site.
+
+`ProcessManager.Stop` (`internal/component/plugin/process/manager.go`) gained the
+AC-4 guard: `if pm.stopping.Swap(true) { return }`. It is a guard, not the cure, and
+the spec says so. Every spawn site clears the flag, because a manager holding live
+processes MUST have a `Stop` that waits for them.
+
+Six unit tests and one `.ci` were added. The docs got the ownership rule in
+`docs/architecture/api/process-protocol.md`, "Who stops the plugin server", with four
+source anchors.
+
+### Bugs Found/Fixed
+
+Two, both found by this closure's review over the landed diff.
+
+- **The re-entry guard was cleared at one of three spawn sites.** `startConfigs`
+  cleared it and its comment claimed "Every spawn goes through here". `Respawn`
+  (`manager.go`) and `AddProcess` do not: each stores into `pm.processes` directly.
+  `Respawn` is reached in production from `Server.restartPlugin`
+  (`internal/component/plugin/server/reload_tx.go`) when a reload rollback reports a
+  broken plugin. `Stop` cancels `pm.ctx` before it waits, and
+  `Process.startInternal` (`internal/component/plugin/process/process.go`) never
+  reads that context: it makes the pipe, sets `running`, and starts the engine
+  goroutine whatever the context says. So a respawn landing after a `Stop`'s engine
+  wait left a LIVE engine behind a set flag, and the next `Stop` returned before that
+  engine released. The guard added to stop a leak could itself leak. Fixed at all
+  three sites; covered by `TestARespawnedPluginStillGetsItsEngineWait`, which reds in
+  0.70s against the unfixed `Respawn` with the message "the stop after a respawn
+  returned before the respawned engine released".
+- **`test/plugin/shutdown-is-prompt.ci` carried `option=skip-os:value=darwin`.** The
+  one functional proof of a defect no gate could see was invisible on the primary
+  development machine, and no reason for the skip was recorded. Nothing in the test
+  is platform-specific. Measured with the skip removed: 5 of 5 pass on darwin in 1.1s
+  to 2.3s against a 30s budget, and with both ownership guards reverted the same
+  darwin run fails on `reject=stderr:pattern=may be left behind`, 3.001s after the
+  shutdown request, with the warning logged twice for `plugins=bgp`. The skip is
+  removed and the file now states why it must not come back.
+
+### Documentation Updates
+
+- `docs/architecture/api/process-protocol.md`, "Who stops the plugin server": the
+  ownership rule, the two measured costs of breaking it, and the standalone
+  exception. Four `<!-- source: -->` anchors, one of them repointed later by
+  `5a713b067` so it names the function it claims.
+- `docs/architecture/core-design.md` and `docs/architecture/hub-architecture.md`
+  checked and unaffected: rows 18 and 19 of the Documentation Update Checklist carry
+  the greps.
+- `make ze-repository-check`: `all checks passed`.
+
+### Deviations from Plan
+
+- `cmd/ze/hub/main.go` is listed under Files to Modify with the condition "if
+  ownership moves". Ownership did not move, so the file was not touched. The hub was
+  already the owner; the fix stopped a component contradicting it.
+- `internal/component/plugin/server/server.go` is listed under Files to Modify "per
+  the chosen candidate". Candidate B was rejected, so it was not touched.
+- The learned summary is a `plan/journal/` row. `plan/learned/NNN-*.md` is no longer
+  a destination.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2 assumed nothing depends on the reactor stopping the API server | The ze-chaos in-process runner (`internal/chaos/inprocess/runner.go`) builds a standalone reactor whose `cleanup` is that server's only stop | Phase 1's ownership trace | The call is GUARDED on ownership, never removed. `TestReactorCleanupStopsTheServerItOwns` pins the standalone half |
+| approach | The re-entry guard's own comment asserted a property of the code that was false: "Every spawn goes through here" | Three sites write `pm.processes`, and `Respawn` is reachable in production | Closure review, guard audit item 3 (`ai/rules/evidence.md`: a false safety claim is the shield that stops the next reviewer asking) | All three sites clear the flag; the comment now names all three and says why |
+| escalation | A test written for the change was skipped on the machine the work happens on, so its green carried no information there | The test passes on darwin and discriminates on darwin | Closure review asked whether the proof could fail, and ran it | Skip removed. Row added to `plan/journal/green-that-could-not-have-been-red.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Break the cycle at one place, one owner per lifecycle | Done | `internal/component/bgp/reactor/reactor.go`, `Reactor.cleanup` Phase 1 and Phase 2 | Guarded on `!r.externalServer`, set at `New` from `!config.Standalone` |
+| The timeouts stay | Done | `internal/component/plugin/process/manager.go`, `pluginStopGrace` unchanged at 3s, the 500ms group wait unchanged | `TestAStuckEngineStillHitsItsGrace` asserts the bound is still spent |
+| Nothing the engine installed is lost | Done | `ProcessManager.Stop`, the engine wait on `Process.WaitEngine` | `TestEngineReleasesWhatItInstalledOnStop`, and `TestARespawnedPluginStillGetsItsEngineWait` for the respawn site |
+| `ze` still stops cleanly, same exit code and log lines | Done | `test/plugin/shutdown-is-prompt.ci` | `expect=exit:code=0`, `expect=stdout:contains=Ze stopped.` |
+| The warning stops firing on a clean stop | Done | `ProcessManager.Stop`, the `late` branch | `reject=stderr:pattern=may be left behind` in the `.ci` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestCleanShutdownDoesNotWaitOutTheEngineGrace` (`internal/component/plugin/process/manager_test.go`) | Reds at 3.502s against the 3s grace when the guard is removed |
+| AC-2 | Done | Same test's `NotContains "may be left behind"`, and the `.ci` reject | Reds with the warning logged twice |
+| AC-3 | Done | `TestAStuckEngineStillHitsItsGrace` | Reds at 500ms against a 900ms grace when the engine wait is zeroed |
+| AC-4 | Done | `TestStopIsIdempotentForTheEngineWait`, `TestARestartedManagerStillWaitsForItsEngines`, `TestARespawnedPluginStillGetsItsEngineWait` | The third is new in this closure and covers the site the guard originally missed |
+| AC-5 | Done | `TestEngineReleasesWhatItInstalledOnStop` | Eight installed entries, released 700ms after the read loop ends, inside the grace, no warning |
+| AC-6 | Done | The `.ci` measured end to end on darwin | The whole case, daemon start included, is 1.1s to 2.3s. Teardown is no longer a 3.5s fixed cost. The Linux `strace` re-trace of `system-cpu-show.ci` was not repeated: that file is darwin-skipped for a real reason, Linux `/proc` CPU stats |
+| AC-7 | Done | `ze-test bgp encode --start 1`: 59/59 pass, 14.4s total | No 2.0s plateau anywhere in the per-test timings, so no test is reaching the runner's SIGKILL grace. One test at 2.9s, none at 2.0s |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestCleanShutdownDoesNotWaitOutTheEngineGrace` | Done | `internal/component/plugin/process/manager_test.go` | |
+| `TestAStuckEngineStillHitsItsGrace` | Done | same | |
+| `TestStopIsIdempotentForTheEngineWait` | Done | same | |
+| `TestARestartedManagerStillWaitsForItsEngines` | Done | same | |
+| `TestEngineReleasesWhatItInstalledOnStop` | Done | same | |
+| `TestARespawnedPluginStillGetsItsEngineWait` | Changed | same | ADDED by this closure. The TDD plan had no row for the respawn spawn site, which is why the guard shipped with a hole |
+| `TestReactorCleanupDoesNotStopWhatItDoesNotOwn` | Done | `internal/component/bgp/reactor/reactor_shutdown_ownership_test.go` | |
+| `TestBGPRemovedAtReloadLeavesTheHubPluginServerRunning` | Done | same | |
+| `TestReactorCleanupStopsTheServerItOwns` | Done | same | |
+| `shutdown-is-prompt` | Changed | `test/plugin/shutdown-is-prompt.ci` | Darwin skip removed by this closure |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/reactor/reactor.go` | Done | `cleanup`, both phases guarded |
+| `internal/component/plugin/server/server.go` | Skipped | Candidate B rejected, so `Stop` keeps its shape. The spec makes this file conditional on the candidate, so the condition is false rather than the work undone |
+| `internal/component/plugin/process/manager.go` | Done | The AC-4 guard, plus the three-site clear this closure added |
+| `cmd/ze/hub/main.go` | Skipped | Conditional on ownership moving. It did not |
+| `docs/architecture/api/process-protocol.md` | Done | "Who stops the plugin server" |
+| `test/plugin/shutdown-is-prompt.ci` | Done | Created, and its darwin skip removed here |
+
+### Audit Summary
+- **Total items:** 21
+- **Done:** 17
+- **Partial:** 0
+- **Skipped:** 2, both conditional on candidate B or on ownership moving, and both conditions are false
+- **Changed:** 2, one test added and one test's platform gate corrected
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A clean `ze` stop no longer waits out a deadlock | functional | `test/plugin/shutdown-is-prompt.ci`, 5 of 5 on darwin, 1.1s to 2.3s for the WHOLE case including daemon start. With both guards reverted, the same run reds 3.001s after the shutdown request |
+| The proof can actually fail | discrimination | Six source mutations, six real reds, a duration reported in every one. A: manager guard removed, 3 tests red at 3.502s, 2.502s and 3.501s. B: reactor guard removed, 2 tests red. C: reactor calls deleted rather than guarded, the standalone test red. D: `startConfigs` clear removed, 1 red. E: engine wait zeroed, 2 red. F: `Respawn` clear removed, 1 red at 0.70s |
+| The timeouts still bound a genuinely stuck plugin | unit | `TestAStuckEngineStillHitsItsGrace`: `Stop` returns at or after the 900ms grace and names the plugin. Zeroing the wait reds it at 500ms |
+| Nothing the engine installed leaks | unit | `TestEngineReleasesWhatItInstalledOnStop`: 8 entries released inside the grace, no warning. Zeroing the wait leaves all 8 |
+| The suite stops paying the timeout | functional | `ze-test bgp encode --start 1`, 59/59 in 14.4s with no 2.0s SIGKILL plateau |
+| No wire-visible protocol change | interop N-A | Shutdown ordering only. The Cease NOTIFICATION still goes out in `Reactor.stop` before the context cancel, which existing interop scenarios cover |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| No shard exists for this spec | done | The spec metadata carries `Deferral shard: -`, and `plan/deferrals/` holds no file for this stem |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-shutdown-waits-out-a-deadlock-ebf5d9b3-b158-40df-bba0-32a51591883e.md` |
+| `review_gate.py check` | `OK (0 code files, clean, hashes match ...)` |
+| Rounds | 2. Round 1 over the landed diff plus the working tree found 2 findings. Round 2 over the fixes found 0 |
+| Reviewer lenses used | wiring and ownership, guard audit (`ai/rules/evidence.md` fail-closed and false-safety-claim), discrimination and vacuity (`ai/rules/testing.md`), goroutine lifecycle (`ai/rules/goroutine-lifecycle.md`), blast radius over every `Stop` call site |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The re-entry guard is cleared at one of three spawn sites, and its comment asserts it is the only one. `Respawn` is reachable in production from `Server.restartPlugin`, and `Process.startInternal` starts an engine under a canceled context, so a respawn racing a shutdown leaves a live engine that the next `Stop` never waits for. The guard added to prevent a leak could cause one | `internal/component/plugin/process/manager.go`, `startConfigs` and `Respawn` and `AddProcess` | All three sites clear the flag. The comment now names all three and says why. `TestARespawnedPluginStillGetsItsEngineWait` added, red in 0.70s without the `Respawn` clear |
+| 2 | ISSUE | `option=skip-os:value=darwin` with no recorded reason made the spec's only functional proof invisible on the primary development machine, on a spec whose whole premise is that the defect is invisible to every gate | `test/plugin/shutdown-is-prompt.ci` | Skip removed after measuring 5 of 5 green on darwin and a real red under the reverted guards. The file now carries the measurement and says not to skip it here |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/shutdown-is-prompt.ci` | Yes | `ls -la` reports it, and `ze-test bgp plugin --pattern shutdown-is-prompt` resolves it as test id 621 |
+| `internal/component/bgp/reactor/reactor_shutdown_ownership_test.go` | Yes | `ls -la` reports 6.8K; `gopls symbols` lists its three test functions |
+| `internal/component/plugin/process/manager_test.go` | Yes | `grep -n "^func Test"` lists all six manager tests |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | A clean stop is well inside `pluginStopGrace` | `make ze-unit-pkg-test PKG=./internal/component/plugin/...` green, `process` package 9.152s. Mutation A reds this test at 3.502s |
+| AC-2 | No leak warning on a clean stop | Same test's `NotContains`; the `.ci`'s `reject=stderr:pattern=may be left behind` passes 5 of 5 on darwin |
+| AC-3 | A stuck engine still hits its grace and is named | `TestAStuckEngineStillHitsItsGrace` green; mutation E reds it at 500ms against 900ms |
+| AC-4 | The engine wait happens once, and only while nothing has spawned since | Three tests green; mutations A, D and F each red exactly one of them |
+| AC-5 | Everything installed is released before exit | `TestEngineReleasesWhatItInstalledOnStop` green; mutations A and E each leave all 8 entries |
+| AC-6 | Teardown is a small fraction of the test | `.ci` whole-case time 1.1s to 2.3s on darwin, daemon start included |
+| AC-7 | The encode suite does not need the SIGKILL grace | 59/59 in 14.4s, no per-test time at 2.0s |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze` stopping cleanly | `test/plugin/shutdown-is-prompt.ci` | Yes. Read the file: it brings a daemon up with the bgp plugin and an external plugin, issues `request shutdown` through `ze_api`, and asserts exit 0, `Ze stopped.`, and the absence of the leak warning |
+| a plugin engine that genuinely hangs | unit, `TestAStuckEngineStillHitsItsGrace` | Yes. No `.ci` can hang an engine deliberately |
+| a stopped daemon releasing what it installed | unit, `TestEngineReleasesWhatItInstalledOnStop` | Yes, plus the `.ci`'s reject of the warning at the daemon |
+| `ze` stopping under a signal | `test/plugin/shutdown-is-prompt.ci` | Yes, through `request shutdown`, which is the same `Server.Wait` then `apiServer.Stop` then `eng.Stop` path |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | One pointer, four hops, `pluginserver.NewServer` in `cmd/ze/hub/main.go` to `Reactor.SetPluginServerAny`. `grep SetPluginServer internal/ cmd/` finds exactly one production injector, in `runYANGConfig` (`cmd/ze/hub/main.go`) |
+| A-2 | broken | The ze-chaos in-process runner depends on the reactor stopping the server it BUILT. The call is guarded rather than removed, and `TestReactorCleanupStopsTheServerItOwns` pins it |
+| A-3 | confirmed | The warning was accurate about the old path and the new path neither leaks nor warns. `TestEngineReleasesWhatItInstalledOnStop` proves the release lands inside the grace |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| "Whoever CONSTRUCTS the plugin server stops it, and nobody else" | `Reactor.cleanup`'s two `!r.externalServer` guards and `New`'s `externalServer: !config.Standalone`; the hub's `apiServer.Stop()` sites in `cmd/ze/hub/main.go` | Yes |
+| "A component that CONSTRUCTS its own server still stops it" | `startAPIServer`'s `!r.externalServer` branch, and `internal/chaos/inprocess/runner.go` | Yes |
+| Rows 18 and 19: `core-design.md` and `hub-architecture.md` unaffected | The two greps recorded in those rows return no ownership or shutdown-ordering claim | Yes |
+| `make ze-repository-check` | `all checks passed`, so no source anchor went stale | Yes |
+
+## Core Insight
+
+The type already carried the answer twice, and the file already carried it once.
+`Server` splits `Stop` from `Wait`, and `Reactor.abortStartup` already guarded the
+same call on `!r.externalServer`. The defect was one teardown path in a file whose
+other teardown path was correct. The general shape is worth more than the fix: when
+two paths in one file do the same thing and only one carries a guard, the missing
+guard is the bug, and the file has already told you what that guard should be.
