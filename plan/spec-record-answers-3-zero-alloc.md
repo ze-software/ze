@@ -525,7 +525,26 @@ none of them. Diff under review: `e41a46fd6..e9f0a8b8f` (phases 1 to 6, plus the
 | N-6 | NOTE | `make ze-repository-check` reports `AddProcess has no cross-package non-test caller` and `audit-test-relaxation.py` reports two WEAKENED tests in `internal/component/firewall/plugins/irr/irr_test.go`. Neither is in this diff; both belong to other sessions' uncommitted work in this shared checkout | Neither belongs to this spec. Each is owned by the session whose uncommitted work carries it, and is named here so the next reader does not charge it to this commit |
 | N-7 | NOTE | A `misspell` red in `internal/component/plugin/process/manager.go` (another session's uncommitted hunk) blocked `make ze-lint-changed` | Fixed in place, one word in a comment, so the gate could give a real answer. Reported rather than folded in silently |
 
-### AC-4, decided and outstanding
+### AC-4, decided and IMPLEMENTED
+
+**Landed 2026-08-23.** `show bgp rib` answers flat rows: one envelope under
+`routes`, one row per route, each carrying `peer` and `direction` as fields.
+`jsonTerminal.drain` builds them, `cmdRibShow` declares `tab` with the column
+order an operator reads a route in, and `peer` and `next-hop` are declared as
+the address fields so `| resolve` and `| origin` act on those and nothing else.
+
+One thing the conversion had to add that the old shape got for free: **row
+ORDER**. The sources walk `r.bgpPeers`, which is a map, so rows arrive in Go's
+map order. The two-level envelope hid that, because it keyed an object by peer
+and `encoding/json` sorts object keys. A flat list has no such accident, so
+`sortRouteRows` orders by peer, direction, family and prefix, and
+`TestShowRowsAreDeterministic` pins it. Mutation-proven: removing the sort
+reddens it on both its assertions, the sortedness and the run-to-run stability.
+
+The section below is the ruling as it stood before the implementation, kept
+because it records what was decided and why.
+
+### AC-4, as decided
 
 Owner ruling, 2026-08-23: **`show bgp rib` gets FLAT ROWS.** One envelope, one row
 per route, each row carrying `peer` and `direction` as fields, replacing the

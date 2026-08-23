@@ -85,6 +85,28 @@ func registerPipeFilters() {
 	// prefix and offer `| peer`, `| histogram`, `| graph` on output that
 	// has no routes to filter. Registering empty overrides that inheritance.
 	command.RegisterPipeFilters([]string{cmdRibStatus, cmdRibBestStatus, cmdRibRPF})
+
+	// `show bgp rib` answers FLAT ROWS: one envelope, one row per route, each
+	// row carrying `peer` and `direction` as fields (owner ruling, 2026-08-23).
+	// It answered an object keyed by direction and then by peer before, which
+	// no row operator could act on: `| peer 10.0.0.1 | direction in` cannot be
+	// expressed against two levels of envelope, and that is why the shape
+	// changed.
+	//
+	// The order below is the one an operator reads a route in: whose it is and
+	// which way it went, then which route, then what it carries.
+	command.RegisterShape([]string{cmdRibShow}, command.ShapeTab)
+	command.RegisterColumns([]string{cmdRibShow},
+		command.ColumnOrder{
+			"peer", "direction", "family", "prefix",
+			"next-hop", "path-id", "as-path", "origin", "local-pref", "med", "communities",
+		},
+	)
+
+	// The peer address is what `| resolve` and `| origin` act on. Nothing else
+	// in the row is declared an address, so neither operator decorates a field
+	// by coincidence.
+	command.RegisterAddressFields([]string{cmdRibShow}, "peer", "next-hop")
 }
 
 func forwardRibStatus(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {

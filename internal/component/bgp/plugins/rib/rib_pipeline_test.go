@@ -3,6 +3,7 @@ package rib
 import (
 	"encoding/json"
 	"net/netip"
+	"sort"
 	"strconv"
 	"sync"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -1258,13 +1260,22 @@ func TestShowOutboundSourceLazy(t *testing.T) {
 	assert.Equal(t, 3, count, "lazy source should yield all 3 routes")
 }
 
-// TestShowJSONContractUnchanged verifies that the JSON output shape from
-// showPipeline is byte-equivalent to the expected contract: top-level
-// adj-rib-in and adj-rib-out maps keyed by peer, with kebab-case attribute keys.
+// TestShowJSONContractIsFlatRows pins the shape `show bgp rib` answers with:
+// ONE envelope, one row per route, each row carrying `peer` and `direction` as
+// FIELDS, with kebab-case attribute keys.
 //
-// VALIDATES: AC-5 JSON output contract preserved.
-// PREVENTS: Lock-scope or lazy-source changes altering output shape.
-func TestShowJSONContractUnchanged(t *testing.T) {
+// The shape CHANGED here, deliberately. It was a top-level `adj-rib-in` and
+// `adj-rib-out` pair of maps keyed by peer, and this test asserted that was
+// unchanged. Owner ruling, 2026-08-23: flat rows, taken knowing the payload
+// changes, because `show bgp rib | peer 10.0.0.1 | direction in | summary`
+// cannot be expressed against two levels of envelope. A row operator has
+// nothing to act on until whose-and-which-way are fields.
+//
+// VALIDATES: spec-record-answers-3-zero-alloc AC-4, and AC-8 no longer holding
+// for this command by that ruling.
+// PREVENTS: the two-level envelope coming back, which would silently take the
+// row operators away again.
+func TestShowJSONContractIsFlatRows(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Inbound route with full attributes
@@ -1287,15 +1298,25 @@ func TestShowJSONContractUnchanged(t *testing.T) {
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 
-	// adj-rib-in must exist with peer key
-	ribIn, ok := parsed["adj-rib-in"].(map[string]any)
-	require.True(t, ok, "expected adj-rib-in map")
-	peerRoutes, ok := ribIn["192.0.2.1"].([]any)
-	require.True(t, ok, "expected routes array for peer")
-	require.Len(t, peerRoutes, 1)
+	// One envelope, one row per route. Each row says whose it is and which way
+	// it went, as FIELDS, which is what a row operator can select on.
+	rows, ok := parsed["routes"].([]any)
+	require.True(t, ok, "expected a routes list, got %v", parsed)
+	require.Len(t, rows, 2, "one received route and one sent route")
 
-	route, ok := peerRoutes[0].(map[string]any)
-	require.True(t, ok, "expected route map")
+	byDirection := make(map[string]map[string]any, 2)
+	for _, raw := range rows {
+		row, isRow := raw.(map[string]any)
+		require.True(t, isRow, "every element is a route row")
+		direction, hasDirection := row["direction"].(string)
+		require.True(t, hasDirection, "every row names its direction: %v", row)
+		require.Contains(t, row, "peer", "every row names its peer: %v", row)
+		byDirection[direction] = row
+	}
+
+	route := byDirection[rpc.DirectionReceived.String()]
+	require.NotNil(t, route, "no received row among %v", rows)
+	assert.Equal(t, "192.0.2.1", route["peer"])
 	assert.Equal(t, "10.0.0.0/24", route["prefix"])
 	assert.Contains(t, route, "next-hop")
 	assert.Contains(t, route, "origin")
@@ -1304,16 +1325,15 @@ func TestShowJSONContractUnchanged(t *testing.T) {
 	assert.Contains(t, route, "med")
 	assert.Contains(t, route, "local-preference")
 
-	// adj-rib-out must exist with peer key
-	ribOut, ok := parsed["adj-rib-out"].(map[string]any)
-	require.True(t, ok, "expected adj-rib-out map")
-	outRoutes, ok := ribOut["192.0.2.2"].([]any)
-	require.True(t, ok, "expected routes array for outbound peer")
-	require.Len(t, outRoutes, 1)
-
-	outRoute, ok := outRoutes[0].(map[string]any)
-	require.True(t, ok, "expected outbound route map")
+	outRoute := byDirection[rpc.DirectionSent.String()]
+	require.NotNil(t, outRoute, "no sent row among %v", rows)
+	assert.Equal(t, "192.0.2.2", outRoute["peer"])
 	assert.Equal(t, "172.16.0.0/24", outRoute["prefix"])
+
+	// The two halves are no longer separated by an envelope key, so nothing
+	// should be building one.
+	assert.NotContains(t, parsed, "adj-rib-in")
+	assert.NotContains(t, parsed, "adj-rib-out")
 }
 
 // TestShowPipesUnchanged verifies every pipe operator produces correct
@@ -1409,7 +1429,17 @@ func TestShowPipesUnchanged(t *testing.T) {
 			name: "json (default terminal)",
 			args: nil,
 			checkJSON: func(t *testing.T, parsed map[string]any) {
-				assert.Contains(t, parsed, "adj-rib-in")
+				// Flat rows: the answer is one envelope of routes, each row
+				// naming its peer and direction, not an `adj-rib-in` map.
+				rows, ok := parsed["routes"].([]any)
+				require.True(t, ok, "expected a routes list, got %v", parsed)
+				require.NotEmpty(t, rows)
+				for _, raw := range rows {
+					row, isRow := raw.(map[string]any)
+					require.True(t, isRow)
+					assert.Contains(t, row, "peer")
+					assert.Contains(t, row, "direction")
+				}
 			},
 		},
 	}
@@ -1559,4 +1589,67 @@ func TestShowPipelineConcurrentChurn(t *testing.T) {
 	})
 
 	wg.Wait()
+}
+
+// TestShowRowsAreDeterministic pins the row ORDER of `show bgp rib`.
+//
+// It is not cosmetic and it is not free. The sources walk `r.bgpPeers`, which
+// is a map, so rows arrive in Go's map order and that differs between runs. The
+// two-level envelope this replaced hid it: it keyed an object by peer, and
+// encoding/json sorts object keys, so the answer came out sorted without
+// anybody arranging it. A flat list has no such accident.
+//
+// VALIDATES: an answer a test can assert and a reader can diff.
+// PREVENTS: `show bgp rib` reordering itself between identical runs, which
+// would make every downstream assertion flaky for a reason nothing names.
+func TestShowRowsAreDeterministic(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	fam := family.IPv4Unicast
+	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001)
+	// Inserted in an order that is not the sorted one, from several peers, so a
+	// walk that simply preserved arrival order would fail this.
+	for _, peer := range []string{"198.51.100.7", "192.0.2.1", "203.0.113.9", "192.0.2.2"} {
+		peerRIB := storage.NewPeerRIB(peer)
+		peerRIB.Insert(fam, attrBytes, []byte{24, 10, 0, 0}, true)
+		peerRIB.Insert(fam, attrBytes, []byte{24, 10, 0, 1}, true)
+		r.bgpPeers[netip.MustParseAddr(peer)] = peerRIB
+	}
+
+	first := showRowKeys(t, r)
+	require.Len(t, first, 8, "four peers with two routes each")
+
+	sorted := append([]string(nil), first...)
+	sort.Strings(sorted)
+	assert.Equal(t, sorted, first, "the rows are not in sorted order")
+
+	// Run it repeatedly: one pass can agree with sorted order by luck of the
+	// map iteration, and a single comparison would not tell the difference.
+	for range 8 {
+		assert.Equal(t, first, showRowKeys(t, r), "the row order changed between runs")
+	}
+}
+
+// showRowKeys answers one sortable key per row of `show bgp rib`.
+func showRowKeys(t *testing.T, r *RIBManager) []string {
+	t.Helper()
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal(mustMarshal(t, r.showPipeline("*", nil)), &parsed))
+
+	rows, ok := parsed["routes"].([]any)
+	require.True(t, ok, "expected a routes list, got %v", parsed)
+
+	keys := make([]string, 0, len(rows))
+	for _, raw := range rows {
+		row, isRow := raw.(map[string]any)
+		require.True(t, isRow)
+		peer, _ := row["peer"].(string)
+		direction, _ := row["direction"].(string)
+		famName, _ := row["family"].(string)
+		prefix, _ := row["prefix"].(string)
+		var key textbuf.Buffer
+		keys = append(keys, key.Str(peer).Byte('|').Str(direction).Byte('|').
+			Str(famName).Byte('|').Str(prefix).String())
+	}
+	return keys
 }

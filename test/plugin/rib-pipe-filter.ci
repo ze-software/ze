@@ -94,6 +94,38 @@ def check_count(label, result, min_count=0, exact=None):
     return data['count']
 
 
+def check_has_direction(label, result, direction):
+    """Assert the answer carries at least one row going that way.
+
+    `show bgp rib` answers FLAT ROWS: one envelope, one row per route, each row
+    carrying `peer` and `direction` as fields (owner ruling, 2026-08-23). It
+    used to answer an object keyed by direction and then by peer, and these
+    checks asserted the top-level `adj-rib-in` / `adj-rib-out` key existed.
+
+    This asks a stronger question than the key did: the key proved an envelope
+    had been built, and this proves a ROUTE actually went that way.
+    """
+    global failures
+    data = parse_data(result)
+    rows = data.get('routes')
+    if not isinstance(rows, list):
+        print(f'FAIL {label}: no routes list in data: {list(data.keys())}', file=sys.stderr)
+        failures += 1
+        return
+    going = [r for r in rows if isinstance(r, dict) and r.get('direction') == direction]
+    if not going:
+        seen = sorted({r.get('direction') for r in rows if isinstance(r, dict)})
+        print(f'FAIL {label}: no {direction!r} row among {len(rows)} rows, directions seen: {seen}',
+              file=sys.stderr)
+        failures += 1
+        return
+    if not all('peer' in r for r in going):
+        print(f'FAIL {label}: a {direction!r} row carries no peer field', file=sys.stderr)
+        failures += 1
+        return
+    print(f'OK {label}: {len(going)} {direction!r} row(s), each naming its peer', file=sys.stderr)
+
+
 def check_has_key(label, result, key):
     """Assert result data has the given top-level key."""
     global failures
@@ -138,24 +170,24 @@ def main():
     # rib show received: adj-rib-in data (default route from ze-peer)
     r = dispatch(api, 'show bgp rib received')
     check('scope-received', r, 'done')
-    check_has_key('scope-received-content', r, 'adj-rib-in')
+    check_has_direction('scope-received-content', r, 'received')
 
     # rib show sent: adj-rib-out data (static route from config)
     r = dispatch(api, 'show bgp rib sent')
     check('scope-sent', r, 'done')
-    check_has_key('scope-sent-content', r, 'adj-rib-out')
+    check_has_direction('scope-sent-content', r, 'sent')
 
     # rib show sent-received: explicit default scope
     r = dispatch(api, 'show bgp rib sent-received')
     check('scope-sent-received', r, 'done')
-    check_has_key('scope-sent-received-in', r, 'adj-rib-in')
-    check_has_key('scope-sent-received-out', r, 'adj-rib-out')
+    check_has_direction('scope-sent-received-in', r, 'received')
+    check_has_direction('scope-sent-received-out', r, 'sent')
 
     # rib show (no scope): defaults to sent-received
     r = dispatch(api, 'show bgp rib')
     check('scope-default', r, 'done')
-    check_has_key('scope-default-in', r, 'adj-rib-in')
-    check_has_key('scope-default-out', r, 'adj-rib-out')
+    check_has_direction('scope-default-in', r, 'received')
+    check_has_direction('scope-default-out', r, 'sent')
 
     # --- Count terminal returns {"count": N} ---
 

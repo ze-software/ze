@@ -887,7 +887,10 @@ func TestRIBPluginHandleCommandCanonicalNames(t *testing.T) {
 		{"show bgp rib status", "show bgp rib status", nil, true, `"running":true`},
 		{"show bgp rib received", "show bgp rib", []string{"received"}, true, "10.0.0.1"},
 		{"clear bgp rib in", "clear bgp rib in", []string{"*"}, true, `"cleared"`},
-		{"show bgp rib sent", "show bgp rib", []string{"sent"}, true, "adj-rib-out"},
+		// The answer is flat rows now, so the direction is a FIELD rather than
+		// an envelope key: `"direction":"sent"` is what `adj-rib-out` used to
+		// be, and it says the same thing about the same route.
+		{"show bgp rib sent", "show bgp rib", []string{"sent"}, true, `"direction":"sent"`},
 		{"clear bgp rib out", "clear bgp rib out", []string{"*"}, true, `"resent"`},
 	}
 

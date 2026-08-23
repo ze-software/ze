@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
@@ -37,17 +39,86 @@ func concatBytes(slices ...[]byte) []byte {
 	return result
 }
 
-// requirePeerRoutes unmarshals JSON and returns the route array for a peer.
+// requireRowsBelongTo asserts every row names the peer it was selected for, and
+// says which way it went.
+//
+// The two-level envelope made this true by construction: a route sat UNDER its
+// peer's key, so it could not belong to another. Flat rows carry the peer as a
+// field, so selecting by that field is a filter that can be wrong, and this is
+// the check that it was not. Nothing asserted it before because nothing could.
+func requireRowsBelongTo(t *testing.T, rows []any, peer string) {
+	t.Helper()
+	for _, raw := range rows {
+		row, isRow := raw.(map[string]any)
+		require.True(t, isRow, "every element is a route row")
+		require.Equal(t, peer, row["peer"], "a row selected for %s belongs to another peer", peer)
+		require.Contains(t, row, "direction", "every row says which way it went")
+	}
+}
+
+// receivedRowsByPeer rebuilds the peer-keyed view of the RECEIVED half from the
+// flat rows `show bgp rib` answers with.
+//
+// Received only, because that is the half every caller navigates this way. A
+// direction parameter that never takes its second value is a branch no test
+// covers; the sent half is reached through requirePeerRoutes, which does take
+// both.
+//
+// It exists for TESTS that were written against the two-level envelope, so each
+// of them keeps navigating by peer and keeps asserting exactly what it asserted
+// before. The product does not build this map: the shape it answers is one row
+// per route with `peer` and `direction` as fields (owner ruling, 2026-08-23),
+// because a row operator has nothing to select on until they are fields.
+func receivedRowsByPeer(t *testing.T, parsed map[string]any) map[string][]any {
+	t.Helper()
+
+	wantDirection := rpc.DirectionReceived.String()
+
+	rows, ok := parsed["routes"].([]any)
+	require.True(t, ok, "expected a routes list, got %v", parsed)
+
+	byPeer := make(map[string][]any)
+	for _, raw := range rows {
+		row, isRow := raw.(map[string]any)
+		if !isRow || row["direction"] != wantDirection {
+			continue
+		}
+		peer, _ := row["peer"].(string)
+		byPeer[peer] = append(byPeer[peer], row)
+	}
+	return byPeer
+}
+
+// requirePeerRoutes answers every route a peer holds in one direction.
+//
+// `show bgp rib` answers FLAT ROWS now, so the rows are selected by their
+// `peer` and `direction` FIELDS rather than by walking two levels of envelope.
+// Callers still name the direction by its old top-level key, because that is
+// how each test says which half it means.
 func requirePeerRoutes(t *testing.T, jsonStr, topKey, peerAddr string) []any {
 	t.Helper()
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(jsonStr), &result))
 
-	top, ok := result[topKey].(map[string]any)
-	require.True(t, ok, "expected %s key", topKey)
+	wantDirection := map[string]string{
+		"adj-rib-in":  rpc.DirectionReceived.String(),
+		"adj-rib-out": rpc.DirectionSent.String(),
+	}[topKey]
+	require.NotEmpty(t, wantDirection, "unknown top key %s", topKey)
 
-	peerRoutes, ok := top[peerAddr].([]any)
-	require.True(t, ok, "expected peer routes for %s", peerAddr)
+	rows, ok := result["routes"].([]any)
+	require.True(t, ok, "expected a routes list, got %s", jsonStr)
+
+	peerRoutes := make([]any, 0, len(rows))
+	for _, raw := range rows {
+		row, isRow := raw.(map[string]any)
+		if !isRow {
+			continue
+		}
+		if row["peer"] == peerAddr && row["direction"] == wantDirection {
+			peerRoutes = append(peerRoutes, row)
+		}
+	}
 	return peerRoutes
 }
 
@@ -89,21 +160,40 @@ func attrSlice(t *testing.T, route map[string]any, key string) []any {
 	return arr
 }
 
+// requireFirstRoute answers the first route a peer holds in one direction.
+//
+// `show bgp rib` answers FLAT ROWS: one envelope, one row per route, each row
+// carrying `peer` and `direction` as fields (owner ruling, 2026-08-23). It used
+// to answer an object keyed by direction and then by peer, which is why this
+// helper still takes the old top-level key: every caller names the direction it
+// means in those terms, and translating here keeps each test asserting the same
+// fact about the same route.
 func requireFirstRoute(t *testing.T, jsonStr, topKey, peerAddr string) map[string]any {
 	t.Helper()
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(jsonStr), &result))
 
-	top, ok := result[topKey].(map[string]any)
-	require.True(t, ok, "expected %s key", topKey)
+	wantDirection := map[string]string{
+		"adj-rib-in":  rpc.DirectionReceived.String(),
+		"adj-rib-out": rpc.DirectionSent.String(),
+	}[topKey]
+	require.NotEmpty(t, wantDirection, "unknown top key %s", topKey)
 
-	peerRoutes, ok := top[peerAddr].([]any)
-	require.True(t, ok, "expected peer routes for %s", peerAddr)
-	require.NotEmpty(t, peerRoutes)
+	rows, ok := result["routes"].([]any)
+	require.True(t, ok, "expected a routes list, got %s", jsonStr)
 
-	route, ok := peerRoutes[0].(map[string]any)
-	require.True(t, ok, "expected route map")
-	return route
+	for _, raw := range rows {
+		row, isRow := raw.(map[string]any)
+		if !isRow {
+			continue
+		}
+		if row["peer"] == peerAddr && row["direction"] == wantDirection {
+			return row
+		}
+	}
+	require.Fail(t, "no route found",
+		"peer %s direction %s not among the rows: %s", peerAddr, wantDirection, jsonStr)
+	return nil
 }
 
 // TestInboundShowWithAttributes verifies enriched show bgp rib received returns attributes.

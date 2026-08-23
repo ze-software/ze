@@ -408,14 +408,9 @@ func TestRIBShowInStaleFlag(t *testing.T) {
 	require.NoError(t, err)
 	var before map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &before))
-	adjInRaw, ok := before["adj-rib-in"]
-	require.True(t, ok, "response should have adj-rib-in")
-	adjIn, ok := adjInRaw.(map[string]any)
-	require.True(t, ok, "adj-rib-in should be a map")
-	routesRaw, ok := adjIn["192.0.2.1"]
-	require.True(t, ok, "should have routes for peer")
-	routes, ok := routesRaw.([]any)
-	require.True(t, ok, "routes should be an array")
+	routes := receivedRowsByPeer(t, before)["192.0.2.1"]
+	require.NotEmpty(t, routes, "should have routes for peer")
+	requireRowsBelongTo(t, routes, "192.0.2.1")
 	for _, rt := range routes {
 		rtMap, ok := rt.(map[string]any)
 		require.True(t, ok)
@@ -436,14 +431,9 @@ func TestRIBShowInStaleFlag(t *testing.T) {
 	require.NoError(t, err)
 	var after map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &after))
-	adjInRaw, ok = after["adj-rib-in"]
-	require.True(t, ok)
-	adjIn, ok = adjInRaw.(map[string]any)
-	require.True(t, ok)
-	routesRaw, ok = adjIn["192.0.2.1"]
-	require.True(t, ok)
-	routes, ok = routesRaw.([]any)
-	require.True(t, ok)
+	routes = receivedRowsByPeer(t, after)["192.0.2.1"]
+	require.NotEmpty(t, routes)
+	requireRowsBelongTo(t, routes, "192.0.2.1")
 
 	staleCount := 0
 	freshCount := 0

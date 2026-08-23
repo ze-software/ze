@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"net/netip"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -1001,13 +1002,8 @@ func (jt *jsonTerminal) Next() (RouteItem, bool) {
 
 func (jt *jsonTerminal) drain() {
 	jt.drained = true
-	// Group by peer and direction
-	type peerRoutes struct {
-		received []map[string]any
-		sent     []map[string]any
-	}
-	peers := make(map[string]*peerRoutes)
 
+	rows := make([]map[string]any, 0)
 	count := 0
 	for {
 		item, ok := jt.upstream.Next()
@@ -1016,49 +1012,47 @@ func (jt *jsonTerminal) drain() {
 		}
 		count++
 
-		pr, exists := peers[item.Peer]
-		if !exists {
-			pr = &peerRoutes{}
-			peers[item.Peer] = pr
-		}
-
-		routeMap := serializeRouteItem(item)
-		if item.Direction == rpc.DirectionReceived {
-			pr.received = append(pr.received, routeMap)
-		} else {
-			pr.sent = append(pr.sent, routeMap)
-		}
+		row := serializeRouteItem(item)
+		row[rowKeyPeer] = item.Peer
+		row[rowKeyDirection] = item.Direction.String()
+		rows = append(rows, row)
 	}
 
 	jt.meta.Count = count
+	sortRouteRows(rows)
 
-	// Build JSON output
-	result := make(map[string]any)
-
-	// Add received routes (adj-rib-in)
-	ribIn := make(map[string][]map[string]any)
-	for peer, pr := range peers {
-		if len(pr.received) > 0 {
-			ribIn[peer] = pr.received
-		}
-	}
-	if len(ribIn) > 0 {
-		result["adj-rib-in"] = ribIn
-	}
-
-	// Add sent routes (adj-rib-out)
-	ribOut := make(map[string][]map[string]any)
-	for peer, pr := range peers {
-		if len(pr.sent) > 0 {
-			ribOut[peer] = pr.sent
-		}
-	}
-	if len(ribOut) > 0 {
-		result["adj-rib-out"] = ribOut
-	}
-
-	data, _ := json.Marshal(result)
+	data, _ := json.Marshal(map[string]any{"routes": rows})
 	jt.meta.JSON = string(data)
+}
+
+// Row fields that say which peer a route belongs to and which way it went.
+// They are FIELDS rather than levels of an envelope, which is what lets a
+// filter select on them: `show bgp rib | peer 10.0.0.1 | direction in` cannot
+// be expressed against an object keyed by direction and then by peer.
+const (
+	rowKeyPeer      = "peer"
+	rowKeyDirection = "direction"
+)
+
+// sortRouteRows puts the rows in a stable order.
+//
+// It is not cosmetic. The sources walk `r.bgpPeers`, which is a map, so the
+// order rows arrive in is Go's map order and differs between runs. The shape
+// this replaced hid that: it keyed an object by peer, and encoding/json sorts
+// object keys, so the answer came out sorted without anybody arranging it. A
+// flat list has no such accident, and an answer that reorders itself between
+// identical runs is one no test can assert and no reader can diff.
+func sortRouteRows(rows []map[string]any) {
+	sort.Slice(rows, func(i, j int) bool {
+		for _, key := range [...]string{rowKeyPeer, rowKeyDirection, "family", "prefix"} {
+			a, _ := rows[i][key].(string)
+			b, _ := rows[j][key].(string)
+			if a != b {
+				return a < b
+			}
+		}
+		return false
+	})
 }
 
 func (jt *jsonTerminal) Meta() PipelineMeta {

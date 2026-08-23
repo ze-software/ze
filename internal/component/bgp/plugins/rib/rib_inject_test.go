@@ -205,8 +205,8 @@ func TestShowProtocolPipelineBMP(t *testing.T) {
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 
-	ribIn, ok := parsed["adj-rib-in"].(map[string]any)
-	require.True(t, ok, "result should have adj-rib-in")
+	ribIn := receivedRowsByPeer(t, parsed)
+	require.NotEmpty(t, ribIn, "the answer carries received routes")
 
 	assert.Contains(t, ribIn, "router1:peer1", "BMP peer should be present")
 	assert.NotContains(t, ribIn, "10.0.0.1", "BGP peer should not be in BMP show")
@@ -232,8 +232,8 @@ func TestShowProtocolPipelineSelector(t *testing.T) {
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 
-	ribIn, ok := parsed["adj-rib-in"].(map[string]any)
-	require.True(t, ok)
+	ribIn := receivedRowsByPeer(t, parsed)
+	require.NotEmpty(t, ribIn, "the answer carries received routes")
 	assert.Contains(t, ribIn, "router1:peer1")
 	assert.NotContains(t, ribIn, "router1:peer2")
 }
@@ -288,8 +288,8 @@ func TestBGPShowExcludesBMP(t *testing.T) {
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 
-	ribIn, ok := parsed["adj-rib-in"].(map[string]any)
-	require.True(t, ok)
+	ribIn := receivedRowsByPeer(t, parsed)
+	require.NotEmpty(t, ribIn, "the answer carries received routes")
 	assert.Contains(t, ribIn, "10.0.0.1", "BGP peer should be present")
 	assert.NotContains(t, ribIn, "router1:peer1", "BMP peer must not appear in show bgp rib")
 }
