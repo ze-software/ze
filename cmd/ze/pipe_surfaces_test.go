@@ -65,7 +65,7 @@ func TestPipeHelpNamesEveryOperator(t *testing.T) {
 // TestPipeRootSubsNamesEveryOperator holds the one-line summary in root help,
 // which `ze help ai --json` also publishes, to the same set.
 func TestPipeRootSubsNamesEveryOperator(t *testing.T) {
-	registerLocalCommands()
+	ensureLocalCommandsRegistered()
 
 	var subs string
 	found := false
@@ -178,7 +178,7 @@ func TestPipeCatalogJSONPublishesEveryContract(t *testing.T) {
 // `show data cat` and `show yang doc` are those by design, and they published
 // fifteen operators each before this.
 func TestACommandServedWithoutDataPublishesNoOperators(t *testing.T) {
-	registerLocalCommands()
+	ensureLocalCommandsRegistered()
 
 	for _, path := range []string{"show data cat", "show yang doc"} {
 		if !registry.HasLocal(path) {
