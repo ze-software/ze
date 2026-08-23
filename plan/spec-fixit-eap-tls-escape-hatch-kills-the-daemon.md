@@ -71,8 +71,20 @@ block. The journal row is in `plan/journal/test-against-broken-path.md`.
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc5216.md` - EAP-TLS, Section 2.3, the MSK derivation
   → Constraint: the MSK IS an ExportKeyingMaterial result. A Ze that cannot export cannot authenticate, so this is a conformance gap and not a convenience.
-- [ ] `rfc/short/rfc7627.md` - Extended Master Secret, and the attack it prevents
+- [ ] RFC 7627, Extended Master Secret, and the attack it prevents.
+  **MUST CREATE before any design work in this spec** (`ai/rules/protocol.md`):
+  the repository holds neither the full text nor a summary for that stem under
+  `rfc/`, and no disposition for it in either `rfc/enrolled.txt` or
+  `rfc/not-enrolled.txt`. Verified 2026-08-23. The two paths are deliberately not
+  spelled here: they do not resolve, and naming them would read as rot to
+  `make ze-doc-links-check` rather than as the gap this row records.
   → Constraint: the export refusal is not arbitrary. Without 7627 the exported material can collide across sessions.
+  → Finding, and it is why this row is written this way: Ze's fail-closed EAP-TLS
+    decision, the 2026-08-01 refusal of the package-level directive, and this
+    spec's whole security argument all rest on an RFC the repository has never
+    summarised. `rfc/short/rfc5216.md` and `rfc/short/rfc9190.md` both exist. The
+    one that justifies REFUSING does not, so the reasoning for the refusal lives
+    only in a Go comment.
 - [ ] `rfc/short/rfc9190.md` - EAP-TLS 1.3
   → Constraint: it supersedes RFC 5216 for TLS 1.3 and needs no escape hatch. The gap is TLS 1.2 only.
 
@@ -84,7 +96,7 @@ block. The journal row is in `plan/journal/test-against-broken-path.md`.
 
 **Source files read:**
 - [ ] `cmd/ze/main.go` - the header comment stating the fail-closed choice and naming the GODEBUG escape hatch
-- [ ] `internal/component/ike/eap` - `exportEAPTLSMSK`, which selects by negotiated TLS version and is where the refusal surfaces
+- [ ] `internal/component/ike/eap/eap_tls.go` - `exportEAPTLSMSK` selects by negotiated TLS version and is where the refusal surfaces. Read 2026-08-23: the TLS 1.2 branch already wraps the failure as `eap-tls: export MSK (RFC 5216 Section 2.3): %w`, so the RFC is named and the CAUSE is not. AC-2 is therefore an increment on an existing message rather than a new one, and what it must add is the peer, the negotiated version and RFC 7627. The function's own doc comment records why it returns an error rather than a zero MSK, which is the same fail-closed reasoning AC-2 extends
 - [ ] `test/interop-ipsec/scenarios/04-eap-tls/ze-env` - sets the removed key, so the daemon dies at container start
 
 **Runtime evidence:**
@@ -158,7 +170,7 @@ block. The journal row is in `plan/journal/test-against-broken-path.md`.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| An EAP-TLS peer negotiating TLS 1.2 without RFC 7627 | → | `exportEAPTLSMSK` | `TestEAPTLSExportRefusalNamesTheCause` |
+| An EAP-TLS peer negotiating TLS 1.2 without RFC 7627 | → | `exportEAPTLSMSK` | `TestEAPTLSExportRefusalNamesTheCause`, and `test/ipsec/ipsec-eap-tls12-refusal-is-attributed.ci` for what an operator reads <!-- doc-links: ignore (this spec's AC-2 creates this file; the spec is ready and not yet authorised to run) --> |
 | The interop lab's EAP-TLS scenario against strongSwan 5.9.14 | → | the IKE EAP exchange | `test/interop-ipsec/scenarios/04-eap-tls` |
 
 ## Acceptance Criteria
@@ -194,7 +206,7 @@ block. The journal row is in `plan/journal/test-against-broken-path.md`.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ipsec-eap-tls12-refusal-is-attributed` | `test/ipsec/ipsec-eap-tls12-refusal-is-attributed.ci` | an operator reads the log after a TLS 1.2 EAP-TLS peer fails, and learns the peer, the TLS version and RFC 7627 rather than a raw crypto/tls string | | <!-- doc-links: ignore (this spec's AC-2 creates this file; the spec is ready and not yet authorised to run) -->
+| `ipsec-eap-tls12-refusal-is-attributed` | `test/ipsec/ipsec-eap-tls12-refusal-is-attributed.ci` | an operator reads the log after a TLS 1.2 EAP-TLS peer fails, and learns the peer, the TLS version and RFC 7627 rather than a raw crypto/tls string | <!-- doc-links: ignore (this spec's AC-2 creates this file; the spec is ready and not yet authorised to run) --> |
 | `04-eap-tls` | `test/interop-ipsec/scenarios/04-eap-tls` | the TLS 1.2 peer path against a real strongSwan, whatever its resolution | |
 
 ### Interop Tests (Scope: protocol)

@@ -143,7 +143,7 @@ are, because a defect fixed in one path and left in a sibling is half fixed
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | A VRRP group on an interface selected by `mac/match` | → | `unitDevice` | `TestVRRPParentTakesTheResolvedDevice` |
-| The same configuration on a live kernel | → | `CreateMacvlanDevice` | `test/iface/vrrp-macvlan-parent-selector.ci` | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
+| The same configuration on a live kernel | → | `CreateMacvlanDevice` | `test/iface/vrrp-macvlan-parent-selector.ci` <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) --> |
 
 ## Acceptance Criteria
 
@@ -161,7 +161,7 @@ are, because a defect fixed in one path and left in a sibling is half fixed
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Pins an interface to a NIC by permanent MAC, then configures VRRP on it | config tree → vrrp plugin → iface backend → kernel | `test/iface/vrrp-macvlan-parent-selector.ci` | <!-- doc-links: ignore (this spec's AC-7 creates the file; the spec is ready and not yet authorised to run) -->
+| 1 | Pins an interface to a NIC by permanent MAC, then configures VRRP on it | config tree → vrrp plugin → iface backend → kernel | `test/iface/vrrp-macvlan-parent-selector.ci` <!-- doc-links: ignore (this spec's AC-7 creates the file; the spec is ready and not yet authorised to run) --> |
 | 2 | Moves the NIC to a different slot so the kernel renames it, and reboots | same path, same selector, new kernel name | the same test, with the kernel name changed between runs |
 
 ## 🧪 TDD Test Plan
@@ -184,7 +184,7 @@ are, because a defect fixed in one path and left in a sibling is half fixed
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `vrrp-macvlan-parent-selector` | `test/iface/vrrp-macvlan-parent-selector.ci` | a MAC-selected interface hosts its virtual router on the selected NIC | | <!-- doc-links: ignore (this spec's AC-7 creates the file; the spec is ready and not yet authorised to run) -->
+| `vrrp-macvlan-parent-selector` | `test/iface/vrrp-macvlan-parent-selector.ci` | a MAC-selected interface hosts its virtual router on the selected NIC | <!-- doc-links: ignore (this spec's AC-7 creates the file; the spec is ready and not yet authorised to run) --> |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -269,7 +269,7 @@ are, because a defect fixed in one path and left in a sibling is half fixed
 | Deliverable | Verification method |
 |-------------|---------------------|
 | The parent is the resolved device | `make ze-unit-pkg-test PKG=./internal/plugins/vrrp` |
-| The kernel agrees | `test/iface/vrrp-macvlan-parent-selector.ci` on a live kernel | <!-- doc-links: ignore (AC-7 of this spec creates this file; the spec is ready and not yet authorised to run) -->
+| The kernel agrees | `test/iface/vrrp-macvlan-parent-selector.ci` on a live kernel <!-- doc-links: ignore (AC-7 of this spec creates this file; the spec is ready and not yet authorised to run) --> |
 | No registry re-derives a device from a name | `TestNoRegistryResolvesAConfiguredNameAgainstTheKernel` |
 
 ### Security Review Checklist

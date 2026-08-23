@@ -137,7 +137,7 @@ surprise to hit.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| A `.ci` that asserts which backend the daemon is using | → | the runner's environment composer | `test/plugin/storage-backend-is-the-shipped-default.ci` | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
+| A `.ci` that asserts which backend the daemon is using | → | the runner's environment composer | `test/plugin/storage-backend-is-the-shipped-default.ci` <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) --> |
 | A `.ci` that declares it needs filesystem storage | → | the new option | `TestRunnerStorageOptionSelectsTheBackend` |
 
 ## Acceptance Criteria
@@ -154,7 +154,7 @@ surprise to hit.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Edits configuration through the web editor on a shipped daemon and reviews the pending changes | web editor → `EditorManager.Diff` → blob storage | `test/web/config-diff-structural-op.wb` | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
+| 1 | Edits configuration through the web editor on a shipped daemon and reviews the pending changes | web editor → `EditorManager.Diff` → blob storage | `test/web/config-diff-structural-op.wb` <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) --> |
 | 2 | Runs the functional suite to gain confidence before a release | runner → daemon on the shipped backend | the suite itself |
 
 ## 🧪 TDD Test Plan
@@ -174,8 +174,8 @@ surprise to hit.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `storage-backend-is-the-shipped-default` | `test/plugin/storage-backend-is-the-shipped-default.ci` | the daemon a test drives is the daemon an operator runs | | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
-| `config-diff-structural-op` | `test/web/config-diff-structural-op.wb` | the surface the closed spec's Task named, finally covered | | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
+| `storage-backend-is-the-shipped-default` | `test/plugin/storage-backend-is-the-shipped-default.ci` | the daemon a test drives is the daemon an operator runs | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) --> |
+| `config-diff-structural-op` | `test/web/config-diff-structural-op.wb` | the surface the closed spec's Task named, finally covered | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) --> |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |

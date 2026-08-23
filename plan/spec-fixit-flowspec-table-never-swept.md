@@ -148,7 +148,7 @@ its rules for the life of the box.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| A peer withdraws its last FlowSpec route | → | `shouldDeleteTable` | `test/plugin/flowspec-fw-withdraw-removes-table.ci` | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
+| A peer withdraws its last FlowSpec route | → | `shouldDeleteTable` | `test/plugin/flowspec-fw-withdraw-removes-table.ci` <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) --> |
 | A peer announces a FlowSpec route that reconciles twice | → | `Apply`, `applyTable` | `TestApplySweepsEveryOwnersTable` |
 
 ## Acceptance Criteria
@@ -165,15 +165,15 @@ its rules for the life of the box.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Receives a FlowSpec rule from a scrubbing provider, then receives its withdrawal | wire → plugin → registry → nft → kernel | `test/plugin/flowspec-fw-withdraw-removes-table.ci` | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
-| 2 | Upgrades a router that was enforcing a FlowSpec rule under the old table name | daemon start → backend → kernel | `test/plugin/flowspec-fw-legacy-table-removed.ci` | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
+| 1 | Receives a FlowSpec rule from a scrubbing provider, then receives its withdrawal | wire → plugin → registry → nft → kernel | `test/plugin/flowspec-fw-withdraw-removes-table.ci` <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) --> |
+| 2 | Upgrades a router that was enforcing a FlowSpec rule under the old table name | daemon start → backend → kernel | `test/plugin/flowspec-fw-legacy-table-removed.ci` <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) --> |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestApplySweepsEveryOwnersTable` | `internal/plugins/firewall/nft/backend_linux_test.go` | a desired table from every owner is swept before it is recreated | | <!-- doc-links: ignore (this spec's own acceptance criteria create this artifact; the spec is ready and not yet authorised to run) -->
+| `TestApplySweepsEveryOwnersTable` | `internal/plugins/firewall/nft/backend_linux_test.go` | a desired table from every owner is swept before it is recreated | <!-- doc-links: ignore (this spec's own acceptance criteria create this artifact; the spec is ready and not yet authorised to run) --> |
 | `TestFlowSpecTableCarriesTheOwnershipPrefix` | `internal/plugins/flowspec-firewall/state_test.go` | the table this plugin builds is named so the backend owns it | |
 | `TestEveryRegisteredTableCarriesThePrefix` | `internal/component/firewall/registry_test.go` | validates AC-4: no producer can register an unprefixed table | |
 
@@ -186,8 +186,8 @@ its rules for the life of the box.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `flowspec-fw-withdraw-removes-table` | `test/plugin/flowspec-fw-withdraw-removes-table.ci` | a withdrawn route stops being enforced | | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
-| `flowspec-fw-legacy-table-removed` | `test/plugin/flowspec-fw-legacy-table-removed.ci` | a table written by an older build is removed once | | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
+| `flowspec-fw-withdraw-removes-table` | `test/plugin/flowspec-fw-withdraw-removes-table.ci` | a withdrawn route stops being enforced | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) --> |
+| `flowspec-fw-legacy-table-removed` | `test/plugin/flowspec-fw-legacy-table-removed.ci` | a table written by an older build is removed once | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) --> |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -276,9 +276,9 @@ its rules for the life of the box.
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| A withdraw removes the table | `test/plugin/flowspec-fw-withdraw-removes-table.ci` | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
+| A withdraw removes the table | `test/plugin/flowspec-fw-withdraw-removes-table.ci` <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) --> |
 | Two reconciles leave one rule | the same test |
-| A legacy table is removed once | `test/plugin/flowspec-fw-legacy-table-removed.ci` | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
+| A legacy table is removed once | `test/plugin/flowspec-fw-legacy-table-removed.ci` <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) --> |
 | No producer can register an unprefixed table | `make ze-unit-pkg-test PKG=./internal/component/firewall` |
 
 ### Security Review Checklist
