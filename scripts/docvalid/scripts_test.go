@@ -487,3 +487,51 @@ func TestLocalDataRegistrationsAreCounted(t *testing.T) {
 			"the validator's registration-name list is missing a spelling:\n%s", section)
 	}
 }
+
+// TestDocDriftOperatorTableIgnoresFixtureRoots pins BOTH directions of the
+// pipe operator-table check's scope.
+//
+// doc_drift.go is run two ways: over the repository, and with --root pointing
+// at a temporary tree holding one or two documents to check a single claim.
+// The check demanded docs/features/pipe-operators.generated.md under whatever
+// root it was given, so every fixture invocation reported it missing, which is
+// a finding about the fixture rather than about the documentation.
+//
+// The second half matters more than the first: a scope narrowed to fix a false
+// positive is one keystroke from a check that never fires at all.
+//
+// VALIDATES: the check judges a tree that carries docs/features, and only that.
+// PREVENTS: the narrowing silently disabling the check.
+func TestDocDriftOperatorTableIgnoresFixtureRoots(t *testing.T) {
+	runDrift := func(t *testing.T, root string) (string, error) {
+		t.Helper()
+		ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
+		defer cancel()
+		cmd := osexec.CommandContext(ctx, "go",
+			goRunScript(t, "scripts/docvalid/doc_drift.go", "--root", root)...)
+		cmd.Dir = repoRoot(t)
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+
+	// A tree with no docs/features owes no generated table.
+	bare := t.TempDir()
+	writeTempDoc(t, bare, "docs/architecture/api/text-parser.md",
+		"# Text Parser Architecture\n\nThe parser uses `textparse.NewScanner` for token-by-token scanning.\n")
+	out, err := runDrift(t, bare)
+	if err != nil {
+		t.Fatalf("a fixture root with no docs/features was judged:\n%s", out)
+	}
+
+	// A tree that HAS docs/features and lacks the table is still reported, so
+	// the narrowing did not turn the check off.
+	populated := t.TempDir()
+	writeTempDoc(t, populated, "docs/features/formatting.md", "# Output Formatting\n")
+	out, err = runDrift(t, populated)
+	if err == nil {
+		t.Fatalf("a tree carrying docs/features and no operator table was accepted:\n%s", out)
+	}
+	if !strings.Contains(out, "the generated pipe operator reference is missing") {
+		t.Fatalf("the operator-table check did not fire on a tree that owes one:\n%s", out)
+	}
+}

@@ -1040,6 +1040,15 @@ const pipeOperatorReferencePath = "docs/features/pipe-operators.generated.md"
 // or an argument kind that changes in the catalog and not on the page is caught
 // as well as a missing operator.
 func checkPipeOperatorReference(root string) []issue {
+	// This tool is also run with --root pointing at a fixture tree holding one
+	// or two documents, to check a single claim. Such a tree owes no generated
+	// operator table, and reporting one missing there is a finding about the
+	// fixture rather than about the documentation. The directory the table
+	// lives in is the sentinel: absent, there is nothing here to judge.
+	if info, statErr := os.Stat(filepath.Join(root, "docs", "features")); statErr != nil || !info.IsDir() {
+		return nil
+	}
+
 	path := filepath.Join(root, pipeOperatorReferencePath)
 	published, err := os.ReadFile(path) //nolint:gosec // repository-relative documentation path
 	if err != nil {
