@@ -52,6 +52,7 @@ claims-about-project-state ## Claims About the State of the Project
   never-label-an-assumption-measured
   correct-the-document-where-the-stale-claim-lived
   a-peer-correction-is-a-claim-not-evidence
+  prove-a-search-can-find-before-you-report-a-zero
   a-defect-record-outlives-the-defect
   close-every-record-of-a-defect-you-fix
 records-you-author ## Records You Author
