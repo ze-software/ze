@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | spec-record-answers-2-only-encoding |
 | Phase | - |
 | Deferral shard | `plan/deferrals/record-answers.md` |
 | Handoff | - |
-| Updated | 2026-08-21 |
+| Updated | 2026-08-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -473,6 +473,28 @@ message: it changes only how an already-selected route is rendered into a
 command answer. The one RFC-adjacent obligation is that a read walk must not
 delay UPDATE processing, which AC-5 asserts and the interop scenario proves
 against a real peer.
+
+## Closure state
+
+Implementation is complete across all six phases and the independent review
+closed at 0 BLOCKER / 0 ISSUE (Review Gate below). The Status said `design`
+until 2026-08-23, which was false after six shipped phases and a passed review,
+and it is `in-progress` now so `/ze-status` reports it as what it is: completed
+but not closed.
+
+What closure still needs, and neither is a decision:
+
+- The two-commit closure (`/ze-close`): the closure template's sections are not
+  in this file yet.
+- `make ze-verify-worktree` green over the commits. It cannot run today:
+  another session's uncommitted work in `internal/component/plugin/server` does
+  not compile under the tags the functional suites build with, so the runner
+  cannot build the binaries it drives. An earlier run also died on a full disk,
+  mid-stage, before it could write its own stage log.
+
+The BLOCKER the review found, `show bgp rib best last N` rendering rows from
+released pool handles, is fixed in `bd18679ab` with two mutation-proven
+regression tests.
 
 ## Review Gate
 
