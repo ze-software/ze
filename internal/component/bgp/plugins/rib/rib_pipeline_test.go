@@ -5,6 +5,7 @@ import (
 	"net/netip"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // --- Phase 1: Path matching ---
@@ -1619,9 +1621,21 @@ func TestShowRowsAreDeterministic(t *testing.T) {
 	first := showRowKeys(t, r)
 	require.Len(t, first, 8, "four peers with two routes each")
 
-	sorted := append([]string(nil), first...)
-	sort.Strings(sorted)
-	assert.Equal(t, sorted, first, "the rows are not in sorted order")
+	// The rows are grouped by PEER, in peer order, and each peer's routes come
+	// in the order the RIB iterates them. A streamed answer cannot sort its
+	// rows after the fact without holding them all, which is what streaming
+	// exists to avoid, so the peer LIST is sorted at construction instead.
+	peers := make([]string, 0, len(first))
+	for _, key := range first {
+		peer := key[:strings.IndexByte(key, '|')]
+		if len(peers) == 0 || peers[len(peers)-1] != peer {
+			peers = append(peers, peer)
+		}
+	}
+	sortedPeers := append([]string(nil), peers...)
+	sort.Strings(sortedPeers)
+	assert.Equal(t, sortedPeers, peers, "the peers are not walked in order")
+	assert.Len(t, peers, 4, "each peer appears as one contiguous group")
 
 	// Run it repeatedly: one pass can agree with sorted order by luck of the
 	// map iteration, and a single comparison would not tell the difference.
@@ -1633,11 +1647,13 @@ func TestShowRowsAreDeterministic(t *testing.T) {
 // showRowKeys answers one sortable key per row of `show bgp rib`.
 func showRowKeys(t *testing.T, r *RIBManager) []string {
 	t.Helper()
-	var parsed map[string]any
-	require.NoError(t, json.Unmarshal(mustMarshal(t, r.showPipeline("*", nil)), &parsed))
+	// The walk STREAMS, so the rows are drained from the generator rather than
+	// read out of a document (spec-record-answers-3-zero-alloc AC-4).
+	records, streaming := r.showPipeline("*", nil).(sdk.Records)
+	require.True(t, streaming, "show bgp rib must answer with a walk")
 
-	rows, ok := parsed["routes"].([]any)
-	require.True(t, ok, "expected a routes list, got %v", parsed)
+	rows, ok := drainShowRecords(t, records)["routes"].([]any)
+	require.True(t, ok, "expected a routes list")
 
 	keys := make([]string, 0, len(rows))
 	for _, raw := range rows {

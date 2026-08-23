@@ -594,7 +594,33 @@ func mustMarshal(t *testing.T, v any) json.RawMessage {
 // dataStr converts any handler result to a JSON string for test assertions.
 func dataStr(t *testing.T, v any) string {
 	t.Helper()
+	if records, streaming := v.(sdk.Records); streaming {
+		return string(mustMarshal(t, drainShowRecords(t, records)))
+	}
 	return string(mustMarshal(t, v))
+}
+
+// drainShowRecords collects a streamed walk into the envelope a buffered answer
+// would have carried, so a test written against the document keeps asserting
+// the same thing.
+//
+// `show bgp rib` STREAMS when its chain names no terminal: it answers a row
+// generator and the daemon never holds the whole table as one document
+// (spec-record-answers-3-zero-alloc AC-4). Collecting it here is a TEST
+// convenience and the opposite of what the product does, which is why the
+// streaming property has its own tests rather than resting on this one.
+func drainShowRecords(t testing.TB, records sdk.Records) map[string]any {
+	t.Helper()
+	rows := make([]any, 0)
+	for rec := range records.Rows {
+		if rec.Item == nil {
+			continue
+		}
+		var row any
+		require.NoError(t, json.Unmarshal(rec.Item.AppendTo(nil), &row))
+		rows = append(rows, row)
+	}
+	return map[string]any{records.Key: rows}
 }
 
 // TestHandleCommand_RIBStatus verifies the status command.
@@ -706,12 +732,12 @@ func TestHandleCommand_RIBShowReceived(t *testing.T) {
 			if tt.wantPeer1 {
 				assert.Contains(t, dataStr(t, data), "10.0.0.1")
 			} else {
-				assert.NotContains(t, data, "10.0.0.1")
+				assert.NotContains(t, dataStr(t, data), "10.0.0.1")
 			}
 			if tt.wantPeer2 {
 				assert.Contains(t, dataStr(t, data), "10.0.0.2")
 			} else {
-				assert.NotContains(t, data, "10.0.0.2")
+				assert.NotContains(t, dataStr(t, data), "10.0.0.2")
 			}
 		})
 	}
@@ -784,7 +810,7 @@ func TestHandleCommand_RIBShowSent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), "10.0.0.1")
-	assert.NotContains(t, data, "10.0.0.2")
+	assert.NotContains(t, dataStr(t, data), "10.0.0.2")
 }
 
 // TestHandleCommand_RIBOutboundResend verifies outbound resend.

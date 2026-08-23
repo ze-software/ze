@@ -10,6 +10,7 @@ package rib
 
 import (
 	"encoding/json"
+	"iter"
 	"net/netip"
 	"slices"
 	"sort"
@@ -25,6 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/core/stringsx"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // RouteItem is a single route yielded by the pipeline iterator.
@@ -88,6 +90,34 @@ type inboundPeerRef struct {
 // rib_pipeline_best.go). This walk is not converted, so it does not have one.
 // The measurement and the reason it is recorded rather than repaired here are in
 // plan/journal/false-synchronization-claim.md.
+// releaseBufferedItems gives back the pool references a source's buffer holds.
+//
+// A source that BUFFERS a peer's routes and then yields them one at a time is
+// holding pool handles across the yield, and PeerRIB.Remove releases an entry's
+// handles under the PeerRIB lock alone. A released slot goes on its shard's free
+// list and a release build re-interns it, so a buffered row read afterwards
+// carries another route's attributes rather than an error
+// (storage.PeerRIB.LookupRetained states the same rule from the read side).
+//
+// So the buffer takes a reference when it fills and gives it back when it is
+// discarded. The cost is one peer's table of references at a time, which is
+// what makes it affordable where retaining a whole walk would not be.
+func releaseBufferedItems(items []RouteItem) {
+	for i := range items {
+		if items[i].HasInEntry {
+			items[i].InEntry.Release()
+		}
+	}
+}
+
+// retainEntry takes a reference to a route entry for a buffer that will outlive
+// the lock the entry was read under. It answers false when the entry is already
+// dead, and the caller then drops the row rather than buffering a handle
+// nothing holds.
+func retainEntry(entry *storage.RouteEntry) bool {
+	return entry.AddRef() == nil
+}
+
 type inboundSource struct {
 	peers   []inboundPeerRef
 	peerIdx int
@@ -107,6 +137,13 @@ func newInboundSource(r *RIBManager, selectorStr string) *inboundSource {
 			peers = append(peers, inboundPeerRef{peer: peerRIB.PeerAddr(), peerRIB: peerRIB})
 		}
 	}
+	// Sorted so the WALK is deterministic. r.bgpPeers is a map, so the order it
+	// yields peers in differs between runs, and a streaming answer cannot sort
+	// its rows afterwards without holding them all, which is the thing
+	// streaming exists to avoid. Ordering the peer list costs one sort of a
+	// small slice and makes the whole answer reproducible: peers in address
+	// order, and each peer's routes in the order IterateSorted yields them.
+	sort.Slice(peers, func(i, j int) bool { return peers[i].peer < peers[j].peer })
 	return &inboundSource{peers: peers}
 }
 
@@ -125,6 +162,7 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 
 		ref := s.peers[s.peerIdx]
 		s.peerIdx++
+		releaseBufferedItems(s.items)
 		s.items = s.items[:0]
 		s.itemIdx = 0
 
@@ -134,6 +172,13 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 		// arrives between the two (PeerRIB.IsAddPath).
 		addPath := ref.peerRIB.AddPathFamilies()
 		ref.peerRIB.IterateSorted(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
+			// Retained INSIDE the iteration, which runs under the same PeerRIB
+			// lock Remove releases handles under. Taking the reference here is
+			// what makes the buffer safe to read after the walk gives that lock
+			// back and yields.
+			if !retainEntry(&entry) {
+				return true
+			}
 			prefixStr := formatNLRIAsPrefix(fam, nlriBytes, addPath[fam])
 			s.items = append(s.items, RouteItem{
 				Peer:       ref.peer,
@@ -150,6 +195,14 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 
 func (s *inboundSource) Meta() PipelineMeta {
 	return PipelineMeta{Count: s.count}
+}
+
+// release gives back the references the last buffered peer still holds. A
+// caller that drains to exhaustion has already released every earlier peer's
+// buffer; this covers the tail and every early exit.
+func (s *inboundSource) release() {
+	releaseBufferedItems(s.items)
+	s.items = s.items[:0]
 }
 
 // protocolInboundSource iterates over adj-rib-in routes for a single protocol's peers.
@@ -174,6 +227,9 @@ func newProtocolInboundSource(r *RIBManager, protoID redistevents.ProtocolID, se
 			peers = append(peers, peer)
 		}
 	}
+	// Sorted for the reason newInboundSource states: a streamed answer cannot
+	// order its rows after the fact.
+	sort.Strings(peers)
 	return &protocolInboundSource{r: r, protoID: protoID, selector: selectorStr, peers: peers}
 }
 
@@ -192,11 +248,17 @@ func (s *protocolInboundSource) Next() (RouteItem, bool) {
 
 		peer := s.peers[s.peerIdx]
 		s.peerIdx++
+		releaseBufferedItems(s.items)
 		s.items = s.items[:0]
 		s.itemIdx = 0
 
-		protoPeers := s.r.ribInPool[s.protoID]
-		peerRIB := protoPeers[peer]
+		// r.ribInPool is one of the peer-keyed maps peerMu protects, and a
+		// streaming walk gives that lock back between rows. The lookup takes it
+		// for itself rather than relying on a caller holding it across the whole
+		// drain, which is what a walk that yields cannot do.
+		s.r.peerMu.RLock()
+		peerRIB := s.r.ribInPool[s.protoID][peer]
+		s.r.peerMu.RUnlock()
 		if peerRIB == nil {
 			continue
 		}
@@ -206,6 +268,10 @@ func (s *protocolInboundSource) Next() (RouteItem, bool) {
 		// lock the iteration already holds.
 		addPath := peerRIB.AddPathFamilies()
 		peerRIB.IterateSorted(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
+			// Retained under the iteration's own lock: see inboundSource.Next.
+			if !retainEntry(&entry) {
+				return true
+			}
 			prefixStr := formatNLRIAsPrefix(fam, nlriBytes, addPath[fam])
 			s.items = append(s.items, RouteItem{
 				Peer:       peer,
@@ -222,6 +288,12 @@ func (s *protocolInboundSource) Next() (RouteItem, bool) {
 
 func (s *protocolInboundSource) Meta() PipelineMeta {
 	return PipelineMeta{Count: s.count}
+}
+
+// release gives back the references the last buffered peer still holds.
+func (s *protocolInboundSource) release() {
+	releaseBufferedItems(s.items)
+	s.items = s.items[:0]
 }
 
 // outboundSource iterates over all adj-rib-out routes matching the peer selector.
@@ -250,6 +322,8 @@ func newOutboundSource(r *RIBManager, selectorStr string) *outboundSource {
 			peers = append(peers, peer)
 		}
 	}
+	// Sorted for the reason newInboundSource states.
+	sort.Slice(peers, func(i, j int) bool { return peers[i].Less(peers[j]) })
 	return &outboundSource{r: r, peers: peers}
 }
 
@@ -275,9 +349,16 @@ func (s *outboundSource) Next() (RouteItem, bool) {
 		// (not per route), on this cold show-command path.
 		peerStr := peer.String()
 
-		// Reconstruct under the caller's held peerMu.RLock: reconstructRoute
-		// copies all wire bytes into an owned *Route, so the materialized
-		// items remain valid for the rest of the drain. (I2)
+		// r.ribOut is written by handleSent under peerMu.Lock, so the read
+		// takes peerMu for itself: a streaming walk gives the lock back between
+		// rows and cannot rely on a caller holding it across the drain.
+		//
+		// The lock covers the MAP READ and the reconstruction, and nothing
+		// else. reconstructRoute copies every wire byte into an owned *Route,
+		// so the materialized items carry no pool handle and stay valid once
+		// the lock is gone. That is why this half needs no reference where the
+		// inbound halves do.
+		s.r.peerMu.RLock()
 		for fam, familyRoutes := range s.r.ribOut[peer] {
 			for key, entry := range familyRoutes {
 				rt := reconstructRoute(entry, fam, key, s.r.ribOutSourcePeer(fam, key))
@@ -290,6 +371,7 @@ func (s *outboundSource) Next() (RouteItem, bool) {
 				})
 			}
 		}
+		s.r.peerMu.RUnlock()
 	}
 }
 
@@ -310,6 +392,11 @@ func newCombinedSource(r *RIBManager, selector string) *combinedSource {
 		inbound:  newInboundSource(r, selector),
 		outbound: newOutboundSource(r, selector),
 	}
+}
+
+// release gives back what either half still holds.
+func (s *combinedSource) release() {
+	s.inbound.release()
 }
 
 func (s *combinedSource) Next() (RouteItem, bool) {
@@ -1117,31 +1204,22 @@ func (r *RIBManager) showPipeline(selector string, args []string) any {
 		selector = pipeSelector
 	}
 
-	r.peerMu.RLock()
-	defer r.peerMu.RUnlock()
-
-	// Create source based on scope
-	var source pipelineIterator
-	switch scope {
-	case scopeReceived:
-		source = newInboundSource(r, selector)
-	case scopeSent:
-		source = newOutboundSource(r, selector)
-	case scopeSentReceived:
-		source = newCombinedSource(r, selector)
+	// A walk with no terminal STREAMS: it answers a row generator and the
+	// daemon never holds the whole table as one document
+	// (spec-record-answers-3-zero-alloc AC-4).
+	if !hasTerminal(stages) {
+		return sdk.Records{Key: showRowsEnvelopeKey, Rows: r.showRows(selector, scope, stages)}
 	}
+
+	// A terminal builds its whole answer here, so nothing is written to a
+	// transport while this runs and the sources may be drained in one go.
+	source, release := r.newShowSource(selector, scope)
+	defer release()
 
 	// Apply filter stages
 	current := source
 	for _, stage := range stages {
 		current = stage.apply(current)
-	}
-
-	// If no terminal was specified, default to json
-	if !hasTerminal(stages) {
-		jt := newJSONTerminal(current)
-		meta := jt.Meta()
-		return json.RawMessage(meta.JSON)
 	}
 
 	// Execute terminal — drain it and return metadata
@@ -1156,6 +1234,81 @@ func (r *RIBManager) showPipeline(selector string, args []string) any {
 
 	// count terminal
 	return map[string]any{"count": meta.Count}
+}
+
+// showRowsEnvelopeKey names the list `show bgp rib` answers with. One envelope,
+// one row per route: the rows carry `peer` and `direction` as fields.
+const showRowsEnvelopeKey = "routes"
+
+// newShowSource builds the source for a scope and reports the release it owes.
+//
+// peerMu is held for CONSTRUCTION alone. Every source reads the peer-keyed maps
+// to build its peer list, and each one takes peerMu again for itself when it
+// materializes a peer inside Next. Holding it across the drain as well would
+// nest a reader inside a reader, which deadlocks the moment a writer queues
+// between them: Go's RWMutex makes a later RLock wait behind a waiting writer.
+func (r *RIBManager) newShowSource(selector, scope string) (pipelineIterator, func()) {
+	r.peerMu.RLock()
+	defer r.peerMu.RUnlock()
+
+	switch scope {
+	case scopeReceived:
+		src := newInboundSource(r, selector)
+		return src, src.release
+	case scopeSent:
+		return newOutboundSource(r, selector), func() {}
+	default:
+		src := newCombinedSource(r, selector)
+		return src, src.release
+	}
+}
+
+// showRows answers the rows of `show bgp rib` one at a time.
+//
+// No lock is held across a yield. peerMu covers source construction and each
+// per-peer materialization inside Next, and the inbound halves hold a pool
+// REFERENCE for the rows they have buffered, because PeerRIB.Remove releases an
+// entry's handles under the PeerRIB lock alone and a released slot is
+// re-interned in a release build.
+func (r *RIBManager) showRows(selector, scope string, stages []pipelineStage) iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
+		source, release := r.newShowSource(selector, scope)
+		defer release()
+
+		current := source
+		for _, stage := range stages {
+			current = stage.apply(current)
+		}
+
+		for {
+			item, ok := current.Next()
+			if !ok {
+				return
+			}
+			row := serializeRouteItem(item)
+			row[rowKeyPeer] = item.Peer
+			row[rowKeyDirection] = item.Direction.String()
+
+			encoded, err := json.Marshal(row)
+			if err != nil {
+				// The walk continues: one row that cannot be encoded is a fault
+				// about that row, not a reason to stop answering the rest.
+				var tb textbuf.Buffer
+				tb.Str(`{"message":"route row could not be encoded","peer":`).
+					Quoted(item.Peer).
+					Str(`,"prefix":`).
+					Quoted(item.Prefix).
+					Byte('}')
+				if !yield(rpc.RowRecord{Fault: rpc.RawRow(tb.String())}) {
+					return
+				}
+				continue
+			}
+			if !yield(rpc.RowRecord{Item: rpc.RawRow(string(encoded))}) {
+				return
+			}
+		}
+	}
 }
 
 // pipelineStage represents a parsed pipeline stage (filter or terminal).

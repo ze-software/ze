@@ -197,17 +197,21 @@ func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []stri
 		return json.RawMessage(`{"error":"unknown protocol"}`)
 	}
 
+	// peerMu is taken for the map READS and given straight back. Holding it
+	// across the drain would nest a reader inside a reader: the sources take it
+	// again for themselves when they materialize a peer inside Next, and Go's
+	// RWMutex makes a later RLock wait behind a waiting writer, so the two
+	// together deadlock the moment an UPDATE arrives between them.
 	r.peerMu.RLock()
-	defer r.peerMu.RUnlock()
+	empty := (protoID != bgpProtocolID && len(r.ribInPool[protoID]) == 0) ||
+		(protoID == bgpProtocolID && len(r.bgpPeers) == 0)
+	r.peerMu.RUnlock()
 
 	// The empty answer carries the SAME shape as a populated one: flat rows
 	// under `routes` (owner ruling, 2026-08-23). It answered
 	// `{"adj-rib-in":{}}` here while the populated path answered flat rows, so
 	// a caller parsing the empty case saw a shape the command no longer uses.
-	if protoID != bgpProtocolID && len(r.ribInPool[protoID]) == 0 {
-		return json.RawMessage(`{"routes":[]}`)
-	}
-	if protoID == bgpProtocolID && len(r.bgpPeers) == 0 {
+	if empty {
 		return json.RawMessage(`{"routes":[]}`)
 	}
 
@@ -219,12 +223,20 @@ func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []stri
 		selector = pipeSelector
 	}
 
+	// Construction reads the peer-keyed maps, so it takes the lock again, for
+	// itself and no longer.
+	r.peerMu.RLock()
 	var source pipelineIterator
+	var release func()
 	if protoID == bgpProtocolID {
-		source = newInboundSource(r, selector)
+		src := newInboundSource(r, selector)
+		source, release = src, src.release
 	} else {
-		source = newProtocolInboundSource(r, protoID, selector)
+		src := newProtocolInboundSource(r, protoID, selector)
+		source, release = src, src.release
 	}
+	r.peerMu.RUnlock()
+	defer release()
 
 	current := source
 	for _, stage := range stages {

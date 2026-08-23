@@ -525,16 +525,40 @@ none of them. Diff under review: `e41a46fd6..e9f0a8b8f` (phases 1 to 6, plus the
 | N-6 | NOTE | `make ze-repository-check` reports `AddProcess has no cross-package non-test caller` and `audit-test-relaxation.py` reports two WEAKENED tests in `internal/component/firewall/plugins/irr/irr_test.go`. Neither is in this diff; both belong to other sessions' uncommitted work in this shared checkout | Neither belongs to this spec. Each is owned by the session whose uncommitted work carries it, and is named here so the next reader does not charge it to this commit |
 | N-7 | NOTE | A `misspell` red in `internal/component/plugin/process/manager.go` (another session's uncommitted hunk) blocked `make ze-lint-changed` | Fixed in place, one word in a comment, so the gate could give a real answer. Reported rather than folded in silently |
 
-### AC-4: the payload is settled, the streaming is NOT
+### AC-4: payload and streaming, both landed
 
-**Read this before believing the paragraph below.** AC-4 asks that rows STREAM
-and that the daemon never hold the whole table as one document. That is still
-outstanding. `jsonTerminal.drain` collects every row into a slice and marshals
-one document, `showPipeline` returns it as a `json.RawMessage`, and nothing in
-`rib_pipeline.go` produces a record generator. I claimed AC-4 implemented when
-the flat rows landed on 2026-08-23; that was wrong, and this paragraph is the
-correction. What landed is the payload half, which was the question blocking the
-streaming conversion rather than the conversion itself.
+**Both halves are in as of 2026-08-23.** I claimed AC-4 implemented once when
+only the payload had landed, which was wrong and is corrected in the history of
+this file; the streaming conversion followed.
+
+`show bgp rib` with no terminal answers `sdk.Records{Key: "routes"}` over a row
+generator. `TestShowPipelineStreams` holds it to one wire line per row past
+`rpc.AnswerBufferThreshold`, against the three a collected document writes
+whatever its row count, and it is mutation-proven: restoring the document path
+reddens it with "must answer with a walk".
+
+**How the lock and the references were solved**, since the review said neither
+mechanism transferred from `bestPathRows`:
+
+- `peerMu` is held for source CONSTRUCTION alone, then given back. Each source
+  takes it again for itself when it materializes a peer inside `Next`. Holding
+  it across the drain as well would nest a reader inside a reader, which
+  deadlocks the moment a writer queues between them.
+- The inbound sources RETAIN each buffered entry inside `IterateSorted`, which
+  runs under the same PeerRIB lock `Remove` releases handles under, and give the
+  references back when the buffer is refilled or the walk ends. The cost is one
+  peer's table of references at a time.
+- `outboundSource` needs no reference: `reconstructRoute` copies every wire byte
+  into an owned `*Route`. It needed the LOCK though, taken per peer around the
+  `ribOut` map read, because `handleSent` writes that map under `peerMu.Lock`.
+- Determinism survived the change by moving: a stream cannot sort its rows
+  afterwards without holding them all, so the PEER LIST is sorted at
+  construction and each peer's routes come in `IterateSorted` order.
+
+`TestShowPipelineNoLockAcrossWrite` proves AC-5 for this command the way the
+best-path test does, by taking the write side of `peerMu` from inside the
+answer writer. The package is green under `-race`, including
+`TestShowPipelineWalkSurvivesConcurrentUpdates`.
 
 **The payload half, landed 2026-08-23.** `show bgp rib` answers flat rows: one
 envelope under `routes`, one row per route, each carrying `peer` and `direction`
