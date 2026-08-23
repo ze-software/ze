@@ -34,6 +34,14 @@ is byte-identical to a successful proof. This is the worse half: a stale cached
 verdict at least ran once against real code, while an unapplied mutation means
 nothing was ever tested.
 
+**Restore the file by copying back a pristine copy you saved first. You MUST NOT
+reach for `git checkout --`, `git restore` or `git stash`: they are banned
+outright, and a mutation proof is the moment the reflex to use one is strongest.**
+Save the copy before the patch, restore with `cp`, and confirm the file is
+byte-identical afterwards. In a shared checkout those verbs would discard another
+session's uncommitted work in the same file, and the ban does not soften inside a
+throwaway worktree, where the habit is formed and carried back out.
+
 It defeats the habit that catches every other shape. Break it and watch it go red
 fails silently when the break never landed, and the report then says truthfully
 that the re-run was real while the proof is worth nothing. Everybody already
