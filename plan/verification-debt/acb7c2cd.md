@@ -60,3 +60,6 @@ is open.
 | 2026-08-23 | acb7c2cd | test(relay): the payload writer's length is exact, not a bound | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-23 | acb7c2cd | test(relay): the payload writer's length is exact, not a bound | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
 | 2026-08-23 | acb7c2cd | plan: close spec-fixit-fwdpool-backpressure-timing | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-23 | acb7c2cd | close: remove spec-fixit-fwdpool-backpressure-timing | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-23 | acb7c2cd | fix(adj-rib-in): a peer-up replay chunks by bytes, not by routes | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-23 | acb7c2cd | fix(adj-rib-in): a peer-up replay chunks by bytes, not by routes | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |

@@ -145,7 +145,12 @@ type AdjRIBInManager struct {
 
 	// routeRelayer, if set, overrides the engine relay call for replay delivery.
 	// Used in tests to verify peer-up triggers replay without an engine.
-	routeRelayer func(destination string, routes []rpc.StoredRoute)
+	//
+	// It returns what the engine call returns, so a test can drive replayCommand's
+	// statusError path. Returning nothing left that path undrivable: the only way
+	// to a relay failure was the closed connection newTestManager's SDK plugin
+	// already carries, which every test using this seam exists to avoid.
+	routeRelayer func(destination string, routes []rpc.StoredRoute) error
 
 	// replayOwned is set when another plugin owns peer-up replay (bgp-rs). While
 	// set, this plugin does NOT self-replay on peer-up.
@@ -892,19 +897,14 @@ func (r *AdjRIBInManager) buildReplayRoutes(targetPeer netip.Addr, fromIndex uin
 	return out, maxSeq
 }
 
-// relayChunkSize bounds how many stored routes travel in one relay call.
+// relayRoutes hands stored routes to the engine for relay through the forward
+// rail, in chunks that stay under the IPC frame ceiling.
 //
 // A forked adj-rib-in reaches the engine over the plugin IPC framing, which
 // rejects a frame above rpc.MaxMessageSize (16 MB) and does NOT split
-// plugin->engine RPC payloads -- only the event path is chunked. A StoredRoute
-// serializes to a couple of hundred bytes, so an unchunked replay of a large
-// Adj-RIB-In would fail as a single oversized frame with every route lost at
-// once. Chunking also bounds how many reconstruction buffers the engine holds in
-// flight per call.
-const relayChunkSize = 4096
-
-// relayRoutes hands stored routes to the engine for relay through the forward
-// rail, in bounded chunks.
+// plugin->engine RPC payloads -- only the event path is chunked. So an unchunked
+// replay of a large Adj-RIB-In fails as one oversized frame, losing every route
+// at once. relay_chunk.go states the budget and why the bound is bytes.
 //
 // Returns an error when ANY chunk fails. The caller MUST propagate it. bgp-rs
 // sends End-of-RIB on its failure path too (rs/server_handlers.go, "Always send
@@ -916,21 +916,29 @@ func (r *AdjRIBInManager) relayRoutes(destination string, routes []rpc.StoredRou
 	if len(routes) == 0 {
 		return nil
 	}
-	if r.routeRelayer != nil {
-		r.routeRelayer(destination, routes)
-		return nil
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	for start := 0; start < len(routes); start += relayChunkSize {
-		end := min(start+relayChunkSize, len(routes))
-		if err := r.plugin.RelayStoredRoute(ctx, destination, routes[start:end]); err != nil {
+	for start := 0; start < len(routes); {
+		end := relayChunkEnd(routes, start, relayChunkBudget)
+		if err := r.relayChunk(ctx, destination, routes[start:end]); err != nil {
 			logger().Warn("relay-stored-route failed",
-				"peer", destination, "routes", len(routes), "chunk-start", start, "error", err)
+				"peer", destination, "routes", len(routes),
+				"chunk-start", start, "chunk-routes", end-start, "error", err)
 			return err
 		}
+		start = end
 	}
 	return nil
+}
+
+// relayChunk sends one chunk to the engine, or to the test seam when one is
+// installed. The seam sits here rather than around the whole walk so a test sees
+// the chunks the engine sees.
+func (r *AdjRIBInManager) relayChunk(ctx context.Context, destination string, chunk []rpc.StoredRoute) error {
+	if r.routeRelayer != nil {
+		return r.routeRelayer(destination, chunk)
+	}
+	return r.plugin.RelayStoredRoute(ctx, destination, chunk)
 }
 
 // getYANG returns the embedded YANG schema.

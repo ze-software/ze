@@ -718,8 +718,9 @@ func TestAdjRibInReplayArgsPassthrough(t *testing.T) {
 	// argument passthrough it is actually about.
 	var gotDest string
 	var gotRoutes []rpc.StoredRoute
-	r.routeRelayer = func(dest string, routes []rpc.StoredRoute) {
+	r.routeRelayer = func(dest string, routes []rpc.StoredRoute) error {
 		gotDest, gotRoutes = dest, routes
+		return nil
 	}
 
 	// Call handleCommand with the selector that would come from args
@@ -763,11 +764,12 @@ func TestHandleState_PeerUpTriggersReplay(t *testing.T) {
 		peer   string
 		routes []rpc.StoredRoute
 	}
-	r.routeRelayer = func(peer string, routes []rpc.StoredRoute) {
+	r.routeRelayer = func(peer string, routes []rpc.StoredRoute) error {
 		sent = append(sent, struct {
 			peer   string
 			routes []rpc.StoredRoute
 		}{peer, routes})
+		return nil
 	}
 
 	// Pre-populate routes from peer A (10.0.0.1)
@@ -818,7 +820,7 @@ func TestHandleState_PeerUpEmptyRIB(t *testing.T) {
 	r := newTestManager(t)
 
 	var sendCount int
-	r.routeRelayer = func(_ string, routes []rpc.StoredRoute) { sendCount += len(routes) }
+	r.routeRelayer = func(_ string, routes []rpc.StoredRoute) error { sendCount += len(routes); return nil }
 
 	// No routes in ribIn -- this is the startup scenario.
 	upEvent := &bgp.Event{
@@ -846,11 +848,12 @@ func TestHandleState_PeerUpSelfExclusion(t *testing.T) {
 		peer   string
 		routes []rpc.StoredRoute
 	}
-	r.routeRelayer = func(peer string, routes []rpc.StoredRoute) {
+	r.routeRelayer = func(peer string, routes []rpc.StoredRoute) error {
 		sent = append(sent, struct {
 			peer   string
 			routes []rpc.StoredRoute
 		}{peer, routes})
+		return nil
 	}
 
 	// Peer 10.0.0.1 has routes from itself (shouldn't happen normally,
@@ -948,10 +951,11 @@ func TestReplayOwnerDedupe(t *testing.T) {
 		})
 		r.ribIn[netip.MustParseAddr("10.0.0.1")] = m
 		var destinations []string
-		r.routeRelayer = func(dest string, routes []rpc.StoredRoute) {
+		r.routeRelayer = func(dest string, routes []rpc.StoredRoute) error {
 			if len(routes) > 0 {
 				destinations = append(destinations, dest)
 			}
+			return nil
 		}
 		return r, &destinations
 	}

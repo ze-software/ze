@@ -4,9 +4,9 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 1/3 |
+| Phase | 2/3 |
 | Deferral shard | `plan/deferrals/fixit-stored-route-relay-hardening.md` |
-| Updated | 2026-08-14 |
+| Updated | 2026-08-23 |
 
 ## Post-Compaction Recovery
 
@@ -271,14 +271,28 @@ startup stages (a registration field surfaced to adj-rib-in at configure time, w
 strictly before ready and before peers start) rather than a callback racing them.
 Investigate that shape; do not re-attempt the wait.
 
-### I-2 — `relayChunkSize` bounds route count, not bytes
+### I-2 — `relayChunkSize` bounds route count, not bytes — DONE (2026-08-23)
 
-`relayRoutes` chunks at 4096 routes to stay under the 16 MB IPC frame ceiling
+`relayRoutes` chunked at 4096 routes to stay under the 16 MB IPC frame ceiling
 (`pkg/plugin/rpc/framing.go`). Route count does not bound bytes: `AttrHex` is hex, so
 roughly twice the attribute block, and 4096 x a 4 KB block is already ~33 MB. A forked
-adj-rib-in with large communities or AS_PATH blocks still loses a whole chunk as one
-oversized frame. It fails closed, so this is availability, not corruption.
-Replace with a byte-budget accumulator.
+adj-rib-in with large communities or AS_PATH blocks still lost a whole chunk as one
+oversized frame. It fails closed, so this was availability, not corruption.
+
+**Replaced by a byte-budget accumulator**
+(`internal/component/bgp/plugins/adj_rib_in/relay_chunk.go`). `relayChunkEnd(routes,
+start, budget)` walks the replay accumulating `relayRouteJSONMax`, an UPPER bound on
+what one route adds to the serialized `rpc.RelayStoredRouteInput`, and cuts before the
+budget (`rpc.MaxMessageSize - relayFrameReserve`) is passed. `relayChunkSize` is
+deleted rather than kept beside it (`ai/rules/no-layering.md`).
+
+**One claim in the old comment was FALSE and was removed rather than carried over.**
+It said chunking "also bounds how many reconstruction buffers the engine holds in
+flight per call". It does not: `RelayStoredRoute`
+(`internal/component/bgp/reactor/reactor_api_relay.go`) releases each route's cache
+entry from a deferred closure before it builds the next one, so the only retains that
+outlive a route are the per-destination writes, which the chunk size never governed.
+That is the I-6 backpressure item, and it stays open.
 
 ### I-3 — replay ownership is process-global, but replay driving is per-peer
 
@@ -330,20 +344,40 @@ could not see. GREEN once restored. `make ze-functional-plugin-test` 558/558.
 
 ### I-6 — smaller relay gaps
 
-- RFC 2545 32-byte next hop (global + link-local) is truncated to 16 by
-  `nhopHexFromAddr` (`adj_rib_in/rib.go`), so a replay diverges from what a live
-  forward relays verbatim and an on-link peer loses the link-local next hop.
+- RFC 2545 32-byte next hop (global + link-local) is truncated to 16, so a replay
+  diverges from what a live forward relays verbatim and an on-link peer loses the
+  link-local next hop. **The producer is `MPReachWire.NextHop`
+  (`internal/component/bgp/wireu/mpwire.go`), not `nhopHexFromAddr`**: it returns one
+  `netip.Addr` and copies the first 16 octets for AFI 2, so the link-local half is
+  gone before `nhopHexFromAddr` (`adj_rib_in/nlri_hex.go`) encodes what is left.
+  Re-verified at the producer on 2026-08-23; the deferral shard's RFC 2545 row carries
+  the same correction. BOTH ingest paths hold it: the structured one through
+  `mpReach.NextHop()` in `handleReceivedStructured`, and `mpReach.NextHop().String()`
+  for complex families; the legacy one through `nhopToHex(op.NextHop)` in
+  `handleReceived`, whose JSON event carries an address string that cannot express the
+  two-address form at all. The RELAY side is already correct: `maxNextHopLen` is 0xFF
+  and `mpReachValueLen` sizes from `len(nextHop)` (`reactor/relay_payload.go`), so
+  only the STORE truncates, and the fix belongs at ingest.
 - Complex families (VPN, EVPN, Flowspec) store the WHOLE MP_REACH NLRI block for the
   first NLRI and skip the rest (`adj_rib_in/rib.go`), so a replay re-announces every
   NLRI of the originating UPDATE — the failure the strip-and-resynthesize design
   claims to prevent, confined to these families.
 - No backpressure: each in-flight relay pins a read-pool buffer with no bound, so a
   slow destination pins many and then fails the remainder.
-- `routeRelayer` (the test seam) has no error return, so `replayCommand`'s
-  `statusError` path cannot be driven by a test.
+- ~~`routeRelayer` (the test seam) has no error return, so `replayCommand`'s
+  `statusError` path cannot be driven by a test.~~ **DONE 2026-08-23.** The seam
+  returns `error` and sits inside the chunk walk (`relayChunk`, `adj_rib_in/rib.go`),
+  so a test sees the chunks the engine sees rather than the whole replay.
+  `TestReplayCommandReportsRelayFailure` (`adj_rib_in/relay_chunk_test.go`) drives the
+  `statusError` path and asserts the cause reaches the caller.
 - `Coordinator.RelayStoredRoute` has no test — neither the `ErrNoReactor` branch nor
   the delegation is exercised.
-- `relay_payload_test.go` asserts `n <= size` where `n == size` is the real contract.
+- ~~`relay_payload_test.go` asserts `n <= size` where `n == size` is the real
+  contract.~~ **DONE 2026-08-23.** `buildRelay` requires equality. A SHORT write
+  overflows nothing: `buildRelayUpdate` hands the `WireUpdate` `buf[:n]`, and
+  `writeRelayPayload` back-fills the attribute-length field from its own offset, so a
+  truncated body agrees with itself and nothing downstream can tell. The bound
+  accepted exactly that.
 
 ### R6-1 — an egress filter cannot report "I could not decide", and one already needs to
 
@@ -454,7 +488,7 @@ seam is what a filter uses for surgery the text delta cannot express.
 |-------|-------------------|-------------------|
 | AC-1 | Peer-up replay from an ADD-PATH source | Routes are relayed, not refused; wire is well-formed for both add-path and non-add-path destinations |
 | AC-2 | Multi-path source (two path-ids, one prefix) | Both paths survive the replay, or the limitation is explicit and tested |
-| AC-3 | Forked adj-rib-in, replay whose routes exceed 16 MB | Chunked by bytes; every route arrives |
+| AC-3 | Forked adj-rib-in, replay whose routes exceed 16 MB | Chunked by bytes; every route arrives. **DONE 2026-08-23** -- `relayChunkEnd` (`adj_rib_in/relay_chunk.go`) cuts on the serialized byte budget and `relayRoutes` walks it. `TestRelayChunkStaysUnderFrameCeiling` marshals every chunk of a 130-route, 64 KiB-attribute replay and asserts each one lands below `rpc.MaxMessageSize`; `TestReplayLastIndexSurvivesMultiChunkRelay` drives the same shape through `handleCommand` and pins `last-index` and `replayed` across the boundary (R-2). Mutation-verified: restoring the 4096-route cut puts chunk 0 at 17 053 828 bytes and reddens three tests |
 | AC-4 | Peer gives `state` to adj-rib-in but not bgp-rs | Either that peer is still replayed, or the config is rejected — never silently unreplayed |
 | AC-5 | adj-rib-in respawns mid-life with bgp-rs loaded | Ownership is re-established; no duplicate announce on the next peer-up |
 | AC-6 | `adj-rib-in-replay-on-peerup.ci` with the relay stubbed to error | Test goes RED (mutation-verified). **DONE 2026-08-07 — see I-5** |
@@ -691,7 +725,12 @@ path-id. Step 2's chunking bounds route count rather than bytes.
 | `TestPrefixToWireHexWritesBarePrefix` | same file | the text-prefix fallback writes RFC 4271 NLRI only, so a legal path-id 0 is not stored as an absence | DONE 2026-08-19 |
 | `TestHandleReceivedAddPathStoresIdentifier` / `...Structured...` | same file | both ingest paths record `PathID` and `NLRIFraming` beside the bare prefix | DONE 2026-08-19 (mutation-verified) |
 | `TestBuildReplayRoutesCarriesFraming` | same file | both fields reach `rpc.StoredRoute` | DONE 2026-08-19 |
-| `TestRelayChunkByteBudget` | `internal/component/bgp/plugins/adj_rib_in/rib_test.go` | chunks stay under `rpc.MaxMessageSize` for large attribute blocks | |
+| `TestRelayChunkStaysUnderFrameCeiling` | `internal/component/bgp/plugins/adj_rib_in/relay_chunk_test.go` | chunks stay under `rpc.MaxMessageSize` for large attribute blocks | DONE 2026-08-23 (mutation-verified). It lives in its own file beside the chunker, not in `rib_test.go`, because it drives a pure function over the SERIALIZED form |
+| `TestRelayRouteJSONMaxBoundsMarshal` | same file | the per-route size estimate is an UPPER bound on `encoding/json`, for the widest form of every field | DONE 2026-08-23 (mutation-verified). This is what makes a field added to `rpc.StoredRoute` redden a test rather than lose a chunk |
+| `TestRelayChunkCoversEveryRouteOnce` | same file | consecutive chunks partition the routes in order at budgets that cut on every boundary | DONE 2026-08-23 (mutation-verified) |
+| `TestRelayChunkAlwaysAdvances` | same file | a route larger than the budget still forms a chunk, so the walk terminates | DONE 2026-08-23 (mutation-verified) |
+| `TestReplayLastIndexSurvivesMultiChunkRelay` | same file | R-2: a multi-chunk replay reports one `last-index` over ALL its routes, and one `replayed` | DONE 2026-08-23 (mutation-verified) |
+| `TestReplayCommandReportsRelayFailure` | same file | a relay failure surfaces as `statusError` carrying the cause and the destination | DONE 2026-08-23 |
 | `TestReplayOwnershipRespawn` | `internal/component/bgp/plugins/adj_rib_in/rib_test.go` | ownership re-established after respawn; no duplicate | |
 | `TestCoordinatorRelayStoredRouteNoReactor` | `internal/component/plugin/coordinator_test.go` | `ErrNoReactor` branch and the delegation | |
 | `TestReactorForwardRSFilterPanicIsNotPolicy` | `internal/component/bgp/reactor/egress_filter_failure_test.go` | AC-7: a panicked filter puts the destination on the skipped list; a clean reject does not | DONE (mutation-verified) |
@@ -712,6 +751,18 @@ path-id. Step 2's chunking bounds route count rather than bytes.
 - `pkg/plugin/rpc/types.go` — `StoredRoute` path-id field, if that is the chosen route
 - `internal/component/plugin/server/startup.go` / `process/manager.go` — post-startup on respawn
 - `test/plugin/adj-rib-in-replay-on-peerup.ci` — make it gate
+
+### Documentation Update Checklist (BLOCKING)
+
+Each file this spec edits carries a `// Design:` header naming its design
+document. Every one is listed here with what this spec does to it.
+
+| # | Design document | Declared by | Applies? |
+|---|-----------------|-------------|----------|
+| 1 | `docs/architecture/api/process-protocol.md` | `reactor/reactor_api_relay.go` | [ ] no. It documents the 5-stage handshake and the exclusive-role claim delivery. The relay's chunk size is a transport detail of one RPC, not a protocol stage, and no stage changed |
+| 2 | `docs/architecture/api/ipc_protocol.md` | `pkg/plugin/rpc/types.go` | [ ] no. `rpc.MaxMessageSize` and the framing it governs are unchanged; the chunker stays UNDER the documented ceiling rather than moving it |
+| 3 | `docs/architecture/plugin/rib-storage-design.md` | `adj_rib_in/rib.go` | [ ] maybe. Unaffected by the chunking (Step 3), which changes no stored shape. Step 6's RFC 2545 next hop DOES change what `RawRoute.NHopHex` holds, so it is owed there |
+| 4 | `docs/architecture/wire/messages.md` | `reactor/relay_payload.go` | [ ] no. The reconstruction's wire layout is unchanged; Step 3 touched only that file's TEST, to assert an equality the document already states |
 
 ## Implementation Steps
 
@@ -737,6 +788,16 @@ path-id. Step 2's chunking bounds route count rather than bytes.
    singleton config source. Journal row in
    `plan/journal/helper-bypassed-by-an-open-coded-copy.md`.
 3. Byte-budget chunking (I-2), with the `last-index` contract asserted across chunks.
+   **DONE 2026-08-23 (AC-3).** `relay_chunk.go` carries the budget, the per-route
+   upper bound and the walk; `relayChunkSize` is gone. Two I-6 items came with it
+   because the chunking is what makes them reachable: the `routeRelayer` seam returns
+   an error (it now wraps ONE chunk, so a test sees what the engine sees), and
+   `relay_payload_test.go` asserts the writer's exact length rather than a bound. NO
+   `.ci` was added: the user-visible path is already gated by
+   `adj-rib-in-replay-on-peerup.ci` and `adj-rib-in-replay-addpath-source.ci`, both
+   mutation-verified, and the byte bound itself is arithmetic over a serialized form
+   that no `.ci` can reach without a 16 MB stored table
+   (`ai/rules/testing.md`, "When Unit Tests Alone Are Sufficient", row 2).
 4. Ownership scope and respawn (I-3, I-4).
 5. Make `adj-rib-in-replay-on-peerup.ci` gate (I-5); mutation-verify.
 6. The smaller gaps (I-6).

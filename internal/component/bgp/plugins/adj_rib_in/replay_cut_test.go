@@ -37,8 +37,9 @@ func replayCutFixture(t *testing.T, msgID uint64) (*AdjRIBInManager, *[]rpc.Stor
 	// newTestManager's SDK plugin has closed connections, so the real relay call
 	// fails; the stub is what lets the test observe what the replay selected.
 	var relayed []rpc.StoredRoute
-	r.routeRelayer = func(_ string, routes []rpc.StoredRoute) {
+	r.routeRelayer = func(_ string, routes []rpc.StoredRoute) error {
 		relayed = append(relayed, routes...)
+		return nil
 	}
 	return r, &relayed
 }
