@@ -84,3 +84,4 @@ is open.
 | 2026-08-23 | acb7c2cd | plan: drop the shard of a closed spec, every row terminal | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-23 | acb7c2cd | test(reactor): a forward that could not run is a drop, not a policy | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-23 | acb7c2cd | test(reactor): a forward that could not run is a drop, not a policy | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
+| 2026-08-23 | acb7c2cd | docs(plan): what the two open I-6 rows actually are | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |

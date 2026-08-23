@@ -487,9 +487,79 @@ could not see. GREEN once restored. `make ze-functional-plugin-test` 558/558.
 - Complex families (VPN, EVPN, Flowspec) store the WHOLE MP_REACH NLRI block for the
   first NLRI and skip the rest (`adj_rib_in/rib.go`), so a replay re-announces every
   NLRI of the originating UPDATE — the failure the strip-and-resynthesize design
-  claims to prevent, confined to these families.
+  claims to prevent, confined to these families. **STILL OPEN, and bigger than this
+  row says — read the FINDING before scoping it.**
+
+  **I-6 COMPLEX-FAMILY FINDING (2026-08-23).** Read at the producer. The row
+  understates it twice, and the second half is why it cannot be fixed in place.
+
+  **The KEY is fabricated, not just the block.** `installComplexNLRIs`
+  (`adj_rib_in/rib.go`) parses the section with `wireNLRIsToAny`
+  (`adj_rib_in/nlri_hex.go`), which walks `[prefix-len][address]` — the SIMPLE
+  family framing. A VPN-IPv4 NLRI is `[len][label][RD][prefix]` and an EVPN one is
+  `[route-type][length][body]`, so the first octet is read as a prefix length and
+  the next octets as an address. The stored `compactRouteKey` therefore names a
+  CIDR prefix no peer ever advertised. The dispatch comment above the call says
+  complex families "fall back to Event path for correct NLRI handling", and that
+  has not been true since this parser became the fallback.
+
+  **So a withdrawal cannot remove the route.** `removeComplexNLRIs` derives its key
+  the same wrong way, and the announce stored only the FIRST NLRI's key, so a
+  withdraw of any other NLRI in that UPDATE deletes nothing while the stored entry
+  keeps re-announcing it. A replay after a withdraw puts a withdrawn VPN or EVPN
+  route back on the wire.
+
+  **The splitter this needs already exists**: `nlrisplit.Split(fam, data, addPath)`
+  (`internal/core/bgp/nlri/nlrisplit/`) carves a section into per-NLRI slices,
+  registered per family by the NLRI plugins, and each slice includes the RFC 7911
+  identifier. The relay end is ready too: `NLRIFramingSourceWire` already means
+  "the stored bytes carry the source's framing" (`reactor_api_relay.go`,
+  `buildRelayUpdate`), so one stored route per NLRI reconstructs unchanged.
+
+  **What blocks it is the KEY TYPE, and that is why this is spec-sized.**
+  `compactRouteKey` is `{family, netip.Prefix, pathID}` (`compact_key.go`). No EVPN
+  route type, VPN RD-prefix or flowspec rule is a `netip.Prefix`, so one route per
+  complex NLRI needs a key holding the NLRI's own bytes. That key is read by the
+  pending-validation map, the early-decision map, the `show bgp adj-rib-in` surface
+  and `docs/architecture/plugin/rib-storage-design.md`. A HALF fix — per-NLRI
+  storage under a still-fabricated prefix key — is worse than today, because two
+  NLRIs of one UPDATE would then collide on one bogus key and overwrite each other.
+  Scope the key first.
 - No backpressure: each in-flight relay pins a read-pool buffer with no bound, so a
-  slow destination pins many and then fails the remainder.
+  slow destination pins many and then fails the remainder. **STILL OPEN. The premise
+  in this row is STALE — read the FINDING.**
+
+  **I-6 BACKPRESSURE FINDING (2026-08-23).** Read at the pool.
+
+  **A parked item pins no read-pool buffer.** `DispatchOverflow`
+  (`reactor/forward_pool.go`) calls `ownOverflowBodies` before queueing, precisely
+  because "the item is about to sit in an unbounded queue". It takes an overflow-mux
+  handle of its own, and when that pool is exhausted it proceeds WITHOUT one rather
+  than failing. The same site states the rule the row contradicts: "routes never
+  dropped". So the remainder is not failed, and the buffer the row names is not the
+  thing that accumulates.
+
+  **The queue is unbounded BY DESIGN**, with escalation delegated to the congestion
+  controller's later layers (read throttling, then teardown). Both act on the
+  DESTINATION. Neither can slow a producer that is not reading from a socket at all,
+  which is exactly what a peer-up replay is.
+
+  **That is the real gap, and it is the relay's.** `RelayStoredRoute`
+  (`reactor_api_relay.go`) walks the whole stored table in one call, one
+  `forwardUpdateCore` per route, with nothing in the loop reading the destination's
+  queue depth. A slow destination therefore grows that unbounded queue by the size
+  of the table, in one call, and nothing says so.
+
+  **What exists is not the signal this needs.** `Peer.forwardOverflowPending`
+  (`reactor/peer.go`) is an ORDERING gate — "the pool owes this peer bytes" — that
+  the route-server rail reads to keep a direct write from overtaking a parked item
+  (`forward_rs.go`). It carries no depth and no threshold.
+
+  **So this needs an owner decision, not a patch**: what the replay waits on, and
+  what it does when the destination stays behind. Failing the replay is already
+  reportable (`errRelayIncomplete`), but it costs the peer its table; waiting spends
+  the caller's goroutine against its own 2-minute deadline (`rs/server_handlers.go`,
+  `replayForPeer`).
 - ~~`routeRelayer` (the test seam) has no error return, so `replayCommand`'s
   `statusError` path cannot be driven by a test.~~ **DONE 2026-08-23.** The seam
   returns `error` and sits inside the chunk walk (`relayChunk`, `adj_rib_in/rib.go`),
@@ -967,6 +1037,13 @@ document. Every one is listed here with what this spec does to it.
    losing every route rather than only its replay.
 5. Make `adj-rib-in-replay-on-peerup.ci` gate (I-5); mutation-verify.
 6. The smaller gaps (I-6).
+   **PART DONE. Two remain, and NEITHER is small — each carries a FINDING above
+   that corrects the row it sits under.** The complex-family one is spec-sized: the
+   stored KEY is fabricated for VPN/EVPN/flowspec, so a withdrawal removes nothing,
+   and fixing it means changing `compactRouteKey`, which four other surfaces read.
+   The backpressure one needs an owner decision rather than code: the queue is
+   unbounded by design and a parked item pins no read buffer, so what is missing is
+   a producer-side wait in the replay, and what it waits on is the question.
 7. `make ze-precommit-verify`, `make ze-unit-reactor-test-race`, per-test stress-repro; independent review to clean.
 
 ## Checklist
