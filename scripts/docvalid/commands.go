@@ -297,7 +297,13 @@ func collectLocalHandlersFromFile(path string, paths map[string]bool) {
 			return true
 		}
 		switch selector.Sel.Name {
-		case "MustRegisterLocal", "MustRegisterLocalMeta", "RegisterLocal", "RegisterLocalMeta":
+		case "MustRegisterLocal", "MustRegisterLocalMeta", "RegisterLocal", "RegisterLocalMeta",
+			// A command that answers with DATA registers a local handler too:
+			// RegisterLocalData builds one from the data handler so `ze <verb>`
+			// and `ze cli -c` render through one path. Omitting these names
+			// reported twelve YANG commands as having no handler on the day
+			// they were converted, when every one of them had gained one.
+			"MustRegisterLocalData", "RegisterLocalData":
 		default:
 			return true
 		}

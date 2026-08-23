@@ -439,3 +439,51 @@ func TestAllYangCommandsHaveRegisteredRPC(t *testing.T) {
 		t.Fatalf("command contract not satisfied (expected \"All commands validated.\"):\n%s\nerr=%v", s, err)
 	}
 }
+
+// TestLocalDataRegistrationsAreCounted proves the validator sees a command that
+// answers with DATA rather than by printing.
+//
+// commands.go finds local handlers by parsing source for calls named
+// MustRegisterLocal, MustRegisterLocalMeta, RegisterLocal and RegisterLocalMeta.
+// RegisterLocalData was added without being added there, so on the day twelve
+// commands GAINED a handler the validator reported that they had none, and
+// counted 25 local handlers where there were 37.
+//
+// TestAllYangCommandsHaveRegisteredRPC catches the same regression, and this
+// names the cause: it fails on the one wire method rather than on whichever
+// twelve happen to be converted, so the next reader is pointed at the
+// registration spelling instead of at an owner move.
+//
+// VALIDATES: the validator's registration-name list covers every way a command
+// registers a local handler.
+// PREVENTS: a new registration API blinding this checker silently.
+func TestLocalDataRegistrationsAreCounted(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
+	defer cancel()
+	cmd := osexec.CommandContext(ctx, "go", goRunScript(t, "scripts/docvalid/commands.go")...)
+	cmd.Dir = repoRoot(t)
+	out, _ := cmd.CombinedOutput() //nolint:errcheck // asserted on stdout below
+	s := string(out)
+
+	if !strings.Contains(s, "Command Validation") {
+		t.Fatalf("commands.go did not run:\n%s", s)
+	}
+	// Scoped to the SECTION, not to the whole output. The validator also prints
+	// a table of every wire method, so a bare Contains for the name matches a
+	// line that is not a failure -- the first draft of this test did exactly
+	// that and failed against a healthy tree.
+	const heading = "## YANG commands with no handler"
+	start := strings.Index(s, heading)
+	if start < 0 {
+		return // no command is unhandled, which is the passing state
+	}
+	section := s[start:]
+	if end := strings.Index(section[len(heading):], "\n## "); end >= 0 {
+		section = section[:len(heading)+end]
+	}
+	// `show env list` registers through RegisterLocalData.
+	if strings.Contains(section, "ze-show:env-list") {
+		t.Fatalf("a command registered with RegisterLocalData reads as unhandled; "+
+			"the validator's registration-name list is missing a spelling:\n%s", section)
+	}
+}

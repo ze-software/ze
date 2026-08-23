@@ -76,6 +76,7 @@ var fileAllowlist = map[string]string{
 	"internal/component/vpp/dpdk.go":                                 "sysfs PCI/VFIO/hugepage knobs",
 	"internal/component/l2tp/ppp/devppp_linux.go":                    "opens the /dev/ppp kernel device",
 	"internal/component/cli/client/main.go":                          "opens /dev/tty (operator terminal)",
+	"internal/component/command/pipe_save.go":                        "`| save <path>` writes ONE answer to a path the operator typed, in the operator's own process. It is not daemon state and it never goes through the storage layer: the point of the operator is to put a rendering where the operator asked for it. It is refused where the daemon expands the chain, so a remote caller cannot reach this write (see the file header)",
 	"cmd/ze/ze_core_autoinit.go":                                     "writes /dev/kmsg + creates the /perm/ze store dir (zefs bootstrap)",
 	// --- ephemeral scratch (pid/socket/probe/ready files, temp stores) ---
 	"internal/plugins/imageserver/register.go": "temp zefs DB served over HTTP (MkdirTemp lifecycle)",
