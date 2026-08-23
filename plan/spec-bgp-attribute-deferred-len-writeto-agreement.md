@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | verification |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 4/4 |
 | Deferral shard | `plan/deferrals/fixit-attribute-length-from-family.md` |
 | Handoff | verify |
-| Updated | 2026-08-11 |
+| Updated | 2026-08-23 |
 
 <!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later Opus 5 session reviews that commit and closes. -->
 
@@ -215,10 +215,10 @@ any of the four defects today.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | No producer can build AGGREGATOR, AS4_AGGREGATOR or ORIGINATOR_ID with a non-IPv4 address today | Producer survey above: `ParseAggregator`, `ParseAS4Aggregator`, `ToAggregator`, and the `netip.AddrFrom4` call sites in `internal/component/bgp/message/update_build.go` and its siblings | The defect is live, not latent, and the fix is urgent rather than preventive. The fix itself does not change | Re-run the producer greps named in the survey before you write code | unvalidated |
-| A-2 | Writing four zero octets is the correct fallback for an address with no IPv4 form | RFC 4271 Section 5.1.7 makes the AGGREGATOR address the speaker's BGP Identifier, a four-octet value; RFC 4456 Section 8 fixes ORIGINATOR_ID at four octets. `WriteTo` has no error return, so a deterministic value is the only option that keeps the buffer-first shape | An alternative needs an error path through `WriteTo`, which `ai/rules/performance.md` forbids | The Key Design Decisions table records the rejected alternatives; the unit tests pin the zero fill | unvalidated |
-| A-3 | `len(Addr.AsSlice())` is 0 for an invalid address, 4 for `Is4`, and 16 otherwise, for every `netip.Addr` | `net/netip` documents `AsSlice` as returning nil, a 4-octet slice, or a 16-octet slice by the address's own form, and `(*MPReachNLRI).nextHopOctets` already relies on it | `(*NextHop).Len` disagrees with `WriteTo` for some form | A unit test asserts `Len()` equals `len(Addr.AsSlice())` for all four forms | unvalidated |
-| A-4 | Making `(*NextHop)` satisfy `announceNextHopValidator` changes no rail behavior for a valid next hop | `announceAttrs.add` calls the method only when the assertion succeeds, and the method returns nil for any valid address | A valid NEXT_HOP is refused, dropping announcements | The reactor wiring tests cover both a valid IPv4 NEXT_HOP (planned) and the zero one (refused) | unvalidated |
+| A-1 | No producer can build AGGREGATOR, AS4_AGGREGATOR or ORIGINATOR_ID with a non-IPv4 address today | Producer survey above: `ParseAggregator`, `ParseAS4Aggregator`, `ToAggregator`, and the `netip.AddrFrom4` call sites in `internal/component/bgp/message/update_build.go` and its siblings | The defect is live, not latent, and the fix is urgent rather than preventive. The fix itself does not change | Re-run the producer greps named in the survey before you write code | confirmed (2026-08-23): `ParseAggregator` and `ParseAS4Aggregator` build the address from a four-octet slice; every ORIGINATOR_ID producer calls `netip.AddrFrom4` (`internal/component/bgp/message/update_build.go` and its grouped, labeled, evpn, vpn and flowspec siblings). The defect is latent, and the fix is unchanged |
+| A-2 | Writing four zero octets is the correct fallback for an address with no IPv4 form | RFC 4271 Section 5.1.7 makes the AGGREGATOR address the speaker's BGP Identifier, a four-octet value; RFC 4456 Section 8 fixes ORIGINATOR_ID at four octets. `WriteTo` has no error return, so a deterministic value is the only option that keeps the buffer-first shape | An alternative needs an error path through `WriteTo`, which `ai/rules/performance.md` forbids | The Key Design Decisions table records the rejected alternatives; the unit tests pin the zero fill | confirmed (2026-08-23): `writeIPv4AddressField` (`internal/core/bgp/attribute/simple.go`) keeps the buffer-first signature and no error return; the zero fill is pinned by the `IPv6` and `zero Addr` rows of `TestAggregatorWriteToStaysWithinLen`, `TestOriginatorIDWriteToStaysWithinLen` and `TestAS4AggregatorWriteToStaysWithinLen` |
+| A-3 | `len(Addr.AsSlice())` is 0 for an invalid address, 4 for `Is4`, and 16 otherwise, for every `netip.Addr` | `net/netip` documents `AsSlice` as returning nil, a 4-octet slice, or a 16-octet slice by the address's own form, and `(*MPReachNLRI).nextHopOctets` already relies on it | `(*NextHop).Len` disagrees with `WriteTo` for some form | A unit test asserts `Len()` equals `len(Addr.AsSlice())` for all four forms | confirmed (2026-08-23): `TestNextHopLenMatchesWriteToForEveryAddressForm` asserts that equality, and the returned count, for IPv4, IPv4-in-IPv6, IPv6 and the zero `Addr` |
+| A-4 | Making `(*NextHop)` satisfy `announceNextHopValidator` changes no rail behavior for a valid next hop | `announceAttrs.add` calls the method only when the assertion succeeds, and the method returns nil for any valid address | A valid NEXT_HOP is refused, dropping announcements | The reactor wiring tests cover both a valid IPv4 NEXT_HOP (planned) and the zero one (refused) | confirmed (2026-08-23): `TestAnnouncePlanKeepsValidNextHopAttribute` plans a four-octet value and reports no refusal cause; the whole `internal/component/bgp/reactor` package is green |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -275,17 +275,17 @@ reached from the same rail.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestAggregatorWriteToStaysWithinLen` | `internal/core/bgp/attribute/simple_test.go` | AC-1: four address forms, canary buffer, exact returned count, zero fill for an address with no IPv4 form | |
-| `TestAggregatorWriteToWithContextStaysWithinLen` | `internal/core/bgp/attribute/simple_test.go` | AC-2: the same four forms across nil, ASN4 and non-ASN4 contexts, including the 6-octet AS_TRANS branch | |
-| `TestOriginatorIDWriteToStaysWithinLen` | `internal/core/bgp/attribute/simple_test.go` | AC-4: four address forms, canary buffer, returned count always 4 | |
-| `TestNextHopLenMatchesWriteToForEveryAddressForm` | `internal/core/bgp/attribute/simple_test.go` | AC-5: `Len()` equals `WriteTo()` and equals `len(Addr.AsSlice())` for all four forms, canary buffer | |
-| `TestAS4AggregatorWriteToStaysWithinLen` | `internal/core/bgp/attribute/as4_test.go` | AC-3: four address forms through both `WriteTo` and `WriteToWithContext` | |
-| `TestAttributeWriteToAllocatesNothing` | `internal/core/bgp/attribute/simple_test.go` | AC-7: `testing.AllocsPerRun` is 0 for each changed method. Follow the shape already in `internal/core/bgp/attribute/span_test.go` | |
-| `TestLenMatchesWriteTo` (extend the existing table) | `internal/core/bgp/attribute/len_writeto_test.go` | AC-1, AC-3, AC-4, AC-5: add the IPv6, IPv4-in-IPv6 and zero-`Addr` fixtures for `NextHop`, `Aggregator`, `AS4Aggregator` and `OriginatorID`, so the package-wide invariant covers the forms it never covered | |
-| `TestLenMatchesWriteToWithContext` (extend the existing table) | `internal/core/bgp/attribute/len_writeto_test.go` | AC-2: the same three extra address forms for the context-dependent AGGREGATOR rows | |
-| `TestAnnouncePlanAggregatorStaysInsideReservedRegion` | `internal/component/bgp/reactor/announce_build_attr_region_test.go` | Wiring: the plan's reserved region is intact after an AGGREGATOR with an IPv6 address | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `TestAnnouncePlanRefusesUnencodableNextHopAttribute` | `internal/component/bgp/reactor/announce_build_attr_region_test.go` | AC-6: the refusal cause is `attribute.ErrUnencodableNextHop`, not a count mismatch | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `TestAnnouncePlanKeepsValidNextHopAttribute` | `internal/component/bgp/reactor/announce_build_attr_region_test.go` | AC-6 negative half and A-4: a valid IPv4 NEXT_HOP is still planned, with a four-octet value | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `TestAggregatorWriteToStaysWithinLen` | `internal/core/bgp/attribute/simple_test.go` | AC-1: four address forms, canary buffer, exact returned count, zero fill for an address with no IPv4 form | green; red under M1 |
+| `TestAggregatorWriteToWithContextStaysWithinLen` | `internal/core/bgp/attribute/simple_test.go` | AC-2: the same four forms across nil, ASN4 and non-ASN4 contexts, including the 6-octet AS_TRANS branch | green; red under M1 |
+| `TestOriginatorIDWriteToStaysWithinLen` | `internal/core/bgp/attribute/simple_test.go` | AC-4: four address forms, canary buffer, returned count always 4 | green; red under M1 |
+| `TestNextHopLenMatchesWriteToForEveryAddressForm` | `internal/core/bgp/attribute/simple_test.go` | AC-5: `Len()` equals `WriteTo()` and equals `len(Addr.AsSlice())` for all four forms, canary buffer | green; red under M2 |
+| `TestAS4AggregatorWriteToStaysWithinLen` | `internal/core/bgp/attribute/as4_test.go` | AC-3: four address forms through both `WriteTo` and `WriteToWithContext` | green; red under M1 |
+| `TestAttributeWriteToAllocatesNothing` | `internal/core/bgp/attribute/simple_test.go` | AC-7: `testing.AllocsPerRun` is 0 for each changed method. Follow the shape already in `internal/core/bgp/attribute/span_test.go` | green; 0 allocs/op on all eight calls |
+| `TestLenMatchesWriteTo` (extend the existing table) | `internal/core/bgp/attribute/len_writeto_test.go` | AC-1, AC-3, AC-4, AC-5: add the IPv6, IPv4-in-IPv6 and zero-`Addr` fixtures for `NextHop`, `Aggregator`, `AS4Aggregator` and `OriginatorID`, so the package-wide invariant covers the forms it never covered | green; the NextHop rows go red under M2, the rest stay green under M1 (the count is blind to the overrun) |
+| `TestLenMatchesWriteToWithContext` (extend the existing table) | `internal/core/bgp/attribute/len_writeto_test.go` | AC-2: the same three extra address forms for the context-dependent AGGREGATOR rows | green; the added `LenWithContext` assertion is what makes the row more than a count check |
+| `TestAnnouncePlanAggregatorStaysInsideReservedRegion` | `internal/component/bgp/reactor/announce_build_attr_region_test.go` | Wiring: the plan's reserved region is intact after an AGGREGATOR with an IPv6 address | green; red before the fix on the IPv6, IPv4-in-IPv6 and zero-`Addr` forms <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `TestAnnouncePlanRefusesUnencodableNextHopAttribute` | `internal/component/bgp/reactor/announce_build_attr_region_test.go` | AC-6: the refusal cause is `attribute.ErrUnencodableNextHop`, not a count mismatch | green; red before the fix (nil cause) and red under M3 (the attribute is emitted) <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `TestAnnouncePlanKeepsValidNextHopAttribute` | `internal/component/bgp/reactor/announce_build_attr_region_test.go` | AC-6 negative half and A-4: a valid IPv4 NEXT_HOP is still planned, with a four-octet value | green; red under M4 <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 
 **Canary rule for every new codec test:** fill the destination buffer with a non-zero
 pattern, write at a non-zero offset, then assert three things: the returned count, the
@@ -296,14 +296,36 @@ the returned count is already what the caller expects.
 **Red evidence required** (`ai/rules/interop-and-goal-validation.md`, "Prove the test
 discriminates"). Revert each fix in turn and record the failure:
 
-| Test | What red looks like with the fix reverted |
-|------|-------------------------------------------|
-| `TestAggregatorWriteToStaysWithinLen`, IPv6 form | The canary octets after the eighth hold address octets instead of the pattern. Twelve octets past the region |
-| `TestAggregatorWriteToStaysWithinLen`, zero-`Addr` form | The four address octets still hold the canary pattern instead of zeros: nothing was written and the count still said 8 |
-| `TestOriginatorIDWriteToStaysWithinLen`, IPv6 form | The returned count is 16 rather than 4, and twelve canary octets are overwritten |
-| `TestNextHopLenMatchesWriteToForEveryAddressForm`, zero-`Addr` form | `Len()` is 4 while `WriteTo` returns 0 |
-| `TestAnnouncePlanRefusesUnencodableNextHopAttribute` | The plan fails with the generic "attribute size query disagreed with its own write" and a nil cause, so the `errors.Is` assertion against `ErrUnencodableNextHop` is false |
-| `TestAnnouncePlanAggregatorStaysInsideReservedRegion` | The octets after the reserved region hold IPv6 address bytes, and no existing check reports anything: the write returned the promised 8 |
+Four mutations were applied on 2026-08-23, each to `internal/core/bgp/attribute/simple.go`,
+a file no other session had modified. Each was verified present with `grep` before the
+run, each run was a real execution reporting a duration (never `ok (cached)`), and each
+file was restored by `cp` from a copy saved beforehand and confirmed byte-identical by
+SHA-256. `git checkout`, `git restore` and `git stash` were not used.
+
+| Mutation | What it reverts |
+|----------|-----------------|
+| M1 | `writeIPv4AddressField` back to `copy(buf[off:], addr.AsSlice())` |
+| M2 | `(*NextHop).Len` back to the `Is6` family test |
+| M3 | `(*NextHop).ValidateNextHops` back to `return nil` for every address |
+| M4 | `(*NextHop).ValidateNextHops` widened to refuse every address (the discriminating half) |
+
+| Test | What red looks like with the fix reverted | Observed |
+|------|-------------------------------------------|----------|
+| `TestAggregatorWriteToStaysWithinLen`, IPv6 form | The canary octets after the eighth hold address octets instead of the pattern. Twelve octets past the region | M1: address field is `20 01 0d b8` not zeros, and "scratch octet 8 lies outside the declared value region and was written" |
+| `TestAggregatorWriteToStaysWithinLen`, zero-`Addr` form | The four address octets still hold the canary pattern instead of zeros: nothing was written and the count still said 8 | M1: the field reads `aa aa aa aa` in the plan test and `5a 5a 5a 5a` in the unit test, both the canary |
+| `TestOriginatorIDWriteToStaysWithinLen`, IPv6 form | The returned count is 16 rather than 4, and twelve canary octets are overwritten | M1: red on the IPv6, IPv4-in-IPv6 and zero-`Addr` rows |
+| `TestNextHopLenMatchesWriteToForEveryAddressForm`, zero-`Addr` form | `Len()` is 4 while `WriteTo` returns 0 | M2: "expected 0, actual 4", and `TestLenMatchesWriteTo/NextHop_zero_Addr` reports "Len()=4 but WriteTo()=0" |
+| `TestAnnouncePlanRefusesUnencodableNextHopAttribute` | The plan fails with the generic "attribute size query disagreed with its own write" and a nil cause, so the `errors.Is` assertion against `ErrUnencodableNextHop` is false | Two reds, both recorded. Before the fix: the nil cause, exactly as predicted. Under M3, with the counts already agreeing at zero: the plan EMITS the attribute, which is R-1 demonstrated |
+| `TestAnnouncePlanAggregatorStaysInsideReservedRegion` | The octets after the reserved region hold IPv6 address bytes, and no existing check reports anything: the write returned the promised 8 | Red before the fix on three of four forms, with `plan.emit` reporting success throughout |
+| `TestAnnouncePlanKeepsValidNextHopAttribute` | (the discriminating half: it must go red if the refusal widens) | M4: "a valid IPv4 NEXT_HOP must be planned: attribute next hop has no wire form" |
+
+Two facts the mutations establish beyond the per-test reds:
+
+- `TestLenMatchesWriteTo` and `TestLenMatchesWriteToWithContext` stayed GREEN under M1
+  for every AGGREGATOR, AS4_AGGREGATOR and ORIGINATOR_ID row. A count-only invariant
+  cannot see this defect, which is why the canary assertion is the discriminating one.
+- `TestAnnouncePlanKeepsValidNextHopAttribute` stayed green under M3, so the refusal
+  test's red is attributable to the validator rather than to the plan refusing broadly.
 
 ### Boundary Tests (numeric inputs)
 The numeric input here is the octet count of the address field. The boundary is the
@@ -387,7 +409,7 @@ address FORM, because the form is what changes the count.
 | 13 | Route metadata keys added/changed? | No | No metadata key |
 | 14 | Prometheus counters added/changed? | No | No counter |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | Nothing registers |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Three documents carry `source:` anchors on the changed files: `docs/DESIGN.md` (the NEXT_HOP, MED, LOCAL_PREF anchor on `simple.go`), `docs/architecture/wire/attributes.md` (the AS4 anchor in the AS4_PATH section), and `docs/architecture/edge-cases/as4.md` (four anchors on `as4.go`). Read each surrounding claim and confirm none states that the encoder writes `AsSlice()` unbounded. Update only a claim the fix contradicts, and record the check in the closure section either way |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Three documents carry `source:` anchors on the changed files: `docs/DESIGN.md` (the NEXT_HOP, MED, LOCAL_PREF anchor on `simple.go`), `docs/architecture/wire/attributes.md` (the AS4 anchor in the AS4_PATH section), and `docs/architecture/edge-cases/as4.md` (four anchors on `as4.go`). Read each surrounding claim and confirm none states that the encoder writes `AsSlice()` unbounded. Update only a claim the fix contradicts, and record the check in the closure section either way. **Checked 2026-08-23: no claim is contradicted, so no doc changed.** `docs/architecture/wire/attributes.md` Section 3 states NEXT_HOP is "4 bytes (IPv4)" and routes every other family to MP_REACH_NLRI; Section 7 states AGGREGATOR is "6 bytes (2-byte AS) or 8 bytes (4-byte AS)"; Section 9 states ORIGINATOR_ID is "4 bytes"; Section 18 states AS4_AGGREGATOR is "8 bytes". `docs/architecture/edge-cases/as4.md` draws "Aggregator IP (4 bytes)". The `docs/DESIGN.md` anchors carry a type-code table and no encoder claim. The fix makes each of those statements true for every address form, where the AGGREGATOR and ORIGINATOR_ID ones were false for an IPv6 value |
 | 17 | Existing docs show config/CLI/API examples for this area? | No | The area has no config, CLI, or API example |
 
 ## Implementation Steps

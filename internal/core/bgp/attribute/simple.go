@@ -12,6 +12,46 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 )
 
+// writeIPv4AddressField writes addr into the four-octet IP address field at off,
+// and touches no other octet.
+//
+// Three attributes carry an IP address field the RFC fixes at four octets, and
+// none of the three can hold more:
+//
+// RFC 4271 Section 5.1.7: AGGREGATOR carries "the last AS number that formed the
+// aggregate route ... followed by the IP address of the BGP speaker that formed
+// the aggregate route", and that address SHOULD be the speaker's BGP Identifier,
+// a four-octet value.
+//
+// RFC 6793 Section 6: "The AS4_AGGREGATOR attribute in an UPDATE message SHALL be
+// considered malformed if the attribute length is not 8." Four of those eight
+// octets are the AS number, so exactly four remain for the address.
+//
+// RFC 4456 Section 8: ORIGINATOR_ID "is 4 bytes long".
+//
+// The field width decides the write, because the width is what the RFC fixes.
+// Copying netip.Addr.AsSlice instead answered with the length of the VALUE, which
+// is 0, 4 or 16: an IPv6 address wrote twelve octets past the region the size
+// query reserved, into the octets the next attribute owns, and the caller could
+// not detect it because the write still returned the promised count.
+//
+// An address with no IPv4 form fills the field with zeros. WriteTo has no error
+// channel and none may be added (ai/rules/performance.md fixes the buffer-first
+// signature), so a deterministic wire-legal value is what remains, and stale
+// pooled octets are the alternative. No producer in the tree can build one of the
+// three attributes with such an address; the fallback exists so that the next one
+// that tries is bounded rather than corrupting its neighbour.
+func writeIPv4AddressField(buf []byte, off int, addr netip.Addr) {
+	field := buf[off : off+4]
+	if addr.Is4() || addr.Is4In6() {
+		// As4 panics for any other form, which is what the guard covers.
+		v4 := addr.As4()
+		copy(field, v4[:])
+		return
+	}
+	clear(field)
+}
+
 // NextHop represents the NEXT_HOP attribute.
 //
 // RFC 4271 Section 5.1.3: NEXT_HOP
@@ -30,11 +70,59 @@ type NextHop struct {
 
 func (n *NextHop) Code() AttributeCode   { return AttrNextHop }
 func (n *NextHop) Flags() AttributeFlags { return FlagTransitive }
+
+// Len returns the octet count WriteTo puts on the wire.
+//
+// RFC 4271 Section 5.1.3 gives NEXT_HOP a four-octet IPv4 address. Ze also emits
+// the sixteen-octet form, because an IPv6 next hop reaches this attribute through
+// RFC 4760 compatibility, so the count is a property of the VALUE rather than of a
+// fixed field width.
+//
+// It is therefore measured the way WriteTo writes: nothing for an address with no
+// wire form, four for an IPv4 address, sixteen otherwise. Those are the three
+// lengths of netip.Addr.AsSlice, which is what WriteTo copies. A family test
+// answered differently for the zero Addr -- it is not Is6, so the count was four
+// while the write emitted none -- and a size query and a write that disagree
+// desynchronize the attribute block for everything after it, exactly as
+// (*MPReachNLRI).nextHopOctets records for MP_REACH.
+//
+// Branching costs no allocation. len(Addr.AsSlice()) is the same number and
+// materializes a slice, on the hottest encode path in the daemon
+// (ai/rules/performance.md).
+//
+// Zero is a length no NEXT_HOP wire form has: ValidateNextHops refuses that
+// address rather than letting the plan encode an empty value.
 func (n *NextHop) Len() int {
-	if n.Addr.Is6() {
-		return 16
+	if !n.Addr.IsValid() {
+		return 0
 	}
-	return 4
+	if n.Addr.Is4() {
+		return 4
+	}
+	return 16
+}
+
+// ValidateNextHops reports whether this NEXT_HOP has a wire form, and is the
+// refusal half of the rule Len states.
+//
+// RFC 4271 Section 5.1.3 defines NEXT_HOP as "the IP address of the router that
+// SHOULD be used as the next hop to the destinations listed in the ... UPDATE
+// message". The zero netip.Addr names no such router, and the attribute has no
+// zero-length form: a receiver reads an UPDATE without a usable NEXT_HOP as a
+// Missing Well-known Attribute (RFC 4271 Section 5.1.3, RFC 7606 Section 3(d)).
+//
+// Agreement between Len and WriteTo is not encodability. Both answer zero for this
+// address, so the announce plan's count check passes it, which is why the refusal
+// has to be stated separately.
+//
+// The name and the signature are the interface announceAttrs.add
+// (component/bgp/reactor/announce_build.go) already asks MPReachNLRI through. This
+// attribute joins that assertion; no call site changes.
+func (n *NextHop) ValidateNextHops() error {
+	if n.Addr.IsValid() {
+		return nil
+	}
+	return fmt.Errorf("%w: NEXT_HOP (RFC 4271 Section 5.1.3)", ErrUnencodableNextHop)
 }
 
 // WriteTo writes the NEXT_HOP value into buf at offset.
@@ -225,18 +313,24 @@ func (a *Aggregator) Flags() AttributeFlags { return FlagOptional | FlagTransiti
 func (a *Aggregator) Len() int { return 8 }
 
 // WriteTo writes the AGGREGATOR using 4-byte AS format (RFC 6793).
+//
+// The address occupies the four octets writeIPv4AddressField owns, whatever form
+// the Address holds, so this write can never disagree with the 8 Len returns.
 func (a *Aggregator) WriteTo(buf []byte, off int) int {
 	binary.BigEndian.PutUint32(buf[off:], a.ASN)
-	copy(buf[off+4:], a.Address.AsSlice())
+	writeIPv4AddressField(buf, off+4, a.Address)
 	return 8
 }
 
 // WriteToWithContext writes AGGREGATOR with context-dependent format.
+//
+// Both branches write the address through writeIPv4AddressField, so each returns
+// exactly the count LenWithContext promised for the same context.
 func (a *Aggregator) WriteToWithContext(buf []byte, off int, _, dstCtx *bgpctx.EncodingContext) int {
 	if dstCtx == nil || dstCtx.ASN4() {
 		// 8-byte format: 4-byte ASN + 4-byte IP
 		binary.BigEndian.PutUint32(buf[off:], a.ASN)
-		copy(buf[off+4:], a.Address.AsSlice())
+		writeIPv4AddressField(buf, off+4, a.Address)
 		return 8
 	}
 
@@ -246,7 +340,7 @@ func (a *Aggregator) WriteToWithContext(buf []byte, off int, _, dstCtx *bgpctx.E
 		asn = 23456 // AS_TRANS per RFC 6793 Section 9
 	}
 	binary.BigEndian.PutUint16(buf[off:], uint16(asn)) //nolint:gosec // bounds checked above
-	copy(buf[off+2:], a.Address.AsSlice())
+	writeIPv4AddressField(buf, off+2, a.Address)
 	return 6
 }
 
@@ -304,8 +398,14 @@ func (o OriginatorID) Flags() AttributeFlags { return FlagOptional }
 func (o OriginatorID) Len() int              { return 4 }
 
 // WriteTo writes the ORIGINATOR_ID value into buf at offset.
+//
+// RFC 4456 Section 8: "This attribute is 4 bytes long", so the write is four
+// octets for every address form and always returns the 4 Len promised. Copying
+// netip.Addr.AsSlice returned that slice's own length instead, which put sixteen
+// octets into a four-octet attribute for an IPv6 value.
 func (o OriginatorID) WriteTo(buf []byte, off int) int {
-	return copy(buf[off:], netip.Addr(o).AsSlice())
+	writeIPv4AddressField(buf, off, netip.Addr(o))
+	return 4
 }
 
 // WriteToWithContext writes the ORIGINATOR_ID value - context-independent.

@@ -21,13 +21,19 @@ var (
 	ErrUnsupportedAFI    = errors.New("attribute: unsupported AFI")
 )
 
-// ErrUnencodableNextHop reports a next hop that has no MP_REACH_NLRI wire form.
+// ErrUnencodableNextHop reports a next hop that has no wire form, in either
+// attribute that carries one.
 //
-// RFC 4760 Section 3 gives the attribute a "Network Address of Next Hop" field
-// and a "Length of Next Hop Network Address" octet that counts it. The zero
-// netip.Addr names no address, so no octet count encodes it, and ValidNextHopLens
-// admits no length that would. An attribute carrying one cannot go on the wire.
-var ErrUnencodableNextHop = errors.New("attribute: MP_REACH next hop has no wire form")
+// RFC 4760 Section 3 gives MP_REACH_NLRI a "Network Address of Next Hop" field and
+// a "Length of Next Hop Network Address" octet that counts it. The zero netip.Addr
+// names no address, so no octet count encodes it, and ValidNextHopLens admits no
+// length that would. RFC 4271 Section 5.1.3 gives NEXT_HOP an IP address and no
+// zero-length form at all. An attribute carrying one cannot go on the wire.
+//
+// Each wrapper names its own attribute, because the two ask the operator for
+// different things: (*MPReachNLRI).ValidateNextHops adds MP_REACH and the AFI/SAFI
+// pair, (*NextHop).ValidateNextHops adds NEXT_HOP.
+var ErrUnencodableNextHop = errors.New("attribute: next hop has no wire form")
 
 // AFI represents Address Family Identifier.
 //
@@ -215,7 +221,8 @@ func (m *MPReachNLRI) nextHopOctets(nh netip.Addr) int {
 func (m *MPReachNLRI) ValidateNextHops() error {
 	for _, nh := range m.NextHops.Slice() {
 		if !nh.IsValid() {
-			return fmt.Errorf("%w: AFI %d SAFI %d (RFC 4760 Section 3)", ErrUnencodableNextHop, m.AFI, m.SAFI)
+			return fmt.Errorf("%w: MP_REACH AFI %d SAFI %d (RFC 4760 Section 3)",
+				ErrUnencodableNextHop, m.AFI, m.SAFI)
 		}
 	}
 	return nil

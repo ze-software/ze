@@ -5,6 +5,10 @@ import (
 	"errors"
 	"net/netip"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 func TestAS4Path_WriteTo(t *testing.T) {
@@ -665,6 +669,55 @@ func TestAS4Path_PathLength(t *testing.T) {
 			t.Parallel()
 			if got := tt.path.PathLength(); got != tt.want {
 				t.Errorf("PathLength() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestAS4AggregatorWriteToStaysWithinLen covers AC-3.
+//
+// RFC 6793 Section 6: "The AS4_AGGREGATOR attribute in an UPDATE message SHALL be
+// considered malformed if the attribute length is not 8." The receiver's test is
+// the sender's obligation, so 8 is a ceiling on the write as well as a floor, and
+// four of the eight octets are the AS number.
+//
+// VALIDATES: WriteTo and WriteToWithContext each return 8 and touch exactly those
+// eight octets for every address form, through every encoding context.
+//
+// PREVENTS: an IPv6 Address emitting a twenty-octet AS4_AGGREGATOR that every
+// conforming receiver treats as malformed, while the write reports 8.
+func TestAS4AggregatorWriteToStaysWithinLen(t *testing.T) {
+	t.Parallel()
+	contexts := []struct {
+		name string
+		ctx  *bgpctx.EncodingContext
+	}{
+		{"nil context", nil},
+		{"four-octet ASN peer", bgpctx.EncodingContextForASN4(true)},
+		{"two-octet ASN peer", bgpctx.EncodingContextForASN4(false)},
+	}
+
+	for _, form := range fixedWidthAddressForms {
+		t.Run(form.name, func(t *testing.T) {
+			t.Parallel()
+			as4agg := &AS4Aggregator{ASN: 65001, Address: form.addr}
+			want := append([]byte{0x00, 0x00, 0xFD, 0xE9}, form.field[:]...)
+
+			buf := canaryBuf(64)
+			n := as4agg.WriteTo(buf, 7)
+			assert.Equal(t, 8, n)
+			assert.Equal(t, as4agg.Len(), n, "Len must promise exactly what WriteTo writes")
+			assertOnlyRegionWritten(t, buf, 7, want)
+
+			// AS4_AGGREGATOR carries a four-octet AS number by definition, so every
+			// context reaches the same eight octets. RFC 6793 Section 4.2.2 is why the
+			// attribute exists: the two-octet peer reads AS_TRANS in AGGREGATOR and the
+			// real AS number here.
+			for _, tc := range contexts {
+				ctxBuf := canaryBuf(64)
+				ctxN := as4agg.WriteToWithContext(ctxBuf, 7, nil, tc.ctx)
+				assert.Equal(t, 8, ctxN, "%s", tc.name)
+				assertOnlyRegionWritten(t, ctxBuf, 7, want)
 			}
 		})
 	}

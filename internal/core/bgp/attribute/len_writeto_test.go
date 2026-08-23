@@ -28,9 +28,13 @@ func TestLenMatchesWriteTo(t *testing.T) {
 		{"Origin EGP", OriginEGP},
 		{"Origin Incomplete", OriginIncomplete},
 
-		// NextHop
+		// NextHop. The three forms below IPv4 are the ones the table never carried:
+		// the count comes from the VALUE here, so an address form the fixtures skip
+		// is a rule nothing checks.
 		{"NextHop IPv4", &NextHop{Addr: netip.MustParseAddr("192.168.1.1")}},
 		{"NextHop IPv6", &NextHop{Addr: netip.MustParseAddr("2001:db8::1")}},
+		{"NextHop IPv4-in-IPv6", &NextHop{Addr: netip.MustParseAddr("::ffff:192.168.1.1")}},
+		{"NextHop zero Addr", &NextHop{}},
 
 		// MED
 		{"MED zero", MED(0)},
@@ -43,11 +47,18 @@ func TestLenMatchesWriteTo(t *testing.T) {
 		// AtomicAggregate
 		{"AtomicAggregate", AtomicAggregate{}},
 
-		// Aggregator
+		// Aggregator. RFC 4271 Section 5.1.7 fixes the address field at four octets,
+		// so every form below must answer 8 -- the direction opposite to NextHop.
 		{"Aggregator", &Aggregator{ASN: 65001, Address: netip.MustParseAddr("192.168.1.1")}},
+		{"Aggregator IPv6", &Aggregator{ASN: 65001, Address: netip.MustParseAddr("2001:db8::1")}},
+		{"Aggregator IPv4-in-IPv6", &Aggregator{ASN: 65001, Address: netip.MustParseAddr("::ffff:192.168.1.1")}},
+		{"Aggregator zero Addr", &Aggregator{ASN: 65001}},
 
-		// OriginatorID
+		// OriginatorID. RFC 4456 Section 8: "This attribute is 4 bytes long".
 		{"OriginatorID", OriginatorID(netip.MustParseAddr("192.168.1.1"))},
+		{"OriginatorID IPv6", OriginatorID(netip.MustParseAddr("2001:db8::1"))},
+		{"OriginatorID IPv4-in-IPv6", OriginatorID(netip.MustParseAddr("::ffff:192.168.1.1"))},
+		{"OriginatorID zero Addr", OriginatorID(netip.Addr{})},
 
 		// ClusterList ([]uint32 - stored as IP in uint32 form)
 		{"ClusterList empty", ClusterList{}},
@@ -97,8 +108,11 @@ func TestLenMatchesWriteTo(t *testing.T) {
 		{"AS4Path empty", &AS4Path{}},
 		{"AS4Path single", &AS4Path{Segments: []ASPathSegment{{Type: ASSequence, ASNs: []uint32{65001}}}}},
 
-		// AS4Aggregator
+		// AS4Aggregator. RFC 6793 Section 6 fixes the whole attribute at 8 octets.
 		{"AS4Aggregator", &AS4Aggregator{ASN: 65001, Address: netip.MustParseAddr("192.168.1.1")}},
+		{"AS4Aggregator IPv6", &AS4Aggregator{ASN: 65001, Address: netip.MustParseAddr("2001:db8::1")}},
+		{"AS4Aggregator IPv4-in-IPv6", &AS4Aggregator{ASN: 65001, Address: netip.MustParseAddr("::ffff:192.168.1.1")}},
+		{"AS4Aggregator zero Addr", &AS4Aggregator{ASN: 65001}},
 
 		// OpaqueAttribute
 		{"OpaqueAttribute empty", NewOpaqueAttribute(FlagOptional|FlagTransitive, 99, nil)},
@@ -165,26 +179,43 @@ func TestLenMatchesWriteToWithContext(t *testing.T) {
 		}
 	}
 
-	// Aggregator - context-dependent (8 bytes for ASN4, 6 bytes for 2-byte)
-	agg := &Aggregator{ASN: 65001, Address: netip.MustParseAddr("192.168.1.1")}
-	for _, ctx := range contexts {
-		name := "nil"
-		expectedLen := 8 // Default ASN4
-		if ctx != nil {
-			name = "ASN4=" + boolStr(ctx.ASN4())
-			if !ctx.ASN4() {
-				expectedLen = 6
+	// Aggregator - context-dependent (8 bytes for ASN4, 6 bytes for 2-byte).
+	//
+	// Every address form runs through every context. The IPv6, IPv4-in-IPv6 and zero
+	// forms are what the single IPv4 fixture never reached, and the six-octet branch
+	// is a second write site with the same address field.
+	aggAddrs := []struct {
+		name string
+		addr netip.Addr
+	}{
+		{"IPv4", netip.MustParseAddr("192.168.1.1")},
+		{"IPv6", netip.MustParseAddr("2001:db8::1")},
+		{"IPv4-in-IPv6", netip.MustParseAddr("::ffff:192.168.1.1")},
+		{"zeroAddr", netip.Addr{}},
+	}
+	for _, aggAddr := range aggAddrs {
+		agg := &Aggregator{ASN: 65001, Address: aggAddr.addr}
+		for _, ctx := range contexts {
+			name := "nil"
+			expectedLen := 8 // Default ASN4
+			if ctx != nil {
+				name = "ASN4=" + boolStr(ctx.ASN4())
+				if !ctx.ASN4() {
+					expectedLen = 6
+				}
 			}
+
+			t.Run("Aggregator_"+aggAddr.name+"_"+name, func(t *testing.T) {
+				t.Parallel()
+				buf := make([]byte, 65536)
+				n := agg.WriteToWithContext(buf, 0, nil, ctx)
+
+				assert.Equal(t, expectedLen, n,
+					"Aggregator: expected %d but WriteToWithContext()=%d", expectedLen, n)
+				assert.Equal(t, agg.LenWithContext(nil, ctx), n,
+					"LenWithContext and WriteToWithContext must answer the same number")
+			})
 		}
-
-		t.Run("Aggregator_"+name, func(t *testing.T) {
-			t.Parallel()
-			buf := make([]byte, 65536)
-			n := agg.WriteToWithContext(buf, 0, nil, ctx)
-
-			assert.Equal(t, expectedLen, n,
-				"Aggregator: expected %d but WriteToWithContext()=%d", expectedLen, n)
-		})
 	}
 }
 

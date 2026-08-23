@@ -272,9 +272,15 @@ func (a *AS4Aggregator) Flags() AttributeFlags { return FlagOptional | FlagTrans
 func (a *AS4Aggregator) Len() int { return 8 }
 
 // WriteTo writes the AS4_AGGREGATOR into buf at offset.
+//
+// RFC 6793 Section 6: "The AS4_AGGREGATOR attribute in an UPDATE message SHALL be
+// considered malformed if the attribute length is not 8." That is the sender's
+// obligation as well as the receiver's test, so 8 is a ceiling on this write and
+// not only its floor. The address occupies the four octets writeIPv4AddressField
+// owns, whatever form the Address holds.
 func (a *AS4Aggregator) WriteTo(buf []byte, off int) int {
 	binary.BigEndian.PutUint32(buf[off:], a.ASN)
-	copy(buf[off+4:], a.Address.AsSlice())
+	writeIPv4AddressField(buf, off+4, a.Address)
 	return 8
 }
 
