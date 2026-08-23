@@ -107,6 +107,7 @@ the-affected-population-is-not-the-edited-population ## The Affected Population 
   derive-the-reachable-set-from-the-graph-not-from-git-diff
   run-the-audit-that-exists-over-the-reachable-tagged-tests
   the-tests-you-write-for-a-change-are-green-by-construction
+  a-shape-change-has-two-populations-old-name-and-new
 no-throw-away-tests ## No Throw-Away Tests
   never-write-a-throw-away-test
   where-each-kind-of-test-lives-and-its-format
