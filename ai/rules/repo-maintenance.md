@@ -192,6 +192,16 @@ Every new doctor check needs both:
 
 **Before editing any file listed in the "Generates" column above, STOP. You MUST find its canonical source in the left column and edit that instead.**
 
+**Every `make ze-*-update` target derives its output from the WORKING TREE, so in a shared checkout it picks up other sessions' uncommitted sources. You MUST diff a regenerated artifact before you name it in a commit.** Sixteen such targets exist and not one warns you.
+
+The output is correct for the tree it read. It is wrong for the commit you are about to make, because that commit does not carry the sources the regeneration saw. What lands is a derived file that describes code nobody can see.
+
+Measured on 2026-08-23. `make ze-discovery-index-update` regenerated `ai/PACKAGE-MAP.md` carrying rows for `internal/core/configorder` and `internal/core/configvalue`. Both were another session's uncommitted work. `commit_helper.py` refused it in the right words: regenerated from a tree holding sources this commit does not contain. It cost two attempts, and the gate is the only thing that catches it.
+
+**The safe regeneration is HEAD plus your own files.** When an artifact is fully generated and yours was the only edit, `git show HEAD:<path>` written back over it restores the committed state, and the gate then agrees.
+
+**The mirror image is worse and no gate catches it: committing a document that DESCRIBES uncommitted code.** The same day, a shared doc landed naming a symbol whose function was still in the working tree. It reddened `ze-doc-links-check` for every session until that code arrived. A check that you have not swept somebody's work IN does not check the other direction: prose you committed about work still sitting OUT.
+
 ### Drift Detection
 
 **The `CLAUDE.md`, `AGENTS.md` and skill mirrors are gitignored, so `git diff` can NEVER show drift for them.** `make ze-ai-sync-check` (also part of `make ze-generated-files-reconcile`) compares content against a fresh generation; the session-start hook runs it and warns `generated agent files are stale` when a resync is needed. You MUST fix it with `make ze-generated-files-update`. `ai/rules/<rule>.md` is the one "Generates" target that IS tracked, so `git diff` does show its drift, and `make ze-rules-render-check` reaches the same verdict, but writes nothing.
@@ -357,6 +367,7 @@ The five commit-time gates (spec-audit, deferral-in-diff, deferral-unassigned, w
 | design-doc-owner | `validate-spec.sh` via `scripts/dev/spec_doc_anchors.py` | `repo-maintenance.md` | `plan/spec-*.md` past `skeleton` | Reads the `// Design:` header of every source file the spec's Files to Modify and Files to Create name, and BLOCKS until each declared document is named somewhere in the spec. Naming it as unaffected, with the reason, satisfies it: the requirement is that the author looked. Docs that only `<!-- source: -->` mention the file are printed as an advisory `note:`, not blocked, because a change can legitimately leave most of them alone. The checker's own absence is an error, never a skip. Answers Documentation Update Checklist row 16 by derivation instead of from memory. |
 | file-size | `posttool-writeedit.py` | `go-standards.md` | `.go` | Warns >1000 lines. Advisory. |
 | warn-deferral | `posttool-writeedit.py` | `planning.md` | `.md` | Warns on deferral language in doc edits. Advisory. |
+| journal-row-shape | `posttool-writeedit.py` | `planning.md` | `plan/journal/*.md`, README.md excluded | Names every line of a journal class file that `journal_row_cells` (`scripts/dev/journal.py`) does not read as the five cells. It imports that parser rather than copying it, and it reads the file from disk, because an Edit can break a row by changing a line that is not the whole row. Two things cause the finding: a raw pipe in the prose, and a second markdown table in the file. `journal_row_problems` (`scripts/dev/commit_helper.py`) refuses the same lines when the commit is prepared, which is the only place the rule was enforced before. Advisory, because the write already landed and one edit clears the finding. Fixtures: `python3 scripts/dev/hook-fixture-check.py --only journal-row-shape`. |
 | require-rfc-reference | `posttool-writeedit.py` | `go-standards.md` | `.go` | Suggests `// RFC:` header. Advisory. |
 | require-test-docs | `posttool-writeedit.py` | `testing.md` | `_test.go` | Warns about missing `VALIDATES:`/`PREVENTS:`. Advisory. |
 | require-fuzz-tests | `posttool-writeedit.py` | `testing.md` | wire `.go` | Warns about `Parse*` without `Fuzz*` tests. Advisory. |

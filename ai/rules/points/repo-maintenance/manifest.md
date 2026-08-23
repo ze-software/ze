@@ -47,6 +47,7 @@ canonical-sources-and-sync-direction ## Canonical Sources and Sync Direction
   change-the-ladder-not-the-core-md-membership
   mechanical-check
   edit-the-canonical-source-not-the-generated-file
+  a-regeneration-reads-the-whole-working-tree
   drift-detection
   git-diff-cannot-show-drift-in-the-mirrors
   banned-actions
