@@ -16,6 +16,7 @@ without the red/green distinction.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -226,6 +227,95 @@ class RunnerEndToEndTest(unittest.TestCase):
             self.assertNotEqual(0, result.returncode)
             self.assertEqual([], repo.saved_logs())
             self.assertIn("wrote no stage logs", result.stdout)
+
+
+class SweepAbandonedTest(unittest.TestCase):
+    """A killed run leaks its whole checkout, and the next run reclaims it.
+
+    Neither the exit paths nor the `finally` run on SIGKILL, which cannot be
+    trapped, so the leak is real and unavoidable at the point it happens. One
+    measured on 2026-08-23 held 14G for five and a half hours on a volume that
+    reached 100 percent twice that day.
+    """
+
+    def _base(self, repo: Repo) -> Path:
+        base = repo.root / "tmp" / "verify-worktree"
+        base.mkdir(parents=True, exist_ok=True)
+        return base
+
+    def _abandoned(self, repo: Repo, name: str) -> Path:
+        """A worktree whose owner pid is dead, as a killed run leaves one."""
+        path = self._base(repo) / name
+        repo.git("worktree", "add", "--detach", str(path), "HEAD")
+        # Pid 0 is never a live user process, so this stands in for an owner
+        # that has gone. Writing a real dead pid would race with reuse.
+        verify_worktree.owner_marker(path).write_text("0\n", encoding="utf-8")
+        return path
+
+    def test_an_abandoned_worktree_is_removed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Repo(Path(tmp))
+            path = self._abandoned(repo, "20260822T203132Z-deadbeef1234")
+
+            removed = verify_worktree.sweep_abandoned(repo.root)
+
+            self.assertEqual([path], removed)
+            self.assertFalse(path.exists(), "the leaked checkout is still there")
+            self.assertFalse(verify_worktree.owner_marker(path).exists())
+
+    def test_a_live_owner_is_left_alone(self) -> None:
+        """The running gate's own worktree must survive a concurrent sweep."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Repo(Path(tmp))
+            path = self._abandoned(repo, "20260822T203132Z-livelive1234")
+            verify_worktree.owner_marker(path).write_text(
+                f"{os.getpid()}\n", encoding="utf-8"
+            )
+
+            self.assertEqual([], verify_worktree.sweep_abandoned(repo.root))
+            self.assertTrue(path.exists(), "a live run's worktree was swept")
+
+    def test_uncommitted_work_is_never_swept(self) -> None:
+        """never-destroy-work outranks reclaiming disk. A leftover is
+        disposable; somebody's unfinished work inside one is not."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Repo(Path(tmp))
+            path = self._abandoned(repo, "20260822T203132Z-dirtydirty12")
+            (path / "someone-was-working.txt").write_text("keep me\n")
+
+            removed = verify_worktree.sweep_abandoned(repo.root)
+
+            self.assertEqual([], removed)
+            self.assertTrue(path.exists(), "uncommitted work was destroyed")
+            self.assertEqual(
+                "keep me\n", (path / "someone-was-working.txt").read_text()
+            )
+
+    def test_the_marker_does_not_make_its_own_worktree_look_dirty(self) -> None:
+        """The marker lives beside the worktree for exactly this reason. Inside
+        it, git reports it as untracked and nothing is ever swept."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Repo(Path(tmp))
+            path = self._abandoned(repo, "20260822T203132Z-cleanclean12")
+
+            dirty = subprocess.run(
+                ["git", "-C", str(path), "status", "--porcelain"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual("", dirty.stdout.strip(), "the marker dirtied the tree")
+
+    def test_a_run_sweeps_before_it_builds(self) -> None:
+        """End to end: the leftover is gone and the new worktree is not."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Repo(Path(tmp))
+            leaked = self._abandoned(repo, "20260101T000000Z-000000000000")
+
+            repo.run_runner("green")
+
+            self.assertFalse(leaked.exists(), "the leftover survived a later run")
 
 
 if __name__ == "__main__":

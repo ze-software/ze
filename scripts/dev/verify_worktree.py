@@ -106,7 +106,8 @@ def save_logs(root: Path, path: Path, name: str) -> Path | None:
 
 
 def remove_worktree(root: Path, path: Path) -> None:
-    """Drop the worktree and its registration, leaving no prunable entry."""
+    """Drop the worktree, its registration and its owner marker."""
+    owner_marker(path).unlink(missing_ok=True)
     run(
         ["git", "-C", str(root), "worktree", "remove", "--force", str(path)],
         capture_output=True,
@@ -138,6 +139,85 @@ def gate_env() -> dict[str, str]:
     return env
 
 
+def owner_marker(path: Path) -> Path:
+    """Where the pid of the run owning `path` is recorded.
+
+    It sits BESIDE the worktree rather than inside it. A file inside is an
+    untracked file, `git status --porcelain` reports it, and `sweep_abandoned`
+    would then read every abandoned tree as dirty and never sweep one.
+    """
+    return path.parent / (path.name + ".owner")
+
+
+def pid_alive(pid: int) -> bool:
+    """Whether `pid` is a live process. Signal 0 checks without delivering.
+
+    A pid at or below zero is never a live process here, and the guard is not
+    defensive padding: `os.kill(0, sig)` addresses the whole PROCESS GROUP on
+    POSIX and negative pids address a group by id, so both SUCCEED and would be
+    read as "alive". A marker holding 0 would then make its leftover permanently
+    unsweepable, which is the failure this sweep exists to end. Caught by
+    `test_an_abandoned_worktree_is_removed`, which used 0 as its dead pid.
+    """
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # Another user's process, so alive and certainly not ours to remove.
+        return True
+    return True
+
+
+def sweep_abandoned(root: Path) -> list[Path]:
+    """Remove worktrees left by runs that died, before building another.
+
+    Neither the normal exit paths nor the `finally` in `worktree_at` runs when
+    the process is KILLED, and a SIGKILL cannot be trapped. So an interrupted
+    run leaks its whole checkout. One measured on 2026-08-23 held 14G for five
+    and a half hours, on a volume that reached 100 percent twice that day with
+    three sessions building into it.
+
+    A trap is not the repair, because the case that leaks is the one no trap
+    sees. Sweeping at START is, and the owner pid is what makes "not mine"
+    decidable: a directory whose owner is gone cannot be in use.
+
+    Two refusals, both fail-safe. A live owner is skipped. A worktree holding
+    UNCOMMITTED changes is skipped and named, because `ai/rules/never-destroy-work.md`
+    outranks reclaiming disk: a leftover is disposable, and somebody's
+    unfinished work inside one is not.
+    """
+    base = root / "tmp" / "verify-worktree"
+    if not base.is_dir():
+        return []
+    removed: list[Path] = []
+    for path in sorted(base.iterdir()):
+        if not path.is_dir():
+            continue
+        owner = owner_marker(path)
+        if owner.is_file():
+            try:
+                if pid_alive(int(owner.read_text().strip())):
+                    continue
+            except ValueError:
+                pass  # unreadable owner, treat as abandoned
+        dirty = run(
+            ["git", "-C", str(path), "status", "--porcelain"], capture_output=True
+        )
+        if dirty.returncode == 0 and dirty.stdout.strip():
+            print(
+                f"verify-worktree: {path.name} was abandoned but holds "
+                "uncommitted changes, so it is left alone",
+                file=sys.stderr,
+            )
+            continue
+        remove_worktree(root, path)
+        removed.append(path)
+    return removed
+
+
 @contextmanager
 def worktree_at(root: Path, sha: str, keep: bool = False) -> Generator[Path]:
     """A throwaway worktree at `sha`, removed on every exit path.
@@ -157,6 +237,9 @@ def worktree_at(root: Path, sha: str, keep: bool = False) -> Generator[Path]:
     stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
     path = worktree_path(root, sha, stamp)
     path.parent.mkdir(parents=True, exist_ok=True)
+    # Before building another one, reclaim any left by a run that was killed.
+    for gone in sweep_abandoned(root):
+        print(f"verify-worktree: swept abandoned {gone.name}")
     add = run(
         ["git", "-C", str(root), "worktree", "add", "--detach", str(path), sha],
         capture_output=True,
@@ -170,6 +253,10 @@ def worktree_at(root: Path, sha: str, keep: bool = False) -> Generator[Path]:
         # A worktree has no tmp/ of its own, and a gate writes its logs and its
         # session directory there.
         (path / "tmp").mkdir(exist_ok=True)
+        # The owner marker goes in before the caller can be interrupted, so a
+        # kill at any point after this leaves a sweepable directory rather than
+        # an unattributable one.
+        owner_marker(path).write_text(f"{os.getpid()}\n", encoding="utf-8")
         yield path
     finally:
         if keep:
