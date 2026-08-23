@@ -449,7 +449,7 @@ class TestXfrmStateFailsClosed(unittest.TestCase):
                     StrongSwan().xfrm_state()
 
     def test_scenario_10_refuses_an_empty_before_snapshot(self):
-        check = self.load_scenario_10()
+        check = self.load_scenario("10-clear-reestablish")
         swan = mock.Mock()
         swan.xfrm_state.return_value = ""
         with mock.patch.object(check, "StrongSwan", return_value=swan):
@@ -458,12 +458,28 @@ class TestXfrmStateFailsClosed(unittest.TestCase):
                     check.check()
         cli.assert_not_called()
 
+    def test_scenario_11_refuses_an_empty_before_snapshot(self):
+        # The same comparison in the other direction: 11 polls for a SPI absent
+        # from `before` after strongSwan re-initiates. An empty `before` is
+        # satisfied by the SA that already existed, so the scenario passed with
+        # Ze having ignored the re-init. The fail-closed reader alone does not
+        # close it, because a kernel holding no ESP state answers "" on exit 0.
+        check = self.load_scenario("11-responder-accepts-reinit")
+        swan = mock.Mock()
+        swan.xfrm_state.return_value = ""
+        with mock.patch.object(check, "StrongSwan", return_value=swan):
+            with mock.patch.object(check, "docker_exec") as exec_:
+                with self.assertRaises(AssertionError):
+                    check.check()
+        exec_.assert_not_called()
+        swan.break_link.assert_not_called()
+
     @staticmethod
-    def load_scenario_10():
-        path = os.path.join(
-            LAB_DIR, "scenarios", "10-clear-reestablish", "check.py"
+    def load_scenario(name):
+        path = os.path.join(LAB_DIR, "scenarios", name, "check.py")
+        spec = importlib.util.spec_from_file_location(
+            name.replace("-", "_") + "_check", path
         )
-        spec = importlib.util.spec_from_file_location("scenario10_check", path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module

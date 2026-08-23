@@ -51,8 +51,15 @@ def check():
     swan.wait_sa_established("ze")
     swan.wait_child_sa()
     log_pass("strongSwan established against Ze the responder")
+    # The snapshot the whole scenario rests on. `now - before` is non-empty for
+    # the SA that already existed if `before` is empty, so an empty snapshot
+    # passes step 4 with Ze having ignored the re-init. wait_child_sa above has
+    # already proven an ESP SA is installed, so an empty read here is a fault.
     before = swan_esp_spis(swan)
-    log_info("ESP SPIs before re-init: %s" % (sorted(before) or "none"))
+    if not before:
+        log_fail("no ESP SPI read from strongSwan before the re-init")
+        raise AssertionError("empty ESP SPI snapshot before re-init")
+    log_info("ESP SPIs before re-init: %s" % sorted(before))
 
     # 2. Simulate a peer crash: strongSwan drops its SA WITHOUT a Delete reaching Ze
     #    (break the outbound link, then terminate locally), so Ze is left holding a
