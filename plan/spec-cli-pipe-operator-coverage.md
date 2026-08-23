@@ -549,10 +549,28 @@ with nothing listening.
 - `show env list`, `show env get` and `show env registered` are converted, with
   a declared shape and column order.
 
-**Still owed for AC-10:** the config CLI family, 6 of the 20 commands that
-declare a wire method no daemon handler implements: `show config cat`, `diff`,
-`dump`, `fmt`, `history` and `ls`. Each is the same conversion: a data handler
-beside the existing printer, a `RegisterLocalData` call, and a declared shape.
+**Still owed for AC-10:** the config CLI family. The six commands were read and
+they do NOT all want converting, so the work is smaller than six and the reading
+is recorded here rather than left to be redone.
+
+| Command | Answer today | Disposition |
+|---------|--------------|-------------|
+| `show config dump` | the fully resolved config tree, already JSON | CONVERT. It is one nested document, so it declares `doc`; check that against what it actually emits, the way `show yang tree` had to be |
+| `show config history` | snapshots with timestamps and commit messages | CONVERT, rows. Needs a file argument and an editor handle (`cli.NewEditorWithStorage`), so its data function owns that lifecycle |
+| `show config ls` | `[data] <key>` and `[fs] <path>` lines from two sources | CONVERT, rows of `{source, path}`. The bracket prefix becomes a field |
+| `show config cat` | the configuration TEXT of one snapshot | LEAVE. The text is the answer, as with `show data cat` |
+| `show config fmt` | the config pretty-printed | LEAVE. The formatting IS the answer; a record of it would be a record of nothing |
+| `show config diff` | a rendered diff | LEAVE for now, and it is the one worth revisiting. A structured diff (per-change records) would genuinely serve a tool, but it is a feature rather than a conversion: nothing in the tree emits one, so it would be designed here rather than lifted, and it deserves its own spec |
+
+So three convert, three do not, and one of the three that do not is a real
+feature request in disguise.
+
+**Why this spec stops here rather than finishing them.** The config family is
+the most load-bearing of the five and the only one where a wrong payload
+reaches an operator's running configuration rather than an introspection
+command. The other four were converted by lifting a payload that already
+existed; these need one written. That is a different kind of work and it
+belongs at the start of a session rather than the end of one.
 
 Converted: env (3), schema (5), storage `ls` and `registered` (2), yang `tree`
 and `completion` (2). Twelve of twenty.
