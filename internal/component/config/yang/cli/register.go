@@ -8,6 +8,7 @@ package cli
 import (
 	"sort"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -34,13 +35,33 @@ func init() {
 		Section:     registry.SectionConfiguration,
 		Subs:        subcommands(),
 	})
-	registry.MustRegisterLocal("show yang tree", func(args []string) int {
-		return Run(append([]string{"tree"}, args...))
-	})
-	registry.MustRegisterLocal("show yang completion", func(args []string) int {
-		return Run(append([]string{"completion"}, args...))
-	})
+	// tree and completion answer with DATA, so their answers reach the pipe
+	// layer. Both printed text and returned an exit code, while YANG declared a
+	// wire method for each that no daemon handler implements.
+	registry.MustRegisterLocalData("show yang tree", dataTree, registry.Meta{
+		Description: "The unified config and command tree. Narrow it with --commands or --config.",
+		Mode:        "offline",
+	}, command.RenderLocalAnswer)
+	registry.MustRegisterLocalData("show yang completion", dataCompletion, registry.Meta{
+		Description: "Prefix collisions in the config and command trees.",
+		Mode:        "offline",
+	}, command.RenderLocalAnswer)
+
+	// `show yang doc` renders documentation PROSE for a reader, it has no
+	// --json path to lift, and the same facts already reach a machine through
+	// `ze help command --json`. Inventing a second record for them would be a
+	// second surface to keep true, so it keeps its plain handler.
 	registry.MustRegisterLocal("show yang doc", func(args []string) int {
 		return Run(append([]string{"doc"}, args...))
 	})
+
+	// Both answer ROWS. The tree's rows are its TOP-LEVEL nodes, each carrying
+	// its own children, so `| first 1` answers one subtree and `| match` keeps
+	// the roots that hold the text. It was declared `doc` first, on the reading
+	// that a tree is one document; running it showed formatTreeJSON emits a
+	// top-level array, and a declaration that disagrees with the answer would
+	// publish a refusal the product does not make.
+	command.RegisterShape([]string{"show yang tree", "show yang completion"}, command.ShapeTab)
+	command.RegisterColumns([]string{"show yang tree"},
+		command.ColumnOrder{"name", "kind", "source", "description"})
 }

@@ -168,3 +168,37 @@ func TestPipeCatalogJSONPublishesEveryContract(t *testing.T) {
 		}
 	}
 }
+
+// TestACommandServedWithoutDataPublishesNoOperators holds the catalog to what
+// the product can honor. A command the CLIENT serves in its own process reaches
+// the pipe layer only if it answers with DATA: one that keeps a plain printing
+// handler reaches none, whatever YANG declares for it, because the local
+// handler wins over the daemon dispatch.
+//
+// `show data cat` and `show yang doc` are those by design, and they published
+// fifteen operators each before this.
+func TestACommandServedWithoutDataPublishesNoOperators(t *testing.T) {
+	registerLocalCommands()
+
+	for _, path := range []string{"show data cat", "show yang doc"} {
+		if !registry.HasLocal(path) {
+			t.Fatalf("%s is not served locally; this test no longer covers its case", path)
+		}
+		if command.HasLocalData(path) {
+			t.Fatalf("%s answers with data now; move it out of this test rather than deleting the check", path)
+		}
+		ops, shape := operatorsFor(path)
+		if len(ops) != 0 {
+			t.Errorf("%s publishes %d operators and reaches no pipe layer", path, len(ops))
+		}
+		if shape != "" {
+			t.Errorf("%s publishes shape %q and reaches no pipe layer", path, shape)
+		}
+	}
+
+	// The converted sibling still publishes, so the check above is not passing
+	// because operatorsFor answers nothing for everything.
+	if ops, _ := operatorsFor("show data registered"); len(ops) == 0 {
+		t.Error("show data registered publishes no operators; it answers with data")
+	}
+}

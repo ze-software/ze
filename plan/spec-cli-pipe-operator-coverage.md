@@ -549,22 +549,41 @@ with nothing listening.
 - `show env list`, `show env get` and `show env registered` are converted, with
   a declared shape and column order.
 
-**Still owed for AC-10:** the yang and config CLI families (11 of the 20
-commands that declare a wire method no daemon handler implements). Each is the
-same conversion: a data handler beside the existing printer, a
-`RegisterLocalData` call, and a declared shape.
+**Still owed for AC-10:** the config CLI family, 6 of the 20 commands that
+declare a wire method no daemon handler implements: `show config cat`, `diff`,
+`dump`, `fmt`, `history` and `ls`. Each is the same conversion: a data handler
+beside the existing printer, a `RegisterLocalData` call, and a declared shape.
 
-The env family (3), the schema family (5) and two of the three storage commands
-are converted.
+Converted: env (3), schema (5), storage `ls` and `registered` (2), yang `tree`
+and `completion` (2). Twelve of twenty.
 
-**One command is deliberately NOT converted, and that is an answer rather than
-a gap.** `show data cat` returns the BYTES of one stored file, which may be
+**The published surface no longer claims what it cannot honor.** A command the
+client serves in its own process reaches the pipe layer only if it answers with
+DATA; one that keeps a plain printing handler reaches none, whatever YANG
+declares, because the local handler wins over the daemon dispatch. `ze help
+command --json` now publishes zero operators for those, and 34 commands
+publish zero.
+
+**Two commands are deliberately NOT converted, and that is an answer rather
+than a gap.** `show data cat` returns the BYTES of one stored file, which may be
 YAML, JSON, a certificate or a binary blob. Those bytes are the answer; wrapping
 them in a record would corrupt the one use the command has, and no pipe operator
 has anything to do with them. It keeps its plain handler and the published page
 says it reaches no pipe layer, which is true rather than an omission. A command
 whose answer is a byte stream is the boundary of this spec, not a case it
-missed. Schema was cheap
+missed.
+
+`show yang doc` is the second. It renders documentation PROSE for a reader, it
+has no `--json` path to lift, and the same facts already reach a machine as
+structured data through `ze help command --json`. A second record for them would
+be a second surface to keep true.
+
+**One shape was declared wrong and running it caught that.** `show yang tree`
+was declared `doc`, on the reading that a tree is one document. `formatTreeJSON`
+emits a top-level ARRAY, so the answer has rows: its top-level nodes, each
+carrying its own children. `| first 1` answers one subtree whole. A declaration
+that disagrees with the answer would publish a refusal the product does not
+make, which is the same falsehood in a new place. Schema was cheap
 because four of its five commands already built a payload for a `--json` flag,
 so the data function was lifted out of the printer rather than invented, and the
 two spellings of each answer cannot disagree. Storage and yang have no `--json`

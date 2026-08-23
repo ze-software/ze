@@ -71,6 +71,18 @@ type commandAlias struct {
 // Nothing here enumerates commands: the catalog states each operator's
 // contract, the command states its own shape, and this is the join.
 func operatorsFor(cliPath string) ([]commandOperator, string) {
+	// A command the CLIENT serves in its own process reaches the pipe layer
+	// only if it answers with DATA. One that keeps a plain printing handler
+	// reaches none, whatever YANG declares for it: the local handler wins over
+	// the daemon dispatch, and it prints and returns an exit code.
+	//
+	// `show data cat` is the case. It answers the bytes of one stored file
+	// deliberately, and publishing operators for it would assert support
+	// nothing can honor, which is the falsehood this surface exists to end.
+	if registry.HasLocal(cliPath) && !command.HasLocalData(cliPath) {
+		return nil, ""
+	}
+
 	shape, declared := command.ShapeForCommand(cliPath)
 	hasAddress := len(command.AddressFieldsForCommand(cliPath)) > 0
 	out := make([]commandOperator, 0, 16)
