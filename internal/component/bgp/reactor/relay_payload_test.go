@@ -30,7 +30,14 @@ func buildRelay(t *testing.T, attrs, nextHop, nlri []byte, fam family.Family) []
 	require.True(t, ok, "payload must be sizeable")
 	buf := make([]byte, size+16) // slack proves the writer returns the exact length
 	n := writeRelayPayload(buf, 0, spans, attrs, nextHop, nlri, fam, need)
-	require.LessOrEqual(t, n, size, "writer must not exceed the sized bound")
+	// EXACT, not a bound. relayPayloadLen's contract is "the exact byte count
+	// writeRelayPayload will produce". buildRelayUpdate spends it as one: it
+	// takes a pool buffer sized against it, then hands the WireUpdate buf[:n].
+	// So a SHORT write overflows nothing. It publishes a truncated UPDATE body.
+	// The writer back-fills the attribute-length field from its own offset, so
+	// the truncation agrees with itself and nothing downstream can tell.
+	// `n <= size` accepted exactly that (ai/rules/evidence.md).
+	require.Equal(t, size, n, "writer must produce the sized length exactly")
 	return buf[:n]
 }
 
