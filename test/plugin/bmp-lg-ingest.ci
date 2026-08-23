@@ -19,7 +19,7 @@ import socket
 import struct
 import sys
 import time
-from ze_api import API, result_text_data, result_json_data
+from ze_api import API, result_text_data, result_json_data, rib_rows_by_peer
 
 def bmp_header(msg_type, length):
     return struct.pack('!BIB', 3, length, msg_type)
@@ -101,13 +101,13 @@ def main():
         'show bmp rib',
         lambda r: any(
             '10.0.0.0' in rt.get('prefix', '')
-            for routes in result_json_data(r, {}).get('adj-rib-in', {}).values()
+            for routes in rib_rows_by_peer(result_json_data(r, {})).values()
             for rt in routes
         ),
     )
     data = result_text_data(result, '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
-    rib_in = parsed.get('adj-rib-in', {})
+    rib_in = rib_rows_by_peer(parsed)
     found = False
     for peer, routes in rib_in.items():
         for route in routes:

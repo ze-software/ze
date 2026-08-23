@@ -19,7 +19,7 @@ import socket
 import struct
 import sys
 import time
-from ze_api import API, result_text_data, result_json_data
+from ze_api import API, result_text_data, result_json_data, rib_rows_by_peer
 
 def bmp_header(msg_type, length):
     return struct.pack('!BIB', 3, length, msg_type)
@@ -99,11 +99,11 @@ def main():
     # blind inter-send + settle sleeps with a deterministic payload poll.
     result = api.dispatch_until(
         'show bmp rib',
-        lambda r: bool(result_json_data(r, {}).get('adj-rib-in', {})),
+        lambda r: bool(rib_rows_by_peer(result_json_data(r, {}))),
     )
     data = result_text_data(result, '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
-    rib_in = parsed.get('adj-rib-in', {})
+    rib_in = rib_rows_by_peer(parsed)
     if not rib_in:
         print(f'FAIL: no routes before disconnect, got: {data}', file=sys.stderr, flush=True)
         sys.exit(1)
@@ -116,11 +116,11 @@ def main():
     # vacuous. Replaces a blind sleep(2.0) settle.
     result = api.dispatch_until(
         'show bmp rib',
-        lambda r: not result_json_data(r, {}).get('adj-rib-in', {}),
+        lambda r: not rib_rows_by_peer(result_json_data(r, {})),
     )
     data = result_text_data(result, '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
-    rib_in = parsed.get('adj-rib-in', {})
+    rib_in = rib_rows_by_peer(parsed)
     if rib_in:
         print(f'FAIL: routes still present after disconnect: {data}', file=sys.stderr, flush=True)
         sys.exit(1)

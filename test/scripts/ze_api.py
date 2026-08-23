@@ -2911,6 +2911,32 @@ def result_text_data(result: dict | None, default: str = "") -> str:
     return json.dumps(data, separators=(",", ":"))
 
 
+def rib_rows_by_peer(payload, direction="received"):
+    """Rebuild the peer-keyed view of one direction from flat route rows.
+
+    `show bgp rib` and `show bmp rib` answer ONE envelope under `routes`, one
+    row per route, each row carrying `peer` and `direction` as fields (owner
+    ruling, 2026-08-23). They answered an object keyed by direction and then by
+    peer before, and every caller here navigated `parsed['adj-rib-in'][peer]`.
+
+    A row operator cannot select on a level of envelope, which is why the shape
+    changed. This gives the callers back the view they were written against, so
+    each one keeps asserting the same thing about the same route.
+
+    Answers `{}` for an answer that carries no rows, which is what
+    `.get('adj-rib-in', {})` did.
+    """
+    rows = (payload or {}).get("routes")
+    if not isinstance(rows, list):
+        return {}
+    by_peer = {}
+    for row in rows:
+        if not isinstance(row, dict) or row.get("direction") != direction:
+            continue
+        by_peer.setdefault(row.get("peer"), []).append(row)
+    return by_peer
+
+
 def result_json_data(result: dict | None, default: Any) -> Any:
     """Return dispatch/result data decoded to Python objects."""
     if result is None:

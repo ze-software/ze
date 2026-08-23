@@ -103,7 +103,14 @@ expect=exit:code=0
 # Without this, "no task handle" would also be satisfied by a server that
 # refused the call outright -- which is the D-2 failure mode.
 expect=stdout:contains=10.0.0.0/24
-expect=stdout:contains=adj-rib-in
+# `show bgp rib` answers FLAT ROWS: one envelope under `routes`, one row per
+# route, each row carrying `peer` and `direction` as fields (owner ruling,
+# 2026-08-23). It answered an object keyed by direction and then by peer
+# before, which is where `adj-rib-in` came from. Asserting the row FIELD is
+# a stronger check than the envelope key was: it proves a route came back
+# and says which way it went, where the key only proved an envelope existed.
+expect=stdout:contains=direction
+expect=stdout:contains=routes
 # The negative half: no task handle reached a client that cannot read one. A
 # CreateTaskResult would carry both of these, and neither may appear.
 reject=stdout:contains=taskId

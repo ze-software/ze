@@ -57,7 +57,7 @@ tmpfs=pipe-first-last-test.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 import time
-from ze_api import API, result_json_data
+from ze_api import API, result_json_data, rib_rows_by_peer
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -77,7 +77,7 @@ def received_routes(data):
     if not isinstance(data, dict):
         return []
     routes = []
-    for peer_routes in data.get('adj-rib-in', {}).values():
+    for peer_routes in rib_rows_by_peer(data).values():
         routes.extend(peer_routes)
     return routes
 

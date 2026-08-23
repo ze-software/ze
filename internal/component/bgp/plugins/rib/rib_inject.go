@@ -200,11 +200,15 @@ func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []stri
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
 
+	// The empty answer carries the SAME shape as a populated one: flat rows
+	// under `routes` (owner ruling, 2026-08-23). It answered
+	// `{"adj-rib-in":{}}` here while the populated path answered flat rows, so
+	// a caller parsing the empty case saw a shape the command no longer uses.
 	if protoID != bgpProtocolID && len(r.ribInPool[protoID]) == 0 {
-		return json.RawMessage(`{"adj-rib-in":{}}`)
+		return json.RawMessage(`{"routes":[]}`)
 	}
 	if protoID == bgpProtocolID && len(r.bgpPeers) == 0 {
-		return json.RawMessage(`{"adj-rib-in":{}}`)
+		return json.RawMessage(`{"routes":[]}`)
 	}
 
 	_, pipeSelector, stages, errMsg := parsePipelineArgs(args)

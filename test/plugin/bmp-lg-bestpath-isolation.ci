@@ -19,7 +19,7 @@ import socket
 import struct
 import sys
 import time
-from ze_api import API, result_text_data, result_json_data
+from ze_api import API, result_text_data, result_json_data, rib_rows_by_peer
 
 def bmp_header(msg_type, length):
     return struct.pack('!BIB', 3, length, msg_type)
@@ -99,11 +99,11 @@ def main():
     # (async BMP ingest); replaces blind inter-send + settle sleeps.
     result = api.dispatch_until(
         'show bmp rib',
-        lambda r: bool(result_json_data(r, {}).get('adj-rib-in', {})),
+        lambda r: bool(rib_rows_by_peer(result_json_data(r, {}))),
     )
     data = result_text_data(result, '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
-    rib_in = parsed.get('adj-rib-in', {})
+    rib_in = rib_rows_by_peer(parsed)
     if not rib_in:
         print('FAIL: no BMP routes found', file=sys.stderr, flush=True)
         sys.exit(1)
@@ -112,7 +112,7 @@ def main():
     result = dispatch(api, 'show bgp rib')
     data = result_text_data(result, '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
-    bgp_rib = parsed.get('adj-rib-in', {})
+    bgp_rib = rib_rows_by_peer(parsed)
     for peer, routes in bgp_rib.items():
         for route in routes:
             if '10.0.0.0' in route.get('prefix', ''):

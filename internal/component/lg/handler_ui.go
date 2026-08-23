@@ -729,35 +729,67 @@ func extractRoutes(ze map[string]any) []any {
 		return nil
 	}
 
-	// Legacy format: flat route list.
+	// Flat route list. `show bgp rib` answers this shape: one envelope under
+	// `routes`, one row per route, each row carrying `peer` and `direction` as
+	// fields (owner ruling, 2026-08-23).
+	//
+	// The rows are normalized exactly as the grouped shape's were. Returning
+	// them untouched is what this branch used to do, and when `show bgp rib`
+	// started answering `routes` that silently became the path every RIB answer
+	// took: the attributes stayed wrapped and no row carried `peer-address`, so
+	// the graph found nothing to draw and reported "No routes found".
 	if routes, _ := ze["routes"].([]any); routes != nil {
-		return routes
+		return normalizeRouteRows(routes, "", true)
 	}
 	if routes, _ := ze["prefixes"].([]any); routes != nil {
-		return routes
+		return normalizeRouteRows(routes, "", true)
 	}
 
-	// RIB pipeline format: adj-rib-in/adj-rib-out grouped by peer.
+	// Grouped format: adj-rib-in/adj-rib-out keyed by peer. Kept for producers
+	// that still answer it; `show bgp rib` no longer does.
 	var result []any
 	for _, ribKey := range []string{"adj-rib-in", "adj-rib-out"} {
 		rib, _ := ze[ribKey].(map[string]any)
 		for peer, peerRoutes := range rib {
 			routes, _ := peerRoutes.([]any)
-			for _, r := range routes {
-				rm, ok := r.(map[string]any)
-				if !ok {
-					continue
-				}
-				if _, has := rm["peer-address"]; !has {
-					rm["peer-address"] = peer
-				}
-				unwrapRouteAttrs(rm)
-				result = append(result, rm)
-			}
+			result = append(result, normalizeRouteRows(routes, peer, false)...)
 		}
 	}
 
 	return result
+}
+
+// normalizeRouteRows gives every route row the two things the looking glass
+// reads: a `peer-address`, and its attributes unwrapped.
+//
+// peer is the key the row was grouped under, for the grouped shape. A flat row
+// names its own peer in a `peer` field and passes "" here.
+// keepUnknown preserves each branch's prior contract. The flat `routes` and
+// `prefixes` branches returned their elements untouched, including bare strings
+// -- `prefixes` is a list of prefix strings for some producers -- so an element
+// this cannot normalize passes through. The grouped branch always skipped a
+// non-record, so it still does.
+func normalizeRouteRows(routes []any, peer string, keepUnknown bool) []any {
+	out := make([]any, 0, len(routes))
+	for _, r := range routes {
+		rm, ok := r.(map[string]any)
+		if !ok {
+			if keepUnknown {
+				out = append(out, r)
+			}
+			continue
+		}
+		if _, has := rm["peer-address"]; !has {
+			if peer != "" {
+				rm["peer-address"] = peer
+			} else if own, isString := rm["peer"].(string); isString && own != "" {
+				rm["peer-address"] = own
+			}
+		}
+		unwrapRouteAttrs(rm)
+		out = append(out, rm)
+	}
+	return out
 }
 
 // findPeer finds a specific peer in the summary data by address.

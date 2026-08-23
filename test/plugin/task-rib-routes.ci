@@ -107,7 +107,14 @@ expect=exit:code=0
 # The terminal tasks/get really carried the route the peer announced, so the
 # whole chain moved real data rather than an empty envelope.
 expect=stdout:contains=10.0.0.0/24
-expect=stdout:contains=adj-rib-in
+# `show bgp rib` answers FLAT ROWS: one envelope under `routes`, one row per
+# route, each row carrying `peer` and `direction` as fields (owner ruling,
+# 2026-08-23). It answered an object keyed by direction and then by peer
+# before, which is where `adj-rib-in` came from. Asserting the row FIELD is
+# a stronger check than the envelope key was: it proves a route came back
+# and says which way it went, where the key only proved an envelope existed.
+expect=stdout:contains=direction
+expect=stdout:contains=routes
 # The terminal state is asserted by `task-wait $LAST completed` above: it errors
 # out if the task reaches any OTHER terminal state and times out if it reaches
 # none.
