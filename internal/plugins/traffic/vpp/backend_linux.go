@@ -113,7 +113,11 @@ func (b *backend) Apply(ctx context.Context, desired map[string]traffic.Interfac
 	// handle it (propagate vs warn-only via logger()).
 	defer ch.Close()
 
-	return b.applyWithOps(&govppOps{ch: ch}, desired)
+	// newGovppOps binds the reply deadline to the channel before the first
+	// request goes out. govpp leaves a new channel on core.DefaultReplyTimeout,
+	// which is 0 and means "wait forever", and a pooled one carries whatever
+	// its previous owner set (timeout_linux.go).
+	return b.applyWithOps(newGovppOps(ch), desired)
 }
 
 func (b *backend) waitConnector(ctx context.Context) (*vppcomp.Connector, error) {

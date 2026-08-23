@@ -43,6 +43,7 @@ second safety net for it.
 
 <!-- source: internal/plugins/traffic/vpp/ops.go -- vppOps interface -->
 <!-- source: internal/plugins/traffic/vpp/ops_linux.go -- govppOps production adapter -->
+<!-- source: internal/plugins/traffic/vpp/timeout_linux.go -- newGovppOps, the constructor that binds the reply deadline -->
 <!-- source: internal/plugins/traffic/vpp/apply_test.go -- fakeOps -->
 
 `vppOps` is a narrow unexported interface. `govppOps` is the stateless production
@@ -56,6 +57,67 @@ methods.
 `applyWithOps(ops, desired)` is split out of `Apply` so a test injects `fakeOps`
 with no connector and no channel lifecycle. `Apply` keeps the context, lock and
 connector preamble.
+
+`newGovppOps` is the one place that builds the production adapter, and it
+installs the reply deadline on the channel before it returns. That placement is
+part of the seam contract, not an implementation detail of one call site. GoVPP
+leaves a new channel on `core.DefaultReplyTimeout`, which is 0, and
+`receiveReplyInternal` reads a value at or below zero as `maxInt64`.
+`Channel.ReceiveReply` takes no context either, so the `ctx` that `Apply`
+receives cannot end the wait, and `Apply` holds `b.mu` across the whole call. A
+VPP that accepts a request and never answers would therefore stop the backend
+accepting any further apply for the life of the process.
+
+The compiler does not keep that one place the only one: `govppOps` is
+unexported, so a bare `&govppOps{ch: ch}` stays legal anywhere in the package.
+`TestGovppOpsIsBuiltOnlyByItsConstructor` (`ops_construction_test.go`) is what
+does. It parses the package's own sources and fails on a `govppOps` built
+anywhere but inside the constructor, and fails again on finding none at all, so
+it cannot pass by matching nothing. The scan is build-tag blind, so it runs on
+every GOOS rather than only where the backend compiles.
+
+The guard is a ratchet against the regression that occurred, not a proof that an
+unbounded facade cannot be built. It sees the three forms that name the type
+directly: a composite literal, `new(govppOps)`, and a `var` declaration with no
+initializer. It does not see one built as part of another value, such as the
+elided inner literal in `[]govppOps{{ch: ch}}`, because that needs the type of
+an expression and therefore `go/types` rather than a parse. The function's own
+comment carries that list.
+
+Binding in the constructor rather than at connect time is what makes the value
+deterministic. The channel comes from a pool on the one `Connection` every
+plugin shares, and `(*Channel).Reset` drains the buffers while leaving
+`replyTimeout` alone, so a pooled channel arrives carrying whatever its previous
+owner set. The constructor is the only code that runs once per use of a channel.
+
+The deadline defaults to 10s and clamps to 1s..60s, read from
+`ze.traffic.vpp.reply-timeout`. Zero is refused rather than honored, because
+zero is GoVPP's spelling of "no deadline". The firewall VPP backend carries the
+same shape under `ze.firewall.vpp.reply-timeout`, and `core-design.md` publishes
+those numbers under "Firewall reconcile concurrency" for the two FIREWALL
+backends. This backend is not in that table: it matches the numbers on purpose,
+so an operator meets one pair of bounds across every ze dataplane, and states
+them locally rather than importing `firewall.MaxBackendDeadline`. That constant
+exists so three firewall things agree, the nft clamp, the vpp clamp and the last
+finite bucket of the apply-latency histogram. Traffic has none of the three, so
+the import would buy coupling and no agreement.
+
+The bound is per ROUND TRIP, not per apply, and the difference is what an
+operator needs to know. One `Apply` issues a sequence of requests: the interface
+dump, the policer dump, then a policer add and an output bind for each class,
+plus the classify table, session and bind for each interface that steers. Each
+one gets its own deadline. On failure the undo list issues more. Against a VPP
+that accepts every request and answers none, `b.mu` is therefore held for
+roughly the request count times the deadline, which is minutes for a
+many-interface configuration rather than the 10 seconds the default reads like.
+`Channel.ReceiveReply` still takes no context, so the caller's `ctx` cannot cut
+the apply short either. What the deadline buys is termination: the apply ends,
+reports an error and releases the lock, instead of never ending at all.
+
+No timeout sentinel crosses the traffic `Backend` boundary. The firewall
+equivalent exists to drive a counter and a rollback skip, and traffic has
+neither consumer, so a reply-deadline failure surfaces as the wrapped GoVPP
+error like any other VPP failure.
 
 `fakeOps.failOnNthAddDel` makes a two-interface partial-failure test
 deterministic. Go map iteration is unordered, and count-based scripting is

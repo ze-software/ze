@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | verification |
 | Scope | plugin |
 | Depends | - |
-| Phase | - |
+| Phase | 6/6 |
 | Deferral shard | `plan/deferrals/fixit-firewall-concurrency-deadlock.md` |
 | Handoff | verify |
-| Updated | 2026-08-11 |
+| Updated | 2026-08-23 |
 
 <!-- Handoff `verify`: the implementation session commits the work, sets Status to
      `verification` and stops. A later Opus 5 session reviews that commit and closes. -->
@@ -135,9 +135,9 @@ This work was homed from the 2026-08-07 row of
 
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Plugin ↔ VPP dataplane | govpp binary API over the shared socket connection; the deadline bounds one request-reply round trip | No |
-| Process environment ↔ plugin | `env.GetDuration` on `ze.traffic.vpp.reply-timeout`, registered by `env.MustRegister` at package init | No |
-| Traffic component ↔ backend | the `traffic.Backend` interface; an error returns, and no new sentinel type crosses | No |
+| Plugin ↔ VPP dataplane | govpp binary API over the shared socket connection; the deadline bounds one request-reply round trip | Yes -- `TestNewGovppOpsBindsReplyTimeout` asserts the value installed on the `api.Channel` the facade wraps, for every operator input |
+| Process environment ↔ plugin | `env.GetDuration` on `ze.traffic.vpp.reply-timeout`, registered by `env.MustRegister` at package init | Yes -- `ze env list` inside the QEMU VM prints `ze.traffic.vpp.reply-timeout duration 10s` beside the firewall key, from a `ze_core ze_vpp` build |
+| Traffic component ↔ backend | the `traffic.Backend` interface; an error returns, and no new sentinel type crosses | Yes -- `grep -rn "component/firewall" internal/plugins/traffic/` returns nothing, and no error type is added |
 
 ### Integration Points
 
@@ -150,11 +150,11 @@ This work was homed from the 2026-08-07 row of
 
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | `(*backend).Apply` still opens the channel and still calls `applyWithOps`; the constructor sits between them and adds no layer. `applyWithOps` keeps its signature and body |
+| No unintended coupling (components stay isolated) | Yes | `internal/plugins/traffic/vpp` imports `go.fd.io/govpp/api` and `internal/core/env` and nothing else new. `maxReplyTimeout` is stated as `60 * time.Second` rather than imported from `firewall.MaxBackendDeadline`, so no traffic-to-firewall dependency is created |
+| No duplicated functionality (extends existing, does not recreate) | Yes | The clamp reuses `env.GetDuration` and Go's `min`/`max`; no timeout helper, no error type and no metric is added. The firewall sibling's file is mirrored in SHAPE, which is the point of D-2, not shared through a new abstraction with two users |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | The change is a control-plane call made once per apply. No buffer, no wire path |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | The only registration is `env.MustRegister` in the plugin's own file. No core package names the key: `ze env list` and completion reach it through `env.Entries()` and `internal/core/envcatalog` |
 
 ## Risks & Assumptions
 
@@ -162,18 +162,18 @@ This work was homed from the 2026-08-07 row of
 
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `(*Channel).Reset` does not clear `replyTimeout`, so binding once per ops construction is required rather than optional | `vendor/go.fd.io/govpp/core/channel.go` read 2026-08-11: `Reset` drains `reqChan` and `replyChan` and touches no other field | binding at connect time would be enough, and the constructor would be redundant machinery | re-read the vendored `Reset` body during the implementation audit | unvalidated |
-| A-2 | `(*backend).Apply` is the only producer of a `govppOps` in the package | `grep -rn 'govppOps{' internal/plugins/traffic/vpp/` returns one hit in `backend_linux.go`, and `grep -rn 'NewChannel()' internal/plugins/traffic/` returns one hit in the same function | a second call site would keep an unbounded path alive and the constructor would not close the hole | repeat both greps during the implementation audit | unvalidated |
-| A-3 | A clamped duration in the range 1s to 60s is right for traffic as well as for firewall | `docs/architecture/core-design.md` records a 10s default and a 1..60s clamp for both firewall backends; the traffic apply is a smaller message set on the same socket | too low a ceiling would fail a legitimate slow apply on a loaded VPP | the traffic apply's message count is bounded by the interface count; record the observed apply duration from the QEMU run | unvalidated |
-| A-4 | No YANG leaf is owed, because this is a safety cap rather than an operator setting | `ai/rules/config.md` decision table, "Is it a safety cap that should never be tuned in production? Env var only"; both firewall knobs are env-only and neither appears in any `.yang` file (grep 2026-08-11) | operators would need a config leaf and the env-only key would be a promotion debt | grep the `.yang` tree for `reply-timeout` during the audit; confirm both firewall knobs are still env-only | unvalidated |
-| A-5 | `env.MustRegister` inside a `//go:build linux` file registers the key on Linux only, so `ze env list` on darwin does not show it | the firewall knob has the same placement and the same consequence | the key would be invisible on the platform an operator reads the docs on | run `ze env list` on Linux and confirm the key appears; record that darwin does not carry it | unvalidated |
+| A-1 | `(*Channel).Reset` does not clear `replyTimeout`, so binding once per ops construction is required rather than optional | `vendor/go.fd.io/govpp/core/channel.go` read 2026-08-11: `Reset` drains `reqChan` and `replyChan` and touches no other field | binding at connect time would be enough, and the constructor would be redundant machinery | re-read the vendored `Reset` body during the implementation audit | confirmed 2026-08-23: `(*Channel).Reset` (`vendor/go.fd.io/govpp/core/channel.go`) drains `reqChan` and `replyChan` and writes no other field. `receiveReplyInternal` in the same file reads `ch.replyTimeout` and substitutes `maxInt64` when the value is at or below zero. `DefaultReplyTimeout` is `time.Duration(0)` (`vendor/go.fd.io/govpp/core/connection.go`) and the `channelPool` factory installs it on every freshly allocated channel |
+| A-2 | `(*backend).Apply` is the only producer of a `govppOps` in the package | `grep -rn 'govppOps{' internal/plugins/traffic/vpp/` returns one hit in `backend_linux.go`, and `grep -rn 'NewChannel()' internal/plugins/traffic/` returns one hit in the same function | a second call site would keep an unbounded path alive and the constructor would not close the hole | repeat both greps during the implementation audit | confirmed 2026-08-23: `govppOps{` returns one hit and `NewChannel()` returns one hit, both inside `(*backend).Apply` (`internal/plugins/traffic/vpp/backend_linux.go`) |
+| A-3 | A clamped duration in the range 1s to 60s is right for traffic as well as for firewall | `docs/architecture/core-design.md` records a 10s default and a 1..60s clamp for both firewall backends; the traffic apply is a smaller message set on the same socket | too low a ceiling would fail a legitimate slow apply on a loaded VPP | the traffic apply's message count is bounded by the interface count; record the observed apply duration from the QEMU run | confirmed 2026-08-23: `docs/architecture/core-design.md` and `docs/guide/firewall.md` both publish 10s with a 1s to 60s range for the firewall VPP knob. The traffic apply's message count is bounded by the interface count, and the ceiling is reachable through the env knob with no rebuild |
+| A-4 | No YANG leaf is owed, because this is a safety cap rather than an operator setting | `ai/rules/config.md` decision table, "Is it a safety cap that should never be tuned in production? Env var only"; both firewall knobs are env-only and neither appears in any `.yang` file (grep 2026-08-11) | operators would need a config leaf and the env-only key would be a promotion debt | grep the `.yang` tree for `reply-timeout` during the audit; confirm both firewall knobs are still env-only | confirmed 2026-08-23: `grep -rn "reply-timeout" --include="*.yang" .` returns nothing, so both firewall knobs are still env-only |
+| A-5 | `env.MustRegister` inside a `//go:build linux` file registers the key on Linux only, so `ze env list` on darwin does not show it | the firewall knob has the same placement and the same consequence | the key would be invisible on the platform an operator reads the docs on | run `ze env list` on Linux and confirm the key appears; record that darwin does not carry it | confirmed 2026-08-23, and REFINED: the linux tag is only half the gate. `feature-gates.txt` puts `internal/plugins/traffic/vpp` behind `ze_vpp`, so a `ze_core`-only build lists neither this key nor the firewall one. Measured: a VM build with `-tags ze_core` printed 95 env rows and no vpp key at all; a `ze_core ze_vpp` build printed both. `ze_vpp` is default-on (`ZE_FEATURES` derives from every `ze_*` tag in `feature-gates.txt`), so a shipped `ze` carries it. Same placement and same consequence as the `ze.firewall.vpp.reply-timeout` entry in `internal/plugins/firewall/vpp/timeout_linux.go` |
 
 ### Risks
 
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | The deadline fires on a legitimately slow apply and turns a working configuration into a failed one | a traffic apply fails with a reply-timeout error on a VPP that later answers | the 60s ceiling is reachable through the env knob without a rebuild; the default matches the firewall backend that has run with it since 2026-08-10 |
-| R-2 | The test binds the deadline on a fake and never proves the production path, because `Apply` needs a live VPP connection that a unit test cannot make | the test passes while `Apply` still builds the inline literal | the test drives `newGovppOps`, and the audit greps that no `govppOps{` literal survives outside the constructor. That grep is the link the test cannot make |
+| R-2 | The test binds the deadline on a fake and never proves the production path, because `Apply` needs a live VPP connection that a unit test cannot make | the test passes while `Apply` still builds the inline literal | RETIRED 2026-08-23. The planned mitigation was a one-off audit grep, and review round 1 judged that too weak for what the code's own comments were claiming: an audit step nobody repeats is not an invariant. `TestGovppOpsIsBuiltOnlyByItsConstructor` (`internal/plugins/traffic/vpp/ops_construction_test.go`) now parses the package's own sources and fails on a `govppOps` built outside the constructor, and fails again when it finds none at all. The link the unit test could not make is made by a test rather than by a habit |
 | R-3 | The QEMU line is edited and the package still does not run there, because the recipe's shell command accepts a package pattern that matches nothing | `make ze-qemu-integration-test` passes without naming a traffic test | read the run output for a line naming `internal/plugins/traffic/vpp`, not only for a zero exit |
 | R-4 | The reviewer reads the missing error tagging as an omission rather than a decision | a review finding proposing a traffic equivalent of `firewall.ErrKernelTimeout` | Key Design Decisions records why the sentinel is firewall-only: it exists to drive a metric and a rollback skip, and traffic has neither |
 
@@ -181,7 +181,7 @@ This work was homed from the 2026-08-07 row of
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | A too-short deadline fails a traffic-control config apply or reload against a slow VPP, and the reload journal then runs its rollback arm, which calls `Apply` again and burns a second deadline. Nothing outside the traffic plugin is affected: `b.mu` is the backend's own lock, unlike the firewall's process-wide `reconcileMu`. |
+| What breaks if this is wrong? | A too-short deadline fails a traffic-control config apply or reload against a slow VPP, and the reload journal then runs its rollback arm, which calls `Apply` again and burns a second deadline. Nothing outside the traffic plugin is affected: `b.mu` is the backend's own lock, unlike the firewall's process-wide `reconcileMu`. **The bound is per ROUND TRIP, not per apply**, which the first draft of this spec did not say. One `Apply` issues the interface dump, the policer dump, a policer add and an output bind for each class, and a classify table, session and bind for each steering interface; the undo list issues more on failure. Against a VPP that accepts every request and answers none, `b.mu` is held for roughly the request count times the deadline, which is minutes for a many-interface configuration rather than the 10 seconds the default reads like, and the caller's `ctx` cannot cut it short because `Channel.ReceiveReply` takes none. What the deadline buys is TERMINATION, not a 10-second ceiling on the apply. |
 | How is it reverted? | Single commit revert. No config migration, no wire-visible change, no persisted state. An operator can also raise the value at runtime through `ze.traffic.vpp.reply-timeout` without a rebuild. |
 | Who else touches this path? | `plan/spec-finish-vpp-stub.md` (Status `ready`) plans apply-tier traffic coverage against the VPP stub, and its AC-11 drives the same `Apply`. It edits the stub and the `.ci` suite, not this package: its design struck `internal/plugins/traffic/vpp/backend_linux.go` from Files to Modify on 2026-07-10. `plan/spec-fixit-firewall-concurrency-deadlock.md` owns the firewall sibling and stays open for its phase 1. |
 
@@ -189,7 +189,7 @@ This work was homed from the 2026-08-07 row of
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `(*backend).Apply` obtains a pooled channel and builds the ops facade | → | `newGovppOps` calls `SetReplyTimeout` before it returns | `TestNewGovppOpsBindsReplyTimeout` in `internal/plugins/traffic/vpp/timeout_linux_test.go` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `(*backend).Apply` obtains a pooled channel and builds the ops facade | → | `newGovppOps` calls `SetReplyTimeout` before it returns | TWO tests, because neither half is the row on its own. `TestNewGovppOpsBindsReplyTimeout` (`internal/plugins/traffic/vpp/timeout_linux_test.go`) proves the constructor installs the deadline, on its own fake channel, which its comment says it does not extend to the production one. `TestGovppOpsIsBuiltOnlyByItsConstructor` (`internal/plugins/traffic/vpp/ops_construction_test.go`) is what connects that to `Apply`: it fails if anything in the package builds a facade some other way. <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 | The operator sets `ze.traffic.vpp.reply-timeout` in the process environment | → | `vppReplyTimeout` reads and clamps it | `TestVppReplyTimeoutBounds` in `internal/plugins/traffic/vpp/timeout_linux_test.go` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
 | A darwin checkout runs the Linux-only suite | → | `ze-qemu-integration-test` names this package | `TestNewGovppOpsBindsReplyTimeout` runs inside the QEMU VM; the run output names `internal/plugins/traffic/vpp` |
 
@@ -221,8 +221,52 @@ dependency.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestNewGovppOpsBindsReplyTimeout` | `internal/plugins/traffic/vpp/timeout_linux_test.go` | AC-1: the constructor calls `SetReplyTimeout` with the clamped value on the channel it was given, and returns an ops value wired to that same channel. Uses a recording fake that implements `api.Channel`, records the duration, and panics on every other method | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| `TestVppReplyTimeoutBounds` | `internal/plugins/traffic/vpp/timeout_linux_test.go` | AC-2 and AC-3: the default with the key unset, and the clamp for every out-of-range and unparseable input. Table-driven, one row per boundary below | <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
+| `TestNewGovppOpsBindsReplyTimeout` | `internal/plugins/traffic/vpp/timeout_linux_test.go` | AC-1: the constructor calls `SetReplyTimeout` with the clamped value on the channel it was given, and returns an ops value wired to that same channel. Uses a recording fake that implements `api.Channel`, records the duration, and panics on every other method | PASS in the QEMU VM. Written table-driven over four operator inputs rather than one, so the value asserted is the one INSTALLED at every boundary, not only the one computed. Shown RED with the `SetReplyTimeout` call removed |
+| `TestVppReplyTimeoutBounds` | `internal/plugins/traffic/vpp/timeout_linux_test.go` | AC-2 and AC-3: the default with the key unset, and the clamp for every out-of-range and unparseable input. Table-driven, one row per boundary below | PASS in the QEMU VM, nine rows covering every cell of the boundary table below |
+| `TestGovppOpsIsBuiltOnlyByItsConstructor` | `internal/plugins/traffic/vpp/ops_construction_test.go` | AC-1's precondition: the constructor is the ONLY way a `govppOps` comes into being, so the deadline it installs cannot be skipped. Parses every `.go` file in the package with `go/parser` and reports each composite literal or `new()` of `govppOps`, with its file and enclosing function | Added in review round 1, replacing the audit grep R-2 planned. PASS. Untagged, so it runs on darwin as well as Linux and needs no VM. Shown RED twice: once with the call site reverted to `&govppOps{ch: ch}`, once with the constructor returning `nil` so no site exists at all |
+
+**What the tests pin, stated plainly.** They pin that the ops facade the
+production path builds carries a bounded, non-zero deadline on its own channel,
+for every operator input. They do NOT pin that a wedged VPP unblocks. The wait
+itself is `receiveReplyInternal` inside vendored govpp, which no fake channel can
+stand in for, and the traffic package has no harness that reaches a live VPP.
+The stronger claim needs a stub that accepts a request and never answers, which
+the Functional Tests row below shows exists in no spec today. It is NOT
+`plan/spec-finish-vpp-stub.md` AC-11: that asserts `Apply` completes, which a
+deadline test cannot be built on.
+
+`TestGovppOpsIsBuiltOnlyByItsConstructor` pins a narrower thing again, and its
+bound is deliberate. It reads the three forms that name `govppOps` directly, so
+it catches the regression that actually occurred, an inline literal at the call
+site. It does not see a facade built as part of another value, and it therefore
+does not make an unbounded one unconstructible. The function's own comment
+carries the list.
+
+**AC-6 discrimination evidence.** Taken with the `SetReplyTimeout` call deleted
+from `newGovppOps`, re-run with `-count=1` inside the QEMU VM. The mutation was
+confirmed applied before the run (`diff` against a pristine copy returned the
+deleted line; `grep -c "ch.SetReplyTimeout"` returned 0), and the file was
+restored afterwards by copying the pristine copy back, verified byte-identical
+with `shasum -c`.
+
+```
+--- FAIL: TestNewGovppOpsBindsReplyTimeout (0.00s)
+    --- FAIL: TestNewGovppOpsBindsReplyTimeout/an_explicit_value_reaches_the_channel (0.00s)
+        timeout_linux_test.go:123: SetReplyTimeout was never called: the channel keeps govpp's disabled default
+    --- FAIL: TestNewGovppOpsBindsReplyTimeout/unset_installs_the_default (0.00s)
+        timeout_linux_test.go:123: SetReplyTimeout was never called: the channel keeps govpp's disabled default
+    --- FAIL: TestNewGovppOpsBindsReplyTimeout/zero_is_clamped_before_it_reaches_the_channel (0.00s)
+        timeout_linux_test.go:123: SetReplyTimeout was never called: the channel keeps govpp's disabled default
+    --- FAIL: TestNewGovppOpsBindsReplyTimeout/above_the_ceiling_is_clamped_before_it_reaches_the_channel (0.00s)
+        timeout_linux_test.go:123: SetReplyTimeout was never called: the channel keeps govpp's disabled default
+FAIL
+FAIL	github.com/ze-software/ze/internal/plugins/traffic/vpp	0.025s
+```
+
+The failure names the missing call rather than a compile error, which is what
+AC-6 asks for. `TestVppReplyTimeoutBounds` stayed green through the mutation,
+which is the right split: the clamp helper was untouched, and only the
+installation was broken.
 
 ### Boundary Tests (numeric inputs)
 
@@ -235,7 +279,7 @@ dependency.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| Not applicable | - | No `.ci` can reach this code path today. The VPP tests in `test/traffic/` stop at the verify tier: `traffic-vpp-not-connected.ci` and the two `traffic-vpp-accept-*` tests prove their point through the ABSENCE of VPP, and `traffic-vpp-accept-dscp-filter.ci` records the reason in its own body, naming `plan/spec-finish-vpp-stub.md` as the blocker. Apply-tier traffic coverage against the VPP stub is that spec's AC-11 and its planned `test/vpp/016-traffic-apply.ci`. Producing a stub that accepts a request and stays silent is stub work, which belongs to that spec and not to a two-line deadline fix. The observable proof here is the unit test above, run inside the QEMU VM (AC-5), which is the same proof the firewall sibling shipped | <!-- doc-links: ignore (planned by plan/spec-finish-vpp-stub.md as its AC-11, which the cell says) --> |
+| Not applicable, and the enabler is not written anywhere yet | - | No `.ci` can reach this code path today. The VPP tests in `test/traffic/` stop at the verify tier: `traffic-vpp-not-connected.ci` and the two `traffic-vpp-accept-*` tests prove their point through the ABSENCE of VPP, and `traffic-vpp-accept-dscp-filter.ci` records the reason in its own body, naming `plan/spec-finish-vpp-stub.md` as the blocker. **Correction made during implementation, 2026-08-23: that spec is not the enabler for THIS behavior.** Its AC-11 asserts that `Apply` COMPLETES against the stub, and a stub that answers proves nothing about a reply deadline. What this behavior needs is a stub mode that ACCEPTS a request and never answers it, plus an assertion that the apply returns a reply-timeout error inside roughly the configured deadline instead of hanging. No row in `spec-finish-vpp-stub` asks for that, and neither does this spec, so naming AC-11 as the enabler pointed at something that cannot deliver. Writing that stub mode is stub work and stays outside a deadline fix; what changes here is that the spec stops claiming a route it does not have. The observable proof shipped is the unit tests above, run inside the QEMU VM (AC-5), which is the same proof the firewall sibling shipped | <!-- doc-links: ignore (the enabling row exists in no spec; this cell is what says so) --> |
 
 ### Interop Tests (Scope: protocol)
 
@@ -254,6 +298,7 @@ any wire; it installs a client-side deadline.
 
 - `internal/plugins/traffic/vpp/timeout_linux.go` - the three constants, the `env.MustRegister` entry, the clamping reader, and the constructor. <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
 - `internal/plugins/traffic/vpp/timeout_linux_test.go` - the recording channel fake and the two tests. <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
+- `internal/plugins/traffic/vpp/ops_construction_test.go` - added in review round 1, not planned at design time. The source-scanning guard that makes D-1 an invariant instead of a convention. Deliberately UNTAGGED: the scan is textual, so it runs on every GOOS and catches a violation in the fast darwin unit run rather than only in the VM. <!-- doc-links: ignore (added during implementation; the file is described in the row above it) -->
 
 ### Integration Checklist
 
@@ -374,15 +419,24 @@ any wire; it installs a client-side deadline.
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| D-1: Bind the deadline inside a constructor for the ops facade | (a) call `SetReplyTimeout` in `Apply` next to `NewChannel`; (b) set it once in `(*Connector).NewChannel` for every caller | (a) is one line further from the type that owns the channel, and a second ops call site would miss it. (b) puts one plugin's policy on every plugin's channel and denies each backend its own value. The sibling chose the constructor and gave the reason: a computed but uninstalled deadline is indistinguishable from having none |
+| D-1: Bind the deadline inside a constructor for the ops facade | (a) call `SetReplyTimeout` in `Apply` next to `NewChannel`; (b) set it once in `(*Connector).NewChannel` for every caller | (a) is one line further from the type that owns the channel, and a second ops call site would miss it. (b) puts one plugin's policy on every plugin's channel and denies each backend its own value. The sibling chose the constructor and gave the reason: a computed but uninstalled deadline is indistinguishable from having none. **Amended in review rounds 1 and 2:** a constructor only delivers that if it is the only way to build the type, and Go does not give that for an unexported struct in its own package. `TestGovppOpsIsBuiltOnlyByItsConstructor` is what holds it; without the test D-1 buys a convention, which is the weaker half of the fix. Round 2 BOUNDED the claim, after the reviewer ran the guard against mutated copies: it holds against every DIRECT construction (composite literal, `new()`, bare `var`), which is the form the defect actually took, and not against a facade built as part of another value, which would need `go/types` rather than a parse. D-1 is a ratchet on the regression, not a proof that an unbounded facade cannot exist |
 | D-2: A new `timeout_linux.go`, not an addition to `ops_linux.go` | put the constructor beside the `govppOps` type it returns | The sibling's layout is the point. Two backends carrying the same obligation should read the same way, and `ops_linux.go` is the message-wrapping topic, one method per VPP request. A file named for the concern also carries the `// Design:` annotation the seam doc needs |
 | D-3: Env-only knob, no YANG leaf | a leaf under a new `environment` container in `ze-traffic-control-conf.yang` | `ai/rules/config.md` routes a safety cap that is never tuned in production to an env var, and both firewall deadline knobs are env-only. Adding a container to a config tree that has none, for a value an operator sets once in an emergency, is machinery the problem does not need |
 | D-4: No timeout sentinel on the traffic `Backend` contract | mirror `firewall.ErrKernelTimeout` with a traffic equivalent | The firewall sentinel exists to drive two decisions: `ze_firewall_apply_timeout_total` counts wedged reconciles, and ddos-local skips its rollback reconcile on it. Traffic has neither consumer. A sentinel nothing reads is an abstraction with no user |
-| D-5: Default 10s, clamp 1s to 60s, zero refused | pick a traffic-specific value | The published contract in `docs/architecture/core-design.md` is one pair of numbers for every ze dataplane bound. A third number would need a reason, and the traffic apply is a smaller message set on the same socket, so there is none |
+| D-5: Default 10s, clamp 1s to 60s, zero refused | pick a traffic-specific value | An operator should meet one pair of bounds across every ze dataplane. A third number would need a reason, and the traffic apply is a smaller message set on the same socket, so there is none. **Corrected in review round 1:** `docs/architecture/core-design.md` publishes that pair under "Firewall reconcile concurrency", where "both" means the two FIREWALL backends. This backend is not in that table, so it MATCHES the numbers deliberately rather than inheriting them, and the code comment says so |
+| D-7: State `maxReplyTimeout` as `60 * time.Second` rather than import `firewall.MaxBackendDeadline` | import the firewall constant, so the two ceilings can never drift | Recorded in review round 1, which upheld the decision on a better reason than the tier argument first given. That constant's own doc says it exists so THREE firewall things agree: the nft clamp, the vpp clamp, and the last finite bucket of the apply-latency histogram (`internal/component/firewall/metrics.go`). Traffic has none of the three, so the import buys coupling to a component this plugin has no other relationship with, and buys no agreement in return. Drift is a two-line correction; a dependency is permanent |
 | D-6: Name the package in `ze-qemu-integration-test` rather than tag the tests `integration && linux` | add the `integration` tag to the new test file | The `integration` tag means the test needs kernel capabilities (`ai/rules/platform-linux.md`). This test uses a fake channel and makes no syscall, so the tag would be a false claim. The firewall package is named explicitly for exactly this reason, and the comment above `ZE_QEMU_INTEGRATION_PKGS` records it |
 
 ## Known Limitations
 
+- **FOUR more VPP backends carry the same defect and are OUT OF SCOPE here.** The
+  fourth was found during this implementation and was named by nothing before it:
+  `newVPPBackend` (`internal/component/ike/dataplane/vpp.go`) takes a channel and
+  binds no deadline, and it HOLDS that channel for the backend's lifetime rather
+  than per apply, so every SA and SPD request waits on it. It is recorded in
+  `plan/journal/guard-added-to-one-half-of-a-pair.md` and belongs with the same
+  owner decision as the three below; `plan/spec-vpp-reply-deadline-iface-fib-static.md`
+  does not reach it.
 - **Three more VPP backends carry the same defect and are OUT OF SCOPE here.**
   `grep -rn 'SetReplyTimeout' --include=*.go internal/` on 2026-08-11 returns one
   production call, the firewall one. `internal/plugins/iface/vpp` (through
@@ -393,10 +447,16 @@ any wire; it installs a client-side deadline.
   recorded in `plan/journal/guard-added-to-one-half-of-a-pair.md` and needs its own
   decision from Thomas, because those three have different callers, different locks
   and different blast radii from traffic's.
-- No functional `.ci` proves the deadline end to end. The apply tier of the traffic
-  VPP backend has no test that reaches VPP at all, and giving it one is
-  `plan/spec-finish-vpp-stub.md` AC-11. This is a limitation of the existing test
-  surface, not a reduction of this spec's coverage.
+- **No functional `.ci` proves the deadline end to end, and the enabler is written
+  in no spec.** The apply tier of the traffic VPP backend has no test that reaches
+  VPP at all. `plan/spec-finish-vpp-stub.md` AC-11 would give the apply tier a
+  test, but not THIS one: it asserts that `Apply` completes against the stub, and
+  a stub that answers cannot exercise a reply deadline. Proving this behavior end
+  to end needs a stub mode that accepts a request and never answers, plus an
+  assertion that the apply fails with a reply-timeout error inside roughly the
+  configured deadline. Neither `spec-finish-vpp-stub` nor this spec carries that
+  row. Recorded here rather than fixed because writing the stub mode is stub work;
+  what this spec owed was to stop naming an enabler that cannot deliver.
 - The env key registers inside a Linux-only file, so `ze env list` on darwin does
   not show it. The firewall knob has the same property, so this is the established
   behavior for a Linux-only backend knob rather than a new gap.

@@ -679,8 +679,11 @@ endif
 
 # Package list is DERIVED from `//go:build integration && linux` tags so a new
 # linux-only package cannot be silently omitted (ai/rules/platform-linux.md).
-# firewall/vpp is added explicitly: its fakeOps tests are linux-tagged but not
-# integration-tagged, and still need a linux GOOS to compile.
+# firewall/vpp and traffic/vpp are added explicitly, for the same reason in both
+# cases: their fake-channel and fakeOps tests are linux-tagged but not
+# integration-tagged, so the grep above does not see them, and they still need a
+# linux GOOS to compile. Both prove a govpp reply deadline is installed on the
+# channel their backend sends on, which no darwin run can execute.
 #
 # NO exclusions. internal/plugins/ldp was excluded here "because ldp runs in
 # ze-qemu-ldp-frr-test (needs FRR in the VM)", and both halves of that were
@@ -707,7 +710,7 @@ _ze-qemu-integration-test-impl:
 	@echo "Running integration tests in QEMU Linux VM (requires qemu + internet for first run)..."
 	python3 scripts/evidence/qemu-run.py \
 		--packages "nftables iproute2 iputils-ping kmod iptables" \
-		--run 'go test -tags integration -count=1 -timeout 120s $(ZE_QEMU_INTEGRATION_PKGS) ./internal/plugins/firewall/vpp/... && go test -tags "ze_core ze_installer" -count=1 -timeout 120s ./internal/install/...'
+		--run 'go test -tags integration -count=1 -timeout 120s $(ZE_QEMU_INTEGRATION_PKGS) ./internal/plugins/firewall/vpp/... ./internal/plugins/traffic/vpp/... && go test -tags "ze_core ze_installer" -count=1 -timeout 120s ./internal/install/...'
 
 # AC-7: exercise the per-test netns launch mode (Fix B) end-to-end under QEMU on a
 # real Linux kernel (macOS has no netns/nft). Cross-compiles ze/ze-stripped/ze-test,

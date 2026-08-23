@@ -1526,9 +1526,15 @@ fake that records calls and can fail on the Nth request.
 - `ops.go` defines `vppOps` (6 methods: `dumpInterfaces`, `dumpPolicers`,
   `policerAddDel`, `policerDel`, `policerDeleteByName`, `policerOutput`).
 - `backend_linux.go` exposes an internal `applyWithOps(ops, desired)` entry
-  point and a `govppOps{ch api.Channel}` production adapter; `Apply`
-  constructs a `govppOps` around the channel it opened and calls
-  `applyWithOps`.
+  point; `ops_linux.go` holds the `govppOps{ch api.Channel}` production
+  adapter. `Apply` builds one through `newGovppOps` (`timeout_linux.go`)
+  around the channel it opened and calls `applyWithOps`. The constructor
+  installs the GoVPP reply deadline before it returns, so no request goes out on
+  an unbounded channel. `ops_construction_test.go` is what keeps the constructor
+  the only builder: it parses the package's own sources and fails on a
+  `govppOps` built outside it. That scan reads the three forms that name the
+  type directly and says so in its own comment, so it is a ratchet against the
+  inline literal this replaced rather than a proof of impossibility.
 - `apply_test.go` defines `fakeOps` (records a `[]string` of labeled calls,
   supports `failOnNthAddDel` for deterministic partial-failure tests) and
   covers the create/update/undo/reconcile/orphan branches without a running
@@ -1538,7 +1544,9 @@ Use this pattern when adding a new backend whose Apply path would otherwise
 require full-stack integration tests to cover every undo / reconcile branch.
 
 <!-- source: internal/plugins/traffic/vpp/ops.go -- vppOps interface -->
-<!-- source: internal/plugins/traffic/vpp/backend_linux.go -- applyWithOps, govppOps adapter -->
+<!-- source: internal/plugins/traffic/vpp/backend_linux.go -- applyWithOps, Apply -->
+<!-- source: internal/plugins/traffic/vpp/ops_linux.go -- govppOps adapter -->
+<!-- source: internal/plugins/traffic/vpp/timeout_linux.go -- newGovppOps, the constructor Apply uses -->
 <!-- source: internal/plugins/traffic/vpp/apply_test.go -- fakeOps + Apply-path tests -->
 
 ### 7. Decode Tests (`test/decode/`)

@@ -1,5 +1,7 @@
 // Design: docs/architecture/traffic/fw-7b-backend-hardening.md -- VPP-operation seam for unit tests
-// Related: backend_linux.go -- govppOps production adapter + Apply/applyWithOps consumers
+// Related: ops_linux.go -- govppOps, the production adapter for this interface
+// Related: timeout_linux.go -- newGovppOps, the one place a govppOps is built
+// Related: backend_linux.go -- Apply / applyWithOps, the consumers
 
 //go:build linux
 
@@ -13,7 +15,8 @@ import (
 // vppOps is the narrow VPP-call surface that trafficvpp's Apply path
 // depends on. Extracted as an interface so unit tests can substitute a
 // scripted fake (`fakeOps`) without a running VPP daemon. The production
-// path uses the `govppOps` adapter in `backend_linux.go`.
+// path uses the `govppOps` adapter in `ops_linux.go`, which is built by
+// `newGovppOps` in `timeout_linux.go` so the reply deadline is always bound.
 //
 // Only six operations live here because only six are used:
 //   - dumpInterfaces: SwInterfaceDump -> name->swIfIndex map
