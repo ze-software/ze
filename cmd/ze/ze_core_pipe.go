@@ -58,6 +58,14 @@ func runPipe(args []string) int {
 	}
 
 	result := format(string(data))
+	// A chain can be refused AFTER the command's answer is in hand — an
+	// operator the answer's shape cannot support is the usual reason — and the
+	// refusal arrives as the formatted string. Printing it to stdout and
+	// exiting 0 would leave a script parsing the refusal as data.
+	if command.IsPipeError(result) {
+		fmt.Fprintln(os.Stderr, result)
+		return 1
+	}
 	os.Stdout.WriteString(result) //nolint:errcheck // CLI output
 	if result != "" && !strings.HasSuffix(result, "\n") {
 		os.Stdout.WriteString("\n") //nolint:errcheck // CLI output

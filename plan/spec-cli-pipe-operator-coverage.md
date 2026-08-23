@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | cli |
 | Depends | `plan/audit-pipe-operator-coverage.md`, `plan/audit-presentation-pipes.md`, `plan/audit-command-pipe-vs-subcommand.md` |
-| Phase | 1 of 6 (phase 1 implemented 2026-08-23) |
+| Phase | 2 of 6 (phases 1 and 2 implemented 2026-08-23) |
 | Deferral shard | `plan/deferrals/cli-pipe-operator-coverage.md` |
 | Handoff | - |
 | Updated | 2026-08-23 |
@@ -434,6 +434,35 @@ A defect found in a phase that BLOCKS that phase is fixed there. One that does
 not gets a spec and an ask, per `ai/rules/rule-precedence.md`, and its row goes
 to `plan/deferrals/cli-pipe-operator-coverage.md`.
 
+## Implementation Notes
+
+### Phase 2, as built
+
+The spec proposed that an undeclared command defaults to `doc` and is refused on
+that basis. Building it showed a better answer, and the difference matters:
+
+**The refusal is derived from the ANSWER, not from the declaration.** Every
+answer has a shape whether the command declared one or not, so the refusal is
+universal on the day it lands, rather than a property of the commands somebody
+remembered to annotate. The declaration is still built and still required, for
+two things the answer cannot do: publishing what a command supports before it
+runs (phase 6), and refusing before dispatch instead of after.
+
+Two shapes carry rows, not one. An ARRAY of objects is the obvious one. A MAP
+KEYED BY IDENTITY is the other, and `show bgp peer list` answers it, keyed by
+peer address. The old `countItems` happened to answer correctly for it by
+unwrapping a single-key map, which the audit recorded as right by accident. It
+is a real shape and it is handled deliberately now, including on the way out:
+`| first 2` over an identity-keyed answer keeps the keys, because writing an
+array back would answer two peers with their addresses gone.
+
+An answer holding SEVERAL row sets is refused, naming them, rather than picking
+one.
+
+A refusal that arrives after the command has run reaches the caller as the
+formatted string, so `command.IsPipeError` marks it and `ze pipe` exits
+non-zero. Known Limitations records the surfaces that still exit 0.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and
@@ -460,6 +489,12 @@ an operator set, a per-command shape, and a published page.
 - `| resolve` and `| origin` stay refused on `doc` and `map` until a command
   declares an address field. That is a deliberate narrowing from today's
   guess-by-parsing, and it is reversible per command by declaring.
+- A refusal that arrives AFTER the command has run reaches the caller as the
+  formatted answer string, because that is the only channel left at that point.
+  `ze pipe` reads `command.IsPipeError` and exits non-zero; the `ze cli -c` and
+  SSH exec surfaces still print it and exit 0, which phase 5 closes when it
+  settles exit codes across surfaces. A tool author reading those two surfaces
+  today must check the prefix.
 - `| log` is a TUI concept; if phase 5 finds it cannot be honored on an exec
   channel, AC-8's second branch applies and it leaves the global class rather
   than being published as global and inert.

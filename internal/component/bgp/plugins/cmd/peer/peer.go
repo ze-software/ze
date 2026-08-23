@@ -91,6 +91,7 @@ func notifDirection(recv bool) string {
 
 func init() {
 	registerColumns()
+	registerShapes()
 	registerAliases()
 
 	pluginserver.RegisterRPCs(
@@ -152,6 +153,25 @@ func registerColumns() {
 	// prefix is what resolves.
 	for _, child := range cmdBgpChildren {
 		command.RegisterColumns([]string{child})
+	}
+}
+
+// registerShapes declares what these commands' answers HOLD, which decides
+// which pipe operators they are published as supporting and which are refused.
+//
+// Both answers carry rows read against the column orders declared above, so
+// both are `tab`: `show bgp` carries its peer rows beside the aggregate keys,
+// and `show bgp peer list` carries rows keyed by peer address.
+//
+// Every branch under `show bgp` declares NONE, for the same reason it declares
+// no column order: `show bgp rpki` and its siblings answer their own shapes,
+// and inheriting `tab` from `show bgp` would publish row operators over an
+// answer that carries no rows.
+func registerShapes() {
+	command.RegisterShape([]string{cmdBgp}, command.ShapeTab)
+	command.RegisterShape([]string{cmdBgpPeerList}, command.ShapeTab)
+	for _, child := range cmdBgpChildren {
+		command.RegisterShape([]string{child})
 	}
 }
 

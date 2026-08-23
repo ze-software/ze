@@ -18,6 +18,7 @@ package command
 
 import (
 	"encoding/json"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -391,7 +392,11 @@ func ApplyPipes(output string, ops []pipeOp, meta map[string]any, columns []Colu
 			}
 			result = applyMatch(result, op.arg)
 		case pipeCount:
-			result = applyCount(result)
+			counted, msg := applyCount(result)
+			if msg != "" {
+				return "", msg
+			}
+			result = counted
 		case pipeNoMore:
 			// No-op: paging not yet implemented
 		case pipeJSON:
@@ -411,9 +416,17 @@ func ApplyPipes(output string, ops []pipeOp, meta map[string]any, columns []Colu
 		case pipeOrigin:
 			result = applyOrigin(result)
 		case pipeFirst:
-			result = applyFirst(result, op.arg)
+			taken, msg := applyFirst(result, op.arg)
+			if msg != "" {
+				return "", msg
+			}
+			result = taken
 		case pipeLast:
-			result = applyLast(result, op.arg)
+			taken, msg := applyLast(result, op.arg)
+			if msg != "" {
+				return "", msg
+			}
+			result = taken
 		case pipeDisplay:
 			result = applyDisplaySelect(result, request)
 		case pipeFill:
@@ -515,6 +528,35 @@ func ValidatePipes(ops []pipeOp) string {
 	if formatCount > 1 {
 		return multipleFormatsError
 	}
+	if msg := validateRepeats(ops); msg != "" {
+		return msg
+	}
+	return ""
+}
+
+// validateRepeats refuses a second occurrence of an operator whose catalog
+// entry says repetition has no honest answer.
+//
+// Four different things used to happen when an operator was repeated: the
+// document data path composed, the document metadata path overwrote, the folded
+// filter path appended, and the column path replaced. `display state | display
+// address` therefore WIDENED, recovering the field the first request dropped.
+// An operator that composes is checked by its own path; this refuses the ones
+// where picking a winner would be a guess, so `fill alpha | fill reverse` no
+// longer silently answers the second one alone.
+func validateRepeats(ops []pipeOp) string {
+	seen := make(map[pipeKind]int, len(ops))
+	for _, op := range ops {
+		seen[op.kind]++
+	}
+	for _, entry := range pipeCatalog {
+		if entry.Repeat != RepeatRefuse || seen[entry.Kind] < 2 {
+			continue
+		}
+		var tb textbuf.Buffer
+		return tb.Str(entry.Name).Str(" cannot be repeated in one chain: ").
+			Str("a second ").Str(entry.Name).Str(" would act on the first one's answer").String()
+	}
 	return ""
 }
 
@@ -543,40 +585,66 @@ func applyMatch(input, pattern string) string {
 // applyCount counts items and returns JSON {"count": N}.
 // If input is JSON, counts array elements or map keys
 // (unwrapping single-key wrappers). Otherwise counts non-empty lines.
-func applyCount(input string) string {
+func applyCount(input string) (string, string) {
 	if input == "" {
-		return "{\"count\":0}\n"
+		return "{\"count\":0}\n", ""
 	}
-	trimmed := strings.TrimSpace(input)
-	var data any
-	if err := json.Unmarshal([]byte(trimmed), &data); err == nil {
-		return textbuf.StrIntStr("{\"count\":", int64(countItems(data)), "}\n")
+	rows, isJSON, msg := rowsForOperator(input, "count")
+	if msg != "" {
+		return "", msg
 	}
-	// Fallback: count non-empty lines.
+	if isJSON {
+		return textbuf.StrIntStr("{\"count\":", int64(len(rows)), "}\n"), ""
+	}
+	// The answer has already been rendered by a format operator upstream, so
+	// its rows are lines and counting them is what was asked:
+	// `show bgp | text | count`.
 	n := 0
 	for line := range strings.SplitSeq(input, "\n") {
 		if line != "" {
 			n++
 		}
 	}
-	return textbuf.StrIntStr("{\"count\":", int64(n), "}\n")
+	return textbuf.StrIntStr("{\"count\":", int64(n), "}\n"), ""
 }
 
-// countItems counts the number of items in a JSON value.
-func countItems(v any) int {
-	switch val := v.(type) {
-	case []any:
-		return len(val)
-	case map[string]any:
-		// Single-key wrapper: unwrap and count the inner value.
-		if len(val) == 1 {
-			for _, inner := range val {
-				return countItems(inner)
-			}
-		}
-		return len(val)
+// rowsForOperator finds the rows a row operator acts on, and refuses by name
+// when the answer has none.
+//
+// countItems used to answer the number of top-level KEYS for an answer carrying
+// rows beside aggregates, so `show bgp | count` answered 6 and
+// `show bgp rpki | count` answered 8. Both are plausible numbers, and neither
+// is the question that was asked. truncateItems had the same hole from the
+// other side: it unwrapped a map of exactly one key and left a map of six
+// alone, so `show bgp | first 1` answered the whole payload.
+//
+// isJSON false means a format operator upstream already rendered the answer,
+// and the operator falls back to lines.
+func rowsForOperator(input, operator string) (rows []any, isJSON bool, errMsg string) {
+	var data any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err != nil {
+		return nil, false, ""
 	}
-	return 1
+	rows, _, ok := rowsIn(data)
+	if ok {
+		return rows, true, ""
+	}
+	return nil, true, rowOperatorRefusal(operator, data)
+}
+
+// rowOperatorRefusal says why a row operator cannot apply, and what to do about
+// it. An operator the answer cannot support is refused BY NAME: accepting it
+// and answering something is worse, because the answer looks plausible.
+func rowOperatorRefusal(operator string, data any) string {
+	var tb textbuf.Buffer
+	tb.Str(operator).Str(" needs rows, and this answer has none: ")
+	if keys := rowKeys(data); len(keys) > 1 {
+		sort.Strings(keys)
+		tb.Str("it holds several lists (").Str(textbuf.Join(keys, ", ")).Str("), so select one first")
+		return tb.String()
+	}
+	tb.Str("it holds one document")
+	return tb.String()
 }
 
 // isFormatOp reports whether the operator decides the shape of the answer.
@@ -615,56 +683,84 @@ func injectPipeMeta(input string, meta map[string]any) string {
 	return input
 }
 
-func applyFirst(input, arg string) string {
-	n, err := strconv.Atoi(arg)
-	if err != nil || n <= 0 {
-		return input
-	}
-	trimmed := strings.TrimSpace(input)
-	var data any
-	if err := json.Unmarshal([]byte(trimmed), &data); err != nil {
-		return applyFirstLines(input, n)
-	}
-	data = truncateItems(data, n, false)
-	out, err := json.Marshal(data)
-	if err != nil {
-		return input
-	}
-	return string(out)
+func applyFirst(input, arg string) (string, string) {
+	return applyTake(input, arg, "first", false)
 }
 
-func applyLast(input, arg string) string {
-	n, err := strconv.Atoi(arg)
-	if err != nil || n <= 0 {
-		return input
-	}
-	trimmed := strings.TrimSpace(input)
-	var data any
-	if err := json.Unmarshal([]byte(trimmed), &data); err != nil {
-		return applyLastLines(input, n)
-	}
-	data = truncateItems(data, n, true)
-	out, err := json.Marshal(data)
-	if err != nil {
-		return input
-	}
-	return string(out)
+func applyLast(input, arg string) (string, string) {
+	return applyTake(input, arg, "last", true)
 }
 
-func truncateItems(v any, n int, fromEnd bool) any {
-	switch val := v.(type) {
-	case []any:
-		return sliceN(val, n, fromEnd)
-	case map[string]any:
-		if len(val) == 1 {
-			for k, inner := range val {
-				if arr, ok := inner.([]any); ok {
-					return map[string]any{k: sliceN(arr, n, fromEnd)}
-				}
-			}
+// applyTake is `first` and `last`: both take N rows, from one end or the other.
+//
+// The rows are replaced IN PLACE, so an envelope keeps its aggregates and only
+// its row list is shortened. truncateItems returned the whole value untouched
+// for a map of more than one key, which is why `show bgp | first 1` answered
+// the entire payload.
+func applyTake(input, arg, operator string, fromEnd bool) (string, string) {
+	n, err := strconv.Atoi(arg)
+	if err != nil || n <= 0 {
+		return input, ""
+	}
+	var data any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err != nil {
+		if fromEnd {
+			return applyLastLines(input, n), ""
+		}
+		return applyFirstLines(input, n), ""
+	}
+	rows, keys, key, ok := rowsInKeyed(data)
+	if !ok {
+		return "", rowOperatorRefusal(operator, data)
+	}
+	// The rows go back in the spelling they came in. An identity-keyed answer
+	// stays keyed by identity: writing an array over it would answer the taken
+	// rows with the key that names each one gone.
+	var taken any = sliceN(rows, n, fromEnd)
+	if keys != nil {
+		kept := make(map[string]any, n)
+		for _, name := range sliceStrings(keys, n, fromEnd) {
+			kept[name] = rowByKey(data, key, name)
+		}
+		taken = kept
+	}
+	if key == "" {
+		data = taken
+	} else if envelope, isMap := data.(map[string]any); isMap {
+		envelope[key] = taken
+	}
+	out, err := json.Marshal(data)
+	if err != nil {
+		return input, ""
+	}
+	return string(out), ""
+}
+
+// sliceStrings is sliceN over the identity keys, so the keys kept are the keys
+// of the rows kept.
+func sliceStrings(keys []string, n int, fromEnd bool) []string {
+	if n >= len(keys) {
+		return keys
+	}
+	if fromEnd {
+		return keys[len(keys)-n:]
+	}
+	return keys[:n]
+}
+
+// rowByKey answers one row of an identity-keyed answer, whether the rows are
+// the whole answer or sit under a key of it.
+func rowByKey(data any, envelopeKey, rowKey string) any {
+	container := data
+	if envelopeKey != "" {
+		if envelope, isMap := data.(map[string]any); isMap {
+			container = envelope[envelopeKey]
 		}
 	}
-	return v
+	if rows, isMap := container.(map[string]any); isMap {
+		return rows[rowKey]
+	}
+	return nil
 }
 
 func sliceN(arr []any, n int, fromEnd bool) []any {
@@ -789,9 +885,23 @@ func applyYAML(input string) string {
 	return RenderYAML(data)
 }
 
+// PipeErrorPrefix marks a formatted answer that is a REFUSAL rather than data.
+//
+// A chain can fail after the command has run — an operator the answer's shape
+// cannot support is the common case — and by then the only channel back to the
+// caller is the formatted string. A caller that must not treat a refusal as
+// data reads this prefix; IsPipeError is that reading.
+const PipeErrorPrefix = "pipe error: "
+
+// IsPipeError reports whether a formatted answer is a refusal rather than data,
+// so a caller can exit non-zero instead of printing the message as an answer.
+func IsPipeError(answer string) bool {
+	return strings.HasPrefix(answer, PipeErrorPrefix)
+}
+
 func pipeError(msg string) string {
 	var tb textbuf.Buffer
-	return tb.Str("pipe error: ").Str(msg).String()
+	return tb.Str(PipeErrorPrefix).Str(msg).String()
 }
 
 // ProcessPipesChecked splits user input into a command and a formatting function,

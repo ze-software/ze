@@ -158,15 +158,99 @@ func TestApplyCount(t *testing.T) {
 		{"no trailing newline", "a\nb\nc", `{"count":3}`},
 		{"json array", `[1,2,3]`, `{"count":3}`},
 		{"json object wrapper", `{"items":[1,2]}`, `{"count":2}`},
+		// Rows beside aggregates: the rows are counted, not the keys. This
+		// answered 6 on `show bgp`, which is the number of top-level keys.
+		{"rows beside aggregates", `{"peers":[{"a":1},{"a":2}],"total":2,"up":1}`, `{"count":2}`},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := applyCount(tt.input)
+			result, msg := applyCount(tt.input)
+			if msg != "" {
+				t.Fatalf("refused: %s", msg)
+			}
 			if strings.TrimSpace(result) != tt.want {
 				t.Errorf("got %q, want %q", strings.TrimSpace(result), tt.want)
 			}
 		})
+	}
+}
+
+// TestApplyCountRefusesWhatItCannotCount holds count to refusing rather than
+// answering a plausible wrong number. Both cases shipped an answer before.
+func TestApplyCountRefusesWhatItCannotCount(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "one document has no rows",
+			input: `{"version":"ze dev","built":"unknown"}`,
+			want:  "it holds one document",
+		},
+		{
+			name:  "several lists name the candidates",
+			input: `{"peers":[{"a":1}],"routes":[{"b":2}],"total":2}`,
+			want:  "several lists (peers, routes)",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out, msg := applyCount(tt.input)
+			if msg == "" {
+				t.Fatalf("count answered %q instead of refusing", out)
+			}
+			if !strings.Contains(msg, tt.want) {
+				t.Errorf("refusal %q does not say %q", msg, tt.want)
+			}
+			if !strings.HasPrefix(msg, "count ") {
+				t.Errorf("refusal %q does not name the operator", msg)
+			}
+		})
+	}
+}
+
+// TestApplyTakeKeepsTheEnvelope proves first and last shorten the ROWS and
+// leave the aggregates beside them. `show bgp | first 1` answered the whole
+// payload, because the old truncateItems unwrapped a map of exactly one key
+// and returned a map of six untouched.
+func TestApplyTakeKeepsTheEnvelope(t *testing.T) {
+	const envelope = `{"peers":[{"n":1},{"n":2},{"n":3}],"total":3}`
+
+	got, msg := applyFirst(envelope, "2")
+	if msg != "" {
+		t.Fatalf("first refused: %s", msg)
+	}
+	rows, key, ok := rowsIn(decode(t, got))
+	if !ok || key != "peers" {
+		t.Fatalf("first lost the envelope: %s", got)
+	}
+	if len(rows) != 2 {
+		t.Errorf("first 2 kept %d rows, want 2: %s", len(rows), got)
+	}
+	if !strings.Contains(got, `"total":3`) {
+		t.Errorf("first dropped the aggregate beside the rows: %s", got)
+	}
+
+	got, msg = applyLast(envelope, "1")
+	if msg != "" {
+		t.Fatalf("last refused: %s", msg)
+	}
+	if !strings.Contains(got, `"n":3`) {
+		t.Errorf("last 1 kept the wrong row: %s", got)
+	}
+}
+
+// TestApplyTakeRefusesOneValue is the measured defect: `show version | first 1`
+// answered the version string, dropping the key the bare command prints.
+func TestApplyTakeRefusesOneValue(t *testing.T) {
+	out, msg := applyFirst(`{"version":"ze dev","built":"unknown"}`, "1")
+	if msg == "" {
+		t.Fatalf("first answered %q instead of refusing", out)
+	}
+	if !strings.HasPrefix(msg, "first ") {
+		t.Errorf("refusal %q does not name the operator", msg)
 	}
 }
 
@@ -303,22 +387,25 @@ func TestApplyJSONANSIPassthrough(t *testing.T) {
 	}
 }
 
-// VALIDATES: count of count yields 1.
-// PREVENTS: double-pipe same operator breaks chain.
+// VALIDATES: count is refused when repeated, by name.
+// PREVENTS: a chain answering a number nobody asked for.
+//
+// This test asserted `count | count` yields 1, which was the old behavior:
+// the second count unwrapped the first one's single-key answer and counted the
+// number inside it. The catalog now declares count as RepeatRefuse, because
+// counting a count has no honest answer, and the validator refuses the chain
+// before it runs (plan/spec-cli-pipe-operator-coverage.md, AC-5).
 func TestApplyPipesCountOfCount(t *testing.T) {
-	input := "a\nb\nc\n"
 	ops := []pipeOp{
 		{kind: pipeCount},
 		{kind: pipeCount},
 	}
-	result, err := ApplyPipes(input, ops, nil, nil)
-	if err != "" {
-		t.Fatalf("unexpected error: %s", err)
+	msg := ValidatePipes(ops)
+	if msg == "" {
+		t.Fatal("count | count was accepted; it must be refused")
 	}
-	// count("a\nb\nc\n") = '{"count":3}\n', count('{"count":3}') = '{"count":1}\n'.
-	// Second count: JSON parses → single-key map → unwrap → float64(3) → 1 item.
-	if strings.TrimSpace(result) != `{"count":1}` {
-		t.Errorf("count | count = %q, want %q", strings.TrimSpace(result), `{"count":1}`)
+	if !strings.HasPrefix(msg, "count cannot be repeated") {
+		t.Errorf("refusal %q does not name the operator and the reason", msg)
 	}
 }
 
@@ -1050,15 +1137,19 @@ func TestApplyFirstUnderCount(t *testing.T) {
 	}
 }
 
+// TestApplyFirstNonArray asserted that `first` passed a rowless answer through
+// unchanged. That silence is the defect: `show version | first 1` answered the
+// version string and dropped the key the bare command prints, and a caller had
+// no way to learn the operator had not applied. It is now refused by name
+// (plan/spec-cli-pipe-operator-coverage.md, AC-3).
 func TestApplyFirstNonArray(t *testing.T) {
 	input := `{"count":42}`
 	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeFirst, arg: "3"}}, nil, nil)
-	if errMsg != "" {
-		t.Fatalf("unexpected error: %s", errMsg)
+	if errMsg == "" {
+		t.Fatalf("first answered %q instead of refusing a rowless answer", result)
 	}
-	trimmed := strings.TrimSpace(result)
-	if trimmed != `{"count":42}` {
-		t.Errorf("non-array should pass through, got %q", trimmed)
+	if !strings.HasPrefix(errMsg, "first ") {
+		t.Errorf("refusal %q does not name the operator", errMsg)
 	}
 }
 
@@ -1776,4 +1867,61 @@ func TestPipeAliasArgumentRefused(t *testing.T) {
 		t.Fatal("a word after a declared alias was accepted, so the word went nowhere")
 	}
 	requireMentions(t, errMsg, "totals", "argument")
+}
+
+// TestRefusalIsDistinguishableFromData proves a caller can tell a refusal from
+// an answer. An apply-time refusal arrives as the formatted string, so without
+// this prefix a script would parse the refusal as data and exit 0.
+func TestRefusalIsDistinguishableFromData(t *testing.T) {
+	_, format, errMsg := ProcessPipesChecked("show version | count")
+	if errMsg != "" {
+		t.Fatalf("the chain was refused at validation, not at apply: %s", errMsg)
+	}
+	refusal := format(`{"version":"ze dev","built":"unknown"}`)
+	if !IsPipeError(refusal) {
+		t.Errorf("a refusal is not recognizable as one: %q", refusal)
+	}
+
+	answer := format(`{"peers":[{"a":1},{"a":2}]}`)
+	if IsPipeError(answer) {
+		t.Errorf("an answer reads as a refusal: %q", answer)
+	}
+}
+
+// TestApplyTakeKeepsIdentityKeys proves an identity-keyed answer stays keyed.
+// `show bgp peer list` answers a map keyed by peer address, so writing an array
+// back over it would answer the taken peers with their addresses gone.
+func TestApplyTakeKeepsIdentityKeys(t *testing.T) {
+	const answer = `{"peers":{"192.0.2.1":{"state":"up"},"192.0.2.2":{"state":"idle"},"192.0.2.3":{"state":"up"}}}`
+
+	got, msg := applyFirst(answer, "2")
+	if msg != "" {
+		t.Fatalf("first refused: %s", msg)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal([]byte(got), &decoded); err != nil {
+		t.Fatalf("answer does not parse: %v", err)
+	}
+	peers, isMap := decoded["peers"].(map[string]any)
+	if !isMap {
+		t.Fatalf("peers is no longer keyed by identity: %s", got)
+	}
+	if len(peers) != 2 {
+		t.Errorf("first 2 kept %d peers, want 2: %s", len(peers), got)
+	}
+	// Sorted order, so the two kept are the first two addresses.
+	if _, ok := peers["192.0.2.1"]; !ok {
+		t.Errorf("first 2 dropped the first peer: %s", got)
+	}
+	if _, ok := peers["192.0.2.3"]; ok {
+		t.Errorf("first 2 kept the third peer: %s", got)
+	}
+
+	got, msg = applyLast(answer, "1")
+	if msg != "" {
+		t.Fatalf("last refused: %s", msg)
+	}
+	if !strings.Contains(got, "192.0.2.3") {
+		t.Errorf("last 1 kept the wrong peer: %s", got)
+	}
 }
