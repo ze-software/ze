@@ -131,7 +131,7 @@ func TestPrefixExceedTeardown(t *testing.T) {
 	assert.Equal(t, byte(0), notif.Data[0]) // AFI high
 	assert.Equal(t, byte(1), notif.Data[1]) // AFI low (IPv4)
 	assert.Equal(t, byte(1), notif.Data[2]) // SAFI (unicast)
-	assert.Equal(t, byte(4), notif.Data[6]) // count = 4
+	assert.Equal(t, byte(3), notif.Data[6]) // Prefix upper bound = maximum 3
 }
 
 // TestPrefixExceedDrop verifies UPDATE is dropped when teardown=false and maximum exceeded.
@@ -216,7 +216,7 @@ func TestPrefixWithdrawBeforeAnnounce(t *testing.T) {
 
 // TestPrefixNotificationData verifies NOTIFICATION data format per RFC 4486.
 //
-// VALIDATES: Data field contains AFI(2 big-endian) + SAFI(1) + count(4 big-endian).
+// VALIDATES: Data field contains AFI(2 big-endian) + SAFI(1) + upper bound(4 big-endian).
 // PREVENTS: Wrong byte order or missing data field in NOTIFICATION.
 func TestPrefixNotificationData(t *testing.T) {
 	notif := buildPrefixNotification(ipv4UKey, 100001)
@@ -226,6 +226,33 @@ func TestPrefixNotificationData(t *testing.T) {
 	notif6 := buildPrefixNotification(ipv6UKey, 50000)
 	require.Len(t, notif6.Data, 7)
 	assert.Equal(t, []byte{0, 2, 1, 0, 0, 0xc3, 0x50}, notif6.Data)
+}
+
+// TestPrefixNotificationDataCarriesTheConfiguredUpperBound proves the four octets
+// RFC 4486 Section 4 Figure 1 labels "Prefix upper bound" hold the maximum the
+// operator configured, and not the count that crossed it.
+//
+// Method: a family whose maximum is 3 receives one UPDATE of 8 prefixes. The
+// count that crosses the bound is 8 and the bound is 3, so neither number can be
+// read as the other. A peer that received the count would take 8 for ze's limit,
+// when the limit that refused it is 3.
+//
+// RFC requirement: RFC4486-4-10 positive -- the optional Figure 1 Data field is
+// included, and its last four octets carry the upper bound.
+// Producer: buildPrefixNotification, called from reportPrefixExceeded with the
+// family's configured maximum (session_prefix.go).
+func TestPrefixNotificationDataCarriesTheConfiguredUpperBound(t *testing.T) {
+	ps := newTestPeerSettingsWithPrefix(3, 0)
+	s := NewSession(ps)
+
+	notif, drop := s.checkPrefixLimits(testWireUpdate(announceBody(t, 0, 8)))
+	require.NotNil(t, notif, "8 prefixes past a maximum of 3 must tear the session down")
+	assert.False(t, drop)
+	require.Len(t, notif.Data, 7)
+	assert.Equal(t, []byte{0, 1, 1, 0, 0, 0, 3}, notif.Data,
+		"AFI 1, SAFI 1, upper bound 3")
+	assert.Equal(t, int64(8), s.prefixCounts.counts[ipv4UKey],
+		"the count that crossed the bound is 8 and stays off the wire")
 }
 
 // TestPrefixCountClampZero verifies counter does not go negative.

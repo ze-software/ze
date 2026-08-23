@@ -1,4 +1,8 @@
 // Design: docs/architecture/core-design.md — prefix limit enforcement (RFC 4486)
+// RFC: rfc/short/rfc4271.md — Section 6.7, Cease terminates a peering for a local
+// policy limit rather than a protocol error
+// RFC: rfc/short/rfc4486.md — Section 4, the "Maximum Number of Prefixes Reached"
+// subcode, and the Data field of Figure 1 carrying AFI, SAFI and the upper bound
 // Overview: session.go — Session struct and message processing loop
 // Related: session_handlers.go — UPDATE handler calls prefix limit check
 
@@ -768,7 +772,12 @@ func (s *Session) reportPrefixExceeded(fk uint32, famName string, current int64,
 		// that family's own idle-timeout to size the reconnect delay.
 		s.prefixExceededFamily = fk
 		s.incrPrefixTeardownMetric()
-		return buildPrefixNotification(fk, uint32(current)), false //nolint:gosec // Clamped by prefix maximum (uint32)
+		// RFC 4486 Section 4, Figure 1: the last four octets of the Data field
+		// are the "Prefix upper bound". They carry the configured maximum.
+		// The count that crossed it is a different number. It goes to the log
+		// line above. It MUST NOT go on the wire, because a peer reads that
+		// field as ze's limit.
+		return buildPrefixNotification(fk, maximum), false
 	}
 	// AC-27: teardown=false. Return drop=true to skip plugin delivery.
 	// NLRIs beyond maximum are not installed in RIB or forwarded.
@@ -825,9 +834,12 @@ func (s *Session) prefixTeardownCause() error {
 	return &prefixLimitError{Family: familyString(s.prefixExceededFamily)}
 }
 
-// buildPrefixNotification builds a Cease/MaxPrefixes NOTIFICATION.
-// RFC 4486 Section 4: Data = AFI (2 bytes) + SAFI (1 byte) + count (4 bytes).
-func buildPrefixNotification(fk, count uint32) *message.Notification {
+// buildPrefixNotification builds a Cease/MaxPrefixes NOTIFICATION for one family.
+//
+// RFC 4486 Section 4, Figure 1: Data = AFI (2 octets) + SAFI (1 octet) + Prefix
+// upper bound (4 octets). upperBound is the maximum the operator configured for
+// this family, never the count that crossed it.
+func buildPrefixNotification(fk, upperBound uint32) *message.Notification {
 	afi := uint16(fk >> 16)
 	safi := uint8((fk >> 8) & 0xFF)
 	notif := &message.Notification{
@@ -838,10 +850,10 @@ func buildPrefixNotification(fk, count uint32) *message.Notification {
 	data[0] = byte(afi >> 8)
 	data[1] = byte(afi)
 	data[2] = safi
-	data[3] = byte(count >> 24)
-	data[4] = byte(count >> 16)
-	data[5] = byte(count >> 8)
-	data[6] = byte(count)
+	data[3] = byte(upperBound >> 24)
+	data[4] = byte(upperBound >> 16)
+	data[5] = byte(upperBound >> 8)
+	data[6] = byte(upperBound)
 	notif.Data = data
 	return notif
 }

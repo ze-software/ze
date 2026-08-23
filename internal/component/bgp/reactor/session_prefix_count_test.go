@@ -390,26 +390,40 @@ func TestPrefixCountInstalledRefusalByAnotherFamilyRestoresAWithdrawal(t *testin
 // go, so a peer that could make ze-build insert a whole message before ze threw it
 // away would leave that memory behind on every try.
 //
-// The bound is not observable from the set afterwards -- the rollback empties it
-// either way -- so the family tears down and the assertion reads the count out
-// of the NOTIFICATION. RFC 4486 Section 4 puts a 4-octet number in the Data
-// field, and ze fills it with the count that crossed the maximum. With the bound
-// that is maximum+1; without it, the whole message's 40.
+// The bound is not observable through checkPrefixLimits: the rollback empties the
+// set either way, and the NOTIFICATION carries the configured upper bound rather
+// than any count (RFC 4486 Section 4 Figure 1), so neither observable tells
+// maximum+1 from 40. The second half therefore reads the set that
+// applyInstalledPrefixSection leaves behind, which is where the bound is decided.
 func TestPrefixCountInstalledStopsGrowingAtTheMaximum(t *testing.T) {
-	ps := newTestPeerSettingsWithPrefix(testCountMaximum, 0)
-	ps.PrefixTeardown = map[string]bool{"ipv4/unicast": true}
-	ps.PrefixCount = map[string]PrefixCountMode{"ipv4/unicast": PrefixCountInstalled}
-	s := NewSession(ps)
+	newInstalledSession := func() *Session {
+		ps := newTestPeerSettingsWithPrefix(testCountMaximum, 0)
+		ps.PrefixTeardown = map[string]bool{"ipv4/unicast": true}
+		ps.PrefixCount = map[string]PrefixCountMode{"ipv4/unicast": PrefixCountInstalled}
+		return NewSession(ps)
+	}
 
-	// One message announcing 40 prefixes into a family whose maximum is 2.
+	// One message announcing 40 prefixes into a family whose maximum is 2. The whole
+	// message is refused and leaves nothing behind.
+	s := newInstalledSession()
 	notif, drop := s.checkPrefixLimits(testWireUpdate(announceBody(t, 0, 40)))
 	require.NotNil(t, notif)
 	require.False(t, drop)
-
-	// AFI 1, SAFI 1, count 3: the family stopped taking prefixes at maximum+1.
-	assert.Equal(t, []byte{0, 1, 1, 0, 0, 0, 3}, notif.Data)
 	assert.Equal(t, int64(0), s.prefixCounts.counts[ipv4UKey])
 	assert.Empty(t, s.prefixCounts.sets[ipv4UKey], "the refused message left nothing")
+
+	// The same message against the producer of the bound, on a fresh session so no
+	// rollback has run. With the bound the set holds maximum+1; without it, all 40.
+	s = newInstalledSession()
+	var buf [maxPrefixSections]prefixSection
+	sections := buf[:s.collectPrefixSections(testWireUpdate(announceBody(t, 0, 40)), &buf)]
+	require.Len(t, sections, 1)
+
+	maximum, over := s.applyInstalledPrefixSection(sections[0], true)
+	require.True(t, over, "40 prefixes must cross a maximum of 2")
+	assert.Equal(t, uint32(testCountMaximum), maximum)
+	assert.Len(t, s.prefixCounts.sets[ipv4UKey], testCountMaximum+1,
+		"the family stopped taking prefixes at maximum+1")
 }
 
 // TestPrefixCountInstalledWithdrawOfDeliveredPrefixFreesASlot is the other half
@@ -514,8 +528,8 @@ func TestPrefixCountInstalledReplacementUpdateIsNotAnOverflow(t *testing.T) {
 // the arithmetic and never the enforcement. A family that asks for the installed
 // count and keeps `teardown true` still sends the Cease.
 //
-// RFC 4486 Section 4: the Data field carries the count that crossed the bound,
-// which is the number the family's own mode governs.
+// RFC 4486 Section 4 Figure 1: the Data field carries the configured upper bound,
+// which is the same number whichever mode the family counts with.
 func TestPrefixCountInstalledTeardownStillStopsTheSession(t *testing.T) {
 	ps := newTestPeerSettingsWithPrefix(2, 0)
 	ps.PrefixTeardown = map[string]bool{"ipv4/unicast": true}
@@ -527,8 +541,8 @@ func TestPrefixCountInstalledTeardownStillStopsTheSession(t *testing.T) {
 	require.NotNil(t, notif, "teardown true must still send the NOTIFICATION")
 	assert.False(t, drop)
 	assert.Equal(t, "ipv4/unicast", familyString(s.prefixExceededFamily))
-	// Data: AFI 1, SAFI 1, count 3 -- the count the UPDATE would have reached.
-	assert.Equal(t, []byte{0, 1, 1, 0, 0, 0, 3}, notif.Data)
+	// Data: AFI 1, SAFI 1, upper bound 2 -- the maximum the family configured.
+	assert.Equal(t, []byte{0, 1, 1, 0, 0, 0, 2}, notif.Data)
 }
 
 // TestPrefixCountInstalledNeedsNoLimitToCount proves a family with the mode set
