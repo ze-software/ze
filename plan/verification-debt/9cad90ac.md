@@ -17,4 +17,4 @@ is open.
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
 | 2026-08-20 | 9cad90ac | fix(journal): a Spec cell names spec stems, never prose | ze-precommit-verify (not FRESH-green) | owner said commit it; the changed scripts own suites are green | open |
-| 2026-08-20 | 9cad90ac | fix(journal): a Spec cell names spec stems, never prose | ze-precommit-verify structural gates (red) | owner said commit it; the reds are another session uncommitted Go lint under scripts/evidence/l2tp-diag, this commit is python and markdown only | open |
+| 2026-08-20 | 9cad90ac | fix(journal): a Spec cell names spec stems, never prose | ze-precommit-verify structural gates (red) | owner said commit it; the reds are another session uncommitted Go lint under scripts/evidence/l2tp-diag, this commit is python and markdown only | cleared |
