@@ -824,7 +824,10 @@ func (su *SelfUpdater) checkDiskSpace(binarySize int64) error {
 	if err := syscall.Statfs(dir, &stat); err != nil {
 		return nil //nolint:nilerr // skip check if statfs fails (unsupported FS)
 	}
-	available := int64(stat.Bavail) * int64(stat.Bsize) //nolint:gosec // product bounded by filesystem capacity
+	// int64(stat.Bsize) is NOT redundant: Statfs_t.Bsize is int32 on 32-bit
+	// linux (arm, 386) and int64 on 64-bit, and Ze ships on ARM appliances.
+	// unconvert reports it redundant because it only ever sees the host GOARCH.
+	available := int64(stat.Bavail) * int64(stat.Bsize) //nolint:gosec,unconvert // product bounded by filesystem capacity; the conversion is load-bearing on 32-bit
 	needed := binarySize * 2
 	if available < needed {
 		return fmt.Errorf("insufficient disk space: need %d bytes, have %d", needed, available)
