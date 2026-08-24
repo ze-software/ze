@@ -301,7 +301,6 @@ plan/deferrals/fixit-dead-design-pointers-in-tests.md	plan/spec-problem-journal.
 plan/deferrals/fixit-learned-1366-has-no-files-section.md	plan/.learned-staleness-baseline
 plan/deferrals/fixit-learned-1366-has-no-files-section.md	scripts/dev/learned_staleness.py
 plan/deferrals/fixit-private-asn-leak.md	plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md
-plan/deferrals/fixit-stored-route-relay-hardening.md	ai/rules/no-partial-completion.md
 plan/deferrals/fixit-unexport-package-private-symbols.md	plan/spec-problem-journal.md
 plan/deferrals/improve-7-yang-handler-gate.md	plan/spec-improve-7-yang-handler-gate-deferred-strict-unknown-key.md
 plan/deferrals/ipsec-dataplane-inspection.md	test/ipsec/ipsec-show-dataplane-kernel.ci
@@ -571,7 +570,6 @@ plan/spec-fixit-redistribute-establishment-stall.md	plan/deferrals.md
 plan/spec-fixit-redistribute-establishment-stall.md	plan/known-failures.md
 plan/spec-fixit-redistribute-establishment-stall.md	plan/spec-redistribute-late-join-replay.md
 plan/spec-fixit-redistribute-establishment-stall.md	test/encoding
-plan/spec-fixit-stored-route-relay-hardening.md	ai/rules/no-partial-completion.md
 plan/spec-fixit-vpp-lcp-reachability.md	api/api.go
 plan/spec-fixit-vpp-lcp-reachability.md	internal/component/bgp/wire
 plan/spec-fixit-vpp-lcp-reachability.md	internal/core/netns
