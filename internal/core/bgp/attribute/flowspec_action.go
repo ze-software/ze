@@ -25,7 +25,8 @@ var flowSpecActionKeywords = map[string]ExtendedCommunity{
 	// RFC 5575bis: copy and redirect to next-hop. Same type/subtype, value 1 --
 	// the low bit is the copy semantic, which is why these two differ by one byte.
 	"copy-to-nexthop": {0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
-	// RFC 8955 Section 7.3: traffic-rate 0 means discard. Type 0x80, subtype 0x06.
+	// RFC 8955 Section 7.1: traffic-rate 0 means discard. Type 0x80, subtype 0x06.
+	// Section 7.3 is traffic-action, which this keyword does not encode.
 	"discard": {0x80, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 }
 
