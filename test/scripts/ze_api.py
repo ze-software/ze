@@ -184,7 +184,9 @@ def _cut_id(line: str) -> tuple[int, str]:
     if not digits.isdigit():
         raise RuntimeError(f"line states an id that is not decimal: {line[:80]}")
     if len(digits) > 20:
-        raise RuntimeError(f"id states {len(digits)} digits, past the 20 a uint64 occupies")
+        raise RuntimeError(
+            f"id states {len(digits)} digits, past the 20 a uint64 occupies"
+        )
     return int(digits), line[end + 1 :]
 
 
@@ -268,7 +270,9 @@ def _counted_text_state(data: bytes) -> int:
     colon that closes them, so anything shorter than that may still be completed
     by the next read (countedTextState, pkg/plugin/rpc/message.go).
     """
-    return _ANSWER_LINE_PARTIAL if len(data) <= _UINT64_DIGITS_MAX else _ANSWER_LINE_OTHER
+    return (
+        _ANSWER_LINE_PARTIAL if len(data) <= _UINT64_DIGITS_MAX else _ANSWER_LINE_OTHER
+    )
 
 
 def _answer_line_width(data: bytes) -> tuple[int, int]:
@@ -333,7 +337,7 @@ def _cut_frame(buf: bytes) -> tuple[bytes, bytes] | None:
         if buf[width : width + 1] != b"\n":
             raise RuntimeError(
                 f"answer line of {width} bytes is terminated by "
-                f"{buf[width:width + 1]!r}, want exactly one newline"
+                f"{buf[width : width + 1]!r}, want exactly one newline"
             )
         return buf[:width], buf[width + 1 :]
 
@@ -496,7 +500,9 @@ def _answer_head_fields(tail: str) -> tuple[str, str, list | None]:
     rest = _cut_field_separator(rest)
     columns, rest = _cut_counted_text(rest)
     if rest:
-        raise RuntimeError(f"answer head carries bytes past its last field: {rest[:40]}")
+        raise RuntimeError(
+            f"answer head carries bytes past its last field: {rest[:40]}"
+        )
     return item_type, key, (json.loads(columns) if columns else None)
 
 
@@ -508,7 +514,9 @@ def _answer_terminator_fields(tail: str) -> tuple[int, int, str]:
     rest = _cut_field_separator(rest)
     message, rest = _cut_counted_text(rest)
     if rest:
-        raise RuntimeError(f"answer terminator carries bytes past its last field: {rest[:40]}")
+        raise RuntimeError(
+            f"answer terminator carries bytes past its last field: {rest[:40]}"
+        )
     return count, faults, message
 
 
@@ -518,7 +526,9 @@ def _answer_not_understood_fields(tail: str) -> tuple[str, str]:
     rest = _cut_field_separator(rest)
     message, rest = _cut_counted_text(rest)
     if rest:
-        raise RuntimeError(f"answer nay line carries bytes past its last field: {rest[:40]}")
+        raise RuntimeError(
+            f"answer nay line carries bytes past its last field: {rest[:40]}"
+        )
     return code, message
 
 
@@ -533,7 +543,9 @@ def answer_record_payload(tail: str) -> str:
     """
     payload, rest = _cut_counted_text(tail)
     if rest:
-        raise RuntimeError(f"answer record line carries bytes past its payload: {rest[:40]!r}")
+        raise RuntimeError(
+            f"answer record line carries bytes past its payload: {rest[:40]!r}"
+        )
     return payload
 
 
@@ -547,7 +559,9 @@ def _answer_payload(kind: str, tail: str) -> Any:
     try:
         return json.loads(payload)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(f"answer {kind} line carries no JSON payload: {payload[:120]!r}") from exc
+        raise RuntimeError(
+            f"answer {kind} line carries no JSON payload: {payload[:120]!r}"
+        ) from exc
 
 
 def _collapse_answer(lines: list[tuple[str, str]]) -> dict:
@@ -784,12 +798,25 @@ class API:
     def _parse_line(self, line: str) -> tuple[int, str, dict | None]:
         """Parse #<id> <verb> [<json-payload>] from a raw line.
 
+        Names the verb and the bytes when the payload is not JSON, for the
+        reason ``_answer_payload`` gives: a bare ``json.loads`` reports only
+        that column 1 held no value, which says nothing about the line it came
+        from, and this reader is the one that meets an unexpected line first.
+
         Returns:
             Tuple of (request_id, verb, payload_dict_or_None)
         """
         req_id, body = _cut_id(line)
         verb, _, payload_str = body.partition(" ")
-        payload = json.loads(payload_str) if payload_str else None
+        if not payload_str:
+            return req_id, verb, None
+        try:
+            payload = json.loads(payload_str)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                f"wire line #{req_id} {verb!r} carries no JSON payload: "
+                f"{payload_str[:200]!r}"
+            ) from exc
         return req_id, verb, payload
 
     def _send_rpc(
@@ -909,7 +936,11 @@ class API:
 
             if records:
                 resp_id, kind, tail = _split_wire_line(line)
-                if self._tls_mode and kind not in _ANSWER_KINDS and kind not in ("ok", "error"):
+                if (
+                    self._tls_mode
+                    and kind not in _ANSWER_KINDS
+                    and kind not in ("ok", "error")
+                ):
                     self._pending_requests.append(self._parse_line(line))
                     continue
                 if kind == _ANSWER_KIND_NOT_UNDERSTOOD:
@@ -1864,6 +1895,22 @@ class API:
                 )
             if raw is None:
                 return None
+
+            # An answer line is not an engine-initiated request, and this reader
+            # asked for no answer. It is the tail of one nobody read: the only
+            # sender that leaves one is shutdown_fire_and_forget, which writes a
+            # dispatch-command and never reads its head, its records or its
+            # terminator. Skip the whole sequence line by line.
+            #
+            # The two readers that DO expect an answer classify it the same way
+            # first (_call_engine and _read_answer_lines). This one did not, so a
+            # head reached _parse_line as if `top` were a verb and `doc 0: 0:`
+            # were its JSON payload, which is not JSON at column 1. Before record
+            # answers that same leftover was one line, `#<id> ok {...}`, and it
+            # fell through to the respond-OK branch below rather than raising.
+            _, kind, _tail = _split_wire_line(raw)
+            if kind in _ANSWER_KINDS:
+                continue
 
             req_id, method, params = self._parse_line(raw)
 
@@ -3157,7 +3204,11 @@ def _emit_sentinel_if_unwinding() -> None:
     # ze rather than run under a debugger, so there is no second chance to ask.
     # A standard-library frame is skipped: json.loads raising inside decoder.py
     # names the decoder, never the line that called it.
-    frames = [f for f in traceback.extract_tb(sys.exc_info()[2]) if "/lib/python" not in f.filename]
+    frames = [
+        f
+        for f in traceback.extract_tb(sys.exc_info()[2])
+        if "/lib/python" not in f.filename
+    ]
     if frames:
         last = frames[-1]
         detail += f" at {os.path.basename(last.filename)}:{last.lineno} in {last.name}"
