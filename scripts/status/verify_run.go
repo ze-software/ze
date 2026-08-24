@@ -81,7 +81,7 @@ const (
 
 	// runDirPrefix names a per-run artifact directory under stageLogDir. It is
 	// also the selector pruneRunDirs uses, so nothing else living in
-	// tmp/verify -- mk/alloc-gate.mk writes alloc-gate-bench.txt there -- can
+	// tmp/verify -- mk/test-alloc.mk writes alloc-gate-bench.txt there -- can
 	// be mistaken for a run.
 	runDirPrefix = "run-"
 

@@ -277,7 +277,7 @@ Binaries fall into two families, and the distinction is load-bearing:
   `GOOS=linux GOARCH=<arch> CGO_ENABLED=0`: `cmd/ze-installer` (the busybox-free
   installer initrd's PID 1, build tag `ze_installer`, packed into the initrd as
   `/init`; standalone cross-builds land at `bin/ze-installer-<arch>` per
-  `mk/appliance.mk`), `cmd/ze-serial-shell` (appliance serial console), and `cmd/ze`
+  `mk/build-appliance.mk`), `cmd/ze-serial-shell` (appliance serial console), and `cmd/ze`
   itself when gokrazy packs it into the image.
 
 Rule: NEVER cross-compile a host binary. A target-arch `ze-host` cannot exec on the

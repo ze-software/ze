@@ -21,7 +21,7 @@ already fixed in the tree looks like a fresh reproduction.
 `_bin_from_env` already documents that exact incident: the tool once hardcoded
 `bin/ze`, and the repair made it honour `ZE_BIN` / `ZE_TEST_BIN`. The FALLBACK
 was left at `bin/ze`, and in this repository that path is stale by
-construction, because `mk/session.mk` builds every canonical binary into a
+construction, because `mk/helper-session.mk` builds every canonical binary into a
 per-session directory and the functional make targets run against an isolated
 pair under `tmp/`. So the trap the repair described is still reachable by the
 one route people take: invoking the tool without exporting the variables.
@@ -43,7 +43,7 @@ any answer at all.
 | AC-2 | The refusal states WHICH binary is stale and by how much, so the reader is not left comparing timestamps by hand |
 | AC-3 | A run whose binaries are current is unaffected: no new output, no new failure mode |
 | AC-4 | The check is driven from the tool's entry point in a test, not from the helper alone (`ai/rules/evidence.md`) |
-| AC-5 | The fallback path is reconsidered: either default to the session directory that `mk/session.mk` owns, or refuse to guess and require the variables |
+| AC-5 | The fallback path is reconsidered: either default to the session directory that `mk/helper-session.mk` owns, or refuse to guess and require the variables |
 
 ## Notes
 

@@ -475,7 +475,7 @@ before citing it:
 
 **Anything that downloads into `gokrazy/modcache/` MUST carry `-modcacherw` (`GOFLAGS=-modcacherw`):** go's default read-only cache permissions (dirs `r-x`) make git unable to delete or overwrite modcache files on later checkouts and rebases (a `git pull --rebase` across the 2026-07 init bump wedged exactly this way).
 
-`make ze-gokrazy-deps-download` (`mk/gokrazy.mk`), `ze appliance build`
+`make ze-gokrazy-deps-download` (`mk/build-gokrazy.mk`), `ze appliance build`
 (`ensureModcacheRW`, `internal/appliance/cmd_build.go`), and `ze-gok`
 (`cmd/ze-gok/main.go`) all set it; keep the flag when running `go mod download` by
 hand. A cache written before the flag existed needs a one-time
@@ -488,7 +488,7 @@ Two kinds of growth are expected, one is a defect.
 
 **Expected.** Superseded versions after a pin bump (runbook step 5 tells you to
 `rm -rf` the old dir; you MUST do it, or every bump leaves 15-50 MB behind), and the breadth
-of `go mod download all` (`mk/gokrazy.mk`), which is the whole module graph
+of `go mod download all` (`mk/build-gokrazy.mk`), which is the whole module graph
 including test-only deps and their fixtures: `pierrec/lz4` is 75 MB of `testdata/`,
 `klauspost/compress` 46 MB. A second Go toolchain also lands here
 (`golang.org/toolchain@...`, ~310 MB with its zip) whenever a builddir `go`

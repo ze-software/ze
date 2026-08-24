@@ -33,7 +33,7 @@ A share of the repository hands the guest a symlink as a symlink. So when
 link's target and mounts it at the path the link names. Without it
 `/workspace/tmp` dangles in the guest, and every path below it fails to
 resolve: the session's own binaries (`tmp/session/<YYYY-MM-DD>-<id>/bin/ze`,
-`mk/session.mk`) most of all. `scratch_share` decides this and
+`mk/helper-session.mk`) most of all. `scratch_share` decides this and
 `qemu-run.py --selftest` covers both layouts.
 
 ```

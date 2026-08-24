@@ -1,9 +1,9 @@
 // Design: docs/functional-tests.md -- alloc-ceiling gate (ze-alloc-check stage)
 //
 // The gate parses `go test -benchmem` output for the hot-path ReportAllocs
-// benchmarks of every package in ALLOC_GATE_PACKAGES (mk/alloc-gate.mk: the
+// benchmarks of every package in ALLOC_GATE_PACKAGES (mk/test-alloc.mk: the
 // reactor tree and the plugin command-answer path) and asserts a per-benchmark
-// allocs/op ceiling. mk/alloc-gate.mk drives it as a ze-precommit-verify stage.
+// allocs/op ceiling. mk/test-alloc.mk drives it as a ze-precommit-verify stage.
 // allocs/op is machine-independent, so an integer ceiling is a stable
 // regression signal without a stored baseline host.
 package perf
@@ -22,7 +22,7 @@ import (
 // go test appends) to the maximum allocs/op the gate tolerates.
 //
 // Registration over hardcoding: a new hot-path benchmark opts into the gate by
-// adding ONE entry here, not by editing gate logic or mk/alloc-gate.mk (which
+// adding ONE entry here, not by editing gate logic or mk/test-alloc.mk (which
 // runs every reactor benchmark and lets the checker enforce only registered
 // names). Ceilings are seeded from a measured `-benchmem` run plus small
 // headroom (spec-fixit-perf-alloc-ci-gate, R-1); each entry records its
@@ -39,7 +39,7 @@ var AllocCeilings = map[string]int{
 	// checkPrefixLimits per-UPDATE, `count installed` family re-announcing an
 	// unchanged table. Measured 0: the steady state looks up the prefix set and
 	// inserts nothing. The set's four warm-up inserts amortize to zero only
-	// because ALLOC_GATE_BENCHTIME is 300x (mk/alloc-gate.mk); a shorter
+	// because ALLOC_GATE_BENCHTIME is 300x (mk/test-alloc.mk); a shorter
 	// benchtime turns this red, which is the direction that fails closed.
 	"BenchmarkCheckPrefixLimitsInstalled": 0,
 	// checkPrefixLimits per-UPDATE, `count installed` family under churn. The

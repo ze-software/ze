@@ -673,7 +673,7 @@ func TestOldRunDirectoriesArePruned(t *testing.T) {
 			t.Fatalf("create stale run dir: %v", err)
 		}
 	}
-	// mk/alloc-gate.mk writes this beside the run directories; pruning must not
+	// mk/test-alloc.mk writes this beside the run directories; pruning must not
 	// see it as a run.
 	keep := filepath.Join(runs, "alloc-gate-bench.txt")
 	if err := os.WriteFile(keep, []byte("bench\n"), 0o600); err != nil {

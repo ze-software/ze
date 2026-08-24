@@ -12,10 +12,10 @@ import (
 
 const (
 	// defaultPXEDir is the consolidated build-output root for PXE artifacts.
-	// `make ze-pxe-build` (mk/appliance.mk PXE_DIR) stages the kernel, initrd, and
+	// `make ze-pxe-build` (mk/build-appliance.mk PXE_DIR) stages the kernel, initrd, and
 	// iPXE binaries here, and provision serves boot files from <pxe-dir>/boot
 	// and TFTP from <pxe-dir>/tftp. Keep the three literals in sync with
-	// PXE_DIR in mk/appliance.mk; --pxe-dir overrides the root (e.g.
+	// PXE_DIR in mk/build-appliance.mk; --pxe-dir overrides the root (e.g.
 	// /var/lib/ze/install for a system install outside the repo checkout).
 	defaultPXEDir  = "build/pxe"
 	defaultTFTPDir = "build/pxe/tftp"

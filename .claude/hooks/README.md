@@ -218,7 +218,7 @@ carrying this id, whatever its date, and name a new one with today's date only
 on a miss, so a live session's directory does not move at midnight. The shell
 definition is `.claude/hooks/lib/session-dir.sh` (`_session_dir`), used by
 `lib/state-file.sh` and by `scripts/dev/session-scratch.sh`.
-`pretool-writeedit.py` (`session_dir()`), `mk/session.mk` and
+`pretool-writeedit.py` (`session_dir()`), `mk/helper-session.mk` and
 `internal/test/sessionpath` implement the same rule for their own callers, and
 `TestMakeAndGoAgreeOnBinDir` (`scripts/dev/session_bin_dir_test.py`) is what
 stops the copies drifting. Nothing under `tmp/session/` is ever removed

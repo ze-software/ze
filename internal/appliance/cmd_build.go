@@ -57,7 +57,7 @@ func e2fsSearchDirs() []string {
 	for _, prefix := range brewPrefixes() {
 		dirs = append(dirs, filepath.Join(prefix, "sbin"))
 	}
-	// /usr/local/sbin is in the tail because mk/gokrazy.mk searches it for the
+	// /usr/local/sbin is in the tail because mk/build-gokrazy.mk searches it for the
 	// same two tools, and leaving it out here let `make ze-gokrazy-build` and `ze
 	// appliance build` pick different mkfs.ext4 binaries on one host.
 	//

@@ -3,7 +3,7 @@
 
 mk/test-integration.mk cross-compiles the in-VM binaries as $(ZE_QEMU_BIN) /
 $(ZE_QEMU_STRIPPED_BIN) / $(ZE_QEMU_TEST_BIN). Those paths sit in this session's
-own directory under an AI session ($(ZE_BIN_DIR), mk/session.mk), so the literal
+own directory under an AI session ($(ZE_BIN_DIR), mk/helper-session.mk), so the literal
 `bin/ze-test-linux-<arch>` is NOT the built path in general.
 
 scripts/evidence/netns_qemu.py used to rebuild that literal itself and exec it.

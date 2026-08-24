@@ -38,7 +38,7 @@ a node contributed only by `internal/test/plugins/fakeddos/yang/ze-fakeddos-conf
 `parse config: line 5: unknown field in ddos: fake`, the driver's readiness poll
 burns its full 10s budget, and the runner reports a 15.1s TEST failure.
 
-~~**Defect 2 — it cannot run on-session at all.** `mk/session.mk` makes the
+~~**Defect 2 — it cannot run on-session at all.** `mk/helper-session.mk` makes the
 built binary `bin/ze-<session-id>`, but the runner resolves the DUT by BARE name
 through `sessionpath.FindPrebuiltDir` (`internal/test/sessionpath/sessionpath.go`),
 which probes only `tmp/s/<id>/bin` and `bin` for a file literally called `ze`.
@@ -47,7 +47,7 @@ fails immediately with
 `ZE_TEST_NO_BUILD set but .../bin/ze is missing (cross-compile it first)`.~~
 
 **Defect 2 is STALE. Corrected 2026-08-14 from the producers, not inferred.**
-The session layout it describes was replaced. `mk/session.mk` now sets
+The session layout it describes was replaced. `mk/helper-session.mk` now sets
 `ZE_BIN_DIR` to `$(ZE_SCRATCH_DIR)/bin` on-session and to `bin` off-session,
 and every binary under it carries a BARE name: `ZEBIN_ZE := $(ZE_BIN_DIR)/ze`.
 `sessionpath.FindPrebuiltDir` (`internal/test/sessionpath/sessionpath.go`)

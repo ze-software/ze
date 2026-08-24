@@ -256,7 +256,7 @@ only for status 1. It emits its complete context as JSON
 or state. For a restricted subagent Bash call, `pretool-bash.py` prefixes the
 command with the accepted parent id from the PreToolUse payload.
 
-The hook MUST NOT persist `$ZE_SESSION_ID`. `mk/session.mk` derives it. Unsafe
+The hook MUST NOT persist `$ZE_SESSION_ID`. `mk/helper-session.mk` derives it. Unsafe
 ids are rejected rather than rewritten. The validator rejects dot entries.
 `make ze-unit-hook-test` (section `session-id`) locks this behavior.
 

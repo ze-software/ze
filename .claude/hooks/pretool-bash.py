@@ -132,7 +132,7 @@ def check_root_build(cmd, _ctx):
     if re.search(r"-o\s+bin/", cmd):
         return None
     # This session's own bin/, tmp/session/<YYYY-MM-DD>-<session-id>/bin/
-    # (mk/session.mk, internal/test/sessionpath). Same intent as bin/: a real
+    # (mk/helper-session.mk, internal/test/sessionpath). Same intent as bin/: a real
     # binary directory, not the repo root, and one the operator can identify by
     # date. The trailing bin/ is required, because ze derives its config/DB dir
     # from a parent dir named bin (internal/core/paths/paths.go).
@@ -167,7 +167,7 @@ EXPENSIVE_COMMAND = re.compile(
     r"ze-test|"
     r"(\./)?bin/ze[\w-]*|"
     # The same binaries in this session's own directory,
-    # tmp/session/<YYYY-MM-DD>-<session-id>/bin/ze* (mk/session.mk ZE_BIN_DIR,
+    # tmp/session/<YYYY-MM-DD>-<session-id>/bin/ze* (mk/helper-session.mk ZE_BIN_DIR,
     # internal/test/sessionpath). `make ze-session-binary-path` prints a path relative to the
     # checkout, and an agent told to use absolute paths passes the whole thing,
     # so both spellings reach this check and both name the same producer.
@@ -334,7 +334,7 @@ GOLANGCI_CHEAP_SUBCOMMANDS = {
     "completion",
 }
 # The functional runner, in the three places it is built: `bin/`, this session's
-# own directory (mk/session.mk ZE_BIN_DIR), or on PATH. The arch suffix is the
+# own directory (mk/helper-session.mk ZE_BIN_DIR), or on PATH. The arch suffix is the
 # QEMU pair's spelling (`bin/ze-test-linux-arm64`). `bin/ze` is NOT here: only
 # the suite runner is a heavy job.
 ZE_TEST_BINARY = re.compile(

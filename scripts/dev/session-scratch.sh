@@ -10,7 +10,7 @@
 # Every session owns one directory, tmp/session/<YYYY-MM-DD>-<session-id>/, and
 # everything that session writes lands in a subdirectory of it:
 #
-#   bin/      this session's binaries, and the etc/ze they resolve (mk/session.mk,
+#   bin/      this session's binaries, and the etc/ze they resolve (mk/helper-session.mk,
 #             internal/test/sessionpath)
 #   scratch/  ad-hoc logs, probes, captures -- what this helper prints
 #   state/    the per-spec digest session-state-<stem>-<sid>.md
@@ -28,7 +28,7 @@
 #
 # THE DIRECTORY IS LOOKED UP, NEVER RECOMPUTED, and the rule lives in ONE shell
 # file, .claude/hooks/lib/session-dir.sh (_session_dir), which this helper and
-# the hooks' state-file.sh both source. make (mk/session.mk) and Go
+# the hooks' state-file.sh both source. make (mk/helper-session.mk) and Go
 # (internal/test/sessionpath) implement the same rule for their own callers, and
 # TestMakeAndGoAgreeOnBinDir (scripts/dev/session_bin_dir_test.py) is what stops
 # the three drifting.

@@ -51,7 +51,7 @@ from pathlib import Path
 # convergence path the same config drives.
 #
 # Extend it when a new data-plane package joins the measured path; the
-# alloc-gate benchmarks (mk/alloc-gate.mk) are the narrower, enforced companion.
+# alloc-gate benchmarks (mk/test-alloc.mk) are the narrower, enforced companion.
 HOT_PATH_PREFIXES = (
     "internal/component/bgp/reactor/",
     "internal/component/bgp/wireu/",

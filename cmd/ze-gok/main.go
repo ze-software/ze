@@ -174,7 +174,7 @@ func main() {
 	// resolve over the network to a NEWER version than the pins choose -- the exact
 	// ship-a-different-kernel failure the prepared instance exists to prevent. off
 	// turns that into a loud "module lookup disabled" error, enforcing the offline
-	// build contract (mk/gokrazy.mk header). Explicit GOPROXY wins, so
+	// build contract (mk/build-gokrazy.mk header). Explicit GOPROXY wins, so
 	// ze-gokrazy-deps-download (a separate target that needs the network) is unaffected.
 	if os.Getenv("GOPROXY") == "" {
 		if err := os.Setenv("GOPROXY", "off"); err != nil {

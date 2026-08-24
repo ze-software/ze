@@ -7,7 +7,7 @@
 // (bin/ze, $TMPDIR/ze-functional-*) is therefore either clobbered by a sibling
 // session mid-run, or left behind with no owner. This package routes those
 // artifacts into the per-session root tmp/session/<YYYY-MM-DD>-<session-id>/,
-// the same directory mk/session.mk builds into and
+// the same directory mk/helper-session.mk builds into and
 // scripts/dev/session-scratch.sh writes scratch under.
 //
 // THE DIRECTORY IS LOOKED UP, NEVER RECOMPUTED. The dated name is not a pure
@@ -22,7 +22,7 @@
 // before this package existed, so nothing changes for anyone but an AI session.
 //
 // The session id is resolved by ONE authority, .claude/hooks/lib/session_id.py,
-// which exports it as ZE_SESSION_ID (via mk/session.mk) and which the CLI also
+// which exports it as ZE_SESSION_ID (via mk/helper-session.mk) and which the CLI also
 // exports as CLAUDE_CODE_SESSION_ID. This package only READS those; it never
 // derives an id of its own, because three independent derivations drifted for
 // weeks before being consolidated (spec-fixit-session-id-collision).
@@ -41,7 +41,7 @@ import (
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         "ze.session.id",
 	Type:        "string",
-	Description: "AI session id scoping build/test artifacts to tmp/session/<date>-<id> (set by mk/session.mk; empty means shared paths)",
+	Description: "AI session id scoping build/test artifacts to tmp/session/<date>-<id> (set by mk/helper-session.mk; empty means shared paths)",
 })
 
 // sidSafe mirrors _SID_SAFE_RE in .claude/hooks/lib/session_id.py: an id is used

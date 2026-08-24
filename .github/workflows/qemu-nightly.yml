@@ -277,7 +277,7 @@ jobs:
   # The kernel steps are the same shape as the needs-linux job above, for the same
   # reasons, and TestQemuKernelPreconditionIsMetInTheSameJob refuses this job
   # without them: it derives the guarded targets from mk/test-integration.mk and
-  # the stagers from mk/gokrazy.mk, so it sees these four the moment they appear
+  # the stagers from mk/build-gokrazy.mk, so it sees these four the moment they appear
   # here. restore + save rather than actions/cache, because that action's post step
   # is skipped on a failing job and this job exists to end on a failing test.
   #

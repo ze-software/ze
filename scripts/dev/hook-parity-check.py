@@ -53,7 +53,7 @@ BASH_CMDS = [
     "go test ./... 2>&1 |\n  grep -c FAIL",
     "make ze-precommit-verify \\\n  | tail -40",
     "./bin/ze-test bgp plugin | grep FAIL",
-    # The same producer in this session's own directory (mk/session.mk
+    # The same producer in this session's own directory (mk/helper-session.mk
     # ZE_BIN_DIR). Relative is what `make ze-session-binary-path` prints; absolute is what a
     # subagent told to use absolute paths passes.
     "tmp/session/2026-08-10-abc123/bin/ze-test bgp plugin | grep FAIL",
@@ -639,7 +639,7 @@ BASH_GOLDEN = {
     "go build -o bin/ze ./cmd/ze": 0,
     "go build ./...": 0,
     "go build ./cmd/ze": 2,
-    # A session builds into its own dated directory (mk/session.mk,
+    # A session builds into its own dated directory (mk/helper-session.mk,
     # internal/test/sessionpath). Every other -o target outside bin/ is
     # refused, which "go build ./cmd/ze" above pins.
     "go build -o tmp/session/2026-08-10-abc123/bin/ze ./cmd/ze": 0,
@@ -664,7 +664,7 @@ BASH_GOLDEN = {
     "./bin/ze-test bgp plugin | grep FAIL": 2,
     # AC-11: the session's own binaries are the same producer as bin/ze-test and
     # are blocked identically, relative or absolute. The date is load-bearing --
-    # without it the path names no session directory mk/session.mk can produce.
+    # without it the path names no session directory mk/helper-session.mk can produce.
     "tmp/session/2026-08-10-abc123/bin/ze-test bgp plugin | grep FAIL": 2,
     "/home/u/ze/tmp/session/2026-08-10-abc123/bin/ze-test bgp plugin | grep FAIL": 2,
     "tmp/session/abc123/bin/ze-test bgp plugin | grep FAIL": 0,

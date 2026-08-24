@@ -162,7 +162,7 @@ func TestAllocGateWorstSample(t *testing.T) {
 	}
 }
 
-// TestAllocGateEnforce is the real gate driver: mk/alloc-gate.mk runs the
+// TestAllocGateEnforce is the real gate driver: mk/test-alloc.mk runs the
 // benchmarks of ALLOC_GATE_PACKAGES with -benchmem, writes the output to a
 // file, and points ZE_ALLOC_GATE_BENCH at it. When the env var is unset (a
 // normal `go test` run) the test skips, so enforcement happens only via
@@ -204,7 +204,7 @@ const (
 const recordPathCeiling = 0
 
 // allocGateMakefile is the gate's makefile, relative to the repository root.
-const allocGateMakefile = "mk/alloc-gate.mk"
+const allocGateMakefile = "mk/test-alloc.mk"
 
 // VALIDATES: AC-3 of spec-record-answers-3-zero-alloc -- a benchmark covering
 //

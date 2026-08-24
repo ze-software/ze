@@ -68,7 +68,7 @@ RESOLVERS = {
     "scripts/evidence/homebrew.py",
     "scripts/evidence/effective-install-qemu.py",
     "Makefile",
-    "mk/gokrazy.mk",
+    "mk/build-gokrazy.mk",
 }
 
 SOURCE_SUFFIXES = (".go", ".py", ".sh", ".mk", ".bash", ".zsh")
@@ -203,7 +203,7 @@ class TestNoBareAppleSiliconPrefix(unittest.TestCase):
                 f"the walk reached no file under {tree}/: a SKIP_DIRS entry or a "
                 "wrong REPO_ROOT is hiding a whole tree from the scan",
             )
-        for required in ("Makefile", "mk/gokrazy.mk", "internal/appliance/homebrew.go"):
+        for required in ("Makefile", "mk/build-gokrazy.mk", "internal/appliance/homebrew.go"):
             self.assertIn(required, self.seen)
 
     def test_only_the_resolvers_spell_the_prefix(self):
@@ -238,10 +238,10 @@ class TestTheMakefileResolvesToo(unittest.TestCase):
 
     def setUp(self):
         # The derivation lives in the root Makefile, before its own first use of
-        # it (the tinygo PATH). mk/gokrazy.mk is included from there and
+        # it (the tinygo PATH). mk/build-gokrazy.mk is included from there and
         # consumes the same variable.
         self.root = self._joined(REPO_ROOT / "Makefile")
-        self.text = self._joined(REPO_ROOT / "mk/gokrazy.mk")
+        self.text = self._joined(REPO_ROOT / "mk/build-gokrazy.mk")
 
     @staticmethod
     def _joined(path: Path) -> str:

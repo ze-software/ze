@@ -36,7 +36,7 @@ func writeInstanceFixture(t *testing.T) (root, parent string) {
 // that the copy carries the builddir pins.
 //
 // VALIDATES: AC-13 and D-1c -- `make ze-gokrazy-build` gets a prepared instance with no
-// change to mk/gokrazy.mk.
+// change to mk/build-gokrazy.mk.
 // PREVENTS: an image build running from, or writing to, the tracked gokrazy dir.
 func TestZeGokPreparesParentDir(t *testing.T) {
 	for _, tc := range []struct {

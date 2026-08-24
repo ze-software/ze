@@ -775,7 +775,7 @@ def probe_tool(tool: Tool) -> bool:
     # keg-only formula onto PATH, and Debian keeps /usr/sbin off a non-root
     # user's PATH, so `which` answers nothing on a box where the tools are
     # installed and working. Both consumers name the directories outright
-    # (`E2FS` in mk/gokrazy.mk, `e2fsSearchDirs` in internal/appliance), so a
+    # (`E2FS` in mk/build-gokrazy.mk, `e2fsSearchDirs` in internal/appliance), so a
     # PATH-based probe reported missing what the build then used happily. It
     # also made the install path report [pending] forever on such a box.
     if tool.name == "e2fsprogs":
@@ -897,7 +897,7 @@ def probe_e2fsprogs() -> bool:
 
     Both, not either: the image build formats /perm with mkfs.ext4 and then
     injects credentials with debugfs, so a directory carrying only the first
-    passes a one-tool probe and the build dies later (`mk/gokrazy.mk`, E2FS).
+    passes a one-tool probe and the build dies later (`mk/build-gokrazy.mk`, E2FS).
     """
     return any(
         (d / "mkfs.ext4").is_file() and (d / "debugfs").is_file()

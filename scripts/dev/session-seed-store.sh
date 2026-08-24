@@ -6,7 +6,7 @@
 # <prefix>/etc/ze), so a session's binary at
 # tmp/session/<YYYY-MM-DD>-<sid>/bin/<name> resolves the session-local
 # <session-dir>/etc/ze and never the repository's. That isolation is the intent
-# (mk/session.mk). An EMPTY store is not: internal/component/config/storage/
+# (mk/helper-session.mk). An EMPTY store is not: internal/component/config/storage/
 # blob.go NewBlob calls zefs.Create and returns a nil error when the blob is
 # absent, so an unseeded session gets no error at all -- it gets a daemon with
 # no users and a fresh SSH host key, and finds out later. This script is what
@@ -43,7 +43,7 @@
 # init that reports success without leaving a database all exit non-zero and
 # fail the build.
 #
-# Usage (mk/session.mk, on-session only; run from the checkout root, the path is
+# Usage (mk/helper-session.mk, on-session only; run from the checkout root, the path is
 # root-relative):
 #   scripts/dev/session-seed-store.sh tmp/session/<YYYY-MM-DD>-<sid>/bin/<name>
 

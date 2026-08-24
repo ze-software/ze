@@ -13,7 +13,7 @@ set -eu
 repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
 cd "$repo"
 
-makefiles="mk/gokrazy.mk gokrazy/kernel/Makefile tools/installer-kernel/Makefile"
+makefiles="mk/build-gokrazy.mk gokrazy/kernel/Makefile tools/installer-kernel/Makefile"
 
 # AC-15: no Makefile cats kernel.version.
 if grep -E 'cat[^|]*kernel\.version' $makefiles; then

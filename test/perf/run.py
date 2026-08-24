@@ -70,7 +70,7 @@ def config_path(filename):
 
 
 # ZE_PERF_BIN lets the caller name the host binary. Under an AI session every
-# canonical binary is built into that session's own directory (mk/session.mk
+# canonical binary is built into that session's own directory (mk/helper-session.mk
 # ZE_BIN_DIR) under its BARE name, so `make ze-perf-bench` passes $(ZEBIN_PERF)
 # rather than relying on a bare name a sibling session could be rebuilding
 # underneath this run. The basename stays `ze-perf` either way, which is what

@@ -236,7 +236,7 @@ Inventory data enters from code and tests:
 | Interop/deployment | `mk/test-integration.mk`, `test/interop`, `test/interop-ipsec`, `test/interop-l2tp` | BGP interop, IPsec interop, L2TP PPP Docker, VPP deployment, QEMU | BGP protocol, system-linux | Release evidence only |
 | Fuzz | `mk/test-fuzz.mk` | fuzz targets for parsers/wire paths | resilience/security | Release evidence only |
 | Chaos | `mk/test-chaos.mk`, `test/chaos-web` | chaos unit, functional, web | resilience/security | Release evidence only |
-| Perf | `mk/perf.mk`, `test/perf` | benchmark and regression history | resilience/security | Release evidence only |
+| Perf | `mk/perf-bench.mk`, `test/perf` | benchmark and regression history | resilience/security | Release evidence only |
 | Install/onboarding | `test/install`, docs | install/uninstall and generated config tests | docs/onboarding | Not in default functional gate according to research |
 
 ## Initial Findings

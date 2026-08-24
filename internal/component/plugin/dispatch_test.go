@@ -1588,7 +1588,7 @@ func TestFailedCommandStatesItsReasonOnTheTerminator(t *testing.T) {
 }
 
 // pooledAnswerRows is the row count the streamed measurements below walk. It is
-// the count the alloc gate walks too (ALLOC_GATE_BENCHTIME, mk/alloc-gate.mk),
+// the count the alloc gate walks too (ALLOC_GATE_BENCHTIME, mk/test-alloc.mk),
 // so the number measured here and the number that gate reports describe one
 // walk.
 const pooledAnswerRows = 300
@@ -2183,7 +2183,7 @@ func TestRejectedRowIsBuiltOnce(t *testing.T) {
 // and what a ceiling of zero states. A per-answer op would hide the row cost
 // inside a number that grows with the walk.
 //
-// The gate pins -benchtime=300x (ALLOC_GATE_BENCHTIME, mk/alloc-gate.mk), so
+// The gate pins -benchtime=300x (ALLOC_GATE_BENCHTIME, mk/test-alloc.mk), so
 // b.N is 300. That is past rpc.AnswerBufferThreshold, so the answer STREAMS,
 // which is the shape the per-row cost matters in. A shorter benchtime collapses
 // the walk into one document and measures the collapse instead. The collapse

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """A session's binaries live in that session's own dated directory.
 
-make (mk/session.mk) decides where `make ze-build` writes; Go
+make (mk/helper-session.mk) decides where `make ze-build` writes; Go
 (internal/test/sessionpath) decides where the test runner looks. Both must
 resolve the SAME directory: tmp/session/<YYYY-MM-DD>-<sid>/bin. When they
 disagree, a session builds into one directory and execs from another, and
@@ -346,7 +346,7 @@ class TestMakeAndGoAgreeOnBinDir(SessionDirCase):
         answers = {
             name: str((ROOT / raw).resolve())
             for name, raw in (
-                ("make (mk/session.mk ZE_SCRATCH_DIR)", make_session),
+                ("make (mk/helper-session.mk ZE_SCRATCH_DIR)", make_session),
                 ("go (sessionpath.Root)", go_session),
                 ("shell (session-dir.sh _session_dir)", shell_session_dir(sid)),
                 ("python (pretool-writeedit.py session_dir)", python_session_dir(sid)),
@@ -531,7 +531,7 @@ class TestNoSuffixVocabularyRemains(unittest.TestCase):
     A session's binaries took a NAME suffix (`bin/ze-<sid>`) until this spec
     moved them into the session's own directory. Four identifiers carried that
     design, and every one is gone: `ZE_BIN_SUFFIX` and `ZE_BIN_NAMES` from
-    mk/session.mk, `reap_binaries` from session-scratch.sh, `bare_named_perf`
+    mk/helper-session.mk, `reap_binaries` from session-scratch.sh, `bare_named_perf`
     from test/perf/run.py. A tree that still names one is either running the old
     mechanism or telling its reader the old mechanism is live, and the second
     costs as much as the first.
@@ -935,7 +935,7 @@ class CleanSessionsCase(unittest.TestCase):
     """Drives `make ze-session-clean` against a fixture session root.
 
     The target is real and so is the recipe; only the root it sweeps is
-    redirected, through the ZE_SESSION_ROOT that mk/session.mk already defines
+    redirected, through the ZE_SESSION_ROOT that mk/helper-session.mk already defines
     and every other consumer already reads. A command-line assignment outranks
     the makefile one, which is the same edge `ze_path` exercises for the id.
 
@@ -1026,7 +1026,7 @@ class TestCleanSessionsRefusesWithoutBefore(CleanSessionsCase):
         Splicing $(BEFORE) into the recipe put the operator's typing inside a
         double-quoted shell literal, where `";touch marker;x"` closed the quote
         and ran. The refusal message printed afterwards, which reads as though
-        the guard held. mk/session.mk refuses a quote in the session id for the
+        the guard held. mk/helper-session.mk refuses a quote in the session id for the
         same reason one file away.
         """
         marker = pathlib.Path(self.tmp) / "injected"

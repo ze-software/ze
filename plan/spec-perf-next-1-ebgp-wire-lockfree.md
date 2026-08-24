@@ -519,7 +519,7 @@ survives.
 |-------|-------|----------------|
 | AC-1 | Same pointer, no mutex on the hit | `EBGPWire` returns `s.wire` from `slot.Load()` before any `ebgpMu.Lock()` (received_update.go); TestReceivedUpdate_EBGPWireCachedASN4 PASS |
 | AC-2 | Concurrent mixed variants safe | TestReceivedUpdate_EBGPWireConcurrent PASS; `make ze-unit-reactor-test-race` exit 0, `ok ... reactor 221.454s` |
-| AC-3 | 0 allocs on hits, ns/op improves | 0 allocs/op measured; 73.6 -> 0.26 ns/op (Goal Validation). Ceiling 0 registered for the benchmark in `internal/perf/allocgate.go` (`AllocCeilings`), enforced by `mk/alloc-gate.mk` |
+| AC-3 | 0 allocs on hits, ns/op improves | 0 allocs/op measured; 73.6 -> 0.26 ns/op (Goal Validation). Ceiling 0 registered for the benchmark in `internal/perf/allocgate.go` (`AllocCeilings`), enforced by `mk/test-alloc.mk` |
 | AC-4 | Error leaves the slot nil, buffer returned | TestReceivedUpdate_EBGPWireErrorDoesNotPublish PASS; mutant M2 (drop `ReturnReadBuffer` on the error path) FAILS it |
 | AC-5 | Eviction returns exactly the published handles | TestReceivedUpdate_EBGPWireEvictionReturnsBuffers PASS with subtests no_variants / one_variant_(ASN4) / both_variants; mutant M1 (drop the ASN2 return in `evictLocked`) FAILS both_variants |
 | AC-6 | Suite green | `make ze-unit-reactor-test-race` exit 0 over `./internal/component/bgp/reactor/...`; `make ze-lint-changed` 0 issues; `make ze-repository-tracked-build-check` OK across 6 build flavors |

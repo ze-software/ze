@@ -110,7 +110,7 @@ not. Nothing about the suspected flake was exercised.
 The cause is a documented trap the tool still carries: `_bin_from_env`
 (`scripts/dev/stress-repro.py`) honours `ZE_BIN` / `ZE_TEST_BIN` but FALLS BACK
 to `bin/ze`, and in this repository that path is stale by construction, because
-`mk/session.mk` builds the canonical binaries into a per-session directory.
+`mk/helper-session.mk` builds the canonical binaries into a per-session directory.
 `ensure_binaries` checks only that the files exist. The tool's own docstring
 describes this incident happening once before, in the opposite direction: a fix
 under test looked "still reproducing" because the run never contained it.

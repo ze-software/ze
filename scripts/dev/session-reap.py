@@ -72,7 +72,7 @@ SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 CHECKOUT = SCRIPT_DIR.parent.parent
 HOOK_LIB = CHECKOUT / ".claude" / "hooks" / "lib" / "session_id.py"
 
-# The ONE root for per-session state, spelled the same way in mk/session.mk and
+# The ONE root for per-session state, spelled the same way in mk/helper-session.mk and
 # .claude/hooks/lib/session-dir.sh.
 SESSION_ROOT = pathlib.Path("tmp/session")
 

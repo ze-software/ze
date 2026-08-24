@@ -130,7 +130,7 @@ var buildMatrix = []tagSet{
 		// setup_dispatch.go is `ze_setup && !ze_core`, so this flavor takes the
 		// core dispatch instead. That difference is the reason the row exists.
 		AnchorFiles: []string{"ze_core_dispatch.go", "setup_features_setup.go"},
-		Why:         "ze-host, the `ze appliance ...` build driver (mk/gokrazy.mk)",
+		Why:         "ze-host, the `ze appliance ...` build driver (mk/build-gokrazy.mk)",
 	},
 	{
 		Name:        "installer",

@@ -521,7 +521,7 @@ emitted.
 ### Allocation-ceiling gate (`make ze-alloc-check`, always-run in `ze-precommit-verify`)
 
 `make ze-alloc-check` runs the hot-path `ReportAllocs` benchmarks of the
-packages `ALLOC_GATE_PACKAGES` names (`mk/alloc-gate.mk`: the reactor tree for
+packages `ALLOC_GATE_PACKAGES` names (`mk/test-alloc.mk`: the reactor tree for
 bufmux / forward-pool / prefix-limits, and `internal/component/plugin` for the
 command-answer record path) with `-benchmem` at a bounded benchtime and
 asserts a per-benchmark `allocs/op` ceiling. allocs/op counts allocations, not
@@ -539,7 +539,7 @@ The machine-dependent timing regression check
 `.github/workflows/perf-nightly.yml` (`bin/ze-perf track --check`, scheduled), and
 the heavy Docker throughput/p99 DUT matrix stays in `make ze-evidence-perf-record`.
 <!-- source: internal/perf/allocgate.go -- AllocCeilings, checkAllocCeilings -->
-<!-- source: mk/alloc-gate.mk -- ze-alloc-check target -->
+<!-- source: mk/test-alloc.mk -- ze-alloc-check target -->
 <!-- source: scripts/status/verify_run.go -- stagesForMode ze-precommit-verify includes ze-alloc-check -->
 <!-- source: .github/workflows/perf-nightly.yml -- scheduled Docker-free perf --check -->
 
@@ -3034,7 +3034,7 @@ slirp cannot deliver the LAC's inbound UDP 1701), drives a real
 LAC `pppN` address state, pings the Ze LNS address through PPP, and observes
 appliance route inject/withdraw logs.
 <!-- source: scripts/evidence/effective-gokrazy-l2tp-ppp.py -- resolve_kernel_pkg, qemu_command -->
-<!-- source: mk/gokrazy.mk -- ze-kernel-build -->
+<!-- source: mk/build-gokrazy.mk -- ze-kernel-build -->
 <!-- source: gokrazy/kernel/Makefile -- all -->
 <!-- source: internal/component/l2tp/kernel_linux.go -- probeKernelModules -->
 

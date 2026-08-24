@@ -21,7 +21,7 @@ import (
 //
 // The bound is this build's own int maximum, so it is exact on a 32-bit target
 // (where it is MaxInt32) and on any 64-bit target not named by a sibling file.
-// Ze does not ship such a target -- mk/appliance.mk:103-104 builds linux/amd64
+// Ze does not ship such a target -- mk/build-appliance.mk:103-104 builds linux/amd64
 // and linux/arm64 only -- so this path exists to keep `go build` honest
 // elsewhere, not to bound what operators can configure.
 func netlinkTableInt(v uint32) (int, error) {

@@ -246,22 +246,22 @@ ZE_PACKAGES = $$(go list ./... | grep -v '^github.com/ze-software/ze$$'$(if $(ZE
 # ─── Include split Makefile modules ─────────────────────────────────────────
 # Session-scoped binary directory (ZEBIN_*, ZE_BIN_DIR). Must come FIRST: every
 # include below refers to the binaries through these variables.
-include mk/session.mk
+include mk/helper-session.mk
 include mk/test-unit.mk
 include mk/test-functional.mk
 include mk/test-fuzz.mk
 include mk/test-chaos.mk
 include mk/test-integration.mk
 include mk/test-release.mk
-include mk/perf.mk
-include mk/alloc-gate.mk
+include mk/perf-bench.mk
+include mk/test-alloc.mk
 include mk/inventory.mk
-include mk/gokrazy.mk
+include mk/build-gokrazy.mk
 include mk/test-mutation.mk
-include mk/appliance.mk
+include mk/build-appliance.mk
 
-include mk/terminal-demo.mk
-include mk/cadence.mk
+include mk/build-terminal-demo.mk
+include mk/schedule-cadence.mk
 # ─── Build ──────────────────────────────────────────────────────────────────
 
 all: ze-lint ze-unit-test build
@@ -1356,7 +1356,7 @@ ze-doc-links-check:
 # Two Go caches are emptied because there are two: GOCACHE is overridden to
 # $(CURDIR)/cache/go-cache at the top of this file, so a plain `go clean -cache`
 # reaches that one and never the default user cache. `env -u GOCACHE` drops the
-# override so the second run reaches ~/.cache/go-build. mk/cadence.mk runs the same
+# override so the second run reaches ~/.cache/go-build. mk/schedule-cadence.mk runs the same
 # pair every morning.
 #
 # For the full per-checkout wipe (bin/ + ALL of tmp/, every session's directory
@@ -1444,12 +1444,12 @@ ze-scratch-clean:
 # into the shell text as $(BEFORE). Interpolating it put the operator's typing
 # inside a double-quoted shell literal BEFORE the format check could see it, so
 # `make ze-session-clean 'BEFORE=";touch pwn;x"'` ran that touch and only then
-# reported a bad date. mk/session.mk refuses a quote in the session id for this
+# reported a bad date. mk/helper-session.mk refuses a quote in the session id for this
 # exact reason one file away. `export` is what makes $$BEFORE readable here.
 #
 # That closes the SHELL layer. Make's own layer sits above it and is not closed:
 # `export` expands the value, so `BEFORE=$(shell …)` runs at that point, before
-# any check. mk/session.mk records the same residual for ZE_SESSION_ID, and the
+# any check. mk/helper-session.mk records the same residual for ZE_SESSION_ID, and the
 # same reason applies -- BEFORE is the operator's own command line, so it crosses
 # no privilege boundary. $(ZE_SESSION_ROOT) below is spliced for the same reason:
 # it is a test seam a caller sets deliberately.

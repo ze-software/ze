@@ -862,7 +862,7 @@ func TestQemuKernelPreconditionIsMetInTheSameJob(t *testing.T) {
 		}
 	}
 	if len(stagers) == 0 {
-		t.Fatal("no target in mk/gokrazy.mk stages tmp/kernel/vmlinuz; this test must not pass vacuously")
+		t.Fatal("no target in mk/build-gokrazy.mk stages tmp/kernel/vmlinuz; this test must not pass vacuously")
 	}
 	// To a fixpoint, because map iteration is unordered. One pass resolves a
 	// direct prerequisite. It resolves a two-link chain only when the map

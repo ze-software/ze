@@ -18,7 +18,7 @@ failure direction is fail-open. CodeQL alert 170
 <!-- source: internal/plugins/policyroute/config.go -- validateActionTable, maxEncodableTable -->
 <!-- source: internal/plugins/policyroute/rules_linux.go -- newIPRule error return -->
 
-Ze ships `linux/amd64` and `linux/arm64` only (`mk/appliance.mk`), where `int` is
+Ze ships `linux/amd64` and `linux/arm64` only (`mk/build-appliance.mk`), where `int` is
 64-bit and every uint32 is exact. A fixed 32-bit bound would reject table IDs the
 kernel accepts and that work today, which narrows a documented YANG range.
 Exact-or-reject says reject what ze cannot deliver exactly, not what it can.

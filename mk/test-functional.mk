@@ -185,7 +185,7 @@ ifeq ($(ZE_TEST_CANONICAL),)
     # target whose recipe runs (see the job-admission block in the Makefile).
     # One name per suite either way, which is all this scoping asks for.
     # $(ZE_SCRATCH_DIR) is tmp/ off-session and this session's own dated
-    # directory under an AI session (mk/session.mk), so the throwaway set is
+    # directory under an AI session (mk/helper-session.mk), so the throwaway set is
     # owned by the session and lands beside its binaries even if this trap never
     # fires (crash, kill -9). The
     # pid-<PPID>-<target> scoping stays INSIDE that root: it still separates two

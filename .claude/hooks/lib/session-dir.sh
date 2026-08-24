@@ -5,7 +5,7 @@
 # Every session owns one directory, tmp/session/<YYYY-MM-DD>-<session-id>/, and
 # everything that session writes lands in a subdirectory of it:
 #
-#   bin/      this session's binaries, and the etc/ze they resolve (mk/session.mk,
+#   bin/      this session's binaries, and the etc/ze they resolve (mk/helper-session.mk,
 #             internal/test/sessionpath)
 #   scratch/  ad-hoc logs, probes, captures (scripts/dev/session-scratch.sh)
 #   state/    the per-spec digest session-state-<stem>-<sid>.md (lib/state-file.sh)
@@ -22,7 +22,7 @@
 # miss. Recomputing from today's date would move a session's directory at
 # midnight and orphan the binaries that session is running.
 #
-# make (mk/session.mk), Go (internal/test/sessionpath) and the Write/Edit hook
+# make (mk/helper-session.mk), Go (internal/test/sessionpath) and the Write/Edit hook
 # (.claude/hooks/pretool-writeedit.py session_dir()) implement the same rule for
 # their own callers. This file is what stops the SHELL half being spelled twice:
 # scripts/dev/session-scratch.sh and .claude/hooks/lib/state-file.sh both call it.
