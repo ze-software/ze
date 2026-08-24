@@ -479,6 +479,11 @@ func TestMidResponderEstablishDoesNotWrapTheCounter(t *testing.T) {
 		t.Errorf("ExpectedMsgID = %d after answering IKE_AUTH at id 1, want 2; the PEER's "+
 			"counter is the one that moves here", ok.ExpectedMsgID)
 	}
+	if ok.NextMsgID != 0 {
+		t.Errorf("NextMsgID = %d after answering IKE_AUTH at id 1, want 0; this end has raised "+
+			"no request of its own, so the PEER's id must not become this end's next request id",
+			ok.NextMsgID)
+	}
 	if ok.msgIDExhausted {
 		t.Error("an SA established at id 1 is marked exhausted; the ceiling fired far below it")
 	}
