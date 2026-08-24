@@ -14,6 +14,8 @@ import threading
 import time
 from pathlib import Path
 
+from feature_tags import feature_tags
+
 
 VPP_IMAGE = os.environ.get("ZE_VPP_DOCKER_IMAGE", "ligato/vpp-base:latest")
 VPP_PLATFORM = os.environ.get("ZE_VPP_DOCKER_PLATFORM", "linux/amd64")
@@ -66,22 +68,6 @@ def ensure_image() -> None:
     pull = run(["docker", "pull", VPP_IMAGE])
     if pull.returncode != 0:
         raise SystemExit(f"docker pull {VPP_IMAGE} failed")
-
-
-def feature_tags(root: Path) -> list[str]:
-    """The default-on feature tags, DERIVED from feature-gates.txt.
-
-    feature-gates.txt is the single source of truth for compile-out-able features and
-    the Makefile's ZE_FEATURES reads it the same way. Hardcoding a tag list here left
-    this script building a ze with no BGP once ze_bgp became a gate, so the fib case
-    died on "unknown top-level keyword: bgp" and no VPP backend was linked either.
-    """
-    tags = set()
-    for line in (root / "feature-gates.txt").read_text(encoding="utf-8").splitlines():
-        fields = line.split()
-        if fields and fields[0].startswith("ze_"):
-            tags.add(fields[0])
-    return sorted(tags)
 
 
 def ensure_linux_binaries(root: Path) -> tuple[Path, Path]:

@@ -51,6 +51,8 @@ import time
 from pathlib import Path
 from typing import Callable
 
+from feature_tags import daemon_build_tags
+
 
 # --- Topology names (PID-suffixed, per the blueprint :29-34) -----------------
 # Namespace names are unbounded, device names must fit IFNAMSIZ-1 (15 chars):
@@ -493,7 +495,7 @@ def ensure_ze(root: Path) -> Path:
     env["CGO_ENABLED"] = "0"
     env.setdefault("GOCACHE", str(root / "tmp" / "go-cache"))
     build = run(
-        ["go", "build", "-tags", "ze_core,ze_distro", "-o", str(ze), "./cmd/ze"],
+        ["go", "build", "-tags", daemon_build_tags(root), "-o", str(ze), "./cmd/ze"],
         cwd=root,
         env=env,
     )

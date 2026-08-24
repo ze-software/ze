@@ -87,8 +87,14 @@ def sha256_file(path: Path) -> str:
 
 def build_host_ze(root: Path, work: Path) -> Path:
     ze = work / "ze-host"
+    # ze_setup, not ze_distro: this binary runs `ze appliance init/iso` on the
+    # BUILD HOST, and the appliance verb is registered by the blank import in
+    # cmd/ze/setup_features_setup.go, which is `//go:build ze_setup`. Built
+    # ze_distro it has no appliance command at all. No feature tags: gates
+    # select daemon features and say nothing about the setup surface
+    # (mk/build-gokrazy.mk:282 builds ze-host the same way).
     built = run(
-        ["go", "build", "-tags", "ze_core,ze_distro", "-o", str(ze), "./cmd/ze"],
+        ["go", "build", "-tags", "ze_core,ze_setup", "-o", str(ze), "./cmd/ze"],
         cwd=str(root),
         env={**os.environ, "CGO_ENABLED": "0"},
         stdout=subprocess.PIPE,

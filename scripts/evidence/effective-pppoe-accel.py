@@ -29,6 +29,8 @@ import time
 from pathlib import Path
 from typing import Callable
 
+from feature_tags import daemon_build_tags
+
 PEER_ADDR = "10.11.0.1"  # accel-ppp [ip-pool] gw-ip-address (the AC side)
 LOCAL_ADDR = "10.11.0.2"  # first address handed out from the pool (the client)
 USERNAME = "alice"
@@ -385,7 +387,7 @@ def ensure_ze(root: Path) -> Path:
     env["CGO_ENABLED"] = "0"
     env.setdefault("GOCACHE", str(root / "tmp" / "go-cache"))
     build = run(
-        ["go", "build", "-tags", "ze_core,ze_distro", "-o", str(ze), "./cmd/ze"],
+        ["go", "build", "-tags", daemon_build_tags(root), "-o", str(ze), "./cmd/ze"],
         cwd=root,
         env=env,
     )

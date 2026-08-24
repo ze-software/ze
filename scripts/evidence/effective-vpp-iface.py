@@ -27,6 +27,8 @@ import threading
 import time
 from pathlib import Path
 
+from feature_tags import daemon_build_tags
+
 
 VPP_IMAGE = os.environ.get("ZE_VPP_DOCKER_IMAGE", "ligato/vpp-base:latest")
 VPP_PLATFORM = os.environ.get("ZE_VPP_DOCKER_PLATFORM", "linux/amd64")
@@ -77,7 +79,7 @@ def ensure_linux_ze(root: Path) -> Path:
     env["CGO_ENABLED"] = "0"
     env.setdefault("GOCACHE", str(root / "tmp" / "go-cache"))
     build = run(
-        ["go", "build", "-tags", "ze_core,ze_distro", "-o", str(ze), "./cmd/ze"],
+        ["go", "build", "-tags", daemon_build_tags(root), "-o", str(ze), "./cmd/ze"],
         cwd=root,
         env=env,
     )

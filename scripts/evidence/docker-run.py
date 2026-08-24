@@ -29,6 +29,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from feature_tags import daemon_build_tags
+
 
 def repo_root() -> Path:
     here = Path(__file__).resolve()
@@ -70,7 +72,7 @@ def ensure_linux_ze(root: Path, goarch: str) -> Path:
     env.setdefault("GOCACHE", str(root / "tmp" / "go-cache"))
 
     build = run(
-        ["go", "build", "-tags", "ze_core,ze_distro", "-o", str(ze), "./cmd/ze"],
+        ["go", "build", "-tags", daemon_build_tags(root), "-o", str(ze), "./cmd/ze"],
         cwd=root,
         env=env,
     )

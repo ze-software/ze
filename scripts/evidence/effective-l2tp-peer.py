@@ -13,6 +13,8 @@ import threading
 import time
 from pathlib import Path
 
+from feature_tags import daemon_build_tags
+
 
 IMAGE = os.environ.get("ZE_L2TP_DOCKER_IMAGE", "alpine:3.20")
 PLATFORM = os.environ.get("ZE_L2TP_DOCKER_PLATFORM", "linux/amd64")
@@ -63,7 +65,7 @@ def ensure_linux_ze(root: Path) -> Path:
     env.setdefault("GOCACHE", str(root / "tmp" / "go-cache"))
 
     build = run(
-        ["go", "build", "-tags", "ze_core,ze_distro", "-o", str(ze), "./cmd/ze"],
+        ["go", "build", "-tags", daemon_build_tags(root), "-o", str(ze), "./cmd/ze"],
         cwd=root,
         env=env,
     )
