@@ -127,9 +127,7 @@ func TestDispatchShowBGPPeerCapabilities(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(plugin.Map)
-	require.True(t, ok)
-	assert.Equal(t, "192.0.2.1", data["peer"])
+	assert.Equal(t, "192.0.2.1", firstPeerRow(t, resp)["peer"])
 }
 
 // TestDispatchShowBGPPeerStatistics verifies peer selector before statistics grammar.
@@ -145,9 +143,7 @@ func TestDispatchShowBGPPeerStatistics(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(plugin.Map)
-	require.True(t, ok)
-	assert.Equal(t, "192.0.2.1", data["address"])
+	assert.Equal(t, "192.0.2.1", firstPeerRow(t, resp)["address"])
 }
 
 // TestDispatchShowBGPPeerHistory verifies peer selector before history grammar.

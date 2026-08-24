@@ -49,6 +49,14 @@ const globalPath = "every command"
 // aliasRegistry resolves a command to the aliases of its own, by the longest
 // registered command path. It is the lookup the column-order and pipe-filter
 // registries use.
+//
+// It is the one registry that STORES rather than DECLARES, so the collision
+// rule the other four carry does not reach it (declarationRegistry.declare in
+// column_order.go). Two declarations of one path do not collide here: an alias
+// set MERGES, which is what mergedAliases below does, so what this registry is
+// asked to store is already the answer to the collision. The rule would also be
+// reachable from outside this repository through RegisterPluginAliases, where a
+// bad declaration is an operating error owed an error rather than a panic.
 var aliasRegistry = newCommandRegistry[aliasSet]()
 
 // globalAliases holds the aliases every command answers to.

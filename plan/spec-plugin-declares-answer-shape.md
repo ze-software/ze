@@ -232,6 +232,7 @@ the producing function.
 | AC-8 | A plugin fails a later Stage 1 step after its shapes were written | The shape write is unwound with the rest, and no declaration survives |
 | AC-9 | `show bgp rpki cache \| display address state` | Answers those two fields, in that order |
 | AC-10 | `show bgp rpki cache \| resolve` | Decorates the `address` field |
+| AC-10b | `show bgp rpki \| resolve` over the OVERVIEW answer, and `show bgp rpki summary \| resolve` | Each is judged on its own declared address-field list, and neither inherits the `address` field `show bgp` declares. **Added 2026-08-24**, displaced from `spec-cli-show-bgp-answer-shapes` AC-7: that spec cannot satisfy it, because `validateDeclaredShape` (`internal/component/command/pipe.go`) returns at `if !declared` before it reads the address-field list, so an address operator is refused only once a SHAPE is declared, and `show bgp rpki`'s shape is declared here. The empty address-field declaration the BGP peer command plugin writes for every child of `show bgp` is what makes the refusal correct rather than accidental, and it landed in that spec's Phase 2 |
 | AC-11 | `show bgp rpki summary \| first 2` | Refused by name: the answer is one document |
 | AC-12 | `show bgp rpki status \| count` | Refused by name: the answer holds two candidate row sets and no single one |
 | AC-13 | `show bgp rs peers \| count` | Answers the peer count |

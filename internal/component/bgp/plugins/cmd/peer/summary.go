@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/family"
@@ -28,11 +29,55 @@ var (
 )
 
 func init() {
+	registerPeerRowShapes()
+
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:overview", Handler: handleBgpOverview},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-capabilities", Handler: handleBgpPeerCapabilities},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-statistics", Handler: handleBgpPeerStatistics},
 	)
+}
+
+// registerPeerRowShapes declares what the two per-peer answers below hold.
+//
+// Both answer one row for each matched peer under "peers", whatever the number
+// matched, so both are `tab` and the row operators apply on a one-peer router
+// exactly as they do on a hundred-peer one. That is the property the handlers
+// were changed to hold: before it, `show bgp peer statistics | count` answered
+// on a three-peer router and was refused on a one-peer router, and no
+// declaration could describe both.
+//
+// The two rows name the peer address differently, "peer" here and "address"
+// there. Each declaration names the field its own handler writes, so the
+// inconsistency costs the declaration channel nothing.
+func registerPeerRowShapes() {
+	command.RegisterShape([]string{cmdBgpPeerCapabilities}, command.ShapeTab)
+	command.RegisterShape([]string{cmdBgpPeerStatistics}, command.ShapeTab)
+
+	// Which peer, is it up, did the negotiation finish, and what came out of
+	// it. "negotiated" is absent until the negotiation completes, and an order
+	// never hides or invents a key: it sequences the keys the record has.
+	command.RegisterColumns([]string{cmdBgpPeerCapabilities},
+		command.ColumnOrder{"peer", "state", "negotiation-complete", "negotiated"},
+	)
+	// Which peer, is it up, then the cumulative counters, then the rates those
+	// counters divide into. The rates come last because pairing each rate with
+	// its counter would put four rate columns between "uptime" and the counts.
+	command.RegisterColumns([]string{cmdBgpPeerStatistics},
+		command.ColumnOrder{
+			"address", "remote-as", "state", "uptime",
+			"updates-received", "updates-sent",
+			"keepalives-received", "keepalives-sent",
+			"eor-received", "eor-sent",
+			"rate-updates-received", "rate-updates-sent",
+			"rate-keepalives-received", "rate-keepalives-sent",
+		},
+	)
+
+	// One field of each row holds the peer address as a bare string, which is
+	// the one form `| resolve` and `| origin` decorate.
+	command.RegisterAddressFields([]string{cmdBgpPeerCapabilities}, "peer")
+	command.RegisterAddressFields([]string{cmdBgpPeerStatistics}, "address")
 }
 
 // lastErrorString renders a peer's last NOTIFICATION for the "last-error"
@@ -391,7 +436,12 @@ func expandFamilyShorthand(in string) string {
 
 // handleBgpPeerCapabilities returns negotiated capabilities for matched peers.
 // If no OPEN exchange completed, returns negotiation-complete=false per peer.
-// Single peer: flat object. Multiple peers: array of objects.
+//
+// The answer is one row for each matched peer, under "peers", whatever the
+// number matched. It used to be a flat object for one peer and an array for
+// several, so its shape followed its input and no declaration could describe
+// it: `show bgp peer capabilities | count` answered on a router with several
+// peers and was refused on a router with one.
 func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	peers, errResp, err := filterPeersByArgs(ctx, args)
 	if errResp != nil {
@@ -406,12 +456,12 @@ func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, args []string) 
 	}
 
 	reactor := ctx.Reactor()
-	results := make([]map[string]any, len(peers))
+	rows := make(plugin.Slice[plugin.Map], len(peers))
 	for i := range peers {
 		peer := &peers[i]
 		caps := reactor.PeerNegotiatedCapabilities(peer.Address)
 
-		entry := map[string]any{
+		entry := plugin.Map{
 			"peer":  peer.Address.String(),
 			"state": peer.State.String(),
 		}
@@ -431,23 +481,18 @@ func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, args []string) 
 		} else {
 			entry["negotiation-complete"] = false
 		}
-		results[i] = entry
+		rows[i] = entry
 	}
 
-	if len(results) == 1 {
-		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(results[0])}, nil
-	}
-	typed := make(plugin.Slice[plugin.Map], len(results))
-	for i, r := range results {
-		typed[i] = plugin.Map(r)
-	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: typed}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"peers": rows}}, nil
 }
 
 // handleBgpPeerStatistics returns per-peer update statistics with rates.
 // Rate is computed from cumulative counters and uptime: counter / uptime_seconds.
 // Returns 0 for all rates when uptime is zero (peer not established).
-// Single peer: flat object. Multiple peers: array.
+//
+// The answer is one row for each matched peer, under "peers", whatever the
+// number matched, for the reason handleBgpPeerCapabilities states.
 func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	peers, errResp, err := filterPeersByArgs(ctx, args)
 	if errResp != nil {
@@ -461,12 +506,12 @@ func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, args []string) (*
 		}, errNoMatchingPeers
 	}
 
-	results := make([]map[string]any, len(peers))
+	rows := make(plugin.Slice[plugin.Map], len(peers))
 	for i := range peers {
 		p := &peers[i]
 		uptimeSec := p.Uptime.Seconds()
 
-		entry := map[string]any{
+		entry := plugin.Map{
 			"address":             p.Address.String(),
 			"remote-as":           p.PeerAS,
 			"state":               p.State.String(),
@@ -493,15 +538,8 @@ func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, args []string) (*
 			entry["rate-keepalives-sent"] = 0.0
 		}
 
-		results[i] = entry
+		rows[i] = entry
 	}
 
-	if len(results) == 1 {
-		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(results[0])}, nil
-	}
-	typed := make(plugin.Slice[plugin.Map], len(results))
-	for i, r := range results {
-		typed[i] = plugin.Map(r)
-	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: typed}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"peers": rows}}, nil
 }

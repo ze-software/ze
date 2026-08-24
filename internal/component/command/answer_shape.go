@@ -29,7 +29,8 @@ import "sort"
 // a command as declaring none, which stops it inheriting a shorter registered
 // path's shape. RegisterColumns and RegisterPipeFilters use the same convention
 // for the same reason.
-var shapeRegistry = newCommandRegistry[[]AnswerShape]()
+var shapeRegistry = newDeclarationRegistry("answer shape",
+	func(shapes []AnswerShape) bool { return len(shapes) == 0 })
 
 // RegisterShape declares the shape of a command's answer, so the operators it
 // supports can be published and the ones it cannot can be refused before the
@@ -48,11 +49,15 @@ var shapeRegistry = newCommandRegistry[[]AnswerShape]()
 // Declaring nothing is not an error. The shape of the answer in hand is derived
 // at apply time either way, so an undeclared command still refuses what it
 // cannot support; it refuses later, and publishes less.
+//
+// Two packages declaring two DIFFERENT shapes for one command path is a Ze
+// defect and panics, and declaring none never overrides a declared shape
+// (declarationRegistry.declare).
 func RegisterShape(commands []string, shapes ...AnswerShape) {
 	if len(shapes) > 1 {
 		shapes = shapes[:1]
 	}
-	shapeRegistry.register(commands, shapes)
+	shapeRegistry.declare(commands, shapes)
 }
 
 // ShapeForCommand answers the shape a command declared, resolved by the longest
@@ -71,16 +76,34 @@ func ResetShapesForTest() {
 }
 
 // addressFieldRegistry holds the fields each command declares to hold an IP
-// address. `| resolve` and `| origin` act on those fields.
-var addressFieldRegistry = newCommandRegistry[[]string]()
+// address. A declaration ADMITS `| resolve` and `| origin` on that command; it
+// does not narrow what they act on. See RegisterAddressFields.
+var addressFieldRegistry = newDeclarationRegistry("address field list",
+	func(fields []string) bool { return len(fields) == 0 })
 
 // RegisterAddressFields declares which of a command's fields hold an IP
-// address, which is what `| resolve` and `| origin` need to know.
+// address.
 //
-// Nothing declared it before, so applyResolve and applyOrigin walked every
-// value and guessed by parsing, decorating any field that happened to parse as
-// an address. A command declaring none refuses both operators rather than
-// guessing.
+// The declaration is an ADMISSION gate and nothing more. AddressFieldsForCommand
+// has one non-test caller, validateDeclaredShape (pipe.go), which asks only
+// whether the list is EMPTY: a command declaring none refuses `| resolve` and
+// `| origin` by name, and a command declaring any admits them. Which fields the
+// operators then decorate is not read from here. resolveJSON and originJSON
+// (pipe_resolve.go, pipe_origin.go) walk every key of the answer and decorate
+// each string that parses as an address, so a field this list does not name is
+// decorated anyway.
+//
+// That gap is why `show bgp peer detail | resolve` does a PTR lookup on
+// router-id, which RFC 6286 Section 2.1 makes a 4-octet identifier rather than
+// an address. It is recorded in plan/journal/declared-format-contradicts-payload.md.
+// An earlier version of this comment said the list is "what `| resolve` and
+// `| origin` need to know" and that a command declaring none "refuses both
+// operators rather than guessing". The first half was never true and the second
+// describes the refusal alone, so both are corrected here rather than repeated.
+//
+// Two packages declaring two DIFFERENT field lists for one command path is a Ze
+// defect and panics, and declaring none never overrides a declared list
+// (declarationRegistry.declare).
 func RegisterAddressFields(commands []string, fields ...string) {
 	stored := make([]string, 0, len(fields))
 	for _, field := range fields {
@@ -88,7 +111,7 @@ func RegisterAddressFields(commands []string, fields ...string) {
 			stored = append(stored, field)
 		}
 	}
-	addressFieldRegistry.register(commands, stored)
+	addressFieldRegistry.declare(commands, stored)
 }
 
 // AddressFieldsForCommand answers the fields a command declares as holding an

@@ -1,6 +1,8 @@
 # Test: bgp peer capabilities shows negotiated capabilities
-# VALIDATES: capabilities returns negotiated data with families for the peer
-# PREVENTS: capabilities returning empty or flat-format mismatch
+# VALIDATES: capabilities returns negotiated data with families for the peer,
+#   as one row under "peers" whatever the number of matched peers
+# PREVENTS: capabilities returning empty, and its answer changing shape with
+#   the number of peers it matched
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -43,12 +45,20 @@ def main():
         if isinstance(data, str):
             data = json.loads(data)
 
-        # Single peer returns flat object with "peer" key
-        if data.get('peer') != '127.0.0.1':
-            print(f'FAIL: expected peer=127.0.0.1, got {data.get("peer")}', file=sys.stderr)
+        # One row for each matched peer, under "peers", whatever the number
+        # matched. The answer used to be a flat object for one peer and an
+        # array for several, which is a shape no declaration can describe.
+        rows = data.get('peers')
+        if not isinstance(rows, list) or len(rows) != 1:
+            print(f'FAIL: expected one peer row, got {rows}', file=sys.stderr)
             sys.exit(1)
 
-        negotiated = data.get('negotiated', {})
+        row = rows[0]
+        if row.get('peer') != '127.0.0.1':
+            print(f'FAIL: expected peer=127.0.0.1, got {row.get("peer")}', file=sys.stderr)
+            sys.exit(1)
+
+        negotiated = row.get('negotiated', {})
         if not isinstance(negotiated, dict) or len(negotiated) == 0:
             print(f'FAIL: empty negotiated capabilities', file=sys.stderr)
             sys.exit(1)

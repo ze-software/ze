@@ -523,8 +523,7 @@ func TestBgpPeerCapabilitiesHandler(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(plugin.Map)
-	require.True(t, ok)
+	data := firstPeerRow(t, resp)
 	assert.Equal(t, "192.0.2.1", data["peer"])
 	assert.Equal(t, "established", data["state"])
 

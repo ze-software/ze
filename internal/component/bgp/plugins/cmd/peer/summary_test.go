@@ -1,7 +1,9 @@
 package peer
 
 import (
+	"encoding/json"
 	"net/netip"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -268,8 +270,7 @@ func TestPeerCapabilitiesHandler(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(plugin.Map)
-	require.True(t, ok)
+	data := firstPeerRow(t, resp)
 
 	assert.Equal(t, "192.0.2.1", data["peer"])
 	assert.Equal(t, true, data["negotiation-complete"])
@@ -312,9 +313,7 @@ func TestPeerShowStatistics(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	// Single peer → flat object
-	data, ok := resp.Data.(plugin.Map)
-	require.True(t, ok)
+	data := firstPeerRow(t, resp)
 
 	// Counter fields
 	assert.Equal(t, "192.0.2.1", data["address"])
@@ -354,8 +353,7 @@ func TestPeerShowStatisticsZeroUptime(t *testing.T) {
 	resp, err := handleBgpPeerStatistics(ctx, nil)
 	require.NoError(t, err)
 
-	data, ok := resp.Data.(plugin.Map)
-	require.True(t, ok)
+	data := firstPeerRow(t, resp)
 
 	assert.Equal(t, 0.0, data["rate-updates-received"])
 	assert.Equal(t, 0.0, data["rate-updates-sent"])
@@ -431,8 +429,7 @@ func TestBgpPeerStatisticsUptimeTruncatedRatesExact(t *testing.T) {
 	resp, err := handleBgpPeerStatistics(ctx, nil)
 	require.NoError(t, err)
 
-	data, ok := resp.Data.(plugin.Map)
-	require.True(t, ok)
+	data := firstPeerRow(t, resp)
 
 	assert.Equal(t, "10s", data["uptime"])
 	assert.Equal(t, 2.0, data["rate-updates-received"])
@@ -663,9 +660,146 @@ func TestPeerCapabilitiesNotEstablished(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(plugin.Map)
-	require.True(t, ok)
+	data := firstPeerRow(t, resp)
 	assert.Equal(t, false, data["negotiation-complete"])
+}
+
+// firstPeerRow answers the first row of a peers envelope. The two per-peer
+// handlers answer one row for each matched peer whatever the number matched,
+// so a test with one peer configured reads its row from the same place a test
+// with several does.
+func firstPeerRow(t *testing.T, resp *plugin.Response) plugin.Map {
+	t.Helper()
+
+	envelope, isEnvelope := resp.Data.(plugin.Map)
+	require.True(t, isEnvelope, "the answer is not a peers envelope: %#v", resp.Data)
+	rows, hasRows := envelope["peers"].(plugin.Slice[plugin.Map])
+	require.True(t, hasRows, "the envelope holds no peer rows: %#v", envelope["peers"])
+	require.NotEmpty(t, rows, "the peers envelope carries no row")
+	return rows[0]
+}
+
+// peerRowHandler is the shape of a `show bgp peer` handler that builds one row
+// for each matched peer.
+type peerRowHandler func(*pluginserver.CommandContext, []string) (*plugin.Response, error)
+
+// answerSpelling describes the SHAPE of an answer, so two answers can be
+// compared on shape alone: the shape the pipe layer derives from it, its sorted
+// top-level keys, and the number of rows `| count` finds in it.
+type answerSpelling struct {
+	shape command.AnswerShape
+	keys  []string
+	rows  int
+}
+
+// testPeers builds count peers at 192.0.2.1 upwards, each established with a
+// distinct AS and counters, so a row carries values a renderer can tell apart.
+func testPeers(count int) []plugin.PeerInfo {
+	peers := make([]plugin.PeerInfo, 0, count)
+	for i := range count {
+		peers = append(peers, plugin.PeerInfo{
+			Address:         netip.AddrFrom4([4]byte{192, 0, 2, byte(i + 1)}),
+			PeerAS:          uint32(65001 + i),
+			State:           plugin.PeerStateEstablished,
+			Uptime:          5 * time.Minute,
+			UpdatesReceived: uint32(100 * (i + 1)),
+		})
+	}
+	return peers
+}
+
+// spellingOf runs a peer row handler over peers with the given selector and
+// describes the shape of the answer, taking it through the JSON encoding and
+// the row-counting path an operator's `| count` reaches.
+func spellingOf(t *testing.T, handler peerRowHandler, peers []plugin.PeerInfo, selector string) answerSpelling {
+	t.Helper()
+
+	reactor := &mockReactor{
+		peers:    peers,
+		peerCaps: &plugin.PeerCapabilitiesInfo{Families: []string{"ipv4/unicast"}, ASN4: true},
+	}
+	ctx := newTestContext(reactor)
+	ctx.Peer = selector
+
+	resp, err := handler(ctx, nil)
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusDone, resp.Status)
+
+	encoded, err := json.Marshal(resp.Data)
+	require.NoError(t, err)
+
+	var decoded any
+	require.NoError(t, json.Unmarshal(encoded, &decoded))
+
+	// ParsePipe answers the operators and the command half is discarded here,
+	// so one chain serves both handlers.
+	_, ops := command.ParsePipe("command | count")
+	counted, refusal := command.ApplyPipes(string(encoded), ops, nil, nil)
+	require.Empty(t, refusal, "`| count` refused the answer: %s", encoded)
+
+	var counter struct {
+		Count int `json:"count"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(counted), &counter))
+
+	spelling := answerSpelling{shape: command.ShapeOfAnswer(decoded), rows: counter.Count}
+	envelope, isMap := decoded.(map[string]any)
+	require.True(t, isMap, "the answer is not an envelope: %s", encoded)
+	for key := range envelope {
+		spelling.keys = append(spelling.keys, key)
+	}
+	sort.Strings(spelling.keys)
+	return spelling
+}
+
+// assertOneShapeWhateverTheInput holds a peer row handler to ONE answer shape
+// whatever the number of matched peers.
+func assertOneShapeWhateverTheInput(t *testing.T, handler peerRowHandler) {
+	t.Helper()
+
+	several := testPeers(3)
+	severalMatched := spellingOf(t, handler, several, "*")
+	oneOfSeveral := spellingOf(t, handler, several, "192.0.2.1")
+	oneConfigured := spellingOf(t, handler, testPeers(1), "*")
+
+	// The several-peer answer is pinned too. Without it, a later change that
+	// moved the many-peer branch to the one-peer spelling would leave the
+	// equalities below green while both shapes changed together.
+	assert.Equal(t, command.ShapeMap, severalMatched.shape)
+	assert.Equal(t, []string{"peers"}, severalMatched.keys)
+	assert.Equal(t, 3, severalMatched.rows)
+
+	assert.Equal(t, severalMatched.shape, oneOfSeveral.shape)
+	assert.Equal(t, severalMatched.keys, oneOfSeveral.keys)
+	assert.Equal(t, 1, oneOfSeveral.rows)
+
+	assert.Equal(t, severalMatched.shape, oneConfigured.shape)
+	assert.Equal(t, severalMatched.keys, oneConfigured.keys)
+	assert.Equal(t, 1, oneConfigured.rows)
+}
+
+// TestPeerStatisticsAnswersRowsForOnePeer holds `show bgp peer statistics` to
+// one answer shape whatever its input.
+//
+// VALIDATES: AC-8, AC-9 -- one matched peer answers rows in the same spelling
+// several matched peers use, and `| count` answers 1 over that answer.
+// PREVENTS: an answer that changes shape with its input. The handler answered a
+// flat object for one matched peer and an array for several, so
+// `show bgp peer statistics | count` answered on a three-peer router and was
+// refused on a one-peer router, and no declaration can describe both.
+func TestPeerStatisticsAnswersRowsForOnePeer(t *testing.T) {
+	assertOneShapeWhateverTheInput(t, handleBgpPeerStatistics)
+}
+
+// TestPeerCapabilitiesAnswersRowsForOnePeer holds `show bgp peer capabilities`
+// to one answer shape whatever its input.
+//
+// VALIDATES: AC-10 -- one matched peer answers rows in the same spelling
+// several matched peers use.
+// PREVENTS: the same input-dependent shape on the second of the two handlers
+// that carried it.
+func TestPeerCapabilitiesAnswersRowsForOnePeer(t *testing.T) {
+	assertOneShapeWhateverTheInput(t, handleBgpPeerCapabilities)
 }
 
 // declaredColumnNames returns every name in the orders registered for a command.
@@ -990,23 +1124,46 @@ func TestShowBgpCarriesTheSummaryOrder(t *testing.T) {
 // (internal/component/command/column_order.go), so `show bgp` reaches every one
 // of these paths unless a registered ancestor of it declares emptiness.
 func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
+	// The order the rib command plugin declares for `show bgp rib`
+	// (registerPipeFilters in internal/component/bgp/plugins/cmd/rib/rib.go).
+	// The empty declaration this package puts on that branch is a floor and
+	// never overrides it, so the branch and every path under it resolve this
+	// order rather than nothing. It is not `show bgp`'s order, which is what
+	// this test is about.
+	ribRoutes := command.ColumnOrder{
+		"peer", "direction", "family", "prefix",
+		"next-hop", "path-id", "as-path", "origin", "local-pref", "med", "communities",
+	}
+	// The orders the other in-tree packages declare for their own commands.
+	// Each is a value the empty declarations here never override.
+	healthPeers := command.ColumnOrder{"peer", "state", "as", "uptime"}
+	irrEntries := command.ColumnOrder{
+		"asn", "as-set", "status", "error",
+		"ipv4-count", "ipv6-count", "last-refresh", "peers",
+	}
+	irrEnvelope := command.ColumnOrder{"server", "last-refresh", "next-refresh", "entries"}
+
 	// The branches cmdBgpChildren blocks, each at its shallowest path.
-	branches := []string{
-		"show bgp adj-rib-in",
-		"show bgp decode",
-		"show bgp encode",
-		"show bgp health",
-		"show bgp healthcheck",
-		"show bgp irr",
-		"show bgp peer",
-		"show bgp rib",
-		"show bgp rpki",
-		"show bgp rs",
+	branches := []commandOrder{
+		{command: "show bgp adj-rib-in"},
+		{command: "show bgp decode"},
+		{command: "show bgp encode"},
+		{command: "show bgp health", orders: []command.ColumnOrder{healthPeers}},
+		{command: "show bgp healthcheck"},
+		{command: "show bgp irr", orders: []command.ColumnOrder{irrEntries, irrEnvelope}},
+		{command: "show bgp peer"},
+		{command: "show bgp rib", orders: []command.ColumnOrder{ribRoutes}},
+		{command: "show bgp rpki"},
+		{command: "show bgp rs"},
 	}
 	// The table is the population, so it MUST name every branch the
 	// registrations block. A path added to cmdBgpChildren and not here would go
 	// untested, and one dropped from cmdBgpChildren would start inheriting.
-	assert.ElementsMatch(t, cmdBgpChildren, branches, "every blocked branch is driven by this table")
+	branchNames := make([]string, 0, len(branches))
+	for _, branch := range branches {
+		branchNames = append(branchNames, branch.command)
+	}
+	assert.ElementsMatch(t, cmdBgpChildren, branchNames, "every blocked branch is driven by this table")
 
 	// Every command BENEATH those branches, as an operator types it. None is
 	// registered in its own right except `show bgp peer list`, so each one
@@ -1020,24 +1177,53 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 	//   - the plugin paths, which `make ze-command-list` does not report.
 	//   - `show bgp decode`, an offline handler the inventory does not report.
 	commands := []commandOrder{
-		{command: "show bgp irr check"},
-		{command: "show bgp irr prefix"},
-		{command: "show bgp peer capabilities"},
-		{command: "show bgp peer detail"},
-		{command: "show bgp peer history"},
-		{command: "show bgp peer list", columns: command.ColumnOrder{"name", "group", "remote-as", "state", "uptime"}},
-		{command: "show bgp peer rib"},
-		{command: "show bgp peer statistics"},
+		{command: "show bgp irr check", orders: []command.ColumnOrder{{"prefix", "asn", "accepted", "matched-entry"}}},
+		{command: "show bgp irr prefix", orders: []command.ColumnOrder{{"asn", "as-set", "prefixes"}}},
+		{command: "show bgp peer capabilities", orders: []command.ColumnOrder{{"peer", "state", "negotiation-complete", "negotiated"}}},
+		{command: "show bgp peer detail", orders: []command.ColumnOrder{{
+			"name", "group", "remote-as", "local-as", "peer-type", "router-id",
+			"state", "uptime", "last-notification",
+			"local-ip", "next-hop", "next-hop-address", "timer", "capabilities",
+		}}},
+		{command: "show bgp peer history", orders: []command.ColumnOrder{{"timestamp", "from", "to", "reason"}}},
+		{command: "show bgp peer list", orders: []command.ColumnOrder{{"name", "group", "remote-as", "state", "uptime"}}},
+		{command: "show bgp peer rib", orders: []command.ColumnOrder{ribRoutes}},
+		{command: "show bgp peer statistics", orders: []command.ColumnOrder{{
+			"address", "remote-as", "state", "uptime",
+			"updates-received", "updates-sent",
+			"keepalives-received", "keepalives-sent",
+			"eor-received", "eor-sent",
+			"rate-updates-received", "rate-updates-sent",
+			"rate-keepalives-received", "rate-keepalives-sent",
+		}}},
+		// The SELECTOR spellings resolve `show bgp peer`, which declares
+		// nothing, and NOT the leaf beside them: `show bgp peer detail` is not a
+		// prefix of `show bgp peer 192.0.2.1 detail`. So a leaf declaration
+		// reaches the bare spelling alone, and the selector spelling keeps
+		// inheriting nothing. That is the registry's string-prefix resolution
+		// meeting the dispatcher's selector folding, and it is why
+		// cmdBgpChildren blocks at the SHALLOWEST path.
 		{command: "show bgp peer 192.0.2.1 capabilities"},
 		{command: "show bgp peer 192.0.2.1 detail"},
 		{command: "show bgp peer 192.0.2.1 history"},
 		{command: "show bgp peer 192.0.2.1 rib"},
 		{command: "show bgp peer 192.0.2.1 statistics"},
-		{command: "show bgp rib best"},
-		{command: "show bgp rib best status"},
-		{command: "show bgp rib commands"},
-		{command: "show bgp rib rpf"},
-		{command: "show bgp rib status"},
+		{command: "show bgp rib best", orders: []command.ColumnOrder{{"family", "prefix", "best-peer", "multipath-peers", "attributes"}}},
+		{command: "show bgp rib best status", orders: []command.ColumnOrder{{"running", "peers-with-rib", "total-routes"}}},
+		// `show bgp rib commands` is registered by the bgp-rib plugin PROCESS
+		// and has no in-core shim, so nothing declares for it and it still
+		// resolves the route order through the `show bgp rib` prefix. It is
+		// plan/spec-plugin-declares-answer-shape.md, with the other plugin
+		// paths below.
+		{command: "show bgp rib commands", orders: []command.ColumnOrder{ribRoutes}},
+		{command: "show bgp rib rpf", orders: []command.ColumnOrder{{
+			"source", "family", "found",
+			"matched-prefix", "next-hop", "admin-distance", "metric",
+		}}},
+		{command: "show bgp rib status", orders: []command.ColumnOrder{{
+			"running", "peers", "routes-in", "routes-out", "stale-routes",
+			"route-counts", "gr-state",
+		}}},
 		{command: "show bgp adj-rib-in status"},
 		{command: "show bgp rpki aspa"},
 		{command: "show bgp rpki cache"},
@@ -1048,21 +1234,20 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 		{command: "show bgp rs status"},
 	}
 
-	// A branch declares no order either, so one loop drives both populations.
+	// A branch resolves an order the same way a command under it does, so one
+	// loop drives both populations.
 	paths := make([]commandOrder, 0, len(branches)+len(commands))
-	for _, branch := range branches {
-		paths = append(paths, commandOrder{command: branch})
-	}
+	paths = append(paths, branches...)
 	paths = append(paths, commands...)
 
 	for _, path := range paths {
 		t.Run(path.command, func(t *testing.T) {
 			orders := command.ColumnsForCommand(path.command)
-			if len(path.columns) == 0 {
+			if len(path.orders) == 0 {
 				assert.Empty(t, orders, "declares no column order, so it must resolve none rather than inherit `show bgp`")
 			} else {
-				require.Len(t, orders, 1, "declares one column order of its own")
-				assert.Equal(t, path.columns, orders[0], "a blocked ancestor must not replace the declared order")
+				require.Len(t, orders, len(path.orders), "resolves one column order for each record shape it renders")
+				assert.Equal(t, path.orders, orders, "resolves the orders declared for it, never `show bgp`'s")
 			}
 
 			names := aliasNames(t, path.command)
@@ -1072,9 +1257,14 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 	}
 }
 
-// commandOrder is one command path and the column order it declares for itself.
-// An empty order means it declares none, and none may resolve for it.
+// commandOrder is one command path and the column orders it RESOLVES: the ones
+// declared on it, or the ones declared on the longest registered path above it.
+// A command declares one order per record shape, so a command answering an
+// envelope and rows that share a key name resolves two.
+//
+// No order at all means none resolves for it, which is what an empty
+// declaration gives every child of `show bgp` that declares nothing of its own.
 type commandOrder struct {
 	command string
-	columns command.ColumnOrder
+	orders  []command.ColumnOrder
 }

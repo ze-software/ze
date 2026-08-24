@@ -55,6 +55,31 @@ it requires one, no selector arrived out of band, and exactly one token is spare
 which is what makes `delete bgp peer 127.0.0.1` work.
 <!-- source: internal/component/plugin/server/command.go -- positionalDef, matchCommandTokens -->
 
+### A command declares what its answer holds
+
+A command declares whether its answer holds rows or one document, and which of
+its fields hold an IP address. The CLI refuses an operator that declaration
+cannot support, by name, before the command runs:
+
+```
+show bgp rib status | count
+count cannot apply here: this command answers one document, and count acts on rows
+```
+
+`ze help command "<path>" --json` lists the operators a declared command
+supports, and it reads the same declaration, so the published list and the
+runtime cannot disagree. `| resolve` and `| origin` are listed only where the
+command declares a field that holds an address.
+
+Every `show bgp` command that an in-tree package registers declares one: sixteen
+paths. The commands under `show bgp rpki`, `show bgp rs`, `show bgp adj-rib-in`
+and `show bgp healthcheck` are served by a plugin process with no in-core shim
+and declare nothing yet. An undeclared command still refuses what it cannot
+support, from the answer it has in hand, after it runs.
+<!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
+<!-- source: internal/component/command/answer_shape.go -- RegisterShape, RegisterAddressFields -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerShapes -->
+
 ### Protocol Tools
 
 | Command | Description |

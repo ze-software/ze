@@ -28,6 +28,9 @@ const (
 	cmdRibInject     = "request bgp rib inject"
 	cmdRibWithdraw   = "request bgp rib withdraw"
 	cmdRibRPF        = "show bgp rib rpf"
+	// cmdBgpPeerRib is the peer-scoped spelling of cmdRibShow. It forwards to
+	// the same plugin command with a selector, so it answers the same rows.
+	cmdBgpPeerRib = "show bgp peer rib"
 )
 
 func init() {
@@ -107,6 +110,102 @@ func registerPipeFilters() {
 	// in the row is declared an address, so neither operator decorates a field
 	// by coincidence.
 	command.RegisterAddressFields([]string{cmdRibShow}, "peer", "next-hop")
+
+	registerRibAnswerShapes()
+}
+
+// registerRibAnswerShapes declares what the rib commands OTHER than
+// `show bgp rib` answer. That one declares beside its own pipe filters above,
+// because the filters and the shape describe the same route rows.
+//
+// Each path here declares for ITSELF, and that is the whole point. A shape, a
+// column order and an address-field list all resolve by the longest registered
+// command path that is a prefix of the command (commandRegistry.lookup in
+// internal/component/command/column_order.go), so the route declaration above
+// reached the four paths beneath `show bgp rib` through that prefix. Each was
+// published as supporting the row operators, was offered eleven route columns
+// it never writes, and `| resolve` was accepted on a "peer" field none of them
+// has. The empty filter set above already answered the same problem for the
+// pipe-filter registry; these three registries needed the same answer.
+func registerRibAnswerShapes() {
+	// `show bgp peer rib` forwards to cmdRibShow with a peer selector
+	// (forwardRibRoutes), so it answers the same route rows and declares the
+	// same three things. It inherits none of them: it sits under
+	// `show bgp peer`, and the BGP peer command plugin declares that path empty.
+	command.RegisterShape([]string{cmdBgpPeerRib}, command.ShapeTab)
+	command.RegisterColumns([]string{cmdBgpPeerRib},
+		command.ColumnOrder{
+			"peer", "direction", "family", "prefix",
+			"next-hop", "path-id", "as-path", "origin", "local-pref", "med", "communities",
+		},
+	)
+	command.RegisterAddressFields([]string{cmdBgpPeerRib}, "peer", "next-hop")
+
+	// `show bgp rib best` answers one row for each best path, under
+	// "best-path". The row is bestResult
+	// (internal/component/bgp/plugins/rib/rib_pipeline_best.go) and it shares
+	// only "family" and "prefix" with a route row, so the route order above
+	// would have named nine columns it never writes.
+	//
+	// The order is the one an operator reads a best path in: which family and
+	// which prefix, then who won it, then who tied with the winner, then what
+	// the winning path carries.
+	command.RegisterShape([]string{cmdRibBest}, command.ShapeTab)
+	command.RegisterColumns([]string{cmdRibBest},
+		command.ColumnOrder{"family", "prefix", "best-peer", "multipath-peers", "attributes"},
+	)
+	// Two values of the row hold a bare IP address: the winning peer, and the
+	// next hop inside "attributes" (enrichRouteMapFromEntry, rib_attr_format.go).
+	// "prefix" and "multipath-peers" hold neither, and declaring either would
+	// publish an operator that decorates nothing: resolveJSON and originJSON
+	// decorate a map value that passes netip.ParseAddr
+	// (internal/component/command/pipe_resolve.go, pipe_origin.go), a prefix
+	// string does not parse, and an array element is walked past.
+	command.RegisterAddressFields([]string{cmdRibBest}, "best-peer", "next-hop")
+
+	// The three scalar commands answer ONE document, so every row operator is
+	// refused by name before the command runs rather than after it.
+	command.RegisterShape([]string{cmdRibStatus, cmdRibBestStatus, cmdRibRPF}, command.ShapeDoc)
+
+	// `show bgp rib status` (RIBManager.status,
+	// internal/component/bgp/plugins/rib/rib_commands.go) carries the totals,
+	// then the per-peer counts, then the graceful-restart state that only a
+	// restarting peer produces.
+	//
+	// Its two per-peer maps are also why the declaration matters more here than
+	// anywhere else in this file. Each is keyed by peer address and each reads
+	// as a row set, so the shape DERIVED from the answer was rows while no peer
+	// was restarting and no rows once one was (rowsInKeyed refuses two). The
+	// declared shape is the same answer in both.
+	command.RegisterColumns([]string{cmdRibStatus},
+		command.ColumnOrder{
+			"running", "peers", "routes-in", "routes-out", "stale-routes",
+			"route-counts", "gr-state",
+		},
+	)
+	// RIBManager.bestPathStatus, same file.
+	command.RegisterColumns([]string{cmdRibBestStatus},
+		command.ColumnOrder{"running", "peers-with-rib", "total-routes"},
+	)
+	// RIBManager.rpfLookup, same file. The four keys after "found" are written
+	// only when the lookup matched, and a declared order never hides or invents
+	// a key, so one order serves both branches.
+	command.RegisterColumns([]string{cmdRibRPF},
+		command.ColumnOrder{
+			"source", "family", "found",
+			"matched-prefix", "next-hop", "admin-distance", "metric",
+		},
+	)
+
+	// "source" and "next-hop" hold a bare address, so the rpf answer says so
+	// even though its `doc` shape refuses both operators on its own: the
+	// refusal an operator reads then names the real reason, which is that the
+	// answer has no rows, rather than claiming no field holds an address.
+	// "matched-prefix" is a prefix and fails netip.ParseAddr, so it is not one.
+	command.RegisterAddressFields([]string{cmdRibRPF}, "source", "next-hop")
+	// The two status answers hold peer addresses as the KEYS of a map and in no
+	// field, so neither operator has anything to decorate.
+	command.RegisterAddressFields([]string{cmdRibStatus, cmdRibBestStatus})
 }
 
 func forwardRibStatus(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {

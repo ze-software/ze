@@ -27,7 +27,8 @@ type pipeFilterSet struct {
 
 // pipeFilterRegistry resolves a command to its filter set by the longest
 // registered command path, the same lookup the column-order registry uses.
-var pipeFilterRegistry = newCommandRegistry[pipeFilterSet]()
+var pipeFilterRegistry = newDeclarationRegistry("pipe filter set",
+	func(set pipeFilterSet) bool { return len(set.filters) == 0 })
 
 // RegisterPipeFilters registers command-specific pipe filters for command paths.
 // Passing no filters registers the command as having no command-specific pipes,
@@ -38,6 +39,10 @@ var pipeFilterRegistry = newCommandRegistry[pipeFilterSet]()
 // first and the alias would never be reached, which nothing reports at use
 // time. RegisterAliases refuses the same pair from the other side, so init
 // order decides which of the two reports it.
+//
+// Two packages declaring two DIFFERENT filter sets for one command path is
+// refused the same way, and an empty declaration never overrides a non-empty
+// one (declarationRegistry.declare).
 func RegisterPipeFilters(commands []string, filters ...PipeFilter) {
 	if name, path, shadowed := aliasShadowing(commands, filters); shadowed {
 		panic("BUG: pipe filter " +
@@ -55,7 +60,7 @@ func RegisterPipeFilters(commands []string, filters ...PipeFilter) {
 		set.filters[i].Name = name
 		set.byName[name] = set.filters[i]
 	}
-	pipeFilterRegistry.register(commands, set)
+	pipeFilterRegistry.declare(commands, set)
 }
 
 func lookupPipeFilters(command string) (pipeFilterSet, bool) {
@@ -72,6 +77,10 @@ func PipeFiltersForCommand(command string) []PipeFilter {
 	sort.SliceStable(filters, func(i, j int) bool { return filters[i].Name < filters[j].Name })
 	return filters
 }
+
+// String names the filters in the set, so a conflict report between two
+// declarations of one command path reads as the names an operator types.
+func (set pipeFilterSet) String() string { return set.filterNames() }
 
 func (set pipeFilterSet) filterNames() string {
 	if len(set.filters) == 0 {

@@ -22,8 +22,12 @@ import (
 
 // The command paths these handlers answer, as an operator types them.
 const (
-	cmdBgp         = "show bgp"
-	cmdBgpPeerList = "show bgp peer list"
+	cmdBgp                 = "show bgp"
+	cmdBgpPeerList         = "show bgp peer list"
+	cmdBgpPeerDetail       = "show bgp peer detail"
+	cmdBgpPeerHistory      = "show bgp peer history"
+	cmdBgpPeerCapabilities = "show bgp peer capabilities"
+	cmdBgpPeerStatistics   = "show bgp peer statistics"
 )
 
 // cmdBgpChildren is every DIRECT child of `show bgp`, which is the shallowest
@@ -144,6 +148,24 @@ func registerColumns() {
 	command.RegisterColumns([]string{cmdBgpPeerList},
 		command.ColumnOrder{"name", "group", "remote-as", "state", "uptime"},
 	)
+	// `show bgp peer detail` indexes its rows by address as the list does, so
+	// its order carries the fields that follow it, in the four-part sequence
+	// above. It names the fields the answer LEADS with and stops there: an
+	// order never hides a key (tableStyle.declaredKeys in
+	// internal/component/command/pipe_table.go), so the eleven counters follow
+	// alphabetically and reading them in that sequence loses nothing.
+	command.RegisterColumns([]string{cmdBgpPeerDetail},
+		command.ColumnOrder{
+			"name", "group", "remote-as", "local-as", "peer-type", "router-id",
+			"state", "uptime", "last-notification",
+			"local-ip", "next-hop", "next-hop-address", "timer", "capabilities",
+		},
+	)
+	// A transition row reads as a sentence: when it happened, what it left,
+	// what it reached, and why.
+	command.RegisterColumns([]string{cmdBgpPeerHistory},
+		command.ColumnOrder{"timestamp", "from", "to", "reason"},
+	)
 	// Every branch under `show bgp` declares NO order of its own, which is what
 	// stops it inheriting the two above and rendering peer columns over an
 	// answer that carries no peer rows.
@@ -170,6 +192,8 @@ func registerColumns() {
 func registerShapes() {
 	command.RegisterShape([]string{cmdBgp}, command.ShapeTab)
 	command.RegisterShape([]string{cmdBgpPeerList}, command.ShapeTab)
+	command.RegisterShape([]string{cmdBgpPeerDetail}, command.ShapeTab)
+	command.RegisterShape([]string{cmdBgpPeerHistory}, command.ShapeTab)
 
 	// `| resolve` and `| origin` act on a field holding an IP address, and no
 	// shape says a field does. `show bgp`'s peer rows carry the peer address in
@@ -179,9 +203,39 @@ func registerShapes() {
 	// the address and carry no address field, so the transforms would find
 	// nothing to decorate and publishing them would assert support the answer
 	// cannot honor.
+	//
+	// Every branch under `show bgp` declares none for the same reason it
+	// declares no shape: an address-field list resolves by the longest
+	// registered prefix, so a branch that declares nothing reads the
+	// "address" above and publishes both operators over an answer holding no
+	// such field. A branch that DOES hold one declares its own list in its own
+	// package, and the empty declaration here is a floor that never overrides
+	// it: the rib command plugin names "peer" and "next-hop" for
+	// `show bgp rib` (registerPipeFilters in
+	// internal/component/bgp/plugins/cmd/rib/rib.go), and registerHealthShape
+	// in health.go names "peer" for `show bgp health`.
 	command.RegisterAddressFields([]string{cmdBgp}, "address")
+	command.RegisterAddressFields([]string{cmdBgpPeerList})
+
+	// `show bgp peer detail` carries two fields that hold an address: the
+	// local end of the session, and the next hop this speaker was configured
+	// to advertise. Three more values in the row are dotted quads and are NOT
+	// addresses: "next-hop" holds the MODE ("auto", "self", "unchanged",
+	// "explicit"), and RFC 6286 Section 2.1 makes the BGP Identifier a 4-octet
+	// unsigned integer that no longer needs to be an IPv4 address, which
+	// governs "router-id" and, through RFC 4456 Section 7, "cluster-id".
+	command.RegisterAddressFields([]string{cmdBgpPeerDetail}, "local-ip", "next-hop-address")
+
+	// A transition row carries a timestamp and two state names
+	// (handlePeerHistory), so neither operator has a field to decorate and both
+	// are refused by name. The envelope beside the rows does carry the peer
+	// address, and that is not a field of a ROW: `| resolve` and `| origin` act
+	// on rows, so declaring it would publish support the rows cannot honor.
+	command.RegisterAddressFields([]string{cmdBgpPeerHistory})
+
 	for _, child := range cmdBgpChildren {
 		command.RegisterShape([]string{child})
+		command.RegisterAddressFields([]string{child})
 	}
 }
 
