@@ -32,7 +32,7 @@ The core remains protocol-agnostic, and each subsystem brings its own YANG model
 
 ## Running and adopting Ze
 
-Practical questions about trying Ze without committing a network to it.
+Practical questions about trying Ze before you commit a network to it.
 
 **Where does Ze run?**
 

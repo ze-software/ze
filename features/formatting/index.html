@@ -391,9 +391,11 @@ those three, and key order carries no meaning for a program.</p>
 <p>A column is never hidden. Ordering decides where a key renders, never whether
 it renders. A field you do not see in the order the command declared is still
 in the table, after the declared ones.</p>
-<p>Only <code>show bgp</code> and <code>show bgp peer list</code> declare an order today. Each
-declaration is an operator judgment about what leads, so commands take one as
-somebody makes that judgment.</p>
+<p>Sixteen commands under <code>show bgp</code> declare an order today, and some commands under
+<code>show config</code>, <code>show data</code>, <code>show env</code>, <code>show schema</code> and <code>show yang</code> declare one
+too. Each declaration is an operator judgment about what leads, so a command
+takes one as somebody makes that judgment. <code>ze help command "&lt;path&gt;" --json</code>
+answers what one command declares.</p>
 <!-- source: internal/component/command/column_order.go -- RegisterColumns, ColumnsForCommand -->
 <!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, bestColumnOrder -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerColumns -->
@@ -595,7 +597,7 @@ already produced. A command filter stops it being produced.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 August 2026 06:12 UTC</span>
+                    <span class="footer-published">Published 24 August 2026 11:56 UTC</span>
                 </div>
             </div>
         </footer>

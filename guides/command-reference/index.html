@@ -1634,10 +1634,16 @@ inherits a declaration from its own path or an ancestor of it. Each branch under
 <code>show bgp</code> declares no alias and no column order at its own root, which covers
 every command in that branch: <code>show bgp peer</code> covers <code>show bgp peer 192.0.2.1
 detail</code>, and <code>show bgp rib</code> covers <code>show bgp rib best</code>. So no command under
-<code>show bgp</code> inherits <code>| summary</code> or <code>| peers</code>, and <code>show bgp rib</code> renders its
-columns alphabetically. <code>show bgp peer list</code> is the one command that declares a
-column order of its own, on a longer path than the branch root, so it keeps it.
-<code>show bgp rpki</code> declares an alias of its own the same way, so
+<code>show bgp</code> inherits <code>| summary</code> or <code>| peers</code>.</p>
+<p>That empty declaration at a branch root is a floor rather than a claim. A
+command deeper in the branch declares its own order and keeps it. Sixteen
+commands under <code>show bgp</code> declare one, and each of the sixteen also declares
+whether its answer holds rows. <code>ze help command "&lt;path&gt;" --json</code> answers what one
+of them declares.</p>
+<!-- source: internal/component/command/column_order.go -- declarationRegistry.declare -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerColumns, registerShapes -->
+
+<p><code>show bgp rpki</code> declares an alias of its own on that same branch root, so
 <code>show bgp rpki | summary</code> answers the RPKI counters and not the peer aggregates.</p>
 <p>That bare command answers the seven validation counters and one row for each
 cache server, as siblings. That shape is what leaves <code>| summary</code> a half to
@@ -2791,6 +2797,24 @@ default</code> leaf. A format pipe inside the command wins over the flag, so
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -->
+
+<p><code>show bgp peer &lt;sel&gt; capabilities</code> and <code>show bgp peer &lt;sel&gt; statistics</code> answer
+one row for each matched peer, under a <code>peers</code> key, whatever the number of
+matched peers:</p>
+<pre><code class="language-json">{&quot;peers&quot;: [{&quot;peer&quot;: &quot;192.0.2.1&quot;, &quot;state&quot;: &quot;idle&quot;, &quot;negotiation-complete&quot;: false}]}
+</code></pre>
+<p>A capabilities row adds a <code>negotiated</code> object once the session negotiates.</p>
+<p>Until 2026-08 each command answered a bare object for one matched peer and an
+array for several. <code>show bgp peer * statistics | count</code> therefore answered on a
+router with three peers, and was refused on a router with one. A script that
+reads the single-peer form must now read the first element of <code>peers</code>.</p>
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpPeerCapabilities, handleBgpPeerStatistics -->
+
+<p>Peer rows come in ascending order of peer address and port. This holds for every
+command that reads the reactor's peer table, <code>show bgp</code>, <code>show bgp health</code> and
+these two included. The order was the Go map order until 2026-08, so <code>| first 1</code>
+answered a different peer on each call.</p>
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- reactorAPIAdapter.Peers -->
 
 <h3 id="policy-test-dry-run">Policy Test (Dry-Run)</h3>
 <table>
@@ -4030,7 +4054,7 @@ ze-chaos --ai-help                           # Print tool schemas
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 24 August 2026 11:56 UTC</span>
                 </div>
             </div>
         </footer>

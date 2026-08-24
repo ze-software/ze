@@ -57,6 +57,7 @@
 <li><a href="#every-command-starts-with-its-verb">Every command starts with its verb</a></li>
 <li><a href="#peer-selectors-on-a-destructive-command">Peer selectors on a destructive command</a></li>
 <li><a href="#positional-arguments">Positional arguments</a></li>
+<li><a href="#a-command-declares-what-its-answer-holds">A command declares what its answer holds</a></li>
 <li><a href="#protocol-tools">Protocol Tools</a></li>
 <li><a href="#configuration-management">Configuration Management</a></li>
 <li><a href="#schema-discovery">Schema Discovery</a></li>
@@ -113,6 +114,26 @@ value. One spare token becomes the peer selector when the command declares that
 it requires one, no selector arrived out of band, and exactly one token is spare,
 which is what makes <code>delete bgp peer 127.0.0.1</code> work.</p>
 <!-- source: internal/component/plugin/server/command.go -- positionalDef, matchCommandTokens -->
+
+<h3 id="a-command-declares-what-its-answer-holds">A command declares what its answer holds</h3>
+<p>A command declares whether its answer holds rows or one document, and which of
+its fields hold an IP address. The CLI refuses an operator that declaration
+cannot support, by name, before the command runs:</p>
+<pre><code>show bgp rib status | count
+count cannot apply here: this command answers one document, and count acts on rows
+</code></pre>
+<p><code>ze help command "&lt;path&gt;" --json</code> lists the operators a declared command
+supports, and it reads the same declaration, so the published list and the
+runtime cannot disagree. <code>| resolve</code> and <code>| origin</code> are listed only where the
+command declares a field that holds an address.</p>
+<p>Every <code>show bgp</code> command that an in-tree package registers declares one: sixteen
+paths. The commands under <code>show bgp rpki</code>, <code>show bgp rs</code>, <code>show bgp adj-rib-in</code>
+and <code>show bgp healthcheck</code> are served by a plugin process with no in-core shim
+and declare nothing yet. An undeclared command still refuses what it cannot
+support, from the answer it has in hand, after it runs.</p>
+<!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
+<!-- source: internal/component/command/answer_shape.go -- RegisterShape, RegisterAddressFields -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerShapes -->
 
 <h3 id="protocol-tools">Protocol Tools</h3>
 <table>
@@ -433,7 +454,7 @@ The dashboard polls three local BGP sessions. Press &quot;s&quot; to sort by the
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 24 August 2026 11:56 UTC</span>
                 </div>
             </div>
         </footer>

@@ -14,9 +14,9 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 51 shipped or experimental feature cards, 4 roadmap cards, 395 CLI commands, 36 config sections, 96 plugin registrations, 42 direct Go dependencies, 36 weekly change entries.
-- Test evidence counts: 23,700+ unit tests, 78 fuzz targets, 1,700+ end-to-end transcript steps, 149 interop scenarios across 9 target implementations.
-- Generated date: 2026-08-23.
+- Current generated counts: 51 shipped or experimental feature cards, 4 roadmap cards, 395 CLI commands, 36 config sections, 96 plugin registrations, 42 direct Go dependencies, 37 weekly change entries.
+- Test evidence counts: 23,700+ unit tests, 78 fuzz targets, 1,700+ end-to-end transcript steps, 130 interop scenarios across 9 target implementations.
+- Generated date: 2026-08-24.
 
 ## Quality and verification model
 
@@ -29,7 +29,7 @@ Ze uses layered proof because bugs appear at different boundaries.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
-- Interop: 149 scenarios against 9 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
+- Interop: 130 scenarios against 9 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
 - Verify workflow: `make ze-precommit-verify` takes a shared lock, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `make ze-precommit-verify-changed` and `make ze-repository-check` are narrower handoff gates.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
@@ -418,20 +418,20 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show bgp decode` (read-only; wire ze-show:bgp-decode): Decode a hex-encoded BGP message into readable JSON. Paste a hex BGP UPDATE and get back parsed attributes, NLRI, and withdrawn prefixes. Handy for reading pcap captures...
 - `show bgp encode` (read-only; wire ze-show:bgp-encode): Turn a route announcement into wire-format hex. Takes a route in API syntax and returns the BGP UPDATE as a hex string. Useful for building test payloads, feeding to...
 - `show bgp health` (read-only; wire ze-show:bgp-health; pipes: json ndjson table text yaml raw no-more log save match count first last display fill resolve origin): Quick health check for all your BGP peers. Lists every peer with address, state, ASN, and uptime. Reports how many are not Established. Much faster than 'show bgp peer...
-- `show bgp irr` (read-only; wire ze-show:irr-status; pipes: json ndjson table text yaml raw no-more log save match count first last display fill resolve origin): Show IRR filter status per ASN. Lists each enrolled ASN with its resolved AS-SET, prefix counts, last refresh time, and error status. Use this to confirm that IRR...
-- `show bgp irr check` (read-only; wire ze-show:irr-check; pipes: json ndjson table text yaml raw no-more log save match count first last display fill resolve origin; args peer, prefix): Check if a prefix is accepted by the IRR filter.
-- `show bgp irr prefix` (read-only; wire ze-show:irr-prefix; pipes: json ndjson table text yaml raw no-more log save match count first last display fill resolve origin; args peer): Show IRR-resolved prefixes for a peer.
+- `show bgp irr` (read-only; wire ze-show:irr-status; pipes: json ndjson table text yaml raw no-more log save match count first last display fill): Show IRR filter status per ASN. Lists each enrolled ASN with its resolved AS-SET, prefix counts, last refresh time, and error status. Use this to confirm that IRR...
+- `show bgp irr check` (read-only; wire ze-show:irr-check; pipes: json ndjson table text yaml raw no-more log save; args peer, prefix): Check if a prefix is accepted by the IRR filter.
+- `show bgp irr prefix` (read-only; wire ze-show:irr-prefix; pipes: json ndjson table text yaml raw no-more log save match count first last display; args peer): Show IRR-resolved prefixes for a peer.
 - `show bgp peer capabilities` (read-only; wire ze-bgp:peer-capabilities; pipes: json ndjson table text yaml raw no-more log save match count first last display fill resolve origin; args selector): Show what capabilities were negotiated with a peer.
 - `show bgp peer detail` (read-only; wire ze-bgp:peer-detail; pipes: json ndjson table text yaml raw no-more log save match count first last display fill resolve origin; args selector): Show full detail for one or more peers.
-- `show bgp peer history` (read-only; wire ze-bgp:peer-history; pipes: json ndjson table text yaml raw no-more log save match count first last display fill resolve origin; args selector): Show FSM state transitions for a peer over time.
-- `show bgp peer list` (read-only; wire ze-bgp:peer-list; pipes: json ndjson table text yaml raw no-more log save match count first last display fill resolve origin): List your peers, one line each. Shows name, address, ASN, state, and uptime. Quick overview without the detail of 'show bgp peer detail'.
+- `show bgp peer history` (read-only; wire ze-bgp:peer-history; pipes: json ndjson table text yaml raw no-more log save match count first last display fill; args selector): Show FSM state transitions for a peer over time.
+- `show bgp peer list` (read-only; wire ze-bgp:peer-list; pipes: json ndjson table text yaml raw no-more log save match count first last display fill): List your peers, one line each. Shows name, address, ASN, state, and uptime. Quick overview without the detail of 'show bgp peer detail'.
 - `show bgp peer rib` (read-only; wire ze-bgp:peer-rib; pipes: json ndjson table text yaml raw no-more log save match count first last display fill resolve origin; args selector): Show RIB data scoped to one peer. Syntax: `show bgp peer rib [scope|filters|terminal]`.
 - `show bgp peer statistics` (read-only; wire ze-bgp:peer-statistics; pipes: json ndjson table text yaml raw no-more log save match count first last display fill resolve origin; args selector): Show UPDATE throughput for your peers.
 - `show bgp rib` (read-only; wire ze-rib-api:routes; pipes: json ndjson table text yaml raw no-more log save match count first last display fill resolve origin): Query routes in the BGP RIB. Look at received or advertised routes with flexible filters: peer, family, prefix, AS path regex, community, match expression. Pipe...
 - `show bgp rib best` (read-only; wire ze-rib-api:best; pipes: json ndjson table text yaml raw no-more log save match count first last display fill resolve origin): Show the winning route for each prefix. Same filters as 'show bgp rib'. Use '| reason' to see why each path was selected (local-pref, AS path length, MED, etc.).
-- `show bgp rib best status` (read-only; wire ze-rib-api:best-status; pipes: json ndjson table text yaml raw no-more log save match count first last display fill resolve origin): Check whether best-path computation is still running. Reports idle, pending, or running, plus the last run duration.
-- `show bgp rib rpf` (read-only; wire ze-rib-api:rpf; pipes: json ndjson table text yaml raw no-more log save match count first last display fill resolve origin): Reverse-path forwarding lookup in the Loc-RIB. Performs a longest-prefix-match and returns the best-path entry. Use this to verify RPF checks would pass for a given...
-- `show bgp rib status` (read-only; wire ze-rib-api:status; pipes: json ndjson table text yaml raw no-more log save match count first last display fill resolve origin): Get a quick RIB overview without dumping routes. Shows total peers, received/accepted/advertised route counts, and per-family breakdowns. Use this to confirm convergence...
+- `show bgp rib best status` (read-only; wire ze-rib-api:best-status; pipes: json ndjson table text yaml raw no-more log save): Check whether best-path computation is still running. Reports idle, pending, or running, plus the last run duration.
+- `show bgp rib rpf` (read-only; wire ze-rib-api:rpf; pipes: json ndjson table text yaml raw no-more log save): Reverse-path forwarding lookup in the Loc-RIB. Performs a longest-prefix-match and returns the best-path entry. Use this to verify RPF checks would pass for a given...
+- `show bgp rib status` (read-only; wire ze-rib-api:status; pipes: json ndjson table text yaml raw no-more log save): Get a quick RIB overview without dumping routes. Shows total peers, received/accepted/advertised route counts, and per-family breakdowns. Use this to confirm convergence...
 - `show bmp collectors` (read-only; wire ze-show:bmp-collectors; pipes: json ndjson table text yaml raw no-more log save match count first last display fill): Show BMP collector connection status. Lists configured collectors with connection state, sent message counts, and error statistics. Check here if your collector is not...
 - `show bmp peers` (read-only; wire ze-show:bmp-peers; pipes: json ndjson table text yaml raw no-more log save match count first last display fill): Show BGP peers as seen through BMP monitoring. Lists peers reported via BMP with their state and route statistics.
 - `show bmp rib` (read-only; wire ze-show:bmp-rib; pipes: json ndjson table text yaml raw no-more log save match count first last display fill): Show routes received via BMP monitoring sessions. Returns the BMP RIB content. Use this to verify what your collector is seeing from remote peers.
@@ -1017,7 +1017,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ### Progress and history
 - [Project overview](https://ze-software.net/project/index.md): Progress, history, talks, and contribution paths (web: https://ze-software.net/project/)
 - [Roadmap](https://ze-software.net/project/roadmap/index.md): What works today and what remains before the first release (web: https://ze-software.net/project/roadmap/)
-- [Changes](https://ze-software.net/project/changes/index.md): 36 weekly updates, newest first (web: https://ze-software.net/project/changes/)
+- [Changes](https://ze-software.net/project/changes/index.md): 37 weekly updates, newest first (web: https://ze-software.net/project/changes/)
 - [Milestones](https://ze-software.net/project/milestones/index.md): Landmark features, oldest to newest (web: https://ze-software.net/project/milestones/)
 - [Activity](https://ze-software.net/project/activity/index.md): A year of commits, at a glance (web: https://ze-software.net/project/activity/)
 - [Project history](https://ze-software.net/project/history/index.md): How ExaBGP's programmable model grew into Ze (web: https://ze-software.net/project/history/)

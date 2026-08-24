@@ -6,8 +6,8 @@
 - Registry path: `show bgp health`
 - Mode: Read-only
 - Wire method: `ze-show:bgp-health`
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill, resolve, origin
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
+- Pipes, on rows: none
 
 Quick health check for all your BGP peers. Lists every peer with address, state, ASN, and uptime. Reports how many are not Established. Much faster than 'show bgp peer *' when you just need a status overview.
 

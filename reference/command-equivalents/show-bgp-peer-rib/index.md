@@ -6,8 +6,8 @@
 - Registry path: `show bgp peer rib`
 - Mode: Read-only
 - Wire method: `ze-bgp:peer-rib`
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill, resolve, origin
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
+- Pipes, on rows: none
 
 Show RIB data scoped to one peer. Usage: show bgp peer <selector> rib [scope|filters|terminal].
 

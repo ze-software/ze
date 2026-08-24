@@ -1,5 +1,62 @@
 [
   {
+    "slug": "2026-08-17",
+    "intro": "The CLI gained a clearer BGP workflow, traffic tools gained history and source-AS context, and IPsec changes now reach running tunnels.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
+      },
+      {
+        "label": "API",
+        "category": "automate",
+        "key": "API"
+      },
+      {
+        "label": "Flow Export",
+        "category": "observe",
+        "key": "Flow Export"
+      },
+      {
+        "label": "DDoS",
+        "category": "secure",
+        "key": "DDoS"
+      },
+      {
+        "label": "IPsec",
+        "category": "secure",
+        "key": "IPsec"
+      },
+      {
+        "label": "Firewall",
+        "category": "secure",
+        "key": "Firewall"
+      },
+      {
+        "label": "Appliance",
+        "category": "platform",
+        "key": "Appliance"
+      },
+      {
+        "label": "RFC Compliance",
+        "category": "meta",
+        "key": "RFC Compliance"
+      },
+      {
+        "label": "Quality Improvement",
+        "category": "platform",
+        "key": "Quality Improvement"
+      }
+    ]
+  },
+  {
     "slug": "2026-08-10",
     "intro": "Web and Looking Glass rewrites, remote-triggered blackholing, dynamic BGP peer repairs, authenticated PPPoE and another standards pass shaped the week.",
     "is_draft": false,

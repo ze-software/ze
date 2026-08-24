@@ -7,7 +7,7 @@
 - Mode: Read-only
 - Wire method: `ze-rib-api:rpf`
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill, resolve, origin
+- Pipes, on rows: none
 
 Reverse-path forwarding lookup in the Loc-RIB. Performs a longest-prefix-match and returns the best-path entry. Use this to verify RPF checks would pass for a given source.
 

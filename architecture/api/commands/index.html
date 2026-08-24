@@ -160,7 +160,11 @@
 <li><a href="#quiesce-barrier-test-synchronization">Quiesce Barrier (test synchronization)</a></li>
 <li><a href="#peer-selector-parsing">Peer Selector Parsing</a></li>
 <li><a href="#command-registry">Command Registry</a></li>
-<li><a href="#per-command-declarations-pipe-filters-and-column-order">Per-command declarations: pipe filters and column order</a></li>
+<li><a href="#per-command-declarations-what-a-command-says-about-itself">Per-command declarations: what a command says about itself</a>
+<ol>
+<li><a href="#two-packages-one-path-empty-is-a-floor-and-a-disagreement-is-a-defect">Two packages, one path: empty is a floor and a disagreement is a defect</a></li>
+<li><a href="#the-declared-shape-refuses-an-operator-before-the-command-runs">The declared shape refuses an operator before the command runs</a></li>
+</ol></li>
 <li><a href="#display-and-fill-the-operators-own-answer">| display and | fill: the operator&#x27;s own answer</a></li>
 <li><a href="#pipe-aliases-a-name-for-an-operator-chain">Pipe aliases: a name for an operator chain</a></li>
 <li><a href="#a-plugin-declares-a-pipe-alias-in-its-stage-1-message">A plugin declares a pipe alias in its Stage 1 message</a>
@@ -2163,13 +2167,13 @@ func ParseSelector(s string) (*Selector, error) {
 </code></pre>
 <!-- source: internal/component/plugin/server/rpc_register.go -- registeredRPCs -->
 
-<h3 id="per-command-declarations-pipe-filters-and-column-order">Per-command declarations: pipe filters and column order</h3>
-<p>Two registries let a command say something about itself to the CLI. Both are
-keyed by command path. Both resolve a command to the declaration registered on
+<h3 id="per-command-declarations-what-a-command-says-about-itself">Per-command declarations: what a command says about itself</h3>
+<p>Five registries let a command say something about itself to the CLI. Each one is
+keyed by command path. Each resolves a command to the declaration registered on
 the longest path that is a prefix of it. So <code>show bgp rib best</code> picks up a
 declaration on <code>show bgp rib</code> unless it registers one of its own. A command that
-must NOT inherit registers an EMPTY declaration: absent and empty are different
-answers, and this is the trap both registries exist in.</p>
+must NOT inherit registers an EMPTY declaration. Absent and empty are different
+answers, and that is the trap all five registries exist in.</p>
 <table>
 <thead>
 <tr>
@@ -2180,18 +2184,121 @@ answers, and this is the trap both registries exist in.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>RegisterPipeFilters</code></td>
-<td>the pipe segments this command accepts as its own, which <code>foldFilters</code> rewrites into server-side arguments</td>
-<td><code>foldFilters</code>, the completer, the pipe validator</td>
+<td><code>RegisterShape</code></td>
+<td>whether the answer holds rows (<code>tab</code>, <code>map</code>) or one document (<code>doc</code>)</td>
+<td><code>validateDeclaredShape</code>, before the command runs, and <code>ze help command --json</code></td>
 </tr>
 <tr>
 <td><code>RegisterColumns</code></td>
 <td>the order the table and text renderers put this command's columns in</td>
 <td><code>tableStyle.orderKeys</code>, through the four <code>ProcessPipes*</code> wrappers</td>
 </tr>
+<tr>
+<td><code>RegisterAddressFields</code></td>
+<td>that a field of the answer holds an IP address</td>
+<td><code>validateDeclaredShape</code>, which admits <code>\| resolve</code> and <code>\| origin</code> only where a field is declared</td>
+</tr>
+<tr>
+<td><code>RegisterPipeFilters</code></td>
+<td>the pipe segments this command accepts as its own, which <code>foldFilters</code> rewrites into server-side arguments</td>
+<td><code>foldFilters</code>, the completer, the pipe validator</td>
+</tr>
+<tr>
+<td><code>RegisterAliases</code></td>
+<td>a name an operator types in the operator slot, standing for a chain (see "Pipe aliases" below)</td>
+<td><code>lookupAlias</code></td>
+</tr>
 </tbody>
 </table>
-<p>One implementation resolves both: <code>commandRegistry[T]</code> in <code>column_order.go</code>.</p>
+<p>One implementation resolves all five: <code>commandRegistry[T]</code> in <code>column_order.go</code>.</p>
+<!-- source: internal/component/command/answer_shape.go -- RegisterShape, ShapeForCommand, RegisterAddressFields, AddressFieldsForCommand -->
+<!-- source: internal/component/command/column_order.go -- commandRegistry, lookup -->
+
+<h4 id="two-packages-one-path-empty-is-a-floor-and-a-disagreement-is-a-defect">Two packages, one path: empty is a floor and a disagreement is a defect</h4>
+<p>The first four registries are a <code>declarationRegistry[T]</code>, which adds one rule to
+that lookup. <code>declare</code> reads what the path already holds:</p>
+<table>
+<thead>
+<tr>
+<th>The value</th>
+<th>The path holds</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>anything</td>
+<td>nothing</td>
+<td>the value is stored</td>
+</tr>
+<tr>
+<td>EMPTY</td>
+<td>anything</td>
+<td>what the path holds stays</td>
+</tr>
+<tr>
+<td>non-empty</td>
+<td>an EMPTY declaration</td>
+<td>the value replaces it</td>
+</tr>
+<tr>
+<td>non-empty</td>
+<td>an equal value</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>non-empty</td>
+<td>a DIFFERENT non-empty value</td>
+<td><code>panic("BUG:")</code>, naming the registry, the path and both values</td>
+</tr>
+</tbody>
+</table>
+<p>An empty declaration is a FLOOR and never a claim. It stops a shorter path being
+inherited, and it says nothing about what the answer holds. <code>show bgp rib</code> is the
+case this rule was written for. The BGP peer command plugin blanks every direct
+child of <code>show bgp</code>, and the rib command plugin declares <code>tab</code> for
+<code>show bgp rib</code>. Under the earlier last-writer-wins rule, package initialization
+order decided which of the two the path answered.</p>
+<p>Every caller declares from <code>init()</code>, so two different non-empty values are a
+state only a Ze defect reaches. The panic reports it before the daemon serves
+anything (<code>docs/contributing/ze-style.md</code>).</p>
+<p>The ALIAS registry is the exception, and it keeps <code>register</code>.
+<code>RegisterPluginAliases</code> stores <code>mergedAliases(path, ...)</code>, which differs from
+what the path holds each time it runs, so the rule would fire on the ordinary
+case. That registry is also reachable from outside this repository, where a bad
+declaration is an operating error owed an error rather than a panic.</p>
+<!-- source: internal/component/command/column_order.go -- declarationRegistry, newDeclarationRegistry, declare -->
+<!-- source: internal/component/command/alias.go -- aliasRegistry, mergedAliases -->
+
+<h4 id="the-declared-shape-refuses-an-operator-before-the-command-runs">The declared shape refuses an operator before the command runs</h4>
+<p><code>validateDeclaredShape</code> reads the declared shape and refuses an operator that
+shape cannot support, by name, before dispatch. A command declaring <code>doc</code>
+answers <code>count cannot apply here: this command answers one document, and count
+acts on rows</code>. The answer's own shape refuses as well, at apply time, and that
+half covers every command including the ones that declare nothing. The
+declaration is what makes the published catalog true, because <code>ze help command
+--json</code> lists a declared command's operators from its shape.</p>
+<p>A declared address-field list is an ADMISSION gate and not a selector. It decides
+whether <code>| resolve</code> and <code>| origin</code> run at all. It does not decide what they
+decorate: <code>resolveJSON</code> and <code>originJSON</code> walk every key of the answer and
+decorate each string that parses as an address.</p>
+<p>Every <code>show bgp</code> command that an in-tree package registers declares a shape.
+Sixteen paths do so, and nine of them name an address field. Scope is the
+registration site rather than the process boundary. <code>show bgp rib</code> and
+<code>show bgp irr</code> are served by a plugin process, and an in-core shim declares for
+them. The commands under <code>show bgp rpki</code>, <code>show bgp rs</code>, <code>show bgp adj-rib-in</code>
+and <code>show bgp healthcheck</code> have no shim and declare nothing, because
+<code>CommandDecl</code> carries no shape.</p>
+<p>A SELECTOR spelling declares nothing of its own. The registry resolves the string
+the operator typed. <code>show bgp peer detail</code> is not a prefix of
+<code>show bgp peer 192.0.2.1 detail</code>, so that spelling resolves <code>show bgp peer</code>, one
+of the empty declarations. It therefore reaches no refusal before dispatch, and
+the answer's own shape refuses after it.</p>
+<!-- source: internal/component/command/pipe.go -- validateDeclaredShape, shapeDescription -->
+<!-- source: internal/component/command/pipe_resolve.go -- resolveJSON -->
+<!-- source: internal/component/command/pipe_origin.go -- originJSON -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- cmdBgpChildren, registerShapes -->
+
 <p>A column order never enters the payload. It is captured when the formatter is
 built, from the command string the wrapper already holds, and it reaches
 <code>| table</code> and <code>| text</code> only. <code>| json</code>, <code>| ndjson</code> and <code>| yaml</code> keep their
@@ -2607,7 +2714,13 @@ names, and <code>| table</code> sorts a plugin answer's keys alphabetically. The
 itself works and its NAME completes, because that name comes from the alias
 registry. <code>show bgp rpki</code>, <code>show bgp rpki summary</code> and <code>show bgp rpki | summary</code>
 therefore render one identical record in three different orders.</p>
+<p>A plugin-served command whose path an in-core SHIM registers is the exception,
+because the shim is Go compiled into the daemon. <code>show bgp rib</code> and
+<code>show bgp irr</code> each have one, and each declares a shape, a column order and an
+address-field list for an answer a plugin process produces.</p>
 <!-- source: internal/component/command/completer.go -- completeDisplayFields, completePipeForCommand -->
+<!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- registerPipeFilters, registerRibAnswerShapes -->
+<!-- source: internal/component/bgp/plugins/filter_irr/cmd_irr.go -- registerIRRShapes -->
 
 <h3 id="the-chain-over-a-row-generator">The chain over a row generator</h3>
 <p>A handler that answers with a row generator runs the same chain, one record at a
@@ -2960,7 +3073,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 August 2026 06:12 UTC</span>
+                    <span class="footer-published">Published 24 August 2026 11:56 UTC</span>
                 </div>
             </div>
         </footer>

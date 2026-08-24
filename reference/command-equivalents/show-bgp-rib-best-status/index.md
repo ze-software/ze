@@ -7,7 +7,7 @@
 - Mode: Read-only
 - Wire method: `ze-rib-api:best-status`
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill, resolve, origin
+- Pipes, on rows: none
 
 Check whether best-path computation is still running. Reports idle, pending, or running, plus the last run duration.
 

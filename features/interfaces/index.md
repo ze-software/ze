@@ -315,27 +315,27 @@ device appears, and a config is validated on machines that will never run it.
   per direction. `tc qdisc show` on an interface that once mirrored reports a clsact
   qdisc with no filter on it, which is expected.
 <!-- source: internal/plugins/iface/netlink/mirror_linux.go -- RemoveMirror, removeMirrorFilters, undoMirrorSetup, ensureClsactQdisc -->
-- **A mirror the config drops is torn down.** `applyConfig` compares the mirrors the
+- **A mirror the config drops is removed.** `applyConfig` compares the mirrors the
   new config asks for against the mirrors the previous config installed, and removes
   every one that was dropped or changed before it installs the new set. A changed
   destination is a remove followed by an install, because tc filters are additive:
   installing the new destination would otherwise leave the old one duplicating
   traffic.
 - **The reconcile reads the dataplane, so a restart retires a stranded mirror.**
-  A second pass runs inside the config reconcile and compares the mirrors the
-  dataplane carries against the mirrors the configuration asks for. It needs no
-  previous config, so a mirror the operator deleted while ze was down is torn down
-  on the next boot, and a teardown an earlier apply skipped is retried. A backend
-  that cannot report its live mirrors leaves every mirror alone, because "the read
-  failed" is not "no mirror is installed".
+  A second pass runs inside the config reconcile. It compares the mirrors the
+  dataplane carries against the mirrors the configuration asks for, so it needs
+  no previous config. A mirror the operator deleted while ze was down is
+  therefore removed on the next boot. So is a mirror an earlier apply failed to
+  remove. A backend that cannot read its live mirrors removes nothing, because
+  "the read failed" is not "no mirror is installed".
 - **The pass acts only on the interfaces the configuration names.** A priority-1
-  matchall mirred filter is a shape, not a mark of ownership, and another tool can
-  install the same one, so ze removes a mirror only on an interface its own
-  configuration configures (the current one or the previous one). One case is
-  therefore out of reach: an interface whose whole stanza was deleted while ze was
-  down keeps its mirror, because nothing then tells it apart from a filter ze never
-  installed. Delete the interface from the configuration while ze runs, or clear
-  the mirror leaves first, and the mirror is retired.
+  matchall mirred filter is a shape, not a mark of ownership, and another tool
+  can install the same one. So ze removes a mirror only on an interface named by
+  the current config or the previous one. One case is out of reach: an interface
+  whose whole stanza was deleted while ze was down keeps its mirror. Nothing then
+  tells that mirror apart from a filter ze never installed. To retire that
+  mirror, delete the interface from the configuration while ze runs, or clear the
+  mirror leaves first.
 <!-- source: internal/component/iface/config_mirror.go -- indexMirrorSpecs, removeStaleMirrors, reconcileMirrors, applyMirror -->
 <!-- source: internal/plugins/iface/netlink/mirror_linux.go -- ListMirrors, mirrorDestinationName -->
 

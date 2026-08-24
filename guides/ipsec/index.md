@@ -104,6 +104,15 @@ Three consequences are worth planning around:
 - **A group is shared, so an edit to it bounces every peer that names it.** Give a peer its
   own group when you want to rotate its crypto without touching the others.
 
+A commit is REFUSED when `interface` cannot supply an address and some peer has no
+`local-address` of its own. The transaction rolls back and every running tunnel keeps
+carrying traffic, because applying that configuration would restart each of those peers
+into a state that cannot bind. The error names the interface and how many peers depend on
+it. Give those peers a `local-address`, or bring the interface up, then commit again. At
+DAEMON START the same configuration is applied and the condition is logged instead: there
+is no running tunnel to protect, and the peers that carry their own `local-address` still
+come up.
+
 <!-- source: internal/component/ike/engine/reconcile.go -- reconcilePeers, peerConfigChanged -->
 <!-- source: internal/component/ike/ipsec/types.go -- SiteToSitePeer.Equal -->
 

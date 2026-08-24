@@ -61,24 +61,24 @@ Ze is Go, and Go code leans on packages. 42 direct dependencies, read straight f
 | --- | --- | --- |
 | `github.com/prometheus/client_golang` | `v1.24.1` | Ze's internal metrics backend: counters, gauges, and histograms against a private registry. |
 | `github.com/prometheus/procfs` | `v0.21.1` | Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet. |
-| `github.com/sirupsen/logrus` | `v1.9.4` | Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger. |
+| `github.com/sirupsen/logrus` | `v1.10.0` | Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger. |
 
 ## Standard Library Extensions (golang.org/x) (6)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
 | `golang.org/x/crypto` | `v0.55.0` | SSH protocol primitives and certificate signing for the SSH server, plus password hashing. |
-| `golang.org/x/mod` | `v0.39.0` | Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy. |
+| `golang.org/x/mod` | `v0.40.0` | Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy. |
 | `golang.org/x/net` | `v0.58.0` | Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth. |
 | `golang.org/x/sys` | `v0.47.0` | Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components. |
 | `golang.org/x/term` | `v0.45.0` | Reads passwords without echo and detects an interactive terminal during CLI login. |
-| `golang.org/x/tools` | `v0.48.0` | Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries. |
+| `golang.org/x/tools` | `v0.49.0` | Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries. |
 
 ## Testing & Build Tooling (5)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
-| `github.com/stretchr/testify` | `v1.11.1` | Assertion and require helpers used across the Go unit test suite. |
+| `github.com/stretchr/testify` | `v1.12.1` | Assertion and require helpers used across the Go unit test suite. |
 | `github.com/gokrazy/tools` | `v0.0.0-20260703063348-3fe400c13246` | Drives gokrazy appliance image builds from Ze's appliance build tooling. |
 | `github.com/gokrazy/updater` | `v0.0.0-20260620140544-0a84d8ab3878` | Referenced only in a regression test against Ze's own vendored update-push logic, written locally after a bug was found upstream. Not used in production. |
 | `github.com/sivchari/gomu` | `v0.2.1` | Mutation-testing tool, run via the Makefile to advisory-score how well the test suite actually exercises the code. Not a build or CI gate. |

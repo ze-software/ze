@@ -9,7 +9,7 @@
     "tests": "../main/test/health/latest.json"
   },
   "blog_articles": 7,
-  "changes": 36,
+  "changes": 37,
   "cli_commands": 395,
   "config_sections": 36,
   "dependencies": 42,
@@ -17,22 +17,22 @@
     "core_experimental": 51,
     "planned": 4
   },
-  "generated_at": "2026-08-23",
+  "generated_at": "2026-08-24",
   "github_stars": 50,
   "interop": {
-    "scenario_dirs_raw": 150,
-    "scenarios": 149,
+    "scenario_dirs_raw": 130,
+    "scenarios": 130,
     "target_display": "9",
     "targets": 9
   },
-  "published_at": "2026-08-23T16:31:02+00:00",
+  "published_at": "2026-08-24T11:56:39+00:00",
   "repo": {
-    "design_comments": 3655,
-    "design_comments_display": "3,655",
-    "detail_comments": 3185,
-    "detail_comments_display": "3,185",
-    "go_packages": 646,
-    "go_packages_display": "646"
+    "design_comments": 3669,
+    "design_comments_display": "3,669",
+    "detail_comments": 3195,
+    "detail_comments_display": "3,195",
+    "go_packages": 648,
+    "go_packages_display": "648"
   },
   "rfc": {
     "enrolled": 171,

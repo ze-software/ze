@@ -162,8 +162,18 @@ Withdraw the test rule from the same source:
 The rule leaves the kernel with the route. When the withdrawn route was the last
 one the peer gave `edge-01`, `nft list ruleset` shows no `ze_flowspec` table at
 all. A router upgraded from a build older than 2026-08-23 holds a table named
-`flowspec`, without the prefix; ze removes that one on its first reconcile and
+`flowspec`, without the prefix. Ze removes that one on its first reconcile and
 logs `deleting a table an earlier ze build left without the ownership prefix`.
+
+That removal runs when the FlowSpec bridge starts, so it needs the bridge to
+still be configured. If you removed the `flowspec-firewall` plugin from the
+config in the same upgrade, nothing reconciles the firewall and the old table
+keeps enforcing its rules. Check for it and remove it by hand:
+
+```bash
+sudo nft list table inet flowspec
+sudo nft delete table inet flowspec
+```
 
 
 ## 5. Protect the BGP session itself

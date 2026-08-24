@@ -73,7 +73,7 @@
                 </ol>
             </nav>
             <section class="md-content blog-article-content reveal" data-table-columns="off" data-code-copy="off">
-<p>Ze is a network operating system spread over <span data-ze-stat="repo.go_packages_display">646</span> Go packages. A model can open any one of them in under a second and still have no idea which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. Nothing in the repository tells it.</p>
+<p>Ze is a network operating system spread over <span data-ze-stat="repo.go_packages_display">648</span> Go packages. A model can open any one of them in under a second and still have no idea which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. Nothing in the repository tells it.</p>
 <p>The harness supplies the general abilities: read a file, search the tree, edit code, run a program, keep track of a task and report a failure. The project has to supply the meaning. A developer who misreads a convention usually notices, and a reviewer notices for them when they do not. An agent produces something plausible and moves on.</p>
 <p>So an AI-ready repository has to teach the agent how the project works and catch it when it gets that wrong. This article describes how Ze is trying to do both. Why I think every serious project ends up building something similar is a separate argument, in <a href="../ai-coding-has-not-had-its-rails-moment/">AI coding has not had its Rails moment</a>.</p>
 <p>I ended <a href="../ai-slop-is-the-wrong-test/">AI slop is the wrong test</a> by saying that generated code has to be constrained, reviewed, tested and measured. <a href="../the-proof-is-the-expensive-part/">The proof is the expensive part</a> explains how Ze ties an RFC claim to requirements, tests, known gaps and commit evidence. This article covers what comes before all of that: helping the agent find the right information before it writes the wrong code.</p>
@@ -81,8 +81,8 @@
 <h2 id="what-the-repository-has-to-carry">What the repository has to carry</h2>
 <p>Ze carries that meaning in several layers.</p>
 <p><code>ai/INDEX.md</code> is a task-oriented entrance. It answers questions such as where to start when adding a plugin, changing configuration, implementing an RFC or adding a command, so the agent does not have to search hundreds of packages to find the first document.</p>
-<p><code>ai/PACKAGE-MAP.md</code> gives one short description for each of those <span data-ze-stat="repo.go_packages_display">646</span> packages, and that saves a great deal of blind exploration.</p>
-<p>Production Go files carry a <code>// Design:</code> line near their top, so opening the implementation reveals the document explaining why it exists. Closely connected files also point to each other with <code>// Detail:</code>, <code>// Overview:</code> and <code>// Related:</code> comments. There are <span data-ze-stat="repo.design_comments_display">3,655</span> of the first kind and <span data-ze-stat="repo.detail_comments_display">3,185</span> of the second.</p>
+<p><code>ai/PACKAGE-MAP.md</code> gives one short description for each of those <span data-ze-stat="repo.go_packages_display">648</span> packages, and that saves a great deal of blind exploration.</p>
+<p>Production Go files carry a <code>// Design:</code> line near their top, so opening the implementation reveals the document explaining why it exists. Closely connected files also point to each other with <code>// Detail:</code>, <code>// Overview:</code> and <code>// Related:</code> comments. There are <span data-ze-stat="repo.design_comments_display">3,669</span> of the first kind and <span data-ze-stat="repo.detail_comments_display">3,195</span> of the second.</p>
 <p>The documents point back into the source through <code>&lt;!-- source: ... --&gt;</code> markers. Small programs generate the two reverse indexes, <code>ai/CODE-TO-DOCS.md</code> and <code>ai/DOCS-TO-CODE.md</code>:</p>
 <pre><code class="language-text">code file       -&gt; documents which explain it
 design document -&gt; source files which implement it
@@ -235,7 +235,7 @@ Register(&quot;configure&quot;, runConfigure)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 August 2026 16:31 UTC</span>
+                    <span class="footer-published">Published 24 August 2026 11:56 UTC</span>
                 </div>
             </div>
         </footer>

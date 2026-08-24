@@ -11921,52 +11921,53 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       },
       {
         "name": "resolve",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Reverse DNS for IP addresses"
       },
       {
         "name": "origin",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "ASN and network for IP addresses"
       }
-    ]
+    ],
+    "answer-shape": "tab"
   },
   {
     "path": "show bgp irr",
@@ -12031,52 +12032,41 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
-      },
-      {
-        "name": "resolve",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Reverse DNS for IP addresses"
-      },
-      {
-        "name": "origin",
-        "class": "data",
-        "available": "with-rows",
-        "description": "ASN and network for IP addresses"
       }
     ],
+    "answer-shape": "tab",
     "subcommands": [
       "check",
       "prefix"
@@ -12153,56 +12143,9 @@
         "class": "global",
         "available": "always",
         "description": "Write the answer to a file"
-      },
-      {
-        "name": "match",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Keep the rows holding this text"
-      },
-      {
-        "name": "count",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Count the rows"
-      },
-      {
-        "name": "first",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take first N rows"
-      },
-      {
-        "name": "last",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take last N rows"
-      },
-      {
-        "name": "display",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Answer with these fields, in this order"
-      },
-      {
-        "name": "fill",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Bring the remaining columns back, in the command's order or a named one"
-      },
-      {
-        "name": "resolve",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Reverse DNS for IP addresses"
-      },
-      {
-        "name": "origin",
-        "class": "data",
-        "available": "with-rows",
-        "description": "ASN and network for IP addresses"
       }
     ],
+    "answer-shape": "doc",
     "syntax": "show bgp irr check <peer> <prefix>"
   },
   {
@@ -12275,52 +12218,35 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
-      },
-      {
-        "name": "fill",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Bring the remaining columns back, in the command's order or a named one"
-      },
-      {
-        "name": "resolve",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Reverse DNS for IP addresses"
-      },
-      {
-        "name": "origin",
-        "class": "data",
-        "available": "with-rows",
-        "description": "ASN and network for IP addresses"
       }
     ],
+    "answer-shape": "map",
     "syntax": "show bgp irr prefix <peer>"
   },
   {
@@ -12393,52 +12319,53 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       },
       {
         "name": "resolve",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Reverse DNS for IP addresses"
       },
       {
         "name": "origin",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "ASN and network for IP addresses"
       }
     ],
+    "answer-shape": "tab",
     "syntax": "show bgp peer <selector> capabilities"
   },
   {
@@ -12511,52 +12438,53 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       },
       {
         "name": "resolve",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Reverse DNS for IP addresses"
       },
       {
         "name": "origin",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "ASN and network for IP addresses"
       }
     ],
+    "answer-shape": "tab",
     "syntax": "show bgp peer <selector> detail"
   },
   {
@@ -12629,52 +12557,41 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
-      },
-      {
-        "name": "resolve",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Reverse DNS for IP addresses"
-      },
-      {
-        "name": "origin",
-        "class": "data",
-        "available": "with-rows",
-        "description": "ASN and network for IP addresses"
       }
     ],
+    "answer-shape": "tab",
     "syntax": "show bgp peer <selector> history"
   },
   {
@@ -12772,18 +12689,6 @@
         "class": "data",
         "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
-      },
-      {
-        "name": "resolve",
-        "class": "data",
-        "available": "always",
-        "description": "Reverse DNS for IP addresses"
-      },
-      {
-        "name": "origin",
-        "class": "data",
-        "available": "always",
-        "description": "ASN and network for IP addresses"
       }
     ],
     "answer-shape": "tab"
@@ -12858,52 +12763,53 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       },
       {
         "name": "resolve",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Reverse DNS for IP addresses"
       },
       {
         "name": "origin",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "ASN and network for IP addresses"
       }
     ],
+    "answer-shape": "tab",
     "syntax": "show bgp peer <selector> rib [scope|filters|terminal]"
   },
   {
@@ -12976,52 +12882,53 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       },
       {
         "name": "resolve",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Reverse DNS for IP addresses"
       },
       {
         "name": "origin",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "ASN and network for IP addresses"
       }
     ],
+    "answer-shape": "tab",
     "syntax": "show bgp peer <selector> statistics"
   },
   {
@@ -13150,52 +13057,53 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       },
       {
         "name": "resolve",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Reverse DNS for IP addresses"
       },
       {
         "name": "origin",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "ASN and network for IP addresses"
       }
     ],
+    "answer-shape": "tab",
     "subcommands": [
       "best",
       "rpf",
@@ -13323,52 +13231,53 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       },
       {
         "name": "resolve",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Reverse DNS for IP addresses"
       },
       {
         "name": "origin",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "ASN and network for IP addresses"
       }
     ],
+    "answer-shape": "tab",
     "subcommands": [
       "status"
     ]
@@ -13432,56 +13341,9 @@
         "class": "global",
         "available": "always",
         "description": "Write the answer to a file"
-      },
-      {
-        "name": "match",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Keep the rows holding this text"
-      },
-      {
-        "name": "count",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Count the rows"
-      },
-      {
-        "name": "first",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take first N rows"
-      },
-      {
-        "name": "last",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take last N rows"
-      },
-      {
-        "name": "display",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Answer with these fields, in this order"
-      },
-      {
-        "name": "fill",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Bring the remaining columns back, in the command's order or a named one"
-      },
-      {
-        "name": "resolve",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Reverse DNS for IP addresses"
-      },
-      {
-        "name": "origin",
-        "class": "data",
-        "available": "with-rows",
-        "description": "ASN and network for IP addresses"
       }
-    ]
+    ],
+    "answer-shape": "doc"
   },
   {
     "path": "show bgp rib rpf",
@@ -13542,56 +13404,9 @@
         "class": "global",
         "available": "always",
         "description": "Write the answer to a file"
-      },
-      {
-        "name": "match",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Keep the rows holding this text"
-      },
-      {
-        "name": "count",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Count the rows"
-      },
-      {
-        "name": "first",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take first N rows"
-      },
-      {
-        "name": "last",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take last N rows"
-      },
-      {
-        "name": "display",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Answer with these fields, in this order"
-      },
-      {
-        "name": "fill",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Bring the remaining columns back, in the command's order or a named one"
-      },
-      {
-        "name": "resolve",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Reverse DNS for IP addresses"
-      },
-      {
-        "name": "origin",
-        "class": "data",
-        "available": "with-rows",
-        "description": "ASN and network for IP addresses"
       }
-    ]
+    ],
+    "answer-shape": "doc"
   },
   {
     "path": "show bgp rib status",
@@ -13652,56 +13467,9 @@
         "class": "global",
         "available": "always",
         "description": "Write the answer to a file"
-      },
-      {
-        "name": "match",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Keep the rows holding this text"
-      },
-      {
-        "name": "count",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Count the rows"
-      },
-      {
-        "name": "first",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take first N rows"
-      },
-      {
-        "name": "last",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take last N rows"
-      },
-      {
-        "name": "display",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Answer with these fields, in this order"
-      },
-      {
-        "name": "fill",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Bring the remaining columns back, in the command's order or a named one"
-      },
-      {
-        "name": "resolve",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Reverse DNS for IP addresses"
-      },
-      {
-        "name": "origin",
-        "class": "data",
-        "available": "with-rows",
-        "description": "ASN and network for IP addresses"
       }
-    ]
+    ],
+    "answer-shape": "doc"
   },
   {
     "path": "show bmp collectors",

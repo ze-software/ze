@@ -47,7 +47,6 @@ Fixed:
 
 Ze is being checked against every RFC it implements, one MUST at a time. The work has started rather than finished.
 
-<!-- ze-stat-snapshot: weekly update, frozen at publication -->
 There are 3,043 MUST-level requirements. Of those, 2,965 are checked, and 51 still owe work. Six documents have been read end to end against their source text. The other 165 have not.
 
 A green run proves everything currently written down. It does not yet prove that the list is complete, which is why the end-to-end reading continues.

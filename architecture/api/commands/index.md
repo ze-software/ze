@@ -1379,21 +1379,94 @@ var Commands = []CommandInfo{
 ```
 <!-- source: internal/component/plugin/server/rpc_register.go -- registeredRPCs -->
 
-### Per-command declarations: pipe filters and column order
+### Per-command declarations: what a command says about itself
 
-Two registries let a command say something about itself to the CLI. Both are
-keyed by command path. Both resolve a command to the declaration registered on
+Five registries let a command say something about itself to the CLI. Each one is
+keyed by command path. Each resolves a command to the declaration registered on
 the longest path that is a prefix of it. So `show bgp rib best` picks up a
 declaration on `show bgp rib` unless it registers one of its own. A command that
-must NOT inherit registers an EMPTY declaration: absent and empty are different
-answers, and this is the trap both registries exist in.
+must NOT inherit registers an EMPTY declaration. Absent and empty are different
+answers, and that is the trap all five registries exist in.
 
 | Registry | Declares | Read by |
 |----------|----------|---------|
-| `RegisterPipeFilters` | the pipe segments this command accepts as its own, which `foldFilters` rewrites into server-side arguments | `foldFilters`, the completer, the pipe validator |
+| `RegisterShape` | whether the answer holds rows (`tab`, `map`) or one document (`doc`) | `validateDeclaredShape`, before the command runs, and `ze help command --json` |
 | `RegisterColumns` | the order the table and text renderers put this command's columns in | `tableStyle.orderKeys`, through the four `ProcessPipes*` wrappers |
+| `RegisterAddressFields` | that a field of the answer holds an IP address | `validateDeclaredShape`, which admits `\| resolve` and `\| origin` only where a field is declared |
+| `RegisterPipeFilters` | the pipe segments this command accepts as its own, which `foldFilters` rewrites into server-side arguments | `foldFilters`, the completer, the pipe validator |
+| `RegisterAliases` | a name an operator types in the operator slot, standing for a chain (see "Pipe aliases" below) | `lookupAlias` |
 
-One implementation resolves both: `commandRegistry[T]` in `column_order.go`.
+One implementation resolves all five: `commandRegistry[T]` in `column_order.go`.
+
+<!-- source: internal/component/command/answer_shape.go -- RegisterShape, ShapeForCommand, RegisterAddressFields, AddressFieldsForCommand -->
+<!-- source: internal/component/command/column_order.go -- commandRegistry, lookup -->
+
+#### Two packages, one path: empty is a floor and a disagreement is a defect
+
+The first four registries are a `declarationRegistry[T]`, which adds one rule to
+that lookup. `declare` reads what the path already holds:
+
+| The value | The path holds | Result |
+|-----------|----------------|--------|
+| anything | nothing | the value is stored |
+| EMPTY | anything | what the path holds stays |
+| non-empty | an EMPTY declaration | the value replaces it |
+| non-empty | an equal value | no change |
+| non-empty | a DIFFERENT non-empty value | `panic("BUG:")`, naming the registry, the path and both values |
+
+An empty declaration is a FLOOR and never a claim. It stops a shorter path being
+inherited, and it says nothing about what the answer holds. `show bgp rib` is the
+case this rule was written for. The BGP peer command plugin blanks every direct
+child of `show bgp`, and the rib command plugin declares `tab` for
+`show bgp rib`. Under the earlier last-writer-wins rule, package initialization
+order decided which of the two the path answered.
+
+Every caller declares from `init()`, so two different non-empty values are a
+state only a Ze defect reaches. The panic reports it before the daemon serves
+anything (`docs/contributing/ze-style.md`).
+
+The ALIAS registry is the exception, and it keeps `register`.
+`RegisterPluginAliases` stores `mergedAliases(path, ...)`, which differs from
+what the path holds each time it runs, so the rule would fire on the ordinary
+case. That registry is also reachable from outside this repository, where a bad
+declaration is an operating error owed an error rather than a panic.
+
+<!-- source: internal/component/command/column_order.go -- declarationRegistry, newDeclarationRegistry, declare -->
+<!-- source: internal/component/command/alias.go -- aliasRegistry, mergedAliases -->
+
+#### The declared shape refuses an operator before the command runs
+
+`validateDeclaredShape` reads the declared shape and refuses an operator that
+shape cannot support, by name, before dispatch. A command declaring `doc`
+answers `count cannot apply here: this command answers one document, and count
+acts on rows`. The answer's own shape refuses as well, at apply time, and that
+half covers every command including the ones that declare nothing. The
+declaration is what makes the published catalog true, because `ze help command
+--json` lists a declared command's operators from its shape.
+
+A declared address-field list is an ADMISSION gate and not a selector. It decides
+whether `| resolve` and `| origin` run at all. It does not decide what they
+decorate: `resolveJSON` and `originJSON` walk every key of the answer and
+decorate each string that parses as an address.
+
+Every `show bgp` command that an in-tree package registers declares a shape.
+Sixteen paths do so, and nine of them name an address field. Scope is the
+registration site rather than the process boundary. `show bgp rib` and
+`show bgp irr` are served by a plugin process, and an in-core shim declares for
+them. The commands under `show bgp rpki`, `show bgp rs`, `show bgp adj-rib-in`
+and `show bgp healthcheck` have no shim and declare nothing, because
+`CommandDecl` carries no shape.
+
+A SELECTOR spelling declares nothing of its own. The registry resolves the string
+the operator typed. `show bgp peer detail` is not a prefix of
+`show bgp peer 192.0.2.1 detail`, so that spelling resolves `show bgp peer`, one
+of the empty declarations. It therefore reaches no refusal before dispatch, and
+the answer's own shape refuses after it.
+
+<!-- source: internal/component/command/pipe.go -- validateDeclaredShape, shapeDescription -->
+<!-- source: internal/component/command/pipe_resolve.go -- resolveJSON -->
+<!-- source: internal/component/command/pipe_origin.go -- originJSON -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- cmdBgpChildren, registerShapes -->
 
 A column order never enters the payload. It is captured when the formatter is
 built, from the command string the wrapper already holds, and it reaches
@@ -1724,7 +1797,14 @@ itself works and its NAME completes, because that name comes from the alias
 registry. `show bgp rpki`, `show bgp rpki summary` and `show bgp rpki | summary`
 therefore render one identical record in three different orders.
 
+A plugin-served command whose path an in-core SHIM registers is the exception,
+because the shim is Go compiled into the daemon. `show bgp rib` and
+`show bgp irr` each have one, and each declares a shape, a column order and an
+address-field list for an answer a plugin process produces.
+
 <!-- source: internal/component/command/completer.go -- completeDisplayFields, completePipeForCommand -->
+<!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- registerPipeFilters, registerRibAnswerShapes -->
+<!-- source: internal/component/bgp/plugins/filter_irr/cmd_irr.go -- registerIRRShapes -->
 
 ### The chain over a row generator
 

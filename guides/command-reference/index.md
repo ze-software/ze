@@ -1336,10 +1336,17 @@ inherits a declaration from its own path or an ancestor of it. Each branch under
 `show bgp` declares no alias and no column order at its own root, which covers
 every command in that branch: `show bgp peer` covers `show bgp peer 192.0.2.1
 detail`, and `show bgp rib` covers `show bgp rib best`. So no command under
-`show bgp` inherits `| summary` or `| peers`, and `show bgp rib` renders its
-columns alphabetically. `show bgp peer list` is the one command that declares a
-column order of its own, on a longer path than the branch root, so it keeps it.
-`show bgp rpki` declares an alias of its own the same way, so
+`show bgp` inherits `| summary` or `| peers`.
+
+That empty declaration at a branch root is a floor rather than a claim. A
+command deeper in the branch declares its own order and keeps it. Sixteen
+commands under `show bgp` declare one, and each of the sixteen also declares
+whether its answer holds rows. `ze help command "<path>" --json` answers what one
+of them declares.
+<!-- source: internal/component/command/column_order.go -- declarationRegistry.declare -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerColumns, registerShapes -->
+
+`show bgp rpki` declares an alias of its own on that same branch root, so
 `show bgp rpki | summary` answers the RPKI counters and not the peer aggregates.
 
 That bare command answers the seven validation counters and one row for each
@@ -2033,6 +2040,28 @@ Many commands take a `peer <selector>` argument:
 | `request peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |
 | `request peer <sel> flush` | write | Block until all queued updates for peer are on the wire |
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -->
+
+`show bgp peer <sel> capabilities` and `show bgp peer <sel> statistics` answer
+one row for each matched peer, under a `peers` key, whatever the number of
+matched peers:
+
+```json
+{"peers": [{"peer": "192.0.2.1", "state": "idle", "negotiation-complete": false}]}
+```
+
+A capabilities row adds a `negotiated` object once the session negotiates.
+
+Until 2026-08 each command answered a bare object for one matched peer and an
+array for several. `show bgp peer * statistics | count` therefore answered on a
+router with three peers, and was refused on a router with one. A script that
+reads the single-peer form must now read the first element of `peers`.
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpPeerCapabilities, handleBgpPeerStatistics -->
+
+Peer rows come in ascending order of peer address and port. This holds for every
+command that reads the reactor's peer table, `show bgp`, `show bgp health` and
+these two included. The order was the Go map order until 2026-08, so `| first 1`
+answered a different peer on each call.
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- reactorAPIAdapter.Peers -->
 
 ### Policy Test (Dry-Run)
 

@@ -6,8 +6,8 @@
 - Registry path: `show bgp rib best`
 - Mode: Read-only
 - Wire method: `ze-rib-api:best`
-- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill, resolve, origin
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
+- Pipes, on rows: none
 
 Show the winning route for each prefix. Same filters as 'show bgp rib'. Use '| reason' to see why each path was selected (local-pref, AS path length, MED, etc.).
 
