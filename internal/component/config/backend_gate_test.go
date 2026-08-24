@@ -500,3 +500,115 @@ func buildSyntheticIfaceSchema(listAnnotations map[string][]string) *Schema {
 	s.Define("interface", Container(fields...))
 	return s
 }
+
+// ifaceUnitIPv6Tree builds the config tree the iface plugin delivers for one
+// ethernet unit whose ipv6 container carries the leaves in ipv6.
+func ifaceUnitIPv6Tree(backend string, ipv6 map[string]any) map[string]any {
+	return map[string]any{
+		"interface": map[string]any{
+			"backend": backend,
+			"ethernet": map[string]any{
+				"eth0": map[string]any{
+					"name": "eth0",
+					"unit": map[string]any{
+						"0": map[string]any{"name": "0", "ipv6": ipv6},
+					},
+				},
+			},
+		},
+	}
+}
+
+// VALIDATES: the ze:backend annotation on the autoconf and accept-ra LEAVES
+//
+//	of ze-iface-conf.yang reaches the refusal. The gate's three
+//	neighbors (dhcp, dhcpv6, router-advertisement) are containers, so
+//	this is the first annotation the walker meets on a LeafNode:
+//	yangToLeaf populates LeafNode.Backend, backendAnnotation reads it,
+//	and walkBackendNode emits at the leaf's own path.
+//
+// PREVENTS: an annotation nobody reads. A gate that walked containers only
+//
+//	would leave both leaves accepted under backend vpp, where the
+//	kernel is handed a sysctl and never receives an advertisement.
+func TestBackendGateIPv6Autoconf(t *testing.T) {
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+
+	cases := []struct {
+		name     string
+		backend  string
+		ipv6     map[string]any
+		rejected string
+	}{
+		{
+			name:     "autoconf under vpp is refused",
+			backend:  "vpp",
+			ipv6:     map[string]any{"autoconf": true},
+			rejected: "/interface/ethernet/eth0/unit/0/ipv6/autoconf",
+		},
+		{
+			name:     "accept-ra under vpp is refused",
+			backend:  "vpp",
+			ipv6:     map[string]any{"accept-ra": float64(2)},
+			rejected: "/interface/ethernet/eth0/unit/0/ipv6/accept-ra",
+		},
+		{
+			name:    "autoconf under netlink is accepted",
+			backend: "netlink",
+			ipv6:    map[string]any{"autoconf": true},
+		},
+		{
+			name:    "accept-ra under netlink is accepted",
+			backend: "netlink",
+			ipv6:    map[string]any{"accept-ra": float64(2)},
+		},
+		{
+			name:    "a static address under vpp is accepted",
+			backend: "vpp",
+			ipv6:    map[string]any{"address": []any{"fd00::1/64"}},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tree := ifaceUnitIPv6Tree(tc.backend, tc.ipv6)
+			errs := ValidateBackendFeatures(tree, schema, "interface", tc.backend, "/interface/backend")
+			if tc.rejected == "" {
+				assert.Empty(t, errs)
+				return
+			}
+			require.Len(t, errs, 1)
+			assert.Contains(t, errs[0].Error(), tc.rejected)
+			assert.Contains(t, errs[0].Error(), `backend "`+tc.backend+`"`)
+			assert.Contains(t, errs[0].Error(), "supported: netlink")
+		})
+	}
+}
+
+// VALIDATES: accept-ra carries a YANG default of 0, and the iface commit path
+//
+//	walks the tree the plugin delivers rather than one with schema
+//	defaults materialized into it. ApplyDefaults has one caller today
+//	(internal/component/bgp/config/peers.go), so an ipv6 container that
+//	names neither leaf reaches the gate without them.
+//
+// PREVENTS: the annotation on a defaulted leaf refusing every VPP unit that
+//
+//	configures an IPv6 address, which is how a narrow gate becomes a
+//	wide one without anybody editing it.
+func TestBackendGateIPv6AcceptRADefaultIsNotMaterialized(t *testing.T) {
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+
+	node, err := schema.Lookup("interface/ethernet/unit/ipv6/accept-ra")
+	require.NoError(t, err)
+	leaf, ok := node.(*LeafNode)
+	require.True(t, ok, "accept-ra must resolve to a LeafNode")
+	require.Equal(t, "0", leaf.Default, "the default this test is about must still exist")
+	require.Equal(t, []string{"netlink"}, leaf.Backend)
+
+	tree := ifaceUnitIPv6Tree("vpp", map[string]any{"address": []any{"fd00::1/64"}})
+	errs := ValidateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
+	assert.Empty(t, errs, "an ipv6 container that names no gated leaf is accepted under vpp")
+}

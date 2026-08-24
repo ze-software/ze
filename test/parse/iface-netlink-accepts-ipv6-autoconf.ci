@@ -1,0 +1,29 @@
+# Test: autoconf and accept-ra are accepted under backend netlink
+# VALIDATES: the netlink backend owns the device the kernel configures, so
+#            both leaves stay available there. The ze:backend "netlink"
+#            annotation names netlink, and the gate accepts a node whose
+#            annotation lists the active backend.
+# PREVENTS: a gate that refuses the backend the feature works on, which is
+#           how an annotation with the wrong name reads as a working gate.
+# PLATFORM: the sibling ipv6 leaf tests are linux-only; this one matches them.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+interface {
+	backend netlink;
+	ethernet eth0 {
+		mac {
+			address 02:00:00:00:00:99;
+		}
+		unit 0 {
+			ipv6 {
+				autoconf true;
+				accept-ra 2;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

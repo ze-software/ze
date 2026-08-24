@@ -1,0 +1,30 @@
+# Test: a VLAN sub-interface answers autoconf the same way as its parent
+# VALIDATES: the ipv6 container sits in the shared unit list, so a unit that
+#            carries a vlan-id reaches the same annotated leaf. The refusal
+#            names the unit, so the operator reads which sub-interface it is.
+# PREVENTS: a parent and a sub-interface disagreeing about one behavior, which
+#           is the shape the gate exists to remove.
+# PLATFORM: the sibling ipv6 leaf tests are linux-only; this one matches them.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+	ethernet eth0 {
+		mac {
+			address 02:00:00:00:00:99;
+		}
+		unit 100 {
+			vlan-id 100;
+			ipv6 {
+				autoconf true;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config:exit=1
+expect=exit:code=1
+expect=stdout:contains=/interface/ethernet/eth0/unit/100/ipv6/autoconf
+expect=stdout:contains="vpp"
+expect=stdout:contains=netlink

@@ -1,0 +1,30 @@
+# Test: a static IPv6 address is accepted under backend vpp
+# VALIDATES: the autoconf and accept-ra annotations gate those two leaves and
+#            nothing else in the ipv6 container. accept-ra carries a YANG
+#            default of 0, and the iface commit path does not materialize
+#            schema defaults into the tree the gate walks, so a unit that
+#            never names accept-ra is not refused for it.
+# PREVENTS: a gate that widens to the whole ipv6 container, or a default that
+#           materializes into the tree and refuses every VPP unit that
+#           configures an address.
+# PLATFORM: the sibling ipv6 leaf tests are linux-only; this one matches them.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+	ethernet eth0 {
+		mac {
+			address 02:00:00:00:00:99;
+		}
+		unit 0 {
+			ipv6 {
+				address [ fd00::1/64 ];
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

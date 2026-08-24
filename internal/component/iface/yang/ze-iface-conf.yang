@@ -371,16 +371,24 @@ module ze-iface-conf {
                 }
 
                 leaf autoconf {
+                    ze:backend "netlink";
                     type boolean;
-                    description "Enable IPv6 stateless autoconfiguration";
+                    description "Enable IPv6 stateless autoconfiguration. The kernel
+                                 learns an address only when Router Advertisements reach
+                                 the device it owns, so this leaf needs the netlink
+                                 backend. On the vpp backend the NIC belongs to VPP and
+                                 no advertisement reaches the Linux Control Plane tap.";
                 }
 
                 leaf accept-ra {
+                    ze:backend "netlink";
                     type uint8 {
                         range "0..2";
                     }
                     default 0;
-                    description "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding";
+                    description "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding.
+                                 Needs the netlink backend for the same reason as autoconf:
+                                 the two leaves describe one behavior.";
                 }
 
                 leaf forwarding {
