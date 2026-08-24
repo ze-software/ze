@@ -2,17 +2,24 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | design |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
 | Deferral shard | - |
 | Handoff | - |
-| Updated | 2026-08-22 |
+| Updated | 2026-08-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
+
+> **RETURNED TO DESIGN 2026-08-24. The Task below is kept for its history and
+> MUST NOT be implemented as written.** Its research was incomplete on
+> 2026-08-22, and three of its statements are false against code that predates
+> it. The measured correction is in "What the 2026-08-24 re-cut established"
+> immediately after it. Read that section first, then re-cut the acceptance
+> criteria against it.
 
 **Every functional test runs against a storage backend Ze does not ship, so no
 `.ci` or `.wb` can see a defect in the one operators get.**
@@ -47,6 +54,71 @@ became the default would have had no reason to choose. Establish the reason
 before removing the pin: a test that reads a config file directly from disk
 breaks under blob storage, and that is a real cost to weigh rather than a
 surprise to hit.
+
+## What the 2026-08-24 re-cut established
+
+Every statement here was read at the producing function, and the two counts came
+from running the reload suite serially.
+
+### Three statements in the Task above are false
+
+| Task statement | What the producer says |
+|----------------|------------------------|
+| "Every daemon the functional runner starts uses filesystem storage" | The daemon pin (`runner_exec.go`, the `binName == "ze"` branch) is GUARDED by `zeDaemonShouldForceFileStorage` (`runner_exec_util.go`), which is `zeDaemonConfigArgIndex(args) >= 0 && !zeDaemonUsesWeb(args)`. A web daemon is excluded. The guard landed in `31fa81106` on 2026-06-18, three months before this spec |
+| "The pin is presumably deliberate and its reason is not recorded" | The reason sits in the comment directly above the pin: "Keep them out of the developer's shared zefs active pointer so tests cannot load stale state." `TestZeDaemonShouldForceFileStorage` (`runner_exec_test.go`) holds it |
+| "no `.ci` or `.wb` can see a defect in the one operators get" | False for `.wb`. Its daemon environment comes from `zeTestEnv` (`internal/test/cli/cmd_web.go`), a different runner that never sets the key at all. `.wb` ALREADY runs blob |
+
+Two pins exist and this spec conflated them. The DAEMON pin is guarded as
+above. The CLIENT pin (`clientEnv` in `runner_exec.go`) is unconditional, so
+`ze cli`, `ze config` and `ze show` do run filesystem.
+
+### The per-test seam already exists
+
+`option=env:var=ze.storage.blob:value=...` works today and 17 `.ci` use it. It
+overrides the pin because `rec.EnvVars` are appended AFTER the pin and Go's exec
+dedup keeps the last entry. A new `storage` directive would be a second spelling
+of it (`ai/rules/no-layering.md`). The `.et` precedent runs the OTHER way from
+what the Key Design Decision claims: `internal/component/cli/testing/runner.go`
+defaults filesystem and opts INTO blob.
+
+### The real root cause is isolation, not the storage default
+
+`resolve.Storage()` (`internal/core/resolve/resolve.go`) builds
+`<DefaultConfigDir()>/database.zefs`. `DefaultConfigDir()`
+(`internal/core/paths/paths.go`) returns `ze.config.dir` when set and otherwise
+falls back binary-relative. The `.ci` runner never sets `ze.config.dir` for a
+daemon, so every daemon in a suite resolves the SAME blob and the same active
+pointer. That is exactly what the pin's own comment says it prevents.
+
+Measured on the reload suite, run serially:
+
+| Tree | PASS | TIMEOUT | FAIL |
+|------|------|---------|------|
+| HEAD | 42 | 0 | 1 (`mgmt-guard-reload-auth-rebuild`, a foreign red owned elsewhere) |
+| Both pins removed | 11 | 19 | 8 |
+| Pins removed, plus a per-test `ze.config.dir` | 25 | 15 | 3 |
+
+31 green tests regress in one suite of 24 files. Six of six regressed tests pass
+ALONE under blob with a fresh blob directory, each writing a real blob of about
+2 KB, which is what makes these harness failures rather than product defects.
+The residual 17 failures under a per-test `ze.config.dir` are NOT explained, and
+that experiment is not a design to build on.
+
+`make ze-functional-parse-test` was 312/312 with the pins removed, but that
+green is close to vacuous: its blob came out at 37 bytes, a bare header, where
+the reload suite's reached 12.6 KB.
+
+### What the re-cut has to change
+
+- **AC-3 is unreachable as written.** It asks every filesystem declaration to
+  carry a stated reason. The tests do not need filesystem, they need ISOLATION,
+  so any reason added to silence them would be false, which this spec's own R-2
+  and Critical Review row forbid.
+- **AC-4 is deliverable today and should be split out.** `.wb` needs no runner
+  change at all.
+- **The target is the config-dir root cause, not the storage default.** A spec
+  that removes the pins without giving each daemon its own config dir trades a
+  coverage gap for 31 red tests.
 
 ## Required Reading
 
