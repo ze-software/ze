@@ -7,7 +7,7 @@ Ze provides an HTTPS web interface for browsing configuration, editing values, a
 <!-- source: internal/component/web/handler.go -- URL routing, three-tier scheme -->
 <!-- source: internal/component/web/auth.go -- authMiddleware, AuthMiddlewareWithAudit -->
 <!-- source: cmd/ze/hub/service_web.go -- buildWebService -->
-<!-- source: cmd/ze/hub/aaa_authenticator_web.go -- liveAAABundleAuthenticator, liveAAABundleAuthenticator.Authenticate -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAAABundleAuthenticator, liveAAABundleAuthenticator.Authenticate -->
 <!-- source: internal/component/authz/auth.go -- LocalAuthenticator.Authenticate, authenticateUser -->
 
 ## Starting the Web Server
