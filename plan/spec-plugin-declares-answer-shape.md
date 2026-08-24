@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | plugin |
 | Depends | `plan/spec-cli-show-bgp-answer-shapes.md` |
-| Phase | 4/5 |
+| Phase | 5/5 |
 | Deferral shard | `plan/deferrals/plugin-declares-answer-shape.md` |
 | Handoff | - |
 | Updated | 2026-08-24 |
@@ -309,7 +309,15 @@ additively, and it is not a protocol Ze speaks to another implementation.
   `healthcheck.go`: the named-probe answer changes shape
 - `docs/plugin-development/commands.md` - what a plugin author writes to declare
   a command's answer shape
-- `ai/rules/plugins.md` - what a plugin declares at Stage 1
+- `docs/plugin-development/protocol.md` - declared by `pkg/plugin/rpc/types.go`:
+  the `CommandDecl` field table the Stage 1 page was missing
+- `docs/features/cli-commands.md` - the eleven plugin paths now declare
+- `docs/guide/command-reference.md` - the healthcheck rows
+- `docs/guide/healthcheck.md` - declared by `healthcheck.go`: both spellings
+  answer a row set
+- `docs/guide/rpki.md` - declared by `rpki.go`: the aspa lookup answers rows
+- `ai/rules/points/plugins/answer-shape-declaration-stage-1-wire-protocol/` -
+  six points, plus the manifest line. `ai/rules/plugins.md` is RENDERED from it
 
 ## Files to Create
 - `test/ui/show-bgp-plugin-shapes.ci`
@@ -339,7 +347,7 @@ additively, and it is not a protocol Ze speaks to another implementation.
 | 2 | Config syntax changed? | No | |
 | 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md`: the two answers that change shape |
 | 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md` |
-| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` |
+| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md`: DONE, a "Declaring what your command's answer holds" section beside the pipe alias one, pointing at `docs/plugin-development/commands.md` for the field list. `docs/plugin-development/commands.md`: DONE, the three fields in the `CommandDecl` table plus the four refusals |
 | 6 | Has a user guide page? | No | |
 | 7 | Wire format changed? | No | No BGP wire change |
 | 8 | Plugin SDK/protocol changed? | Yes | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
@@ -349,9 +357,10 @@ additively, and it is not a protocol Ze speaks to another implementation.
 | 12 | Internal architecture changed? | Yes | `docs/architecture/api/commands.md` |
 | 13 | Route metadata keys? | No | |
 | 14 | Prometheus counters? | No | |
-| 15 | Registered command or capability changed? | Yes | `docs/features/plugins.md`, `docs/plugin-overview.md`: what a plugin declares at Stage 1 |
+| 15 | Registered command or capability changed? | Yes | DONE in `docs/architecture/api/process-protocol.md` and `docs/plugin-development/protocol.md`, which are the two pages that enumerate a Stage 1 declaration. `docs/features/plugins.md` and `docs/plugin-overview.md` are UNAFFECTED: the first lists plugins by name and the second names Stage 1 by its RPC, and neither says what a `CommandDecl` carries |
 | 16 | Changed source file referenced by doc source anchors? | DERIVED | Run `python3 scripts/dev/spec_doc_anchors.py plan/spec-plugin-declares-answer-shape.md` at the start of each phase. Two declared docs are UNAFFECTED. `docs/architecture/core-design.md`, declared by `rs/server.go`, describes the route server's place in the engine; that file gains two declarations stating what its existing answers already hold, and no behavior the doc records changes. `docs/architecture/plugin/rib-storage-design.md`, declared by `adj_rib_in/rib.go`, describes Adj-RIB-In raw hex storage; that file gains two declarations and stores nothing differently |
-| 17 | Existing docs show examples for this area? | Yes | Check the Stage 1 registration examples in `docs/architecture/api/process-protocol.md` |
+| 17 | Existing docs show examples for this area? | Yes | The two Stage 1 wire examples in `docs/architecture/api/process-protocol.md` show a `commands` list with names alone. They stay CORRECT, because the three fields are optional and a plugin that sends none is the case they show. The Go example a plugin author copies is in `docs/plugin-development/commands.md` and in `docs/guide/plugins.md`, and both now carry a declared shape |
+| 18 | Anchored docs the checklist omitted | DERIVED | `spec_doc_anchors.py` names sixteen. Four were judged this phase. `docs/plugin-development/protocol.md`: AFFECTED, it enumerates the Stage 1 field set, so it gains a `CommandDecl` field table. `docs/guide/healthcheck.md` and `docs/guide/rpki.md`: AFFECTED, each shows the command whose answer changed shape. `docs/architecture/api/architecture.md`, `docs/architecture/api/wire-format.md` and `docs/plugin-development/handlers.md`: UNAFFECTED. The first anchors the 5-stage list and the transport table, the second anchors the kebab-case JSON key convention that `address-fields` obeys, and the third anchors the handler input and output types |
 
 ## Implementation Steps
 

@@ -32,6 +32,18 @@ true` fits the config-driven model. ExaBGP polls a file.
 
 **Metric mode is the default**, matching ExaBGP. Withdraw-on-down is opt-in.
 
+**`show bgp healthcheck` answers a row set with or without a probe name, and it
+declares the `map` shape.** One command path carries one answer-shape
+declaration. So the named-probe branch answers a one-element row set rather
+than a bare object.
+
+The two branches carry different field sets on purpose: the list gives three
+fields for each probe and the detail gives ten. No column order fits both, which
+is why the declaration is `map` and not `tab`. The list branch walks the probe
+names in ascending order rather than in map order. `| first` and `| last`
+therefore select the same probe on every call.
+<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleShow, commandDecls -->
+
 External plugins cannot use ip-setup. The configure and config-verify callbacks
 reject it.
 

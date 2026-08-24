@@ -47,8 +47,16 @@ for one of that plugin's own commands, with the command path, the alias name,
 its description and the operator chain the name stands for. The engine parses
 the expansion once, at registration, and refuses the whole list when one entry
 is wrong.
-<!-- source: pkg/plugin/rpc/types.go -- PipeDecl, DeclareRegistrationInput -->
-<!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes -->
+
+Each command entry also carries an optional `shape`, `columns` and
+`address-fields`. They say what the command's answer holds, so the CLI refuses
+an operator the answer cannot support before the command runs.
+
+The engine validates the three fields against a closed set and a bound at
+registration. One wrong entry refuses the whole list. See
+`docs/architecture/api/process-protocol.md` for the fields and their bounds.
+<!-- source: pkg/plugin/rpc/types.go -- PipeDecl, CommandDecl, DeclareRegistrationInput -->
+<!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes, validateShapeDecls, registerPluginShapes -->
 
 ### Message Cache
 

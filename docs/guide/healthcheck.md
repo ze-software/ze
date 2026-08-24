@@ -104,9 +104,15 @@ Each hook is a leaf-list (multiple commands per event). Hooks execute asynchrono
 
 | Command | Description |
 |---------|-------------|
-| `show bgp healthcheck` | JSON summary of all probes. |
-| `show bgp healthcheck <name>` | Detailed status of a single probe. |
+| `show bgp healthcheck` | One row for each probe: its name, its group and its state. |
+| `show bgp healthcheck <name>` | One row, with the ten fields of that probe. |
 | `clear bgp healthcheck <name>` | Withdraw current route, reset FSM to INIT, re-check immediately. Returns error if probe is DISABLED. |
+
+Both spellings answer a row set, so `| count`, `| first`, `| last`, `| match`
+and `| display` act on either. The list rows come back in ascending probe name.
+The two answers carry different field sets, so the command declares the `map`
+shape and `| fill` is refused by name.
+<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleShow, commandDecls -->
 
 ## Migration from ExaBGP
 

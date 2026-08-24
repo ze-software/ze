@@ -1421,17 +1421,23 @@ child of `show bgp`, and the rib command plugin declares `tab` for
 `show bgp rib`. Under the earlier last-writer-wins rule, package initialization
 order decided which of the two the path answered.
 
-Every caller declares from `init()`, so two different non-empty values are a
-state only a Ze defect reaches. The panic reports it before the daemon serves
-anything (`docs/contributing/ze-style.md`).
+Every in-tree caller declares from `init()`, so two different non-empty values
+are a state only a Ze defect reaches. The panic reports it before the daemon
+serves anything (`docs/contributing/ze-style.md`).
 
-The ALIAS registry is the exception, and it keeps `register`.
+A plugin declares from a socket instead, and a bad declaration there is an
+operating error rather than a Ze defect. So the first three registries carry a
+second write, `declareFor`, which is the same four cases with the panic replaced
+by an error. `RegisterPluginShapes` calls it, and nothing a plugin sends reaches
+`declare`.
+
+The ALIAS registry is the fourth, and it keeps `register`.
 `RegisterPluginAliases` stores `mergedAliases(path, ...)`, which differs from
 what the path holds each time it runs, so the rule would fire on the ordinary
-case. That registry is also reachable from outside this repository, where a bad
-declaration is an operating error owed an error rather than a panic.
+case.
 
-<!-- source: internal/component/command/column_order.go -- declarationRegistry, newDeclarationRegistry, declare -->
+<!-- source: internal/component/command/column_order.go -- declarationRegistry, newDeclarationRegistry, declare, declareFor -->
+<!-- source: internal/component/command/answer_shape.go -- RegisterPluginShapes -->
 <!-- source: internal/component/command/alias.go -- aliasRegistry, mergedAliases -->
 
 #### The declared shape refuses an operator before the command runs
@@ -1444,18 +1450,29 @@ half covers every command including the ones that declare nothing. The
 declaration is what makes the published catalog true, because `ze help command
 --json` lists a declared command's operators from its shape.
 
+Both halves of that message are derived, because one operator needs more than
+rows. `| fill` brings back the columns a command declared. So it acts on `tab`
+alone, and it means nothing over a `map` answer whose rows carry their own keys.
+`shapeDescription` therefore calls `map` "rows that describe themselves". It
+calls `tab` "rows read against a declared column order", and `operatorNeeds`
+reads the operator's own shape set. Calling both "rows" gave a refusal that
+contradicted itself, in front of an operator whose answer HAS rows.
+
 A declared address-field list is an ADMISSION gate and not a selector. It decides
 whether `| resolve` and `| origin` run at all. It does not decide what they
 decorate: `resolveJSON` and `originJSON` walk every key of the answer and
 decorate each string that parses as an address.
 
-Every `show bgp` command that an in-tree package registers declares a shape.
-Sixteen paths do so, and nine of them name an address field. Scope is the
-registration site rather than the process boundary. `show bgp rib` and
-`show bgp irr` are served by a plugin process, and an in-core shim declares for
-them. The commands under `show bgp rpki`, `show bgp rs`, `show bgp adj-rib-in`
-and `show bgp healthcheck` have no shim and declare nothing, because
-`CommandDecl` carries no shape.
+Every `show bgp` command declares a shape, and two channels write them. Go
+compiled into the daemon declares sixteen paths. Nine of those name an address
+field. `show bgp rib` and `show bgp irr` are served by a plugin process, and an
+in-core shim declares for them. Scope is therefore the registration site rather
+than the process boundary.
+
+A plugin process declares the other eleven in its Stage 1 message. Six sit under
+`show bgp rpki`, two under `show bgp rs`, two under `show bgp adj-rib-in`, and
+`show bgp healthcheck` is the eleventh. Four of the eleven name an address
+field. See "A plugin declares its own answer shape" below.
 
 A SELECTOR spelling declares nothing of its own. The registry resolves the string
 the operator typed. `show bgp peer detail` is not a prefix of
@@ -1463,10 +1480,14 @@ the operator typed. `show bgp peer detail` is not a prefix of
 of the empty declarations. It therefore reaches no refusal before dispatch, and
 the answer's own shape refuses after it.
 
-<!-- source: internal/component/command/pipe.go -- validateDeclaredShape, shapeDescription -->
+<!-- source: internal/component/command/pipe.go -- validateDeclaredShape, shapeDescription, operatorNeeds -->
 <!-- source: internal/component/command/pipe_resolve.go -- resolveJSON -->
 <!-- source: internal/component/command/pipe_origin.go -- originJSON -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- cmdBgpChildren, registerShapes -->
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- commandDecls -->
+<!-- source: internal/component/bgp/plugins/rs/server.go -- commandDecls -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- commandDecls -->
+<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- commandDecls -->
 
 A column order never enters the payload. It is captured when the formatter is
 built, from the command string the wrapper already holds, and it reaches
@@ -1784,24 +1805,64 @@ listed neither before 2026-08. It reports the expansion beside the description.
 An alias takes no argument and names no other alias, so the chain it stands for
 is the whole of what the name does.
 
+The same table governs a plugin's declared answer shape. `ze help command
+--json` and the wiki catalog built from it read the compiled tree in their own
+process. So they list a plugin's commands without the operators the plugin
+declared. The running daemon refuses and publishes correctly. The published
+catalog cannot yet say so.
+
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp, handleBgpCommandHelp -->
 <!-- source: scripts/inventory/commands.go -- main -->
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
 
-#### A plugin cannot declare a column order
+#### A plugin declares its own answer shape
 
-`completeDisplayFields` reads the column registry, and only Go compiled into the
-daemon writes it. So `| display <partial>` over a plugin command offers no field
-names, and `| table` sorts a plugin answer's keys alphabetically. The alias
-itself works and its NAME completes, because that name comes from the alias
-registry. `show bgp rpki`, `show bgp rpki summary` and `show bgp rpki | summary`
-therefore render one identical record in three different orders.
+Each `CommandDecl` in the Stage 1 message carries three optional fields:
+`shape`, `columns` and `address-fields`. An absent field is an undeclared field,
+so a plugin written before this channel existed keeps its old behavior.
 
-A plugin-served command whose path an in-core SHIM registers is the exception,
-because the shim is Go compiled into the daemon. `show bgp rib` and
-`show bgp irr` each have one, and each declares a shape, a column order and an
-address-field list for an answer a plugin process produces.
+| Field | Holds |
+|-------|-------|
+| `shape` | `doc`, `map` or `tab`, the same three words the answer head uses on the wire |
+| `columns` | the answer's keys, in the order a person reads them. It needs a shape with rows |
+| `address-fields` | the keys whose value holds an address. It needs a shape |
 
+`validateShapeDecls` reads the three fields where `validatePipeDecls` reads the
+aliases. It refuses four declarations by name:
+
+- a spelling that is not one of the three words.
+- a column or address-field list with no shape.
+- a declaration on a blank command path.
+- a list or a name past its bound.
+
+The bounds are 64 columns and 16 address fields for one command, with each name
+1 to 64 bytes. A refused declaration fails the plugin's startup and writes
+nothing.
+
+`registerPluginShapes` then writes under `startupRegistrationMu`, between the
+pipe aliases and the runtime families, and joins the same unwind.
+`UnregisterPluginShapes` takes the whole declaration back when the plugin stops.
+
+**A plugin can never panic the daemon with a declaration.** The three registries
+keep the panic on `declare`, which only Go compiled into the daemon reaches. The
+plugin route is `declareFor`, which is the same four cases with the panic
+replaced by an error. Two in-tree packages that disagree are still a Ze defect
+and still panic.
+
+Every declaration writes all THREE registries. A command that declares a shape
+and no column writes an EMPTY column declaration. That empty declaration is the
+barrier that stops the command inheriting its parent's order. Removal restores
+the empty declaration a shim left behind, rather than deleting the path.
+
+The declaration lives in the daemon's registry. So `| display <partial>` offers
+a plugin command's field names in the daemon-hosted session, and offers none in
+`ze cli` with no command argument. That is the same client-side gap the alias
+table above records, for the same reason.
+
+<!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
+<!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, validateDeclaredFieldName, registerPluginShapes -->
+<!-- source: internal/component/command/answer_shape.go -- RegisterPluginShapes, UnregisterPluginShapes -->
+<!-- source: internal/component/command/column_order.go -- declarationRegistry, declare, declareFor, withdraw -->
 <!-- source: internal/component/command/completer.go -- completeDisplayFields, completePipeForCommand -->
 <!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- registerPipeFilters, registerRibAnswerShapes -->
 <!-- source: internal/component/bgp/plugins/filter_irr/cmd_irr.go -- registerIRRShapes -->

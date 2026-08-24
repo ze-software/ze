@@ -440,8 +440,10 @@ type CommandDecl struct {
 	Columns []string `json:"columns,omitempty"`
 
 	// AddressFields are the answer's JSON keys whose value holds an IP address
-	// or a prefix, so the address operators decorate those and guess at
-	// nothing. It needs a Shape.
+	// or a prefix. The list ADMITS the address operators and does not select
+	// for them: it decides whether `| resolve` and `| origin` run at all, and
+	// both then walk every key of the answer and decorate each string that
+	// parses as an address. It needs a Shape.
 	AddressFields []string `json:"address-fields,omitempty"`
 }
 

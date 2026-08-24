@@ -394,6 +394,58 @@ Filter Text Protocol" for the full contract and
 `internal/component/bgp/reactor/filter_format.go` (`isCIDRFamily`,
 `formatMPBlock`) for the implementation.
 
+## Answer Shape Declaration (stage 1 wire protocol)
+
+Each `CommandDecl` a plugin sends at stage 1 carries three optional fields:
+`shape`, `columns` and `address-fields`. They say what the command's ANSWER
+holds, so the CLI publishes the operators the command supports and refuses the
+others by name before dispatch. An absent field is an undeclared field. A plugin
+that sends none keeps the behavior it had before the fields existed.
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `commands[].shape` | string | `doc` for one document, `map` for rows that carry their own keys, `tab` for rows read against column names |
+| `commands[].columns` | []string | The answer's keys, in reading order. Needs a shape with rows. Maximum 64, each name 1 to 64 bytes |
+| `commands[].address-fields` | []string | The keys whose value holds an address. Needs a shape. Maximum 16, each name 1 to 64 bytes |
+
+**A plugin declaration MUST NOT be able to panic the daemon.** The three
+registries keep their panic on `declare`, which only in-tree Go reaches. A
+plugin's declaration goes through `declareFor` instead. That is the same four
+cases with the panic replaced by an error, so a conflicting plugin is refused
+and the daemon keeps running. `RegisterPluginShapes`
+(`internal/component/command/answer_shape.go`) is the only caller-facing write.
+`UnregisterPluginShapes` takes the whole declaration back when the plugin stops.
+<!-- source: internal/component/command/column_order.go -- declare, declareFor, withdraw -->
+
+**A command MUST answer one shape whatever its argument.** One command path
+carries one declaration. A command answering a row set with no argument, and one
+bare object with an argument, declares neither branch truthfully.
+`show bgp healthcheck <name>` and `show bgp rpki aspa <asn>` were both corrected
+to answer a one-element row set. The other route declares the shape of one
+branch and refuses the operators of the other.
+<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleShow -->
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- aspaCommand -->
+
+**A declared column name MUST be a key the plugin's handler writes, in the same
+spelling.** The engine never sees the payload. So `validateShapeDecls` checks
+the shape spelling, the presence of a command path and the two bounds, and it
+cannot check that a name names anything. A functional test over the rendered
+answer is what checks that half.
+
+One bad entry refuses the whole list and fails stage 1. The message names the
+command and the offending value, clamped to 64 bytes so a plugin cannot write an
+unbounded string into the daemon log.
+<!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, validateDeclaredFieldName, clampDeclared -->
+
+**A declared address-field list is an ADMISSION gate, not a selector.** It
+decides whether `| resolve` and `| origin` run at all. It does not decide what
+they decorate: `resolveJSON` and `originJSON` walk every key of the answer and
+decorate each string that parses as an address. So a plugin that declares one
+address field gets decoration on every address in the answer. A plugin that
+declares none gets both operators refused by name.
+<!-- source: internal/component/command/pipe_resolve.go -- resolveJSON -->
+<!-- source: internal/component/command/pipe_origin.go -- originJSON -->
+
 ## Runtime Pipe Alias Declaration (stage 1 wire protocol)
 
 External plugins can name a CLI pipe alias for their own commands at stage 1 via

@@ -88,6 +88,13 @@ runtime-filter-declaration-planned-stage-1-wire-protocol ## Runtime Filter Decla
   non-cidr-families-blocking-for-filter-plugin-authors
   what-each-family-set-emits-to-a-filter
   pointer-to-the-non-cidr-filter-contract
+answer-shape-declaration-stage-1-wire-protocol ## Answer Shape Declaration (stage 1 wire protocol)
+  declare-an-answer-shape-at-stage-1
+  the-answer-shape-declaration-fields
+  a-plugin-declaration-never-panics-the-daemon
+  one-shape-whatever-the-argument
+  what-the-engine-checks-and-what-it-cannot
+  an-address-field-list-admits-it-does-not-select
 runtime-pipe-alias-declaration-stage-1-wire-protocol ## Runtime Pipe Alias Declaration (stage 1 wire protocol)
   declare-a-pipe-alias-at-stage-1
   the-pipe-alias-declaration-fields

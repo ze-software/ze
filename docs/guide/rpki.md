@@ -247,6 +247,12 @@ Query RPKI status through the ze CLI:
 | `request bgp rpki validate <prefix> <origin-asn>` | Validate one prefix against the ROA cache |
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- handleCommand, overviewCommand, statusCommand, cacheCommand, roaCommand, summaryCommand, aspaCommand, validateCommand -->
 
+`show bgp rpki aspa <customer-asn>` answers its one result under `entries`, in
+the same row shape the no-argument spelling writes, so `| count` and `| display`
+act on either. `found` stays beside the rows: it separates a customer with no
+ASPA record from an empty cache, which the row count alone cannot say.
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- aspaCommand -->
+
 `show bgp rpki` answers the counters and the cache server rows as siblings, so
 `show bgp rpki | summary` cuts it down to the counters alone. That name is a pipe
 alias the plugin declares over its own command, and it answers the same record

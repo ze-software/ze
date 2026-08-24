@@ -71,14 +71,15 @@ supports, and it reads the same declaration, so the published list and the
 runtime cannot disagree. `| resolve` and `| origin` are listed only where the
 command declares a field that holds an address.
 
-Every `show bgp` command that an in-tree package registers declares one: sixteen
-paths. The commands under `show bgp rpki`, `show bgp rs`, `show bgp adj-rib-in`
-and `show bgp healthcheck` are served by a plugin process with no in-core shim
-and declare nothing yet. An undeclared command still refuses what it cannot
-support, from the answer it has in hand, after it runs.
+Every `show bgp` command declares one. Go compiled into the daemon declares
+sixteen paths. A plugin process declares the other eleven in its startup
+message: six under `show bgp rpki`, two under `show bgp rs`, two under
+`show bgp adj-rib-in`, and `show bgp healthcheck`. An undeclared command still
+refuses what it cannot support, from the answer it has in hand, after it runs.
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
-<!-- source: internal/component/command/answer_shape.go -- RegisterShape, RegisterAddressFields -->
+<!-- source: internal/component/command/answer_shape.go -- RegisterShape, RegisterAddressFields, RegisterPluginShapes -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerShapes -->
+<!-- source: internal/component/plugin/server/startup.go -- registerPluginShapes -->
 
 ### Protocol Tools
 

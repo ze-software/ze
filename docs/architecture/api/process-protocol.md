@@ -311,6 +311,47 @@ derived inheritance barrier are in `docs/architecture/api/commands.md`.
 <!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes -->
 <!-- source: internal/component/command/alias.go -- RegisterPluginAliases, UnregisterPluginAliases -->
 
+**Answer Shape Declaration (Stage 1):**
+
+Each entry of the `commands` list carries three optional fields that say what
+the command's ANSWER holds. An absent field is an undeclared field, so a plugin
+that sends none keeps the behavior it had before these fields existed.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `commands[].shape` | string | `doc` for one document or one value, `map` for rows that carry their own keys, `tab` for rows read against column names |
+| `commands[].columns` | []string | The answer's keys, lowercase kebab-case, in the order a person reads them. Needs a shape that has rows. Maximum 64, each name 1 to 64 bytes |
+| `commands[].address-fields` | []string | The keys whose value holds an IP address or a prefix. Needs a shape. Maximum 16, each name 1 to 64 bytes |
+
+`validateShapeDecls` reads the three fields before any conversion. It refuses
+four declarations:
+
+- an unknown spelling.
+- a field list with no shape.
+- a declaration on a blank command path.
+- a list or a name past its bound.
+
+One bad entry refuses the whole list and fails the plugin's startup. The message
+names the command and the offending value, clamped to 64 bytes so a plugin
+cannot write an unbounded string into the daemon log.
+
+`registerPluginShapes` then writes the accepted set into the shape, column and
+address-field registries under `startupRegistrationMu`, beside the alias write.
+`UnregisterPluginShapes` takes the declaration back when the plugin stops or its
+startup is rolled back. A path that an in-core package declared EMPTY returns to
+that empty declaration rather than to nothing.
+
+A declared shape decides which pipe operators the command publishes, and which
+it refuses BY NAME before dispatch. A declared address-field list is an
+admission gate for `| resolve` and `| origin`: it decides whether they run, and
+it does not decide what they decorate. The full contract is in
+`docs/architecture/api/commands.md`.
+
+<!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
+<!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, validateDeclaredFieldName, clampDeclared, registerPluginShapes -->
+<!-- source: internal/component/command/answer_shape.go -- RegisterPluginShapes, UnregisterPluginShapes -->
+<!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
+
 ### Tier-Ordered Startup
 
 Plugins are grouped into dependency tiers before handshake begins. All processes
