@@ -686,7 +686,7 @@ class TestCarrierTable(unittest.TestCase):
             R.carrier_for("test/interop/scenarios/47-x/check.py").name, "interop-bgp"
         )
         self.assertEqual(
-            R.carrier_for("test/interop-ipsec/scenarios/01-x/check.py").name,
+            R.carrier_for("test/interop-ipsec/scenarios/x/check.py").name,
             "interop-ipsec",
         )
         self.assertEqual(
@@ -7743,7 +7743,7 @@ class TestInteropTierIsDerivedFromWorkflows(unittest.TestCase):
                 R.scheduled_workflow_targets(d)
 
     def test_ipsec_interop_carrier_earns_nightly_when_wired(self):
-        c = R.carrier_for("test/interop-ipsec/scenarios/04-eap-tls/check.py")
+        c = R.carrier_for("test/interop-ipsec/scenarios/eap-tls/check.py")
         self.assertIsNotNone(c)
         self.assertEqual(c.name, "interop-ipsec")
         self.assertEqual(c.tier, R.TIER_NIGHTLY)
@@ -12102,11 +12102,15 @@ class TestFourStemEnrolmentRealTree(unittest.TestCase):
 
     def test_the_ci_still_pins_the_cease_subcode_bytes(self):
         """What the tag now claims, read off the .ci itself: error code 06, subcode 01, and the
-        Figure 1 Data field (AFI 0001, SAFI 01, upper bound 00000003). A tag over a test that
-        stopped asserting the subcode would be evidence of nothing."""
+        Figure 1 Data field (AFI 0001, SAFI 01, upper bound 00000002). A tag over a test that
+        stopped asserting the subcode would be evidence of nothing.
+
+        The bound is 00000002 because the scenario configures `maximum 2`. It read 00000003
+        until 2026-08-23, when the count that crossed the maximum stopped being written into
+        a field RFC 4486 Section 4 Figure 1 names the upper bound."""
         body = _read_repo("test/plugin/prefix-maximum-enforce.ci")
         self.assertIn(
-            "hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C03060100010100000003", body
+            "hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C03060100010100000002", body
         )
 
     def test_rfc3765_is_enrolled(self):
