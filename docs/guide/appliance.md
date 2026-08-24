@@ -663,7 +663,7 @@ artifacts automatically:
 `Image`); `--target runtime` builds the gokrazy runtime kernel tree (modules +
 `vmlinuz`) from `gokrazy/kernel/` with the runtime requirement floor enforced.
 The command reports the target it built (`kernel ready: ... (target=installer,
-profile=qemu, version=7.1.4)`). The installer target tries cache first, then a
+profile=qemu, version=7.2)`). The installer target tries cache first, then a
 configured prebuilt-artifact URL if `ze.appliance.kernel.url` is set, then local
 build. Every local build runs through the shared driver
 `tools/kernel-builder/run.py`, which selects Docker when available and falls back

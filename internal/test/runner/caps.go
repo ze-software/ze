@@ -35,7 +35,7 @@ const (
 //     reaches its prlimit(2) fallback -- the part that needs CAP_SYS_RESOURCE --
 //     when memcg BPF accounting is unavailable, which is kernels older than
 //     5.11. Every kernel this gate is ever evaluated on is far past that: the ze
-//     appliance builds 7.1.4, the CI runner is 6.x, the QEMU Alpine VM likewise.
+//     appliance builds 7.2, the CI runner is 6.x, the QEMU Alpine VM likewise.
 //     On all of them a process holding CAP_BPF makes RemoveMemlock return early
 //     and CAP_SYS_RESOURCE is never consulted.
 //
