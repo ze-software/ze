@@ -63,11 +63,26 @@ blocks the command.
 
 <!-- source: internal/component/plugin/server/command.go -- accountant hook in Dispatcher -->
 
-The AAA bundle is built once at boot. A later BGP infrastructure hook reuses
-the same bundle, so an open session and its accounting pair keep live backends.
-Daemon shutdown closes the bundle and drains its accounting workers.
+Boot builds the AAA bundle once. A later BGP infrastructure hook reuses the same
+bundle, so an open session and its accounting pair keep live backends. Daemon
+shutdown closes the bundle and drains its accounting workers.
+
+A config reload builds a replacement and swaps it in. It has to: the local
+backend re-reads the accepted credentials on every login. And a RADIUS or
+TACACS+ client holds the address, the shared secret and the timeout it was
+constructed with. The replacement is built while the reload can still fail, and
+it is installed at the same acceptance point that publishes the new credentials.
+A reload that fails after that build closes the replacement, so its socket and
+its accounting worker do not leak. The swap closes the chain it replaces, which
+is what drains the retired TACACS+ accounting worker.
+
+Every management surface reads the installed bundle on each call. ssh receives
+`liveAAABundleAuthenticator` and `liveAAABundleAuthorizer` rather than the
+fields of the bundle built at boot. As a result, an operator who rotates a
+shared secret gets the new one on the next login and needs no restart.
 <!-- source: cmd/ze/hub/infra_setup.go -- boot-owned AAA bundle reuse -->
-<!-- source: cmd/ze/hub/aaa_lifecycle.go -- claimAAABundleBoot, closeAAABundle -->
+<!-- source: cmd/ze/hub/main_reload.go -- candidate bundle build and acceptance-point swap -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- claimAAABundleBoot, swapAAABundle, closeAAABundle -->
 
 ## The schema merge defect this work uncovered
 

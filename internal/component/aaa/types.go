@@ -51,10 +51,14 @@ type BuildParams struct {
 	// LocalUsersFunc returns the local credentials that are valid RIGHT NOW.
 	// When set, the local backend prefers it over LocalUsers, so the chain
 	// follows the running configuration instead of the one the bundle was built
-	// from. It exists because the bundle is NOT rebuilt on a config reload:
-	// without it, the chain's local backend keeps authenticating a user the
-	// operator has deleted, and it does so BEFORE any later fallback is
-	// consulted, which makes it the authoritative stale answer.
+	// from. Without it, the chain's local backend keeps authenticating a user
+	// the operator has deleted. The local backend answers BEFORE any later
+	// fallback is consulted, so its stale answer is the authoritative one.
+	//
+	// A config reload rebuilds the bundle (cmd/ze/hub/main_reload.go), and
+	// LocalUsersFunc stays load-bearing across it. The reload publishes the
+	// accepted credentials before it swaps the chain. A reload that carries no
+	// parsed tree publishes them with no rebuild of the bundle.
 	LocalUsersFunc func() ([]UserCredential, error)
 
 	// LocalAuthorizer is the hub-supplied adapter over *authz.Store.
