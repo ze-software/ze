@@ -23,12 +23,12 @@ func TestLiveRTRv2DowngradeToV1(t *testing.T) {
 	if _, err := exec.LookPath("docker"); err != nil {
 		t.Skip("docker not available")
 	}
-	if out, err := exec.Command("docker", "info").CombinedOutput(); err != nil {
+	if out, err := exec.CommandContext(t.Context(), "docker", "info").CombinedOutput(); err != nil {
 		t.Skipf("docker not running: %s", string(out))
 	}
 
 	t.Log("pulling stayrtr image...")
-	if out, err := exec.Command("docker", "pull", stayrtrImage).CombinedOutput(); err != nil {
+	if out, err := exec.CommandContext(t.Context(), "docker", "pull", stayrtrImage).CombinedOutput(); err != nil {
 		t.Skipf("cannot pull stayrtr: %s", string(out))
 	}
 
@@ -36,7 +36,7 @@ func TestLiveRTRv2DowngradeToV1(t *testing.T) {
 	dockerRM(name)
 	defer dockerRM(name)
 
-	out, err := exec.Command(
+	out, err := exec.CommandContext(t.Context(),
 		"docker", "run", "-d",
 		"--name", name,
 		"-p", "0:3323",
@@ -46,16 +46,16 @@ func TestLiveRTRv2DowngradeToV1(t *testing.T) {
 	).CombinedOutput()
 	require.NoError(t, err, "docker run failed: %s", string(out))
 
-	portOut, err := exec.Command("docker", "port", name, "3323/tcp").Output()
+	portOut, err := exec.CommandContext(t.Context(), "docker", "port", name, "3323/tcp").Output()
 	require.NoError(t, err, "docker port failed")
 
 	port := parseDockerPort(t, string(portOut))
 	t.Logf("waiting for stayrtr on port %d...", port)
 	waitForRTR(t, port, 60*time.Second)
 
-	cache := NewROACache()
+	cache := newROACache()
 	stopCh := make(chan struct{})
-	session := NewRTRSession("127.0.0.1", uint16(port), 100, "", cache, NewASPACache(), stopCh) //nolint:gosec // port fits uint16
+	session := newRTRSession("127.0.0.1", uint16(port), 100, "", cache, newASPACache(), stopCh) //nolint:gosec // port fits uint16
 	session.retryInterval = 5 * time.Second
 
 	done := make(chan struct{})

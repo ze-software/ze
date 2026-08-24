@@ -27,31 +27,7 @@ func TestAvailablePlugins(t *testing.T) {
 
 // TestDetectConfigType and TestDetectConfigTypeFileError removed with the detectConfigType helper both tested. ProbeConfigType no longer selects a runtime -- every config the YANG schema accepts boots on one daemon path (cmd/ze/hub/main.go Run) -- so the helper and the --web config-type gate it fed both went. The probe's own behavior is covered by TestProbeConfigType (internal/component/config/probe_test.go), the boot path by test/plugin/config-validate-agrees-with-boot.ci, and the unreadable-config case by the "error: read config" branch the daemon now reaches for every config.
 
-// TestIsLocalhostPprof verifies pprof address localhost validation.
-//
-// VALIDATES: Only loopback addresses are accepted for pprof.
-// PREVENTS: Exposing pprof on public interfaces (CWE-200).
-func TestIsLocalhostPprof(t *testing.T) {
-	tests := []struct {
-		name string
-		addr string
-		want bool
-	}{
-		{"localhost_ipv4", "127.0.0.1:6060", true},
-		{"localhost_ipv6", "[::1]:6060", true},
-		{"localhost_name", "localhost:6060", true},
-		{"all_interfaces", "0.0.0.0:6060", false},
-		{"empty_host", ":6060", false},
-		{"public_ip", "192.168.1.1:6060", false},
-		{"ipv6_all", "[::]:6060", false},
-		{"no_port", "127.0.0.1", false},
-		{"garbage", "not-an-address", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := isLocalhostPprof(tt.addr)
-			assert.Equal(t, tt.want, got, "isLocalhostPprof(%q)", tt.addr)
-		})
-	}
-}
+// TestIsLocalhostPprof moved to pprof_test.go, which carries pprof.go's own
+// `!tinygo && ze_core` constraint. This file carries `ze_core` and not
+// `!tinygo`, so under `-tags 'ze_core tinygo'` the test selected a function that
+// build does not define.

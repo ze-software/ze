@@ -3,6 +3,7 @@
 package rpki
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -25,13 +26,26 @@ const rpkiDataURL = "https://rpki.cloudflare.com/rpki.json"
 // stayrtrImage is the official stayrtr container image.
 const stayrtrImage = "docker.io/rpki/stayrtr:latest"
 
-// dockerRM removes a container by name (best-effort cleanup, errors expected
-// when container does not exist).
+// dockerTimeout bounds one docker invocation made from a cleanup path, where
+// the test's own context is already canceled and cannot bound anything.
+const dockerTimeout = 30 * time.Second
+
+// probeTimeout bounds ONE TCP reachability probe. The caller polls, so this is
+// the bound on an attempt rather than on the wait.
+const probeTimeout = 2 * time.Second
+
+// dockerRM removes a container by name. The error is expected when the
+// container does not exist, which is every first run, and there is nowhere to
+// report it: the caller is sometimes a cleanup func with no *testing.T in
+// scope, so there is no one reader to report to.
 func dockerRM(name string) {
-	if err := exec.Command("docker", "rm", "-f", name).Run(); err != nil {
-		// Expected when container doesn't exist (e.g., first run). Cannot log
-		// because this is called outside test context (cleanup func).
-	}
+	// Its own context, not the test's: a cleanup runs after t.Context() is
+	// canceled, so the test's context would cancel this removal rather than
+	// bound it.
+	ctx, cancel := context.WithTimeout(context.Background(), dockerTimeout)
+	defer cancel()
+
+	_ = exec.CommandContext(ctx, "docker", "rm", "-f", name).Run()
 }
 
 // startStayRTR starts a stayrtr container and returns the host port.
@@ -43,7 +57,7 @@ func startStayRTR(t *testing.T) (port int, cleanup func()) {
 	dockerRM(containerName)
 
 	// Start stayrtr with a random host port mapped to 3323.
-	out, err := exec.Command(
+	out, err := exec.CommandContext(t.Context(),
 		"docker", "run", "-d",
 		"--name", containerName,
 		"-p", "0:3323",
@@ -56,7 +70,7 @@ func startStayRTR(t *testing.T) (port int, cleanup func()) {
 	cleanup = func() { dockerRM(containerName) }
 
 	// Discover the mapped host port.
-	portOut, err := exec.Command(
+	portOut, err := exec.CommandContext(t.Context(),
 		"docker", "port", containerName, "3323/tcp",
 	).Output()
 	if err != nil {
@@ -92,8 +106,10 @@ func waitForRTR(t *testing.T, port int, timeout time.Duration) {
 	t.Helper()
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 
+	dialer := &net.Dialer{Timeout: probeTimeout}
+
 	require.Eventually(t, func() bool {
-		conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+		conn, err := dialer.DialContext(t.Context(), "tcp", addr)
 		if err != nil {
 			return false
 		}
@@ -115,14 +131,14 @@ func TestLiveRPKIValidation(t *testing.T) {
 	if _, err := exec.LookPath("docker"); err != nil {
 		t.Skip("docker not available, skipping live RPKI test")
 	}
-	out, err := exec.Command("docker", "info").CombinedOutput()
+	out, err := exec.CommandContext(t.Context(), "docker", "info").CombinedOutput()
 	if err != nil {
 		t.Skipf("docker not running: %s", string(out))
 	}
 
 	// Pull image if needed (may already be cached).
 	t.Log("pulling stayrtr image...")
-	pullOut, err := exec.Command("docker", "pull", stayrtrImage).CombinedOutput()
+	pullOut, err := exec.CommandContext(t.Context(), "docker", "pull", stayrtrImage).CombinedOutput()
 	if err != nil {
 		t.Skipf("cannot pull stayrtr image (no internet?): %s", string(pullOut))
 	}
@@ -139,9 +155,9 @@ func TestLiveRPKIValidation(t *testing.T) {
 
 	// Create ROA cache and RTR session.
 	// Short retry for tests: stayrtr may need time to download RPKI data.
-	cache := NewROACache()
+	cache := newROACache()
 	stopCh := make(chan struct{})
-	session := NewRTRSession("127.0.0.1", uint16(port), 100, "", cache, NewASPACache(), stopCh)
+	session := newRTRSession("127.0.0.1", uint16(port), 100, "", cache, newASPACache(), stopCh)
 	session.retryInterval = 5 * time.Second
 
 	// Run session in background.
@@ -252,7 +268,7 @@ func TestLiveASPAValidation(t *testing.T) {
 	if _, err := exec.LookPath("docker"); err != nil {
 		t.Skip("docker not available")
 	}
-	if out, err := exec.Command("docker", "info").CombinedOutput(); err != nil {
+	if out, err := exec.CommandContext(t.Context(), "docker", "info").CombinedOutput(); err != nil {
 		t.Skipf("docker not running: %s", string(out))
 	}
 
@@ -275,7 +291,7 @@ func TestLiveASPAValidation(t *testing.T) {
 			return
 		}
 	})
-	httpLn, err := net.Listen("tcp", "0.0.0.0:0")
+	httpLn, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "0.0.0.0:0")
 	if err != nil {
 		t.Fatalf("http listen: %v", err)
 	}
@@ -301,13 +317,13 @@ func TestLiveASPAValidation(t *testing.T) {
 
 	args := append([]string{"run", "-d", "--name", aspaContainer}, networkArgs...)
 	args = append(args, stayrtrImage, "-cache", "http://"+cacheHost+":"+httpPort+"/rpki.json", "-bind", ":3324", "-checktime=false")
-	startOut, err := exec.Command("docker", args...).CombinedOutput()
+	startOut, err := exec.CommandContext(t.Context(), "docker", args...).CombinedOutput()
 	if err != nil {
 		t.Skipf("cannot start stayrtr for ASPA: %s", string(startOut))
 	}
 
 	if isDockerDesktop() {
-		portOut, portErr := exec.Command("docker", "port", aspaContainer, "3324/tcp").Output()
+		portOut, portErr := exec.CommandContext(t.Context(), "docker", "port", aspaContainer, "3324/tcp").Output()
 		if portErr != nil {
 			t.Skipf("cannot get stayrtr port: %v", portErr)
 		}
@@ -327,17 +343,17 @@ func TestLiveASPAValidation(t *testing.T) {
 
 	// Give stayrtr time to fetch the JSON before connecting.
 	time.Sleep(3 * time.Second)
-	if logs, logErr := exec.Command("docker", "logs", aspaContainer).CombinedOutput(); logErr == nil {
+	if logs, logErr := exec.CommandContext(t.Context(), "docker", "logs", aspaContainer).CombinedOutput(); logErr == nil {
 		t.Logf("stayrtr logs: %s", string(logs))
 	}
 
 	waitForRTR(t, rtrPort, 30*time.Second)
 
 	// Connect our RTR client.
-	roaCache := NewROACache()
-	aspaC := NewASPACache()
+	roaCache := newROACache()
+	aspaC := newASPACache()
 	stopCh := make(chan struct{})
-	sess := NewRTRSession("127.0.0.1", uint16(rtrPort), 100, "", roaCache, aspaC, stopCh) //nolint:gosec // port fits uint16
+	sess := newRTRSession("127.0.0.1", uint16(rtrPort), 100, "", roaCache, aspaC, stopCh) //nolint:gosec // port fits uint16
 	sess.retryInterval = 5 * time.Second
 
 	done := make(chan struct{})
@@ -370,9 +386,9 @@ func TestLiveASPAValidation(t *testing.T) {
 
 	t.Run("ASPA_records_received", func(t *testing.T) {
 		assert.Equal(t, 2, aspaC.count(), "expected 2 ASPA records")
-		assert.Equal(t, HopProviderPlus, aspaC.CheckPair(64500, 64501))
-		assert.Equal(t, HopProviderPlus, aspaC.CheckPair(64501, 64502))
-		assert.Equal(t, HopNotProviderPlus, aspaC.CheckPair(99999, 64501))
+		assert.Equal(t, HopProviderPlus, aspaC.checkPair(64500, 64501))
+		assert.Equal(t, HopProviderPlus, aspaC.checkPair(64501, 64502))
+		assert.Equal(t, HopNotProviderPlus, aspaC.checkPair(99999, 64501))
 	})
 	t.Run("ASPA_verify_valid_path", func(t *testing.T) {
 		assert.Equal(t, ASPAValid, verifyASPA(aspaC, []uint32{64500, 64501, 64502}))

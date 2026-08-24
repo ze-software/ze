@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"sort"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -129,7 +129,7 @@ func TestFleetManyClientsPerf(t *testing.T) {
 		t.Fatalf("expected %d successful syncs, got %d", clients, len(latencies))
 	}
 
-	sort.Slice(latencies, func(i, j int) bool { return latencies[i] < latencies[j] })
+	slices.Sort(latencies)
 	p50 := latencies[len(latencies)*50/100]
 	p95 := latencies[len(latencies)*95/100]
 	maxLat := latencies[len(latencies)-1]
@@ -160,8 +160,15 @@ func fleetInitialSync(addr, name, token string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("read auth response: %w", err)
 	}
-	if _, verb, _, err := rpc.ParseLine(line); err != nil || verb != "ok" {
-		return "", fmt.Errorf("auth not ok: verb=%q err=%v", verb, err)
+	// The two failures are reported apart. Wrapping one error value for both
+	// renders `%!w(<nil>)` on the branch where parsing succeeded and the verb was
+	// simply not ok, which is the branch a real auth refusal takes.
+	_, verb, _, parseErr := rpc.ParseLine(line)
+	if parseErr != nil {
+		return "", fmt.Errorf("parse auth response %q: %w", line, parseErr)
+	}
+	if verb != "ok" {
+		return "", fmt.Errorf("auth not ok: verb=%q", verb)
 	}
 
 	mc := rpc.NewMuxConn(rpc.NewConn(conn, conn))

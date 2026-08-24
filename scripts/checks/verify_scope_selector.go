@@ -46,11 +46,15 @@
 // (greenBaseline). A tree with no green point behind it is a tree where nothing
 // is proven, and the wide answer clears itself on the first passing verify.
 //
-// A tracked Go directory the unit tag set never compiles widens for neither
-// reason, and it must not widen at all: ./... does not compile it either, so the
-// wide answer runs exactly the checks the narrow one runs while paying for the
-// whole tree. cmd/ze-installer, the module root and the gokrazy module cache are
-// the three here, and uncompiledTreeReaders maps each to what does read it.
+// A tracked Go directory the unit tag set never compiles widens only when the
+// wide answer buys a check the narrow one does not. The module root buys none
+// -- ./... compiles it no more than the narrow answer does, so the wide answer
+// runs exactly the same checks on it while paying for the whole tree -- and
+// uncompiledTreeReaders maps it to what does read it. The gokrazy module cache
+// never reaches that question: packageDirsFor answers it by path. cmd/ze-installer
+// stopped being one of them on 2026-08-24: scripts/dev/lint_flavors.py lints it
+// under a ze_installer flavor whenever the lint runs over ./..., so the wide
+// answer is the only answer that reports on an edit to the initrd's PID 1.
 //
 // The walk stops at depth 2. Measured over 646 packages, the full transitive
 // closure selects a third of the tree for one edit under internal/core, while
@@ -115,11 +119,6 @@ const (
 	// editorRunnerPackage holds the editor-test harness. runner_test.go walks
 	// test/editor for .et files and requires the corpus to be non-empty.
 	editorRunnerPackage = "internal/component/cli/testing"
-
-	// installerCommand is the installer initrd's PID 1. Its one build constraint
-	// is linux && ze_installer, which the unit suite's tag set never carries, so
-	// go list ./... does not report the directory.
-	installerCommand = "cmd/ze-installer"
 
 	// gokrazyModuleCache is a tracked third-party module cache with its own
 	// go.mod. No package here compiles it, and every tree-walking check names it
@@ -911,26 +910,24 @@ func parsePackageGraph(root, listing string) (*packageGraph, error) {
 //
 // It is consulted ONLY when go list ./... did not report the directory, so the
 // day one of these joins the unit build the real package answers instead and
-// this table stops applying to it. That is why the two directories here are not
-// path rules in packageDirsFor: each one seeds ITSELF while it is a package, and
-// only the graph knows whether it still is.
+// this table stops applying to it. That is why the directory here is not a path
+// rule in packageDirsFor: it seeds ITSELF while it is a package, and only the
+// graph knows whether it still is.
 //
-// Widening for these directories buys nothing, and that is the whole argument:
-// ./... under the unit tag set does not compile them either, so the wide answer
-// runs the same checks on them as the narrow one while paying for the whole
-// tree. What DOES read them is the tree-walking checks, which is what they seed.
+// A rule belongs here only while widening buys nothing. ./... under the unit tag
+// set does not compile the module root either, so the wide answer runs the same
+// checks on it as the narrow one while paying for the whole tree, and what DOES
+// read it is the tree-walking checks. cmd/ze-installer had a rule here until
+// 2026-08-24 and lost it, because the wide answer stopped being equal: the lint
+// over ./... now selects that package under a ze_installer flavor
+// (scripts/dev/lint_flavors.py), so the narrow answer is the one that reports on
+// nothing. An unruled seed widens, which is the answer the initrd's PID 1 needs.
 func uncompiledTreeReaders(dir string) ([]string, bool) {
 	if dir == "" {
 		// The module root holds tools.go alone (//go:build tools), which pins the
 		// tool imports go mod vendor follows. check_doc_links.py names it in
-		// ROOT_FILES and walkFirstPartyFiles reads it; nothing compiles it.
-		return treeWalkingPackages, true
-	}
-	if underPackage(dir, installerCommand) {
-		// tracked_build.go anchors ./cmd/ze-installer and compiles it from the
-		// git-tracked population, which is a make gate rather than a stage this
-		// list drives. The reading left is walkFirstPartyFiles and the Python
-		// source walkers.
+		// ROOT_FILES and walkFirstPartyFiles reads it; nothing compiles it, and
+		// no lint flavor selects it either (RESIDUE, scripts/dev/lint_flavors.py).
 		return treeWalkingPackages, true
 	}
 	return nil, false

@@ -533,6 +533,11 @@ func TestSelectorMapsTheFunctionalCorpusToItsWalkers(t *testing.T) {
 // answer runs the same checks over it as the narrow one and pays for the whole
 // tree to do it.
 //
+// cmd/ze-installer is deliberately NOT in this table any more, and
+// TestSelectorWidensForTheInstallerInitrd is where it went: since 2026-08-24 the
+// lint over ./... reaches it under a ze_installer flavor, so the wide answer
+// stopped running the same checks as the narrow one.
+//
 // Deleting a branch from uncompiledTreeReaders sends its case back through the
 // unruled seed path in seedPackages, which answers ./... -- the assertion below.
 func TestSelectorMapsGoTreesTheUnitBuildNeverCompiles(t *testing.T) {
@@ -542,10 +547,8 @@ func TestSelectorMapsGoTreesTheUnitBuildNeverCompiles(t *testing.T) {
 		changed string
 		want    []string
 	}{
-		// The installer initrd's PID 1: linux && ze_installer, a tag set no unit
-		// stage carries. walkFirstPartyFiles and the Python source walkers read it.
-		{changed: "cmd/ze-installer/main.go", want: []string{"./scripts/dev", "./scripts/checks"}},
-		// The module root holds tools.go alone, gated //go:build tools.
+		// The module root holds tools.go alone, gated //go:build tools. No lint
+		// flavor selects it either: it is a RESIDUE entry in lint_flavors.py.
 		{changed: "tools.go", want: []string{"./scripts/dev", "./scripts/checks"}},
 		// A third-party module cache every tree walker names in a skip list.
 		{changed: modcache, want: nil},
@@ -576,6 +579,42 @@ func TestSelectorMapsGoTreesTheUnitBuildNeverCompiles(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestSelectorWidensForTheInstallerInitrd pins the one directory whose narrow
+// answer reports on nothing.
+//
+// VALIDATES: an edit to cmd/ze-installer answers ./..., so ze-lint-changed runs
+// the flavor driver over the whole tree and the installer flavor selects that
+// package.
+// PREVENTS: the regression this test was written for. Every file there is
+// //go:build linux && ze_installer, so go list under the unit tag set reports
+// "build constraints exclude all Go files" and the package is in no import
+// graph. uncompiledTreeReaders used to answer with the tree-walking packages
+// instead, which meant ze-lint-changed handed the flavor driver a --scope
+// holding scripts/ and nothing else: the initrd's PID 1 -- the code that
+// partitions and writes a disk -- passed the changed-file gate with no lint pass
+// having loaded a line of it, and the gate exited 0.
+//
+// The wide answer is what the selector is FOR here, not a fallback it fell into.
+// ./cmd/ze-installer cannot be named in the narrow answer instead: the same list
+// drives ze-unit-test-changed, and `go test ./cmd/ze-installer` under the unit
+// tag set fails with "build constraints exclude all Go files [setup failed]".
+func TestSelectorWidensForTheInstallerInitrd(t *testing.T) {
+	binary := buildScopeSelector(t)
+	paths := scopePathsFile(t, "cmd/ze-installer/main.go")
+
+	stdout, stderr, code := runScopeSelector(t, binary, repoRoot(t), "--paths-from="+paths)
+	if code != 0 {
+		t.Fatalf("selector exited %d\nstderr:\n%s", code, stderr)
+	}
+	if got := scopeLines(stdout); !slices.Equal(got, []string{"./..."}) {
+		t.Fatalf("an installer edit answered %v, want ./...: no narrower answer names a "+
+			"package any lint pass loads the installer under\nstderr:\n%s", got, stderr)
+	}
+	if !strings.Contains(stderr, "cmd/ze-installer") {
+		t.Fatalf("the selector widened without naming the directory that widened it\nstderr:\n%s", stderr)
 	}
 }
 
@@ -737,7 +776,8 @@ func TestSelectorSeesGatedImportersInFixture(t *testing.T) {
 // TestSelectorFailsOpenWhenTheSeedIsNoPackage closes the zero-value trap: a
 // changed directory that go list does not report has no importers to find, and
 // the narrow answer would be an empty list nobody can tell from "nothing
-// changed". cmd/ze-installer is such a directory in this repository.
+// changed". cmd/ze-installer is such a directory in this repository, and
+// TestSelectorWidensForTheInstallerInitrd is that case on the live tree.
 func TestSelectorFailsOpenWhenTheSeedIsNoPackage(t *testing.T) {
 	binary := buildScopeSelector(t)
 	root := writeScopeFixture(t)

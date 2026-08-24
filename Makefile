@@ -650,11 +650,19 @@ ze-docker-lab-build:
 # nothing on a dev machine: 80 of the 82 files are `integration && linux`, and
 # measured on darwin the tag alone reaches 0 of them.
 #
-# What these two passes still do NOT reach is every other build tag. The
-# personality tags among them (ze_installer, ze_distro, ze_appliance, ze_setup)
-# cannot share one pass, because each names a mutually exclusive build. See
+# What these two passes still do NOT reach is every other build tag, and every
+# other GOOS and GOARCH. The personality tags among them (ze_installer,
+# ze_distro, ze_appliance, ze_setup) cannot share one pass, because each names a
+# mutually exclusive build. scripts/dev/lint_flavors.py runs one pass for each,
+# derives its package set from the tree, and reports what no pass reaches. See
 # plan/journal/gate-excludes-part-of-its-population.md.
-ZE_LINT_PKGS := ./cmd/ze/... ./internal/... ./pkg/... ./test/...
+#
+# The package pattern is ./... rather than four roots. 48 files under scripts/
+# carried no build constraint at all and were unlinted purely because nothing
+# pointed the linter at them -- the repository's own gates among them, including
+# the test that pins the integration pass above. ZE_PACKAGES (the unit-test
+# population) has always been ./..., and the two now agree.
+ZE_LINT_PKGS := ./...
 
 # Memory half of the linter ceiling; the worker half is ZE_LINT_RUN's `-j`
 # below. golangci-lint v2.10.1 accepts no memory setting of its own, so the Go
@@ -698,11 +706,22 @@ ZE_LINT := GOMEMLIMIT=$(ZE_LINT_MEMLIMIT) golangci-lint
 # .claude/hooks/pretool-bash.py refuses one from an agent.
 ZE_LINT_RUN := $(ZE_LINT) run -j $(GO_TEST_PROCS)
 
-# Two full golangci-lint passes over the tree, each sized for the whole box.
-# Measured 2026-08-17, this is about 18 minutes of a 20-minute full verify, so
-# it is the heaviest single job in the repository and the one that froze the
-# machine when two sessions started it at once. It goes through the shared
-# admission point for that reason (plan/spec-shared-machine-job-admission.md).
+# The flavor driver runs golangci-lint itself, once per build that the two
+# passes below cannot reach, so it carries the SAME two ceilings rather than a
+# second set: GOMEMLIMIT through the environment, `-j` through the flag it
+# passes on to every run. TestLintFlavorDriverCarriesTheLinterCeilings pins the
+# pair against ZE_LINT_RUN's.
+ZE_LINT_FLAVOR_RUN := GOMEMLIMIT=$(ZE_LINT_MEMLIMIT) python3 scripts/dev/lint_flavors.py -j $(GO_TEST_PROCS)
+
+# Two full golangci-lint passes over the tree, each sized for the whole box,
+# then one SCOPED pass for each build neither of them analyses. Measured
+# 2026-08-17, the two full passes are about 18 minutes of a 20-minute full
+# verify, so this is the heaviest single job in the repository and the one that
+# froze the machine when two sessions started it at once. It goes through the
+# shared admission point for that reason
+# (plan/spec-shared-machine-job-admission.md). The flavor passes add about a
+# minute: each lints only the packages holding a file the two above do not load,
+# 1 to 59 packages rather than 649 (measured 2026-08-24).
 # Run as a stage of ze-precommit-verify it inherits that job's slot instead of
 # queueing behind it, which is what ZE_RUN_JOB is for.
 ze-lint:
@@ -713,6 +732,7 @@ _ze-lint-impl:
 	@$(ZE_LINT_RUN) $(ZE_LINT_PKGS)
 	@echo "Running ze linter (GOOS=linux, integration tag)..."
 	@GOOS=linux $(ZE_LINT_RUN) --build-tags integration $(ZE_LINT_PKGS)
+	@$(ZE_LINT_FLAVOR_RUN)
 
 ze-evidence-vet:
 	@echo "Vetting evidence scripts (GOOS=linux)..."
@@ -793,10 +813,16 @@ _ze-dependency-vulnerability-check-impl:
 # dependency moved, or a changed path could not be classified. Both recipes must
 # pass it through unchanged -- treating it as "nothing selected" would verify
 # nothing and report success.
-# The second pass mirrors ze-lint's (see the comment above that target): without
-# it a new //go:build integration test lands unlinted, because the changed-file
-# gate is the only lint most edits ever face. `&&` keeps it fail-closed -- with
-# `;` a pass-1 failure would be masked by a clean pass 2.
+# The second pass and the flavor driver mirror ze-lint's (see the comment above
+# that target): without them a new //go:build integration test, or a new
+# //go:build ze_installer file, lands unlinted -- the changed-file gate is the
+# only lint most edits ever face. `&&` keeps it fail-closed -- with `;` a
+# pass-1 failure would be masked by a clean pass 2.
+#
+# The driver takes the changed packages as its --scope, so it derives each
+# flavor's package set from that set rather than from the whole tree. It asserts
+# coverage only for a whole-tree run: over a scoped set a missing file is
+# missing because the caller said so.
 ze-lint-changed:
 	@scripts/dev/ze-run.sh ze-lint-changed $(MAKE) --no-print-directory _ze-lint-changed-impl
 
@@ -806,7 +832,8 @@ _ze-lint-changed-impl:
 	echo "Linting changed packages: $$pkgs"; \
 	$(ZE_LINT_RUN) $$pkgs && \
 	echo "Linting changed packages (GOOS=linux, integration tag): $$pkgs" && \
-	GOOS=linux $(ZE_LINT_RUN) --build-tags integration $$pkgs
+	GOOS=linux $(ZE_LINT_RUN) --build-tags integration $$pkgs && \
+	$(ZE_LINT_FLAVOR_RUN) --scope "$$pkgs"
 
 ze-unit-test-changed:
 	@scripts/dev/ze-run.sh ze-unit-test-changed $(MAKE) --no-print-directory _ze-unit-test-changed-impl

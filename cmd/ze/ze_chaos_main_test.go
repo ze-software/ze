@@ -12,11 +12,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/chaos/orchestrator"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/command/registry"
 )
+
+// chaosRun runs the chaos orchestrator the way `ze chaos ...` runs it: through
+// the root handler internal/chaos/orchestrator registers, which ze_chaos_run.go
+// imports for its init().
+//
+// It used to call orchestrator.CLIRun directly. That function is `cLIRun` now,
+// unexported, so this file stopped compiling and NOTHING said so: no lint pass
+// and no test run had ever selected the `ze_chaos` build
+// (plan/journal/gate-excludes-part-of-its-population.md). Going through the
+// registry is also the stronger assertion, because it proves the registration
+// that `ze chaos` depends on is present in this build.
+func chaosRun(t *testing.T, args []string) int {
+	t.Helper()
+	handler := registry.LookupRoot("chaos")
+	require.NotNil(t, handler, "the ze_chaos build registers no `chaos` root handler")
+	return handler(nil, args)
+}
 
 // TestConfigOnly verifies that --config-only writes config to stdout and exits 0.
 //
@@ -28,7 +45,7 @@ func TestConfigOnly(t *testing.T) {
 	require.NoError(t, err)
 	os.Stdout = w
 
-	code := orchestrator.CLIRun([]string{"--config-only", "--seed", "42", "--peers", "3", "--quiet"})
+	code := chaosRun(t, []string{"--config-only", "--seed", "42", "--peers", "3", "--quiet"})
 
 	os.Stdout = old
 	require.NoError(t, w.Close())
@@ -50,7 +67,7 @@ func TestConfigOnlyFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.conf")
 
-	code := orchestrator.CLIRun([]string{"--config-only", "--seed", "42", "--peers", "3", "--config-out", path, "--quiet"})
+	code := chaosRun(t, []string{"--config-only", "--seed", "42", "--peers", "3", "--config-out", path, "--quiet"})
 
 	assert.Equal(t, 0, code)
 
@@ -69,8 +86,8 @@ func TestConfigOnlyDeterministic(t *testing.T) {
 	path1 := filepath.Join(dir, "a.conf")
 	path2 := filepath.Join(dir, "b.conf")
 
-	code1 := orchestrator.CLIRun([]string{"--config-only", "--seed", "12345", "--peers", "4", "--config-out", path1, "--quiet"})
-	code2 := orchestrator.CLIRun([]string{"--config-only", "--seed", "12345", "--peers", "4", "--config-out", path2, "--quiet"})
+	code1 := chaosRun(t, []string{"--config-only", "--seed", "12345", "--peers", "4", "--config-out", path1, "--quiet"})
+	code2 := chaosRun(t, []string{"--config-only", "--seed", "12345", "--peers", "4", "--config-out", path2, "--quiet"})
 
 	assert.Equal(t, 0, code1)
 	assert.Equal(t, 0, code2)
@@ -106,7 +123,7 @@ func TestConfigOnlyNoNetwork(t *testing.T) {
 
 	tcpAddr, ok := ln.Addr().(*net.TCPAddr)
 	require.True(t, ok)
-	code := orchestrator.CLIRun([]string{
+	code := chaosRun(t, []string{
 		"--config-only", "--seed", "42", "--peers", "2",
 		"--port", itoa(tcpAddr.Port),
 		"--quiet",
@@ -126,7 +143,7 @@ func TestConfigOnlyNoNetwork(t *testing.T) {
 // VALIDATES: flag validation logic.
 // PREVENTS: ambiguous mode selection.
 func TestConfigOnlyPipeExclusive(t *testing.T) {
-	code := orchestrator.CLIRun([]string{"--config-only", "--pipe", "--seed", "42", "--peers", "2"})
+	code := chaosRun(t, []string{"--config-only", "--pipe", "--seed", "42", "--peers", "2"})
 	assert.Equal(t, 1, code)
 }
 
@@ -135,7 +152,7 @@ func TestConfigOnlyPipeExclusive(t *testing.T) {
 // VALIDATES: flag validation logic.
 // PREVENTS: ambiguous mode selection.
 func TestConfigOnlyInProcessExclusive(t *testing.T) {
-	code := orchestrator.CLIRun([]string{"--config-only", "--in-process", "--seed", "42", "--peers", "2"})
+	code := chaosRun(t, []string{"--config-only", "--in-process", "--seed", "42", "--peers", "2"})
 	assert.Equal(t, 1, code)
 }
 
@@ -153,7 +170,7 @@ func TestRunInvalidPeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			code := orchestrator.CLIRun(tt.args)
+			code := chaosRun(t, tt.args)
 			assert.Equal(t, 1, code)
 		})
 	}
@@ -173,7 +190,7 @@ func TestRunValidPeerBoundaries(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			code := orchestrator.CLIRun([]string{"--config-only", "--seed", "1", "--peers", tt.peers, "--quiet"})
+			code := chaosRun(t, []string{"--config-only", "--seed", "1", "--peers", tt.peers, "--quiet"})
 			assert.Equal(t, 0, code)
 		})
 	}
@@ -193,7 +210,7 @@ func TestRunInvalidChaosRate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			code := orchestrator.CLIRun([]string{"--config-only", "--seed", "1", "--peers", "2", "--chaos-rate", tt.rate, "--quiet"})
+			code := chaosRun(t, []string{"--config-only", "--seed", "1", "--peers", "2", "--chaos-rate", tt.rate, "--quiet"})
 			assert.Equal(t, 1, code)
 		})
 	}
@@ -213,7 +230,7 @@ func TestRunInvalidRouteRate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			code := orchestrator.CLIRun([]string{"--config-only", "--seed", "1", "--peers", "2", "--route-rate", tt.rate, "--quiet"})
+			code := chaosRun(t, []string{"--config-only", "--seed", "1", "--peers", "2", "--route-rate", tt.rate, "--quiet"})
 			assert.Equal(t, 1, code)
 		})
 	}
@@ -224,7 +241,7 @@ func TestRunInvalidRouteRate(t *testing.T) {
 // VALIDATES: boundary: port must be 0 (auto) or 1024-65535.
 // PREVENTS: binding to privileged ports.
 func TestRunInvalidPort(t *testing.T) {
-	code := orchestrator.CLIRun([]string{"--config-only", "--seed", "1", "--peers", "2", "--port", "80", "--quiet"})
+	code := chaosRun(t, []string{"--config-only", "--seed", "1", "--peers", "2", "--port", "80", "--quiet"})
 	assert.Equal(t, 1, code)
 }
 

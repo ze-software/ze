@@ -2165,15 +2165,164 @@ func TestChangedLintCoversIntegrationTaggedFiles(t *testing.T) {
 	}
 	// Fail-closed chaining: the recipe is one shell, so a `;` between the two
 	// passes would make the recipe's status the SECOND pass's -- a real finding
-	// in the first pass would exit 0.
+	// in the first pass would exit 0. TestChangedLintRunsEveryBuildFlavor checks
+	// the whole chain, the flavor driver included; this one keeps the assertion
+	// beside the integration pass it is about.
+	passes, _ := lintPassLines(corpus, body)
+	if len(passes) < 2 {
+		t.Fatalf("ze-lint-changed runs %d lint passes, so there is no chain to judge. Recipe:\n%s",
+			len(passes), strings.Join(body, "\n"))
+	}
+	first := body[passes[0]]
+	if !strings.HasSuffix(strings.TrimRight(first, " \t"), "&& \\") {
+		t.Errorf("ze-lint-changed chains its first golangci-lint pass without `&&`, so its exit "+
+			"status is discarded when a later pass is clean. Line: %q", first)
+	}
+}
+
+// lintPassLines returns the recipe lines that run a lint pass, expanded, in
+// recipe order, together with the index of the last non-blank line of the body.
+//
+// A pass is golangci-lint (through ZE_LINT_RUN, or spelled out) or the flavor
+// driver (through ZE_LINT_FLAVOR_RUN). The expansion is what makes both visible:
+// the raw line reads `$(ZE_LINT_RUN) $$pkgs`, which holds neither the word
+// golangci-lint nor -- since ZE_LINT_FLAVOR_RUN is not a superstring of
+// ZE_LINT_RUN -- any spelling a substring test for the other pass would catch.
+func lintPassLines(corpus string, body []string) (passes []int, lastLine int) {
+	lastLine = -1
+	for index, ln := range body {
+		if strings.TrimSpace(ln) != "" {
+			lastLine = index
+		}
+		expanded := expandMakeVars(corpus, ln)
+		if strings.Contains(expanded, "golangci-lint") || strings.Contains(expanded, "lint_flavors.py") {
+			passes = append(passes, index)
+		}
+	}
+	return passes, lastLine
+}
+
+// flavorLintPass reports whether a recipe body runs the build-flavor lint
+// driver, and returns the line that does.
+//
+// The corpus is read so the body's variable references resolve: the recipes
+// call $(ZE_LINT_FLAVOR_RUN), which carries the driver and both of its
+// ceilings. See expandMakeVars.
+func flavorLintPass(corpus string, body []string) (string, bool) {
 	for _, ln := range body {
-		if !strings.Contains(ln, "golangci-lint") || strings.Contains(ln, "GOOS=linux") {
-			continue
+		ln = expandMakeVars(corpus, ln)
+		if strings.Contains(ln, "lint_flavors.py") {
+			return ln, true
 		}
-		if !strings.HasSuffix(strings.TrimRight(ln, " \t"), "&& \\") {
-			t.Errorf("ze-lint-changed chains its first golangci-lint pass without `&&`, so its exit "+
-				"status is discarded when the integration pass is clean. Line: %q", ln)
+	}
+	return "", false
+}
+
+// TestLintRunsEveryBuildFlavor guards the full lint's coverage of every build
+// the two golangci-lint passes above it cannot analyze.
+//
+// VALIDATES: `ze-lint` runs scripts/dev/lint_flavors.py, which lints one pass
+// for each personality tag, capability tag, GOOS and GOARCH a tracked file
+// names, and then fails when a tracked Go file is reached by nothing.
+// PREVENTS: the regression this gate was written for. golangci-lint analyses ONE
+// build for each run, so on a Linux host 245 tracked own-source Go files were
+// reported on by nothing (measured 2026-08-24): 101 behind a non-Linux GOOS, 46
+// behind ze_installer -- the initrd's PID 1, which carried a `SA5000: assignment
+// to nil map` nobody had ever been told about -- and the rest behind ze_distro,
+// ze_appliance, ze_setup, debug, race, live and the other tags. Delete this pass
+// and they go silent again with every gate still green.
+func TestLintRunsEveryBuildFlavor(t *testing.T) {
+	corpus := makefileCorpus(t)
+	_, body := recipeBody(t, corpus, "ze-lint")
+	if _, ok := flavorLintPass(corpus, body); !ok {
+		t.Errorf("ze-lint runs no scripts/dev/lint_flavors.py pass: every file behind a "+
+			"personality tag, a capability tag or a non-host GOOS is unlinted again. Recipe:\n%s",
+			strings.Join(body, "\n"))
+	}
+
+	// The package pattern is the other half of the coverage. Four roots left
+	// every file under scripts/ unlinted, this test's own file included.
+	pkgs := expandMakeVars(corpus, "$(ZE_LINT_PKGS)")
+	if strings.TrimSpace(pkgs) != "./..." {
+		t.Errorf("ZE_LINT_PKGS is %q, not ./...: a package outside the named roots is unlinted, "+
+			"and nothing says so -- golangci-lint is loud only when a package it was POINTED at "+
+			"has no buildable file", pkgs)
+	}
+}
+
+// TestChangedLintRunsEveryBuildFlavor is TestLintRunsEveryBuildFlavor for the
+// path most edits actually face.
+//
+// VALIDATES: `ze-lint-changed` runs the same driver, scoped to the changed
+// packages, and that no earlier pass in the chain can have its exit status
+// discarded.
+// PREVENTS: a new //go:build ze_installer file landing unlinted.
+// `ai/rules/commands.md` makes ze-lint-changed the gate before claiming done,
+// and ze-precommit-verify-changed runs it in place of ze-lint (stagesForMode),
+// so full-lint-only coverage would leave exactly the new files uncovered.
+func TestChangedLintRunsEveryBuildFlavor(t *testing.T) {
+	corpus := makefileCorpus(t)
+	_, body := recipeBody(t, corpus, "ze-lint-changed")
+	line, ok := flavorLintPass(corpus, body)
+	if !ok {
+		t.Fatalf("ze-lint-changed runs no scripts/dev/lint_flavors.py pass: a new file behind a "+
+			"personality tag passes the changed-file gate unlinted. Recipe:\n%s",
+			strings.Join(body, "\n"))
+	}
+	if !strings.Contains(line, "--scope") {
+		t.Errorf("ze-lint-changed runs the flavor driver over the whole tree rather than the "+
+			"changed packages, which costs the changed-file gate its reason to exist. Line: %q", line)
+	}
+	// Fail-closed chaining: the recipe is one shell, so a `;` anywhere in the
+	// chain would make the recipe's status the LAST command's, and a real
+	// finding in an earlier pass would exit 0. The flavor driver is judged here
+	// too, which a substring test for ZE_LINT_RUN cannot do: ZE_LINT_FLAVOR_RUN
+	// is not a superstring of it, so the driver line was walked past.
+	passes, lastLine := lintPassLines(corpus, body)
+	if len(passes) < 3 {
+		t.Fatalf("ze-lint-changed runs %d lint passes, and the recipe has three: two golangci-lint "+
+			"passes and the flavor driver. Recipe:\n%s", len(passes), strings.Join(body, "\n"))
+	}
+	for _, index := range passes[:len(passes)-1] {
+		if !strings.HasSuffix(strings.TrimRight(body[index], " \t"), "&& \\") {
+			t.Errorf("ze-lint-changed chains a lint pass without `&&`, so its exit status is "+
+				"discarded when a later pass is clean. Line: %q", body[index])
 		}
+	}
+	// The last pass ends the recipe. A command after it would take the recipe's
+	// exit status, which is the same masking read from the other end.
+	if final := passes[len(passes)-1]; final != lastLine {
+		t.Errorf("ze-lint-changed runs %q after its last lint pass, so the recipe's exit status "+
+			"is that command's rather than the lint's", strings.TrimSpace(body[lastLine]))
+	}
+}
+
+// TestLintFlavorDriverCarriesTheLinterCeilings pins the flavor driver to the
+// same two ceilings every other golangci-lint run in this repository has.
+//
+// VALIDATES: the driver is invoked with GOMEMLIMIT and with `-j`, both derived
+// from the machine exactly as ZE_LINT_RUN derives them.
+// PREVENTS: a job taking more than its declared share. ZE_RUN_SLOTS divides the
+// box by that share to decide how many jobs run at once
+// (plan/spec-shared-machine-job-admission.md), so a lint pass that escapes the
+// ceiling breaks the slot arithmetic rather than just running hot. The driver
+// runs golangci-lint ITSELF, so the Makefile's ZE_LINT_RUN cannot carry it.
+func TestLintFlavorDriverCarriesTheLinterCeilings(t *testing.T) {
+	corpus := makefileCorpus(t)
+	_, body := recipeBody(t, corpus, "ze-lint")
+	line, ok := flavorLintPass(corpus, body)
+	if !ok {
+		t.Fatalf("ze-lint runs no flavor driver; TestLintRunsEveryBuildFlavor says why that matters")
+	}
+	memory := expandMakeVars(corpus, "$(ZE_LINT_MEMLIMIT)")
+	workers := expandMakeVars(corpus, "-j $(GO_TEST_PROCS)")
+	if !strings.Contains(line, "GOMEMLIMIT="+memory) {
+		t.Errorf("the flavor driver runs without GOMEMLIMIT=%s, so its golangci-lint runs have no "+
+			"memory ceiling. Line: %q", memory, line)
+	}
+	if !strings.Contains(line, workers) {
+		t.Errorf("the flavor driver runs without %q, so its golangci-lint runs take one worker per "+
+			"core instead of their declared share. Line: %q", workers, line)
 	}
 }
 
