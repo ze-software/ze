@@ -156,7 +156,7 @@ A page that publishes its uncertainty is safer than a page that says "supported"
 
 ## The shape I want
 
-<p class="blog-section-reveal">The website should describe the repository that exists now, using facts its owners can still enforce.</p>
+<p class="blog-section-reveal">The website MUST describe the repository that exists now, and stay synchronised with the published code, using facts its owners can still enforce.</p>
 
 The target is a website where each fact stays with the owner that can keep it current.
 
