@@ -99,8 +99,8 @@ confirmed stale-initramfs bug), and it gives this spec a kernel that survives a
 ## Origin
 
 Found during `spec-fixit-migrate-sleeps-infra` work, 2026-07-16, while recording why
-the firewall suite never runs under QEMU (`plan/spec-fixit-firewall-concurrency-deadlock.md`
-R-5/R-6). User direction the same day: "Alpine kernel is too old for our features, we
+the firewall suite never runs under QEMU (`spec-fixit-firewall-concurrency-deadlock`
+R-5/R-6; that spec closed on 2026-08-24, so its file is no longer in the tree). User direction the same day: "Alpine kernel is too old for our features, we
 need to find a way to run a 7.+ kernel."
 
 ## Required Reading
@@ -380,7 +380,7 @@ work; the change is the harness those `.ci` files run on.
       OWNED BY `spec-fixit-qemu-artifact-cache` (handoff contract row 2). Do not edit
       it here: two specs editing `ze-kernel-build` is exactly the rework the dependency
       exists to prevent
-- [ ] ~~`plan/spec-fixit-firewall-concurrency-deadlock.md` - R-5/R-6 are resolved or
+- [ ] ~~`spec-fixit-firewall-concurrency-deadlock` - R-5/R-6 are resolved or
       re-scoped by this work~~ **DO NOT EDIT. A concurrent agent owns that spec**
       (2026-07-16). The interaction is real but must be handled by agreement, not by
       two agents writing the same file. See "Interaction with the firewall spec" below
@@ -614,7 +614,7 @@ needs, so on a clean checkout it denied while reporting the wrong cause; it now
 declares it, and the test derives the list of guard users from the file so the
 next adopter is covered without editing the test.
 
-## Interaction with `plan/spec-fixit-firewall-concurrency-deadlock.md`
+## Interaction with `spec-fixit-firewall-concurrency-deadlock`
 
 **That spec is owned by a concurrent agent (2026-07-16). This spec does NOT edit it.**
 Recorded here so the two can be reconciled by their owners rather than by a race.

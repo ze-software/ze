@@ -1,21 +1,22 @@
 # Test: ddos direction classification -- an attack on a box-owned (local) victim is
-# classified Direction=local and surfaced on the incident.
+# classified Direction=local, surfaced on the incident, AND enforced on the box.
 #
 # VALIDATES: spec-ddos-direction-allowlist AC-13/AC-9 (classification) -- an attack on
 #            a box-owned address (127.0.0.3, RTN_LOCAL) opens an incident whose
 #            direction field is "local" (show ddos incidents), proving the detector
 #            classifies direction via iface.AddressIsLocal end-to-end.
+# VALIDATES: spec-fixit-firewall-concurrency-deadlock AC-7 -- the classification
+#            reaches the dataplane: ddos-local installs an on-host drop covering
+#            127.0.0.3/32, reported by `show ddos local`. The narrow
+#            classification-only scope this test used to carry is RETIRED.
 # PREVENTS:  direction being unset/wrong (e.g. defaulting to remote) for a box-owned
-#            victim.
+#            victim, and a classified attack that nothing enforces.
 #
-# // this test asserts the direction CLASSIFICATION only, not the INPUT-hook
-# drop install. The local->INPUT vs remote->FORWARD hook selection is covered
-# exhaustively by the unit test TestLocalHookByDirection (local/responder_test.go).
-#
-# The original reason for the narrow scope was a dispatch deadlock: loading the
-# firewall nft backend (a firewall {} block) alongside the ddos-local responder
-# under a flood wedged the daemon's command dispatch. That deadlock is fixed at
-# the source and is now unreachable by construction (corrected 2026-08-17):
+# WHY THE SCOPE WAS NARROW, and why it is not any more. Loading the firewall nft
+# backend alongside the ddos-local responder under a flood used to wedge the
+# daemon's command dispatch, so this test dropped both the firewall block and the
+# drop assertion. Every mechanism that could produce that hang is now fixed at
+# the source:
 #   - reconcileMu serializes the whole ApplyAll body, so at most one owner is
 #     ever inside Backend.Apply (internal/component/firewall/registry.go).
 #   - both backends bound the netlink round-trip at 10s, so a wedged dataplane
@@ -25,9 +26,13 @@
 #   - status() reads the published snapshot through an atomic.Pointer and takes
 #     no lock, so show ddos local never waits on a reconcile
 #     (internal/plugins/ddos/local/responder.go).
-# Widening this test to assert the on-host drop is therefore possible now, and it
-# is AC-7 of plan/spec-fixit-firewall-concurrency-deadlock.md. Do not read the
-# narrow scope as evidence that the drop path is untestable.
+# The drop assertion is restored here. The other half of the workaround, a
+# `firewall {}` block present WHILE the responder mitigates, is proven by
+# test/plugin/ddos-firewall-concurrency.ci rather than duplicated here: both
+# tests share the ddos-flood exclusive group, so a second flood of the same
+# length would cost the QEMU suite that time and assert nothing new. This test
+# reaches the backend through the ApplyAll autoload path instead
+# (internal/component/firewall/registry.go), as ddos-transit-forward-drop.ci does.
 #
 # STATUS: option=needs-linux:caps=net-admin,bpf. Full daemon path on the QEMU Alpine VM via an in-daemon
 #   observer plugin (ze_api handshake), same harness as ddos-bps-amplification.
@@ -54,11 +59,15 @@ option=needs-linux:caps=net-admin,bpf
 option=exclusive:group=ddos-flood
 option=env:var=ze.log.ddos.detect:value=info
 option=env:var=ze.log.ddos.local:value=info
-option=timeout:value=90s
+# 45s for the classification poll plus 30s for the drop poll, and the two are
+# sequential worst cases rather than alternatives. 90s left no room for the
+# second budget: a slow classification would have hit the runner's timeout, which
+# reports "the daemon never finished" instead of "no drop was installed".
+option=timeout:value=130s
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
-option=timeout:value=90s
+option=timeout:value=130s
 option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
@@ -113,6 +122,25 @@ def blast(sock, n):
     return sent
 
 
+def local_mitigation(api):
+    """The on-host drop ddos-local installed, or an empty mapping.
+
+    `show ddos local` reads the snapshot setStatus publishes, and applyMitigation
+    publishes active=true only after applyAll has RETURNED NIL
+    (internal/plugins/ddos/local/responder.go). So active=true means the reconcile
+    reached the backend and the backend accepted it, which is one step short of a
+    kernel readback: ddos-transit-forward-drop.ci does that half with `nft list
+    ruleset`, for the FORWARD hook.
+    """
+    r = dispatch(api, "show ddos local")
+    if r.get("status") != "done":
+        return {}
+    data = result_text_data(r)
+    if isinstance(data, str) and data:
+        data = json.loads(data)
+    return data if isinstance(data, dict) else {}
+
+
 def main():
     api = API()
     api.declare_done()
@@ -139,15 +167,40 @@ def main():
             found_local = True
             break
         api.read_line(timeout=0.3)
-    sock.close()
-    sink.close()
 
     if not found_local:
+        sock.close()
+        sink.close()
         runtime_fail(f"no incident with direction=local opened for a box-owned victim "
                      f"(sent {sent} packets, incidents={incs})")
 
     print(f"OK: box-owned victim {VICTIM} classified direction=local on the incident "
           f"(sent {sent} packets)", file=sys.stderr)
+
+    # The classification must reach the DATAPLANE, not only the incident. Keep
+    # flooding while polling: the drop is installed from the AttackDetected
+    # handler, which runs on the detector's own goroutine, so it lands after the
+    # incident the loop above matched on.
+    local = {}
+    drop_deadline = time.monotonic() + 30.0
+    while time.monotonic() < drop_deadline:
+        sent += blast(sock, 4000)
+        local = local_mitigation(api)
+        if local.get("active") is True:
+            break
+        api.read_line(timeout=0.3)
+    sock.close()
+    sink.close()
+
+    if local.get("active") is not True:
+        runtime_fail(f"direction=local was classified but ddos-local installed no on-host "
+                     f"drop for {VICTIM} within 30s (sent {sent} packets, "
+                     f"show ddos local={local})")
+    target = (local.get("target") or {}).get("dst-prefix")
+    if target != f"{VICTIM}/32":
+        runtime_fail(f"the on-host drop covers {target!r}, not the victim {VICTIM}/32: {local}")
+
+    print(f"LOCAL-DROP-INSTALLED {VICTIM}", file=sys.stderr)
     dispatch(api, "request shutdown")
     api.wait_for_shutdown()
 
@@ -230,5 +283,8 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=85s
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=125s
 expect=exit:code=0
+expect=stderr:contains=LOCAL-DROP-INSTALLED 127.0.0.3
+expect=stderr:contains=ddos-local: drop rule installed
+expect=stderr:contains=hook=ingress

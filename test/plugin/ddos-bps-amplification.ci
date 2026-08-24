@@ -87,6 +87,7 @@ from ze_api import API, result_text_data, runtime_fail
 #   127.0.0.2 ddos-detect-characterize   127.0.0.5 ddos-bps-amplification (this)
 #   127.0.0.3 ddos-direction             127.0.0.6 ddos-incident-confidence
 #   127.0.0.4 ddos-detect-mitigate       127.0.0.7 ddos-policy
+#   127.0.0.8 ddos-firewall-concurrency
 VICTIM = "127.0.0.5"
 DPORT = 9999
 # 16 KB payloads: on loopback (MTU 65536) each is a single datagram, so bandwidth

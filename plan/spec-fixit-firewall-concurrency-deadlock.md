@@ -4,8 +4,16 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 4/6 (phases 2-5 landed; phase 1 reproduction and its phase-6 `.ci` remain) |
-| Updated | 2026-08-17 |
+| Phase | closure (all six phases ran) |
+| Updated | 2026-08-24 |
+
+> **HOW THIS SPEC CLOSES, in one sentence: the 255-second stall of 2026-07-12 was
+> NEVER EXPLAINED, and this spec closes on AC-1's cannot-reproduce branch, not on a
+> root cause.** Six real defects were found by reading the producing code and each is
+> fixed and proven, but none of them is known to be the thing that stalled that
+> dispatch. The causal story the spec was built on is disproven: A-6 is broken, so
+> `show ddos incidents` never touched a firewall lock. Anyone summarising this work
+> MUST NOT write that the deadlock was found and fixed.
 
 > **AC INVENTORY, re-derived from this file on 2026-08-17.** The spec declares
 > **10** AC ids, AC-1 through AC-10, and no more.
@@ -33,15 +41,40 @@
 >   through an `atomic.Pointer` and takes NO lock, by design, so the
 >   `show ddos local` dispatch path can no longer wait out a firewall reconcile.
 >
-> **Remaining: AC-1, AC-2, AC-3, AC-7 -- the OBSERVATION itself, still unwritten.**
-> No goroutine dump or lock trace of the 2026-07-12 event was ever captured
-> (AC-1), no deterministic reproduction exists (AC-2), no test drives dispatch
-> against a mitigating responder under a sustained flood (AC-3), and the
-> `test/plugin/ddos-direction.ci` workaround has not been re-evaluated against
-> the fixed code (AC-7). The fixes are structural, so the reproduction can only
-> now be written against a healthy tree: expect it to pass, and treat that pass
-> as evidence only if the test discriminates
-> (`ai/rules/interop-and-goal-validation.md`, "Prove the test discriminates").
+> **Phase 1 and phase 6 ran on 2026-08-24. AC-2, AC-3 and AC-7 are now met; AC-1
+> is met by its second branch, the evidenced cannot-reproduce statement.**
+>
+> - **AC-6's keystone fact, A-6, is FALSE.** The 2026-07-12 run dispatched
+>   `show ddos incidents` in a loop and never dispatched `show ddos local`
+>   (`test/plugin/ddos-direction.ci`, `dispatch()` inside
+>   `ddos-direction-probe.run`, unchanged since `62f9b939d` on that date). Its
+>   handler is `handleShowDdosIncidents` (`internal/plugins/ddos/observe/show.go`),
+>   which takes `store.mu` (`store.list`, `observe/store.go`) and holds it over an
+>   in-memory ring copy only. So Finding 3's chain cannot be what stalled, and R-9
+>   fires as written.
+> - **The observed 255s stall does NOT reproduce on the current tree.** The same
+>   configuration -- a `firewall { backend nft }` block, ddos-local mitigating
+>   under a sustained flood, `dispatch-command` in a loop -- ran on the STOCK
+>   Alpine QEMU kernel, the environment class the symptom was seen in
+>   (`ze-qemu-debug` passes no `--kernel`). 7956 dispatches, slowest 0.096s
+>   against a 3s bound. That is AC-1's "evidenced statement that it cannot be
+>   reproduced", and it is consistent with R-6: the stall needed a wedged nft
+>   subsystem, which this kernel does not produce.
+> - **A dispatch-surface reproduction DOES exist and discriminates**, so AC-2 is
+>   met without the kernel: `TestShowDdosLocalAnswersDuringWedgedReconcile`
+>   (`internal/plugins/ddos/local/show_test.go`) drives `handleShowDdosLocal`
+>   while `applyAll` is inside a reconcile that never returns. Green today; red
+>   with D-3 reverted (`status()` taking `r.mu` again), observed 2026-08-24.
+> - **One producer the lock inventory missed.** `GetCounters`
+>   (`internal/plugins/firewall/nft/backend_linux.go`) calls `ListTables`,
+>   `ListChainsOfTableFamily` and `GetRules` on the SAME `*nftables.Conn` that
+>   `Apply` flushes, and `Conn.Flush` holds `Conn.mu` across dial, `SendMessages`
+>   and the ack loop (`vendor/github.com/google/nftables/conn.go`). It is reached
+>   from `dispatch-command` through `handleShowFirewallRuleset`
+>   (`internal/plugins/firewall/nft/cmd_show.go`), so `show firewall ruleset` is a
+>   command handler coupled to the in-flight reconcile. D-2 bounds that wait at
+>   the netlink deadline; nothing removes the coupling. That is why the new `.ci`
+>   dispatches it: it is the sharpest probe the daemon has.
 
 ## Task
 
@@ -375,17 +408,30 @@ registry, not in any plugin.
 *Finding 5 -- `Backend.Apply` has exactly one caller.* `registry.go` is the only
 `b.Apply(...)` in the tree; every `firewall.GetBackend()` consumer
 (`audit.go`, `nft/cmd_show.go`, `web/page_firewall.go`, `firewall/cli/main.go`)
-uses read-only paths, and those read paths use their own transient netlink conn
-(`nftables/table.go-...` via `cc.netlinkConn()`, `conn.go`) and never stage
-into `cc.messages`. So serialising inside `ApplyAll` is sufficient; there is no bypass.
+uses read-only paths, and those read paths never stage into `cc.messages`. So
+serialising inside `ApplyAll` is sufficient for the WRITE side: no bypass can
+lose an update.
+
+-> Correction, 2026-08-24. This paragraph used to add that the read paths "use
+their own transient netlink conn", and that was the wrong reading of
+`cc.netlinkConn()` (`vendor/github.com/google/nftables/conn.go`). It does dial a
+fresh socket, and it takes `cc.mu` to do it -- the same mutex `Flush` holds
+across dial, `SendMessages` and the ack-receive loop. A read path on the ACTIVE
+backend is therefore serialised behind an in-flight `Apply`, which is why
+`show firewall ruleset` stays coupled to the reconcile (Known Limitations). The
+write-side conclusion above is unaffected; the read-side one was never true.
 
 **OBSERVED (QEMU run, 2026-07-12, not reproduced since):**
 - `ze-plugin-engine:dispatch-command` stopped responding for roughly 255 seconds with a
   `firewall { backend nft }` block configured while ddos-local mitigation was active
   under a sustained flood.
 
-**UNVERIFIED:**
-- The root cause. No goroutine dump, no lock-ordering trace, no nft timing captured.
+**UNVERIFIED, and closed as unobtainable on 2026-08-24:**
+- The root cause. No goroutine dump, no lock-ordering trace, no nft timing captured,
+  and none can be taken now: the run is gone and the configuration no longer stalls
+  (A-1, A-6). What the phase DID establish is negative and it is evidence: the
+  command that stalled was `show ddos incidents`, whose handler reaches no firewall
+  lock, so Finding 3's chain is EXCLUDED rather than unconfirmed.
 - Whether this is a true deadlock (a cycle) or livelock / starvation (repeated reconciles
   under flood starving the dispatch path).
 - Whether nft `Apply` blocks on a kernel or netlink lock held by another actor.
@@ -396,15 +442,15 @@ into `cc.messages`. So serialising inside `ApplyAll` is sufficient; there is no 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The hang reproduces under QEMU with the same config shape | observed once during spec-ddos-direction-allowlist QEMU work (deferrals.md) | no reproduction: the spec degrades to a lock-discipline audit with a weaker outcome | re-run flood + `firewall { backend nft }` under QEMU | unvalidated (needs a trustworthy kernel: see R-5/R-6) |
+| A-1 | The hang reproduces under QEMU with the same config shape | observed once during spec-ddos-direction-allowlist QEMU work (deferrals.md) | no reproduction: the spec degrades to a lock-discipline audit with a weaker outcome | re-run flood + `firewall { backend nft }` under QEMU | **broken, 2026-08-24**: it does not reproduce. `test/plugin/ddos-firewall-concurrency.ci` runs that exact shape on the stock Alpine QEMU kernel (`ze-qemu-debug` passes no `--kernel`, so it boots the ISO's own) and answered 7956 dispatches with a 0.096s worst case. The spec does NOT degrade to a lock-discipline audit, because AC-2's reproduction was obtained at the dispatch surface instead (`TestShowDdosLocalAnswersDuringWedgedReconcile`) |
 | A-2 | The contention lives in shared firewall infra, not the ddos plugin | deferrals.md calls it "potential real concurrency bug in shared firewall infra"; `ApplyAll` is the only shared mutable path both actors touch | fix belongs in ddos-local or the plugin engine; AC-5 must change | goroutine dump showing blocked stacks | **broken (partially), 2026-07-16**: BOTH are true. The concurrent-apply corruption is shared infra (`registry.go` + `backend_linux.go`, Finding 1); the dispatch-stall mechanism is ddos-local's own lock discipline (`responder.go,136` + `show.go`, Finding 3). AC-5 stands for the registry fix but must not be read as forbidding the plugin-side fix |
 | A-3 | nft `Apply` can be slow enough under flood to matter | inference from the ~255s stall; the nft backend reaches the kernel (backend_linux.go) | the stall is a genuine lock cycle, not slow-call-under-lock; fix is lock ordering | time `backend.Apply` under load | **broken (too weak), 2026-07-16**: `Apply` is not merely slow, it is UNBOUNDED. `receiveAckAware` -> `nlconn.Receive()` (`conn.go`) has no deadline and `backend_linux.go` sets no `SockOptions`. Timing it under load would have measured the wrong property |
 | A-4 | `dispatch-command` shares a goroutine or lock with the blocked path | symptom is a dispatch hang while firewall work is in flight | the dispatch hang has an unrelated cause and this spec is scoped wrong | read dispatch_registry.go and the engine dispatch model | **broken as stated / confirmed when refined, 2026-07-16**: no shared goroutine and no dispatcher lock (`command.go` has no mutex; handlers run outside `engineEventSubscribers.mu`, `engine_event.go`). But it DOES share `r.mu` via `handleShowDdosLocal` (`show.go`). Consequence: only ddos-local's own commands stall, not all dispatch |
 | A-5 | Concurrent `b.Apply` from two owners is a real hazard, not benign | registry.go holds no lock across the call | the unlocked call is fine and only the dispatch path matters | nft backend concurrency review + concurrent-apply test | **confirmed, 2026-07-16**: `Conn.Flush` sends the shared batch and clears it (`conn.go`); the loser's `Flush` returns nil having sent nothing; `b.applied` map is raced (`backend_linux.go` vs `:88`) |
-| A-6 | The command observed to stall was one that takes `r.mu` (`show ddos local`) | Finding 3 is the only chain from a flood to a blocked dispatch handler that the code supports | the observed stall has a different producer and Finding 3, though a real bug, is not THE bug; root cause stays open | the 2026-07-12 run's test log / `.ci` file: which command did it dispatch? Then a goroutine dump on the repro | unvalidated -- **the one keystone fact still missing** |
+| A-6 | The command observed to stall was one that takes `r.mu` (`show ddos local`) | Finding 3 is the only chain from a flood to a blocked dispatch handler that the code supports | the observed stall has a different producer and Finding 3, though a real bug, is not THE bug; root cause stays open | the 2026-07-12 run's test log / `.ci` file: which command did it dispatch? Then a goroutine dump on the repro | **broken, 2026-08-24**: it dispatched `show ddos incidents`, in a loop, and no other command. The `.ci` that observed the stall is `test/plugin/ddos-direction.ci`, added by `62f9b939d` on 2026-07-12, and its probe's only dispatch calls are `show ddos incidents` and the closing `request shutdown`. That handler is `handleShowDdosIncidents` (`internal/plugins/ddos/observe/show.go`), which takes `store.mu` (`store.list`, `observe/store.go`) and holds it over a ring copy, never over a firewall call. Finding 3 is therefore a real defect that is NOT the observed one, and R-9 fires |
 | A-7 | A per-operation netlink deadline is achievable without changing the `Backend` interface | `dialNetlink` applies `cc.sockOptions` on EVERY dial (`conn.go`), and ze's Conn is non-lasting (`backend_linux.go` omits `AsLasting()`), so each `Flush`/list dials fresh and a `WithSockOptions` closure can compute `SetDeadline(time.Now().Add(N))` per operation | fall back to a watchdog goroutine or a lasting conn with an explicit deadline per op; the interface stays unchanged either way | confirmed by reading `dialNetlink`; prove with a test that a stalled socket returns an error | **confirmed, 2026-07-16** |
 | A-8 | No caller holds `tableRegistry.mu` or `backendsMu` when calling `ApplyAll` (prerequisite for making a new reconcile lock the OUTERMOST firewall lock) | all 8 call sites read: `engine.go,383,395`; `registry.go` (`FlushAllTables` unlocks at `:43` first); `copp:185,197,199`; `policyroute:200,207,222`; `flowspec-firewall:180`; `irr:203`; `ddos/local:136,142,189`; `anomaly/shape:200` | the proposed `reconcileMu` would self-deadlock or invert the order; serialisation must move elsewhere | re-grep at implement time; the lock-order comment on `ApplyAll` documents it thereafter | **confirmed, 2026-07-16** |
-| A-9 | ddos-local's mitigation ordering does not require `r.mu` to span the reconcile | `applyMitigation` only needs the lock to (a) read `cfg`, (b) serialise concurrent mitigations, (c) publish `active`/`target`. Only (b) needs to span the reconcile; `status()` reads only (c) | splitting the lock reorders concurrent mitigations; keep one lock and instead make `status()` read an atomic snapshot | design review + `TestResponderStatusDuringSlowApply` | unvalidated (settled by design D-3, proven by the test) |
+| A-9 | ddos-local's mitigation ordering does not require `r.mu` to span the reconcile | `applyMitigation` only needs the lock to (a) read `cfg`, (b) serialise concurrent mitigations, (c) publish `active`/`target`. Only (b) needs to span the reconcile; `status()` reads only (c) | splitting the lock reorders concurrent mitigations; keep one lock and instead make `status()` read an atomic snapshot | design review + `TestResponderStatusDuringSlowApply` | **confirmed, 2026-08-24**: `r.mu` still spans the reconcile and mitigations stay ordered, while `status()` reads the atomic snapshot. Proven at the command surface as well as the responder's: `TestShowDdosLocalAnswersDuringWedgedReconcile` drives `handleShowDdosLocal` against a reconcile that never returns and is red once `status()` takes `r.mu` again |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -489,12 +535,13 @@ Revisit only if a real deployment needs it.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ddos-firewall-concurrency.ci` | `test/plugin/` | firewall block + ddos-local mitigation under flood; assert dispatch-command stays responsive and the drop is installed (needs-linux / QEMU) | |
+| `ddos-firewall-concurrency.ci` | `test/plugin/` | firewall block + ddos-local mitigation under flood; assert dispatch-command stays responsive and the drop is installed (needs-linux / QEMU) | Done. PASS 16.0s, 2026-08-24 |
+| `ddos-direction.ci` (widened) | `test/plugin/` | AC-7: the same flood must reach the dataplane, not only the incident | Done. PASS 5.5s, 2026-08-24 |
 
 ### Race / Stress
 | Check | Command | Status |
 |-------|---------|--------|
-| Race detector on the concurrent-apply tests | `go test -race ./internal/component/firewall/ ./internal/plugins/ddos/local/` | |
+| Race detector on the concurrent-apply tests | `go test -race ./internal/component/firewall/ ./internal/plugins/ddos/local/` | Done. Clean 2026-08-24, with `./internal/plugins/anomaly/shape/` added |
 
 ## Files to Modify
 
@@ -524,11 +571,16 @@ existing `internal/core/metrics` registry over a new mechanism (`ai/rules/archit
 | Prometheus counters/metrics | [ ] | consider an apply-latency / contention metric during design (AC-6 observability) |
 
 ### Documentation Update Checklist (BLOCKING)
+Answered at closure, 2026-08-24. Rows 12 and 13 were satisfied by the earlier
+implementation commits; the phase-1/6 diff adds tests and record text only, so it
+carries no doc edit of its own.
+
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | [ ] | likely No (bug fix); confirm at design |
-| 12 | Internal architecture changed? | [ ] | `docs/architecture/core-design.md` (firewall registry concurrency contract) |
-| 13 | Known constraint documented (AC-6 path)? | [ ] | `docs/architecture/core-design.md` + the owning package doc comment |
+| 1 | New user-facing feature? | No | A defect fix plus tests. No new command, config leaf, output field or wire method: the diff registers no `RegisterRPCs` entry and adds no YANG node |
+| 12 | Internal architecture changed? | Yes, DONE | `docs/architecture/core-design.md`, "Firewall reconcile concurrency" -- the lock order, the bounded-`Apply` obligation, `ErrKernelTimeout` and the two metrics. In HEAD, unmodified in the working tree |
+| 13 | Known constraint documented (AC-6 path)? | Yes, DONE | Same section, plus the `reconcileMu` doc comment (`internal/component/firewall/registry.go`) and the single-writer clause on `Backend.Apply` (`internal/component/firewall/backend.go`). The one constraint that remains OPEN, `show firewall ruleset` waiting out a reconcile, is recorded in Known Limitations with both producers named |
+| - | Anything the phase-1/6 diff makes stale? | No | `grep -rn "source: internal/plugins/ddos/local" docs/` anchors `responder.go`, `register.go`, `match.go`, `show.go`, `config.go`; this diff touches none of them. `make ze-repository-check` reports no stale-anchor finding on any file in scope |
 
 ## Files to Create
 - `test/plugin/ddos-firewall-concurrency.ci` (needs-linux; the QEMU reproduction)
@@ -655,26 +707,65 @@ section already admits as IN.
 | **D-5: state the concurrency contract in code, not only in docs** -- a lock-order comment on `reconcileMu`, a "single-writer, never called concurrently, must not block indefinitely" clause on `Backend.Apply` (`backend.go`), and a `docs/architecture/core-design.md` note | doc-only; comment-only | The interface doc is where the next backend author looks (vpp is already a second implementation). Docs alone did not prevent this: `EngineEventHandler` documented "MUST NOT block on external I/O" and both responders block anyway |
 
 ## Known Limitations
-- The root cause is an observed symptom only. Until a goroutine dump exists, every causal
-  story in this spec is a hypothesis.
+- **THE ROOT CAUSE OF THE 2026-07-12 STALL WAS NOT FOUND, AND THIS SPEC CLOSES WITHOUT
+  IT.** Read that sentence before any other line in this file. Every fix below is a
+  defect read from the producing code and fixed on its own merits; none of them is
+  known to be the thing that stalled that dispatch for 255 seconds. The one causal
+  story the spec proposed is disproven, not merely unconfirmed (A-6, and the
+  Refined-2026-07-16 bullet below). No goroutine dump exists, the run is gone, and the
+  configuration no longer stalls, so no dump can be taken now. This is AC-1's SECOND
+  branch -- the evidenced cannot-reproduce -- and it is the only branch this spec
+  closes on.
 - **Refined 2026-07-16.** Two distinct claims must not be conflated:
   - **Findings 1-4 are findings, not hypotheses.** Each is read from the producing
     function and cited (`conn.go`, `backend_linux.go,77,88`,
     `responder.go,136,199`, `show.go`). They are real defects that ship today and
     are fixable on their own merits, which Scope already admits as IN.
-  - **The link from Finding 3 to the 2026-07-12 observation is a hypothesis** (A-6, R-9).
-    It is the only chain the code supports, and it is consistent with the 255s (mutex
-    starvation mode rules out contention; an unbounded `Receive` explains an indefinite
-    hold). Consistency is not verification. Do not write "the deadlock is fixed" in the
-    learned summary. It is not a deadlock, and it may not be what was observed.
-- The title of this spec is now wrong: there is no deadlock. Renaming mid-flight would
-  break the deferral row's reference (`plan/deferrals.md`), so the name stays and the
-  learned summary at closure carries the correction. -> Decision, 2026-07-16.
-- The `.ci` reproduction (`test/plugin/ddos-firewall-concurrency.ci`) is conditional on
-  phase 1 producing a repro. If the stall is kernel-triggered (R-6), a `.ci` that only
-  passes on a crashing kernel is worse than none: it would encode the kernel bug as the
-  expected environment. The unit tests (D-1, D-3) do not have this problem and are the
-  primary proof.
+  - ~~**The link from Finding 3 to the 2026-07-12 observation is a hypothesis** (A-6,
+    R-9). It is the only chain the code supports, and it is consistent with the 255s.~~
+    **DISPROVEN 2026-08-24, and it is no longer a hypothesis to weigh.** The run
+    dispatched `show ddos incidents` and nothing else, and `handleShowDdosIncidents`
+    (`internal/plugins/ddos/observe/show.go`) reads `activeStore` through an
+    `atomic.Pointer` and calls `(*store).list` (`observe/store.go`), which takes
+    `store.mu` over a ring copy. Every other `store.mu` holder in that package is an
+    in-memory update. No firewall lock is on that path at all. Finding 3 is a real
+    defect that was NOT the observed one. Do not write "the deadlock is fixed" in the
+    learned summary. It is not a deadlock, it was not Finding 3, and what it WAS is
+    unidentified.
+- The title of this spec is wrong: there is no deadlock, and there never was one in this
+  code. Renaming mid-flight would have broken the deferral row's reference, so the name
+  stayed and the journal row at closure carries the correction. -> Decision, 2026-07-16.
+  The aggregate `plan/deferrals.md` that row lived in has since been sharded away; this
+  spec's own shard is `plan/deferrals/fixit-firewall-concurrency-deadlock.md`, and the
+  parent `spec-ddos-direction-allowlist` shard is gone with that spec.
+- ~~The `.ci` reproduction (`test/plugin/ddos-firewall-concurrency.ci`) is conditional on
+  phase 1 producing a repro.~~ **Written 2026-08-24, and it is a SCENARIO test rather
+  than a reproduction.** The stall never reproduced, so the `.ci` encodes no kernel bug:
+  it asserts that the configuration which was worked around now answers within a bound.
+  What it can deny is an unbounded hang and a lost update; what it cannot deny is a
+  sub-second coupling, because a healthy nft reconcile on loopback is milliseconds.
+  `TestShowDdosLocalAnswersDuringWedgedReconcile` is the half that discriminates, and
+  the two are complementary rather than redundant.
+- **A command handler that IS still coupled to the reconcile, and stays so.**
+  `handleShowFirewallRuleset` (`internal/plugins/firewall/nft/cmd_show.go`) takes the
+  ACTIVE backend from `firewall.GetBackend()` (`internal/component/firewall/backend.go`,
+  which returns `activeBackend`, the instance `ApplyAll` applies with) and calls
+  `GetCounters` (`internal/plugins/firewall/nft/backend_linux.go`). That method issues
+  `ListTables`, `ListChainsOfTableFamily` and `GetRules` on `b.conn`, the same
+  `*nftables.Conn` `Apply` flushes. Both sides of the wait are in
+  `vendor/github.com/google/nftables/conn.go`: `Conn.Flush` takes `cc.mu` and holds it
+  across dial, `SendMessages` and the whole ack-receive loop, while every read path
+  reaches `cc.netlinkConn()`, which takes that same `cc.mu` to dial. The read path
+  therefore blocks until the reconcile's flush completes. So `show firewall ruleset`
+  waits out the in-flight reconcile, bounded by D-2's deadline and by nothing else. This is NOT the D-3
+  defect and does not have D-3's fix: that command's answer is a kernel readback, so it
+  cannot be served from a snapshot the way `show ddos local` can. Recorded rather than
+  changed, because bounding it further means either caching counters or giving the
+  backend a second connection, and neither is this spec's to decide.
+- **The 2026-07-12 observation is now known to be unexplained rather than explained.**
+  A-6 was the spec's keystone and it is false. Nothing in this spec identifies what
+  stalled `show ddos incidents` for 255 seconds, and the closure summary must not say
+  the deadlock was found and fixed.
 
 ## Implementation Summary
 ### What Was Implemented
@@ -710,6 +801,13 @@ section already admits as IN.
 - D-5: the single-writer and bounded-`Apply` contract on the `Backend` interface,
   `ErrKernelTimeout` on the contract rather than in a backend package, and the
   "Firewall reconcile concurrency" section of `docs/architecture/core-design.md`.
+- Phase 1 and phase 6, 2026-08-24. `test/plugin/ddos-firewall-concurrency.ci` runs
+  the configuration that was worked around and bounds every `dispatch-command` at
+  3s, with a watchdog that SIGQUITs the daemon at 20s so a future stall carries
+  goroutine stacks instead of a timeout. `TestShowDdosLocalAnswersDuringWedgedReconcile`
+  (`internal/plugins/ddos/local/show_test.go`) is the deterministic reproduction at
+  the dispatch surface. `test/plugin/ddos-direction.ci` drops its
+  classification-only workaround and asserts the on-host drop.
 
 ### Bugs Found/Fixed
 - Concurrent `Backend.Apply` (Finding 1): two owners staged into one shared
@@ -737,16 +835,26 @@ section already admits as IN.
 - The metric surface the plan left "to settle at implement time" is one histogram plus
   one counter in the firewall component, with no new config leaf. It follows the
   deadline's reasoning: this is a safety and observability backstop, not a tuning knob.
-- Phase 1 (reproduce the 2026-07-12 stall and capture goroutine stacks) was never run,
-  so AC-1, AC-2, AC-3 and AC-7 are open and `test/plugin/ddos-firewall-concurrency.ci`
-  does not exist. R-6 recommends waiting for `plan/spec-fixit-qemu-runtime-kernel.md`.
-  This is a scope question for the owner, not a claim of completion.
+- ~~Phase 1 (reproduce the 2026-07-12 stall and capture goroutine stacks) was never run.~~
+  **Ran 2026-08-24.** It produced no stall and therefore no stacks, and the phase's own
+  exit for that case is AC-1's cannot-reproduce branch. Three deviations came out of it:
+  - **The reproduction moved surface.** The plan expected a QEMU repro; what exists is a
+    Go test at the dispatch surface (`TestShowDdosLocalAnswersDuringWedgedReconcile`),
+    because a wedged reconcile is what the stall needed and a healthy kernel will not
+    produce one. The `.ci` is a scenario test beside it, not the repro.
+  - **The goroutine dump moved from a one-off capture to a standing mechanism.** The
+    `.ci`'s watchdog SIGQUITs the daemon when one dispatch passes 20s, so the stacks the
+    plan wanted are captured by any FUTURE occurrence rather than by this session.
+  - **AC-7 was met by widening `ddos-direction.ci` with the drop assertion only**, not by
+    also giving it a `firewall {}` block. Both tests share the `ddos-flood` exclusive
+    group, so duplicating the block would cost the QEMU suite a second flood and assert
+    what `ddos-firewall-concurrency.ci` already asserts.
 
 ## Implementation Audit
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Root-cause the dispatch hang | Partial | Findings 1-4 | The mechanism the code supports is read and cited. The link to the 2026-07-12 event stays a hypothesis (A-6) |
+| Root-cause the dispatch hang | **NOT MET** | Findings 1-4 | Findings 1-4 are read from the producing code and are real defects. None is known to be the observed one, and the link the spec proposed is DISPROVEN, not open: A-6 is broken, so `show ddos incidents` reached no firewall lock. The requirement is not partially met, it is unmet, and the spec closes on AC-1's cannot-reproduce branch instead |
 | Fix it at the owning layer | Done | `internal/component/firewall/registry.go`, `backend.go`, `metrics.go` | D-1, D-5, AC-10 counter all live in the shared component |
 | The lock-discipline hazards on their own merits | Done | `ddos/local/responder.go`, `anomaly/shape/responder.go`, `nft/deadline_linux.go` | D-2, D-3, D-4 |
 | Make the failure observable rather than a silent hang | Done | `firewall/metrics.go`, `nft/deadline_linux.go` | Bounded, logged, counted |
@@ -754,13 +862,13 @@ section already admits as IN.
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | Open | - | Needs phase 1, or the evidenced "cannot reproduce" statement. Findings 1-4 do not close it and the spec says so |
-| AC-2 | Open | - | No deterministic reproduction of the stall exists |
-| AC-3 | Partial | `TestResponderStatusDuringSlowApply`, `TestShapeStatusDuringSlowApply` | The in-process proof holds: a show handler no longer waits on a reconcile. The under-flood `.ci` is not written |
+| AC-1 | Done, second branch | `test/plugin/ddos-firewall-concurrency.ci`; the A-6 row above | The 2026-07-12 event is EVIDENCED as not reproducible, which is what AC-1 accepts in place of a dump. Two facts carry it. The command that stalled was `show ddos incidents`, whose handler touches no firewall lock, so Finding 3 was never the observed chain (A-6, broken). And the same configuration on the same kernel class answers 7956 dispatches with a 0.096s worst case. No goroutine dump of the original event exists and none can now be taken |
+| AC-2 | Done | `TestShowDdosLocalAnswersDuringWedgedReconcile` (`internal/plugins/ddos/local/show_test.go`) | Reproduces the stall at the dispatch surface and passes with the fix. Discrimination observed 2026-08-24: with `status()` taking `r.mu` again it fails with "show ddos local did not answer while a firewall reconcile was wedged". The reconcile in it NEVER returns, so a pass says the handler is decoupled, not that the reconcile was quick |
+| AC-3 | Done | `test/plugin/ddos-firewall-concurrency.ci` | QEMU, stock Alpine kernel: `firewall { backend nft }` loaded, ddos-local mitigating 127.0.0.8 under a flood, 7956 `dispatch-command` calls over `show ddos local`, `show ddos incidents` and `show firewall ruleset fwconc`. Slowest 0.096s against a 3s bound. A stalled dispatch SIGQUITs the daemon at 20s, so a future red carries the goroutine stacks rather than a timeout |
 | AC-4 | Done | `TestApplyAllSerialisesBackendApply`, `TestApplyAllConcurrentOwnersConverge`, `TestApplyAllStaleSnapshotNotApplied` | Max concurrent `Apply` is 1; the last apply carries every owner |
 | AC-5 | Done | `internal/component/firewall/registry.go` | Serialization is in the registry, not in any plugin or test |
 | AC-6 | Done | `firewall/metrics.go`, `docs/architecture/core-design.md` | Bounded timeout, log, counter, and the contract written where a backend author reads it |
-| AC-7 | Open | - | Depends on AC-2: the ddos-direction `.ci` workaround cannot be re-evaluated without a reproduction |
+| AC-7 | Done | `test/plugin/ddos-direction.ci` | The workaround is retired: the test now asserts the on-host drop (`show ddos local` active, target `127.0.0.3/32`, `hook=ingress`) as well as the classification, and its header says so. The other half of the workaround, a `firewall {}` block present while the responder mitigates, is proven by `ddos-firewall-concurrency.ci` rather than duplicated: both tests share the `ddos-flood` exclusive group, so a second flood of the same length would cost the QEMU suite that time and assert nothing new |
 | AC-8 | Done | `TestApplyAllSerialisesBackendApply` plus the caller re-grep | All six `ApplyAll` callers inherit D-1. Only ddos-local and anomaly-shape needed the D-3 shape, and both have it |
 | AC-9 | Done | `reconcileMu` doc comment, `Backend.Apply` doc, `core-design.md` | Lock order and the no-lock-across-`ApplyAll` rule are stated in code and in the doc |
 | AC-10 | Done | `TestNetlinkTimeoutBounds`, `TestAsKernelTimeoutTagsDeadlineOnly`, `TestNftApplyDeadlineSurfacesError`, `TestApplyAllCountsKernelTimeout` | Bounded within the deadline, typed, logged, counted |
@@ -781,7 +889,9 @@ section already admits as IN.
 | `TestApplyAllObservesOutsideTheReconcileLock` | Added | `internal/component/firewall/metrics_test.go` | Pins WHERE it runs: the observer probes `reconcileMu.TryLock` and fails if the lock is still held |
 | `TestVppReplyTimeoutBounds`, `TestNewGovppOpsBindsReplyTimeout`, `TestApplyTagsDataplaneTimeout` | Added | `internal/plugins/firewall/vpp/timeout_linux_test.go` | D-2 for the vpp backend; linux-only, run under `make ze-qemu-integration-test` |
 | `firewall-metrics-registered.ci` | Added | `test/plugin/` | Proves `Registration.ConfigureMetrics` fires for the firewall component; needs-linux, caps=net-admin |
-| `ddos-firewall-concurrency.ci` | Open | - | Conditional on phase 1 (Known Limitations) |
+| `ddos-firewall-concurrency.ci` | Done | `test/plugin/` | needs-linux, caps=net-admin,bpf, `exclusive:group=ddos-flood`. PASS 16.0s under `make ze-qemu-debug` |
+| `TestShowDdosLocalAnswersDuringWedgedReconcile` | Added | `internal/plugins/ddos/local/show_test.go` | Not in the plan. `TestResponderStatusDuringSlowApply` stops at `r.status()`; this drives `handleShowDdosLocal`, the function the dispatcher actually resolves `show ddos local` to |
+| `ddos-direction.ci` (widened) | Changed | `test/plugin/` | AC-7: asserts the on-host INPUT-hook drop, not only the classification. PASS 5.5s |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -795,28 +905,55 @@ section already admits as IN.
 | `internal/component/firewall/metrics.go` | Added | The AC-6 metric surface the plan left to settle at implement time |
 | `internal/plugins/firewall/vpp/timeout_linux.go` | Added | D-2 for the vpp backend, so the timeout count means the same under both |
 | `test/plugin/firewall-metrics-registered.ci` | Added | The metrics wiring proof |
-| `test/plugin/ddos-firewall-concurrency.ci` | Open | Conditional on phase 1 |
+| `test/plugin/ddos-firewall-concurrency.ci` | Done | The AC-3 proof. Written and green under QEMU |
+| `test/plugin/ddos-direction.ci` | Changed | AC-7: the classification-only workaround is retired |
+| `internal/plugins/ddos/local/show_test.go` | Changed | AC-2: the deterministic dispatch-surface reproduction |
 
 ### Audit Summary
 - **Total items:** 10 AC, 10 planned tests, 8 files
-- **Done:** AC-4, AC-5, AC-6, AC-8, AC-9, AC-10; 8 of 10 tests; 7 of 8 files
-- **Partial:** AC-3 (in-process proof only, no under-flood `.ci`)
+- **Done:** AC-1 through AC-10; 10 of 10 planned tests; 8 of 8 files
+- **Partial:** none
 - **Skipped:** none
-- **Open, needs an owner decision:** AC-1, AC-2, AC-7 and the `.ci`, all gated on the
-  phase-1 reproduction (A-6, R-6)
-- **Changed:** the rollback test name, the D-1 test file name, and one added test
-  (documented in Deviations)
+- **Open, needs an owner decision:** none
+- **Changed:** the rollback test name, the D-1 test file name, and three added
+  tests (documented in Deviations)
+- **AC-1 is closed on its SECOND branch, and that is the whole of what it claims.**
+  The 2026-07-12 event has no goroutine dump and never will. What is evidenced is
+  that its stated chain is false (A-6) and that the configuration no longer stalls
+  on the kernel class it was seen on. A reader must not turn that into "the
+  deadlock is fixed": there was no deadlock, and the mechanism behind the
+  observation stays unidentified (R-9, Known Limitations)
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Dispatch no longer hangs under flood + firewall block | functional (QEMU) | NOT MET. `test/plugin/ddos-firewall-concurrency.ci` does not exist; it is conditional on phase 1 (Known Limitations) |
+| Dispatch no longer hangs under flood + firewall block | functional (QEMU) | `test/plugin/ddos-firewall-concurrency.ci`, PASS 16.0s on the stock Alpine QEMU kernel. 7956 `dispatch-command` calls while ddos-local held a drop for 127.0.0.8 and the `fwconc` table stayed readable from the kernel; slowest 0.096s against a 3s bound. What it would deny: an unbounded hang, which is the observed failure mode, and a lost update that takes the firewall engine's table out of the kernel. What it does NOT deny: a sub-second coupling, because a healthy reconcile is milliseconds. `TestShowDdosLocalAnswersDuringWedgedReconcile` is the discriminating half |
 | A management-plane read is no longer coupled to kernel latency | unit, discrimination-checked | `TestResponderStatusDuringSlowApply` and `TestShapeStatusDuringSlowApply`. Restoring the lock in `status()` / `statusSnapshot()` makes each report "blocked behind the in-flight reconcile" (observed 2026-08-07) |
 | A wedged kernel cannot stall every firewall owner forever | unit + QEMU integration | `TestNetlinkTimeoutBounds` (zero clamps up, never disables the bound), `TestNftApplyDeadlineSurfacesError` under `make ze-qemu-integration-test` |
 | The failure is observable rather than silent | unit + functional | `TestApplyAllCountsKernelTimeout` (with the increment removed: "timeout counter = 0, want 1"), and `test/plugin/firewall-metrics-registered.ci`, which scrapes the daemon's Prometheus endpoint and finds both series (738ms PASS; 11.6s FAIL with `ConfigureMetrics` emptied) |
 | The timeout count means the same under either backend | unit (QEMU) | `TestApplyTagsDataplaneTimeout` and `TestNewGovppOpsBindsReplyTimeout` for vpp, beside the nft pair. Both fail with their fix reverted (observed 2026-08-07) |
 | Concurrent apply converges, no lost update | unit, race | `TestApplyAllSerialisesBackendApply` (max concurrent `Apply` 1, observed 8 without `reconcileMu`), `TestApplyAllConcurrentOwnersConverge`, `TestApplyAllStaleSnapshotNotApplied`, all under `-race` |
-| Root cause established | trace | NOT MET. No goroutine dump exists. A-6 stays unvalidated and R-9 stands |
+| A command handler answers while a reconcile is wedged | unit, discrimination-checked | `TestShowDdosLocalAnswersDuringWedgedReconcile` drives `handleShowDdosLocal`, the function the dispatcher resolves `show ddos local` to, against an `applyAll` that never returns. Red with D-3 reverted: "show ddos local did not answer while a firewall reconcile was wedged" (observed 2026-08-24) |
+| Root cause established | trace | NOT MET, and now evidenced as unobtainable. No goroutine dump of the 2026-07-12 event exists. A-6 is BROKEN rather than unvalidated: the run dispatched `show ddos incidents`, whose handler takes no firewall lock, so the chain the spec proposed was never the one that stalled. R-9 stands in full. AC-1 is met by its cannot-reproduce branch, which is a statement about reproducibility and not a root cause |
+
+## Deferrals Resolved
+
+Shard: `plan/deferrals/fixit-firewall-concurrency-deadlock.md`. Every row accounted
+for at closure, 2026-08-24.
+
+| Row (date, subject) | Status at closure | Where it lives now |
+|---------------------|-------------------|--------------------|
+| 2026-07-19, sibling slices D-2/D-3/D-4 + the core-design note | **done** | All four landed and each has a test that reds when its fix is reverted. The shard's own "Resolution of the 2026-07-19 row" section names the slice, the file and the observed red for each |
+| 2026-08-07, the traffic VPP backend's unbounded binary-API call | **resolved 2026-08-23** | Fixed at its destination, `spec-traffic-vpp-deferred-reply-timeout`: `newGovppOps` (`internal/plugins/traffic/vpp/timeout_linux.go`) installs the deadline before returning the facade, and `TestGovppOpsIsBuiltOnlyByItsConstructor` ratchets that nothing builds one around it |
+| 2026-08-07, `audit-test-relaxation.py` blind to untracked test files | **LIVE, homed** | `plan/future/spec-harness-fail-open-guard-backlog.md`, rows D and I, which name the same producer (`changed_test_files`, and `is_test_path` for the Python half). The destination file exists and carries the content |
+
+**The shard is NOT removed by this closure.** One row is still live, and a shard
+holding a live row outlives its source spec: the row is homed at another document
+and the shard is only where it is written down (`ai/rules/planning.md`). It also
+survives the checker's own reading, which treats a Status cell as terminal only when
+it is exactly `done`, `cancelled` or `resolved`, so the 2026-08-07 traffic row's
+dated prose reads as live there too. No other shard is emptied by these resolutions,
+so none is collected here.
 
 ## Review Gate
 
@@ -917,28 +1054,131 @@ diagnostic never describes an earlier successful scrape.
   2026-08-14; the row stays live in
   `plan/deferrals/fixit-firewall-concurrency-deadlock.md`.
 
+### Run 4 (2026-08-24, closure) — one independent context, every lens
+
+**Scope: the phase-1/phase-6 diff, which no earlier round read.**
+`internal/plugins/ddos/local/show_test.go`, `test/plugin/ddos-firewall-concurrency.ci`
+(new), `test/plugin/ddos-direction.ci`, `test/plugin/ddos-bps-amplification.ci`, and
+this file. Runs 1-3 closed over code that is already committed; every line judged here
+is uncommitted. The reviewer did not author any of it.
+
+**Automated pre-checks (step 0).** `python3 scripts/dev/audit-test-relaxation.py`: 5
+WEAKENED findings, all in files this diff does not touch (`cmd/ze/main_test.go`,
+`scripts/dev/audit_relaxation_test.py`, `scripts/dev/rfc_requirements_test.py`,
+`test/plugin/prefix-maximum-enforce.ci`), so all five belong to other sessions sharing
+this checkout. NONE names a file in scope: `ddos-direction.ci` adds assertions and
+removes none, which is why it does not appear. `make ze-repository-check`: 8 unwired-
+export ISSUEs, all in `internal/component/config/system/`, `internal/component/iface/`
+and `internal/component/web/testing/` -- again other sessions, and this diff adds no
+exported symbol.
+
+**Upheld against source, not against the implementer's account.** `handleShowDdosLocal`
+reads `activeResponder` and calls `r.status()`, which loads an `atomic.Pointer` and
+takes no lock, while `onDetected` holds `r.mu` across `applyMitigation` -> `applyAll`
+(`internal/plugins/ddos/local/responder.go`); so the new Go test's pass is a statement
+about decoupling and its `active=false` assertion is right, because `setStatus(true, …)`
+runs only after `applyAll` returns. `firewall.GetBackend()` returns `activeBackend`
+(`internal/component/firewall/backend.go`), the same instance `ApplyAll` applies with,
+so the `.ci`'s "sharpest probe" claim for `show firewall ruleset` holds at the producer.
+`(*store).list` and every other `store.mu` holder in `internal/plugins/ddos/observe/`
+are in-memory only, which is what makes A-6 disproven rather than merely unconfirmed.
+
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | NOTE | Finding 5 said the read paths "use their own transient netlink conn", which reads as decoupled from an in-flight `Apply`. `cc.netlinkConn()` (`vendor/github.com/google/nftables/conn.go`) does dial fresh, and takes `cc.mu` to do it -- the mutex `Flush` holds across dial, `SendMessages` and the ack loop. The spec therefore contradicted its own Known Limitations, which records `show firewall ruleset` as still coupled | Problem / Evidence, Finding 5 | FIXED in the record. The write-side conclusion is unchanged and restated as write-side; the read-side clause is struck with a dated correction naming both producers |
+| 2 | NOTE | Three places still called the Finding-3 link a hypothesis after A-6 was broken: the Known Limitations "Refined 2026-07-16" bullet, the UNVERIFIED list, and the Implementation Audit row "Root-cause the dispatch hang / Partial". A later reader would weigh a disproven story as an open one | Known Limitations, Problem / Evidence, Implementation Audit | FIXED. All three now say DISPROVEN and name the producing handler. The audit row reads NOT MET, not Partial: the requirement is unmet, and the spec closes on AC-1's second branch |
+| 3 | NOTE | Known Limitations opened on the fixes rather than on the miss, so the one sentence a closing reader must not skip sat below several that read like success | Known Limitations | FIXED. The section now opens with the root cause NOT being found, and says so before anything else |
+| 4 | NOTE | The `handleShowFirewallRuleset` limitation named the lock HOLDER (`Conn.Flush`) but not the WAITER, so the mechanism was one hop short of readable | Known Limitations | FIXED. It now names `GetBackend` -> `activeBackend`, `GetCounters` -> `b.conn`, and `cc.netlinkConn()` as the side that blocks |
+| 5 | NOTE | `docs/functional-tests.md` says the plugin suite is 690 tests; it is 700 tracked before this diff. Pre-existing drift in prose about clustering, and the goal does not depend on it | `docs/functional-tests.md` | NOT FIXED, deliberately. Out of this round's scope (`ai/rules/planning.md`, "Bounding the loop"); folding an unrelated doc edit into a closing commit costs the commit its single focus |
+
+**0 BLOCKER, 0 ISSUE. Every finding is a defect in the RECORD, not in the product**, so
+this round is the last one (`ai/rules/planning.md`, "A finding in the record is not a
+finding in the product"). Each was fixed in one edit to this file.
+
+**Checks the reviewer ran rather than took on trust.**
+`make ze-unit-pkg-test PKG=./internal/plugins/ddos/local RUN='^TestShowDdosLocal' RACE=1`
+-> ok 1.045s. `make ze-unit-pkg-test PKG=./internal/test/runner RACE=0` -> ok 9.775s,
+which is where `TestContendingFunctionalTestsDeclareExclusiveGroup` ratchets that a new
+needs-linux ddos test declares `option=exclusive:group=ddos-flood`; the new `.ci`
+declares it. `make ze-spec-citation-check` -> OK.
+
+**Discrimination for the new Go test is DERIVED here, not re-run.** The implementation
+observed the red on 2026-08-24 by restoring `r.mu.Lock()` in `status()`. The reviewer
+did not repeat the mutation, because production Go in a checkout shared by many sessions
+is the wrong place to stage one, and the derivation is complete without it: the handler's
+only route to responder state is `status()`, and `onDetected` holds `r.mu` for the whole
+of a reconcile that never returns, so a `status()` that took `r.mu` could not answer.
+
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE  (achieved on Run 1; scope = firewall slice)
-- [ ] All NOTEs recorded above (or explicitly "none")  (4 NOTEs recorded)
-- Artifact: `tmp/review/fixit-firewall-concurrency-deadlock-58c51aab-79d8-400d-b779-2c0cf322a274.md`
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE  (Run 4, over the phase-1/6 diff; Run 1 covered the firewall slice)
+- [ ] All NOTEs recorded above (or explicitly "none")  (4 at Run 1, 5 at Run 4)
+- Rounds: 4 (Run 1 firewall slice, Run 2 metrics + D-2/D-3/D-4, Run 3 the Run-2 fixes, Run 4 the phase-1/6 diff)
+- Artifact (Run 1): `tmp/review/fixit-firewall-concurrency-deadlock-58c51aab-79d8-400d-b779-2c0cf322a274.md`
+- Artifact (Run 4): `tmp/review/fixit-firewall-concurrency-deadlock-9ad8358c-695f-41be-8019-5d92ba08f8e6.md`, verdict `clean`, hash-pinned over the five reviewed files. `review_gate.py check` -> `OK (4 code files, clean, hashes match)`
 
 ## Pre-Commit Verification
+
+All rows re-checked on 2026-08-24, in the closure context, against the working tree.
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `test/plugin/ddos-firewall-concurrency.ci` | Yes | `ls -l` 15612 bytes, untracked (new this phase) |
+| `test/plugin/ddos-direction.ci` | Yes | `ls -l` 10408 bytes, modified |
+| `internal/plugins/ddos/local/show_test.go` | Yes | `ls -l` 5333 bytes, modified |
+| `test/plugin/ddos-bps-amplification.ci` | Yes | modified: the victim-address table gains `127.0.0.8` |
+| `internal/component/firewall/registry.go` | Yes | `ls -l` 14370 bytes; `grep -c reconcileMu` = 8 (landed earlier, unchanged this phase) |
+| `internal/component/firewall/metrics.go` | Yes | `ls -l` 4591 bytes (landed earlier) |
+| `internal/plugins/firewall/nft/deadline_linux.go` | Yes | `ls -l` 3491 bytes (landed earlier) |
+| `internal/plugins/firewall/vpp/timeout_linux.go` | Yes | `ls -l` 3804 bytes (landed earlier) |
+| `test/plugin/firewall-metrics-registered.ci` | Yes | `ls -l` 6610 bytes (landed earlier) |
+
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | Closes on the SECOND branch: an evidenced cannot-reproduce, NOT a root cause | `handleShowDdosIncidents` (`internal/plugins/ddos/observe/show.go`) loads `activeStore` atomically then calls `(*store).list`; every `store.mu` holder in that package (`open`, `finalize`, `characterize`, `activeCount`, `count`, `list`, `sweepStale`) is in-memory, so no firewall lock is on the dispatch path that stalled. Re-read at the producer this session. The QEMU scenario run answered 7956 dispatches, worst case 0.096s |
+| AC-2 | The dispatch-surface reproduction is green | `make ze-unit-pkg-test PKG=./internal/plugins/ddos/local RUN='^TestShowDdosLocal' RACE=1` -> `ok … 1.045s`, race-instrumented, 2026-08-24 |
+| AC-3 | Dispatch stays bounded under the worked-around configuration | `test/plugin/ddos-firewall-concurrency.ci` PASS 16.1s under QEMU on the stock Alpine kernel; `DISPATCH-BOUNDED max=0.096s calls=7956 bound=3.0s` |
+| AC-4 | Serialisation is real and the other owner's table survives | `grep -c reconcileMu internal/component/firewall/registry.go` = 8; the `.ci` asserts `FIREWALL-TABLE-INTACT fwconc` from a KERNEL readback (`GetCounters`), not from the registry snapshot |
+| AC-5 | The fix is at the owning layer | `reconcileMu` and `observeApply` live in `internal/component/firewall/`; no serialisation lives in a plugin or in a test |
+| AC-6 | Bounded, logged, counted, and the contract written down | `MaxBackendDeadline` (`internal/component/firewall/backend.go`) is one exported constant that both backend clamps and the histogram bucket list derive from (`applyDurationBuckets`, `internal/component/firewall/metrics.go`) |
+| AC-7 | The classification-only workaround is retired | `test/plugin/ddos-direction.ci` now fails unless `show ddos local` reports `active` with `dst-prefix` `127.0.0.3/32`; `dst-prefix` is the real key (`VectorTuple.DstPrefix`, `internal/core/ddosevent/event.go`). PASS 5.8s |
+| AC-8 | Every `ApplyAll` caller inherits D-1 | Serialisation is inside `ApplyAll` (`internal/component/firewall/registry.go`), which takes `reconcileMu` before any other firewall lock; only ddos-local and anomaly-shape needed the D-3 shape, and both have it (`(*responder).status` in `ddos/local`, `(*responder).publishStatus` and `(*responder).statusSnapshot` in `anomaly/shape`) |
+| AC-9 | The lock order is stated at the owning layer | The `reconcileMu` doc comment (`internal/component/firewall/registry.go`) states `reconcileMu -> tableRegistry.mu -> backendsMu -> backend-internal` and why no call site can invert it |
+| AC-10 | A wedged dataplane is bounded and counted | `internal/plugins/firewall/nft/deadline_linux.go` and `internal/plugins/firewall/vpp/timeout_linux.go` both exist and both clamp to `MaxBackendDeadline`; `test/plugin/firewall-metrics-registered.ci` proves the metrics hook fires |
+
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| Operator dispatches a command while a firewall block is loaded and ddos-local mitigates under a flood | `test/plugin/ddos-firewall-concurrency.ci` | Yes: PASS 16.1s (QEMU run 198). It dispatches `show ddos local`, `show ddos incidents` and `show firewall ruleset fwconc` in a loop and bounds each at 3s |
+| Firewall engine's own table survives a concurrent ddos-local reconcile | `test/plugin/ddos-firewall-concurrency.ci` | Yes: `show firewall ruleset fwconc` reaches the kernel through `GetCounters` on the ACTIVE backend (`GetBackend` returns `activeBackend`, `internal/component/firewall/backend.go`), so a lost table answers `firewallnft: table "ze_fwconc" not found` |
+| A classified local attack reaches the dataplane | `test/plugin/ddos-direction.ci` | Yes: PASS 5.8s (QEMU run 197), asserting `LOCAL-DROP-INSTALLED 127.0.0.3` and `hook=ingress` |
+| `show ddos local` answers while a reconcile cannot return | `internal/plugins/ddos/local/show_test.go` | Yes: it drives `handleShowDdosLocal`, the function the dispatcher resolves the `ze-show:ddos-local` wire method to (`internal/plugins/ddos/local/show.go`) |
+| A new needs-linux ddos test declares its exclusive group | `internal/test/runner/exclusive_group_test.go` | Yes: `make ze-unit-pkg-test PKG=./internal/test/runner RACE=0` -> `ok … 9.775s` with the new `.ci` present, so `TestContendingFunctionalTestsDeclareExclusiveGroup` accepted it |
+
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | **broken** | The stall does not reproduce. `test/plugin/ddos-firewall-concurrency.ci` runs the same shape on the stock Alpine QEMU kernel: 7956 dispatches, worst case 0.096s |
+| A-2 | **broken (partially)** | Both halves are true: the concurrent-apply corruption is shared infra, the head-of-line block was the plugin's own lock discipline |
+| A-3 | **broken (too weak)** | `Apply` was unbounded, not merely slow: `receiveAckAware` reached `nlconn.Receive()` with no deadline set anywhere |
+| A-4 | **broken as stated, confirmed when refined** | No dispatcher mutex and no shared goroutine; the coupling was `r.mu` alone |
+| A-5 | **confirmed** | `Conn.Flush` drains and clears the shared batch, so the loser's flush returns nil having sent nothing |
+| A-6 | **broken** | The keystone. The 2026-07-12 run dispatched `show ddos incidents` only, and that handler reaches no firewall lock. Re-verified at the producer this session |
+| A-7 | **confirmed** | `dialNetlink` applies `cc.sockOptions` on every dial and ze's `Conn` is non-lasting, so a per-operation deadline works without touching the `Backend` interface |
+| A-8 | **confirmed** | No `ApplyAll` call site holds `tableRegistry.mu` or `backendsMu` on entry, and the `reconcileMu` doc comment records it so the next caller inherits the constraint |
+| A-9 | **confirmed** | `r.mu` still spans the reconcile and mitigations stay ordered, while `(*responder).status` reads the atomic snapshot |
+
+None left `unvalidated`.
+
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| Firewall reconcile concurrency contract | `docs/architecture/core-design.md`, "Firewall reconcile concurrency" -- present in HEAD, unmodified in the working tree | Yes: it landed with the D-1/D-2/D-5 commits and is still accurate. This phase changed no production behavior, so nothing in it went stale |
+| Anchors naming the files this phase touched | `grep -rn "source: internal/plugins/ddos/local" docs/` finds anchors on `responder.go`, `register.go`, `match.go`, `show.go` and `config.go`. This phase changed only `show_test.go` and three `.ci` files, none of which is anchored | Yes: no anchored claim is affected |
+| Whether any doc records the ddos-direction workaround this phase retires | `grep -rni "classification only\|classification, not the" docs/` -> no hit | Yes: the workaround was documented in the `.ci` header only, and that header is rewritten in this diff |
+| New runtime dependency needing a `ze doctor` check | None: the diff adds tests and record text, and names no file path, socket, port, kernel module or external binary | Yes, not applicable |
+| RFC status page | No protocol behavior is implemented, changed or newly proven | Yes, not applicable |
 
 ## Checklist
 

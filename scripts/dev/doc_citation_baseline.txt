@@ -298,7 +298,6 @@ plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md	plan/spec-wire-edit-5-fanout-
 plan/deferrals/doc-claims-are-checked-not-just-resolved.md	plan/spec-problem-journal.md
 plan/deferrals/fixit-dead-design-pointers-in-tests.md	plan/spec-fixit-dead-design-pointers-in-tests.md
 plan/deferrals/fixit-dead-design-pointers-in-tests.md	plan/spec-problem-journal.md
-plan/deferrals/fixit-firewall-concurrency-deadlock.md	test/plugin/ddos-firewall-concurrency.ci
 plan/deferrals/fixit-learned-1366-has-no-files-section.md	plan/.learned-staleness-baseline
 plan/deferrals/fixit-learned-1366-has-no-files-section.md	scripts/dev/learned_staleness.py
 plan/deferrals/fixit-private-asn-leak.md	plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md
@@ -567,7 +566,6 @@ plan/spec-fixit-dns-rfc1035-conformance.md	test/ui/doctor-dns-transfer.ci
 plan/spec-fixit-firewall-concurrency-deadlock.md	cmd/yang/ze-ddos-local-cmd.yang
 plan/spec-fixit-firewall-concurrency-deadlock.md	internal/plugins/firewall/engine.go
 plan/spec-fixit-firewall-concurrency-deadlock.md	plan/deferrals.md
-plan/spec-fixit-firewall-concurrency-deadlock.md	test/plugin/ddos-firewall-concurrency.ci
 plan/spec-fixit-qemu-runtime-kernel.md	plan/spec-fixit-qemu-artifact-cache.md
 plan/spec-fixit-redistribute-establishment-stall.md	plan/deferrals.md
 plan/spec-fixit-redistribute-establishment-stall.md	plan/known-failures.md
