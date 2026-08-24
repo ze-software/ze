@@ -18,3 +18,6 @@ is open.
 |------|---------|---------|-----------|--------|--------|
 | 2026-08-24 | b6dab65b | feat(website): rework the blog, FAQ, and pipe reference pages | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-24 | b6dab65b | plan: spec the asciinema conversion of the terminal demos | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-24 | b6dab65b | fix(tests): make the python runner count what each file ran | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-24 | b6dab65b | fix(tests): make the python runner count what each file ran | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
+| 2026-08-24 | b6dab65b | fix(tests): stop a duplicate class name shadowing 1 of 821 tests | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |

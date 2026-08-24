@@ -7948,10 +7948,22 @@ class TestNightlyRollupProse(unittest.TestCase):
         self.assertIn("polarity view", prose)
 
 
-class TestRealTree(unittest.TestCase):
+class TestRealTreeSummaryCorpus(unittest.TestCase):
+    """The summary corpus exists and has not shrunk to a handful of files.
+
+    Named for its subject rather than for the tree it reads. It was `TestRealTree`,
+    and so is the RFC 7296 pilot class further down this file. The second binding
+    won, so this case ran nowhere from the day that class landed until 2026-08-24.
+    """
+
     def test_all_summaries_parse_or_report(self):
-        """Every rfc/short/*.md must parse. Pre-migration, lines lack IDs — those are
-        reported as errors, never silently skipped."""
+        """rfc/short/ holds the summary corpus, and it holds more than 150 files.
+
+        This case counts. That every summary PARSES is asserted by
+        TestRealTreeIsGreen.test_run_check_exits_zero_on_the_real_tree, which runs
+        the whole gate over the committed tree and reports an unparseable line as
+        an error rather than skipping it.
+        """
         root = os.path.join(_HERE, "..", "..")
         d = os.path.join(root, "rfc", "short")
         self.assertTrue(os.path.isdir(d))
