@@ -26,11 +26,24 @@ import (
 // closure. Both dereference acceptedLocalIdentity, so one generation supplies
 // credentials and policy. A nil policy preserves no-RBAC allow behavior.
 //
-// liveUsers is the accepted view of the same credentials `users` holds. The
-// bundle is built once per daemon boot and is not rebuilt when the
-// infrastructure hook reenters, so its local backend must dereference the
-// accepted generation on each login. A nil liveUsers leaves snapshot behavior
-// for callers with no reload lifecycle.
+// liveUsers is the accepted view of the same credentials `users` holds. Boot
+// builds the bundle once and the infrastructure hook reentering does not
+// rebuild it, so its local backend must dereference the accepted generation on
+// each login. A nil liveUsers leaves snapshot behavior for callers with no
+// reload lifecycle.
+//
+// A config reload DOES rebuild it, through this same function
+// (main_reload.go). That covers the remote backends, which hold the address,
+// the secret and the timeout they were constructed with. It does not replace
+// liveUsers: the reload publishes the accepted credentials before it swaps the
+// chain, and a reload carrying no parsed tree publishes them and rebuilds
+// nothing.
+//
+// The returned bundle OWNS live resources: Build has already opened the RADIUS
+// client socket and started the TACACS+ accounting worker. A caller that does
+// not install it MUST call Close on it. A caller that installs it hands that
+// obligation on, to swapAAABundle at boot and to acceptReloadedAAA plus
+// closeRetiredAAABundle on a reload; each closes the bundle it replaces.
 func buildAAABundle(tree *zeconfig.Tree, users []aaa.UserCredential, liveUsers func() ([]aaa.UserCredential, error), logger *slog.Logger) (*aaa.Bundle, error) {
 	params := aaa.BuildParams{
 		Ctx:             context.Background(),
@@ -156,11 +169,16 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func(
 	// AAA/authz/accounting work above still runs for MCP/API.
 	if hasSSHConfig && usersReady && bundle != nil && sshBuild != nil {
 		sshSrv = sshBuild(&sshBuildInputs{
-			Config:        sshCfg,
-			Users:         users,
-			UsersFunc:     aaaLiveUsers,
-			Authenticator: bundle.Authenticator,
-			Authorizer:    bundle.Authorizer,
+			Config:    sshCfg,
+			Users:     users,
+			UsersFunc: aaaLiveUsers,
+			// Both are LIVE indirections over the atomic bundle slot, never
+			// the fields of the bundle built above. ssh is started once and
+			// reads its authenticator once, so a captured chain would keep
+			// authenticating against the RADIUS or TACACS+ server the boot
+			// tree named after a reload replaced it (aaa_lifecycle.go).
+			Authenticator: liveAAABundleAuthenticator{},
+			Authorizer:    liveAAABundleAuthorizer{},
 			Recorder:      recorder,
 			EphemeralFile: ephemeralFile,
 			Params:        params,
@@ -169,64 +187,86 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, reloadFn func(
 		})
 	}
 
-	authzStore := params.AuthzStore
-	needsPostStart := authzStore != nil || sshSrv != nil || bundle != nil
-	if needsPostStart {
-		r.SetPostStartFunc(func() {
-			d := r.Dispatcher()
-			if d == nil {
-				return
-			}
+	// The post-start wiring is registered on every daemon, whatever boot
+	// produced. It is what installs authorization on the shared dispatcher, and
+	// a dispatcher with no authorizer allows every command, so the case this
+	// used to skip -- no bundle, no profiles, no ssh -- was the one case that
+	// most needed the deny.
+	r.SetPostStartFunc(func() {
+		d := r.Dispatcher()
+		if d == nil {
+			return
+		}
 
-			// The stop a restarting speaker takes: persist the
-			// graceful-restart marker through the always-on seam, then drop
-			// the sessions in SILENCE. The two halves live together here, and
-			// in one place only, because they are one decision -- RFC 4724
-			// Section 5 has a peer delete every route of a connection that
-			// ends in a NOTIFICATION, and puts no condition on that. A Cease
-			// sent beside this marker would therefore foreclose, for every
-			// peer, the retention the marker is written to ask for.
-			//
-			// The marker writer is registered by the gated BGP config package;
-			// with ze_bgp off it stays nil and the write is a no-op -- correct,
-			// since a BGP-less daemon has no session for a peer to treat as
-			// restarting.
-			stopForRestart := func() {
-				if apiSrv := params.APIServer(); apiSrv != nil {
-					infra.WriteGRMarker(apiSrv.AllPluginCapabilities(), params.Store)
-				}
-				r.StopForRestart()
-			}
-
+		// The stop a restarting speaker takes: persist the
+		// graceful-restart marker through the always-on seam, then drop
+		// the sessions in SILENCE. The two halves live together here, and
+		// in one place only, because they are one decision -- RFC 4724
+		// Section 5 has a peer delete every route of a connection that
+		// ends in a NOTIFICATION, and puts no condition on that. A Cease
+		// sent beside this marker would therefore foreclose, for every
+		// peer, the retention the marker is written to ask for.
+		//
+		// The marker writer is registered by the gated BGP config package;
+		// with ze_bgp off it stays nil and the write is a no-op -- correct,
+		// since a BGP-less daemon has no session for a peer to treat as
+		// restarting.
+		stopForRestart := func() {
 			if apiSrv := params.APIServer(); apiSrv != nil {
-				apiSrv.SetRebootFunc(func() {
-					rebootRequested.Store(true)
-					stopForRestart()
-				})
+				infra.WriteGRMarker(apiSrv.AllPluginCapabilities(), params.Store)
 			}
+			r.StopForRestart()
+		}
 
-			if bundle != nil && bundle.Authorizer != nil {
-				d.SetAuthorizer(bundle.Authorizer)
-				log.Info("authorization configured", "source", "aaa bundle")
-			} else if params.AuthzStore != nil {
-				d.SetAuthorizer(liveLocalAuthorizer{})
-				log.Info("authorization profiles loaded")
-			}
+		if apiSrv := params.APIServer(); apiSrv != nil {
+			apiSrv.SetRebootFunc(func() {
+				rebootRequested.Store(true)
+				stopForRestart()
+			})
+		}
 
-			if bundle != nil && bundle.Accountant != nil {
-				d.SetAccountingHook(bundle.Accountant)
-				log.Info("AAA accounting enabled")
-			}
+		// LIVE adapters over the atomic bundle slot, never the boot
+		// bundle's own values. SetPostStartFunc runs once and no reload
+		// re-enters it, so a captured authorizer keeps deciding against
+		// the TACACS+ server the BOOT tree named, and a captured
+		// accountant is the one swapAAABundle's Close has already
+		// stopped: its enqueue then drops every record and returns no
+		// error. Both are the dispatcher's FALLBACK, used whenever a
+		// request carries no per-session authorizer of its own
+		// (Dispatcher.isAuthorized, internal/component/plugin/server/command.go).
+		//
+		// The authorizer is installed UNCONDITIONALLY, which is what the
+		// no-BGP path already does (installNoBGPAAADispatch, main.go).
+		// The dispatcher authorizes every command when its authorizer is
+		// nil, so a boot whose AAA build failed and that configured no
+		// authorization profiles used to leave every dispatched command
+		// allowed. liveAAABundleAuthorizer denies while the slot is
+		// empty, which is the same answer the no-BGP path gives, and it
+		// delegates to bundle.Authorizer once a bundle is installed --
+		// including liveLocalAuthorizer, which the local backend always
+		// contributes (internal/component/authz/register.go, localBackend).
+		d.SetAuthorizer(liveAAABundleAuthorizer{})
+		log.Info("authorization configured", "source", "live aaa bundle")
 
-			if sshSrv != nil && sshWirePostStart != nil {
-				sshWirePostStart(sshSrv, &sshWireInputs{
-					Reactor:        r,
-					Params:         params,
-					StopForRestart: stopForRestart,
-				})
-				log.Info("SSH command executor wired")
-			}
-		})
-	}
+		// The accounting hook is installed unconditionally for the same
+		// reason: a reload that ADDS TACACS+ accounting must reach the
+		// dispatcher, and boot is not the last word on what the bundle
+		// holds. A live accountant over an absent bundle answers with an
+		// empty task id and costs one call. The log still reports what
+		// boot found, because that is what it observed.
+		d.SetAccountingHook(newLiveAAABundleAccountant())
+		if bundle != nil && bundle.Accountant != nil {
+			log.Info("AAA accounting enabled")
+		}
+
+		if sshSrv != nil && sshWirePostStart != nil {
+			sshWirePostStart(sshSrv, &sshWireInputs{
+				Reactor:        r,
+				Params:         params,
+				StopForRestart: stopForRestart,
+			})
+			log.Info("SSH command executor wired")
+		}
+	})
 	return sshSrv
 }

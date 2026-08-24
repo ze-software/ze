@@ -317,6 +317,24 @@ func recoverableLoadError(err error) bool {
 	return !errors.Is(err, zeconfig.ErrCustomValidation)
 }
 
+// noBGPAAAWiring returns the authenticator and authorizer standalone SSH takes
+// on a daemon that runs without BGP.
+//
+// Both are LIVE indirections over the atomic bundle slot rather than the built
+// bundle's own fields. SSH reads its authenticator once, at construction, so a
+// captured chain keeps authenticating against the RADIUS or TACACS+ server the
+// BOOT tree named after a reload has replaced it (aaa_lifecycle.go).
+//
+// A nil bundle returns a nil pair, because a nil authenticator is what tells ssh
+// to fall back to local users; a live indirection over an absent bundle would
+// reject every login instead.
+func noBGPAAAWiring(bundle *aaa.Bundle) (aaa.Authenticator, aaa.Authorizer) {
+	if bundle == nil {
+		return nil, nil
+	}
+	return liveAAABundleAuthenticator{}, liveAAABundleAuthorizer{}
+}
+
 // installNoBGPAAADispatch installs live bundle adapters on the shared
 // management dispatcher used by API, MCP, and standalone SSH.
 func installNoBGPAAADispatch(d *pluginserver.Dispatcher) {
@@ -592,7 +610,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// methods, so there is no separate standalone bus any more; one
 	// namespaced pub/sub backbone serves everyone.
 
-	configTree := loadResult.Tree.ToMap()
+	// ToPluginMap, not ToMap: this map becomes the coordinator's config tree,
+	// which is where deliverConfigRPC and every reload build a plugin's config
+	// section from. It therefore has to carry the entry order of a list whose
+	// evaluation depends on it -- a prefix-list, a firewall chain, a failover
+	// server list (internal/core/configorder).
+	configTree := loadResult.Tree.ToPluginMap()
 	pkiConfig, pkiErr := preparePKIConfig(configTree)
 	if pkiErr != nil {
 		fmt.Fprintf(os.Stderr, "error: pki config: %v\n", pkiErr)
@@ -887,10 +910,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 		registerAAAAccountingProvider(aaaBundle)
 		swapAAABundle(aaaBundle, aaaLog)
-		if aaaBundle != nil {
-			noBGPAuthenticator = aaaBundle.Authenticator
-			noBGPAuthorizer = aaaBundle.Authorizer
-		}
+		noBGPAuthenticator, noBGPAuthorizer = noBGPAAAWiring(aaaBundle)
 
 		// Resolve authorization and accounting per dispatch so later swaps take
 		// effect without rewiring. This belongs to no-BGP startup, not to

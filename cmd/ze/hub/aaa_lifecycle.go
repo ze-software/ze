@@ -51,14 +51,114 @@ func claimAAABundleBoot() bool {
 // swapAAABundle records that boot construction was attempted, installs its
 // result, and closes the previously installed bundle (if any). A nil result
 // still claims boot ownership so runtime hook reentry cannot retry the build.
+//
+// Boot is not the only caller. A config reload rebuilds the bundle from the
+// reloaded tree and swaps it here at final acceptance (main_reload.go), because
+// a RADIUS or TACACS+ client holds the address, the shared secret and the
+// timeout it was CONSTRUCTED with and can re-read none of them. The close of
+// the replaced bundle is what retires the previous client: both backends name a
+// config reload as the swap their Close expects (internal/component/radius,
+// internal/component/tacacs).
 func swapAAABundle(b *aaa.Bundle, logger *slog.Logger) {
+	closeRetiredAAABundle(installAAABundle(b), logger)
+}
+
+// installAAABundle records that boot construction was attempted and installs b
+// in the atomic slot. It returns the bundle it retired, and the caller MUST pass
+// that bundle to closeRetiredAAABundle: until it is closed, the retired chain
+// still holds its RADIUS socket open and its TACACS+ accounting worker running.
+func installAAABundle(b *aaa.Bundle) *aaa.Bundle {
 	aaaBundleBootClaimed.Store(true)
 	prev := aaaBundle.Swap(b)
-	if prev != nil && prev != b {
-		if err := prev.Close(); err != nil && logger != nil {
-			logger.Warn("aaa: previous bundle close error on swap", "error", err)
-		}
+	if prev == b {
+		return nil
 	}
+	return prev
+}
+
+// closeRetiredAAABundle closes the bundle installAAABundle retired. It MUST be
+// called after installAAABundle, and MUST NOT be called while aaaAcceptance is
+// held: Close drains the TACACS+ accounting worker and joins its goroutine, so
+// holding the acceptance lock across it would queue every other reload behind a
+// network-facing worker. A nil bundle is a no-op.
+func closeRetiredAAABundle(prev *aaa.Bundle, logger *slog.Logger) {
+	if prev == nil {
+		return
+	}
+	if err := prev.Close(); err != nil && logger != nil {
+		logger.Warn("aaa: previous bundle close error on swap", "error", err)
+	}
+}
+
+// aaaAcceptance serializes the acceptance tail of a config reload: the accepted
+// identity publication, the accounting provider registration and the bundle
+// install. A caller MUST hold it across all three, and MUST NOT hold it across
+// the retired bundle's Close (closeRetiredAAABundle states the same obligation).
+//
+// Two reload drivers reach that tail on different goroutines: handleSIGHUPReload
+// (main_reload.go) and reloadAfterCommitContext (main.go), which any SSH or web
+// session editor calls. The plugin server's transaction lock excludes them only
+// across Server.reloadConfig (internal/component/plugin/server/reload.go), which
+// releases while every acceptance step is still ahead of both.
+var aaaAcceptance sync.Mutex
+
+// aaaAcceptedConfigOrder is the read order of the last accepted reload's
+// configuration, and aaaAcceptanceRetired records that shutdown has closed the
+// slot for good. Both are guarded by aaaAcceptance.
+var (
+	aaaAcceptedConfigOrder uint64
+	aaaAcceptanceRetired   bool
+)
+
+// aaaConfigReadOrder numbers the configurations reloads read, in read order.
+var aaaConfigReadOrder atomic.Uint64
+
+// nextAAAConfigReadOrder numbers the configuration one reload has just read.
+//
+// Read order IS recency order: every reload reads the same store, so a tree read
+// later can never describe an older configuration than a tree read earlier. That
+// is what the acceptance order alone cannot say. The transaction lock releases
+// before the tail, so a reload that read FIRST can still reach the tail LAST,
+// and a lock over the tail would then let it install a chain built from the
+// configuration the operator has already replaced.
+func nextAAAConfigReadOrder() uint64 {
+	return aaaConfigReadOrder.Add(1)
+}
+
+// acceptReloadedAAA publishes one reload's accepted local identity and installs
+// the AAA chain that reload built, as one indivisible acceptance. order is the
+// number nextAAAConfigReadOrder gave that reload's configuration.
+//
+// It returns the bundle the install retired, which the caller MUST pass to
+// closeRetiredAAABundle. When installed is false the caller MUST close its own
+// candidate instead: a candidate that is not installed still owns an open RADIUS
+// socket and a started TACACS+ accounting worker.
+func acceptReloadedAAA(identity *acceptedLocalIdentityState, bundle *aaa.Bundle, order uint64) (retired *aaa.Bundle, installed bool) {
+	aaaAcceptance.Lock()
+	defer aaaAcceptance.Unlock()
+
+	if aaaAcceptanceRetired {
+		// closeAAABundle has run, so the daemon is shutting down. Installing
+		// here would revive a chain nothing is left to close, and leave its
+		// TACACS+ accounting worker running past exit.
+		return nil, false
+	}
+	if order <= aaaAcceptedConfigOrder {
+		// A reload that read its configuration LATER has already been accepted,
+		// so this one describes a superseded configuration. Neither its identity
+		// nor its chain may replace what that reload published.
+		return nil, false
+	}
+	aaaAcceptedConfigOrder = order
+
+	if identity != nil {
+		publishAcceptedLocalIdentity(identity)
+	}
+	if bundle == nil {
+		return nil, false
+	}
+	registerAAAAccountingProvider(bundle)
+	return installAAABundle(bundle), true
 }
 
 // publishLocalIdentity serializes the read-decide-store sequence
@@ -241,15 +341,23 @@ func liveAcceptedLocalUsers() ([]aaa.UserCredential, error) {
 // identity. Called via defer from runYANGConfig so backend workers drain and no
 // credential or policy state survives daemon shutdown.
 func closeAAABundle(logger *slog.Logger) {
+	// Retire the slot under the acceptance lock, so a reload already inside its
+	// tail either installs before this runs or is refused by it. Without that,
+	// a swap landing after the close reinstalls a live chain the daemon will
+	// never close again (acceptReloadedAAA).
+	aaaAcceptance.Lock()
 	prev := aaaBundle.Swap(nil)
+	acceptedLocalIdentity.Store(nil)
+	aaa.SetAcceptedLocalProfileGeneration(0)
+	aaaBundleBootClaimed.Store(false)
+	aaaAcceptanceRetired = true
+	aaaAcceptance.Unlock()
+
 	if prev != nil {
 		if err := prev.Close(); err != nil && logger != nil {
 			logger.Warn("aaa: bundle close error on shutdown", "error", err)
 		}
 	}
-	acceptedLocalIdentity.Store(nil)
-	aaa.SetAcceptedLocalProfileGeneration(0)
-	aaaBundleBootClaimed.Store(false)
 }
 
 // liveLocalAuthorizer is the local backend's stable AAA contribution. External
@@ -408,6 +516,45 @@ func (a acceptedLocalGenerationProfileFallback) AuthorizeCommandArgs(
 	) != authz.Deny
 }
 
+// liveAAABundleAuthenticator authenticates against the live AAA bundle's chain
+// (RADIUS/TACACS backends plus the local backend) once infra setup installs it.
+// It reads the atomic slot on every call, mirroring liveAAABundleAuthorizer, so
+// a rebuilt chain takes effect without restarting the surface that holds it
+// (AC-2: RADIUS/TACACS admins authenticate on web).
+//
+// The indirection is what makes a reload reach a surface wired at startup. A
+// captured bundle.Authenticator cannot follow a swap: it IS the retired chain,
+// so ssh kept authenticating against a shared secret the operator had rotated.
+//
+// fallback answers when the chain does not authenticate the user, and web wires
+// one because a config-file web user can be absent from the chain's local
+// backend. It answers from the CURRENT configuration, never from a startup
+// snapshot: the chain not knowing a user and the operator having deleted that
+// user look identical from here, and only a reader of the running config can
+// tell them apart. A nil fallback (ssh) leaves the chain as the only answer.
+type liveAAABundleAuthenticator struct {
+	fallback aaa.Authenticator
+}
+
+func (a liveAAABundleAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthResult, error) {
+	if bundle := aaaBundle.Load(); bundle != nil && bundle.Authenticator != nil {
+		result, err := bundle.Authenticator.Authenticate(request)
+		if err == nil && result.Authenticated {
+			return result, nil
+		}
+		if a.fallback != nil {
+			if fres, ferr := a.fallback.Authenticate(request); ferr == nil && fres.Authenticated {
+				return fres, nil
+			}
+		}
+		return result, err
+	}
+	if a.fallback != nil {
+		return a.fallback.Authenticate(request)
+	}
+	return aaa.AuthResult{}, aaa.ErrAuthRejected
+}
+
 type liveAAABundleAuthorizer struct{}
 
 func (liveAAABundleAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
@@ -449,13 +596,83 @@ func (liveAAABundleAuthorizer) AuthorizeCommandArgs(
 	)
 }
 
+// BindProfiles keeps one authentication result's profile names with the live
+// bundle authorizer. Without it, aaa.BindProfiles returns this value unchanged
+// and a bound session is authorized by USERNAME instead, which is the lookup
+// the binding exists to replace: a TACACS+ priv-lvl answer and a `ze init`
+// break-glass recovery grant are both keyed by profile and by nothing else
+// (internal/component/aaa/login_profiles.go, AuthorizerForResult).
+func (liveAAABundleAuthorizer) BindProfiles(profiles []string) aaa.Authorizer {
+	return liveAAABundleProfileAuthorizer{profiles: append([]string(nil), profiles...)}
+}
+
+// liveAAABundleProfileAuthorizer is one session's view of the live bundle
+// authorizer. It re-reads the atomic slot on every command and re-binds the
+// profiles to whatever authorizer the slot now holds.
+//
+// Which sessions reach it is narrow, and worth stating so nobody reads more
+// into it. An ssh PASSWORD login carries result.Authorizer, which the chain
+// bound at authentication time, so it does not come through here. An ssh
+// PUBLIC-KEY login does: the server binds aaa.AuthorizerForResult over
+// Config.Authorizer, which is the value this type answers for
+// (internal/component/ssh/ssh.go, the WithPublicKeyAuth handler).
+type liveAAABundleProfileAuthorizer struct {
+	profiles []string
+}
+
+func (a liveAAABundleProfileAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
+	bundle := aaaBundle.Load()
+	if bundle == nil {
+		// No accepted AAA bundle: startup has not installed authorization yet,
+		// or shutdown has retired it. Deny, as liveAAABundleAuthorizer does.
+		return false
+	}
+	if bundle.Authorizer == nil {
+		// No local RBAC configured (no system.authorization profiles).
+		return true
+	}
+	return aaa.BindProfiles(bundle.Authorizer, a.profiles).
+		Authorize(username, remoteAddr, command, isReadOnly)
+}
+
+func (a liveAAABundleProfileAuthorizer) AuthorizeCommandArgs(
+	username, remoteAddr, command string,
+	args []string,
+	peer string,
+	isReadOnly bool,
+) bool {
+	bundle := aaaBundle.Load()
+	if bundle == nil {
+		return false
+	}
+	if bundle.Authorizer == nil {
+		return true
+	}
+	authorizer := aaa.BindProfiles(bundle.Authorizer, a.profiles)
+	if typed, ok := authorizer.(aaa.CommandArgsAuthorizer); ok {
+		return typed.AuthorizeCommandArgs(username, remoteAddr, command, args, peer, isReadOnly)
+	}
+	return authorizer.Authorize(
+		username,
+		remoteAddr,
+		aaa.CanonicalCommand(command, args, peer),
+		isReadOnly,
+	)
+}
+
+// liveAAABundleAccountant records commands against the AAA bundle installed at
+// the moment of each call. It issues its own task ids, so one command's START
+// and STOP stay paired across a reload that replaces the chain between them.
 type liveAAABundleAccountant struct {
 	mu     sync.Mutex
 	nextID uint64
 	tasks  map[string]liveAAAAccountingTask
 }
 
+// liveAAAAccountingTask is one command in flight: the bundle whose accountant
+// took its START, that accountant, and the task id it issued.
 type liveAAAAccountingTask struct {
+	bundle     *aaa.Bundle
 	accountant aaa.Accountant
 	taskID     string
 }
@@ -478,6 +695,7 @@ func (a *liveAAABundleAccountant) CommandStart(username, remoteAddr, command str
 	a.nextID++
 	liveTaskID := strconv.FormatUint(a.nextID, 10)
 	a.tasks[liveTaskID] = liveAAAAccountingTask{
+		bundle:     bundle,
 		accountant: accountant,
 		taskID:     taskID,
 	}
@@ -498,5 +716,16 @@ func (a *liveAAABundleAccountant) CommandStop(taskID, username, remoteAddr, comm
 	if !ok {
 		return
 	}
-	task.accountant.CommandStop(task.taskID, username, remoteAddr, command)
+	accountant := task.accountant
+	// A reload between START and STOP retires the accountant that took the
+	// START: the install closes the bundle it replaces, which stops the TACACS+
+	// accounting worker, and a send to a stopped worker drops the record and
+	// returns nothing (internal/component/tacacs/accounting.go, enqueue). Send
+	// the STOP to the accountant installed NOW instead, carrying the task id the
+	// START carried, which is what pairs the two records for the server that
+	// reads them.
+	if live := aaaBundle.Load(); live != task.bundle && live != nil && live.Accountant != nil {
+		accountant = live.Accountant
+	}
+	accountant.CommandStop(task.taskID, username, remoteAddr, command)
 }

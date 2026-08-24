@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/infra"
@@ -63,7 +65,12 @@ func diskConfigLoaders(store storage.Storage, configPath string, plugins []strin
 		if err != nil {
 			return nil, nil, err
 		}
-		return result.Tree.ToMap(), result.Tree, nil
+		// ToPluginMap, not ToMap: the reload builds every plugin's config
+		// section from this map, so it carries the entry order of a list whose
+		// evaluation depends on it (internal/core/configorder). It is also what
+		// makes a reorder with no other edit show up in the config diff, and so
+		// reach the plugin.
+		return result.Tree.ToPluginMap(), result.Tree, nil
 	}
 	loadMap = func() (map[string]any, error) {
 		m, _, err := loadBoth()
@@ -292,6 +299,10 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 		}
 		return fmt.Errorf("reload: parse config: %w", loadErr)
 	}
+	// Number this configuration the moment it is read. The acceptance tail uses
+	// the number to refuse a chain built from a configuration a later reload has
+	// already replaced (aaa_lifecycle.go, nextAAAConfigReadOrder).
+	configOrder := nextAAAConfigReadOrder()
 
 	pkiConfig, pkiErr := preparePKIConfig(newTree)
 	if pkiErr != nil {
@@ -438,6 +449,58 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 		)
 	}
 
+	// Rebuild the AAA chain from the reloaded tree. The local backend already
+	// follows the accepted generation on every login, but a RADIUS or TACACS+
+	// client holds the address, the shared secret and the timeout it was
+	// CONSTRUCTED with and can re-read none of them, so rotating a secret was
+	// accepted into the configuration and reached nothing until the daemon
+	// restarted.
+	//
+	// The result is a CANDIDATE. Build has already opened the new client's
+	// socket and started its accounting worker, so a reload that fails after
+	// this point closes it instead of leaking it, and the swap that retires the
+	// running chain waits for the acceptance point beside the identity
+	// publication. A daemon with no bundle installed gets none here: boot owns
+	// the single construction attempt (aaa_lifecycle.go, claimAAABundleBoot).
+	//
+	// A reload that changes nothing the chain is built from rebuilds nothing.
+	// The rebuild is not free: it closes the live RADIUS socket and drains the
+	// TACACS+ accounting worker, so an unrelated `ze config commit` would
+	// otherwise bounce a working chain (aaaAuthenticationChanged).
+	var candidateBundle *aaa.Bundle
+	bundleInstalled := false
+	defer func() {
+		if bundleInstalled || candidateBundle == nil {
+			return
+		}
+		if closeErr := candidateBundle.Close(); closeErr != nil {
+			slogutil.Logger("hub.aaa").Warn("aaa: abandoned reload bundle close error", "error", closeErr)
+		}
+	}()
+	if aaaBundle.Load() != nil && parsedTree != nil && aaaAuthenticationChanged(priorProvider, newTree) {
+		// No snapshot users: the local backend prefers LocalUsersFunc, and the
+		// generation this reload publishes is accepted before the swap below.
+		built, buildErr := buildAAABundle(parsedTree, nil, liveAcceptedLocalUsers, slogutil.Logger("hub.aaa"))
+		if buildErr != nil {
+			// Fail closed. An AAA chain the reloaded config describes and the
+			// daemon cannot build is not a chain to shrug at: refusing the
+			// reload keeps the running one, and reports the refusal through
+			// `ze config commit` rather than through a log line nobody reads.
+			err := fmt.Errorf("reload: rebuild aaa bundle: %w", buildErr)
+			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
+				if clearErr := clearCandidate(); clearErr != nil {
+					return fmt.Errorf("%w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
+				}
+				return fmt.Errorf("%w (rollback failed: %w)", err, rollbackErr)
+			}
+			if clearErr := clearCandidate(); clearErr != nil {
+				return fmt.Errorf("%w (candidate cleanup failed: %w)", err, clearErr)
+			}
+			return err
+		}
+		candidateBundle = built
+	}
+
 	if eng != nil {
 		if err := eng.Reload(reloadCtx); err != nil {
 			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
@@ -527,11 +590,49 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 
 	// The complete local and API identity becomes live only after every
 	// fallible reload step, including candidate promotion, has succeeded.
-	if candidateIdentity != nil {
-		publishAcceptedLocalIdentity(candidateIdentity)
-	}
+	// The accepted identity and the rebuilt chain go live as ONE acceptance. The
+	// chain's local backend answers from the identity published here, so no
+	// reader may see one without the other, and a reload whose configuration a
+	// later reload has already superseded publishes neither.
+	//
+	// The install returns the chain it retires. Closing that chain drains the
+	// retired TACACS+ accounting worker and the retired RADIUS socket, and it
+	// runs OUTSIDE the acceptance lock because it joins a goroutine.
+	retired, installed := acceptReloadedAAA(candidateIdentity, candidateBundle, configOrder)
+	bundleInstalled = installed
+	closeRetiredAAABundle(retired, slogutil.Logger("hub.aaa"))
 	reloadApplied = true
 	return nil
+}
+
+// aaaAuthenticationChanged reports whether the reloaded configuration changes
+// anything the AAA chain is BUILT from. That is the `system authentication`
+// subtree and nothing else: it is what both remote backends read
+// (radiusBackend.Build and tacacsBackend.Build, each through their package's
+// ExtractConfig), while the local backend reads no tree at all and answers from
+// the accepted identity generation on every login.
+//
+// prior is the snapshot of the RUNNING configuration, taken before this reload
+// applied anything. A reload with no snapshot cannot prove the chain is
+// unchanged, so it rebuilds.
+//
+// The two sides are lowered by different callers, and boot lowers with ToMap
+// while a reload lowers with ToPluginMap (main.go, Phase 2). A multi-entry list
+// under `system authentication` therefore reads as changed on the FIRST reload
+// after boot, which costs one rebuild per daemon start. Every later reload
+// compares two ToPluginMap lowerings and is exact.
+func aaaAuthenticationChanged(prior map[string]map[string]any, next map[string]any) bool {
+	if prior == nil {
+		return true
+	}
+	return !reflect.DeepEqual(prior["system"]["authentication"], aaaAuthenticationSubtree(next))
+}
+
+// aaaAuthenticationSubtree returns the `system authentication` subtree of a
+// lowered config map, and nil when the configuration declares none.
+func aaaAuthenticationSubtree(root map[string]any) any {
+	system, _ := root["system"].(map[string]any)
+	return system["authentication"]
 }
 
 func stageSIGHUPCandidate(store storage.Storage, configPath string) error {

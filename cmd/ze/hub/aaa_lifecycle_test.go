@@ -60,6 +60,10 @@ func resetAAABundleForTest(t *testing.T) {
 	preBootClaimed := aaaBundleBootClaimed.Swap(false)
 	preIdentity := acceptedLocalIdentity.Swap(nil)
 	aaa.SetAcceptedLocalProfileGeneration(0)
+	// closeAAABundle latches the acceptance slot retired, because a daemon
+	// closes its AAA bundle once, at exit. A test binary boots many daemons in
+	// one process, so the latch is cleared here and again on the way out.
+	resetAAAAcceptanceForTest()
 	if pre != nil {
 		t.Logf("aaa bundle leak: pre-test slot was non-nil; an earlier test did not clean up")
 	}
@@ -74,12 +78,22 @@ func resetAAABundleForTest(t *testing.T) {
 		}
 		aaaBundleBootClaimed.Store(preBootClaimed)
 		acceptedLocalIdentity.Store(preIdentity)
+		resetAAAAcceptanceForTest()
 		if preIdentity != nil {
 			aaa.SetAcceptedLocalProfileGeneration(preIdentity.generation)
 		} else {
 			aaa.SetAcceptedLocalProfileGeneration(0)
 		}
 	})
+}
+
+// resetAAAAcceptanceForTest clears the reload acceptance state so the next test
+// starts from a daemon that has accepted no configuration and retired nothing.
+func resetAAAAcceptanceForTest() {
+	aaaAcceptance.Lock()
+	defer aaaAcceptance.Unlock()
+	aaaAcceptedConfigOrder = 0
+	aaaAcceptanceRetired = false
 }
 
 func localAuthzStoreForTest(action authz.Action) *authz.Store {
@@ -204,8 +218,13 @@ func TestAcceptedLocalGenerationAuthorizerPreservesExternalTypedArgs(t *testing.
 }
 
 // VALIDATES: no-BGP startup installs accounting that resolves the live bundle
-// for each new START while routing STOP to the accountant that produced it.
-// PREVENTS: API, MCP, and standalone SSH dispatch leaking a task across a swap.
+// for each new START, and delivers the STOP of a command that crossed a swap to
+// the accountant installed NOW, carrying the task id its own START issued.
+// PREVENTS: API, MCP, and standalone SSH dispatch losing the record. The swap
+// closes the bundle it replaces, which stops that accountant's worker, and a
+// send to a stopped worker drops the record and returns no error
+// (internal/component/tacacs/accounting.go, enqueue). One command is still one
+// START and one STOP: the replacement must mint no second START.
 func TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap(t *testing.T) {
 	resetAAABundleForTest(t)
 	first := &bundleAccountantProbe{name: "first"}
@@ -228,15 +247,19 @@ func TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap(t *testing.T) {
 	require.NotNil(t, response)
 	assert.Equal(t, plugin.StatusDone, response.Status)
 	assert.Equal(t, []string{command}, first.starts)
-	assert.Equal(t, []string{command}, first.stops)
-	assert.Equal(t, "first-task", first.stopTaskID)
-	assert.Empty(t, second.starts)
-	assert.Empty(t, second.stops)
+	assert.Empty(t, first.stops,
+		"the retired accountant's worker is stopped, so a STOP sent there is lost in silence")
+	assert.Empty(t, second.starts, "a swap must not mint a second START for one command")
+	assert.Equal(t, []string{command}, second.stops)
+	assert.Equal(t, "first-task", second.stopTaskID,
+		"the STOP must carry the task id the START issued, so the two records still pair")
 }
 
 // VALIDATES: concurrent in-flight no-BGP commands keep unique accounting
-// handles across a bundle swap, and later commands use the replacement bundle.
-// PREVENTS: task-ID collisions or swaps misrouting concurrent STOP records.
+// handles across a bundle swap, every STOP reaches the accountant installed
+// NOW, and later commands use the replacement bundle for both records.
+// PREVENTS: task-ID collisions, a swap minting extra STARTs, and concurrent
+// STOP records landing on an accountant whose worker the swap has stopped.
 func TestLiveAAABundleAccountantConcurrentSwapKeepsPairs(t *testing.T) {
 	resetAAABundleForTest(t)
 	first := &bundleAccountantProbe{name: "first"}
@@ -269,14 +292,17 @@ func TestLiveAAABundleAccountantConcurrentSwapKeepsPairs(t *testing.T) {
 	wg.Wait()
 
 	assert.Len(t, first.starts, commands)
-	assert.Len(t, first.stops, commands)
-	assert.Empty(t, second.starts)
-	assert.Empty(t, second.stops)
+	assert.Empty(t, first.stops,
+		"the retired accountant's worker is stopped, so a STOP sent there is lost in silence")
+	assert.Empty(t, second.starts, "a swap must not mint a START for a command already in flight")
+	assert.Len(t, second.stops, commands, "every in-flight STOP must reach the installed accountant")
+	assert.Equal(t, "first-task", second.stopTaskID,
+		"each STOP carries the task id its own START issued, so the records still pair")
 
 	taskID := accountant.CommandStart("bob", "203.0.113.4:2200", "test after swap")
 	accountant.CommandStop(taskID, "bob", "203.0.113.4:2200", "test after swap")
 	assert.Equal(t, []string{"test after swap"}, second.starts)
-	assert.Equal(t, []string{"test after swap"}, second.stops)
+	assert.Len(t, second.stops, commands+1)
 	assert.Equal(t, "second-task", second.stopTaskID)
 }
 
@@ -344,6 +370,52 @@ func TestLiveLocalAuthorizerBindsAuthenticationProfiles(t *testing.T) {
 	typed, ok := bound.(aaa.CommandArgsAuthorizer)
 	require.True(t, ok)
 	assert.True(t, typed.AuthorizeCommandArgs("alice", "", "show", []string{"version"}, "", true))
+}
+
+// VALIDATES: the live BUNDLE authorizer keeps one authentication result's
+// resolved profiles, instead of looking up a later username assignment during
+// command authorization.
+// PREVENTS: a privilege boundary silently moving. ssh binds this value for a
+// public-key session (aaa.AuthorizerForResult over Config.Authorizer), and
+// without BindProfiles aaa.BindProfiles returns it UNCHANGED, so a `ze init`
+// break-glass recovery grant is authorized by whatever profile the store
+// assigns the username. The two profiles below are opposites, so the unbound
+// answer is the inverse of the bound one on both a run and an edit.
+func TestLiveAAABundleAuthorizerBindsAuthenticationProfiles(t *testing.T) {
+	resetAAABundleForTest(t)
+	store := authz.NewStore()
+	store.AddProfile(authz.Profile{
+		Name: "recovery",
+		Run:  authz.Section{Default: authz.Allow},
+		Edit: authz.Section{Default: authz.Deny},
+	})
+	store.AddProfile(authz.Profile{
+		Name: "assigned",
+		Run:  authz.Section{Default: authz.Deny},
+		Edit: authz.Section{Default: authz.Allow},
+	})
+	store.AssignProfiles("alice", []string{"assigned"})
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(nil, store, nil, ""))
+
+	// The bundle's authorizer is what buildAAABundle always installs: the local
+	// backend contributes params.LocalAuthorizer, which is liveLocalAuthorizer.
+	registry := aaa.NewBackendRegistryForTest()
+	require.NoError(t, registry.Register(&infraBootBackend{
+		name:          "local-only",
+		authenticator: &infraBootAuthenticator{source: "local-only"},
+		authorizer:    liveLocalAuthorizer{},
+	}))
+	bundle, err := registry.Build(aaa.BuildParams{})
+	require.NoError(t, err)
+	swapAAABundle(bundle, nil)
+
+	bound := aaa.BindProfiles(liveAAABundleAuthorizer{}, []string{"recovery"})
+	assert.True(t, bound.Authorize("alice", "", "show version", true))
+	assert.False(t, bound.Authorize("alice", "", "set system host-name router", false))
+	typed, ok := bound.(aaa.CommandArgsAuthorizer)
+	require.True(t, ok)
+	assert.True(t, typed.AuthorizeCommandArgs("alice", "", "show", []string{"version"}, "", true))
+	assert.False(t, typed.AuthorizeCommandArgs("alice", "", "set", []string{"system", "host-name", "router"}, "", false))
 }
 
 // VALIDATES: the API generation authorizer binds recovery profiles against the
