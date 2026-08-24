@@ -297,13 +297,18 @@ def _main():
     installed here, so `python3 test_engine.py` exited with ImportError and no gate could
     run it: every test below was dead for as long as that was true
     (scripts/dev/python_tests_test.go, which now globs this root).
+
+    The end-of-run summary is unittest's `Ran N tests` line, because that gate reads
+    a run's count out of that one shape.
     """
     import traceback
 
+    ran = 0
     failures = 0
     for name in sorted(globals()):
         if not name.startswith("test_"):
             continue
+        ran += 1
         try:
             globals()[name]()
         except KeyboardInterrupt:
@@ -319,6 +324,7 @@ def _main():
             traceback.print_exc()
         else:
             print("PASS %s" % name)
+    print("Ran %d test%s" % (ran, "" if ran == 1 else "s"))
     print("failures: %d" % failures)
     return 1 if failures else 0
 

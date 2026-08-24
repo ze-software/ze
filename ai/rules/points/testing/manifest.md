@@ -167,6 +167,7 @@ testing-python-tooling-scripts ## Testing Python Tooling (scripts/)
   a-python-test-nothing-invokes-never-runs
   the-wired-conventions-for-python-tests
   both-conventions-run-inside-go-test
+  the-runner-counts-what-each-file-ran
   never-add-a-python-test-outside-a-covered-directory
 temporary-files ## Temporary Files
   use-project-tmp-for-scratch-files
