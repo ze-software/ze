@@ -16,10 +16,10 @@ import (
 // PREVENTS: Exposing pprof on public interfaces (CWE-200).
 //
 // It carries pprof.go's own build constraint. It lived in main_test.go, which
-// carries `//go:build ze_core` and not `!tinygo`, so `-tags 'ze_core tinygo'`
+// carries `//go:build ze_core` and not `!tinygo`. So `-tags 'ze_core tinygo'`
 // selected the test and dropped the function it calls: isLocalhostPprof is
 // defined in pprof.go alone, which that build excludes. cmd/ze then failed to
-// type-check, and no lint or vet pass could read pprof_tinygo.go at all.
+// type-check, and no lint or vet pass read pprof_tinygo.go at all.
 func TestIsLocalhostPprof(t *testing.T) {
 	tests := []struct {
 		name string

@@ -35,11 +35,11 @@ const dockerTimeout = 30 * time.Second
 const probeTimeout = 2 * time.Second
 
 // dockerRM removes a container by name. The error is expected when the
-// container does not exist, which is every first run, and there is nowhere to
-// report it: the caller is sometimes a cleanup func with no *testing.T in
-// scope, so there is no one reader to report to.
+// container does not exist, which is every first run. There is nowhere to
+// report that error. The caller is sometimes a cleanup func with no *testing.T
+// in scope, so no reader exists to report to.
 func dockerRM(name string) {
-	// Its own context, not the test's: a cleanup runs after t.Context() is
+	// Its own context, not the test's. A cleanup runs after t.Context() is
 	// canceled, so the test's context would cancel this removal rather than
 	// bound it.
 	ctx, cancel := context.WithTimeout(context.Background(), dockerTimeout)

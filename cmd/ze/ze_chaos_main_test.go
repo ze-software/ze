@@ -23,8 +23,8 @@ import (
 // imports for its init().
 //
 // It used to call orchestrator.CLIRun directly. That function is `cLIRun` now,
-// unexported, so this file stopped compiling and NOTHING said so: no lint pass
-// and no test run had ever selected the `ze_chaos` build
+// unexported, so this file stopped compiling. NOTHING said so: no lint pass and
+// no test run had ever selected the `ze_chaos` build
 // (plan/journal/gate-excludes-part-of-its-population.md). Going through the
 // registry is also the stronger assertion, because it proves the registration
 // that `ze chaos` depends on is present in this build.

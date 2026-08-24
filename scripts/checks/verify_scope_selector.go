@@ -47,14 +47,16 @@
 // is proven, and the wide answer clears itself on the first passing verify.
 //
 // A tracked Go directory the unit tag set never compiles widens only when the
-// wide answer buys a check the narrow one does not. The module root buys none
-// -- ./... compiles it no more than the narrow answer does, so the wide answer
-// runs exactly the same checks on it while paying for the whole tree -- and
-// uncompiledTreeReaders maps it to what does read it. The gokrazy module cache
-// never reaches that question: packageDirsFor answers it by path. cmd/ze-installer
-// stopped being one of them on 2026-08-24: scripts/dev/lint_flavors.py lints it
-// under a ze_installer flavor whenever the lint runs over ./..., so the wide
-// answer is the only answer that reports on an edit to the initrd's PID 1.
+// wide answer buys a check the narrow one does not. The module root buys none.
+// ./... compiles it no more than the narrow answer does, so the wide answer runs
+// the same checks and pays for the whole tree. uncompiledTreeReaders maps the
+// module root to what does read it.
+//
+// The gokrazy module cache never reaches that question: packageDirsFor answers
+// it by path. cmd/ze-installer stopped being one of them on 2026-08-24. Whenever
+// the lint runs over ./..., scripts/dev/lint_flavors.py lints it under a
+// ze_installer flavor. The wide answer is therefore the only answer that reports
+// on an edit to the initrd's PID 1.
 //
 // The walk stops at depth 2. Measured over 646 packages, the full transitive
 // closure selects a third of the tree for one edit under internal/core, while
@@ -908,25 +910,27 @@ func parsePackageGraph(root, listing string) (*packageGraph, error) {
 // uncompiledTreeReaders answers for a tracked directory whose Go files the unit
 // tag set never compiles, and reports whether the directory is one of them.
 //
-// It is consulted ONLY when go list ./... did not report the directory, so the
-// day one of these joins the unit build the real package answers instead and
-// this table stops applying to it. That is why the directory here is not a path
-// rule in packageDirsFor: it seeds ITSELF while it is a package, and only the
-// graph knows whether it still is.
+// It is consulted ONLY when go list ./... did not report the directory. The day
+// one of these joins the unit build, the real package answers instead and this
+// table stops applying to it. That is why the directory here is not a path rule
+// in packageDirsFor. A path rule seeds ITSELF while the directory is a package,
+// and only the graph knows whether it still is.
 //
-// A rule belongs here only while widening buys nothing. ./... under the unit tag
-// set does not compile the module root either, so the wide answer runs the same
-// checks on it as the narrow one while paying for the whole tree, and what DOES
-// read it is the tree-walking checks. cmd/ze-installer had a rule here until
-// 2026-08-24 and lost it, because the wide answer stopped being equal: the lint
-// over ./... now selects that package under a ze_installer flavor
-// (scripts/dev/lint_flavors.py), so the narrow answer is the one that reports on
-// nothing. An unruled seed widens, which is the answer the initrd's PID 1 needs.
+// A rule belongs here only when the wide answer buys nothing. ./... under the
+// unit tag set does not compile the module root either. The wide answer therefore
+// runs the same checks on it as the narrow one and pays for the whole tree. What
+// DOES read the module root is the tree-walking checks.
+//
+// cmd/ze-installer had a rule here until 2026-08-24 and lost it, because the
+// wide answer stopped being equal. The lint over ./... now selects that package
+// under a ze_installer flavor (scripts/dev/lint_flavors.py), so the narrow
+// answer is the one that reports on nothing. An unruled seed widens, which is
+// the answer the initrd's PID 1 needs.
 func uncompiledTreeReaders(dir string) ([]string, bool) {
 	if dir == "" {
 		// The module root holds tools.go alone (//go:build tools), which pins the
 		// tool imports go mod vendor follows. check_doc_links.py names it in
-		// ROOT_FILES and walkFirstPartyFiles reads it; nothing compiles it, and
+		// ROOT_FILES and walkFirstPartyFiles reads it. Nothing compiles it, and
 		// no lint flavor selects it either (RESIDUE, scripts/dev/lint_flavors.py).
 		return treeWalkingPackages, true
 	}

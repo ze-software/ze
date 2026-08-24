@@ -69,7 +69,7 @@ Straight answers about what Ze does, where it is ready, and what adopting it inv
       <span aria-hidden="true" data-number="02"></span>
       <div>
         <h2 id="adoption-title">Running and adopting Ze</h2>
-        <p>Practical questions about trying Ze without committing a network to it.</p>
+        <p>Practical questions about trying Ze before you commit a network to it.</p>
       </div>
     </header>
     <div class="faq-list">

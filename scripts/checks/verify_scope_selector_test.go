@@ -592,10 +592,10 @@ func TestSelectorMapsGoTreesTheUnitBuildNeverCompiles(t *testing.T) {
 // //go:build linux && ze_installer, so go list under the unit tag set reports
 // "build constraints exclude all Go files" and the package is in no import
 // graph. uncompiledTreeReaders used to answer with the tree-walking packages
-// instead, which meant ze-lint-changed handed the flavor driver a --scope
-// holding scripts/ and nothing else: the initrd's PID 1 -- the code that
-// partitions and writes a disk -- passed the changed-file gate with no lint pass
-// having loaded a line of it, and the gate exited 0.
+// instead. ze-lint-changed then handed the flavor driver a --scope holding
+// scripts/ and nothing else. The initrd's PID 1 partitions and writes a disk,
+// and it passed the changed-file gate with no lint pass over a line of it. The
+// gate exited 0.
 //
 // The wide answer is what the selector is FOR here, not a fallback it fell into.
 // ./cmd/ze-installer cannot be named in the narrow answer instead: the same list

@@ -161,8 +161,8 @@ func fleetInitialSync(addr, name, token string) (string, error) {
 		return "", fmt.Errorf("read auth response: %w", err)
 	}
 	// The two failures are reported apart. Wrapping one error value for both
-	// renders `%!w(<nil>)` on the branch where parsing succeeded and the verb was
-	// simply not ok, which is the branch a real auth refusal takes.
+	// renders `%!w(<nil>)` on the branch where parsing succeeded and the verb
+	// was not ok. That branch is the one a real auth refusal takes.
 	_, verb, _, parseErr := rpc.ParseLine(line)
 	if parseErr != nil {
 		return "", fmt.Errorf("parse auth response %q: %w", line, parseErr)
