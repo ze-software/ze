@@ -136,9 +136,9 @@ that pass with the dataplane broken.
   `preflight_strict()` - run a privileged alpine probe against the host's
   `/lib/modules`, then `raise SystemExit("host kernel missing ... requirements: %s")`.
   Both refuse a skip override.
-- [ ] `test/interop-ipsec/scenarios/04-eap-tls/check.py` and
-  `.../02-ipsec-bgp-redistribute-frr/check.py` - the Ze-side XFRM assertion is
-  wrapped in `except (AssertionError, Exception)`. 04 calls `log_pass(...)` in the
+- [ ] `test/interop-ipsec/scenarios/eap-tls/check.py` and
+  `.../ipsec-bgp-redistribute-frr/check.py` - the Ze-side XFRM assertion is
+  wrapped in `except (AssertionError, Exception)`. eap-tls calls `log_pass(...)` in the
   handler, so a real ESP failure is reported as a PASS.
 
 **Behavior to preserve:**
@@ -208,13 +208,13 @@ that pass with the dataplane broken.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The ipsec lab actually passes, so its green is real rather than assumed | deferral note says all three are unverified since the launcher fix | the tree cannot earn a tier at all | ran `make ze-interop-ipsec-test IPSEC_INTEROP_SCENARIO=01-psk-site-to-site` on Darwin/Docker: exit 0, Ze-side XFRM SA present, ESP counters advanced | **confirmed for 01 only -- see A-9/A-10** |
-| A-9 | Scenario 02 passes once its fail-open handler is gone | assumed by A-1 generalising from 01 | the tree carries a real, previously-hidden dataplane defect | ran it 2026-08-01 with the handler removed: FAILS at `wait_xfrm_sa(ZE_CONTAINER)`. strongSwan installs its XFRM SA, Ze installs none. This is exactly the failure the `except (AssertionError, Exception)` was converting into a pass | **broken -- real defect, see below** |
-| A-10 | Scenario 04 passes once its fail-open handler is gone | same | EAP-TLS is not interoperable today | ran it 2026-08-01: FAILS EARLIER than the removed handler, at step 1 `swan.wait_sa_established("ze")`. strongSwan logs `EAP method EAP_TLS failed for peer ze-test-client`; Ze logs `eap: authenticator sent Failure`. The handler removal did not cause it and could not have hidden it | **broken -- real defect, see below** |
+| A-1 | The ipsec lab actually passes, so its green is real rather than assumed | deferral note says all three are unverified since the launcher fix | the tree cannot earn a tier at all | ran `make ze-interop-ipsec-test IPSEC_INTEROP_SCENARIO=psk-site-to-site` on Darwin/Docker: exit 0, Ze-side XFRM SA present, ESP counters advanced | **confirmed for psk-site-to-site only -- see A-9/A-10** |
+| A-9 | Scenario ipsec-bgp-redistribute-frr passes once its fail-open handler is gone | assumed by A-1 generalising from psk-site-to-site | the tree carries a real, previously-hidden dataplane defect | ran it 2026-08-01 with the handler removed: FAILS at `wait_xfrm_sa(ZE_CONTAINER)`. strongSwan installs its XFRM SA, Ze installs none. This is exactly the failure the `except (AssertionError, Exception)` was converting into a pass | **broken -- real defect, see below** |
+| A-10 | Scenario eap-tls passes once its fail-open handler is gone | same | EAP-TLS is not interoperable today | ran it 2026-08-01: FAILS EARLIER than the removed handler, at step 1 `swan.wait_sa_established("ze")`. strongSwan logs `EAP method EAP_TLS failed for peer ze-test-client`; Ze logs `eap: authenticator sent Failure`. The handler removal did not cause it and could not have hidden it | **broken -- real defect, see below** |
 | A-2 | `test/interop-ipsec/ze-linux` is a build output, not a checked-in input CI would lack | `.gitignore` line for it; absent from `git ls-files`; `run.py` `build_images()` regenerates it | CI could never build the image | `git check-ignore -v` and `git ls-files` | **confirmed** |
 | A-3 | The ipsec lab needs a Go toolchain ON THE HOST (unlike the other three, which build inside Docker) | `build_images()` shells `go build` before `docker build` | the nightly job would fail at image build | read `run.py` `build_images()` | **confirmed** |
 | A-4 | Every runner fails CLOSED on a missing prerequisite | claimed by the deferral note for interop/ipsec only | a job could go green having run nothing | read `run.py` main() for all four; `preflight_strict()` for l2tp/pppoe; each exits 1 | **confirmed** |
-| A-5 | The two ipsec XFRM checks discriminate | implied by them being interop scenarios | a nightly tier would be granted to a vacuous check | read `04-eap-tls/check.py` and `02-.../check.py`: both wrap the assertion in `except (AssertionError, Exception)`, 04 calls `log_pass` | **broken** |
+| A-5 | The two ipsec XFRM checks discriminate | implied by them being interop scenarios | a nightly tier would be granted to a vacuous check | read `eap-tls/check.py` and `ipsec-bgp-redistribute-frr/check.py`: both wrap the assertion in `except (AssertionError, Exception)`, eap-tls calls `log_pass` | **broken** |
 | A-6 | `ubuntu-latest` provides `l2tp_ppp`/`pppol2tp` so the l2tp lab can run in CI | none - never measured | the l2tp job is red every night and the tree cannot earn a tier | needs one observed nightly run, or an owner ruling. Measured on Darwin/Docker Desktop: `l2tp_ppp` ABSENT | **unvalidated - blocks AC-4** |
 | A-7 | `ubuntu-latest` provides `pppoe` + `/dev/ppp` so the pppoe lab can run in CI | none - never measured | the pppoe job is red every night and the tree cannot earn a tier | needs one observed nightly run. Measured on Darwin/Docker Desktop: both PRESENT, so the `docs/labs/pppoe-interop.md` claim they are absent is stale | **unvalidated - blocks AC-5** |
 | A-8 | Deleting the `interop` job today would be caught | `TestEvidenceNightlyRunsInterop` exists | the tier derivation would be the only guard | read the test: it does pin the job by name | **confirmed** (the derivation is defence in depth, not the sole guard) |
@@ -258,7 +258,7 @@ that pass with the dataplane broken.
 |-------|-------------------|-------------------|
 | AC-1 | `.github/workflows/evidence-nightly.yml` after the change | carries an `ipsec-interop` job, `continue-on-error: true`, running `make ze-interop-ipsec-test` by name, with `actions/setup-go` (the lab cross-compiles ze on the host) |
 | AC-2 | An `RFC requirement:` tag in `test/interop-ipsec/scenarios/*/check.py` | is accepted and labelled `interop/nightly`; `make ze-rfc-check` exits 0 |
-| AC-3 | `04-eap-tls/check.py` and `02-ipsec-bgp-redistribute-frr/check.py` run against a host where the Ze-side XFRM SA never appears | the scenario FAILS. No `except Exception` path reports a pass |
+| AC-3 | `eap-tls/check.py` and `ipsec-bgp-redistribute-frr/check.py` run against a host where the Ze-side XFRM SA never appears | the scenario FAILS. No `except Exception` path reports a pass |
 | AC-4 | An `RFC requirement:` tag in `test/interop-l2tp/scenarios/*/check.py` | BLOCKED on A-6. Accepted as `interop/nightly` only once a scheduled job runs the lab green; otherwise the tag stays refused and the refusal names the runner |
 | AC-5 | An `RFC requirement:` tag in `test/interop-pppoe/scenarios/*/check.py` | BLOCKED on A-7. Same condition as AC-4 |
 | AC-6 | The `interop` job is deleted from `evidence-nightly.yml` | `interop-bgp` resolves `TIER_UNRUN`, the 2 existing BGP interop tags are refused, and `make ze-rfc-check` exits 2. Today this deletion changes nothing in `CARRIERS` |
@@ -309,9 +309,9 @@ a test, and that path is covered by the Wiring Test table above.
      the test FAILS when the behavior under test is reverted. -->
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `01-psk-site-to-site` | `test/interop-ipsec/scenarios/` | strongSwan | the tree is genuinely green: IKE SA + Child SA + XFRM SA on BOTH sides, ESP counters advancing | **PASS** (measured 2026-08-01, exit 0) |
-| `04-eap-tls` | `test/interop-ipsec/scenarios/` | strongSwan | after AC-3, a missing Ze-side XFRM SA FAILS the scenario instead of logging a pass | **AC-3 met; scenario RED for an unrelated, earlier reason** (EAP-TLS auth, A-10) |
-| `02-ipsec-bgp-redistribute-frr` | `test/interop-ipsec/scenarios/` | strongSwan + FRR | same, plus the BGP redistribute assertion is unaffected | **AC-3 met and it DISCRIMINATED: the un-guarded assertion is what goes red** (A-9). BGP steps 1 and 4 passed |
+| `psk-site-to-site` | `test/interop-ipsec/scenarios/` | strongSwan | the tree is genuinely green: IKE SA + Child SA + XFRM SA on BOTH sides, ESP counters advancing | **PASS** (measured 2026-08-01, exit 0) |
+| `eap-tls` | `test/interop-ipsec/scenarios/` | strongSwan | after AC-3, a missing Ze-side XFRM SA FAILS the scenario instead of logging a pass | **AC-3 met; scenario RED for an unrelated, earlier reason** (EAP-TLS auth, A-10) |
+| `ipsec-bgp-redistribute-frr` | `test/interop-ipsec/scenarios/` | strongSwan + FRR | same, plus the BGP redistribute assertion is unaffected | **AC-3 met and it DISCRIMINATED: the un-guarded assertion is what goes red** (A-9). BGP steps 1 and 4 passed |
 
 → Constraint: both reds live in `internal/component/ike/**`, which this spec must not
 touch (a Review Gate is reading it and a sibling session owns the uncommitted work
@@ -335,8 +335,8 @@ bound to this tree yet, so no false evidence is created either way.
 - `scripts/dev/github_workflows_test.go` - add `TestEvidenceNightlyRunsIpsecInterop`
   and `TestWorkflowTargetExtractorsAgree`.
 - `scripts/dev/rfc_requirements_test.py` - the seven unit tests above.
-- `test/interop-ipsec/scenarios/04-eap-tls/check.py` - remove the fail-open handler.
-- `test/interop-ipsec/scenarios/02-ipsec-bgp-redistribute-frr/check.py` - same.
+- `test/interop-ipsec/scenarios/eap-tls/check.py` - remove the fail-open handler.
+- `test/interop-ipsec/scenarios/ipsec-bgp-redistribute-frr/check.py` - same.
 - `docs/labs/pppoe-interop.md` - line 58 reads "Docker Desktop on macOS typically
   cannot pass this check (its Linux VM lacks the ... modules)". Measured
   2026-08-01 on Docker Desktop: `PPPOE=ok`, `DEV_PPP=ok`. The sentence is hedged
@@ -408,7 +408,7 @@ avoid, so the checks are fixed before the tier is available.
    - Files: `.github/workflows/evidence-nightly.yml`, `scripts/dev/github_workflows_test.go`, `scripts/dev/rfc_requirements_test.py`
    - Verify: the job exists and is advisory; the carrier test FAILS because `CARRIERS` still asserts `TIER_UNRUN`
 2. **Phase: Discriminating checks (AC-3)** -- remove the two fail-open handlers
-   - Tests: `04-eap-tls` and `02-ipsec-bgp-redistribute-frr` run green on a host WITH XFRM, and fail on one without
+   - Tests: `eap-tls` and `ipsec-bgp-redistribute-frr` run green on a host WITH XFRM, and fail on one without
    - Files: the two `check.py`
    - Verify: `make ze-interop-ipsec-test` still exits 0 here (XFRM is present); mutation-check by asserting a bogus container name and confirming the scenario reddens
 3. **Phase: Derive the tier (AC-2, AC-6, AC-7)** -- replace the literal with a reader
@@ -448,7 +448,7 @@ avoid, so the checks are fixed before the tier is available.
 |-------------|---------------------|
 | `ipsec-interop` job exists and is advisory | `go test -tags "ze_core $TAGS" -run TestEvidenceNightlyRunsIpsecInterop ./scripts/dev/` |
 | A tag in `test/interop-ipsec/` is accepted | add one, run `make ze-rfc-check`, expect exit 0 and a non-zero `interop/nightly` count |
-| The two checks discriminate | `make ze-interop-ipsec-test IPSEC_INTEROP_SCENARIO=04-eap-tls` green; then break the container name and confirm red |
+| The two checks discriminate | `make ze-interop-ipsec-test IPSEC_INTEROP_SCENARIO=eap-tls` green; then break the container name and confirm red |
 | The tier is derived | `python3 scripts/dev/rfc_requirements.py --selftest` |
 | Deleting the BGP interop job refuses BGP tags | the fixture test `test_interop_carrier_falls_to_unrun_without_a_scheduled_caller` |
 | The gate is still green overall | `make ze-rfc-check` exit 0 |

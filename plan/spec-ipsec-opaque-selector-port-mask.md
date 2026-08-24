@@ -502,7 +502,7 @@ than assumed.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `22-ts-port-opaque` | `test/interop-ipsec/scenarios/` | strongSwan | A strongSwan peer that proposes OPAQUE ports establishes a Child SA with Ze, and Ze answers the OPAQUE form rather than TS_UNACCEPTABLE | |
+| `ts-port-opaque` | `test/interop-ipsec/scenarios/` | strongSwan | A strongSwan peer that proposes OPAQUE ports establishes a Child SA with Ze, and Ze answers the OPAQUE form rather than TS_UNACCEPTABLE | |
 
 **This scenario cannot carry an RFC tag.** `test/interop-ipsec/` is declared `TIER_UNRUN`
 (`scripts/dev/rfc_requirements.py`), and a tag there is refused, because nothing runs the
@@ -536,7 +536,7 @@ on the existing unit-tier tags.
 - `test/ipsec/ipsec-ts-port-opaque.ci`
 - `test/ipsec/ipsec-ts-port-opaque-reject.ci`
 - `test/ipsec/ipsec-show-sa-port-opaque.ci`
-- `test/interop-ipsec/scenarios/22-ts-port-opaque/`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `skeleton` and the work is not implemented) -->
+- `test/interop-ipsec/scenarios/ts-port-opaque/`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `skeleton` and the work is not implemented) -->
 - `rfc/short/rfc4301.md` - the Security Architecture summary, if absent. Section 4.4.1.1
   defines OPAQUE
 

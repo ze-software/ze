@@ -289,7 +289,7 @@ class TestResolvePKIPlaceholders(unittest.TestCase):
 class TestScenarioPKIFixtures(unittest.TestCase):
     """Pin the leaf names the pki schema accepts.
 
-    Scenarios 03, 04 and 08 each wrote a `private-key` leaf holding a file path.
+    Scenarios eap-mschapv2, eap-tls and responder-eap-mschapv2 each wrote a `private-key` leaf holding a file path.
     The schema has `certificate { private { key } }` and every leaf holds
     base64-encoded DER, so ze refused all three configs with "unknown field in
     certificate: private-key" and no EAP packet ever left the container.
@@ -318,7 +318,7 @@ class TestScenarioPKIFixtures(unittest.TestCase):
         # from a second copy of its rule here. It prefers the scenario's own
         # `pki/` and falls back to the shared one, and a test that named the
         # shared directory for every scenario asserted against material the lab
-        # would never read: 25-responder-eap-tls13 carries `ze.pem` in its own
+        # would never read: responder-eap-tls13 carries `ze.pem` in its own
         # directory, the shared one holds `client.pem`, and the case died with
         # FileNotFoundError rather than failing on anything about the config.
         seen = set()
@@ -348,7 +348,7 @@ class TestScenarioPKIFixtures(unittest.TestCase):
                 self.assertEqual(0x30, base64.b64decode(value)[0], path)
             checked += len(values)
         # The expected SET is spelled out, not just its size. A count alone lets
-        # two errors cancel: scenario 06 losing all three placeholders while a new
+        # two errors cancel: scenario eap-tls13 losing all three placeholders while a new
         # PKI scenario appears keeps the total at four and passes green. Naming the
         # scenarios makes each side of that trade visible on its own.
         #
@@ -358,11 +358,11 @@ class TestScenarioPKIFixtures(unittest.TestCase):
         # resolves, not an accident of the count.
         self.assertEqual(
             {
-                "03-eap-mschapv2",
-                "04-eap-tls",
-                "06-eap-tls13",
-                "08-responder-eap-mschapv2",
-                "25-responder-eap-tls13",
+                "eap-mschapv2",
+                "eap-tls",
+                "eap-tls13",
+                "responder-eap-mschapv2",
+                "responder-eap-tls13",
             },
             seen,
             "exactly these scenarios carry PKI material",
@@ -430,7 +430,7 @@ class TestPrepareZeConf(unittest.TestCase):
 class TestXfrmStateFailsClosed(unittest.TestCase):
     """A failed XFRM read must raise, not answer "no SAs".
 
-    10-clear-reestablish snapshots strongSwan's ESP SPIs BEFORE its clear and
+    clear-reestablish snapshots strongSwan's ESP SPIs BEFORE its clear and
     passes when a SPI absent from that snapshot appears after. A reader that
     answered "" for a failed command made the snapshot empty, and then the SA
     that already existed satisfied the comparison on the first poll: the
@@ -449,7 +449,7 @@ class TestXfrmStateFailsClosed(unittest.TestCase):
                     StrongSwan().xfrm_state()
 
     def test_scenario_10_refuses_an_empty_before_snapshot(self):
-        check = self.load_scenario("10-clear-reestablish")
+        check = self.load_scenario("clear-reestablish")
         swan = mock.Mock()
         swan.xfrm_state.return_value = ""
         with mock.patch.object(check, "StrongSwan", return_value=swan):
@@ -464,7 +464,7 @@ class TestXfrmStateFailsClosed(unittest.TestCase):
         # satisfied by the SA that already existed, so the scenario passed with
         # Ze having ignored the re-init. The fail-closed reader alone does not
         # close it, because a kernel holding no ESP state answers "" on exit 0.
-        check = self.load_scenario("11-responder-accepts-reinit")
+        check = self.load_scenario("responder-accepts-reinit")
         swan = mock.Mock()
         swan.xfrm_state.return_value = ""
         with mock.patch.object(check, "StrongSwan", return_value=swan):

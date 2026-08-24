@@ -116,14 +116,14 @@ the operator through the existing IKE path.
 
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | Every legitimate no-data round is answered by a branch above the last one | The branch comment in `eap_tls.go` calls the last branch defensive, and names the branches that absorb each real case | A conforming peer is refused mid-exchange | Run the eap package tests and `test/interop-ipsec/scenarios/04-eap-tls` with the refusal in place | unvalidated |
+| A-1 | Every legitimate no-data round is answered by a branch above the last one | The branch comment in `eap_tls.go` calls the last branch defensive, and names the branches that absorb each real case | A conforming peer is refused mid-exchange | Run the eap package tests and `test/interop-ipsec/scenarios/eap-tls` with the refusal in place | unvalidated |
 | A-2 | `eapTLSMaxPeerBuffered` needs at least one more round after the first empty message | The measurement in `spec-fixit-eap-tls-clienthello-race` | The backlog ceiling becomes unreachable again | `TestEAPTLSProcessRefusesUnboundedPeerBuffer` | unvalidated |
 
 ### Risks
 
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A conforming peer implementation sends one empty message Ze has not accounted for, and the refusal breaks a working exchange | Scenario 04 fails, or an operator reports a method failure with a peer that used to authenticate | Count consecutive empty rounds and refuse on the second, rather than on the first |
+| R-1 | A conforming peer implementation sends one empty message Ze has not accounted for, and the refusal breaks a working exchange | Scenario eap-tls fails, or an operator reports a method failure with a peer that used to authenticate | Count consecutive empty rounds and refuse on the second, rather than on the first |
 | R-2 | The refusal makes `eapTLSMaxPeerBuffered` unreachable, exactly as the unconditional guard did | `TestEAPTLSProcessRefusesUnboundedPeerBuffer` goes red | The counting design in R-1 leaves the second round available to the ceiling |
 
 ## Blast Radius
@@ -156,7 +156,7 @@ the operator through the existing IKE path.
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | Runs an IKEv2 responder with EAP-TLS and meets a peer that never sends a ClientHello | IKE -> `Session.handleMethod` -> `tlsMethod.Process` -> EAP-Failure | `test/ipsec/ipsec-eap-tls-empty-answer.ci` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) --> |
-| 2 | Runs the same responder with a conforming peer | the unchanged branches of `Process` | `test/ipsec/ipsec-eap-tls-clienthello.ci` and scenario 04 |
+| 2 | Runs the same responder with a conforming peer | the unchanged branches of `Process` | `test/ipsec/ipsec-eap-tls-clienthello.ci` and scenario eap-tls |
 
 ## 🧪 TDD Test Plan
 
@@ -190,7 +190,7 @@ cheapest seam is a private test env var on the peer half, in the shape
 
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `04-eap-tls` | `test/interop-ipsec/scenarios/` | strongSwan | A conforming peer still authenticates after the refusal lands | |
+| `eap-tls` | `test/interop-ipsec/scenarios/` | strongSwan | A conforming peer still authenticates after the refusal lands | |
 
 strongSwan sends a ClientHello, so it cannot exercise AC-1. It is the regression guard for
 AC-2 through AC-5, and `plan/journal/shared-leniency-hides-the-defect.md` records why a
@@ -249,7 +249,7 @@ metadata and no daemon comparison claim.
 2. **Phase: The refusal** - replace the branch, keeping `eapTLSMaxPeerBuffered` reachable.
    - Tests: the two above, plus the four existing tests named in the TDD plan
    - Files: `internal/component/ike/eap/eap_tls.go`
-   - Verify: the new tests pass, no existing eap test goes red, scenario 04 still completes
+   - Verify: the new tests pass, no existing eap test goes red, scenario eap-tls still completes
 
 ### Critical Review Checklist
 
@@ -267,7 +267,7 @@ metadata and no daemon comparison claim.
 |-------------|---------------------|
 | The refusal in `tlsMethod.Process` | `make ze-unit-pkg-test PKG=./internal/component/ike/eap` |
 | The functional test | `make ze-functional-ipsec-test` |
-| The interop regression | `make ze-interop-ipsec-test IPSEC_INTEROP_SCENARIO=04-eap-tls` |
+| The interop regression | `make ze-interop-ipsec-test IPSEC_INTEROP_SCENARIO=eap-tls` |
 
 ### Security Review Checklist
 
@@ -281,7 +281,7 @@ metadata and no daemon comparison claim.
 | Failure | Route To |
 |---------|----------|
 | An existing eap test goes red | A-1 is broken. Re-read the branch it exercises, then decide about the test |
-| Scenario 04 fails | R-1 is real. Move to the counting design |
+| Scenario eap-tls fails | R-1 is real. Move to the counting design |
 | The backlog ceiling test goes red | A-2 is broken. The refusal is too early |
 
 ## Design Insights

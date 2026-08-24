@@ -149,11 +149,11 @@ completed from a responder-role Ze.
 
 ## Proof
 
-`test/interop-ipsec/scenarios/05-child-rekey` runs against strongSwan 5.9.14
+`test/interop-ipsec/scenarios/child-rekey` runs against strongSwan 5.9.14
 with Ze as the connection initiator. strongSwan parses the REKEY_SA request,
 installs the new Child SA, and receives the Delete for the old SA.
 
-`test/interop-ipsec/scenarios/26-responder-raises-child-rekey` runs the other
+`test/interop-ipsec/scenarios/responder-raises-child-rekey` runs the other
 direction. strongSwan dials, so Ze is the original responder, and Ze's short ESP
 lifetime makes Ze raise the CREATE_CHILD_SA. It is the only scenario where a
 responder-role Ze speaks first, so it is what proves the two counters are

@@ -782,7 +782,7 @@ So the 22 tags must live in:
 | `*_test.go` | `unit/verify` | `internal/component/ike/engine/`, `internal/component/ike/ipsec/` |
 | `test/ipsec/*.ci` | `functional/verify` | the `ipsec` suite IS in `all_suites` and HAS a `run_suite` line (`mk/test-functional.mk`, `:217`), so it earns the verify tier |
 
-The interop scenarios `15-ts-narrowing` and `16-transport-mode` are
+The interop scenarios `ts-narrowing` and `transport-mode` are
 **goal-validation evidence, not tagged evidence**. Write them; do not tag them.
 
 **Prefer a `.ci` over a unit test wherever the behaviour is reachable from a config plus a
@@ -907,7 +907,7 @@ and adds its two tags.
 
 | Invariant | Why it is at risk | The guard |
 |-----------|-------------------|-----------|
-| **Every `test/interop-ipsec/` scenario stays green** | R-2 names WP-7's TS narrowing as one of four packages that change what a peer sees. Scenarios 01-11 all negotiate Child SAs, and today they get a wildcard. Once Ze narrows, a scenario whose `ze.conf` has no selector config must still produce a working SA | `make ze-interop-ipsec-test` at the package boundary, not at the end. A red is this package's own defect and is fixed here (`ai/rules/completion.md`) |
+| **Every `test/interop-ipsec/` scenario stays green** | R-2 names WP-7's TS narrowing as one of four packages that change what a peer sees. Every existing scenario negotiates Child SAs, and today they get a wildcard. Once Ze narrows, a scenario whose `ze.conf` has no selector config must still produce a working SA | `make ze-interop-ipsec-test` at the package boundary, not at the end. A red is this package's own defect and is fixed here (`ai/rules/completion.md`) |
 | **A peer with no configured selectors still works** | If "no `tunnel` list configured" narrows to the empty set, every existing config breaks with TS_UNACCEPTABLE | The absent-config default must be "policy allows everything", preserving today's behaviour exactly. Assert it with a fixture that configures no selectors |
 | `RFC4301-4.4.2-1`'s existing coverage | `child_test.go` (`TestChildSAInboundPolicyUsesNegotiatedTS`) asserts the inbound policy carries the negotiated TS. Section 6 changes what "negotiated" means | The test sets `sa.NegotiatedTSi/TSr` directly, so it survives. Re-read it before editing; do not weaken it |
 | `RFC4301-4.4.2-1`'s OTHER binding | `child_test.go` tags `TestNarrowTS`, which section 1.5 deletes | The obligation must be RE-BOUND to the new engine's test in the SAME commit, or `check_evidence_ratchet` fires. **Needs Thomas's `rfc-test-change-approved`** |
@@ -922,7 +922,7 @@ and adds its two tags.
 
 | Id | Risk | Early signal | Mitigation |
 |----|------|--------------|------------|
-| R-WP7-1 | **Narrowing breaks every existing interop scenario**, because none configures selectors and the default becomes deny | scenario 01 reds immediately | The absent-config default is "allow everything". Run `make ze-interop-ipsec-test` FIRST, before writing any narrowing logic, to capture the green baseline |
+| R-WP7-1 | **Narrowing breaks every existing interop scenario**, because none configures selectors and the default becomes deny | scenario psk-site-to-site reds immediately | The absent-config default is "allow everything". Run `make ze-interop-ipsec-test` FIRST, before writing any narrowing logic, to capture the green baseline |
 | R-WP7-2 | **The wire and the dataplane still disagree**, in a new way: the response carries a range Ze then programs approximately | none; both sides look plausible in isolation | Section 7.2's programmable-subset rule, plus a test asserting the emitted selectors EQUAL the installed policy selectors. Make that assertion explicit; it is the invariant the whole package exists to restore |
 | R-WP7-3 | **The EAP responder path is left unnarrowed.** `startResponderEAP` (`responder_eap.go`) is a second producer | mutation 6 leaves the suite green | Fixtures for BOTH paths. This shape has now cost this spec three times |
 | R-WP7-4 | **Transport mode installs fail with a confusing error** because `TunnelSrc`/`TunnelDst` were left in place | `tunnelEndpoints`' error text appears in logs | Section 6.6 names the exact sites (`child.go`, `:333`). Mutation 8 pins it |

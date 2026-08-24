@@ -193,7 +193,7 @@ tree.
   role-correct (`computeSignedOctets` uses absolute nonces + `isInitiator != sa.IsInitiator`
   ID selection). EAP-server is the real `eap.Session` (`eap/eap.go`) wired via
   `NewEAPSession`; `startResponderEAP`/`handleResponderEAP` mirror the initiator EAP flow.
-  Interop-verified as responder vs strongSwan 5.9.14 (`scenarios/07-responder-psk`).
+  Interop-verified as responder vs strongSwan 5.9.14 (`scenarios/responder-psk`).
 - **Operator `clear` is a graceful, bounded bounce (spec-fixit-ipsec-clear-reestablish).**
   `clear vpn ipsec sa[ peer <name>]` → `TerminateAllSAs`/`TerminatePeerSA` call
   `ps.StopGraceful()` (not bare `Stop()`); the owner loop's stopCh case sends an
@@ -226,9 +226,9 @@ tree.
   `applyIKERekeyResponse`), installs the new SA before removing the old
   (make-before-break) and Deletes the old (`sendDeleteESP` / `sendDeleteIKE`).
   Interop-verified vs strongSwan 5.9.14 in both exchange roles: Ze as connection
-  initiator (`test/interop-ipsec/scenarios/05-child-rekey`) and Ze as the original
+  initiator (`test/interop-ipsec/scenarios/child-rekey`) and Ze as the original
   IKE responder raising its own CREATE_CHILD_SA
-  (`test/interop-ipsec/scenarios/26-responder-raises-child-rekey`). The second one
+  (`test/interop-ipsec/scenarios/responder-raises-child-rekey`). The second one
   is what proves RFC 7296 Section 2.2's two counters are independent: a
   responder-role SA raises its first request at Message ID 0
   (`finishResponderEstablish`, `responder.go`).

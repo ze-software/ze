@@ -33,7 +33,7 @@ Both are blocked on the same fact, and a session that retries them will rediscov
 | Test | Blocker |
 |------|---------|
 | `test/ipsec/ipsec-child-rekey-no-proposal.ci` | A static config cannot make IKE_AUTH succeed and the later CHILD REKEY fail. A disjoint `esp-group` fails `selectResponderESP` at IKE_AUTH, so the SA never establishes and the rekey never happens. `respondChildRekey` matches against `ESPGroup.Proposals[0]`, which `selectResponderESP` has already narrowed to the negotiated suite, so a two-proposal responder still matches |
-| `test/interop-ipsec/scenarios/19-error-notifications/` | Same blocker, against strongSwan |
+| `test/interop-ipsec/scenarios/error-notifications/` | Same blocker, against strongSwan |
 
 A session would need one of two things. A config surface that changes `esp-group` on a live
 SA while the peer stays up, or a test seam that narrows `ESPGroup` after establishment.
@@ -51,7 +51,7 @@ alarming after a wire-parser change, and it is not a regression.
 I rebuilt `ze` with all twelve WP-3 files reverted to HEAD through `go build -overlay` and
 reran the lab. **Identical verdict, identical scenario list.** The eight failures are a
 Docker-for-Mac limitation the lab's own output names: `XFRM not available on Ze (expected on
-Docker for Mac), skipping ESP checks`. Scenario 01 passes end to end with ESP counters
+Docker for Mac), skipping ESP checks`. Scenario psk-site-to-site passes end to end with ESP counters
 advancing in both directions, which is the real interop proof for the inner-chain parser.
 
 Do not spend a session on those eight from macOS. `03-` already points at

@@ -14,6 +14,7 @@ interop-testing-protocol-features ## Interop Testing (protocol features)
   when-interop-tests-are-not-required
   conditions-that-need-no-interop-test
   interop-scenario-structure
+  a-scenario-directory-is-named-never-numbered
   the-files-every-interop-scenario-carries
   the-steps-every-check-py-must-run
 prove-the-test-discriminates-blocking ## Prove the test discriminates (BLOCKING)

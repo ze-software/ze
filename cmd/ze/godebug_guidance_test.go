@@ -6,7 +6,7 @@
 // that the Go toolchain in use has removed, and every file that still names one
 // says it was removed.
 // PREVENTS: the failure this file was written for. cmd/ze/main.go told operators
-// to set `tlsunsafeekm` to its old value and test/interop-ipsec/scenarios/04-eap-tls
+// to set `tlsunsafeekm` to its old value and test/interop-ipsec/scenarios/eap-tls
 // set it. Go 1.27 removed that setting, and the runtime raises a fatal error before
 // main() when a removed setting carries its old value, so ze died at start for
 // anybody who followed either one. The guidance outlived the mechanism it named,

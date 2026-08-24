@@ -4419,7 +4419,7 @@ def run_mark_source_read(results: Results) -> None:
         ("sh-hooks", "/repo/.claude/hooks/foo.sh", "sh"),
         ("sh-scripts", "/repo/scripts/dev/verify-status.sh", "sh"),
         ("makefile", "/repo/Makefile", "make"),
-        ("mk-file", "/repo/mk/inventory.mk", "make"),
+        ("mk-file", "/repo/mk/check-docs.mk", "make"),
         ("yang-model", "/repo/internal/component/iface/yang/ze-iface.yang", "yang"),
         # BLOCKER 1 (reviewer, 2026-08-07): the kind is the extension, so the
         # subjects real specs name are reachable. Each path below is a subject an
@@ -4825,8 +4825,8 @@ def run_design_gate(results: Results) -> None:
     # next to the expensive one and read only the cheap one.
     r = _design_case(
         "- `internal/component/bgp/reactor/peer.go` - the daemon\n"
-        "- `mk/appliance.mk` - the build wiring",
-        ("/repo/mk/appliance.mk",),
+        "- `mk/build-appliance.mk` - the build wiring",
+        ("/repo/mk/build-appliance.mk",),
     )
     results.check(
         "design-gate-multi-kind-needs-every-kind", _design_blocked(r), repr(r)
@@ -4835,8 +4835,8 @@ def run_design_gate(results: Results) -> None:
     # ...and reading both clears it, so the rule is every-kind, not go-only.
     r = _design_case(
         "- `internal/component/bgp/reactor/peer.go` - the daemon\n"
-        "- `mk/appliance.mk` - the build wiring",
-        ("/repo/mk/appliance.mk", "/repo/internal/component/bgp/reactor/peer.go"),
+        "- `mk/build-appliance.mk` - the build wiring",
+        ("/repo/mk/build-appliance.mk", "/repo/internal/component/bgp/reactor/peer.go"),
     )
     results.check(
         "design-gate-multi-kind-both-read-allowed", not _design_blocked(r), repr(r)
@@ -4850,11 +4850,11 @@ def run_design_gate(results: Results) -> None:
     try:
         _read_source(work, "/repo/internal/component/bgp/reactor/peer.go")
         _age_marker(work, f".source-read-go-{_DESIGN_SID}", 3 * 3600)
-        _read_source(work, "/repo/mk/appliance.mk")
+        _read_source(work, "/repo/mk/build-appliance.mk")
         r = _write_spec(
             work,
             "- `internal/component/bgp/reactor/peer.go` - the daemon\n"
-            "- `mk/appliance.mk` - the build wiring",
+            "- `mk/build-appliance.mk` - the build wiring",
         )
         results.check(
             "design-gate-fresh-kind-does-not-carry-stale-kind",
@@ -4974,7 +4974,7 @@ def run_design_gate(results: Results) -> None:
             "/repo/internal/x/y.go",
         ),
         ("makefile", "- `Makefile` - the entry point", "/repo/internal/x/y.go"),
-        ("mk", "- `mk/appliance.mk` - the build wiring", "/repo/internal/x/y.go"),
+        ("mk", "- `mk/build-appliance.mk` - the build wiring", "/repo/internal/x/y.go"),
     ):
         r = _design_case(files_line, (read,))
         results.check(
@@ -5010,9 +5010,9 @@ def run_design_gate(results: Results) -> None:
         "tools/kernel-builder/build.py",
         ".claude/hooks/mark-source-read.sh",
         "packaging/deb/preinstall.sh",
-        "test/interop-ipsec/scenarios/06-eap-tls13/pki/gen-pki.sh",
+        "test/interop-ipsec/scenarios/eap-tls13/pki/gen-pki.sh",
         "Makefile",
-        "mk/appliance.mk",
+        "mk/build-appliance.mk",
         "internal/component/iface/yang/ze-iface.yang",
         "docs/guide/x.md",
         "test/bgp/session.ci",
@@ -7244,7 +7244,7 @@ def run_raw_job_admission(results: Results) -> None:
             "./bin/ze-test editor --all",
             "make ze-functional-editor-test",
         ),
-        # The same runner in this session's own directory (mk/session.mk
+        # The same runner in this session's own directory (mk/helper-session.mk
         # ZE_BIN_DIR) is the same producer.
         (
             "session-directory-runner-is-refused",

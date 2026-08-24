@@ -153,7 +153,7 @@ type ChildSA struct {
 	// ze floats, encapsulates, and the peer's kernel drops every packet. MEASURED:
 	// ze's outbound state carries "encap type espinudp" with oseq 0x4 while
 	// strongSwan's carries no encap line and counts XfrmInStateMismatch 4. Interop
-	// scenarios 07-responder-psk and 18-cookie-challenge fail on exactly this.
+	// scenarios responder-psk and cookie-challenge fail on exactly this.
 	//
 	// Dropping the disjunct trades RFC7296-2.23-11 for that interop, and splitting the
 	// flag per direction does not help: a Linux XFRM inbound state accepts exactly ONE
@@ -486,7 +486,7 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	// even with no NAT present, because MOBIKE asks it to (ike_natd.c process_i, with
 	// mobike defaulting to yes). Its ESP then stays BARE, because COND_NAT_ANY is false.
 	// Reading that float as an encapsulation signal made Ze encapsulate toward a peer
-	// that expects bare ESP, and scenario 07-responder-psk recorded the result: the
+	// that expects bare ESP, and scenario responder-psk recorded the result: the
 	// tunnel established and strongSwan accepted no ESP at all.
 	//
 	// child.UDPEncap still carries the port term, and the inbound template above still
@@ -671,7 +671,7 @@ func removeChildSA(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger) {
 //
 // Removing the retired pair therefore removed the LIVE pair's policy, and the tunnel
 // stopped forwarding at the moment a rekey SUCCEEDED. MEASURED against strongSwan:
-// interop scenario 05 reported "no ESP traffic after the rekey" with both Child SAs
+// interop scenario child-rekey reported "no ESP traffic after the rekey" with both Child SAs
 // installed and healthy, because the peer's Delete for the old SPI took the
 // survivor's policy with it.
 //

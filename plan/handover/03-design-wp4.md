@@ -808,8 +808,8 @@ Mutations 8, 14 and 17 are the three the design most expects an implementer to i
 | Test | Location | Proves |
 |------|----------|--------|
 | `ipsec-cookie-challenge.ci` | `test/ipsec/` (does not exist today) | Ze-to-Ze over loopback: with `cookie-threshold 1` the responder challenges and the exchange completes on retry. Follow the existing pattern exactly -- `cmd=background` responder plus `cmd=foreground` initiator, `option=env:var=ze_test_ike_dataplane:value=noop`, `option=env:var=ze_test_ike_port:value=$PORT2`. **No `option=needs-linux`**: no `test/ipsec/*.ci` uses it, because the noop dataplane avoids the privilege entirely. Assert on `show vpn ipsec sa` reaching an established state with a real negotiated cipher, as `test/ipsec/ipsec-sa-installed.ci` does |
-| `12-invalid-ke-retry` | `test/interop-ipsec/scenarios/` | Ze as initiator configured `dh-group 14` first against a strongSwan proposing only `modp3072`, so strongSwan sends INVALID_KE_PAYLOAD and Ze must retry and establish. **AC-14** (the rfcgate-1b RFC 7296 pilot spec) |
-| `18-cookie-challenge` | `test/interop-ipsec/scenarios/` | strongSwan as initiator against a Ze responder with `cookie-threshold 1`, proving a real third-party initiator accepts Ze's cookie and completes |
+| `invalid-ke-retry` | `test/interop-ipsec/scenarios/` | Ze as initiator configured `dh-group 14` first against a strongSwan proposing only `modp3072`, so strongSwan sends INVALID_KE_PAYLOAD and Ze must retry and establish. **AC-14** (the rfcgate-1b RFC 7296 pilot spec) |
+| `cookie-challenge` | `test/interop-ipsec/scenarios/` | strongSwan as initiator against a Ze responder with `cookie-threshold 1`, proving a real third-party initiator accepts Ze's cookie and completes |
 
 Scenario mechanics, confirmed: discovery is directory-based -- `test/interop-ipsec/run.py`
 runs every subdirectory of `scenarios/` that contains a `check.py`, in sorted order, so there
@@ -818,13 +818,13 @@ is no list file to update. Each scenario is three files (`ze.conf`, `swanctl.con
 `test/interop-ipsec/lab.py`. The make target is `make ze-interop-ipsec-test`, with
 `IPSEC_INTEROP_SCENARIO=<name>` to select one (`mk/test-integration.mk`).
 
-**A caution on `12`'s discriminating power** (`ai/rules/interop-and-goal-validation.md`,
+**A caution on `invalid-ke-retry`'s discriminating power** (`ai/rules/interop-and-goal-validation.md`,
 vacuity traps). Assert on the tunnel establishing, and ALSO assert that strongSwan's log
 contains its INVALID_KE_PAYLOAD emission. Without the second assertion, a scenario whose
 strongSwan config happens to accept `modp2048` passes without the retry ever running, and
 reverting `retrySAInit` leaves it green.
 
-**A caution on `18`.** strongSwan issues cookies under its own load policy, so a scenario
+**A caution on `cookie-challenge`.** strongSwan issues cookies under its own load policy, so a scenario
 that waits for strongSwan to become loaded is nondeterministic. Drive it the other way:
 Ze is the RESPONDER with `cookie-threshold 1`, so Ze challenges every initiation
 deterministically and the assertion is on strongSwan completing anyway.
@@ -891,7 +891,7 @@ validates that the id's section segment agrees with the citation.
 | **`sendSAInitNotify`'s exact bytes** | section 3.4 extracts a shared raw sender under it | `TestSendSAInitNotifyBytesUnchanged` (`internal/component/ike/engine/overflow_test.go`) pins them byte-for-byte, and `TestSendSAInitNotifyOversizedRejected` pins the drop |
 | **AC-3 / AC-6 / AC-7 responder concurrency** (one half-open handshake per peer; a fresh IKE_SA_INIT beside an established SA is accepted in parallel; the established SA is untouched by an unauthenticated message) | the cookie gate is inserted into exactly that code path, before the CAS | `TestResponderKeepsOldSAOnUnauthenticatedInit`, `TestResponderSupersedesOnAuthenticatedInit`, `TestResponderAcceptsReinitAfterStaleSA`, `TestRunResponderAcceptsInboundAndBounds` (all `internal/component/ike/engine/responder_test.go`). **With `cookie-threshold` defaulting to 1, `ps.responderBusy.Load()` is one of `cookieRequired`'s inputs, so these tests now traverse the challenge path.** They must either set the threshold to 0 or supply a valid cookie. This is the largest test-compatibility surface in the package |
 | **The eight existing `test/ipsec/*.ci`** | they run two real daemons; if the responder demands a cookie the initiator cannot produce, every one hangs | the initiator half lands in the SAME commit as the responder half, so Ze-to-Ze converges. **Never land the responder half alone** |
-| **All eleven `test/interop-ipsec/scenarios/`** | `07-responder-psk`, `08-responder-eap-mschapv2`, `09-responder-ike-rekey`, `11-responder-accepts-reinit` drive strongSwan as initiator against a Ze responder | strongSwan implements COOKIE, so these should pass with `cookie-threshold 1`. **Verify, do not assume**: run `make ze-interop-ipsec-test` before and after |
+| **All eleven `test/interop-ipsec/scenarios/`** | `responder-psk`, `responder-eap-mschapv2`, `responder-ike-rekey`, `responder-accepts-reinit` drive strongSwan as initiator against a Ze responder | strongSwan implements COOKIE, so these should pass with `cookie-threshold 1`. **Verify, do not assume**: run `make ze-interop-ipsec-test` before and after |
 | **`RFC7296-1.2-1`** (the initial exchange is exactly four messages, first pair unencrypted) | a cookie exchange adds two messages before the four | RFC 7296 shows exactly that (`rfc/full/rfc7296.txt:1809-1821`) and says the extra pair "do not affect any initiator or responder state except for communicating the cookie" (`:1823-1824`). `TestInitialExchangeEncryptionBoundary` (`internal/component/ike/engine/rfc7296_test.go`) asserts the boundary, not the count. **Confirm it stays green**; if it counts messages, its tag needs the §2.6 citation |
 
 ---
@@ -900,17 +900,17 @@ validates that the id's section segment agrees with the citation.
 
 | Id | Risk | Early signal | Mitigation |
 |----|------|--------------|------------|
-| R-WP4-1 | **`sa.InitiatorSAInitMsg` is not re-anchored, so every retried exchange fails AUTH two messages later.** The failure is opaque and looks like a PSK problem | every payload-shape test is green and `12-invalid-ke-retry` fails at IKE_AUTH | `TestKegRetriedSAInitStillAuthenticates` (6.1) plus mutation 17. **The single highest-probability defect in this package** |
+| R-WP4-1 | **`sa.InitiatorSAInitMsg` is not re-anchored, so every retried exchange fails AUTH two messages later.** The failure is opaque and looks like a PSK problem | every payload-shape test is green and `invalid-ke-retry` fails at IKE_AUTH | `TestKegRetriedSAInitStillAuthenticates` (6.1) plus mutation 17. **The single highest-probability defect in this package** |
 | R-WP4-2 | **The responder half is landed without the initiator half, and every Ze-to-Ze test hangs** | `test/ipsec/*.ci` time out | One commit for both halves. Section 8 |
 | R-WP4-3 | **`cookie-threshold` defaulting to 1 breaks four existing responder unit tests and four interop scenarios** | `responder_test.go` reds immediately | Expected and manageable, but budget for it. Each test either sets the threshold to 0 or mints a cookie. **Do not "fix" it by defaulting the threshold to 0**: that ships the feature disabled and leaves D-2 open |
 | R-WP4-4 | **`2.6-5` is "hardened" into a rejection by a later reviewer**, breaking conformance | `TestCkeMismatchedCookieIsIgnoredNotRejected` reddens | Mutation 11 is in the table for exactly this. Section 1.6's three-guard reading goes in `verifyCookie`'s doc comment, not only in this document |
 | R-WP4-5 | **The pre-state scan is a DoS.** A hand-rolled walker over unauthenticated input with a zero-length payload is an infinite loop | none until a flood | The four bounds in 4.3, the strict-advance check, and a fuzz target. `ai/rules/testing.md` makes the fuzz target mandatory |
-| R-WP4-6 | **The interop scenario passes without the retry ever running**, because strongSwan's default proposal happens to include Ze's first group | `12-invalid-ke-retry` green with `retrySAInit` reverted | Assert on strongSwan's INVALID_KE_PAYLOAD log line as well as on establishment. Revert-and-confirm-red before claiming the scenario is evidence (`ai/rules/interop-and-goal-validation.md`) |
+| R-WP4-6 | **The interop scenario passes without the retry ever running**, because strongSwan's default proposal happens to include Ze's first group | `invalid-ke-retry` green with `retrySAInit` reverted | Assert on strongSwan's INVALID_KE_PAYLOAD log line as well as on establishment. Revert-and-confirm-red before claiming the scenario is evidence (`ai/rules/interop-and-goal-validation.md`) |
 | R-WP4-7 | **A data race on the new `SA` fields.** `sa.Cookie` and `sa.SAInitRetries` are written on the dispatch goroutine and `runInitiator`'s goroutine reads `sa.RetransmitCount` beside them | `go test -race` on the engine package | The pattern is pre-existing (`handleSAInitResponse` already writes `sa.RetransmitTime` at `internal/component/ike/engine/fsm.go`), so WP-4 does not introduce it. **Run the engine package under `-race` with `-count=20`** and, if it fires, fix it rather than record it (`ai/rules/completion.md`). `make ze-unit-reactor-test-race` is BGP-only and will not cover this |
 | R-WP4-8 | **Engine line numbers move under a concurrent agent.** `msgid.go` and `responder.go` carry a 12:2x mtime today | a tag cites a line holding different code | Every citation here names its function. Re-read before quoting a line into a tag |
 | R-WP4-9 | **An implementer routes the CREATE_CHILD_SA INVALID_KE_PAYLOAD through `retrySAInit`**, inventing a retry the RFC does not require | `TestNegRekeyRejectsMismatchedKEGroup` behaviour changes | Scope `retrySAInit` to `ExchangeIKESAInit`. Section 8, row 1 |
 | R-WP4-10 | **`maxSAInitRetries` is made per-cause**, permitting an unbounded COOKIE/INVALID_KE oscillation between two Ze instances | none; the loop is slow and looks like flapping | One shared counter. Mutation 16, and the sentence beside the constant (4.2) |
-| R-WP4-11 | **The nonce is regenerated on the cookie retry**, so the responder sees a different Ni and the cookie it minted over the old Ni never verifies. Two conforming implementations then loop until the bound | `18-cookie-challenge` needs three round trips instead of two | Mutation 8, run explicitly. `2.6-4`'s positive asserts byte-identity, not equivalence |
+| R-WP4-11 | **The nonce is regenerated on the cookie retry**, so the responder sees a different Ni and the cookie it minted over the old Ni never verifies. Two conforming implementations then loop until the bound | `cookie-challenge` needs three round trips instead of two | Mutation 8, run explicitly. `2.6-4`'s positive asserts byte-identity, not equivalence |
 | R-WP4-12 | **`cookie-threshold` is added as an env var rather than a YANG leaf** | it never appears in `show configuration` or a config backup | `ai/rules/config.md`: an operator tunes this during capacity planning, so the default answer is YANG. Section 3.3 |
 
 ---
@@ -1037,7 +1037,7 @@ gates the public disclosure, and `check_gap_count_agreement` gates the Remaining
 | Unit, engine package | `make ze-unit-bgp-test` does not cover it; use `go test -race -count=20 ./internal/component/ike/...` | R-WP4-7. The `-count=20` is the reactor-style stress, applied to the package that actually changed |
 | Functional | `make ze-functional-test` | the eight `test/ipsec/*.ci`, plus the new one |
 | Interop, before AND after | `make ze-interop-ipsec-test` | the eleven existing scenarios, four of which are responder-side. Section 8 |
-| One scenario while iterating | `make ze-interop-ipsec-test IPSEC_INTEROP_SCENARIO=12-invalid-ke-retry` | `mk/test-integration.mk` |
+| One scenario while iterating | `make ze-interop-ipsec-test IPSEC_INTEROP_SCENARIO=invalid-ke-retry` | `mk/test-integration.mk` |
 | Ledger | `make ze-rfc-index-update` then `make ze-rfc-check` | section 11 |
 | Full gate | `make ze-precommit-verify` | `ai/rules/git-safety.md` |
 

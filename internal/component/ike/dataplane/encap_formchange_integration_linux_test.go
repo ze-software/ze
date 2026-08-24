@@ -199,7 +199,7 @@ func TestEncapEstablishedSAServesAPeerFormChange(t *testing.T) {
 	// traffic.
 	//
 	// So the proof for that half lives where a peer sends over a real interface, in
-	// test/interop-ipsec/scenarios/23-esp-form-change. This probe owns the kernel
+	// test/interop-ipsec/scenarios/esp-form-change. This probe owns the kernel
 	// mechanism and the SA's identity across the change (ai/rules/evidence.md).
 	anyV4 := &net.IPNet{IP: net.IPv4zero.To4(), Mask: net.CIDRMask(0, 32)}
 	if err := dp.InstallPolicy(SPParams{

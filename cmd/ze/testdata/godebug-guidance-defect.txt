@@ -32,7 +32,7 @@ defect's own text. Two earlier versions of the predicate went GREEN here.
 //
 // An operator who must talk to such a peer sets `GODEBUG=tlsunsafeekm=1` in the
 // environment, which is a decision they take knowingly and can audit. The IPsec
-// interop lab sets it for scenario 04 for exactly that reason.
+// interop lab sets it for scenario eap-tls for exactly that reason.
 //
 // TLS 1.3 needs none of this: the export is always available and RFC 9190
 // supersedes RFC 5216. Ze implements and prefers that path

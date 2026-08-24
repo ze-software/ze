@@ -18,7 +18,7 @@ watches the part it does implement.**
 
 `exportEAPTLSMSK` (`internal/component/ike/eap/eap_tls.go`) already selects the
 RFC 9190 label, the Type-Code context and the 128-octet export length when the
-negotiated version is TLS 1.3. Interop scenario `06-eap-tls13` exercises exactly
+negotiated version is TLS 1.3. Interop scenario `eap-tls13` exercises exactly
 that path against strongSwan and passes. But `rfc/enrolled.txt` has no row,
 `docs/features/rfc-status.md` has no row, and nothing gates it.
 
@@ -76,9 +76,9 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 - [ ] `rfc/not-enrolled.txt` - carries the `backlog` row and its evidence.
 
 **Behavior to preserve:**
-- A TLS 1.2 peer keeps deriving the RFC 5216 MSK. Scenario `04-eap-tls` proves it
+- A TLS 1.2 peer keeps deriving the RFC 5216 MSK. Scenario `eap-tls` proves it
   against a stock strongSwan and must stay green.
-- Scenario `06-eap-tls13` must stay green throughout.
+- Scenario `eap-tls13` must stay green throughout.
 
 **Behavior to change:**
 - Add the protected success indication, resumption, OCSP stapling, and privacy
@@ -100,9 +100,9 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| EAP ↔ TLS engine | `eapTLSTransport`, a `net.Conn` over EAP payloads | Yes, scenarios 04 and 06 |
+| EAP ↔ TLS engine | `eapTLSTransport`, a `net.Conn` over EAP payloads | Yes, scenarios eap-tls and eap-tls13 |
 | EAP ↔ IKEv2 AUTH | the 64-octet MSK | Yes, both scenarios |
-| Ze ↔ strongSwan | EAP-TLS on the wire | Yes, scenario 06 on TLS 1.3 |
+| Ze ↔ strongSwan | EAP-TLS on the wire | Yes, scenario eap-tls13 on TLS 1.3 |
 
 ### Integration Points
 - `exportEAPTLSMSK` already branches on version and is the seam Section 2.3 owns.
@@ -122,14 +122,14 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | strongSwan 5.9.14 implements the Section 2.5 protected success indication, so it can validate ours | its `eap_tls.c` `get_msk` checks for it | the interop proof needs a different peer, or a raw-socket harness | read `eap_tls.c`, then run scenario 06 with 2.5 on | confirmed 2026-08-12. `get_msk` returns FAILED and logs `missing protected success indication for EAP-TLS with TLS 1.3` when `get_version_max() >= TLS_1_3 && !indication_sent_received`; `client_process` requires exactly one octet equal to 0. MEASURED both ways in scenario 25 |
-| A-2 | Adding 2.5 does not break the TLS 1.2 path | 2.5 is TLS 1.3 only | scenario 04 reddens | scenario 04 stays green at every step | confirmed 2026-08-12. Scenarios 04 and 06 both green after the change, and `TestEAPTLS12SendsNoProtectedSuccessIndication` pins it in unit form |
+| A-1 | strongSwan 5.9.14 implements the Section 2.5 protected success indication, so it can validate ours | its `eap_tls.c` `get_msk` checks for it | the interop proof needs a different peer, or a raw-socket harness | read `eap_tls.c`, then run scenario eap-tls13 with 2.5 on | confirmed 2026-08-12. `get_msk` returns FAILED and logs `missing protected success indication for EAP-TLS with TLS 1.3` when `get_version_max() >= TLS_1_3 && !indication_sent_received`; `client_process` requires exactly one octet equal to 0. MEASURED both ways in scenario responder-eap-tls13 |
+| A-2 | Adding 2.5 does not break the TLS 1.2 path | 2.5 is TLS 1.3 only | scenario eap-tls reddens | scenario eap-tls stays green at every step | confirmed 2026-08-12. Scenarios eap-tls and eap-tls13 both green after the change, and `TestEAPTLS12SendsNoProtectedSuccessIndication` pins it in unit form |
 | A-3 | Resumption, OCSP and privacy NAIs are each independently landable | they touch different sections | the spec cannot be phased and must land at once | map each to its files during design | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Section 2.5 is wire-visible, so a wrong implementation breaks a currently-green interop scenario | scenario 06 reddens | land 2.5 first and alone, with 04 and 06 run at every step |
+| R-1 | Section 2.5 is wire-visible, so a wrong implementation breaks a currently-green interop scenario | scenario eap-tls13 reddens | land 2.5 first and alone, with eap-tls and eap-tls13 run at every step |
 | R-2 | Enrolment stays blocked because one MUST is untestable as written (5.10-1) | the extraction sign-off cannot classify it | that single row goes to Thomas with the RFC text, per `ai/rules/rfc-compliance.md` |
 | R-3 | OCSP stapling pulls in a revocation-checking surface Ze has nowhere else | the change reaches outside `ike/eap` | scope it to EAP-TLS, and say so if it cannot be |
 
@@ -137,7 +137,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | EAP-TLS authentication, on both roles. Scenarios 04 and 06 are the canaries. |
+| What breaks if this is wrong? | EAP-TLS authentication, on both roles. Scenarios eap-tls and eap-tls13 are the canaries. |
 | How is it reverted? | Per phase. Section 2.5 is separable from resumption and from OCSP. |
 | Who else touches this path? | the rfcgate-1b RFC 7296 pilot spec landed the transport and MSK fixes this builds on. |
 
@@ -160,13 +160,13 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | AC-5 | A stapled OCSP response is present, and absent | ze honours Section 5.4 in both cases |
 | AC-6 | An anonymous NAI | ze accepts it per Section 2.1.8 |
 | AC-7 | `make ze-rfc-check` | RFC 9190 is enrolled, and no gated MUST carries `{gap}` or `{not-applicable}` for a feature this spec built |
-| AC-8 | Scenarios 04 and 06 | both green at every phase boundary |
+| AC-8 | Scenarios eap-tls and eap-tls13 | both green at every phase boundary |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Authenticates a road-warrior with EAP-TLS over TLS 1.3 | IKE_AUTH → EAP-TLS → RFC 9190 MSK → IKEv2 AUTH | scenario `06-eap-tls13` |
+| 1 | Authenticates a road-warrior with EAP-TLS over TLS 1.3 | IKE_AUTH → EAP-TLS → RFC 9190 MSK → IKEv2 AUTH | scenario `eap-tls13` |
 | 2 | Reconnects and resumes rather than re-running the full handshake | ticket → resumed TLS → MSK | a new interop scenario |
 
 ## 🧪 TDD Test Plan
@@ -194,8 +194,8 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `06-eap-tls13` | `test/interop-ipsec/scenarios/` | strongSwan | Ze as EAP-TLS CLIENT on TLS 1.3 | exists, green after phase 1 |
-| `25-responder-eap-tls13` | same | strongSwan | Ze as EAP-TLS SERVER sends the indication and a real client accepts it. Reverting the write makes charon log `missing protected success indication` and the SA never establishes | done, phase 1 |
+| `eap-tls13` | `test/interop-ipsec/scenarios/` | strongSwan | Ze as EAP-TLS CLIENT on TLS 1.3 | exists, green after phase 1 |
+| `responder-eap-tls13` | same | strongSwan | Ze as EAP-TLS SERVER sends the indication and a real client accepts it. Reverting the write makes charon log `missing protected success indication` and the SA never establishes | done, phase 1 |
 | a resumption scenario | same | strongSwan | AC-4 against a real peer | |
 
 ## Files to Modify
@@ -207,8 +207,8 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 ## Files to Create
 - `rfc/extraction/rfc9190.json` - the hand-classified sign-off enrolment requires.
 - `internal/component/ike/eap/rfc9190_test.go` - created, phase 1.
-- `test/interop-ipsec/scenarios/25-responder-eap-tls13/` - created, phase 1. The
-  first scenario in the lab with Ze in the EAP-TLS SERVER role. 04 and 06 both
+- `test/interop-ipsec/scenarios/responder-eap-tls13/` - created, phase 1. The
+  first scenario in the lab with Ze in the EAP-TLS SERVER role. eap-tls and eap-tls13 both
   put strongSwan there, which is why a wire-visible violation on Ze's
   authenticator survived until 2026-08-12.
 - `test/ipsec/ipsec-eap-tls13-resumption.ci`
@@ -232,8 +232,8 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 
 ## Implementation Steps
 
-1. Land Section 2.5 ALONE, both roles, with scenarios 04 and 06 run before and after.
-   DONE 2026-08-12 for the SERVER role, plus scenario 25 which reads that role
+1. Land Section 2.5 ALONE, both roles, with scenarios eap-tls and eap-tls13 run before and after.
+   DONE 2026-08-12 for the SERVER role, plus scenario responder-eap-tls13 which reads that role
    against strongSwan for the first time. The PEER role is not done and is not a
    published obligation: see the AC-2 row in the TDD Test Plan.
 2. Validate A-1 by reading strongSwan's `eap_tls.c` before assuming it can check ours.
@@ -254,9 +254,9 @@ carried no such table, which `/ze-implement` needs before it may run.
 |-------|----------------|
 | The indication is sent only after the client Finished is processed | The write happens on a round where `tlsMethod.handshaked` is already set. RFC9190-2.5-2 is a MUST NOT, so a write on any earlier round is a violation, not an optimisation |
 | The indication is sent exactly once | A second EAP-Request carrying application data 0x00 breaks step 3 of the procedure ("send no more EAP-Requests"). A one-shot flag, checked before the write |
-| TLS 1.2 sends nothing | The write is gated on the NEGOTIATED version read from the completed connection, never on `MinVersion` or on config. Scenario 04 is the proof |
+| TLS 1.2 sends nothing | The write is gated on the NEGOTIATED version read from the completed connection, never on `MinVersion` or on config. Scenario eap-tls is the proof |
 | The record is encrypted application data, not a handshake message | It goes through `tls.Conn.Write`, so the record layer applies the traffic keys. A raw transport write would emit plaintext |
-| Ze in the SERVER role is exercised by an interop test | Scenarios 04 and 06 both put strongSwan in the server role, which is why this defect survived. A scenario with Ze as the EAP-TLS server is the only thing that reads this code against another implementation |
+| Ze in the SERVER role is exercised by an interop test | Scenarios eap-tls and eap-tls13 both put strongSwan in the server role, which is why this defect survived. A scenario with Ze as the EAP-TLS server is the only thing that reads this code against another implementation |
 | The interop scenario discriminates | Revert the indication, run the scenario, and record what strongSwan did. A scenario that passes either way proves nothing (`ai/rules/interop-and-goal-validation.md`) |
 | Session tickets are not issued unredeemably | `newTLSMethod` builds a fresh `tls.Config` per EAP session and Go mints ticket keys per Config instance, so a ticket issued in one session cannot be read in any other. Six §5.6/§5.7 MUSTs are conditional on resumption and are dead while that holds |
 
@@ -265,7 +265,7 @@ carried no such table, which `/ze-implement` needs before it may run.
 - `make ze-precommit-verify` passes.
 - `make ze-rfc-check` shows RFC 9190 enrolled, with no annotation covering a
   feature this spec built.
-- Scenarios 04 and 06 green, plus the new resumption scenario.
+- Scenarios eap-tls and eap-tls13 green, plus the new resumption scenario.
 
 ## Quality Gates
 
@@ -289,6 +289,6 @@ before claiming.
 - [ ] Tests FAIL before implementation
 - [ ] Tests PASS after implementation
 - [ ] A-1 validated against strongSwan's source before Section 2.5 lands
-- [ ] Scenarios 04 and 06 green at every phase boundary
+- [ ] Scenarios eap-tls and eap-tls13 green at every phase boundary
 - [ ] `rfc/extraction/rfc9190.json` hand-classified
 - [ ] `make ze-rfc-check` green with RFC 9190 enrolled

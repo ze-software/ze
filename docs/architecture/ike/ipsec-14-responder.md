@@ -124,8 +124,8 @@ clears the superseded keys.
 
 ## Proof
 
-`test/interop-ipsec/scenarios` carries `07-responder-psk` and
-`09-responder-ike-rekey` against strongSwan 5.9.14. The deterministic,
+`test/interop-ipsec/scenarios` carries `responder-psk` and
+`responder-ike-rekey` against strongSwan 5.9.14. The deterministic,
 host-independent proof is the in-process end-to-end handshake: both peers' last
 sent message is driven into the other through `handleInbound`, for a full PSK
 handshake, a full EAP-MSCHAPv2 handshake and an IKE rekey. Interop against a

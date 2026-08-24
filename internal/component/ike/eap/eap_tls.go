@@ -249,7 +249,7 @@ func exportEAPTLSMSK(cs tls.ConnectionState) ([64]byte, error) {
 // authenticate. strongSwan 5.9.14 lands here by DEFAULT rather than by
 // limitation: charon ships `version_max = 1.2` and negotiates no RFC 7627, but
 // `charon.tls.version_max = 1.3` on the same build reaches an established SA
-// (test/interop-ipsec/scenarios/06-eap-tls13). The first remedy in the message
+// (test/interop-ipsec/scenarios/eap-tls13). The first remedy in the message
 // below is therefore a peer config edit, not a peer upgrade.
 //
 // The message carries the remedies because there is no longer a way to override

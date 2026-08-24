@@ -315,7 +315,7 @@ the design phase closes.
 | 2 | Corrects the peer policy and retries the Child SA | wire → `handleCreateChildSAOwned` → `createFirstChildSA` → dataplane | `test/ipsec/ipsec-auth-piggyback-attach.ci` |
 | 3 | Reads the state between the two steps | engine state → `show vpn ipsec sa` | `test/ipsec/ipsec-show-sa-no-child.ci` |
 | 4 | Leaves the peer unattended past the bound | timer → Delete payload → SA removed | `test/ipsec/ipsec-auth-piggyback-expiry.ci` |
-| 5 | Runs Ze as initiator against a strict peer that refuses the Child SA | wire → `handleAuthResponse` → established SA with no Child SA | `test/interop-ipsec/scenarios/22-auth-piggyback` |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `skeleton` and the work is not implemented) -->
+| 5 | Runs Ze as initiator against a strict peer that refuses the Child SA | wire → `handleAuthResponse` → established SA with no Child SA | `test/interop-ipsec/scenarios/auth-piggyback` |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `skeleton` and the work is not implemented) -->
 
 ## 🧪 TDD Test Plan
 
@@ -363,13 +363,13 @@ this one the same way.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `22-auth-piggyback` | `test/interop-ipsec/scenarios/` | strongSwan | A strongSwan peer whose Child SA Ze refuses keeps its IKE SA | |
-| `23-auth-piggyback-attach` | `test/interop-ipsec/scenarios/` | strongSwan | The same peer attaches a Child SA with a later CREATE_CHILD_SA exchange | |
+| `auth-piggyback` | `test/interop-ipsec/scenarios/` | strongSwan | A strongSwan peer whose Child SA Ze refuses keeps its IKE SA | |
+| `auth-piggyback-attach` | `test/interop-ipsec/scenarios/` | strongSwan | The same peer attaches a Child SA with a later CREATE_CHILD_SA exchange | |
 
 **These scenarios cannot carry an RFC tag.** `plan/spec-rfcgate-2-deferred-unrun-interop-trees.md`
 owns that constraint, because no automated caller runs the tree. Write the reason into
-each scenario header, so a later reader does not add a tag. The existing scenario numbers
-reach 18, so 22 and 23 are free. Confirm the numbering at landing time.
+each scenario header, so a later reader does not add a tag. Scenario directories are
+named, never numbered, so no number has to be reserved.
 
 ## Files to Modify
 - `internal/component/ike/engine/responder.go` - the refusal branch of
@@ -394,8 +394,8 @@ reach 18, so 22 and 23 are free. Confirm the numbering at landing time.
 - `test/ipsec/ipsec-auth-piggyback-attach.ci`
 - `test/ipsec/ipsec-auth-piggyback-expiry.ci`
 - `test/ipsec/ipsec-show-sa-no-child.ci`
-- `test/interop-ipsec/scenarios/22-auth-piggyback/`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `skeleton` and the work is not implemented) -->
-- `test/interop-ipsec/scenarios/23-auth-piggyback-attach/`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `skeleton` and the work is not implemented) -->
+- `test/interop-ipsec/scenarios/auth-piggyback/`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `skeleton` and the work is not implemented) -->
+- `test/interop-ipsec/scenarios/auth-piggyback-attach/`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `skeleton` and the work is not implemented) -->
 
 ### Proposed Config Surface
 
@@ -490,7 +490,7 @@ intolerant owner loop dies anyway, and the capability then looks present and doe
    - Verify: an unattended SA is deleted, an attempt resets the timer, and the operator
      reads the state. R-1 is closed here
 7. **Phase: Interoperability and documentation**
-   - Tests: scenarios `22-auth-piggyback` and `23-auth-piggyback-attach`,
+   - Tests: scenarios `auth-piggyback` and `auth-piggyback-attach`,
      `make ze-doc-verify`, `make ze-rfc-check`
    - Files: the two scenario directories, the documentation checklist rows
    - Verify: both strongSwan scenarios pass, and no RFC row lost a polarity
@@ -528,7 +528,7 @@ intolerant owner loop dies anyway, and the capability then looks present and doe
 | `RFC7296-2.21.2-2` keeps both polarities | `make ze-rfc-check` passes, and `ai/RFC-REQUIREMENTS.md` still shows both columns filled |
 | The ledger is fresh | `make ze-rfc-index-update` produces no diff |
 | No interop tag was added | `grep -rn 'RFC requirement:' test/interop-ipsec/` returns nothing |
-| Interoperability is proven | Scenarios `22-auth-piggyback` and `23-auth-piggyback-attach` pass |
+| Interoperability is proven | Scenarios `auth-piggyback` and `auth-piggyback-attach` pass |
 | The operator can read the state | `test/ipsec/ipsec-show-sa-no-child.ci` passes |
 
 ### Security Review Checklist

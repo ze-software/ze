@@ -83,7 +83,7 @@ func eaprtxPeerAddr(t *testing.T, peerTr *transport.UDPTransport) *net.UDPAddr {
 // PREVENTS: the responder killing a live IKE SA because it re-processed a duplicate. The
 // retransmit carries IDi and SAi2 and no EAP payload, so re-processing reaches the
 // eapPayload == nil arm of handleResponderEAP (responder_eap.go) and sets StateDead. That
-// is what strongSwan met in interop scenario 08: the peer retransmits IKE_AUTH #1 and ze
+// is what strongSwan met in interop scenario responder-eap-mschapv2: the peer retransmits IKE_AUTH #1 and ze
 // answers by tearing the SA down.
 //
 // RFC requirement: RFC7296-2.1-4 positive -- the duplicate is ignored "except insofar as it

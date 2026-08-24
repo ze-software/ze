@@ -17,7 +17,7 @@ Before writing a probe that asserts on a dataplane counter, read
 `ai/rules/platform-linux.md`, section "4. Dataplane counters need a real remote
 peer". A VM addressing its own address moves no xfrm counter, so such a probe
 reads zero whether the dataplane works or not.
-`test/interop-ipsec/scenarios/01-psk-site-to-site/check.py` is the in-tree
+`test/interop-ipsec/scenarios/psk-site-to-site/check.py` is the in-tree
 pattern, over `assert_esp_accepted` in `test/interop-ipsec/lab.py`.
 """
 
@@ -122,7 +122,7 @@ def scratch_share(root: Path) -> tuple[Path, str] | None:
     security_model=none gives the guest a symlink as a symlink. So once
     scripts/dev/ensure-links.py has pointed tmp/ at an out-of-tree scratch
     directory, /workspace/tmp dangles in the guest: nothing under it resolves,
-    the DUT binary at tmp/session/<YYYY-MM-DD>-<id>/bin/ze (mk/session.mk
+    the DUT binary at tmp/session/<YYYY-MM-DD>-<id>/bin/ze (mk/helper-session.mk
     ZE_BIN_DIR) included, and the run fails before it can exec anything.
 
     Returns (host path to export, guest mount point). The two differ on
@@ -575,7 +575,7 @@ def run_in_vm(
             )
             # Print the paths the caller actually cross-compiled. Under an AI
             # session those sit in the session's own directory ($(ZE_BIN_DIR),
-            # mk/session.mk), so a literal bin/ze-linux-<arch> here would be a
+            # mk/helper-session.mk), so a literal bin/ze-linux-<arch> here would be a
             # copy-paste hint pointing at a file that does not exist.
             hint_ze = os.environ.get("ZE_QEMU_BIN", "bin/ze-linux-arm64")
             hint_test = os.environ.get("ZE_QEMU_TEST_BIN", "bin/ze-test-linux-arm64")

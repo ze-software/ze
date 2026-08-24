@@ -201,7 +201,7 @@ func TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret(t *testing.T) {
 // authenticator role read MethodResult.Err as a boolean and threw it away, so
 // handleResponderEAP (internal/component/ike/engine/responder_eap.go) logged
 // "EAP authentication failed" with the peer name and nothing else. Interop
-// scenarios 08 and 25 drive that role.
+// scenarios responder-eap-mschapv2 and responder-eap-tls13 drive that role.
 //
 // VALIDATES: AC-2 holds in BOTH roles, not only when ze initiates. The message
 // eapTLS12ExportRefused builds is worth nothing if the role that builds it

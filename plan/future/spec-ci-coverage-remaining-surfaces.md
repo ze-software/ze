@@ -141,7 +141,7 @@ undesigned, which is the state it was already in. Only its home changed.
 | `plan/deferrals/fixit-ddos-test-infra.md` | 2026-07-16 (AC-10) | proving packets are FORWARDED needs a receiver on the far veth end |
 | `plan/deferrals/fixit-pppoe-orphaned-tests.md` | 2026-07-19 | the `docs/features.md` PPPoE row stays Partial |
 | `plan/deferrals/fixit-doc-gate-and-refs.md` | 2026-07-19 | the optional local `check-doc-drift.sh` hook |
-| `plan/deferrals/fixit-ipsec-clear-reestablish.md` | 2026-07-19 | strongSwan interop scenarios 10 and 11 need Docker plus charon |
+| `plan/deferrals/fixit-ipsec-clear-reestablish.md` | 2026-07-19 | strongSwan interop scenarios clear-reestablish and responder-accepts-reinit need Docker plus charon |
 
 Eight of the twelve are one batch written on 2026-07-19. Each one says the same
 thing: a live-server or QEMU run was deferred to CI. Read them as ONE question

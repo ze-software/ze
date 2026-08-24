@@ -42,7 +42,7 @@ inert config.
 
 **What already works and is reused, not rebuilt.** EAP-MSCHAPv2 and EAP-TLS authentication
 against a *responder* are implemented and interop-proven today
-(`test/interop-ipsec/scenarios/08-responder-eap-mschapv2`, `04-eap-tls`), expressed as a
+(`test/interop-ipsec/scenarios/responder-eap-mschapv2`, `eap-tls`), expressed as a
 site-to-site peer with `connection-type respond` and a fixed `remote-address`. The Configuration
 payload codec (`wire/payload_cp.go`) and the virtual IP pool (`eap/pool.go`, with
 `Allocate`/`Release`/`Available`) ~~are both complete and~~ both have zero callers.
@@ -470,13 +470,13 @@ gates exists. This spec owns both.
 - [ ] `internal/component/ike/eap/pool.go` - `NewPool` (:35), `Allocate` (:89), `Release` (:126)
 - [ ] `internal/component/ike/wire/payload_cp.go` - complete CP codec, zero callers
 - [ ] `internal/component/ike/ipsec/types.go` - `RemoteAccessConfig` (:420), `EAPUser` (:399)
-- [ ] `test/interop-ipsec/scenarios/08-responder-eap-mschapv2/` - the shape that works today
+- [ ] `test/interop-ipsec/scenarios/responder-eap-mschapv2/` - the shape that works today
 
 **Behavior to preserve:**
 - Site-to-site peers keep exact-match admission and priority. A configured peer address must
   never be diverted into the remote-access path.
 - `responderBusy` semantics per session (RFC 7296 Section 2.4 accept-in-parallel) unchanged.
-- Existing interop scenarios 01-11 unchanged and green.
+- Every existing interop scenario unchanged and green.
 - A config with no `remote-access` block behaves exactly as today.
 
 **Behavior to change:**
@@ -538,11 +538,11 @@ Inbound UDP IKE_SA_INIT from an arbitrary source address, on the IKE (500) or NA
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | A `SiteToSitePeer` synthesized from `RemoteAccessConfig` drives the existing responder FSM unchanged | scenario 08 proves the same FSM works for EAP with a peer struct | a parallel responder path would be needed, much larger | interop scenario 12 | unvalidated |
+| A-1 | A `SiteToSitePeer` synthesized from `RemoteAccessConfig` drives the existing responder FSM unchanged | scenario `responder-eap-mschapv2` proves the same FSM works for EAP with a peer struct | a parallel responder path would be needed, much larger | interop scenario `remote-access-eap-mschapv2` | unvalidated |
 | A-2 | `wire.PayloadCP` round-trips the attributes strongSwan sends | codec reads/writes per RFC 7296 3.15 but has never run against a real peer | CP codec fixes needed first | unit round-trip + interop | **broken** (2026-07-31). `ReadFrom` reads a 16-bit attribute type at `wire/payload_cp.go`, but RFC 7296 Section 3.15.1 defines 1 reserved bit plus a 15-bit type. A peer that sets the reserved bit on `INTERNAL_IP4_ADDRESS` yields type `0x8001`, and Ze reads it as an unknown attribute. The "if wrong" column called this correctly: codec fixes come first |
 | A-3 | `eap.Pool.Allocate` is safe under concurrent road-warrior handshakes | `pool.go` takes a lock in `allocateV4`/`allocateV6` | duplicate address assignment | `-race` test with concurrent Allocate | unvalidated |
 | A-4 | A per-client `PeerSession` can be reaped without disturbing configured peers | `activePeersMap` is name-keyed and reconcile iterates config peers | reconcile would delete or resurrect dynamic sessions | reconcile test with both kinds present | unvalidated |
-| A-5 | strongSwan can be driven as a road-warrior client in the existing lab | the lab already runs strongSwan as initiator (scenarios 01-06) | interop proof needs another client | scenario 12 | unvalidated |
+| A-5 | strongSwan can be driven as a road-warrior client in the existing lab | the lab already runs strongSwan as initiator (every non-responder scenario) | interop proof needs another client | scenario `remote-access-eap-mschapv2` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -550,7 +550,7 @@ Inbound UDP IKE_SA_INIT from an arbitrary source address, on the IKE (500) or NA
 | R-1 | Admitting unconfigured sources is a DoS surface: each attempt costs a goroutine, an SA and a pool address | memory/goroutine growth under a flood | cap concurrent half-open remote-access sessions; release the address only on success, never on half-open; reuse the existing `responderBusy` per-client gate |
 | R-2 | A dynamic session leaks when its SA dies in an unusual state | goroutine count grows across connect/disconnect cycles | explicit reap path plus a test that cycles N clients and asserts the session map returns to its base size |
 | R-3 | Pool exhaustion silently assigns nothing and the client establishes with no address | client connects but cannot route | refuse the exchange with a clear log and a NOTIFY; never send an empty CFG_REPLY |
-| R-4 | Per-user lookup changes `eap.Session` shape and breaks the site-to-site EAP path | scenario 08 goes red | keep `MethodConfig.Password` working as-is; the resolver is additive and only consulted when set |
+| R-4 | Per-user lookup changes `eap.Session` shape and breaks the site-to-site EAP path | scenario `responder-eap-mschapv2` goes red | keep `MethodConfig.Password` working as-is; the resolver is additive and only consulted when set |
 | R-5 | The reaper races the dispatch goroutine, which may be mid-handshake for that client | `-race` failures in the ike suite | reuse the existing atomic/ownedSA discipline; run `-race` on the engine package |
 | R-6 | **The `2.19-5` guard fails open on the CFG type.** The idiomatic `if cpReq != nil` hands a leased address to a peer that sent `CP(CFG_SET)` | none. The happy path passes, and an ordinary client never exercises the CFG_SET case | The four conditions in ONE function returning an explicit `ok`. Run the CFG-type mutation and the attribute-presence mutation SEPARATELY |
 | R-7 | **Leases are never released, and the pool exhausts under normal churn.** `Release` has no non-test caller and no lease concept exists | `Available()` decreases monotonically. The first report is a user who cannot connect | Phase B. A lease table plus expiry, and a doctor check that surfaces utilization before exhaustion is total |
@@ -569,7 +569,7 @@ Inbound UDP IKE_SA_INIT from an arbitrary source address, on the IKE (500) or NA
 | EAP identity of a configured `eap-user` | -> | per-user credential resolver | `TestRemoteAccessResolvesEAPUserPassword` |
 | CP(CFG_REQUEST) in IKE_AUTH | -> | pool allocate + CFG_REPLY | `TestRemoteAccessAssignsVirtualIP` |
 | SA teardown | -> | pool release + session reap | `TestRemoteAccessReleasesAddressOnTeardown` |
-| strongSwan road-warrior client | -> | the whole path | `test/interop-ipsec/scenarios/12-remote-access-eap-mschapv2` |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
+| strongSwan road-warrior client | -> | the whole path | `test/interop-ipsec/scenarios/remote-access-eap-mschapv2` |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
 
 ## Acceptance Criteria
 
@@ -615,8 +615,8 @@ redden the half named.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | road warrior dials in with EAP-MSCHAPv2 and gets a virtual IP | UDP -> admission -> responder SA -> EAP -> user lookup -> pool -> CFG_REPLY -> child SA | interop scenario 12 |
-| 2 | road warrior dials in with EAP-TLS | same, with client-chain validation against `ra.Auth.ca-certificate` | interop scenario 13 |
+| 1 | road warrior dials in with EAP-MSCHAPv2 and gets a virtual IP | UDP -> admission -> responder SA -> EAP -> user lookup -> pool -> CFG_REPLY -> child SA | interop scenario `remote-access-eap-mschapv2` |
+| 2 | road warrior dials in with EAP-TLS | same, with client-chain validation against `ra.Auth.ca-certificate` | interop scenario `remote-access-eap-tls` |
 | 3 | operator commits a remote-access block with a bad certificate reference | commit -> tx bridge -> `OnConfigVerify` -> rejection | `test/reload/test-tx-ipsec-remote-access-pki.ci` |
 | 4 | operator inspects who is connected | `show vpn ipsec ...` reflects dynamic sessions | `TestRemoteAccessSessionsVisible` |
 
@@ -656,8 +656,8 @@ redden the half named.
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `12-remote-access-eap-mschapv2` | `test/interop-ipsec/scenarios/` | strongSwan (road-warrior client) | AC-14: unconfigured source establishes, gets a virtual IP, passes traffic | |
-| `13-remote-access-eap-tls` | `test/interop-ipsec/scenarios/` | strongSwan | EAP-TLS road warrior, client chain validated | |
+| `remote-access-eap-mschapv2` | `test/interop-ipsec/scenarios/` | strongSwan (road-warrior client) | AC-14: unconfigured source establishes, gets a virtual IP, passes traffic | |
+| `remote-access-eap-tls` | `test/interop-ipsec/scenarios/` | strongSwan | EAP-TLS road warrior, client chain validated | |
 
 ## Files to Modify
 - `internal/component/ike/engine/register.go` - admission fallback; stop discarding the pool
@@ -703,8 +703,8 @@ redden the half named.
 - `internal/component/ike/engine/remote_access.go` + `_test.go`
 - `internal/component/ike/eap/eap_user.go` + `_test.go` (or additive in `eap.go`)
 - `test/reload/test-tx-ipsec-remote-access-pki.ci`
-- `test/interop-ipsec/scenarios/12-remote-access-eap-mschapv2/{ze.conf,swanctl.conf,check.py}`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
-- `test/interop-ipsec/scenarios/13-remote-access-eap-tls/{ze.conf,swanctl.conf,check.py}`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
+- `test/interop-ipsec/scenarios/remote-access-eap-mschapv2/{ze.conf,swanctl.conf,check.py}`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
+- `test/interop-ipsec/scenarios/remote-access-eap-tls/{ze.conf,swanctl.conf,check.py}`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
 
 ## Implementation Steps
 
@@ -718,7 +718,7 @@ redden the half named.
 2. **Phase: Per-user credentials** - AC-4..AC-6
    - Tests: the three `eap/eap_user_test.go` tests
    - Files: `eap/eap.go`, `eap/eap_mschapv2.go`, `engine/responder_eap.go`
-   - Verify: unknown identity fails closed; scenario 08 still green
+   - Verify: unknown identity fails closed; scenario `responder-eap-mschapv2` still green
 3. **Phase: Configuration payload + pool** - AC-7..AC-9
    - Tests: `TestConfigPayloadRoundTrip`, `TestRemoteAccessAssignsVirtualIP`,
      `TestRemoteAccessNarrowsTrafficSelector`, `TestRemoteAccessPoolExhaustionRefuses`
@@ -730,7 +730,7 @@ redden the half named.
 5. **Phase: Config validation** - AC-12, AC-13 (inherited deferral)
    - Files: `ipsec/validate.go`, `engine/config.go`, `test/reload/*.ci`
 6. **Phase: Interop** - AC-14
-   - `test/interop-ipsec/scenarios/12-*`, `13-*`; `make ze-interop-ipsec-test`
+   - `test/interop-ipsec/scenarios/remote-access-eap-mschapv2`, `remote-access-eap-tls`; `make ze-interop-ipsec-test`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
 7. **Observability + docs** - counters, `show` views, documentation checklist
 8. **Full verification, review gate, closure**
 
@@ -784,7 +784,7 @@ exhaustion-by-churn failure. Neither depends on the CP consumer.
 | Completeness | Every AC-N has implementation with file:line |
 | Fail-closed | Unknown identity, exhausted pool, and unparseable CP each DENY with a named reason |
 | Resource safety | No goroutine, SA, or pool address outlives its client (R-1, R-2) |
-| Site-to-site untouched | Scenarios 01-11 green; admission precedence proven by AC-3 |
+| Site-to-site untouched | Every existing scenario green; admission precedence proven by AC-3 |
 | Concurrency | `-race` on engine + eap; concurrent Allocate has no duplicate |
 | Mutation-verify | Disable each new guard; its test must go red |
 | Rule: no-layering | The old `_ = ipPool` discard is deleted, not bypassed |
@@ -796,7 +796,7 @@ exhaustion-by-churn failure. Neither depends on the CP consumer.
 | pool no longer discarded | `grep -n '_ = ipPool' internal/component/ike/engine/register.go` returns nothing |
 | CP payload emitted | interop capture or `TestRemoteAccessAssignsVirtualIP` |
 | eap-user live | `TestRemoteAccessResolvesEAPUserPassword` |
-| interop green | `make ze-interop-ipsec-test` scenarios 12, 13 |
+| interop green | `make ze-interop-ipsec-test` scenarios `remote-access-eap-mschapv2`, `remote-access-eap-tls` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -811,7 +811,7 @@ exhaustion-by-churn failure. Neither depends on the CP consumer.
 | Failure | Route To |
 |---------|----------|
 | CP codec mismatch with strongSwan | fix `wire/payload_cp.go`, add a round-trip case from the real capture |
-| Scenario 08 regresses | the per-user resolver was not additive; restore `MethodConfig.Password` precedence |
+| Scenario `responder-eap-mschapv2` regresses | the per-user resolver was not additive; restore `MethodConfig.Password` precedence |
 | Goroutine leak | Phase 4 reap path |
 | 3 fix attempts fail | STOP. Report all 3 approaches. Ask user. |
 
@@ -905,7 +905,7 @@ exhaustion-by-churn failure. Neither depends on the CP consumer.
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| a road warrior can establish against ze | interop test | scenario 12 vs strongSwan |
+| a road warrior can establish against ze | interop test | scenario `remote-access-eap-mschapv2` vs strongSwan |
 | per-user credentials are live | unit + interop | |
 | virtual IP assignment works | interop (client holds the address) | |
 | no resource leak per connection | unit lifecycle test | |

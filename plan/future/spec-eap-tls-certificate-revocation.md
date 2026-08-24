@@ -60,7 +60,7 @@ staples nothing, or the responder cannot be reached.
 
 | Option | Consequence |
 |--------|-------------|
-| Refuse the connection | Conformant with Section 5.4-3 read literally. Breaks against every peer that publishes no revocation information, which today includes strongSwan in `test/interop-ipsec/scenarios/06-eap-tls13` AND Ze's own server |
+| Refuse the connection | Conformant with Section 5.4-3 read literally. Breaks against every peer that publishes no revocation information, which today includes strongSwan in `test/interop-ipsec/scenarios/eap-tls13` AND Ze's own server |
 | Allow the connection | Works against every peer. A revoked certificate authenticates whenever the check cannot run |
 | Operator-settable, with one of the above as the default | The default is still a decision, and it is the one an operator inherits on upgrade |
 

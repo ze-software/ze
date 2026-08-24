@@ -1,0 +1,29 @@
+# This file sets nothing, and the reason is the point of the scenario.
+#
+# EAP-TLS against a stock strongSwan, which lands on TLS 1.2 by default
+# (`version_max = 1.2`, /etc/strongswan.d/charon.conf) and implements no
+# RFC 7627 Extended Master Secret: `extended_master_secret` appears in
+# strongSwan 5.9.14 only as a name in a log table, never in tls_peer.c or
+# tls_server.c.
+#
+# RFC 5216 Section 2.3 defines the EAP-TLS MSK as a crypto/tls
+# ExportKeyingMaterial result, and Go refuses that export when the session is
+# below TLS 1.3 AND did not negotiate RFC 7627 (crypto/tls, conn.go:
+# `c.vers != VersionTLS13 && !c.extMasterSecret`). Both halves hold here, so ze
+# cannot authenticate this peer.
+#
+# This file used to set the `tlsunsafeekm` GODEBUG setting, which lifted the
+# refusal for
+# this scenario alone rather than for every ze binary (Thomas, 2026-08-01). Go
+# 1.27 REMOVED that setting. The runtime raises a fatal error before main() when
+# a removed key carries its old value, so the line stopped ze at container start
+# and the scenario failed with no IKE packet sent. Restoring it is not an option:
+# there is no replacement, and no supported way to reach this peer over TLS 1.2.
+#
+# What ze now does instead is report the refusal: exportEAPTLSMSK
+# (internal/component/ike/eap) names the peer, the negotiated version, RFC 7627
+# and the operator's answers, and handleEAPResponse
+# (internal/component/ike/engine) logs it.
+#
+# Scenario eap-tls13 is the same exchange over TLS 1.3 and carries no ze-env
+# file at all, which is what proves the TLS 1.3 path needs no weakening.

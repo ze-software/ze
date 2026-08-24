@@ -843,7 +843,7 @@ a tag in `test/interop-ipsec/` "is REFUSED with an error naming the file, becaus
 runs those suites automatically and a tag nothing executes is an absence of evidence
 rather than weak evidence".
 
-**Consequence for WP-9.** The strongSwan scenario `14-remote-access-cp`
+**Consequence for WP-9.** The strongSwan scenario `remote-access-cp`
 (the rfcgate-1b RFC 7296 pilot spec) is **goal-validation evidence, not tagged
 evidence**. It proves the feature works against a real peer, and it earns no row a
 polarity. Every one of the 34 tags below lives in a `_test.go` or in
@@ -858,7 +858,7 @@ will fail `make ze-rfc-check` with an error naming the file.
 | `internal/component/ike/engine/cp_test.go` (new) | engine | `2.19-*`, `4-2`, `4-3`, `2.20-1`, `3.15.1-5..-7`; the spec names `TestConfigurationPayloadExchange` here |
 | `internal/component/ike/eap/pool_test.go` (exists) | pool | P4 boundary, P6 prefix, quota and release |
 | `test/ipsec/ipsec-remote-access-cp.ci` (new) | functional | the operator path end to end |
-| `test/interop-ipsec/scenarios/14-remote-access-cp/` (new) | interop | goal validation only, **no tags** |
+| `test/interop-ipsec/scenarios/remote-access-cp/` (new) | interop | goal validation only, **no tags** |
 
 ### 9.3 The pairs, and the mutation that must redden each
 
@@ -1026,7 +1026,7 @@ from nothing.
 | C | **Config surface** | `container configuration-payload`; `leaf dns` → `leaf-list dns`; the multi-pool decision; parse, validate, doctor check, completion | `2.19-6`, `2.20-1` | 0.5 day |
 | D | **The consumer** | `engine/cp.go`; the CP case at all **three** drop sites; the `startResponderEAP` signature; the reply insertion at `responder.go`; TS narrowing before `:613`; P1 (`_ = ipPool` → real wiring) | `2.19-2`, `2.19-3`, `4-2`, `4-3`, `3.15.1-1` | 1.5 days |
 | E | **Authorization and error paths** | The two fail-closed guards (8.1, 8.2); `FAILED_CP_REQUIRED` emission and its pre-`:623` short-circuit; `INTERNAL_ADDRESS_FAILURE` (8.4) | `2.19-5`, `2.19-6` | 0.5 day |
-| F | **Tests** | 34 tagged tests, every mutation in 9.3 run and reverted, the pool tests in 9.4, `test/ipsec/ipsec-remote-access-cp.ci`, and the strongSwan scenario `14-remote-access-cp` | all 17 proven | 1.5 days |
+| F | **Tests** | 34 tagged tests, every mutation in 9.3 run and reverted, the pool tests in 9.4, `test/ipsec/ipsec-remote-access-cp.ci`, and the strongSwan scenario `remote-access-cp` | all 17 proven | 1.5 days |
 | G | **Discovery and closure** | `docs/features.md`, the guide, `docs/architecture/wire/`, `docs/features/rfc-status.md` rows, the 17 summary rows, `make ze-rfc-index-update`, the R-8 Integration Checklist re-answer | -- | 0.5 day |
 
 **Total: roughly 6 days**, and phases A, B and C are genuinely parallel.

@@ -302,7 +302,7 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 |-------------|---|--------------|------|
 | A UDP-encapsulated ESP datagram arrives on port 4500 for an SA programmed bare | → | the receive path chosen in phase 1 | `TestEncapOneStateAcceptsBothForms` |
 | A bare ESP datagram arrives for an SA whose peer last sent the encapsulated form | → | the same receive path | `TestEncapOneStateAcceptsBothForms` |
-| An operator brings up a tunnel and the peer sends the ESP form the kernel state refuses | → | `installChildSA` and the receive path together | `TestEncapEstablishedSAServesAPeerFormChange`, and `test/interop-ipsec/scenarios/23-esp-form-change` against strongSwan. NOT `ipsec-esp-form-change.ci`: functional tier cannot produce a templated Child SA, install a kernel state, or send an ESP datagram (see "What is NOT done") |
+| An operator brings up a tunnel and the peer sends the ESP form the kernel state refuses | → | `installChildSA` and the receive path together | `TestEncapEstablishedSAServesAPeerFormChange`, and `test/interop-ipsec/scenarios/esp-form-change` against strongSwan. NOT `ipsec-esp-form-change.ci`: functional tier cannot produce a templated Child SA, install a kernel state, or send an ESP datagram (see "What is NOT done") |
 
 ## Acceptance Criteria
 
@@ -387,8 +387,8 @@ needs no Makefile edit. **Nothing runs that target automatically**
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `22-esp-encap-no-nat` | `test/interop-ipsec/scenarios/` | strongSwan | A strongSwan peer forced to encapsulate with no NAT exchanges traffic with Ze | NOT written. Reachable through `encap = yes` |
-| `23-esp-form-change` | `test/interop-ipsec/scenarios/` | strongSwan | A live Child SA whose peer sends the form Ze's kernel state refuses keeps traffic flowing both ways, and is neither rekeyed nor deleted | done, PASSING, RED under mutation |
+| `esp-encap-no-nat` | `test/interop-ipsec/scenarios/` | strongSwan | A strongSwan peer forced to encapsulate with no NAT exchanges traffic with Ze | NOT written. Reachable through `encap = yes` |
+| `esp-form-change` | `test/interop-ipsec/scenarios/` | strongSwan | A live Child SA whose peer sends the form Ze's kernel state refuses keeps traffic flowing both ways, and is neither rekeyed nor deleted | done, PASSING, RED under mutation |
 
 **These scenarios cannot carry an RFC tag.** `test/interop-ipsec/` is declared `TIER_UNRUN`
 (`scripts/dev/rfc_requirements.py`), so a tag there is refused. Compliance evidence must be
@@ -413,7 +413,7 @@ No existing scenario sets any encapsulation option, and no scenario directory ma
   lifts
 
 ## Files to Create
-- `test/interop-ipsec/scenarios/23-esp-form-change/` - the strongSwan proof (DONE)
+- `test/interop-ipsec/scenarios/esp-form-change/` - the strongSwan proof (DONE)
 - `internal/component/ike/dataplane/encap_formchange_integration_linux_test.go` - the
   kernel-level proof through the production backend (DONE)
 - `rfc/short/rfc3948.md` - the UDP encapsulation summary, if absent
@@ -484,7 +484,7 @@ choice. Phase 2 is the wiring phase the template asks for.
    - Files: `rekey.go`, `vpp.go`
    - Verify: a VPP build refuses at config verify rather than reporting success
 5. **Phase 5: End to end** -- the `.ci` tests, the interop scenarios, the documentation
-   - Tests: `ipsec-esp-form-change.ci`, scenario `23-esp-form-change`
+   - Tests: `ipsec-esp-form-change.ci`, scenario `esp-form-change`
    - Files: `test/ipsec/`, `test/interop-ipsec/scenarios/`, `docs/features/rfc-status.md`
    - Verify: the owner authorizes the tagged-test edits in writing BEFORE they are made
 
@@ -540,7 +540,7 @@ Every route is answered. Nothing below is argued from a comment.
 
 ### The forcing case, measured
 
-`tmp/dualform/baseline-07.log`. Scenario `07-responder-psk` is RED on
+`tmp/dualform/baseline-07.log`. Scenario `responder-psk` is RED on
 `strongSwan accepted no ESP from Ze the responder`. In the same log strongSwan sends
 IKE_SA_INIT from `172.28.0.3[500]` with `N(NATD_S_IP) N(NATD_D_IP)`, finds no NAT, and
 then sends IKE_AUTH from `172.28.0.3[4500]`.
@@ -737,7 +737,7 @@ Two artifacts close that gap.
 | Artifact | What it owns | Discriminating mutation, measured |
 |----------|--------------|-----------------------------------|
 | `TestEncapEstablishedSAServesAPeerFormChange` (`encap_formchange_integration_linux_test.go`) | The SHIPPED path: the SA is installed through `newXFRMBackend`, and nothing is re-presented by hand. A live SA carries form A, then the peer switches to form B, then back to A, and one kernel state serves all three | Disabling the `Watch` branch turns it RED: "`XfrmInStateProtoError` never rose within 3s" |
-| `test/interop-ipsec/scenarios/23-esp-form-change` | The same property against strongSwan, over a real interface | Removing the socket bypass turns it RED: "Ze -> strongSwan lost 100% of its ESP traffic" |
+| `test/interop-ipsec/scenarios/esp-form-change` | The same property against strongSwan, over a real interface | Removing the socket bypass turns it RED: "Ze -> strongSwan lost 100% of its ESP traffic" |
 
 **The QEMU probe cannot see the policy defect, and says so in its own comment.**
 `__xfrm_policy_check2` short-circuits on `DST_NOPOLICY`, which every loopback dst entry
@@ -773,8 +773,8 @@ strongSwan loads `bypass-lan` by default, which installs shunt policies for ever
 attached subnet. In this lab that is `172.28.0.0/24`, holding both containers, so every
 packet between them took the bypass rather than the tunnel. Measured: both kernels raised
 `XfrmInTmplMismatch`, strongSwan's OUTBOUND ESP SA stayed at 0 packets, and pings failed
-both ways. Scenario 07 passes in that state anyway, because `assert_esp_accepted` needs
-only one common SPI to advance and Ze's own outbound counter does. Scenario 23 disables
+both ways. Scenario responder-psk passes in that state anyway, because `assert_esp_accepted` needs
+only one common SPI to advance and Ze's own outbound counter does. Scenario esp-form-change disables
 `bypass-lan` in its `strongswan.conf` and records the reading there.
 
 ## Design Insights
@@ -797,7 +797,7 @@ only one common SPI to advance and Ze's own outbound counter does. Scenario 23 d
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | **Route A is chosen for the receive path** (2026-08-02) | B, C, D, and route E | C is closed by the kernel: the encapsulation check is symmetric, there is no wildcard type, and a live state's template cannot be changed. B is capable but its backend installs nothing and is gated on another spec. D answers a different question, because strongSwan's own float is a MOBIKE artifact and the measured red is at establishment. A is the only route buildable today, and A-3 measured its one unproven mechanism working: a userspace-read datagram re-injected with the peer's source preserved reached the template-free state |
-| **The forcing case needs a SECOND change beside route A** (2026-08-02) | Treat this spec as receive-only | The measured red is ze's SEND form. `child.go` treats a port float as an encapsulation signal, so ze encapsulates toward a peer that expects bare. Route A alone fixes what ze ACCEPTS and leaves what ze SENDS wrong, so scenario 07 would stay red. The outbound form must follow the NAT verdict rather than the port |
+| **The forcing case needs a SECOND change beside route A** (2026-08-02) | Treat this spec as receive-only | The measured red is ze's SEND form. `child.go` treats a port float as an encapsulation signal, so ze encapsulates toward a peer that expects bare. Route A alone fixes what ze ACCEPTS and leaves what ze SENDS wrong, so scenario responder-psk would stay red. The outbound form must follow the NAT verdict rather than the port |
 | Phase 1 is evidence, and it precedes wiring | Start with route A immediately | Four routes are open and none is measured. Committing to a seam before A-1, A-3 and A-5 are answered risks building a seam that a cheaper route makes unnecessary |
 | The spec exists even though Ze is conformant as bounded | Close the question with the landed rows | The owner's step two. A landed limit that nobody owns becomes permanent, and `ai/rules/completion.md` names that failure |
 
@@ -808,7 +808,7 @@ only one common SPI to advance and Ze's own outbound counter does. Scenario 23 d
 | AC-1 | met | `TestEncapOneStateAcceptsBothForms`, row 3: the re-presented bare datagram raises `XfrmInStateProtoError` |
 | AC-2 | met | same test, row 1: the encapsulated form raises `XfrmInStateProtoError` on the SAME state and SPI |
 | AC-3 | met | same test, final control: an SPI with no state raises `XfrmInNoStates` |
-| AC-4 | met, with one bound stated below | `TestEncapEstablishedSAServesAPeerFormChange` (QEMU, own process): a live SA carries form A, the peer switches to form B, then back to A, and the kernel's state table shows ONE state with an unchanged add time throughout. `test/interop-ipsec/scenarios/23-esp-form-change`: the same property against strongSwan over a real interface, with traffic flowing both ways, `XfrmInStateMismatch` rising, and the SPI set unchanged. Both are RED under a mutation that removes the production behaviour. **Bound:** the peer's form is the one its kernel state does not accept for the whole life of the SA, rather than being SWITCHED part way through. strongSwan switches a live SA's form only through MOBIKE, and ze advertises no `MOBIKE_SUPPORTED` (no notify type 16396 in `wire/payload_notify.go`), so no trigger exists in the lab. The property the switch would exercise is proven; the switch itself is not |
+| AC-4 | met, with one bound stated below | `TestEncapEstablishedSAServesAPeerFormChange` (QEMU, own process): a live SA carries form A, the peer switches to form B, then back to A, and the kernel's state table shows ONE state with an unchanged add time throughout. `test/interop-ipsec/scenarios/esp-form-change`: the same property against strongSwan over a real interface, with traffic flowing both ways, `XfrmInStateMismatch` rising, and the SPI set unchanged. Both are RED under a mutation that removes the production behaviour. **Bound:** the peer's form is the one its kernel state does not accept for the whole life of the SA, rather than being SWITCHED part way through. strongSwan switches a live SA's form only through MOBIKE, and ze advertises no `MOBIKE_SUPPORTED` (no notify type 16396 in `wire/payload_notify.go`), so no trigger exists in the lab. The property the switch would exercise is proven; the switch itself is not |
 | AC-5 | not applicable, by measurement | VPP CAN receive both forms on one SA, so there is nothing to refuse. Recorded in `vpp.go` with the VPP source read. That backend installs SAs and refuses every policy IKE produces, which `spec-fixit-vpp-ipsec-inoperable` owns |
 | AC-6 | met | A-1 to A-6 are `confirmed`, each with a named test or source read |
 | AC-7 | met | Key Design Decisions records route A and every rejected route with its measured cost |
@@ -819,9 +819,9 @@ Stated plainly rather than left to be discovered (`ai/rules/completion.md`).
 
 | Item | State |
 |------|-------|
-| `test/ipsec/ipsec-esp-form-change.ci` | NOT written, and NOT writable at functional tier. Three findings block it, each measured. (1) The suite runs unprivileged in the host namespace (`mk/test-functional.mk`, `ze-functional-ipsec-test`), and every ipsec `.ci` selects `ze.test.ike.dataplane=noop`, which installs nothing in the kernel. (2) The `.ci` framework has no ESP injector and no packet observer: `RunEngineSteps` (`internal/test/runner/engine_steps.go`) only dispatches CLI commands, and the whole IKE command surface is show, monitor and clear. (3) The dual-form path needs a TEMPLATED inbound state, which needs `sa.NATDetected \|\| sa.localPort == 4500` (`engine/child.go`), and two loopback ze daemons produce neither. A `.ci` here could assert only that no rekey happened, which is the absence-assertion vacuity trap in `ai/rules/interop-and-goal-validation.md`. AC-4's proof is the QEMU probe plus scenario 23 instead |
-| `test/interop-ipsec/scenarios/23-esp-form-change/` | WRITTEN and PASSING, and RED under mutation. It is the proof of AC-4 against a real peer |
-| `test/ipsec/ipsec-esp-encap-no-nat.ci` | NOT written, blocked by the same three findings. User story 1 needs the peer to encapsulate, which two loopback ze daemons never do. Its reachable home is a new interop scenario `22-esp-encap-no-nat` using strongSwan's `encap = yes`, which fakes NAT-D at IKE_SA_INIT and is a valid vici key in 5.9.14 |
+| `test/ipsec/ipsec-esp-form-change.ci` | NOT written, and NOT writable at functional tier. Three findings block it, each measured. (1) The suite runs unprivileged in the host namespace (`mk/test-functional.mk`, `ze-functional-ipsec-test`), and every ipsec `.ci` selects `ze.test.ike.dataplane=noop`, which installs nothing in the kernel. (2) The `.ci` framework has no ESP injector and no packet observer: `RunEngineSteps` (`internal/test/runner/engine_steps.go`) only dispatches CLI commands, and the whole IKE command surface is show, monitor and clear. (3) The dual-form path needs a TEMPLATED inbound state, which needs `sa.NATDetected \|\| sa.localPort == 4500` (`engine/child.go`), and two loopback ze daemons produce neither. A `.ci` here could assert only that no rekey happened, which is the absence-assertion vacuity trap in `ai/rules/interop-and-goal-validation.md`. AC-4's proof is the QEMU probe plus scenario esp-form-change instead |
+| `test/interop-ipsec/scenarios/esp-form-change/` | WRITTEN and PASSING, and RED under mutation. It is the proof of AC-4 against a real peer |
+| `test/ipsec/ipsec-esp-encap-no-nat.ci` | NOT written, blocked by the same three findings. User story 1 needs the peer to encapsulate, which two loopback ze daemons never do. Its reachable home is a new interop scenario `esp-encap-no-nat` using strongSwan's `encap = yes`, which fakes NAT-D at IKE_SA_INIT and is a valid vici key in 5.9.14 |
 | `test/ipsec/ipsec-esp-form-vpp-reject.ci` | NOT written, and it must NOT be. AC-5 is not-applicable by measurement: VPP's inbound lookup is encapsulation-blind, so one VPP SA already takes both forms and there is nothing to refuse (`dataplane/vpp.go`). A test asserting a refusal would assert behaviour that must not exist. This confirms the 2026-08-02 audit's "drop the planned `ipsec-esp-form-vpp-reject.ci`" |
 | `scripts/evidence/qemu-all-tests.sh` has no `fsuite ipsec` line | Discovered 2026-08-03. A `needs-linux` `.ci` in `test/ipsec/` would skip natively AND never run in QEMU, so it would be dead coverage. This is why option (1) above cannot be routed around with `option=needs-linux:caps=net-admin` |
 | `ai/RFC-REQUIREMENTS.md` regeneration | NOT run. `make ze-rfc-index-update` is REQUIRED after moving or renaming a tagged test, and one test was renamed. The main thread directed that the ledger not be regenerated while it is stale from another session |
@@ -901,10 +901,10 @@ promises a reader.
   on the established Child SA, assert traffic still flows both ways and the SA was neither
   rekeyed nor deleted. This is the ONLY proof of AC-4, and the only thing that makes the
   `rfc-status.md` sentence true.
-- Write `test/interop-ipsec/scenarios/23-esp-form-change/`, the strongSwan-driven mid-SA
+- Write `test/interop-ipsec/scenarios/esp-form-change/`, the strongSwan-driven mid-SA
   change. Its header must state why it carries no RFC tag.
-- Write `test/interop-ipsec/scenarios/22-esp-encap-no-nat/`. The Interop table above names it  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `in-progress` and the work is not implemented) -->
-  and it does not exist. Neither `22-*` nor `23-*` is present under
+- Write `test/interop-ipsec/scenarios/esp-encap-no-nat/`. The Interop table above names it  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `in-progress` and the work is not implemented) -->
+  and it does not exist. Neither `esp-encap-no-nat` nor `esp-form-change` is present under
   `test/interop-ipsec/scenarios/` (verified 2026-08-02).
 - Write `test/ipsec/ipsec-esp-encap-no-nat.ci` (user story 1). Drop the planned
   `ipsec-esp-form-vpp-reject.ci`, since AC-5 is not-applicable by measurement.

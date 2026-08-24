@@ -197,7 +197,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 | `ze doctor <config>` with an ipsec container | → | `checkXFRMReachable` | `TestXFRMReachableDoctorCheckRegistered`, `doctor-ipsec-xfrm.ci` |
 | `show vpn ipsec sa \| json` | → | `saToMap` counter fields | `ipsec-show-sa-counters.ci` |
 | Appliance kernel build | → | `runtimeKernelRequirements` ESP entries | `TestRuntimeFloorRequiresESP` |
-| strongSwan interop run | → | `lab.ze_cli` reading the SAD dump | scenario `19-dataplane-readback` `check.py` |
+| strongSwan interop run | → | `lab.ze_cli` reading the SAD dump | scenario `dataplane-readback` `check.py` |
 
 ## Acceptance Criteria
 
@@ -270,7 +270,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `19-dataplane-readback` | `test/interop-ipsec/scenarios/19-dataplane-readback/` | strongSwan | Ze's SAD dump, `ip xfrm state` in the ze container, and strongSwan's own view report the same non-empty SPI set, and that set tracks a Child SA rekey (AC-12, AC-13) | |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `in-progress` and the work is not implemented) -->
+| `dataplane-readback` | `test/interop-ipsec/scenarios/dataplane-readback/` | strongSwan | Ze's SAD dump, `ip xfrm state` in the ze container, and strongSwan's own view report the same non-empty SPI set, and that set tracks a Child SA rekey (AC-12, AC-13) | |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `in-progress` and the work is not implemented) -->
 
 ## Files to Modify
 - `internal/component/ike/dataplane/dataplane.go` - widen `SAInfo`, add `PolicyInfo`, add `ListPolicies` to the `Dataplane` interface
@@ -321,7 +321,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 - `test/ipsec/ipsec-show-dataplane-kernel.ci` - real kernel readback
 - `test/ipsec/ipsec-show-sa-counters.ci` - the counters AC-8 restores
 - `test/ui/doctor-ipsec-xfrm.ci` - the doctor diagnostic
-- `test/interop-ipsec/scenarios/19-dataplane-readback/` - `ze.conf`, `strongswan.conf`, `check.py`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `in-progress` and the work is not implemented) -->
+- `test/interop-ipsec/scenarios/dataplane-readback/` - `ze.conf`, `strongswan.conf`, `check.py`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `in-progress` and the work is not implemented) -->
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -387,8 +387,8 @@ command grammar has advertised since 2026-06-03 and never emitted.
    - Files: `doctor_xfrm.go`, `doctor_xfrm_linux.go`, `doctor_xfrm_other.go`, `engine/register.go`, `internal/component/doctor/checks_linux.go`, `internal/core/diagnostic/codes.go`, `internal/appliance/kernelreq.go`, `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require`
    - Verify: the kernel floor change and the config fragment change land together, or the appliance build fails
 7. **Phase: Kernel-level and interop evidence** - prove it against a real kernel and a real peer
-   - Tests: `ipsec-show-dataplane-kernel.ci`, scenario `19-dataplane-readback`
-   - Files: `scripts/evidence/qemu-all-tests.sh`, `test/interop-ipsec/lab.py`, `test/interop-ipsec/scenarios/19-dataplane-readback/`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `in-progress` and the work is not implemented) -->
+   - Tests: `ipsec-show-dataplane-kernel.ci`, scenario `dataplane-readback`
+   - Files: `scripts/evidence/qemu-all-tests.sh`, `test/interop-ipsec/lab.py`, `test/interop-ipsec/scenarios/dataplane-readback/`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `in-progress` and the work is not implemented) -->
    - Verify: revert the read handler and confirm the interop assertion fails. An SPI set that is empty on both sides is the vacuity trap, so assert non-empty before asserting equality
 8. **Phase: Documentation** - every row of the Documentation checklist marked Yes
    - Files: as listed in that checklist
@@ -419,7 +419,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 | Doctor check registered | `bin/ze doctor --json <conf>` lists the code, and `ze explain doctor-ipsec-xfrm-unavailable` resolves |
 | Kernel floor enforced | `make ze-appliance-kernel` fails when the ESP symbol is removed from the fragment |
 | QEMU suite wired | `rg 'fsuite ipsec' scripts/evidence/qemu-all-tests.sh` matches |
-| Interop scenario passes | `make ze-interop-ipsec-test` includes `19-dataplane-readback` |
+| Interop scenario passes | `make ze-interop-ipsec-test` includes `dataplane-readback` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -458,12 +458,12 @@ a delegated agent. Phases 7 and 8 are OPEN.
 | AC-7 | done | `activeDataplane` and `dataplaneReadError` (`show_dataplane.go`) |
 | AC-8 | done | `readSADCounters`, `sadCounters.lookup`, `addChildCounters` (`internal/component/ike/cmd/show_ipsec.go`) |
 | AC-9, AC-10, AC-11 | delegated (Phase 6) | not verified by this session |
-| AC-12, AC-13 | OPEN | the strongSwan interop scenario `19-dataplane-readback` is not written |
+| AC-12, AC-13 | OPEN | the strongSwan interop scenario `dataplane-readback` is not written |
 
 Still to do, none of it started:
 - `test/ipsec/ipsec-show-dataplane-kernel.ci` and `test/ipsec/ipsec-show-sa-counters.ci`
 - the `fsuite ipsec` line in `scripts/evidence/qemu-all-tests.sh`, and a QEMU run
-- the `ze_cli` helper in `test/interop-ipsec/lab.py` and scenario `19-dataplane-readback`
+- the `ze_cli` helper in `test/interop-ipsec/lab.py` and scenario `dataplane-readback`
 - the two Prometheus gauges named in the Integration Checklist
 - Phase 8 documentation, except `docs/architecture/testing/ci-format.md` which is done
 

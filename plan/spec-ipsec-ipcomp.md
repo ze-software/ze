@@ -150,8 +150,9 @@ get harder, not easier. The tests written for them must assert over a real negot
 - Every `test/ipsec/*.ci` stays green. The suite runs inside `ze-precommit-verify`
   (`mk/test-functional.mk` lists it in `all_suites`, and `:217` carries its `run_suite`
   line).
-- Every scenario under `test/interop-ipsec/scenarios/` stays green. The directory holds
-  `01`, `02`, `03`, `04`, `05`, `07`, `08`, `09`, `10` and `11`.
+- Every scenario under `test/interop-ipsec/scenarios/` stays green. The bullet
+  does not enumerate them: the directory is named rather than numbered, and a
+  list written here goes stale on the next scenario added.
 - A peer that offers IPComp while Ze declines still establishes its Child SA.
 - A peer that offers no IPComp is unaffected on every code path.
 - `show vpn ipsec sa` keeps every field it prints today.
@@ -225,7 +226,7 @@ get harder, not easier. The tests written for them must assert over a real negot
 | A-2 | The Linux kernel supports IPComp through XFRM with the `xfrm_ipcomp` and `deflate` modules | Not yet read | The XFRM backend cannot deliver the feature and the whole spec changes shape | Read the vendored netlink library and probe a QEMU guest | unvalidated |
 | A-3 | The VPP binary API exposes no IPComp SA type usable from Ze | `internal/component/ike/dataplane/vpp.go`, not yet read for this purpose | The VPP backend implements the feature rather than refusing it | Read the vendored VPP binary API definitions | unvalidated |
 | A-4 | `wire.PayloadNotify` carries the CPI and transform identifier without a codec change | `internal/component/ike/wire/payload_notify.go` declares the type constant only | The wire layer needs new accessors and new tests | Read `ReadFrom` and `WriteTo` and write a round-trip test | unvalidated |
-| A-5 | strongSwan offers IPComp when its config sets a compression option | Not yet read | The interop scenario cannot exercise the negotiation | Read the strongSwan config reference and build scenario `20-ipcomp` | unvalidated |
+| A-5 | strongSwan offers IPComp when its config sets a compression option | Not yet read | The interop scenario cannot exercise the negotiation | Read the strongSwan config reference and build scenario `ipcomp` | unvalidated |
 | A-6 | `test/interop-ipsec/` remains `TIER_UNRUN` | `scripts/dev/rfc_requirements.py`, `:876-878`, refusal at `:952` and `:1004` | An interop tag becomes legal evidence and the test plan gains an option | Rerun `make ze-rfc-check` at landing time | unvalidated |
 
 ### Risks
@@ -283,7 +284,7 @@ get harder, not easier. The tests written for them must assert over a real negot
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | Enables compression on an ESP group and commits | config parse → `ipsec.ESPGroup` → `buildAuthRequest` → wire | `test/ipsec/ipsec-ipcomp-offer.ci` |
-| 2 | Brings up a tunnel to a strongSwan peer that offers IPComp | wire → `handleAuthRequest` → acceptance → `installChildSA` → XFRM | `test/interop-ipsec/scenarios/20-ipcomp` (untagged) |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `skeleton` and the work is not implemented) -->
+| 2 | Brings up a tunnel to a strongSwan peer that offers IPComp | wire → `handleAuthRequest` → acceptance → `installChildSA` → XFRM | `test/interop-ipsec/scenarios/ipcomp` (untagged) |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `skeleton` and the work is not implemented) -->
 | 3 | Reads the negotiated state | engine state → `show vpn ipsec sa` | `test/ipsec/ipsec-show-sa-ipcomp.ci` |
 | 4 | Commits a compression config while VPP is the active backend | config verify → backend capability check → rejection | `test/ipsec/ipsec-ipcomp-vpp-reject.ci` |
 | 5 | Runs `ze doctor` before the daemon starts | doctor registry → IKE plugin check → kernel module probe | `TestDoctorReportsMissingIPCompModule` |
@@ -339,8 +340,8 @@ The package needs a make target. No `ze-qemu-*` IPsec target exists today.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `20-ipcomp` | `test/interop-ipsec/scenarios/` | strongSwan | A strongSwan peer with compression enabled negotiates IPComp with Ze, and traffic flows compressed | |
-| `21-ipcomp-declined` | `test/interop-ipsec/scenarios/` | strongSwan | A strongSwan peer that offers IPComp against a Ze with compression disabled still establishes its Child SA | |
+| `ipcomp` | `test/interop-ipsec/scenarios/` | strongSwan | A strongSwan peer with compression enabled negotiates IPComp with Ze, and traffic flows compressed | |
+| `ipcomp-declined` | `test/interop-ipsec/scenarios/` | strongSwan | A strongSwan peer that offers IPComp against a Ze with compression disabled still establishes its Child SA | |
 
 **These scenarios cannot carry an RFC tag.** `test/interop-ipsec/` is declared `TIER_UNRUN`
 (`scripts/dev/rfc_requirements.py`), and a tag there raises `_refuse_unrun`
@@ -381,8 +382,8 @@ a tag.
 - `test/ipsec/ipsec-ipcomp-disabled.ci` - the default-off test
 - `test/ipsec/ipsec-ipcomp-vpp-reject.ci` - the backend rejection test
 - `test/ipsec/ipsec-show-sa-ipcomp.ci` - the operational read test
-- `test/interop-ipsec/scenarios/20-ipcomp/` - the strongSwan negotiation scenario  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `skeleton` and the work is not implemented) -->
-- `test/interop-ipsec/scenarios/21-ipcomp-declined/` - the strongSwan decline scenario  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `skeleton` and the work is not implemented) -->
+- `test/interop-ipsec/scenarios/ipcomp/` - the strongSwan negotiation scenario  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `skeleton` and the work is not implemented) -->
+- `test/interop-ipsec/scenarios/ipcomp-declined/` - the strongSwan decline scenario  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `skeleton` and the work is not implemented) -->
 - `rfc/short/rfc3173.md` - the IP Payload Compression Protocol summary, if absent
 - `docs/guide/vpn/ipsec-compression.md` - the operator guide page
 
@@ -480,8 +481,8 @@ needed, which would carry `units bytes`. Second, whether the algorithm enumerati
    - Verify: the Linux backend programs the state, and the VPP backend refuses at verify time
      with an error naming the backend and the setting
 7. **Phase: Doctor, QEMU, and interoperability**
-   - Tests: AC-13, `TestXFRMIPCompStateIntegration`, scenarios `20-ipcomp` and
-     `21-ipcomp-declined`
+   - Tests: AC-13, `TestXFRMIPCompStateIntegration`, scenarios `ipcomp` and
+     `ipcomp-declined`
    - Files: `internal/component/ike/engine/register.go`, `internal/core/diagnostic/codes.go`,
      `mk/test-integration.mk`, the two scenario directories
    - Verify: `ze doctor --json` reports the check, the QEMU target passes, and both strongSwan
@@ -525,7 +526,7 @@ needed, which would carry `units bytes`. Second, whether the algorithm enumerati
 | Compression is off by default | `test/ipsec/ipsec-ipcomp-disabled.ci` passes |
 | Both backends are covered | `TestXFRMInstallsCompressionState` and `TestVPPBackendRefusesCompression` pass |
 | The kernel path is proven | The QEMU target passes |
-| Interoperability is proven | Scenarios `20-ipcomp` and `21-ipcomp-declined` pass |
+| Interoperability is proven | Scenarios `ipcomp` and `ipcomp-declined` pass |
 | No interop tag was added | `grep -rn 'RFC requirement:' test/interop-ipsec/` returns nothing |
 | The doctor check is reachable | `ze doctor --json` lists the check and `ze explain <code>` answers |
 

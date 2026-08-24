@@ -31,7 +31,7 @@ it into the table above without a decision.
   missing line is one edit and is in scope (Phase 7). It is the reason no IPsec functional
   test has ever run against a real kernel, so deferring it would leave the spec proving its
   central claim under the noop backend, which cannot prove it at all.
-- The interop scenario `19-dataplane-readback` is the only evidence that Ze's own read-back
+- The interop scenario `dataplane-readback` is the only evidence that Ze's own read-back
   agrees with an independent reader. `ai/rules/interop-and-goal-validation.md` makes it
   mandatory for the goal, not optional.
 - The `checkKernelModules` built-in false positive (`internal/component/doctor/checks_linux.go`)

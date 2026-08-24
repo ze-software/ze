@@ -3,7 +3,7 @@
 
 Usage:
     python3 test/interop-ipsec/run.py                          # run all scenarios
-    python3 test/interop-ipsec/run.py 01-psk-site-to-site      # run specific scenario
+    python3 test/interop-ipsec/run.py psk-site-to-site         # run specific scenario
     VERBOSE=1 python3 test/interop-ipsec/run.py                # verbose output
 
 Environment:

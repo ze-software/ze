@@ -251,8 +251,9 @@ def wait_swan_log(needle, timeout=None):
     containers are up, so a needle describing the FIRST exchange is usually not
     written yet, and the scenario fails on timing rather than on behaviour.
 
-    Scenarios 05 and 09 each hand-rolled this loop. New assertions on the peer's
-    log use this instead of copying it a third time.
+    Scenarios child-rekey and responder-ike-rekey each hand-rolled this loop.
+    New assertions on the peer's log use this instead of copying it a third
+    time.
     """
     if timeout is None:
         timeout = SESSION_TIMEOUT
@@ -374,7 +375,7 @@ class StrongSwan:
         `_swanctl` answers "" for a swanctl that could not run and for a charon
         that holds no SA at all. Two scenarios read this to assert the ABSENCE
         of an SA (`if "ESTABLISHED" not in swan.list_sas(): break`, in
-        08-responder-eap-mschapv2 and 09-responder-ike-rekey), so a failed read
+        responder-eap-mschapv2 and responder-ike-rekey), so a failed read
         would end their wait at once and let the next phase run against an SA
         that never went away. `sa_count` has the same shape with 0.
 
@@ -440,7 +441,7 @@ class StrongSwan:
 
         Empty output is a real answer -- `ip xfrm state` prints nothing when the
         kernel holds no SA -- so the fault is read from the EXIT STATUS, the way
-        `list_sas` reads it. 10-clear-reestablish snapshots the ESP SPIs through
+        `list_sas` reads it. clear-reestablish snapshots the ESP SPIs through
         this reader before its clear and passes when a SPI absent from that
         snapshot appears after. A read that answered "" for a failed command made
         the snapshot empty, and the SA that already existed then satisfied the
@@ -903,7 +904,7 @@ class Scenario:
             # ends with `include strongswan.d/*.conf`, so a file dropped here is
             # read after the shipped charon.conf and overrides it.
             #
-            # Scenario 04 needs this because charon's own default caps EAP-TLS at
+            # Scenario eap-tls needs this because charon's own default caps EAP-TLS at
             # TLS 1.2 (`# version_max = 1.2`, /etc/strongswan.d/charon.conf), and
             # a peer that never offers 1.3 cannot be used to prove ze speaks it.
             strongswan_conf = os.path.join(self.scenario_dir, "strongswan.conf")
@@ -969,11 +970,11 @@ class Scenario:
         # listing KEY=VALUE lines in a `ze-env` file beside its ze.conf.
         #
         # This used to be one unconditional `tlsunsafeekm` GODEBUG setting applied to
-        # every scenario, then a per-scenario line in 04-eap-tls alone, so that a
+        # every scenario, then a per-scenario line in eap-tls alone, so that a
         # run which did not name it genuinely ran without it. Go 1.27 REMOVED
         # that setting, and a removed key carrying its old value is a fatal error
         # raised before main(), so the line stopped ze at container start. No
-        # scenario sets it now, and none may: see 04-eap-tls/ze-env.
+        # scenario sets it now, and none may: see eap-tls/ze-env.
         ze_env_file = os.path.join(self.scenario_dir, "ze-env")
         if os.path.isfile(ze_env_file):
             with open(ze_env_file, encoding="utf-8") as fh:

@@ -57,16 +57,16 @@ extension fails when the length-prefixed value is empty. Ze surfaces that as
 
 ### What Ze does today, and why that is the right answer
 
-Scenario `06-eap-tls13` uses an RSA CA where every other scenario uses `prime256v1`. The
+Scenario `eap-tls13` uses an RSA CA where every other scenario uses `prime256v1`. The
 leaf keys stay `prime256v1`, so the scenario still exercises the same signature algorithms
 as the rest of the lab. Only the anchor changed.
 
 The reasoning is already recorded at the two sites that carry the workaround, in detail, and
 this spec does not restate it:
 
-- `test/interop-ipsec/scenarios/06-eap-tls13/pki/gen-pki.sh` -- the header comment states the
+- `test/interop-ipsec/scenarios/eap-tls13/pki/gen-pki.sh` -- the header comment states the
   single load-bearing difference and why it is a property of the peer, not of Ze.
-- `test/interop-ipsec/scenarios/06-eap-tls13/strongswan.conf` -- the header comment carries
+- `test/interop-ipsec/scenarios/eap-tls13/strongswan.conf` -- the header comment carries
   the measurement of 2026-08-01: with the shared EC CA charon logged `sending TLS cert
   request` zero times and the SA never left CONNECTING; with the RSA CA it logs it once and
   the SA reaches ESTABLISHED.
@@ -153,12 +153,12 @@ failure into a working handshake with no CA hint, which is a correct TLS 1.3 exc
 
 **Source files read on 2026-08-02:**
 
-- [ ] `test/interop-ipsec/scenarios/06-eap-tls13/pki/gen-pki.sh` - generates a scenario-local
+- [ ] `test/interop-ipsec/scenarios/eap-tls13/pki/gen-pki.sh` - generates a scenario-local
   PKI whose CA key is RSA; the header comment states why, and the leaf keys stay `prime256v1`
 - [ ] `test/interop-ipsec/Dockerfile.strongswan` - the peer is the Alpine 3.21 distribution
   `strongswan` package, run as `charon` in the foreground
 
-**Behavior to preserve:** scenario `06-eap-tls13` must keep passing at charon's shipped
+**Behavior to preserve:** scenario `eap-tls13` must keep passing at charon's shipped
 `send_certreq_authorities = yes`, and the leaf keys must stay `prime256v1` so the scenario
 keeps exercising the lab's signature algorithms. The two header comments must not be deleted
 while the workaround stands.
@@ -185,13 +185,13 @@ A TLS 1.3 `CertificateRequest` arriving at Ze's EAP-TLS client from charon, insi
 
 | Boundary | How | Verified |
 |----------|-----|----------|
-| charon ↔ Ze EAP-TLS | TLS 1.3 records carried in EAP-TLS inside IKE_AUTH | Yes, by scenario `06-eap-tls13` |
+| charon ↔ Ze EAP-TLS | TLS 1.3 records carried in EAP-TLS inside IKE_AUTH | Yes, by scenario `eap-tls13` |
 | Ze EAP-TLS ↔ Go `crypto/tls` | the stdlib handshake, which is where the rejection happens | Yes |
 | Ze ↔ upstream strongSwan | two issue reports, and a patch if one is offered | No |
 
 ### Integration Points
 
-- `test/interop-ipsec/scenarios/06-eap-tls13/` - the only site that pays for the defects.
+- `test/interop-ipsec/scenarios/eap-tls13/` - the only site that pays for the defects.
 - `docs/features/` - no user-facing claim rests on this today; confirm at design time.
 
 ## Risks & Assumptions
@@ -210,7 +210,7 @@ A TLS 1.3 `CertificateRequest` arriving at Ze's EAP-TLS client from charon, insi
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | The RSA CA becomes permanent and its reason is forgotten, so a later reader "tidies" the scenario back to the shared PKI and reopens a red with no explanation | A diff that deletes `gen-pki.sh` without naming this spec | Both header comments already carry the reason; add this spec's path to them so the reader reaches the report |
-| R-2 | The lab's strongSwan version floats, because the Dockerfile installs the Alpine distribution package rather than a pinned version. A future base-image bump could fix or change the behavior silently | Scenario 06 starts passing with an EC CA, or starts failing differently | Pin the observed version in the scenario comment and re-measure when the base image moves |
+| R-2 | The lab's strongSwan version floats, because the Dockerfile installs the Alpine distribution package rather than a pinned version. A future base-image bump could fix or change the behavior silently | Scenario eap-tls13 starts passing with an EC CA, or starts failing differently | Pin the observed version in the scenario comment and re-measure when the base image moves |
 | R-3 | Filing is deferred indefinitely because it is not code | The spec sits at `skeleton` across several sessions with no report URL recorded | The report IS the deliverable. Record the URL in the learned summary, exactly as the netlink precedent requires |
 
 ## Blast Radius
@@ -219,13 +219,13 @@ A TLS 1.3 `CertificateRequest` arriving at Ze's EAP-TLS client from charon, insi
 |----------|--------|
 | What breaks if this is wrong? | Nothing in the daemon. The whole surface is one interop scenario's PKI plus two upstream reports |
 | How is it reverted? | Single commit. The scenario-local PKI is additive |
-| Who else touches this path? | `spec-fixit-eap-tls-clienthello-race` owns the EAP-TLS client behavior for scenario 04; it does not touch the CA key type or the extension |
+| Who else touches this path? | `spec-fixit-eap-tls-clienthello-race` owns the EAP-TLS client behavior for scenario eap-tls; it does not touch the CA key type or the extension |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| charon sends a TLS 1.3 `CertificateRequest` | → | Ze's EAP-TLS client completes the handshake | `test/interop-ipsec/scenarios/06-eap-tls13/check.py`, which asserts charon's `sending TLS cert request` line and an ESTABLISHED SA |
+| charon sends a TLS 1.3 `CertificateRequest` | → | Ze's EAP-TLS client completes the handshake | `test/interop-ipsec/scenarios/eap-tls13/check.py`, which asserts charon's `sending TLS cert request` line and an ESTABLISHED SA |
 
 ## Acceptance Criteria
 
@@ -252,7 +252,7 @@ the workaround has a stated end, not so this spec waits on it.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `06-eap-tls13` | `test/interop-ipsec/scenarios/06-eap-tls13/check.py` | An EAP-TLS session over TLS 1.3 against a stock strongSwan reaches ESTABLISHED | passing today, via the workaround |
+| `eap-tls13` | `test/interop-ipsec/scenarios/eap-tls13/check.py` | An EAP-TLS session over TLS 1.3 against a stock strongSwan reaches ESTABLISHED | passing today, via the workaround |
 
 No `.ci` is owed. This spec changes no daemon code: the whole surface is one scenario's PKI,
 two header comments, and two upstream reports. `check.py` is the driving surface.
@@ -261,7 +261,7 @@ two header comments, and two upstream reports. `check.py` is the driving surface
 
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `06-eap-tls13` | `test/interop-ipsec/scenarios/` | strongSwan 5.9.14 | TLS 1.3 EAP-TLS interoperates once the peer's anchor is enumerable | passing |
+| `eap-tls13` | `test/interop-ipsec/scenarios/` | strongSwan 5.9.14 | TLS 1.3 EAP-TLS interoperates once the peer's anchor is enumerable | passing |
 
 ## Files to Modify
 
@@ -270,8 +270,8 @@ does not touch.
 
 | File | Change |
 |------|--------|
-| `test/interop-ipsec/scenarios/06-eap-tls13/pki/gen-pki.sh` | Add this spec's path to the header comment, so the workaround points at the upstream report |
-| `test/interop-ipsec/scenarios/06-eap-tls13/strongswan.conf` | Same |
+| `test/interop-ipsec/scenarios/eap-tls13/pki/gen-pki.sh` | Add this spec's path to the header comment, so the workaround points at the upstream report |
+| `test/interop-ipsec/scenarios/eap-tls13/strongswan.conf` | Same |
 
 The Ze EAP-TLS transport is read at design time to confirm A-3 (that no Ze code parses the
 extension, and the rejection is the Go stdlib). It is Required Reading, not a change.
@@ -287,7 +287,7 @@ extension, and the rejection is the Go stdlib). It is Required Reading, not a ch
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- confirm the scenario is the wiring, and that it
    still passes.
-   - Verify: `06-eap-tls13` green, and the two header comments present.
+   - Verify: `eap-tls13` green, and the two header comments present.
 2. **Phase: Verify the report before filing it** -- resolve A-1, A-2 and A-3.
    - Read `write_certificate_authorities` on `master`, search the tracker, read Ze's EAP-TLS
      transport.

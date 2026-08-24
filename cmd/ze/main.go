@@ -16,7 +16,7 @@
 // `version_max = 1.2` in /etc/strongswan.d/charon.conf, and its own comment says
 // "default to TLS 1.2 until 1.3 is stable for use in EAP". Setting
 // `charon.tls.version_max = 1.3` on that same 5.9.14 image reaches an
-// established SA, which test/interop-ipsec/scenarios/06-eap-tls13 proves.
+// established SA, which test/interop-ipsec/scenarios/eap-tls13 proves.
 //
 // A `go:debug tlsunsafeekm=1` line HERE would once have lifted the refusal, and
 // it was written and then removed (Thomas, 2026-08-01). It sets the default for

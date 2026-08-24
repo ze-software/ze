@@ -124,7 +124,8 @@ When a spec implements or modifies protocol behavior (BGP, IPsec, L2TP, or any w
 | Config-only feature (no protocol impact) | CLI/config tests suffice |
 | Tooling (ze-analyse, ze-perf) | No protocol peer involved |
 ### Interop scenario structure
-Each scenario in `test/interop/scenarios/` follows the established pattern:
+**An interop scenario directory MUST be NAMED and MUST NOT carry a numeric prefix, and a spec planning a future scenario MUST name it too** (owner directive, 2026-08-24). The directory name is the scenario's identity: `run.py` filters on it by exact equality, an operator types it after `IPSEC_INTEROP_SCENARIO=`, and specs, journal rows and code comments cite it.
+A number adds nothing a name does not carry, and it goes stale in two ways a name cannot: a deleted scenario leaves a hole no reader can tell from a reservation, and a planned number is a reservation a second spec can...
 - `ze.conf`: ze configuration for the scenario
 - `<peer>.conf`: peer daemon configuration (frr.conf, bird.conf, etc.)
 - `check.py`: Python script with a `check()` function that asserts the expected behavior
