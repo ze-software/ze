@@ -4,7 +4,11 @@
 package rpki
 
 import (
+	"cmp"
 	"net"
+	"net/netip"
+	"slices"
+	"strings"
 	"sync"
 )
 
@@ -249,8 +253,18 @@ type DiagEntry struct {
 	ASN       uint32
 }
 
-// Entries returns up to limit VRP entries for diagnostic display.
-// Combines IPv4 and IPv6 entries. Pass 0 for all entries.
+// Entries returns up to limit VRP entries for diagnostic display, in ascending
+// prefix order: every IPv4 entry, then every IPv6 entry. Pass 0 for all entries.
+// The limit counts across the two families, so an IPv6 entry is answered only
+// once every IPv4 entry is in.
+//
+// The order is sorted rather than the Go map iteration order because these rows
+// reach an operator through `show bgp rpki roa`, whose answer shape publishes
+// the row operators "first", "last" and "display". A map range answers a
+// different order on every call, and past the limit a different SUBSET, so the
+// truncated answer named a different 1000 VRPs each time it ran and said nothing
+// about which ones it dropped. The sort runs on a command goroutine; no
+// validation path reaches here, because Validate takes findCovering.
 func (c *ROACache) Entries(limit int) []DiagEntry {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -261,15 +275,25 @@ func (c *ROACache) Entries(limit int) []DiagEntry {
 	}
 	result := make([]DiagEntry, 0, total)
 
-	for prefix, entries := range c.ipv4 {
-		for _, e := range entries {
-			result = append(result, DiagEntry{Prefix: prefix, MaxLength: e.MaxLength, ASN: e.ASN})
-			if limit > 0 && len(result) >= limit {
-				return result
-			}
-		}
+	result = appendFamilyEntries(result, c.ipv4, limit)
+	if limit > 0 && len(result) >= limit {
+		return result
 	}
-	for prefix, entries := range c.ipv6 {
+	return appendFamilyEntries(result, c.ipv6, limit)
+}
+
+// appendFamilyEntries appends the VRP entries of one family table to result, in
+// ascending prefix order, and stops as soon as result holds limit rows. A limit
+// of 0 means every row. The caller MUST hold the read lock.
+func appendFamilyEntries(result []DiagEntry, table map[string][]vrpEntry, limit int) []DiagEntry {
+	for _, prefix := range sortedPrefixKeys(table) {
+		entries := table[prefix]
+		if len(entries) > 1 {
+			// The copy exists because sorting the cache's own slice in place
+			// would race the other readers this read lock admits.
+			entries = slices.Clone(entries)
+			slices.SortFunc(entries, compareVRPEntry)
+		}
 		for _, e := range entries {
 			result = append(result, DiagEntry{Prefix: prefix, MaxLength: e.MaxLength, ASN: e.ASN})
 			if limit > 0 && len(result) >= limit {
@@ -278,6 +302,63 @@ func (c *ROACache) Entries(limit int) []DiagEntry {
 		}
 	}
 	return result
+}
+
+// compareVRPEntry orders two VRPs of one prefix: by max length, then by ASN.
+// Add rejects an entry matching both, so the pair is never left tied.
+func compareVRPEntry(a, b vrpEntry) int {
+	if order := cmp.Compare(a.MaxLength, b.MaxLength); order != 0 {
+		return order
+	}
+	return cmp.Compare(a.ASN, b.ASN)
+}
+
+// prefixKey is a table key beside its parsed form, so a set of keys sorts by
+// address rather than by text. The zero prefix marks a key netip cannot read.
+type prefixKey struct {
+	prefix netip.Prefix
+	text   string
+}
+
+// sortedPrefixKeys returns the table's keys in ascending address order, then
+// ascending prefix length. Text order is not address order: "192.0.2.10/32"
+// sorts before "192.0.2.2/32" as text and after it as an address, and an
+// operator reads a VRP table in address order.
+func sortedPrefixKeys(table map[string][]vrpEntry) []string {
+	ordered := make([]prefixKey, 0, len(table))
+	for text := range table {
+		prefix, err := netip.ParsePrefix(text)
+		if err != nil {
+			// A key ze cannot parse keeps its rows, because dropping them would
+			// answer a VRP set the cache does not hold. Add takes a net.IPNet
+			// from its caller, so a non-contiguous mask reaches this map even
+			// though the RTR parser writes only CIDR masks (rtr_pdu.go,
+			// parsePrefixPDU). The zero prefix sorts below every parsed one.
+			ordered = append(ordered, prefixKey{text: text})
+			continue
+		}
+		ordered = append(ordered, prefixKey{prefix: prefix, text: text})
+	}
+	slices.SortFunc(ordered, comparePrefixKey)
+
+	keys := make([]string, 0, len(ordered))
+	for _, key := range ordered {
+		keys = append(keys, key.text)
+	}
+	return keys
+}
+
+// comparePrefixKey orders two table keys: by address, then by prefix length,
+// then by the key text so that no pair is left tied. An unparsed key holds the
+// zero prefix, whose address is invalid and compares below every valid one.
+func comparePrefixKey(a, b prefixKey) int {
+	if order := a.prefix.Addr().Compare(b.prefix.Addr()); order != 0 {
+		return order
+	}
+	if order := cmp.Compare(a.prefix.Bits(), b.prefix.Bits()); order != 0 {
+		return order
+	}
+	return strings.Compare(a.text, b.text)
 }
 
 // Lookup returns all VRP entries covering the given prefix, formatted for diagnostics.

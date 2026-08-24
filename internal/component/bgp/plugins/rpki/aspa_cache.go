@@ -3,7 +3,11 @@
 // Related: roa_cache.go -- ROA cache following the same pattern
 package rpki
 
-import "sync"
+import (
+	"maps"
+	"slices"
+	"sync"
+)
 
 // ASPARecord holds an ASPA record received via RTR: customer AS and its authorized provider set.
 // RFC 9582 Section 5.12: ASPA PDU distributes these records from cache to router.
@@ -148,30 +152,37 @@ type ASPADiagEntry struct {
 	Providers  []uint32
 }
 
-// Entries returns up to limit ASPA records for diagnostic display. Pass 0 for all.
+// Entries returns up to limit ASPA records for diagnostic display, in ascending
+// customer-AS order with each provider set ascending. Pass 0 for all.
+//
+// The order is sorted rather than the Go map iteration order because these rows
+// reach an operator through `show bgp rpki aspa`, whose answer shape publishes
+// the row operators "first", "last" and "display". A map range answers a
+// different order on every call, and past the limit a different SUBSET. The sort
+// runs on a command goroutine; no verification path reaches here, because
+// aspa_verify.go takes checkPair.
 func (c *aSPACache) Entries(limit int) []ASPADiagEntry {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	sz := len(c.records)
-	if limit > 0 && limit < sz {
-		sz = limit
+	customers := slices.Sorted(maps.Keys(c.records))
+	if limit > 0 && limit < len(customers) {
+		customers = customers[:limit]
 	}
-	result := make([]ASPADiagEntry, 0, sz)
-	for customerAS, provSet := range c.records {
-		providers := make([]uint32, 0, len(provSet))
-		for p := range provSet {
-			providers = append(providers, p)
-		}
-		result = append(result, ASPADiagEntry{CustomerAS: customerAS, Providers: providers})
-		if limit > 0 && len(result) >= limit {
-			break
-		}
+	result := make([]ASPADiagEntry, 0, len(customers))
+	for _, customerAS := range customers {
+		result = append(result, ASPADiagEntry{
+			CustomerAS: customerAS,
+			Providers:  slices.Sorted(maps.Keys(c.records[customerAS])),
+		})
 	}
 	return result
 }
 
-// lookupCustomer returns the provider set for a customer AS, or nil if not found.
+// lookupCustomer returns the provider set for a customer AS in ascending order,
+// or nil if not found. The order is sorted for the reason Entries is: the answer
+// becomes the provider list of a `show bgp rpki aspa <customer-asn>` row
+// (rpki.go, aspaCommand), and a map range moves it on every call.
 func (c *aSPACache) lookupCustomer(customerAS uint32) []uint32 {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -179,10 +190,14 @@ func (c *aSPACache) lookupCustomer(customerAS uint32) []uint32 {
 	if !ok {
 		return nil
 	}
+	// aspaCommand reads nil as "no record", so a record that authorizes no
+	// provider MUST answer an empty slice rather than the nil slices.Sorted
+	// would give it.
 	providers := make([]uint32, 0, len(provSet))
 	for p := range provSet {
 		providers = append(providers, p)
 	}
+	slices.Sort(providers)
 	return providers
 }
 
