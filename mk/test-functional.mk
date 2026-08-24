@@ -631,7 +631,7 @@ _ze-functional-vrrp-test-impl: $(ZE_TEST_DEPS)
 # refactor has interleaved 12 lines into that file, and committing it would
 # carry their half-finished work.
 #
-# It lives here rather than in mk/inventory.mk because its whole population is
+# It lives here rather than in mk/check-docs.mk because its whole population is
 # test/**/*.py, the functional harness this file owns.
 .PHONY: ze-functional-docker-exec-check
 ze-functional-docker-exec-check:

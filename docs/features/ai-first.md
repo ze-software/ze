@@ -4,7 +4,7 @@
 <!-- source: cmd/ze/help_ai.go -- ze help ai machine-readable reference -->
 <!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
 <!-- source: ai/rules/repo-maintenance.md -- Current Discovery Surfaces -->
-<!-- source: mk/inventory.mk -- ze-inventory and documentation targets -->
+<!-- source: mk/report-inventory.mk -- ze-inventory and documentation targets -->
 
 Ze is built around a single command and discovery surface. Commands,
 configuration nodes, RPCs, events, and plugin metadata are registered once, then
@@ -99,7 +99,7 @@ message file, executable user-run script, ignored-path checks, and `git commit -
 flow.
 <!-- source: scripts/dev/commit_helper.py -- commit helper CLI and its commit gates -->
 
-<!-- source: mk/inventory.mk -- quick reference and targets -->
+<!-- source: mk/check-docs.mk -- quick reference and targets -->
 
 ## MCP Transport
 

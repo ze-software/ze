@@ -392,7 +392,7 @@ class TestEveryWiringSubcheckDeclaresItsFiles(unittest.TestCase):
     One method per non-zero exit path enumerated in
     plan/spec-verify-scope-6-wiring-docs-attribution.md, minus
     check_plugin_imports: `main` returns 0 on that branch and the
-    ze-doc-wiring-check recipe (mk/inventory.mk) never passes its flag.
+    ze-doc-wiring-check recipe (mk/check-docs.mk) never passes its flag.
     """
 
     def _root(self) -> Path:

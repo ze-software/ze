@@ -255,7 +255,11 @@ include mk/test-integration.mk
 include mk/test-release.mk
 include mk/perf-bench.mk
 include mk/test-alloc.mk
-include mk/inventory.mk
+include mk/check-docs.mk
+include mk/check-cli.mk
+include mk/check-rules.mk
+include mk/report-inventory.mk
+include mk/helper-verify.mk
 include mk/build-gokrazy.mk
 include mk/test-mutation.mk
 include mk/build-appliance.mk
@@ -1154,7 +1158,7 @@ ze-repository-check:
 # the checker run by hand (spec-session-scoped-build-artifacts: 10
 # pre-existing findings pulled into one session's scope), and inside ze-precommit-verify
 # it would red a run whose author changed none of it. Same reasoning as
-# ze-ste-check, which stays out of ze-doc-verify for the same reason (mk/inventory.mk).
+# ze-ste-check, which stays out of ze-doc-verify for the same reason (mk/check-docs.mk).
 #
 # Declaring an EMPTY changed set is what selects the tree-wide three: both
 # changed-file checks return no findings before reading anything, and the other

@@ -133,7 +133,7 @@ class CitationGateTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
     def test_real_corpus_has_no_dangling_spec_citation(self):
-        # Wiring test for `make ze-spec-citation-check` (mk/inventory.mk:34).
+        # Wiring test for `make ze-spec-citation-check` (mk/check-docs.mk:34).
         # The make target runs the script over THIS repository, so this fixture
         # runs the same entry point over the same tree. It is the only test in
         # this file that reads the real corpus; every other one builds a

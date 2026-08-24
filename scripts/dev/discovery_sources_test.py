@@ -24,7 +24,7 @@ class TestDiscoverySources(unittest.TestCase):
 
     def test_makefile_and_mk(self):
         self.assertTrue(is_discovery_source("Makefile"))
-        self.assertTrue(is_discovery_source("mk/inventory.mk"))
+        self.assertTrue(is_discovery_source("mk/check-rules.mk"))
 
     def test_learned_summary_not_a_source(self):
         self.assertFalse(is_discovery_source("plan/learned/1067-topic.md"))
@@ -95,7 +95,7 @@ class TestIndexesFedBy(unittest.TestCase):
         # The ze-discovery-index-update wiring runs every generator; a change there can
         # drift any index, so demand all (conservative).
         self.assertEqual(indexes_fed_by("Makefile"), frozenset(OUTPUTS))
-        self.assertEqual(indexes_fed_by("mk/inventory.mk"), frozenset(OUTPUTS))
+        self.assertEqual(indexes_fed_by("mk/check-rules.mk"), frozenset(OUTPUTS))
 
     def test_committed_index_feeds_only_itself(self):
         self.assertEqual(indexes_fed_by(PACKAGE_MAP), frozenset({PACKAGE_MAP}))

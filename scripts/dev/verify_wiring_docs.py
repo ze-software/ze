@@ -388,7 +388,7 @@ def main() -> int:
 
     root = find_repo_root(Path(args.root).resolve())
     if args.check_plugin_imports:
-        # Not part of the gate: the ze-doc-wiring-check recipe (mk/inventory.mk)
+        # Not part of the gate: the ze-doc-wiring-check recipe (mk/check-docs.mk)
         # never passes this flag, so this branch declares no group and states no
         # count. A caller that passes it gets the check and nothing else.
         check_plugin_imports(root)
@@ -1124,7 +1124,7 @@ def is_digest_source(root: Path, path: str) -> bool:
 def is_inventory_source(root: Path, path: str) -> bool:
     if path in {
         "Makefile",
-        "mk/inventory.mk",
+        "mk/report-inventory.mk",
         "scripts/codegen/plugin_imports.go",
         "internal/component/plugin/all/all.go",
     }:

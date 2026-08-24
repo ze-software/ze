@@ -124,7 +124,7 @@ joining two sources you already keep:
 **Cost.** Low. Extend `scripts/dev/arch_map.py` (already walks the trees) or
 `scripts/inventory/inventory.go` (already imports the registry and renders a
 Description column, `inventory.go`), and wire it into the existing
-`ze-doc-verify` / `ze-generated-files-update` freshness gate (`mk/inventory.mk`) so it cannot rot.
+`ze-doc-verify` / `ze-generated-files-update` freshness gate (`mk/check-docs.mk`) so it cannot rot.
 
 **Why first.** It is the literal answer to your complaint, it is ~90% generatable from
 metadata you maintain, and the freshness gate keeps it honest. This is the single best

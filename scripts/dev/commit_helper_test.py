@@ -44,7 +44,7 @@ class TestFeedsDiscoveryIndex(unittest.TestCase):
             self.assertTrue(f(root, "scripts/dev/package_map.py"))
             self.assertTrue(f(root, "ai/PACKAGE-MAP.md"))
             self.assertTrue(f(root, "Makefile"))
-            self.assertTrue(f(root, "mk/inventory.mk"))
+            self.assertTrue(f(root, "mk/check-docs.mk"))
             self.assertTrue(f(root, "internal/a/a.go"))  # header present
             self.assertFalse(f(root, "internal/b/b.go"))  # no // Package/// Design:
             self.assertFalse(f(root, "internal/a/a_test.go"))
@@ -2029,7 +2029,7 @@ class TestStructuralGatesAreLiveStages(unittest.TestCase):
     tmp/ze-verify-failures.json, which verify_run.go fills from stagesForMode().
     A name absent from stagesForMode can never match, so it silently gates
     nothing while reading as a live safety net -- exactly what
-    `ze-cli-grammar-check` did (it is a real make target in mk/inventory.mk, but
+    `ze-cli-grammar-check` did (it is a real make target in mk/check-cli.mk, but
     was only ever a stage of the dead _ze-verify-impl targets).
 
     The live names are PARSED out of stagesForMode rather than restated here:

@@ -5,7 +5,7 @@ They live in `scripts/` and are exposed as `make ze-*` targets. The full
 documentation check is still explicit, while `make ze-precommit-verify` runs a
 changed-file-aware wiring, documentation, command, and inventory gate.
 
-<!-- source: mk/inventory.mk -- ze-doc-verify and ze-doc-wiring-check -->
+<!-- source: mk/check-docs.mk -- ze-doc-verify and ze-doc-wiring-check -->
 <!-- source: scripts/status/verify_run.go -- stagesForMode -->
 
 ## Quick start
@@ -192,7 +192,7 @@ and scans `docs/`/`scripts/` for references to packages that no longer exist.
 
 1. Write the check as a `//go:build ignore` Go program in `scripts/docvalid/`,
    following the patterns in `doc_drift.go`.
-2. Add a `make ze-foo-check` target to `mk/inventory.mk` or the owning `mk/`
+2. Add a `make ze-foo-check` target to `mk/check-docs.mk` or the owning `mk/`
    file.
 3. Add the new target to `ze-doc-verify` if failure should fail the umbrella.
 4. Add the new target to `scripts/dev/verify_wiring_docs.py` if changed files
@@ -212,5 +212,5 @@ and scans `docs/`/`scripts/` for references to packages that no longer exist.
 - `ai/rules/repo-maintenance.md` -- required discovery updates when new
   checks, tools, or verification gates are added
 - `ai/rules/repo-maintenance.md` -- which hooks and make gates enforce which rules
-- `mk/inventory.mk` -- owning make targets for documentation, inventory,
+- `mk/check-docs.mk` -- owning make targets for documentation, inventory,
   command validation, and wiring/doc gates
