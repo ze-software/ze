@@ -3245,8 +3245,21 @@ def go_style_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
     pattern over a shell command can have. This gate therefore reaches what a
     pre-tool heuristic must miss.
     """
+    # vendor/ is third-party source, and these checks judge how ZE writes Go.
+    # A dependency author's `fmt.Sprintf`, string concatenation, or unchecked
+    # Close is not a Ze style violation, and no reachable edit clears it: the
+    # next `go mod vendor` writes the upstream text back. Without this, bumping
+    # almost any dependency blocks the commit. Measured on the 2026-08-24
+    # testify, x/tools, logrus and x/mod bump, where logrus alone raised
+    # c_ignored_errors, c_sprintf_new and c_string_concat across four files.
+    # Same exemption and same reason as `_design_ref_required` above, and as
+    # `DEFERRAL_SCAN_EXEMPT_DIRS` took on 2026-08-14.
     go_paths = [
-        p for p in add_paths if p.endswith(".go") and not p.endswith("_test.go")
+        p
+        for p in add_paths
+        if p.endswith(".go")
+        and not p.endswith("_test.go")
+        and not re.search(r"(^|/)vendor/", p)
     ]
     if not go_paths:
         return []

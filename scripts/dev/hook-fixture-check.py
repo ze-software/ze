@@ -1999,6 +1999,36 @@ def run_commit_gate(results: Results) -> None:
             "os.Exit outside scripts/ must still be refused",
         )
 
+        # vendor/ is third-party source, and no reachable edit clears a finding
+        # there: the next `go mod vendor` writes the upstream text back. The
+        # 2026-08-24 logrus bump raised c_ignored_errors, c_sprintf_new and
+        # c_string_concat across four files and blocked the commit.
+        _write(
+            repo,
+            "vendor/github.com/x/lib/lib.go",
+            'package lib\n\nfunc F() { os.Exit(1); panic("boom") }\n',
+        )
+        results.check(
+            "commit-gate-go-style-vendor-exempt",
+            not ch.go_style_problems(Path(repo), ("vendor/github.com/x/lib/lib.go",)),
+            "vendored third-party Go is out of scope",
+        )
+        # The other half: the exemption is vendor/, not any path holding the
+        # word. A first-party file whose name merely contains it still fires.
+        _write(
+            repo,
+            "internal/alpha/vendoring.go",
+            "// Design: docs/a.md -- v\npackage alpha\n\nfunc G() { os.Exit(1) }\n",
+        )
+        results.check(
+            "commit-gate-go-style-vendor-lookalike-still-fires",
+            "c_os_exit"
+            in "".join(
+                ch.go_style_problems(Path(repo), ("internal/alpha/vendoring.go",))
+            ),
+            "a first-party path that merely contains 'vendor' must still be refused",
+        )
+
         # Driven from the ENTRY POINT, not the helper. Deleting the
         # `go_style_problems` call in commit_gate_problems leaves every check
         # above green, which is the shape `ai/rules/evidence.md` refuses.
