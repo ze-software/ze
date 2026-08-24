@@ -23,11 +23,28 @@ func backendOrErr() (Backend, error) {
 	return b, nil
 }
 
-// resolveOS translates a logical interface name to its kernel device name via
-// the shared resolver, so the by-name dispatch ops below honor the os-name /
+// ResolveDevice translates a logical interface name to its kernel device name
+// via the shared resolver, so the by-name dispatch ops below honor the os-name /
 // mac-match selectors instead of assuming name == kernel device. The name ""
 // (ResetCounters uses it to mean "every interface") never resolves and passes
 // through untouched.
+//
+// It is exported because the by-name dispatch ops are not the only consumers
+// that need a kernel device: a plugin registry taking one (iface.MacvlanSpec's
+// Parent, a per-interface sysctl path) needs the same answer, and deriving it a
+// second way is how the two disagree. Take this answer rather than composing
+// Resolve with a selector check.
+//
+// A caller from OUTSIDE this package MUST NOT pass "". That name is ResetCounters'
+// own convention for "every interface" and it is answered ("", nil) above; to a
+// plugin registry "" is not a device, and MacvlanSpec.validate rejects it. Pass a
+// configured interface name.
+//
+// An error means "could not answer this pass", NOT "the device is gone": every
+// Resolve failure is refused once the name carries a selector, a missing backend
+// and a failed ListInterfaces included. A consumer MUST NOT tear down live state
+// on it. Create and move on a successful answer; keep what is running on an error,
+// and let a liveness probe decide whether it still works.
 //
 // A failed resolution is answered two ways, and which one it gets is the whole
 // point of this function. A name with NO selector configured IS its own kernel
@@ -42,7 +59,7 @@ func backendOrErr() (Backend, error) {
 // resolver is built on them (resolve.go osDeviceFor), so translating them would
 // recurse. The Create* ops are also raw -- a created device's name IS its
 // kernel name.
-func resolveOS(name string) (string, error) {
+func ResolveDevice(name string) (string, error) {
 	if name == "" {
 		return "", nil
 	}
@@ -60,13 +77,13 @@ func resolveOS(name string) (string, error) {
 }
 
 // errIfaceSelectorUnresolved names the one case Resolve reports as success and
-// resolveOS still refuses: a binding whose device carries no name.
+// ResolveDevice still refuses: a binding whose device carries no name.
 var errIfaceSelectorUnresolved = errors.New("resolved device has no name")
 
 // Package-level functions that delegate to the active backend. By-name
 // mutation/query ops translate the logical name to its kernel device via
-// resolveOS first; Create* / GetInterface / ListInterfaces stay raw (see
-// resolveOS).
+// ResolveDevice first; Create* / GetInterface / ListInterfaces stay raw (see
+// ResolveDevice).
 
 func CreateDummy(name string) error {
 	b, err := backendOrErr()
@@ -94,7 +111,7 @@ func CreateVLAN(parent string, vid int) error {
 	if err != nil {
 		return err
 	}
-	osParent, err := resolveOS(parent)
+	osParent, err := ResolveDevice(parent)
 	if err != nil {
 		return err
 	}
@@ -105,7 +122,7 @@ func DeleteInterface(name string) error {
 	if err != nil {
 		return err
 	}
-	osName, err := resolveOS(name)
+	osName, err := ResolveDevice(name)
 	if err != nil {
 		return err
 	}
@@ -116,7 +133,7 @@ func AddAddress(iface, cidr string) error {
 	if err != nil {
 		return err
 	}
-	osName, err := resolveOS(iface)
+	osName, err := ResolveDevice(iface)
 	if err != nil {
 		return err
 	}
@@ -127,7 +144,7 @@ func RemoveAddress(iface, cidr string) error {
 	if err != nil {
 		return err
 	}
-	osName, err := resolveOS(iface)
+	osName, err := ResolveDevice(iface)
 	if err != nil {
 		return err
 	}
@@ -139,7 +156,7 @@ func AddRoute(ifaceName, destCIDR, gateway string, metric int, proto rtproto.Pro
 	if err != nil {
 		return err
 	}
-	osName, err := resolveOS(ifaceName)
+	osName, err := ResolveDevice(ifaceName)
 	if err != nil {
 		return err
 	}
@@ -151,7 +168,7 @@ func RemoveRoute(ifaceName, destCIDR, gateway string, metric int, proto rtproto.
 	if err != nil {
 		return err
 	}
-	osName, err := resolveOS(ifaceName)
+	osName, err := ResolveDevice(ifaceName)
 	if err != nil {
 		return err
 	}
@@ -163,7 +180,7 @@ func ListRoutes(ifaceName, destCIDR string) ([]RouteInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	osName, err := resolveOS(ifaceName)
+	osName, err := ResolveDevice(ifaceName)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +243,7 @@ func ResetCounters(name string) error {
 	if err != nil {
 		return err
 	}
-	osName, err := resolveOS(name)
+	osName, err := ResolveDevice(name)
 	if err != nil {
 		return err
 	}
@@ -238,7 +255,7 @@ func ReplaceAddressWithLifetime(ifaceName, cidr string, validLft, preferredLft i
 	if err != nil {
 		return err
 	}
-	osName, err := resolveOS(ifaceName)
+	osName, err := ResolveDevice(ifaceName)
 	if err != nil {
 		return err
 	}
@@ -250,7 +267,7 @@ func SetAdminUp(iface string) error {
 	if err != nil {
 		return err
 	}
-	osName, err := resolveOS(iface)
+	osName, err := ResolveDevice(iface)
 	if err != nil {
 		return err
 	}
@@ -261,7 +278,7 @@ func SetAdminDown(iface string) error {
 	if err != nil {
 		return err
 	}
-	osName, err := resolveOS(iface)
+	osName, err := ResolveDevice(iface)
 	if err != nil {
 		return err
 	}
@@ -272,7 +289,7 @@ func SetMTU(iface string, mtu int) error {
 	if err != nil {
 		return err
 	}
-	osName, err := resolveOS(iface)
+	osName, err := ResolveDevice(iface)
 	if err != nil {
 		return err
 	}
@@ -283,7 +300,7 @@ func SetMACAddress(iface, mac string) error {
 	if err != nil {
 		return err
 	}
-	osName, err := resolveOS(iface)
+	osName, err := ResolveDevice(iface)
 	if err != nil {
 		return err
 	}
@@ -295,7 +312,7 @@ func GetMACAddress(iface string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	osName, err := resolveOS(iface)
+	osName, err := ResolveDevice(iface)
 	if err != nil {
 		return "", err
 	}
@@ -310,7 +327,7 @@ func GetStats(iface string) (*InterfaceStats, error) {
 	// Resolve once and key the baseline on the kernel device name, so a clear
 	// (ResetCounters) and a subsequent read agree on the key regardless of the
 	// selector (both resolve the logical name to the same os device).
-	osName, err := resolveOS(iface)
+	osName, err := ResolveDevice(iface)
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +348,7 @@ func LinkSpeedDuplex(name string) (int, string) {
 	if b == nil {
 		return 0, ""
 	}
-	osName, err := resolveOS(name)
+	osName, err := ResolveDevice(name)
 	if err != nil {
 		return 0, ""
 	}
@@ -373,11 +390,11 @@ func BridgeAddPort(bridge, port string) error {
 	if err != nil {
 		return err
 	}
-	osBridge, err := resolveOS(bridge)
+	osBridge, err := ResolveDevice(bridge)
 	if err != nil {
 		return err
 	}
-	osPort, err := resolveOS(port)
+	osPort, err := ResolveDevice(port)
 	if err != nil {
 		return err
 	}
@@ -388,7 +405,7 @@ func BridgeDelPort(port string) error {
 	if err != nil {
 		return err
 	}
-	osPort, err := resolveOS(port)
+	osPort, err := ResolveDevice(port)
 	if err != nil {
 		return err
 	}
@@ -399,7 +416,7 @@ func BridgeSetSTP(bridge string, on bool) error {
 	if err != nil {
 		return err
 	}
-	osBridge, err := resolveOS(bridge)
+	osBridge, err := ResolveDevice(bridge)
 	if err != nil {
 		return err
 	}
@@ -411,11 +428,11 @@ func SetupMirror(src, dst string, ingress, egress bool) error {
 	if err != nil {
 		return err
 	}
-	osSrc, err := resolveOS(src)
+	osSrc, err := ResolveDevice(src)
 	if err != nil {
 		return err
 	}
-	osDst, err := resolveOS(dst)
+	osDst, err := ResolveDevice(dst)
 	if err != nil {
 		return err
 	}
@@ -427,7 +444,7 @@ func RemoveMirror(src string) error {
 	if err != nil {
 		return err
 	}
-	osSrc, err := resolveOS(src)
+	osSrc, err := ResolveDevice(src)
 	if err != nil {
 		return err
 	}
@@ -439,7 +456,7 @@ func GetXFRMInfo(name string) (XFRMInfo, error) {
 	if err != nil {
 		return XFRMInfo{}, err
 	}
-	osName, err := resolveOS(name)
+	osName, err := ResolveDevice(name)
 	if err != nil {
 		return XFRMInfo{}, err
 	}

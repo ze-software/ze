@@ -104,11 +104,22 @@ type GroupSpec struct {
 	// lets an operator rename or renumber independently (and matches the
 	// wireguard peer precedent, ze-iface-conf.yang list peer { key "name" }).
 	Name string
-	// ParentDevice is the OS device that hosts this virtual router: the
-	// interface itself, or its VLAN sub-interface when the unit carries a
-	// vlan-id (the iface naming rule, config_apply.go:35-39). Sockets, the
-	// macvlan parent, and the tie-break source address all belong to THIS
-	// device, not to the logical interface name.
+	// VLANID is the unit's 802.1Q tag, 0 when the unit is untagged. It is kept
+	// as the config fact it is rather than pre-composed into a device name,
+	// because the device the tag hangs off is not known until the interface's
+	// hardware selector is answered (parentDevice).
+	VLANID uint16
+	// ParentDevice is the KERNEL device that hosts this virtual router: the
+	// device the interface's hardware selector answers, or that device's VLAN
+	// sub-interface when the unit carries a vlan-id (the iface naming rule,
+	// config_apply.go unitOSName). Sockets, the macvlan parent, the per-device
+	// sysctls and the tie-break source address all belong to THIS device, not
+	// to the logical interface name.
+	//
+	// It is EMPTY until engine.apply binds it (parentDevice below). Extraction
+	// stays pure -- `ze config validate` and `ze doctor` must not need the
+	// hardware present -- so a spec that has never been applied carries no
+	// device, and no group runs on an unbound one.
 	ParentDevice        string
 	VRID                uint8
 	VIPs                []netip.Addr // Wire order == configuration order (RFC 9568 Section 5.2.9).
@@ -261,7 +272,7 @@ func extractGroupSpecs(sections []configSection) ([]GroupSpec, error) {
 					if !ok {
 						continue
 					}
-					device, err := unitDevice(name, unitCfg)
+					vlanID, err := unitVLANID(name, unitCfg)
 					if err != nil {
 						return nil, err
 					}
@@ -270,7 +281,7 @@ func extractGroupSpecs(sections []configSection) ([]GroupSpec, error) {
 						if !ok {
 							continue
 						}
-						got, gerr := groupsForFamily(ifType, name, unit, device, family, famCfg)
+						got, gerr := groupsForFamily(ifType, name, unit, vlanID, family, famCfg)
 						if gerr != nil {
 							return nil, gerr
 						}
@@ -284,32 +295,67 @@ func extractGroupSpecs(sections []configSection) ([]GroupSpec, error) {
 	return specs, nil
 }
 
-// unitDevice returns the OS device that hosts a unit.
-//
-// The iface component names a unit's device after its parent, suffixed with the
-// VLAN id when the unit carries one (config_apply.go:35-39). VRRP must bind its
-// sockets and hang its macvlan on THAT device: a group on a VLAN unit that
-// bound the bare parent would advertise on the wrong broadcast domain and
-// silently never see its peers.
-func unitDevice(iface string, unitCfg map[string]any) (string, error) {
+// unitVLANID returns the unit's 802.1Q tag, or 0 when the unit is untagged.
+func unitVLANID(iface string, unitCfg map[string]any) (uint16, error) {
 	v, ok := unitCfg["vlan-id"]
 	if !ok {
-		return iface, nil
+		return 0, nil
 	}
 	vlan, err := asUint(v, 4094)
 	if err != nil {
-		return "", fmt.Errorf("vrrp: interface %s: vlan-id: %w", iface, err)
+		return 0, fmt.Errorf("vrrp: interface %s: vlan-id: %w", iface, err)
 	}
-	if vlan == 0 {
-		return iface, nil
+	return uint16(vlan), nil
+}
+
+// unitDeviceName names the kernel device a unit lives on: the parent device
+// itself, or its VLAN sub-interface when the unit carries a tag.
+//
+// The suffix hangs off the RESOLVED device, never the logical name, because
+// both backends compose the VLAN netdev name from the parent they are handed
+// (iface config_apply.go unitOSName). A VLAN on selected hardware is therefore
+// named after that hardware, and "<logical>.<vid>" names a device that does not
+// exist.
+func unitDeviceName(device string, vlanID uint16) string {
+	if vlanID == 0 {
+		return device
 	}
 	var tb textbuf.Buffer
-	return tb.Str(iface).Byte('.').Uint(vlan).String(), nil
+	return tb.Str(device).Byte('.').Uint(uint64(vlanID)).String()
+}
+
+// deviceResolver answers "which kernel device does this logical interface
+// name mean". iface.ResolveDevice is the one production answer, injected
+// through enginePlatform so this file keeps its no-iface-import property.
+//
+// Only engine.apply holds one. The config verifier and the `ze doctor` check
+// call extractGroupSpecs, which binds no device at all: they judge the CONFIG,
+// and asking the kernel there would make `ze config validate` refuse a
+// configuration whose NIC has not enumerated yet.
+type deviceResolver func(name string) (string, error)
+
+// parentDevice returns the kernel device that hosts this group's virtual router.
+//
+// The interface's hardware selector decides it: an operator who pinned the
+// interface to a NIC by permanent MAC asked for the virtual router to live on
+// THAT NIC. RFC 9568 Section 7.3 puts the virtual MAC on the interface the
+// virtual router protects, so building it elsewhere is not a degraded VRRP, it
+// is VRRP for the wrong link.
+//
+// An error means the selector answered no device, or more than one. The group
+// must not run: a name that merely matches some other device is exactly the
+// wrong-link failure this resolution exists to prevent.
+func (g GroupSpec) parentDevice(resolve deviceResolver) (string, error) {
+	device, err := resolve(g.Interface)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", g.describe(), err)
+	}
+	return unitDeviceName(device, g.VLANID), nil
 }
 
 // groupsForFamily extracts the vrrp groups configured under one unit's family
 // container, resolving owner status against that family's real addresses.
-func groupsForFamily(ifType, name, unit, device, family string, famCfg map[string]any) ([]GroupSpec, error) {
+func groupsForFamily(ifType, name, unit string, vlanID uint16, family string, famCfg map[string]any) ([]GroupSpec, error) {
 	vrrpCfg, ok := famCfg["vrrp"].(map[string]any)
 	if !ok {
 		return nil, nil
@@ -331,7 +377,7 @@ func groupsForFamily(ifType, name, unit, device, family string, famCfg map[strin
 			IfType:           ifType,
 			Interface:        name,
 			Unit:             unit,
-			ParentDevice:     device,
+			VLANID:           vlanID,
 			Family:           family,
 			Name:             groupName,
 			Priority:         defaultPriority,

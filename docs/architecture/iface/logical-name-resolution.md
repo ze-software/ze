@@ -62,9 +62,46 @@ every other unbound setting defers.
 An entry whose selector names no present device is UNBOUND, and every phase
 skips it. No phase falls back to the logical name: that fallback is what let an
 aliased entry configure whatever else carried its name, and it is the same
-fallback `resolveOS` now refuses for a name that HAS a selector. A `mac/match`
+fallback `ResolveDevice` now refuses for a name that HAS a selector. A `mac/match`
 that names more than one device refuses the apply, because nothing
 distinguishes the candidates.
+
+## The plugin-facing registries take the resolved device too
+
+A registry a plugin fills is a second entry point holding a name nobody
+translated, and fixing the apply path does not reach it.
+`iface.MacvlanSpec.Parent` is documented as an OS device name and lands in
+`netlink.LinkByName`, so a plugin that fills it from a configured interface name
+builds on whatever wears that name. VRRP did exactly that until 2026-08-23.
+
+`ResolveDevice` is exported for those callers. It is the same function the
+by-name dispatch ops use, so a plugin takes the one answer rather than composing
+`Resolve` with a selector check of its own: a name with NO selector is its own
+kernel device, a name WITH one that resolves gives the device, and a name with
+one that answers nothing or several is refused. VRRP binds each group's parent
+through it once per apply and hands the result to its macvlan, its per-device
+sysctls, its transport and its readiness probe.
+
+A binding outcome may CREATE a virtual router and may MOVE one; it may not
+destroy one. `ResolveDevice` refuses on any resolution failure once the name
+carries a selector, and "the backend is not loaded" and "the interface listing
+failed" are among them, so an error here does not mean the device is gone. A
+consumer that tears state down on it converts one transient netlink read into a
+permanent outage, because the per-name cache is dropped on every iface apply and
+nothing re-runs the consumer until its own config changes. Take the error as
+"could not ask this pass" and keep what is already running.
+
+<!-- source: internal/component/iface/macvlan.go -- MacvlanSpec.Parent -->
+<!-- source: internal/plugins/vrrp/engine.go -- apply, the binding step -->
+<!-- source: internal/plugins/vrrp/groups.go -- parentDevice, deviceResolver -->
+
+A consumer that must stay PURE is the exception, and it holds no resolver at
+all: VRRP's config verifier and its `ze doctor` check judge the CONFIGURATION,
+so asking the kernel there would make `ze config validate` refuse a
+configuration whose NIC has not enumerated yet. They read no device, and every
+device-bearing value they produce stays empty until an apply binds it. That is
+why VRRP's group extraction carries the unit's VLAN tag rather than a composed
+device name: the tag is a config fact, and the device is not.
 
 A device answers a MAC selector only when the address it is matched on is its
 OWN. Linux gives a device an address it did not bring in two ways, and both are
@@ -87,7 +124,7 @@ a bridged port ambiguous, at error severity, while the daemon bound to it.
 
 <!-- source: internal/component/iface/config_apply.go -- validateSelectors, devicesWithMAC, isStackedDevice, aggregatingDevices -->
 <!-- source: internal/component/doctor/checks_linux.go -- netDevicesWithAddress, hasLowerDevice -->
-<!-- source: internal/component/iface/dispatch.go -- resolveOS -->
+<!-- source: internal/component/iface/dispatch.go -- ResolveDevice -->
 
 ## The mapping is published before the apply, not after
 

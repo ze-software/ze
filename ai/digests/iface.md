@@ -137,7 +137,7 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
 | `wireguard.go` | `WireguardSpec`/`WireguardPeerSpec` value types consumed by `Backend.ConfigureWireguardDevice` |
 | `pppoe_client.go` | `PPPoEClient` session lifecycle, reconnect backoff, `reconcilePPPoEClients` |
 | `resolve.go` | Shared logical-name → kernel-device resolver (`Resolve`/`Addresses`/`Subscribe`), os-name/mac-match selector maps |
-| `dispatch.go` | Package-level functions delegating to the active backend, `resolveOS` name translation |
+| `dispatch.go` | Package-level functions delegating to the active backend, `ResolveDevice` name translation |
 | `discover.go` | `DiscoverInterfaces`, Ze type name constants, kernel tunnel-kind mapping |
 | `operation.go` | Fine-grained `tx.ConfigOperation` decomposition for the transaction coordinator |
 | `iface.go` | Shared value types (`InterfaceInfo`, `Binding`, `AddrInfo`, event payloads) |
@@ -163,8 +163,8 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
   interface a plugin ever registered, which permanently stripped kernel-native addresses (e.g.
   `lo`'s `127.0.0.1`) on later unrelated reconciles; the current version forgets an interface
   once a clean pass proves its stale address was pruned (`address_owner.go`).
-- **`GetInterface`/`ListInterfaces` bypass `resolveOS`.** `resolve.go`'s resolver is built on top
-  of these two calls, so routing them through `resolveOS` would recurse; every other by-name
+- **`GetInterface`/`ListInterfaces` bypass `ResolveDevice`.** `resolve.go`'s resolver is built on top
+  of these two calls, so routing them through `ResolveDevice` would recurse; every other by-name
   dispatch function does translate the logical name first (`dispatch.go`).
 - **Backend-not-ready is a first-class deferral, not an error.** `ErrBackendNotReady`
   (`backend.go`) from the vpp backend's `ListInterfaces`/`StartMonitor` short-circuits

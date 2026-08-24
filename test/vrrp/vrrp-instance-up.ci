@@ -29,7 +29,24 @@
 # `make ze-qemu-needs-linux-test`. setup.py builds a throwaway veth parent so the
 # macvlan hangs off a real multicast-capable device and the VIP lands there
 # rather than on the VM's eth0.
-option=needs-linux
+# caps=net-admin because setup.py below runs `ip link add`. Without the
+# declaration an unprivileged Linux host does not skip: it runs, the `ip`
+# calls are refused, and the test FAILS for a capability the host never had
+# (internal/test/runner/record_parse.go, option=needs-linux).
+option=needs-linux:caps=net-admin
+# option=exclusive: two ze daemons must not own macvlans in one network
+# namespace at the same time. reconcileOwnedDevices (iface/config_apply.go)
+# deletes every "ze:owned:" macvlan absent from ITS registry, which is correct
+# for the one-daemon-per-namespace deployment and fatal for two concurrent test
+# daemons: each scans the other's device as an orphan and removes it. Measured
+# 2026-08-23 -- this test's zv4-8-10 vanished under a concurrent VRRP test and
+# its transport failed with "resolve macvlan zv4-8-10: no such network
+# interface". Unique device names cannot help; the contention is over the
+# ownership alias namespace, not over a name. The group is named for the
+# RESOURCE rather than for vrrp: any plugin registering an owned macvlan
+# contends for the same alias namespace, and vrrp is only today's single caller
+# of RegisterOwnedMacvlan.
+option=exclusive:group=iface-owned-macvlan
 
 tmpfs=setup.py:mode=755:terminator=EOF_SETUP
 #!/usr/bin/env python3

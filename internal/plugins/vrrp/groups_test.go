@@ -4,10 +4,15 @@ package vrrp
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/netip"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/ze-software/ze/internal/test/sim"
 )
 
 // mkSection wraps an interface subtree into the shared `interface` config
@@ -670,17 +675,22 @@ func TestValidateDuplicateVRID(t *testing.T) {
 	}
 }
 
-// TestUnitDeviceResolution proves a group's kernel-facing device is the UNIT's
-// device, not the logical interface name.
+// TestUnitDeviceResolution proves extraction records each unit's 802.1Q tag, so
+// the device the group ends up on is the UNIT's device rather than the bare
+// parent.
 //
 // A unit with a vlan-id lives on a sub-interface (iface names it
-// "<parent>.<vlan-id>", config_apply.go:35-39). Binding sockets and the macvlan
-// to the bare parent instead would advertise into the wrong broadcast domain --
-// the group would simply never see its peers, while looking configured. It
-// would also collapse two units of one interface onto a single transport
-// InstanceKey and a single metric series.
+// "<parent>.<vlan-id>", config_apply.go unitOSName). Binding sockets and the
+// macvlan to the bare parent instead would advertise into the wrong broadcast
+// domain -- the group would simply never see its peers, while looking
+// configured. It would also collapse two units of one interface onto a single
+// transport InstanceKey and a single metric series.
 //
-// VALIDATES: ParentDevice per unit.
+// The tag is carried, never pre-composed into a device name: the device it
+// hangs off is not known until the interface's hardware selector is answered,
+// which engine.apply does (TestVRRPParentComposesVLANOnTheResolvedDevice).
+//
+// VALIDATES: VLANID per unit.
 // PREVENTS: VRRP on a VLAN unit silently running on the wrong link.
 func TestUnitDeviceResolution(t *testing.T) {
 	tree := map[string]any{
@@ -709,15 +719,19 @@ func TestUnitDeviceResolution(t *testing.T) {
 	if len(specs) != 2 {
 		t.Fatalf("specs = %d, want 2", len(specs))
 	}
-	devices := map[string]string{}
+	tags := map[string]uint16{}
 	for _, s := range specs {
-		devices[s.Name] = s.ParentDevice
+		tags[s.Name] = s.VLANID
+		if s.ParentDevice != "" {
+			t.Errorf("group %q left extraction with ParentDevice %q; extraction is pure and binds no device",
+				s.Name, s.ParentDevice)
+		}
 	}
-	if devices["base"] != "eth0" {
-		t.Errorf("plain unit device = %q, want eth0", devices["base"])
+	if tags["base"] != 0 {
+		t.Errorf("plain unit VLANID = %d, want 0", tags["base"])
 	}
-	if devices["tagged"] != "eth0.100" {
-		t.Errorf("vlan unit device = %q, want eth0.100", devices["tagged"])
+	if tags["tagged"] != 100 {
+		t.Errorf("vlan unit VLANID = %d, want 100", tags["tagged"])
 	}
 	// The same vrid on two DIFFERENT units of one interface is legal: they are
 	// different links, so different virtual routers.
@@ -801,4 +815,732 @@ func TestIfaceBackend(t *testing.T) {
 	if got := ifaceBackend([]configSection{s2}); got != "netlink" {
 		t.Fatalf("want netlink default, got %q", got)
 	}
+}
+
+// --- Parent-device binding (spec-fixit-vrrp-parent-ignores-the-selector) -----
+//
+// An operator pins an interface to its hardware with `mac/match` or aliases it
+// with `os-name`, and the virtual router must live on the device that selector
+// answered. These tests drive engine.apply, not the helper, because apply is
+// where ParentDevice is bound and where the kernel-facing values (macvlan
+// parent, per-device sysctls, transport parent) are handed out. Asserting on
+// the helper alone would leave a sink free to take the logical name.
+
+// applyTree extracts a config tree, binds it through engine.apply under the
+// given selector answer, and returns the engine plus the recorded platform
+// calls. A nil resolve means "no selector configured": every name is its own
+// kernel device.
+func applyTree(t *testing.T, tree map[string]any, resolve deviceResolver) (*engine, *fakePlatform) {
+	t.Helper()
+	specs, err := extractGroupSpecs([]configSection{mkSection(t, tree)})
+	if err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	p := newFakePlatform()
+	if resolve != nil {
+		p.resolveParent = resolve
+	}
+	f := &fakeDeps{}
+	eng := newEngine(sim.NewFakeClock(time.Unix(0, 0).UTC()), p.platform(), f.deps())
+	t.Cleanup(eng.stopAll)
+	eng.apply(specs)
+	return eng, p
+}
+
+// boundDevice returns the ParentDevice of the running instance for group name,
+// or "" when no instance was created for it.
+func boundDevice(eng *engine, name string) string {
+	eng.mu.Lock()
+	defer eng.mu.Unlock()
+	for _, in := range eng.instances {
+		if in.spec.Name == name {
+			return in.spec.ParentDevice
+		}
+	}
+	return ""
+}
+
+// identityDevice is the resolver for a configuration with no hardware selector:
+// every logical name is its own kernel device. It is the fake platform's
+// default, so a test that configures no selector reads back the name it wrote.
+func identityDevice(name string) (string, error) { return name, nil }
+
+// selectedIface is the logical name every selector test configures. It is
+// deliberately not a kernel device name: the whole point is that the operator's
+// label and the NIC's name are two different strings.
+const selectedIface = "wan"
+
+// selects answers selectedIface with device and refuses every other name the
+// way iface.ResolveDevice refuses an unbound selector.
+func selects(device string) deviceResolver {
+	return func(n string) (string, error) {
+		if n == selectedIface {
+			return device, nil
+		}
+		return "", fmt.Errorf("iface: interface %q is bound to hardware by a selector that resolves to no device", n)
+	}
+}
+
+// vrrpOn builds an interface tree with one vrrp group on
+// ethernet/selectedIface/unit <unit>/ipv4, optionally VLAN-tagged.
+func vrrpOn(unit string, vlanID int, group string, vrid int) map[string]any {
+	unitCfg := map[string]any{
+		"ipv4": map[string]any{"vrrp": map[string]any{"group": map[string]any{
+			group: map[string]any{"vrid": float64(vrid), "virtual-address": vips("192.0.2.1")},
+		}}},
+	}
+	if vlanID > 0 {
+		unitCfg["vlan-id"] = float64(vlanID)
+	}
+	return map[string]any{"ethernet": map[string]any{selectedIface: map[string]any{
+		"unit": map[string]any{unit: unitCfg},
+	}}}
+}
+
+// TestVRRPParentTakesTheResolvedDevice proves the virtual router is built on
+// the device the interface's hardware selector answered, not on the logical
+// name the operator chose for it.
+//
+// RFC 9568 Section 7.3 puts the virtual MAC on the interface the virtual router
+// protects. An operator who pinned "wan" to a NIC by permanent MAC asked for
+// the virtual router on THAT NIC, so a macvlan built on whatever else wears the
+// name "wan" is not a degraded VRRP -- it is VRRP for the wrong link, and the
+// protected address fails over to a router that cannot carry it.
+//
+// VALIDATES: AC-1 (mac/match), AC-2 (os-name -- one resolver answers both, the
+// selector form is iface's business and never reaches vrrp).
+// PREVENTS: the virtual MAC landing on a device that merely shares the
+// configured interface's name.
+func TestVRRPParentTakesTheResolvedDevice(t *testing.T) {
+	eng, p := applyTree(t, vrrpOn("0", 0, "lab", 10), selects("eth3"))
+
+	if got := boundDevice(eng, "lab"); got != "eth3" {
+		t.Fatalf("ParentDevice = %q, want eth3 (the device the selector answered)", got)
+	}
+	if len(p.parents) != 1 {
+		t.Fatalf("created %d macvlans, want 1", len(p.parents))
+	}
+	for dev, parent := range p.parents {
+		if parent != "eth3" {
+			t.Errorf("macvlan %s created on parent %q, want eth3", dev, parent)
+		}
+	}
+	if len(p.applied) != 1 || !strings.HasPrefix(p.applied[0], "eth3/") {
+		t.Errorf("dataplane sysctls applied to %v, want the eth3 device", p.applied)
+	}
+	if len(p.opened) != 1 || p.opened[0].Parent != "eth3" {
+		t.Errorf("transport opened on %v, want parent eth3", p.opened)
+	}
+}
+
+// TestVRRPParentComposesVLANOnTheResolvedDevice proves the VLAN suffix hangs
+// off the resolved device, not the logical name.
+//
+// Both interface backends compose a VLAN netdev name from the parent they are
+// handed (iface config_apply.go unitOSName), so a VLAN on selected hardware IS
+// named after that hardware. "wan.100" names a device the kernel does not have.
+//
+// VALIDATES: AC-3.
+// PREVENTS: a VLAN-tagged group failing to find its device, or finding a
+// same-named one on other hardware.
+func TestVRRPParentComposesVLANOnTheResolvedDevice(t *testing.T) {
+	eng, p := applyTree(t, vrrpOn("1", 100, "tagged", 11), selects("eth3"))
+
+	if got := boundDevice(eng, "tagged"); got != "eth3.100" {
+		t.Fatalf("ParentDevice = %q, want eth3.100 (the tag on the RESOLVED device)", got)
+	}
+	if len(p.opened) != 1 || p.opened[0].Parent != "eth3.100" {
+		t.Errorf("transport opened on %v, want parent eth3.100", p.opened)
+	}
+}
+
+// TestVRRPParentUnselectedInterfaceIsUnchanged pins the common configuration:
+// an interface with no hardware selector IS its own kernel device, tagged or
+// not, exactly as before this binding existed.
+//
+// This is the regression guard on the fix. A resolution that made every name
+// depend on the hardware being present would refuse a virtual router on a
+// device Ze itself creates, and would break every deployment that never
+// configured a selector.
+//
+// VALIDATES: AC-4.
+// PREVENTS: the fix changing behavior for interfaces that carry no selector.
+func TestVRRPParentUnselectedInterfaceIsUnchanged(t *testing.T) {
+	tree := map[string]any{"ethernet": map[string]any{"eth0": map[string]any{"unit": map[string]any{
+		"0": map[string]any{"ipv4": map[string]any{"vrrp": map[string]any{"group": map[string]any{
+			"base": map[string]any{"vrid": float64(10), "virtual-address": vips("192.0.2.1")},
+		}}}},
+		"1": map[string]any{
+			"vlan-id": float64(100),
+			"ipv4": map[string]any{"vrrp": map[string]any{"group": map[string]any{
+				"tagged": map[string]any{"vrid": float64(11), "virtual-address": vips("198.51.100.1")},
+			}}},
+		},
+	}}}}
+	eng, _ := applyTree(t, tree, identityDevice)
+
+	if got := boundDevice(eng, "base"); got != "eth0" {
+		t.Errorf("plain unit ParentDevice = %q, want eth0", got)
+	}
+	if got := boundDevice(eng, "tagged"); got != "eth0.100" {
+		t.Errorf("vlan unit ParentDevice = %q, want eth0.100", got)
+	}
+}
+
+// TestVRRPGroupRefusesAnUnansweredSelector proves a group whose selector
+// answers no device, or more than one, runs on NO device at all.
+//
+// Failing closed is the whole point (ai/rules/evidence.md): the tempting
+// fallback is the logical name, and that is precisely how a virtual MAC reaches
+// hardware the operator did not name. Nothing distinguishes two devices
+// carrying one MAC either, so picking one is a guess about which physical port
+// carries the protected address.
+//
+// VALIDATES: AC-5, both the zero-device and the several-device case.
+// PREVENTS: an unbound selector degrading into "use the name".
+func TestVRRPGroupRefusesAnUnansweredSelector(t *testing.T) {
+	refusals := map[string]deviceResolver{
+		"no device answers": func(string) (string, error) {
+			return "", fmt.Errorf("iface: no device with MAC 02:00:00:00:be:99 for logical interface %q", selectedIface)
+		},
+		"several devices answer": func(string) (string, error) {
+			return "", fmt.Errorf("iface: MAC 02:00:00:00:be:99 for logical interface %q is carried by 2 devices (eth3, eth4)", selectedIface)
+		},
+	}
+	for name, resolve := range refusals {
+		t.Run(name, func(t *testing.T) {
+			eng, p := applyTree(t, vrrpOn("0", 0, "lab", 10), resolve)
+
+			eng.mu.Lock()
+			running := len(eng.instances)
+			eng.mu.Unlock()
+			if running != 0 {
+				t.Errorf("instances = %d, want 0: an unbound selector must run no virtual router", running)
+			}
+			if len(p.devices) != 0 {
+				t.Errorf("macvlans created on %v, want none on any device", p.devices)
+			}
+			if len(p.applied) != 0 {
+				t.Errorf("dataplane sysctls applied to %v, want none", p.applied)
+			}
+			if len(p.opened) != 0 {
+				t.Errorf("transports opened on %v, want none", p.opened)
+			}
+		})
+	}
+}
+
+// TestVRRPGroupSurvivesAnUnresolvedSelector proves a RUNNING virtual router is
+// left where it is when its selector cannot be answered, rather than torn down.
+//
+// This is the availability half of the binding, and it is worth more than the
+// defect the binding fixes. "Could not resolve" is not "the device is gone":
+// iface.ResolveDevice refuses on ANY Resolve failure once the name carries a
+// selector, one failed ListInterfaces inside matchByMAC included, and the
+// resolver cache cannot soften it because setMapping drops the cache on every
+// iface apply. A teardown here resigns the FSM with a Priority-0 advertisement
+// and removes the VIP, and apply runs only on a config event -- so one transient
+// netlink read during an UNRELATED commit would fail a live master over, and it
+// would stay down until somebody committed again.
+//
+// The device actually disappearing is handled elsewhere and handled better:
+// parentReady stops the virtual router and watchParent starts it again when the
+// device returns, with no commit and no macvlan churn.
+//
+// VALIDATES: AC-5 does not extend to destroying a running virtual router.
+// PREVENTS: a transient resolver failure failing a master over, permanently.
+func TestVRRPGroupSurvivesAnUnresolvedSelector(t *testing.T) {
+	tree := vrrpOn("0", 0, "lab", 10)
+	specs, err := extractGroupSpecs([]configSection{mkSection(t, tree)})
+	if err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	p := newFakePlatform()
+	p.resolveParent = selects("eth3")
+	f := &fakeDeps{}
+	eng := newEngine(sim.NewFakeClock(time.Unix(0, 0).UTC()), p.platform(), f.deps())
+	t.Cleanup(eng.stopAll)
+
+	eng.apply(specs)
+	if got := boundDevice(eng, "lab"); got != "eth3" {
+		t.Fatalf("ParentDevice = %q, want eth3 before the selector fails", got)
+	}
+
+	// Every way ResolveDevice can refuse, including the two that say nothing
+	// about the hardware: the backend is not loaded, and the listing failed.
+	refusals := []string{
+		"iface: no backend loaded",
+		"iface: interface \"wan\" is bound to hardware by a selector that resolves to no device: netlink receive: interrupted system call",
+		"iface: no device with MAC 02:00:00:00:be:99 for logical interface \"wan\"",
+		"iface: MAC 02:00:00:00:be:99 for logical interface \"wan\" is carried by 2 devices (eth3, eth4)",
+	}
+	for _, reason := range refusals {
+		p.resolveParent = func(string) (string, error) { return "", errors.New(reason) }
+		eng.apply(specs)
+
+		if got := boundDevice(eng, "lab"); got != "eth3" {
+			t.Fatalf("after %q: ParentDevice = %q, want the virtual router still on eth3", reason, got)
+		}
+	}
+
+	// No teardown side effect fired: no Priority-0 resignation path, no macvlan
+	// removed, no dataplane reverted, no transport closed.
+	if len(p.deleted) != 0 {
+		t.Errorf("macvlan %v was deleted; an unresolved selector must not tear a running group down", p.deleted)
+	}
+	if len(p.reverted) != 0 {
+		t.Errorf("dataplane reverted %v; the running group was torn down", p.reverted)
+	}
+	if len(p.closed) != 0 {
+		t.Errorf("transport closed %v; the running group was torn down", p.closed)
+	}
+	if len(p.devices) != 1 {
+		t.Errorf("macvlans = %v, want exactly the one this group owns", p.devices)
+	}
+
+	// And it heals on its own: the next pass that CAN resolve finds it in place
+	// and reconfigures rather than rebuilding.
+	p.resolveParent = selects("eth3")
+	eng.apply(specs)
+	if got := boundDevice(eng, "lab"); got != "eth3" {
+		t.Fatalf("ParentDevice = %q after the selector recovered, want eth3", got)
+	}
+	if len(p.deleted) != 0 {
+		t.Errorf("recovery rebuilt the group (deleted %v); it was never gone, so it must reconfigure", p.deleted)
+	}
+}
+
+// TestVRRPGroupEditsLandWhileItsSelectorIsUnresolved proves the rest of an
+// operator's edit still reaches a running group whose selector could not be
+// answered this pass. Keeping the group must not mean freezing it.
+//
+// VALIDATES: an unresolved selector costs the binding, not the whole apply.
+// PREVENTS: a priority or VIP change silently not taking effect because an
+// unrelated netlink read failed.
+func TestVRRPGroupEditsLandWhileItsSelectorIsUnresolved(t *testing.T) {
+	specs, err := extractGroupSpecs([]configSection{mkSection(t, vrrpOn("0", 0, "lab", 10))})
+	if err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	p := newFakePlatform()
+	p.resolveParent = selects("eth3")
+	f := &fakeDeps{}
+	eng := newEngine(sim.NewFakeClock(time.Unix(0, 0).UTC()), p.platform(), f.deps())
+	t.Cleanup(eng.stopAll)
+	eng.apply(specs)
+
+	edited := make([]GroupSpec, len(specs))
+	copy(edited, specs)
+	edited[0].Priority = 150
+	p.resolveParent = func(string) (string, error) { return "", errors.New("iface: no backend loaded") }
+	eng.apply(edited)
+
+	eng.mu.Lock()
+	defer eng.mu.Unlock()
+	// Count FIRST. Ranging over the instances would pass vacuously on an empty
+	// map, which is exactly the state the defect this test guards produces.
+	if len(eng.instances) != 1 {
+		t.Fatalf("instances = %d, want 1: the group was dropped rather than kept", len(eng.instances))
+	}
+	for _, in := range eng.instances {
+		if in.spec.Priority != 150 {
+			t.Errorf("priority = %d, want 150: the edit was dropped with the binding", in.spec.Priority)
+		}
+		if in.spec.ParentDevice != "eth3" {
+			t.Errorf("ParentDevice = %q, want eth3: the edit must not move the device", in.spec.ParentDevice)
+		}
+	}
+}
+
+// TestVRRPGroupMovesWithItsSelector proves a virtual router whose selector
+// starts answering a DIFFERENT device is rebuilt on that device.
+//
+// Reconfigure-in-place is the right answer for a priority or interval edit, and
+// the wrong one here: the macvlan, the sockets and the per-device sysctls all
+// hang off the old device and reconfigure touches none of them, so the virtual
+// MAC would stay on hardware the operator stopped naming.
+//
+// VALIDATES: AC-1 across an apply that moves the binding.
+// PREVENTS: a NIC swap leaving the virtual MAC on the old port.
+func TestVRRPGroupMovesWithItsSelector(t *testing.T) {
+	tree := vrrpOn("0", 0, "lab", 10)
+	specs, err := extractGroupSpecs([]configSection{mkSection(t, tree)})
+	if err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	p := newFakePlatform()
+	p.resolveParent = selects("eth3")
+	f := &fakeDeps{}
+	eng := newEngine(sim.NewFakeClock(time.Unix(0, 0).UTC()), p.platform(), f.deps())
+	t.Cleanup(eng.stopAll)
+
+	eng.apply(specs)
+	p.resolveParent = selects("eth7")
+	eng.apply(specs)
+
+	if got := boundDevice(eng, "lab"); got != "eth7" {
+		t.Fatalf("ParentDevice = %q after the selector moved, want eth7", got)
+	}
+	last := p.parents[p.opened[len(p.opened)-1].MacvlanDevice]
+	if last != "eth7" {
+		t.Errorf("the rebuilt macvlan hangs off %q, want eth7", last)
+	}
+	if len(p.reverted) == 0 {
+		t.Error("the old device's dataplane sysctls were never reverted")
+	}
+}
+
+// TestVRRPGroupMoveKeepsTheOldRouterWhenTheRebuildFails proves a MOVE whose
+// replacement cannot be built leaves the running virtual router exactly where
+// it is, rather than destroying it.
+//
+// The rebuild is the one path where a binding outcome reaches teardown, and its
+// create half can fail for a reason this group does not control:
+// reconcileOwnedDevices (iface/config_apply.go) fails fast on the FIRST
+// owned-device error in a pass, so one unrelated device times out this group's
+// waitDevicePresent. Releasing before building would turn that into a destroyed
+// virtual router -- and a permanent one, because apply runs only on a config
+// event. That is the same outage the binding rule exists to forbid, arriving
+// through the one door still open.
+//
+// VALIDATES: "a binding outcome may create and may move, never destroy" holds on
+// the MOVE path too, not just on the unresolved one.
+// PREVENTS: an unrelated owned-device failure taking a working VIP off the wire.
+func TestVRRPGroupMoveKeepsTheOldRouterWhenTheRebuildFails(t *testing.T) {
+	specs, err := extractGroupSpecs([]configSection{mkSection(t, vrrpOn("0", 0, "lab", 10))})
+	if err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	p := newFakePlatform()
+	p.resolveParent = selects("eth3")
+	f := &fakeDeps{}
+	eng := newEngine(sim.NewFakeClock(time.Unix(0, 0).UTC()), p.platform(), f.deps())
+	t.Cleanup(eng.stopAll)
+	eng.apply(specs)
+
+	before := p.devices["zv4-2-10"]
+	if before == "" {
+		t.Fatalf("the group never came up on eth3: devices = %v", p.devices)
+	}
+
+	// The selector now answers a different NIC, and the replacement cannot be
+	// built. Nothing about the running router has changed.
+	p.resolveParent = selects("eth7")
+	p.macvlanErr = errors.New("iface: create owned macvlan: timed out waiting for zv4-3-10")
+	eng.apply(specs)
+
+	if got := boundDevice(eng, "lab"); got != "eth3" {
+		t.Fatalf("ParentDevice = %q after a failed move, want the router still on eth3", got)
+	}
+	if len(p.deleted) != 0 {
+		t.Errorf("macvlan %v was deleted; a failed rebuild must not destroy the running router", p.deleted)
+	}
+	if len(p.reverted) != 0 {
+		t.Errorf("dataplane reverted %v; the running router was torn down by a failed rebuild", p.reverted)
+	}
+	if len(p.closed) != 0 {
+		t.Errorf("transport closed %v; the running router was torn down by a failed rebuild", p.closed)
+	}
+	if p.devices["zv4-2-10"] != before {
+		t.Errorf("the router's macvlan on eth3 is gone: devices = %v", p.devices)
+	}
+
+	// And the move still happens once the rebuild can succeed.
+	p.macvlanErr = nil
+	eng.apply(specs)
+	if got := boundDevice(eng, "lab"); got != "eth7" {
+		t.Fatalf("ParentDevice = %q once the rebuild could succeed, want eth7", got)
+	}
+	if len(p.deleted) != 1 {
+		t.Errorf("deleted = %v, want exactly the old device released by the successful move", p.deleted)
+	}
+}
+
+// TestVRRPGroupRenameIsNotAMove proves a kernel RENAME of the parent leaves the
+// virtual router and its VIP exactly where they are.
+//
+// A rename preserves the ifindex, so the old and the new name compose the SAME
+// macvlan (deviceName -> ComposeOwnedDeviceName). Treating it as a move is
+// destructive rather than merely wasteful: build re-registers that one device
+// and teardown then unregisters what build just wrote, after which the next
+// reconcile orphan-deletes the device and its addresses
+// (UnregisterOwnedMacvlan) while the FSM still reports master. The VIP goes off
+// the wire and every ze surface still says the group is up.
+//
+// Nothing refuses the collision. RegisterOwnedMacvlan's conflict loop skips its
+// OWN owner, and VRRP derives the owner FROM the device name (ownerString), so a
+// same-name registration is always a same-owner overwrite, never a refusal.
+//
+// VALIDATES: the move branch keys on the netdev, not on the name it wears.
+// PREVENTS: a NIC rename silently taking a live VIP off the wire.
+func TestVRRPGroupRenameIsNotAMove(t *testing.T) {
+	specs, err := extractGroupSpecs([]configSection{mkSection(t, vrrpOn("0", 0, "lab", 10))})
+	if err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	p := newFakePlatform()
+	p.resolveParent = selects("eth3")
+	f := &fakeDeps{}
+	eng := newEngine(sim.NewFakeClock(time.Unix(0, 0).UTC()), p.platform(), f.deps())
+	t.Cleanup(eng.stopAll)
+	eng.apply(specs)
+
+	dev := p.soleDevice(t)
+	opened := len(p.opened)
+
+	// The kernel renames the netdev: same hardware, same ifindex, new name.
+	p.renameParent("eth3", "eth5")
+	p.resolveParent = selects("eth5")
+	eng.apply(specs)
+
+	if len(p.deleted) != 0 {
+		t.Errorf("macvlan %v deleted by a rename; the netdev underneath never changed", p.deleted)
+	}
+	if len(p.reverted) != 0 {
+		t.Errorf("dataplane reverted %v; a rename tore the running router down", p.reverted)
+	}
+	if len(p.closed) != 0 {
+		t.Errorf("transport closed %v; a rename tore the running router down", p.closed)
+	}
+	if len(p.opened) != opened {
+		t.Errorf("transports opened = %d, was %d: a rename must not re-open the sockets", len(p.opened), opened)
+	}
+	// soleDevice fails when the macvlan is gone, which is the state the defect
+	// produces: registered by build, then unregistered by teardown.
+	if got := p.soleDevice(t); got != dev {
+		t.Errorf("macvlan = %q, want the original %q kept in place", got, dev)
+	}
+
+	// The spec still follows the new name, so the per-device sysctls the
+	// reassert loop writes land on the path the device now has.
+	if got := boundDevice(eng, "lab"); got != "eth5" {
+		t.Errorf("ParentDevice = %q, want eth5: the rename must reach the spec", got)
+	}
+}
+
+// TestVRRPGroupNeverAdoptsAParentItsMacvlanIsNotOn proves an instance keeps the
+// parent its macvlan is actually built on when the ifindex cannot be read.
+//
+// The binding loop and this check are two INDEPENDENT resolutions under
+// different cache keys: ResolveDevice on the logical name, then parentIfindex on
+// the device it answered. The first can succeed and the second fail, and then
+// spec.ParentDevice names a device this instance's macvlan is not on. reconfigure
+// assigns the spec wholesale, so adopting it desyncs the instance from its own
+// device -- and evaluateReadiness then calls parentReady on that name on every
+// link event. The name is absent, which is WHY the ifindex read failed, so
+// readiness goes false and the master resigns and drops the VIP. That is the
+// original blocker's outcome reached by the original blocker's own transient
+// class, through a branch added to fix something else.
+//
+// VALIDATES: a failure to ask never moves the spec, only a successful answer does.
+// PREVENTS: a transient ifindex failure resigning a master by desynchronising
+// the spec from the macvlan.
+func TestVRRPGroupNeverAdoptsAParentItsMacvlanIsNotOn(t *testing.T) {
+	specs, err := extractGroupSpecs([]configSection{mkSection(t, vrrpOn("0", 0, "lab", 10))})
+	if err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	p := newFakePlatform()
+	p.resolveParent = selects("eth3")
+	f := &fakeDeps{}
+	eng := newEngine(sim.NewFakeClock(time.Unix(0, 0).UTC()), p.platform(), f.deps())
+	t.Cleanup(eng.stopAll)
+	eng.apply(specs)
+
+	dev := p.soleDevice(t)
+	p.reasserted = nil
+
+	// The selector now answers a different NIC, so the binding loop succeeds and
+	// hands the spec eth7. The ifindex read fails -- eth7 is not there, which is
+	// the same absence -- so nothing can say whether this is a move.
+	edited := make([]GroupSpec, len(specs))
+	copy(edited, specs)
+	edited[0].Priority = 150
+	p.resolveParent = selects("eth7")
+	p.ifindexErr = errors.New("iface: interface \"eth7\" not found")
+	eng.apply(edited)
+
+	if got := boundDevice(eng, "lab"); got != "eth3" {
+		t.Errorf("ParentDevice = %q, want eth3: the instance adopted a parent its macvlan %q is not on", got, dev)
+	}
+	for _, r := range p.reasserted {
+		if strings.HasPrefix(r, "eth7/") {
+			t.Errorf("dataplane reasserted on %q; the sysctls belong to the device the macvlan is on", r)
+		}
+	}
+	if len(p.deleted) != 0 || len(p.reverted) != 0 || len(p.closed) != 0 {
+		t.Errorf("the running router was torn down: deleted=%v reverted=%v closed=%v", p.deleted, p.reverted, p.closed)
+	}
+	if got := p.soleDevice(t); got != dev {
+		t.Errorf("macvlan = %q, want the original %q", got, dev)
+	}
+
+	// The rest of the edit still lands: a failure to ask costs the binding, not
+	// the whole apply.
+	eng.mu.Lock()
+	defer eng.mu.Unlock()
+	if len(eng.instances) != 1 {
+		t.Fatalf("instances = %d, want 1", len(eng.instances))
+	}
+	for _, in := range eng.instances {
+		if in.spec.Priority != 150 {
+			t.Errorf("priority = %d, want 150: the edit was dropped with the binding", in.spec.Priority)
+		}
+	}
+}
+
+// TestVRRPGroupMoveUnderOneParentNameKeepsALiveTransport proves a move whose
+// parent keeps its NAME leaves the group with sockets that are actually open.
+//
+// A transport instance is keyed {parent name, vrid, family}
+// (transport.go InstanceSpec.key), and the macvlan is named from the parent's
+// IFINDEX, so a netdev replaced under one name -- a card that re-enumerates, a
+// driver that reloads, an iface apply that recreates a VLAN device -- moves the
+// macvlan and leaves the transport key exactly where it was. Building the
+// replacement before releasing the predecessor then opens it over the running
+// key: OpenInstance overwrites that map entry without shutting the old sockets
+// down, and teardown's CloseInstance closes the REPLACEMENT. The engine holds a
+// virtual router whose sockets are shut and every ze surface reports it running.
+//
+// VALIDATES: build-before-release is applied only where the two can coexist.
+// PREVENTS: a re-enumerated NIC leaving a group advertising on a closed socket.
+func TestVRRPGroupMoveUnderOneParentNameKeepsALiveTransport(t *testing.T) {
+	specs, err := extractGroupSpecs([]configSection{mkSection(t, vrrpOn("0", 0, "lab", 10))})
+	if err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	p := newFakePlatform()
+	p.resolveParent = selects("eth3")
+	f := &fakeDeps{}
+	eng := newEngine(sim.NewFakeClock(time.Unix(0, 0).UTC()), p.platform(), f.deps())
+	t.Cleanup(eng.stopAll)
+	eng.apply(specs)
+
+	first := p.soleDevice(t)
+
+	// Same name, new netdev. The selector still answers eth3, so the binding
+	// succeeds and only the macvlan name moves.
+	p.replaceNetdev("eth3")
+	eng.apply(specs)
+
+	if len(p.overwrote) != 0 {
+		t.Errorf("transport opened over the live key %v; the displaced sockets are never shut down", p.overwrote)
+	}
+	dev := p.soleDevice(t)
+	if dev == first {
+		t.Fatalf("macvlan = %q, want a new one: the netdev under eth3 was replaced", dev)
+	}
+	// Count first: an empty map would satisfy every assertion the loop makes,
+	// and "no transport at all" is one of the states the defect produces.
+	if len(p.live) != 1 {
+		t.Fatalf("open transports = %v, want exactly the replacement's", p.live)
+	}
+	for key, served := range p.live {
+		if key.Interface != "eth3" {
+			t.Errorf("open transport on parent %q, want eth3", key.Interface)
+		}
+		if served != dev {
+			t.Errorf("the open transport serves %q, want the macvlan %q the group now owns", served, dev)
+		}
+	}
+	if got := boundDevice(eng, "lab"); got != "eth3" {
+		t.Errorf("ParentDevice = %q, want eth3", got)
+	}
+}
+
+// TestVRRPGroupMoveBackToTheNameItsSocketsUseKeepsALiveTransport proves the
+// collision test reads the transport KEY rather than the spec's device name.
+//
+// A rename adopts the new name into the spec and re-opens nothing, so the
+// running instance's key keeps naming the parent its sockets were opened under.
+// Comparing the two spec fields would then miss the one case where the names
+// diverge: a parent renamed away and back, with a new netdev behind it the
+// second time. That is a collision the spec comparison calls a clean move.
+//
+// VALIDATES: the release-first branch keys on in.key.Interface.
+// PREVENTS: the collision returning through the branch that renames the spec.
+func TestVRRPGroupMoveBackToTheNameItsSocketsUseKeepsALiveTransport(t *testing.T) {
+	specs, err := extractGroupSpecs([]configSection{mkSection(t, vrrpOn("0", 0, "lab", 10))})
+	if err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	p := newFakePlatform()
+	p.resolveParent = selects("eth3")
+	f := &fakeDeps{}
+	eng := newEngine(sim.NewFakeClock(time.Unix(0, 0).UTC()), p.platform(), f.deps())
+	t.Cleanup(eng.stopAll)
+	eng.apply(specs)
+
+	// A rename: same netdev, new name. The spec follows it and the transport
+	// stays open under eth3.
+	p.renameParent("eth3", "eth5")
+	p.resolveParent = selects("eth5")
+	eng.apply(specs)
+
+	// The name comes back, on a netdev that is not the one that left.
+	p.replaceNetdev("eth3")
+	p.resolveParent = selects("eth3")
+	eng.apply(specs)
+
+	if len(p.overwrote) != 0 {
+		t.Errorf("transport opened over the live key %v; the displaced sockets are never shut down", p.overwrote)
+	}
+	dev := p.soleDevice(t)
+	if len(p.live) != 1 {
+		t.Fatalf("open transports = %v, want exactly the replacement's", p.live)
+	}
+	for _, served := range p.live {
+		if served != dev {
+			t.Errorf("the open transport serves %q, want the macvlan %q the group now owns", served, dev)
+		}
+	}
+}
+
+// TestNoRegistryResolvesAConfiguredNameAgainstTheKernel proves no kernel-facing
+// value VRRP hands out is a configured interface name.
+//
+// Each sink resolves its argument against the kernel itself: the owned-macvlan
+// registry does netlink.LinkByName(spec.Parent), the dataplane writes
+// /proc/sys/net/ipv4/conf/<parent>/, and the transport binds sockets to the
+// device it is given. One resolution feeds all of them, so this asserts the
+// property over every sink at once rather than over the one that was fixed.
+//
+// VALIDATES: AC-6.
+// PREVENTS: a new sink taking the logical name because only the macvlan path
+// was ever checked.
+func TestNoRegistryResolvesAConfiguredNameAgainstTheKernel(t *testing.T) {
+	eng, p := applyTree(t, vrrpOn("1", 100, "tagged", 11), selects("eth3"))
+
+	sinks := map[string][]string{
+		"macvlan parent":     mapValues(p.parents),
+		"dataplane sysctls":  p.applied,
+		"reasserted sysctls": p.reasserted,
+		"instance spec":      {boundDevice(eng, "tagged")},
+	}
+	for _, s := range p.opened {
+		sinks["transport parent"] = append(sinks["transport parent"], s.Parent)
+	}
+	for sink, values := range sinks {
+		if len(values) == 0 {
+			t.Fatalf("%s recorded nothing; the test proves nothing about it", sink)
+		}
+		for _, v := range values {
+			if strings.Contains(v, selectedIface) {
+				t.Errorf("%s carries the configured name in %q; it must carry the resolved device", sink, v)
+			}
+			if !strings.Contains(v, "eth3") {
+				t.Errorf("%s = %q, want the resolved device eth3", sink, v)
+			}
+		}
+	}
+}
+
+// mapValues returns a map's values, for asserting over a recording keyed by
+// device name.
+func mapValues(m map[string]string) []string {
+	out := make([]string, 0, len(m))
+	for _, v := range m {
+		out = append(out, v)
+	}
+	return out
 }

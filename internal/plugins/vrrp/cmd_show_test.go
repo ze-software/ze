@@ -27,6 +27,13 @@ import (
 //
 // Bounded and loud: a state that never settles is a real defect, and reporting
 // it as "waited 2s, still initialize" is more use than a hang.
+//
+// The comparison goes through viewState, the same producer that FILLS the
+// field. It read fsm.StateInitialize.String() until 2026-08-23, and those two
+// spell one concept two ways -- "Initialize" against "initialize" -- so the
+// guard matched nothing, waitSettled returned on its first poll, and the settle
+// it exists to perform never happened. The symptom was the very failure this
+// helper was written to remove, still arriving under load.
 func waitSettled(t *testing.T, eng *engine) []instanceView {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
@@ -35,7 +42,7 @@ func waitSettled(t *testing.T, eng *engine) []instanceView {
 		views = eng.snapshots()
 		moving := false
 		for i := range views {
-			if views[i].State == fsm.StateInitialize.String() {
+			if views[i].State == viewState(fsm.StateInitialize) {
 				moving = true
 				break
 			}
@@ -47,6 +54,34 @@ func waitSettled(t *testing.T, eng *engine) []instanceView {
 			t.Fatalf("instances never left %v: %+v", fsm.StateInitialize, views)
 		}
 		time.Sleep(time.Millisecond)
+	}
+}
+
+// TestWaitSettledActuallySettles proves the settle helper waits for the startup
+// transition rather than returning on its first poll.
+//
+// The engine starts an instance's FSM on the instance's OWN goroutine, so
+// `apply` returning says nothing about the state. An owner reaches Master, and
+// reading Initialize here means waitSettled did not wait -- which is what a
+// guard comparing the view's spelling against fsm.State.String() produced,
+// silently, for every caller of this helper.
+//
+// VALIDATES: waitSettled's guard fires.
+// PREVENTS: a settle helper that settles nothing, so every test built on it
+// attributes the startup transition to whatever ran between its two samples.
+func TestWaitSettledActuallySettles(t *testing.T) {
+	eng, _ := newTestEngine(t)
+	spec := testSpec()
+	spec.IsOwner = true // reaches Master at startup, never stays in Initialize
+	eng.apply([]GroupSpec{spec})
+
+	views := waitSettled(t, eng)
+	if len(views) != 1 {
+		t.Fatalf("views = %d, want 1", len(views))
+	}
+	if views[0].State != viewState(fsm.StateMaster) {
+		t.Fatalf("state after settling = %q, want %q: waitSettled returned before the FSM moved",
+			views[0].State, viewState(fsm.StateMaster))
 	}
 }
 

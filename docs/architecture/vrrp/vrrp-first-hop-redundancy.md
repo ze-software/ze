@@ -97,6 +97,73 @@ each host vrid 10 in one family, and `{interface,vrid,family}` collapses them
 onto one series. `device` is the unit's OS device. Kernel-facing state hangs off
 the device, never off the bare parent.
 
+### The virtual router lives on the RESOLVED device
+
+<!-- source: internal/plugins/vrrp/groups.go -- parentDevice, unitDeviceName, unitVLANID -->
+<!-- source: internal/plugins/vrrp/engine.go -- apply, the binding step -->
+
+An operator pins an interface to a NIC with `mac/match`, or aliases it with
+`os-name`, and the virtual router belongs on the device that selector answers.
+RFC 9568 Section 7.3 puts the virtual MAC on the interface the virtual router
+protects, so building it on a device that merely shares the interface's name is
+not a degraded VRRP: the protected address fails over to a router that cannot
+carry it.
+
+Binding happens in `engine.apply`, once per group per apply, through
+`iface.ResolveDevice`. That is the same answer the by-name dispatch ops take, so
+VRRP is a consumer of the shared resolution rather than a second route to it.
+The macvlan parent, the per-device sysctls, the transport's parent and the
+readiness probe all read `GroupSpec.ParentDevice` afterwards, so one resolution
+feeds every kernel-facing value.
+
+Extraction stays pure and leaves `ParentDevice` empty: `ze config validate` and
+`ze doctor` judge the configuration and must not need the selected NIC to be
+present. `GroupSpec` therefore carries the unit's `VLANID` as the config fact it
+is, and the VLAN suffix is composed onto the resolved device at binding, because
+both backends name a VLAN netdev after the parent they are handed.
+
+A binding outcome MAY create a virtual router and MAY move one. It MUST NOT
+destroy one: only the config removing a group tears its instance down.
+`ResolveDevice` refuses on any resolution failure once the name carries a
+selector, and "the backend is not loaded" and "the interface listing failed" are
+among them, so an error does not mean the device is gone. Acting on it as though
+it did converts one transient netlink read into a permanent outage, because the
+resolver cache is dropped on every iface apply and `apply` runs only on a config
+event. The device actually disappearing is handled by `parentReady` and
+`watchParent`, which stand the router down and start it again with no commit and
+no macvlan churn.
+
+So a selector that answers no device, or more than one, keeps a group that is
+NOT running out of the desired set, and no macvlan, socket or sysctl of it
+reaches any device. A group that IS running keeps the device it is bound to, and
+the rest of the operator's edit still lands on it.
+
+A group whose device CHANGES between applies is rebuilt rather than reconfigured
+in place, because its macvlan, its sockets and its sysctls all hang off the old
+device and reconfigure touches none of them. The rebuild BUILDS the replacement
+before it releases the predecessor: `create` splits into `build`, which makes
+everything and stores nothing, and `start`. That ordering is load-bearing rather
+than tidy. `reconcileOwnedDevices` fails fast on the first owned-device error in
+a pass, so one unrelated device times this group's `waitDevicePresent` out, and
+releasing first would let that destroy a working virtual router -- the same
+permanent outage the rule above forbids, arriving through the one path that
+still calls `teardown` for a binding reason. The replacement's macvlan is named
+from the NEW parent's ifindex, so it cannot collide with the one still in place.
+
+One move is the exception, and it releases first. A transport instance is keyed
+`{parent name, vrid, family}` while the macvlan is named from the parent's
+ifindex, so a netdev REPLACED under a name that did not change -- a card that
+re-enumerates, a driver that reloads, a VLAN device an iface apply recreates --
+moves the macvlan and leaves the transport key where it was. A replacement built
+first would open over the running instance's key, and the transport overwrites
+that entry without shutting the displaced sockets down, so the teardown that
+follows closes the replacement instead. The group would then hold sockets that
+are shut while every surface reported it running. Releasing first destroys
+nothing that still works there: the netdev the running instance is bound to no
+longer wears that name.
+
+<!-- source: internal/plugins/vrrp/engine.go -- apply, build, start, teardown -->
+
 ### The YANG group list is keyed by operator name
 
 <!-- source: internal/plugins/vrrp/register.go -- config verifier, duplicate vrid rule -->

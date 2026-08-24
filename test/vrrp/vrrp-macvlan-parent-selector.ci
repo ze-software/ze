@@ -1,0 +1,196 @@
+# Test: a VRRP group on an interface pinned to its hardware by permanent MAC
+#       builds its virtual-MAC device on the SELECTED NIC, not on whatever else
+#       wears the logical interface name.
+#
+# VALIDATES: spec-fixit-vrrp-parent-ignores-the-selector, AC-1 and AC-7. The
+#   group's ParentDevice is bound through iface.ResolveDevice at engine.apply
+#   (internal/plugins/vrrp/engine.go), so the value reaching
+#   iface.RegisterOwnedMacvlan -> netlink.LinkByName is the device the selector
+#   answered. Proven by kernel readback: the created macvlan's iflink is the
+#   ifindex of the selected device.
+# PREVENTS: the measured defect. unitDevice returned the CONFIGURED interface
+#   name and consulted no selector, so MacvlanSpec.Parent -- documented "OS
+#   device name of the parent interface" -- carried a logical name.
+#   CreateMacvlanDevice then did netlink.LinkByName on it. RFC 9568 Section 7.3
+#   puts the virtual MAC on the interface the virtual router protects, so this
+#   is not a degraded VRRP: the protected address fails over to a router whose
+#   virtual MAC lives on a different link.
+#
+# THE DECOY IS THE ASSERTION. setup.py creates a device literally named
+# zevrwan -- the logical entry name -- beside the selected veth. Without it the
+# pre-fix daemon simply failed LinkByName and the test would go red on ABSENCE,
+# which is the weakest possible signal. With the decoy, the pre-fix daemon
+# creates a perfectly good macvlan on the WRONG device and the test names which
+# one.
+#
+# option=needs-linux: veth and macvlan creation, MAC assignment and raw VRRP
+# sockets do not exist on darwin. Runs as root in the QEMU Linux VM via
+# `make ze-qemu-needs-linux-test`.
+#
+# KERNEL STATE THIS TEST OWNS: the devices zevrsel0, zevrsel0p and zevrwan, the
+# MAC 02:00:00:00:be:22, VRID 40 (virtual MAC 00:00:5e:00:01:28) and the address
+# block 203.0.113.208/28. No other file under test/ puts any of them in a
+# kernel; the suites run 4-wide in one namespace (ZE_QEMU_PARALLEL).
+# caps=net-admin because setup.py below runs `ip link add`. Without the
+# declaration an unprivileged Linux host does not skip: it runs, the `ip`
+# calls are refused, and the test FAILS for a capability the host never had
+# (internal/test/runner/record_parse.go, option=needs-linux).
+option=needs-linux:caps=net-admin
+# option=exclusive: two ze daemons must not own macvlans in one network
+# namespace at the same time. reconcileOwnedDevices (iface/config_apply.go)
+# deletes every "ze:owned:" macvlan absent from ITS registry, which is correct
+# for the one-daemon-per-namespace deployment and fatal for two concurrent test
+# daemons: each scans the other's device as an orphan and removes it. Unique
+# device names cannot help; the contention is over the ownership alias
+# namespace, not over a name. The group is named for the RESOURCE rather than
+# for vrrp: any plugin registering an owned macvlan contends for the same alias
+# namespace, and vrrp is only today's single caller of RegisterOwnedMacvlan. vrrp-instance-up.ci carries the same group.
+option=exclusive:group=iface-owned-macvlan
+
+tmpfs=setup.py:mode=755:terminator=EOF_SETUP
+#!/usr/bin/env python3
+# Build the two devices the test needs:
+#   zevrsel0  -- the SELECTED hardware, a multicast-capable veth end wearing the
+#                MAC the config's mac/match selector names.
+#   zevrwan   -- the DECOY, a device carrying the LOGICAL entry name. Nothing in
+#                the config refers to it; it exists so a fallback to the logical
+#                name lands somewhere and can be named in the failure.
+# Idempotent (swallow "exists"). modprobe macvlan so ze's RTM_NEWLINK(kind=macvlan)
+# works even if the VM kernel did not autoload it.
+import subprocess
+
+
+def ip(*args):
+    subprocess.run(["ip", *args], stderr=subprocess.DEVNULL)
+
+
+subprocess.run(["modprobe", "macvlan"], stderr=subprocess.DEVNULL)
+
+ip("link", "add", "zevrsel0", "type", "veth", "peer", "name", "zevrsel0p")
+ip("link", "set", "zevrsel0", "address", "02:00:00:00:be:22")
+ip("addr", "add", "203.0.113.209/28", "dev", "zevrsel0")
+ip("link", "set", "zevrsel0", "up")
+ip("link", "set", "zevrsel0p", "up")
+
+ip("link", "add", "zevrwan", "type", "dummy")
+ip("link", "set", "zevrwan", "up")
+EOF_SETUP
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Assert the virtual-MAC device hangs off the SELECTED NIC.
+
+Every read is sysfs or `ip`, not a ze command, so nothing in the assertion
+shares a resolver with the code under test. /sys/class/net/<dev>/iflink is the
+parent's ifindex for a stacked device, which is AC-7's assertion in the kernel's
+own words. No sleeps: every wait is a kernel-state poll (ze_api.wait_until,
+whose internal delay is ratchet-exempt)."""
+import json
+import os
+import subprocess
+import sys
+
+from ze_api import wait_until
+
+VIRTUAL_MAC = "00:00:5e:00:01:28"  # RFC 9568 IPv4 vMAC for vrid 40 (0x28)
+SELECTED = "zevrsel0"              # the device the mac/match selector answers
+DECOY = "zevrwan"                  # the device wearing the logical entry name
+
+
+def read_int(path):
+    try:
+        with open(path) as f:
+            return int(f.read().strip())
+    except (OSError, ValueError):
+        return None
+
+
+def links():
+    out = subprocess.run(["ip", "-j", "link", "show"], capture_output=True, text=True).stdout
+    try:
+        return json.loads(out or "[]")
+    except json.JSONDecodeError:
+        return []
+
+
+def macvlan_name():
+    """Return the name of the device carrying the virtual MAC, or None."""
+    for link in links():
+        if (link.get("address") or "").lower() == VIRTUAL_MAC:
+            return link.get("ifname")
+    return None
+
+
+def main():
+    if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
+                      attempts=200, delay=0.05):
+        sys.exit("daemon readiness files missing")
+
+    selected_index = read_int("/sys/class/net/%s/ifindex" % SELECTED)
+    decoy_index = read_int("/sys/class/net/%s/ifindex" % DECOY)
+    if selected_index is None or decoy_index is None:
+        sys.exit("setup did not build both devices: selected=%r decoy=%r"
+                 % (selected_index, decoy_index))
+
+    if not wait_until(lambda: macvlan_name() is not None, attempts=200, delay=0.1):
+        sys.exit("no device carrying the virtual MAC %s ever appeared; the group never started:\n%s"
+                 % (VIRTUAL_MAC, subprocess.run(["ip", "link", "show"], capture_output=True, text=True).stdout))
+    dev = macvlan_name()
+
+    # AC-7: the macvlan's parent index IS the selected device's index.
+    parent_index = read_int("/sys/class/net/%s/iflink" % dev)
+    if parent_index == decoy_index:
+        sys.exit("macvlan %s hangs off the DECOY %s (ifindex %d): the parent was taken from the "
+                 "configured interface name instead of the selector's answer"
+                 % (dev, DECOY, decoy_index))
+    if parent_index != selected_index:
+        sys.exit("macvlan %s hangs off ifindex %r, want %s (ifindex %d)"
+                 % (dev, parent_index, SELECTED, selected_index))
+    sys.stdout.write("MACVLAN-PARENT %s -> %s\n" % (dev, SELECTED))
+
+    # Nothing at all was built on the decoy: not this macvlan, not another one.
+    for link in links():
+        if link.get("link_index") == decoy_index or link.get("link") == DECOY:
+            sys.exit("device %s was built on the decoy %s" % (link.get("ifname"), DECOY))
+    sys.stdout.write("DECOY-UNTOUCHED %s\n" % DECOY)
+
+
+if __name__ == "__main__":
+    main()
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+interface {
+	backend netlink;
+	# The operator names the interface, and pins it to a NIC by permanent MAC.
+	# No kernel device is called zevrwan except the decoy, which carries a
+	# different address and must never be selected.
+	ethernet zevrwan {
+		mac {
+			match 02:00:00:00:be:22;
+		}
+		unit 0 {
+			ipv4 {
+				address [ 203.0.113.209/28 ];
+				vrrp {
+					group lab {
+						vrid 40;
+						virtual-address [ 203.0.113.210 ];
+						priority 200;
+						advertise-interval-milliseconds 1000;
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.vrrp:value=info
+
+cmd=foreground:seq=1:exec=python3 setup.py
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=3:exec=python3 driver.py:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=MACVLAN-PARENT
+expect=stdout:contains=DECOY-UNTOUCHED

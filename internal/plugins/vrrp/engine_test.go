@@ -21,28 +21,76 @@ type fakePlatform struct {
 	opened     []transport.InstanceSpec
 	closed     []transport.InstanceKey
 	devices    map[string]string // device name -> owner
+	parents    map[string]string // macvlan device name -> the parent it was created on
 	deleted    []string
 	applied    []string // "parent/vmac/family" per applyDataplane
 	reasserted []string // "parent/vmac/family" per reassertDataplane
 	reverted   []string // "parent/vmac/family" per revertDataplane
+	// resolveParent answers a logical interface name's hardware selector.
+	// Identity by default, so a test that configures no selector reads back the
+	// name it wrote; a test that does configure one replaces this.
+	resolveParent deviceResolver
+	// macvlanErr, when set, fails every createMacvlan. It stands in for the
+	// failure a group cannot control: reconcileOwnedDevices fails fast on the
+	// first owned-device error in a pass, so an unrelated device times this
+	// group's waitDevicePresent out.
+	macvlanErr error
+	// ifindexErr, when set, fails every parentIfindex. The real one errors
+	// whenever iface.Resolve does, which is the whole transient class: no
+	// backend loaded, a failed interface listing, a selector that answers
+	// nothing this pass. Without it the fake has no error arm at all and any
+	// branch keyed on that failure is written blind.
+	ifindexErr error
+	// ifindex hands each PARENT its own kernel index, because the real one does.
+	// A constant would make two different parents compose one macvlan name
+	// (deviceName -> ComposeOwnedDeviceName keys on the parent's ifindex), and a
+	// move would then look like a device replacing itself.
+	ifindex map[string]int
+	// live mirrors the transport's OWN instance map (transport.go OpenInstance /
+	// CloseInstance): one entry per key, an open over a live key overwrites it
+	// WITHOUT shutting the old sockets down, and a close removes whatever the
+	// key holds at that moment. Appending to opened/closed cannot show a
+	// replacement that closes itself, because both instances carry the same key
+	// VALUE and the lists say nothing about which object each call reached.
+	live map[transport.InstanceKey]string // open key -> the macvlan it serves
+	// overwrote records every open that landed on a live key. The transport
+	// leaks the sockets it displaces there, so this is a defect the engine must
+	// never produce, not a state a test may assert around.
+	overwrote []transport.InstanceKey
 }
 
 func newFakePlatform() *fakePlatform {
-	return &fakePlatform{devices: map[string]string{}}
+	return &fakePlatform{
+		devices:       map[string]string{},
+		parents:       map[string]string{},
+		ifindex:       map[string]int{},
+		live:          map[transport.InstanceKey]string{},
+		resolveParent: identityDevice,
+	}
 }
 
 func (p *fakePlatform) platform() enginePlatform {
 	return enginePlatform{
 		openInstance: func(spec transport.InstanceSpec) (transport.InstanceKey, error) {
 			p.opened = append(p.opened, spec)
-			return transport.InstanceKey{Interface: spec.Parent, VRID: spec.VRID, Family: spec.Family}, nil
+			key := transport.InstanceKey{Interface: spec.Parent, VRID: spec.VRID, Family: spec.Family}
+			if _, held := p.live[key]; held {
+				p.overwrote = append(p.overwrote, key)
+			}
+			p.live[key] = spec.MacvlanDevice
+			return key, nil
 		},
 		closeInstance: func(key transport.InstanceKey) error {
 			p.closed = append(p.closed, key)
+			delete(p.live, key)
 			return nil
 		},
 		createMacvlan: func(dev, parent, owner string, _ [6]byte) error {
+			if p.macvlanErr != nil {
+				return p.macvlanErr
+			}
 			p.devices[dev] = owner
+			p.parents[dev] = parent
 			return nil
 		},
 		deleteMacvlan: func(owner, dev string) {
@@ -59,8 +107,63 @@ func (p *fakePlatform) platform() enginePlatform {
 		revertDataplane: func(parent, vmac, family string) {
 			p.reverted = append(p.reverted, parent+"/"+vmac+"/"+family)
 		},
-		parentIfindex: func(string) (int, error) { return 2, nil },
+		parentIfindex: func(parent string) (int, error) {
+			if p.ifindexErr != nil {
+				return 0, p.ifindexErr
+			}
+			if idx, ok := p.ifindex[parent]; ok {
+				return idx, nil
+			}
+			idx := 2 + len(p.ifindex)
+			p.ifindex[parent] = idx
+			return idx, nil
+		},
+		resolveDevice: func(name string) (string, error) { return p.resolveParent(name) },
 	}
+}
+
+// renameParent makes newName the SAME netdev as oldName: one ifindex wearing two
+// names, which is exactly what a kernel rename produces.
+//
+// It exists because the default allocator hands every unseen name its own index,
+// so without it two names can NEVER share one and a rename cannot be represented
+// at all. A bug reachable only by a rename would then be untestable against this
+// fake however carefully the test were written -- the "green that could not have
+// been red" shape, where the DOUBLE has removed the distinction under test.
+func (p *fakePlatform) renameParent(oldName, newName string) {
+	idx, ok := p.ifindex[oldName]
+	if !ok {
+		panic("renameParent: " + oldName + " has no ifindex yet; apply the config that builds on it first")
+	}
+	p.ifindex[newName] = idx
+}
+
+// replaceNetdev puts a NEW kernel index behind an existing parent name: the
+// device that wore the name is gone and another one wears it now.
+//
+// It is the counterpart of renameParent, and the two together cover both ways a
+// name and an ifindex can come apart. A card that re-enumerates, a driver that
+// reloads and an iface apply that recreates a VLAN device all produce this one.
+func (p *fakePlatform) replaceNetdev(name string) {
+	idx, ok := p.ifindex[name]
+	if !ok {
+		panic("replaceNetdev: " + name + " has no ifindex yet; apply the config that builds on it first")
+	}
+	p.ifindex[name] = idx + 100
+}
+
+// soleDevice returns the one macvlan this platform holds, failing the test when
+// there is not exactly one. Ranging over the map would pass vacuously in the
+// state the defect produces, which is the device having been removed.
+func (p *fakePlatform) soleDevice(t *testing.T) string {
+	t.Helper()
+	if len(p.devices) != 1 {
+		t.Fatalf("macvlans = %v, want exactly 1", p.devices)
+	}
+	for dev := range p.devices {
+		return dev
+	}
+	return ""
 }
 
 func newTestEngine(t *testing.T) (*engine, *fakePlatform) {

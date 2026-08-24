@@ -29,8 +29,17 @@ interface {
 }
 EOF_OK
 
-cmd=foreground:seq=1:exec=ze doctor --json vrrp-ok.conf:timeout=60s:exit=0
-expect=exit:code=0
+# No exit-code assertion, and that is the point. `ze doctor` reports on the
+# WHOLE machine, so its exit status carries every check's verdict: checkInterfaces
+# (internal/component/doctor/checks_linux.go) emits doctor-iface-missing at ERROR
+# severity for a configured ethernet device with no /sys/class/net entry, and
+# eth0 above exists on no dev box and on no CI runner. Asserting exit 0 therefore
+# asserted the host's NIC inventory, which is why this file was red everywhere.
+# The property under test is that the VRRP check stays quiet, so the payload
+# assertion below proves doctor ran and produced its JSON and the rejects prove
+# no vrrp code is in it.
+cmd=foreground:seq=1:exec=ze doctor --json vrrp-ok.conf:timeout=60s
+expect=stdout:contains=schema-version
 reject=stdout:pattern=doctor-vrrp-config-invalid
 reject=stdout:pattern=doctor-vrrp-backend-unusable
 reject=stdout:pattern=doctor-vrrp-raw-socket

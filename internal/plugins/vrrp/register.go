@@ -364,6 +364,11 @@ func livePlatform() enginePlatform {
 			}
 			return b.Ifindex, nil
 		},
+		// The one answer to a hardware selector (iface/dispatch.go). Every
+		// by-name dispatch op takes it too, so VRRP's macvlan parent and its
+		// per-device sysctls land on the device the operator selected rather
+		// than on whatever wears the logical name.
+		resolveDevice:   iface.ResolveDevice,
 		counterSnapshot: sharedTransport.CounterSnapshot,
 		resetCounters:   sharedTransport.ResetCounters,
 	}

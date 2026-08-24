@@ -55,7 +55,6 @@ interface {
 EOF_IDLE
 
 cmd=foreground:seq=1:exec=ze config validate vrrp-idle.conf:timeout=60s:exit=0
-expect=exit:code=0
 expect=stdout:contains=configuration valid
 
 # --- Same idle config through `ze doctor`: the vrrp check stays quiet. --------
@@ -63,8 +62,19 @@ expect=stdout:contains=configuration valid
 # accumulated-stdout model (see vrrp-doctor.ci header); this file keeps validate
 # above and doctor here because both are exit-0 and neither prints a vrrp code on
 # the healthy idle path, so the reject patterns below are meaningful.
-cmd=foreground:seq=2:exec=ze doctor --json vrrp-idle.conf:timeout=60s:exit=0
-expect=exit:code=0
+# No exit-code assertion on doctor, and that is the point. `ze doctor` reports on
+# the WHOLE machine, so its exit status carries every check's verdict:
+# checkInterfaces (internal/component/doctor/checks_linux.go) emits
+# doctor-iface-missing at ERROR severity for a configured ethernet device with no
+# /sys/class/net entry, and eth0/eth1 above exist on no dev box, on no CI runner,
+# and not in the QEMU VM (which has eth0 alone). Asserting exit 0 therefore
+# asserted the host's NIC inventory, which is why this file was red everywhere.
+# seq=1 keeps its own exit=0: `ze config validate` judges the config and nothing
+# else. The property under test here is that the VRRP check stays quiet, so the
+# payload assertion below proves doctor ran and produced its JSON and the rejects
+# prove no vrrp code is in it.
+cmd=foreground:seq=2:exec=ze doctor --json vrrp-idle.conf:timeout=60s
+expect=stdout:contains=schema-version
 reject=stdout:pattern=doctor-vrrp-config-invalid
 reject=stdout:pattern=doctor-vrrp-backend-unusable
 reject=stdout:pattern=doctor-vrrp-raw-socket

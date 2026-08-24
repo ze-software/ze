@@ -47,8 +47,13 @@ type enginePlatform struct {
 	reassertDataplane func(parent, vmac, family string)
 	revertDataplane   func(parent, vmac, family string)
 	parentIfindex     func(parent string) (int, error)
-	counterSnapshot   func(key transport.InstanceKey) (transport.CounterSnapshot, bool)
-	resetCounters     func(key transport.InstanceKey)
+	// resolveDevice answers which kernel device a logical interface name means,
+	// honoring the interface's os-name / mac-match selector. Every kernel-facing
+	// value in a GroupSpec is derived from its answer (apply), so there is one
+	// resolution per group per apply and every consumer takes the same device.
+	resolveDevice   deviceResolver
+	counterSnapshot func(key transport.InstanceKey) (transport.CounterSnapshot, bool)
+	resetCounters   func(key transport.InstanceKey)
 }
 
 // engine is the instance manager.
@@ -71,17 +76,73 @@ func newEngine(clk clock.Clock, platform enginePlatform, deps engineDeps) *engin
 }
 
 // apply diffs the desired group set against the running instances.
+//
+// Binding comes first: extraction leaves ParentDevice empty (it must stay pure
+// for `ze config validate`), so this is where each group's logical interface is
+// answered by its hardware selector. A group that cannot be bound to exactly
+// one device is never CREATED, so no macvlan, socket or sysctl of it reaches
+// any device. Falling back to the logical name there is how a virtual MAC lands
+// on whatever else happens to carry that name.
+//
+// A binding outcome MAY create a virtual router and MAY move one. It MUST NOT
+// destroy one: only the config removing a group tears its instance down. Three
+// facts make the alternative worse than the defect this binding fixes.
+//
+//   - "Could not resolve" is not "the device is gone". ResolveDevice
+//     (iface/dispatch.go) refuses on ANY Resolve failure once the name carries a
+//     selector, and that includes no backend loaded and a failed ListInterfaces
+//     inside matchByMAC (iface/resolve.go) -- one transient netlink read during
+//     an unrelated commit.
+//   - The resolver cache cannot absorb it. setMapping (iface/resolve.go) drops
+//     the whole cache on every iface config apply, so an unlucky pass gets the
+//     live answer, not a cached one.
+//   - A teardown here does not heal. It resigns the FSM with a Priority-0
+//     advertisement and removes the VIP, and apply runs only on a config event
+//     (register.go), so the group stays down until the next commit.
+//
+// The device genuinely disappearing is already handled, and handled better:
+// parentReady and watchParent (instance.go) stop the virtual router and start
+// it again when the device returns, with no commit and no macvlan churn. So an
+// unresolved selector over a RUNNING instance keeps the device that instance is
+// bound to, and the rest of the operator's edit still lands on it.
 func (e *engine) apply(specs []GroupSpec) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	desired := make(map[string]GroupSpec, len(specs))
 	for i := range specs {
-		desired[specs[i].Key()] = specs[i]
+		spec := specs[i]
+		device, err := spec.parentDevice(e.platform.resolveDevice)
+		running := e.instances[spec.Key()]
+		switch {
+		case err == nil:
+			spec.ParentDevice = device
+		case running != nil:
+			// Keep the device it is bound to; readiness decides whether it
+			// advertises on that device, and it re-decides on every link event.
+			spec.ParentDevice = running.spec.ParentDevice
+			logger().Warn("vrrp: parent device unresolved this pass, keeping the running virtual router where it is",
+				"interface", spec.Interface, "unit", spec.Unit, "family", spec.Family,
+				"group", spec.Name, "vrid", spec.VRID, "device", spec.ParentDevice, "error", err)
+		default:
+			// Nothing to protect and nothing to start. Say that it will not
+			// retry on its own: apply runs on a config event, so a selector
+			// answered by hardware that appears LATER needs another apply. That
+			// is unchanged by this binding -- create failed the same way on the
+			// same input before it -- and it is the honest thing to put in
+			// front of an operator whose VIP is not being served.
+			logger().Error("vrrp: group not started, its parent device is unresolved; it will not start until the configuration is applied again",
+				"interface", spec.Interface, "unit", spec.Unit, "family", spec.Family,
+				"group", spec.Name, "vrid", spec.VRID, "error", err)
+			continue
+		}
+		desired[spec.Key()] = spec
 	}
 
 	// Delete first: a removed group must release its VRID, device, and sockets
-	// before a new group could be created reusing them.
+	// before a new group could be created reusing them. Every key reaching this
+	// loop is absent from the CONFIG: an unbindable group that is running was
+	// put back into desired above, precisely so it cannot arrive here.
 	for key, in := range e.instances {
 		if _, keep := desired[key]; !keep {
 			e.teardown(key, in)
@@ -91,11 +152,110 @@ func (e *engine) apply(specs []GroupSpec) {
 	for key := range desired {
 		spec := desired[key]
 		if in, running := e.instances[key]; running {
-			in.reconfigure(spec)
+			// Does this group still belong on the netdev it already owns? The
+			// MACVLAN NAME answers it, and the ParentDevice string does not.
+			// deviceName composes that name from the parent's IFINDEX
+			// (ComposeOwnedDeviceName), so it identifies the netdev rather than
+			// whatever the kernel currently calls it.
+			//
+			// Comparing the string would read a kernel RENAME as a move. A rename
+			// preserves the ifindex, so the old and the new name compose the SAME
+			// macvlan, and the "rebuild" would register that one device and then
+			// immediately unregister it: build re-registers, teardown unregisters,
+			// and the next reconcile orphan-deletes the device and its addresses
+			// (UnregisterOwnedMacvlan, iface/device_owner.go) while the FSM still
+			// reports master. Nothing refuses that collision -- the conflict loop
+			// in RegisterOwnedMacvlan skips its OWN owner, and VRRP derives the
+			// owner FROM the device name (ownerString, instance.go), so a
+			// same-name registration is always a same-owner overwrite.
+			//
+			dev, err := deviceName(spec, e.platform.parentIfindex)
+			if err != nil {
+				// Could not ask: NOT a rename and NOT a move. The two resolutions
+				// are independent and sit under different cache keys --
+				// ResolveDevice answered the logical name and put a device in
+				// spec.ParentDevice, then this second Resolve failed -- so
+				// spec.ParentDevice may name a device this instance's macvlan is
+				// not on, and reconfigure assigns the spec WHOLESALE.
+				//
+				// Adopting it would point parentReady at that other device on
+				// every link event (evaluateReadiness, instance.go). The device is
+				// absent, which is WHY this read failed, so readiness would go
+				// false and the master would resign and drop the VIP -- the
+				// outage the rule above forbids, reached through the branch that
+				// exists to prevent it. Keep the device the macvlan IS on.
+				spec.ParentDevice = in.spec.ParentDevice
+				logger().Warn("vrrp: could not read the parent device index this pass, keeping the running virtual router where it is",
+					"interface", spec.Interface, "unit", spec.Unit, "family", spec.Family,
+					"group", spec.Name, "vrid", spec.VRID, "device", spec.ParentDevice, "error", err)
+				in.reconfigure(spec)
+				continue
+			}
+			if dev == in.dev {
+				// Same netdev, possibly under a new name: the macvlan is already
+				// where it belongs. reconfigure adopts the new name, and the
+				// reassertDataplane loop below re-writes the per-device sysctls
+				// under the name the device now has.
+				in.reconfigure(spec)
+				continue
+			}
+			// A genuine move: a different netdev, from a re-tagged unit or a
+			// selector that now answers different hardware. The macvlan, the
+			// sockets and the per-device sysctls all hang off the OLD netdev and
+			// reconfigure touches none of them, so it has to be rebuilt.
+			if spec.ParentDevice == in.key.Interface {
+				// RELEASE FIRST, and only where the two transports would be ONE.
+				// A transport instance is keyed {parent name, vrid, family}
+				// (transport.go InstanceSpec.key), and only the parent name
+				// varies between these two, so this comparison IS the collision.
+				// It reads the running instance's key rather than its spec,
+				// because a rename adopts a new name into the spec and leaves the
+				// key on the name the sockets were opened under.
+				//
+				// The netdev changed under a name that did not: a card
+				// re-enumerates, a driver reloads, an iface apply recreates a VLAN
+				// device. A replacement built first would open under the RUNNING
+				// instance's key, and OpenInstance overwrites that map entry
+				// without shutting the displaced sockets down, so teardown's
+				// CloseInstance then closes the REPLACEMENT. The engine would hold
+				// a virtual router whose sockets are shut and report it running.
+				//
+				// Releasing first destroys nothing that still works: the netdev
+				// the running instance is bound to no longer wears this name, so
+				// its macvlan and its sockets are already stranded.
+				e.teardown(key, in)
+				if err := e.create(key, spec); err != nil {
+					logger().Error("vrrp: parent device was replaced under the same name and the virtual router could not be rebuilt; it will not start until the configuration is applied again",
+						"interface", spec.Interface, "unit", spec.Unit, "family", spec.Family,
+						"group", spec.Name, "vrid", spec.VRID, "device", spec.ParentDevice, "error", err)
+				}
+				continue
+			}
+			// BUILD FIRST, release second. A build can fail for a reason that has
+			// nothing to do with this group: reconcileOwnedDevices
+			// (iface/config_apply.go) fails fast on the FIRST owned-device error
+			// in a pass, so one unrelated failure times out waitDevicePresent
+			// here. Releasing first would let that destroy a working virtual
+			// router, which the rule above forbids -- and it would be the same
+			// permanent outage, because apply runs only on a config event.
+			//
+			// Nothing the two hold can collide: the macvlan names differ because
+			// the ifindexes do, and the transport keys differ because the parent
+			// names do, which is what the branch above separates out.
+			next, err := e.build(spec)
+			if err != nil {
+				logger().Error("vrrp: parent device moved but the replacement could not be built, keeping the virtual router where it is; it will not move until the configuration is applied again",
+					"interface", spec.Interface, "unit", spec.Unit, "family", spec.Family,
+					"group", spec.Name, "vrid", spec.VRID,
+					"device", in.spec.ParentDevice, "new-device", spec.ParentDevice, "error", err)
+				continue
+			}
+			e.teardown(key, in)
+			e.start(key, next)
 			continue
 		}
 		if err := e.create(key, spec); err != nil {
-			logger().Error("vrrp: instance create failed",
+			logger().Error("vrrp: instance create failed; the group will not start until the configuration is applied again",
 				"interface", spec.Interface, "unit", spec.Unit, "family", spec.Family,
 				"group", spec.Name, "vrid", spec.VRID, "error", err)
 		}
@@ -113,11 +273,33 @@ func (e *engine) apply(specs []GroupSpec) {
 	}
 }
 
-// create brings up one instance: macvlan, then transport, then the worker.
+// create brings up one instance and starts its worker.
 func (e *engine) create(key string, spec GroupSpec) error {
-	dev, err := deviceName(spec, e.platform.parentIfindex)
+	in, err := e.build(spec)
 	if err != nil {
 		return err
+	}
+	e.start(key, in)
+	return nil
+}
+
+// start stores a built instance under key and runs its worker.
+func (e *engine) start(key string, in *instance) {
+	e.instances[key] = in
+	go in.run()
+}
+
+// build brings up everything one instance owns -- the macvlan, the dataplane
+// recipe, the transport -- and returns the worker WITHOUT storing or starting
+// it. Every failure path unwinds what it already made, so a failed build leaves
+// no kernel state and no registry entry behind.
+//
+// It is split from create so a MOVE can hold its running predecessor until the
+// replacement actually exists (apply). Nothing else needs the split.
+func (e *engine) build(spec GroupSpec) (*instance, error) {
+	dev, err := deviceName(spec, e.platform.parentIfindex)
+	if err != nil {
+		return nil, err
 	}
 	mac := packet.VirtualMAC(familyCode(spec.Family), spec.VRID)
 	owner := ownerString(dev)
@@ -128,7 +310,7 @@ func (e *engine) create(key string, spec GroupSpec) error {
 	// device also keeps the transport key unique, since two units of one
 	// interface are two devices (and could otherwise share an InstanceKey).
 	if err := e.platform.createMacvlan(dev, spec.ParentDevice, owner, mac); err != nil {
-		return fmt.Errorf("create macvlan %s on %s: %w", dev, spec.ParentDevice, err)
+		return nil, fmt.Errorf("create macvlan %s on %s: %w", dev, spec.ParentDevice, err)
 	}
 
 	// Make the virtual MAC the sole ARP/ND responder for the VIP. Ordered here,
@@ -137,7 +319,7 @@ func (e *engine) create(key string, spec GroupSpec) error {
 	// parent sysctls settle well before promotion). See dataplane_linux.go.
 	if err := e.platform.applyDataplane(spec.ParentDevice, dev, spec.Family); err != nil {
 		e.platform.deleteMacvlan(owner, dev)
-		return fmt.Errorf("apply dataplane for %s: %w", dev, err)
+		return nil, fmt.Errorf("apply dataplane for %s: %w", dev, err)
 	}
 
 	tkey, err := e.platform.openInstance(transport.InstanceSpec{
@@ -150,13 +332,10 @@ func (e *engine) create(key string, spec GroupSpec) error {
 	if err != nil {
 		e.platform.revertDataplane(spec.ParentDevice, dev, spec.Family)
 		e.platform.deleteMacvlan(owner, dev)
-		return fmt.Errorf("open transport for %s: %w", dev, err)
+		return nil, fmt.Errorf("open transport for %s: %w", dev, err)
 	}
 
-	in := newInstance(spec, tkey, dev, e.clk, e.deps)
-	e.instances[key] = in
-	go in.run()
-	return nil
+	return newInstance(spec, tkey, dev, e.clk, e.deps), nil
 }
 
 // teardown stops a worker and releases everything it owns. The worker's Shutdown
