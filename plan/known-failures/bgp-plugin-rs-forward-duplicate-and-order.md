@@ -158,7 +158,8 @@ two-producer/one-queue analysis in the section above: the receiver loses the
 `peer.Up` race, is not a forward target, and the replay rail
 (`buildReplayRoutes`) structurally carries announcements only.
 
-Remaining work is owned by `plan/spec-fixit-stored-route-relay-hardening.md`.
+Remaining work was owned by `spec-fixit-stored-route-relay-hardening`, which closed
+2026-08-24.
 
 Known residual introduced with the fix, deliberate: if a claiming plugin is in the
 startup set but never reaches Running, the plugin that stood down stays stood down
@@ -167,6 +168,15 @@ for the process lifetime. `verifyAdvertisedClaims`
 NOT fail startup -- making it fatal was tried and killed daemons for unrelated
 plugin failures in the same phase (25 functional tests red: `bgp-redistribute-*`,
 `fib-*`, `forward-*`).
+
+**CLOSED 2026-08-23 by that spec's AC-4, for every peer-scoped event.** A claimant
+that never reached Running takes delivery of nothing, so it holds the role for no
+peer, and `Server.UnheldRoles`
+(`internal/component/plugin/server/startup_claims.go`) names the role on every copy
+of the state event. `replayDrivenElsewhere`
+(`internal/component/bgp/plugins/adj_rib_in/rib_claims.go`) reads it and self-replay
+runs again for that peer. The ERROR log above stays, because it is what names the
+daemon-wide degradation in one place.
 
 Capture on the next occurrence: the full `tmp/stress-repro/` log, plus the daemon's
 `replay ownership declared` and `session established` timestamps. If ownership is
@@ -207,7 +217,8 @@ test problem.
 the destination's `Up` is still the only gate on being a forward target, and
 turning that off would forward to a peer whose session is not established.
 
-Remaining work stays owned by `plan/spec-fixit-stored-route-relay-hardening.md`.
+Remaining work stayed owned by `spec-fixit-stored-route-relay-hardening` until that
+spec closed on 2026-08-24.
 
 ## Update 2026-07-29: neither member reproduces; 380's ordering question is ANSWERED
 

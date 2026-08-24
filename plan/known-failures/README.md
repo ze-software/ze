@@ -103,8 +103,9 @@ Two remain open, for different reasons:
   Stage-2 configure; the margin went from 1-2 ms to 430-849 ms, mutation-verified).
   **Both symptoms nevertheless still reproduce**, and the capture disproves the
   entry's own causal claim for test 254: self-replay was off 849 ms before the
-  first session existed and the duplicate still occurred. Remaining work is owned
-  by `plan/spec-fixit-stored-route-relay-hardening.md`. A separate defect surfaced
+  first session existed and the duplicate still occurred. The work that was owned
+  by `spec-fixit-stored-route-relay-hardening` landed with that spec, which closed
+  2026-08-24; the shard carries what it changed. A separate defect surfaced
   in the same capture -- a receiver session established and closed 1 ms apart under
   load -- and is recorded in the shard.
 - `reload-config-apply-ordering-rotation` -- still never reproduced. Two fail-open

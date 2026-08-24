@@ -74,13 +74,23 @@ func setLogger(l *slog.Logger) {
 // This comment previously claimed the opposite. The correction came from
 // assumption A-1 of spec-fixit-bgp-egress-rail-divergence, closed 2026-08-14.
 //
-// NHopHex is the next-hop IP converted to wire hex.
+// NHopHex is the WHOLE next-hop field as the source framed it, not a decoded
+// address. A family whose next hop arrives in MP_REACH_NLRI stores the Network
+// Address of Next Hop field verbatim (mpReachNextHopHex, nlri_hex.go).
+// RFC 2545 Section 3 form 2 therefore stores 32 octets. Those are a global
+// address followed by a link-local one.
+//
+// A VPN family stores the Route Distinguisher with the address. Only a family
+// that carries its next hop in the legacy NEXT_HOP attribute stores one 4- or
+// 16-octet address. A consumer that decodes this field as a single IP is wrong
+// for every other case.
+//
 // NLRIHex is the individual NLRI wire bytes in hex.
 // Sequence numbers are tracked by the seqmap, not stored in RawRoute.
 type RawRoute struct {
 	Family  family.Family // Address family (e.g. family.IPv4Unicast)
 	AttrHex string        // Raw path attributes hex from format=full
-	NHopHex string        // Next-hop as wire hex (e.g. "0a000001" for 10.0.0.1)
+	NHopHex string        // Whole next-hop field as wire hex, 4 to 32 octets -- see above
 	NLRIHex string        // Individual NLRI wire bytes hex
 
 	// PathID is the RFC 7911 Path Identifier the source session used, and
