@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | config |
 | Depends | - |
 | Phase | 6/6 |
 | Deferral shard | - |
 | Handoff | - |
-| Updated | 2026-08-23 |
+| Updated | 2026-08-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -143,8 +143,8 @@ eleven other lists carry the same declaration. Recorded as a journal row in
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Config tree → in-process component | `map[string]any` from `ToMap`, no marshalling | No |
-| Config tree → out-of-process plugin | JSON text into `ParseConfig` | No |
+| Config tree → in-process component | `map[string]any` from `ToMap`, no marshalling | Yes -- `TestToMapLeafListMemberCountShapes` asserts the three leaf-list shapes and the one list shape `(*Tree).ToMap` emits, and `TestLeafListCoercesEveryProducerShape` reads all three |
+| Config tree → out-of-process plugin | JSON text into `ParseConfig` | Yes -- `TestParseConfigAllowlistSingleEntry` and `TestParseFullPoolConfigReadsNamedPoolMap` drive the readers with a JSON string, which is the shape the marshalled map arrives in |
 
 ### Integration Points
 - `internal/core/configvalue` (new) - imported by both kinds of reader; depends on nothing but the standard library.
@@ -153,11 +153,11 @@ eleven other lists carry the same declaration. Recorded as a journal row in
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | Nothing is added to the path. `(*Tree).ToMap` has no diff in this spec, and each reader keeps its own entry point. Only the coercion at the end of the path moves into one function |
+| No unintended coupling (components stay isolated) | Yes | `internal/core/configvalue` imports the standard library alone (`sort`). Nine packages across `internal/component/*` and `internal/plugins/*` import it, and none reaches another through it. `make ze-repository-tracked-build-check` compiles all six flavors green |
+| No duplicated functionality (extends existing, does not recreate) | Yes | The spelling count went from five to one. `parseStringList`, `cfgStrings`, `configLeafList` (two copies) and `anySliceToStrings` are deleted, and a grep for their definitions under `internal/` returns nothing |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | Config load is a cold path, read once at commit. `LeafList` copies deliberately, so a caller cannot alias the delivered slice; `TestLeafListDoesNotAliasTheCallersSlice` pins it |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | No registry is touched. `LeafList` and `ListEntries` take a value and return a value. Neither knows a plugin name, and no per-feature branch is added anywhere |
 
 ## Risks & Assumptions
 
@@ -472,3 +472,256 @@ the code that acts on that value, and its RFC comments, are unchanged.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+The feature work landed as commit `0cc2cf949`, "fix(config): read a leaf-list and
+a list through one reader". Closure adds one doc-comment fix and this record.
+
+### What Was Implemented
+- `internal/core/configvalue`: `LeafList(any) []string` and
+  `ListEntries(any) []ListEntry`, one place that knows every shape
+  `(*Tree).ToMap` and the JSON delivery after it can emit.
+- Five readers stopped asserting `[]any`: `ParseConfig`
+  (`internal/plugins/anomaly/shape/config.go`), `parseFullPoolConfig`,
+  `parseNamedPools` and `parseNamedIPv6Pools`
+  (`internal/component/l2tp/plugins/pool/register.go`), `parseRouterInformation`
+  (`internal/plugins/ospf/config.go`) and `parseFlowtable`
+  (`internal/component/firewall/config.go`).
+- Five local coercion spellings deleted: `parseStringList` (iface), `cfgStrings`
+  (pppoe), `configLeafList` (ldp and isis, byte-identical copies) and
+  `anySliceToStrings` (filter_community). Their call sites now read through
+  `configvalue`.
+- `(*Tree).ToMap` is untouched. The producer contract it holds is now asserted
+  rather than assumed, by `internal/component/config/tomap_shape_test.go`.
+- `test/l2tp/radius-framed-ip.ci` gained `expect=stderr:contains=named-pools=1`,
+  the assertion that tells a configured pool table from an empty one.
+
+### Bugs Found/Fixed
+- The headline is a fail-open guard. `allowlisted` decides whether the shaping
+  responder arms, and a one-prefix allowlist parsed empty, so the guard never
+  ran and the responder armed against the network the operator protected.
+  Covered by `TestOnDetectedSkipsSingleAllowlistedPrefix`, which drives
+  `(*responder).onDetected` rather than `allowlisted`, and by
+  `TestOnDetectedArmsASourceOutsideTheSingleAllowlistedPrefix`, its negative
+  half.
+- Nine test fixtures across five packages fed a shape no producer emits. Each is
+  corrected to the producer's shape, with no assertion removed.
+  `python3 scripts/dev/audit-test-relaxation.py 0cc2cf949~1` reports no
+  `[DELETED]` and no `[WEAKENED]` finding on any file this spec touched.
+- Found and NOT fixed here: three BGP filter entry readers cannot load a
+  two-entry list. Recorded in
+  `plan/journal/green-that-could-not-have-been-red.md` and owned by
+  `spec-fixit-ordered-list-loses-its-order`.
+
+### Documentation Updates
+- `docs/architecture/config/syntax.md` gained "What a reader receives": the
+  shape table per node type and per delivery path, with source anchors on
+  `(*Tree).ToMap` and on `LeafList, ListEntries`.
+- `ai/rules/config.md` gained the `config-list-shapes` point group, three
+  points, listed in `ai/rules/points/config/manifest.md`.
+- `ai/PACKAGE-MAP.md` gained the `internal/core/configvalue` row.
+- `python3 scripts/dev/spec_doc_anchors.py plan/spec-fixit-config-list-readers-assert-the-wrong-shape.md`
+  exits 0 and names no unnamed DECLARED document. It notes four documents that
+  merely MENTION a changed file (`docs/DESIGN.md`,
+  `docs/architecture/iface/logical-name-resolution.md`,
+  `docs/architecture/traffic/cos-plugin.md`,
+  `docs/architecture/traffic/cp-survival-2-copp-port179.md`); none describes the
+  coercion of a delivered config value, so none is stale.
+- `make ze-repository-check` reports 9 issues, none on a file this spec touched.
+  All 9 are uncommitted exported symbols in `internal/component/command/`,
+  `internal/component/iface/iface.go` and `internal/component/web/testing/`,
+  owned by other sessions.
+
+### Deviations from Plan
+- The spec planned no operator-visible change and then corrected itself. An OSPF
+  router whose config names one `scope` advertised router-information at BOTH
+  area and AS before, and advertises at the one configured scope now. The spec
+  body states it; it is repeated here so a reader of the closure meets it too.
+- Commit `0cc2cf949` also carried the `parseChain` change in
+  `internal/component/firewall/config.go`, which belongs to
+  `spec-fixit-ordered-list-loses-its-order`, and the `ordered-by user`
+  paragraphs of the rule point and of `docs/architecture/config/syntax.md`. That
+  content names `internal/core/configorder` while the package itself was
+  untracked, so `main` did not build from a fresh clone until `d687efe7e` landed
+  it. Recorded as a journal row.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Commit `0cc2cf949`'s `--file` list named `internal/component/firewall/config.go`, and the path carried a sibling spec's `configorder` hunk as well as this spec's `parseFlowtable` hunk. Its message states "the rule point names no symbol from the unlanded ordering work", which is false for the content it committed | A `--file` list fixes WHEN a path is staged, never WHOSE content is in it (`ai/rules/git-safety.md`). The check that would have caught it, `make ze-repository-tracked-build-check`, is required by that rule immediately after a commit carrying `.go`, and it was not run | Reported by the main thread at closure, after `d687efe7e` had already repaired it by landing the package | Journal row in `plan/journal/gate-excludes-part-of-its-population.md`. Re-verified at closure: `make ze-repository-tracked-build-check` is green on all six flavors, and every package imported by every file this commit touched has tracked `.go` files |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One place knows what `Tree.ToMap` emits per node type | Done | `internal/core/configvalue/configvalue.go`, `LeafList` and `ListEntries` | The package doc states all four shapes and both delivery paths |
+| Every leaf-list and list reader routes through it | Done | Fifteen call sites across nine packages | `grep -rn "configvalue.LeafList\|configvalue.ListEntries" internal/` |
+| The local spellings that taught the wrong shape are deleted | Done | iface, pppoe, ldp, isis, filter_community | A grep for the four definitions returns nothing |
+| The security site stops failing open | Done | `internal/plugins/anomaly/shape/config.go`, `ParseConfig` | Proven from `(*responder).onDetected`, both polarities |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestParseConfigAllowlistSingleEntry` | Four cases: one member, two, absent, one unparseable |
+| AC-2 | Done | `TestOnDetectedSkipsSingleAllowlistedPrefix` | Drives `onDetected`; asserts no term installed and `armedCount` zero |
+| AC-3 | Done | `TestParseFullPoolConfigReadsNamedPoolMap` | The name is read from the list KEY |
+| AC-4 | Done | `TestParseFullPoolConfigReadsNamedPoolMap` two-entry case, `TestParseNamedPoolConfig` | |
+| AC-5 | Done | `TestHandleIPRequestAcceptsFramedPoolFromKeyedList` | Range and gateway asserted |
+| AC-6 | Done | `TestParseFullPoolConfigReadsNamedIPv6PoolMap`, `TestParseNamedIPv6PoolConfig` | |
+| AC-7 | Done | `TestParseRouterInformationSingleScope` | Asserts the configured scope AND the absence of the other |
+| AC-8 | Done | `TestParseFlowtableSingleDevice` | |
+| AC-9 | Done | `TestLeafListCoercesEveryProducerShape`, `TestLeafListDoesNotAliasTheCallersSlice` | Bare string, `[]string`, `[]any`, nil, empty, wrong type |
+| AC-10 | Done | `TestListEntriesReadsKeyedMap` | Key carried, ordered by key, non-map bodies skipped |
+| AC-11 | Done | `TestToMapLeafListMemberCountShapes`, `TestToMapListIsAlwaysAKeyedMap`, `TestToMapKeyedListOmitsTheKeyLeafFromTheEntry` | Driven through the real `*Tree` |
+| AC-12 | Done | A grep for the four deleted helper definitions returns nothing | Exactly one coercion survives, in `internal/core/configvalue` |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestLeafListCoercesEveryProducerShape` | Done | `internal/core/configvalue/configvalue_test.go` | |
+| `TestListEntriesReadsKeyedMap` | Done | `internal/core/configvalue/configvalue_test.go` | |
+| `TestToMapLeafListMemberCountShapes` | Done | `internal/component/config/tomap_shape_test.go` | |
+| `TestParseConfigAllowlistSingleEntry` | Done | `internal/plugins/anomaly/shape/config_allowlist_test.go` | |
+| `TestOnDetectedSkipsSingleAllowlistedPrefix` | Done | `internal/plugins/anomaly/shape/config_allowlist_test.go` | |
+| `TestParseFullPoolConfigReadsNamedPoolMap` | Done | `internal/component/l2tp/plugins/pool/named_pool_shape_test.go` | |
+| `TestHandleIPRequestAcceptsFramedPoolFromKeyedList` | Done | `internal/component/l2tp/plugins/pool/named_pool_shape_test.go` | |
+| `TestParseFullPoolConfigReadsNamedIPv6PoolMap` | Done | `internal/component/l2tp/plugins/pool/named_pool_shape_test.go` | |
+| `TestParseRouterInformationSingleScope` | Done | `internal/plugins/ospf/router_information_scope_test.go` | |
+| `TestParseFlowtableSingleDevice` | Done | `internal/component/firewall/flowtable_device_test.go` | |
+| `radius-framed-ip` | Done | `test/l2tp/radius-framed-ip.ci` | `make ze-functional-l2tp-test`: 23/23 PASS |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every file in "Files to Modify" and "Files to Create" | Done | All 39 paths of `0cc2cf949` are tracked, verified with `git ls-files --error-unmatch` over `git show --name-only` |
+| Three test files not in the plan | Changed | `internal/plugins/ospf/origination_v6_ri_test.go`, `ri_functional_test.go` and `ri_show_test.go`: fixture-shape corrections the plan did not anticipate |
+
+### Audit Summary
+- **Total items:** 12 AC, 11 tests, 4 requirements
+- **Done:** 27
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (three extra fixture files, recorded in Files from Plan)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Remove the class: one place knows the producer's shapes | Producer-contract test, plus a spelling count | `TestToMapLeafListMemberCountShapes` drives a real `*Tree` and asserts `absent / string / []string / map[string]any`. A grep for `func parseStringList`, `func configLeafList`, `func cfgStrings` and `func anySliceToStrings` under `internal/` returns nothing, so exactly one coercion survives |
+| The anomaly allowlist reaches the arming guard | Security negative test, driven from the entry point | `make ze-unit-pkg-test PKG=./internal/plugins/anomaly/shape RUN='TestParseConfigAllowlistSingleEntry\|TestOnDetectedSkipsSingleAllowlistedPrefix\|TestOnDetectedArmsASourceOutsideTheSingleAllowlistedPrefix'` gives `ok github.com/ze-software/ze/internal/plugins/anomaly/shape 1.056s`. The pair discriminates: one asserts nothing is armed inside the prefix, the other that a source outside it IS armed, so a reader returning a match-everything allowlist fails |
+| A named L2TP pool serves a subscriber | Functional test through the daemon | `make ze-functional-l2tp-test` gives `1.6s 13/23 PASS 13 radius-framed-ip`, 23/23 overall. The `.ci` asserts `named-pools=1`, a count the daemon logs only when the table is non-empty. The pre-existing `l2tp-pool: configured` line passed with the table empty |
+| OSPF advertises at the one configured scope | Interop scenario, plus a two-sided unit test | `test/interop/scenarios/ospf-sr-frr` declares exactly `scope area`; under the fix FRR reported `FRR OSPF adjacency is Full` and `Ze advertised SR-Algorithm 0, SRGB and its node Prefix-SID` (recorded in the spec's Interop Tests table). `TestParseRouterInformationSingleScope` asserts the configured scope AND the absence of the second |
+| A firewall flowtable holds its one device | Unit test at the reader | `make ze-unit-pkg-test PKG=./internal/component/firewall RUN=TestParseFlowtableSingleDevice` gives `ok github.com/ze-software/ze/internal/component/firewall 1.052s`. No daemon-level assertion exists: `show firewall` reads `Backend.ListTables`, an nft readback that needs Linux and root, and `test/` holds no flowtable `.ci` at all. Named as NOTE R1-2 |
+| No fixture certifies a path production cannot reach | Relaxation audit over the commit | `python3 scripts/dev/audit-test-relaxation.py 0cc2cf949~1` reports zero `[DELETED]` and zero `[WEAKENED]` findings on any file this spec touched, while nine fixtures moved to the producer's shape |
+| The tree still builds from what git holds | Tracked-build check | `make ze-repository-tracked-build-check` gives `tracked-build: OK (every flavor of the committed tree compiles)`, six flavors, 648 to 649 packages each |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none: the spec metadata declares `Deferral shard: -` | n-a | `ls plan/deferrals/` holds no `fixit-config-list-readers-assert-the-wrong-shape.md`, so commit A removes no shard |
+| The three BGP filter entry readers that cannot load a two-entry list | deferred | Homed at `spec-fixit-ordered-list-loses-its-order`, which has since landed `internal/core/configorder` (`d687efe7e`) and the `ordered-by user` obligation in `ai/rules/config.md`. Recorded as a row in `plan/journal/green-that-could-not-have-been-red.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-config-list-readers-assert-the-wrong-shape-9ad8358c-695f-41be-8019-5d92ba08f8e6.md` |
+| `review_gate.py check` | clean -- `review_gate: OK (28 code files, clean, hashes match ...)`, and `OK (1 code files, ...)` over commit A's own code file |
+| Rounds | 2 |
+| Reviewer lenses used | wiring and functional-test coverage; removed-behavior and test-rewrite; logic, guard audit and security; allocation and performance; documentation drift; project rules and the `ze-style` pass; simplicity and altitude; interop and goal validation |
+
+Round 1 read the full diff of `0cc2cf949` from source and produced one ISSUE and
+four NOTEs. Round 2 read the fix that ISSUE produced and found nothing, so the
+final run is 0 BLOCKER, 0 ISSUE.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R1-1 | ISSUE | `configorder`'s package doc names `configvalue.ListEntries` as the reader for every unordered list, and `ListEntries` names `configorder` nowhere. A reader who lands on `ListEntries` first meets "sorted by key so that two reads of one config produce one order" with nothing to say that this order is WRONG for an `ordered-by user` list, which is the defect `spec-fixit-ordered-list-loses-its-order` exists to remove. The obligation is stated on one side of a pair (`docs/contributing/ze-style.md`) | `internal/core/configvalue/configvalue.go`, `ListEntries` doc comment | The doc comment now refuses an `ordered-by user` list, says why sorting is wrong for one, and names `configorder.Entries`. `ListEntry.Fields` also gained the aliasing contract its `configorder.Entry.Map` counterpart already carries: it is the delivered map, and a caller MUST NOT write to it. Verified at both call sites that neither `parseIPv4Pool` nor `parseIPv6PDPool` writes to the map it is handed |
+
+### Findings recorded, not blocking
+| # | Severity | Finding | Disposition |
+|---|----------|---------|-------------|
+| R1-2 | NOTE | The firewall flowtable and the anomaly allowlist have no daemon-level test, because neither value is observable from any operator surface: `handleShowAnomalyShape` (`internal/plugins/anomaly/shape/show.go`) does not report the allowlist, and `show firewall` reads an nft readback needing Linux and root. `test/` holds no flowtable `.ci` at all | Making them observable is a CLI surface change, so it is a feature and not a test. The unobservability is itself the reason the defect stayed silent, and it is what the journal row records. The path's daemon-level proof is `test/l2tp/radius-framed-ip.ci` and the `ospf-sr-frr` interop scenario, which exercise the same producer and the same shared reader |
+| R1-3 | NOTE | `LeafList` returns nil for a bare empty string where `parseStringList` returned a one-element slice holding it. For `ipv4/address` and `ipv6/address` that would turn a loud `netip.ParsePrefix` error into silence | Unreachable for five of the six migrated leaf-lists: `address` (both), `allowed-ips`, `sysctl-profile` and rdnss `server` each carry a YANG `pattern` or typedef that no empty string matches, and validation runs before `ToMap` delivers. The sixth, bridge `member`, is a bare `type string`: it previously tried to enslave an interface named `""` and now enslaves nothing. A-5 is confirmed on this evidence rather than on the "zero active members" reasoning the spec states |
+| R1-4 | NOTE | Commit `0cc2cf949`'s message states "the rule point names no symbol from the unlanded ordering work". The rule point it committed names `configorder.Entries`, `internal/core/configorder`, `Tree.ToPluginMap` and `configorder.OrderKey` | A false statement in a landed commit message, not in the product. History is not rewritten. Recorded in the Mistake Log and as a journal row |
+| R1-5 | NOTE | `internal/plugins/ospf/ri_test.go` still carries `riCfg`, which builds a `scope` array unconditionally for sixteen single-scope callers | The spec's Known Limitations names it and states why: the file is RFC-tagged, so correcting it needs an owner row in `test/rfc-changed.md`, and it would discriminate nothing while `parseRouterInformation` substitutes both scopes for an enabled feature listing none |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/core/configvalue/configvalue.go` | Yes | `-rw-r--r-- 1 thomas thomas 4609 Aug 24 02:56` |
+| `internal/core/configvalue/configvalue_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 4592 Aug 23 09:47` |
+| `internal/component/config/tomap_shape_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 5352 Aug 23 09:49` |
+| `internal/plugins/anomaly/shape/config_allowlist_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 3658 Aug 23 08:21` |
+| `internal/component/l2tp/plugins/pool/named_pool_shape_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 5282 Aug 23 08:28` |
+| `internal/plugins/ospf/router_information_scope_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 4281 Aug 23 09:50` |
+| `internal/component/firewall/flowtable_device_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 1227 Aug 23 08:33` |
+| `test/l2tp/radius-framed-ip.ci` | Yes | `-rw-r--r-- 1 thomas thomas 7551 Aug 23 08:29` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | the one-prefix allowlist reaches the arming guard | `make ze-unit-pkg-test PKG=./internal/plugins/anomaly/shape RUN='TestParseConfigAllowlistSingleEntry\|TestOnDetectedSkipsSingleAllowlistedPrefix\|TestOnDetectedArmsASourceOutsideTheSingleAllowlistedPrefix'` gives `ok github.com/ze-software/ze/internal/plugins/anomaly/shape 1.056s` |
+| AC-3..AC-6 | every named pool is parsed and served | `make ze-unit-pkg-test PKG=./internal/component/l2tp/plugins/pool RUN='TestParseFullPoolConfigReadsNamedPoolMap\|TestParseFullPoolConfigReadsNamedIPv6PoolMap\|TestParseFullPoolConfigRejectsAnEmptyPoolName\|TestHandleIPRequestAcceptsFramedPoolFromKeyedList'` gives `ok github.com/ze-software/ze/internal/component/l2tp/plugins/pool 1.063s` |
+| AC-7 | one configured scope means one scope | `make ze-unit-pkg-test PKG=./internal/plugins/ospf RUN='TestParseRouterInformationSingleScope\|TestParseRouterInformationNoScopeKeepsTheDefault\|TestConfigInstanceIDsReadsEveryProducerShape\|TestConfigInstanceIDsRejectsOutOfRange'` gives `ok github.com/ze-software/ze/internal/plugins/ospf 1.517s` |
+| AC-8 | one device means one device | `make ze-unit-pkg-test PKG=./internal/component/firewall RUN=TestParseFlowtableSingleDevice` gives `ok github.com/ze-software/ze/internal/component/firewall 1.052s` |
+| AC-9, AC-10 | the shared reader accepts every producer shape | `make ze-unit-pkg-test PKG=./internal/core/configvalue RUN='TestLeafListCoercesEveryProducerShape\|TestLeafListDoesNotAliasTheCallersSlice\|TestListEntriesReadsKeyedMap'` gives `ok github.com/ze-software/ze/internal/core/configvalue 1.031s` |
+| AC-11 | the producer contract the reader is written against | `make ze-unit-pkg-test PKG=./internal/component/config RUN='TestToMapLeafListMemberCountShapes\|TestToMapKeyedListOmitsTheKeyLeafFromTheEntry\|TestToMapListIsAlwaysAKeyedMap'` gives `ok github.com/ze-software/ze/internal/component/config 1.187s` |
+| AC-12 | exactly one coercion helper exists | `grep -rn "func parseStringList\|func configLeafList\|func cfgStrings\|func anySliceToStrings" internal/` returns nothing |
+| all | no migrated package regressed | The eleven affected package trees run green together: `ok` for `configvalue`, `config` (95.077s), `anomaly/shape`, `l2tp/plugins/pool`, `ospf` and its 13 subpackages, `firewall`, `iface`, `l2tp/pppoe`, `isis` (76.963s) and its 10 subpackages, `ldp` and `filter_community` |
+| all | lint is clean over every package this spec changed | `golangci-lint run` over the eleven packages reports `0 issues.` twice: once for `./internal/core/configvalue` alone, after the closure doc-comment fix, and once for the other ten together. `make ze-lint-changed` was not the entry point, because "changed" reads the working tree and this checkout carries five other sessions' edits; the packages were named explicitly instead |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `named-pool gold { ... }` in `l2tp { pool }` | `test/l2tp/radius-framed-ip.ci` | Yes. Read the file: it declares `named-pool gold` in the `ze-bgp` config block and asserts `expect=stderr:contains=named-pools=1`. `make ze-functional-l2tp-test` gives `1.6s 13/23 PASS 13 radius-framed-ip`, suite 23/23 |
+| `allowlist <prefix>` (one member) in `anomaly { shape }` | none | Unit path only, driven from `(*responder).onDetected`. No daemon assertion is available: `handleShowAnomalyShape` does not report the allowlist. NOTE R1-2 |
+| `scope area` (one member) in `ospf { router-information }` | `test/interop/scenarios/ospf-sr-frr` | Yes. Its `ze.conf` declares exactly `scope area`, and its RI assertions passed under the fix (spec Interop Tests table) |
+| `device eth0` (one member) in a firewall flowtable | none | Unit path only. `show firewall` reads an nft readback needing Linux and root, and `grep -rln flowtable test/` returns nothing. NOTE R1-2 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Read `(*Tree).toMap` (`internal/component/config/tree.go`): its leaf-list arm switches on the active member count and assigns `active[0]`, a bare `string`, at exactly one. `TestToMapLeafListMemberCountShapes` asserts it |
+| A-2 | confirmed | Same function: every entry of `t.lists` becomes a `map[string]any` at every count. `TestToMapListIsAlwaysAKeyedMap` asserts it |
+| A-3 | confirmed | Each of the four readers takes a JSON string and unmarshals it, so the 2+ shape they meet is `[]any`. The AC tests drive them with JSON |
+| A-4 | confirmed | `internal/core/configvalue` is imported by nine packages across `internal/component/*` and `internal/plugins/*`. `make ze-repository-tracked-build-check` compiles all six flavors green |
+| A-5 | confirmed, on different evidence | The spec argues from "ToMap omits a leaf-list with zero active members", which is a different case from an empty MEMBER. The correct basis is the YANG type: `address` (v4 and v6), `allowed-ips`, `sysctl-profile` and rdnss `server` each carry a `pattern` or typedef no empty string matches, and validation runs before delivery. Bridge `member` is a bare `type string` and is the one case where behaviour moves, from enslaving an interface named `""` to enslaving nothing. NOTE R1-3 |
+| A-6 | confirmed | `test/l2tp/radius-framed-ip.ci` passes with the `named-pools=1` line added, and the spec records that the suite goes red on that line alone under the reverted coercion |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 2, config syntax | `docs/architecture/config/syntax.md`'s shape table matches `(*Tree).toMap`, read at source, and the section carries source anchors on `(*Tree).ToMap`, `(*Tree).ToPluginMap`, `LeafList, ListEntries` and `Entries, OrderKey` | Yes |
+| Row 12, internal architecture | `ai/PACKAGE-MAP.md` carries the `internal/core/configvalue` row; `ai/rules/config.md` and `ai/rules/points/config/config-list-shapes/` name `LeafList` and `ListEntries` as the obligation; `ai/rules/points/config/manifest.md` lists all three points | Yes |
+| Row 16, source anchors on changed files | `python3 scripts/dev/spec_doc_anchors.py plan/spec-fixit-config-list-readers-assert-the-wrong-shape.md` exits 0, naming no unnamed DECLARED document. Its four MENTION-only notes are `docs/DESIGN.md`, `docs/architecture/iface/logical-name-resolution.md`, `docs/architecture/traffic/cos-plugin.md` and `docs/architecture/traffic/cp-survival-2-copp-port179.md`; none describes the coercion of a delivered config value | Yes |
+| Row 17, no doc shows the broken behavior as intended | The four options this spec restores are documented with their intended meaning, which is what the fix delivers. The one config the parser refuses is `test/interop/scenarios/ospfv3-sr-frr/ze.conf`, already recorded in `plan/journal/documentation-shows-config-the-parser-refuses.md` | Yes |
+| Rows 1, 3 to 11, 13 to 15: No | `make ze-repository-check` reports no stale anchor, no unwired export and no CLI-handler gap on any file this spec touched. Its nine findings are all uncommitted work in other sessions' packages | Yes |
+| `make ze-doc-verify` | Not run at closure. `make ze-repository-check` covers the stale-anchor and wiring subset, and `spec_doc_anchors.py` covers the declared-document subset. The full target reads the whole working tree, which carries five other sessions' uncommitted docs | Partial, stated |
+
+**Verification debt carried by this spec's commit.**
+`plan/verification-debt/acb7c2cd.md` holds two open rows for
+`fix(config): read a leaf-list and a list through one reader`: verify-status was
+not FRESH-green, and no full `ze-precommit-verify` was recorded over the
+commit's Go. Both stay open. A push is refused while they are open
+(`ai/rules/git-safety.md`), which is where that debt is owed; the commits
+themselves stand.
+
+## Core Insight
+
+A fixture is a second claim about the producer, and when a reader and its test
+make the same wrong claim they agree with each other forever. Every one of the
+five defect sites had a green test, and each one hand-built the value in a shape
+`(*Tree).ToMap` cannot emit, so the green certified a path production never
+takes. The habit that breaks the loop costs one test: assert the PRODUCER's
+contract once, driven through the real producer, then derive every fixture from
+that shape rather than from what the node type suggests.

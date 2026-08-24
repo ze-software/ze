@@ -74,7 +74,11 @@ func LeafList(v any) []string {
 // which Tree.ToMap uses as the map key and does not repeat inside Fields, so
 // looking the key leaf up in Fields finds nothing.
 type ListEntry struct {
-	Key    string
+	// Key is the value of the list's key leaf, which is the name the operator
+	// wrote beside the list keyword.
+	Key string
+	// Fields holds the entry's other leaves. It is the delivered map rather
+	// than a copy, so a caller MUST NOT write to it.
 	Fields map[string]any
 }
 
@@ -86,6 +90,12 @@ type ListEntry struct {
 // It returns nil for an absent value and for a value of any other type. An
 // entry whose body is not a map is skipped rather than reported, because
 // Tree.ToMap cannot produce one.
+//
+// A list declared `ordered-by user` MUST NOT be read here, because sorting by
+// key substitutes the alphabet for the order the operator wrote and a
+// first-match-wins list then evaluates in an order nobody chose. Read such a
+// list with configorder.Entries (internal/core/configorder), which carries the
+// delivered order and refuses a multi-entry list that arrives without one.
 //
 // Safe for concurrent use.
 func ListEntries(v any) []ListEntry {
