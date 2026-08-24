@@ -7,9 +7,16 @@ cross-compiled ze binaries, runs a curated firewall subset under ZE_TEST_NETNS
 (so `ze` is dropped to a normal user and programs nft inside a throwaway netns),
 and asserts the host `nft list tables` is byte-identical before and after.
 
-Why a curated subset and not `firewall --all`: firewall-set-element-timeout crashes
-the Alpine QEMU kernel. That is a pre-existing environment issue unrelated to
-the netns launch mode and is triaged separately. The copp-* suites ARE included:
+Why a curated subset and not `firewall --all`: firewall-set-element-timeout was
+excluded because it "crashes the Alpine QEMU kernel". That claim is FALSE,
+measured on 2026-08-24 in this same VM: stock 6.12.13-0-virt accepts the set and
+the element, reads back `1.2.3.4 timeout 5s expires 4s990ms`, and survives
+`nft flush ruleset`, and the whole firewall suite runs 24/24 there in 74.1s with
+that test in it. The exclusion has no reason left. Re-enrolling it needs one
+green `make ze-qemu-netns-test`, because the netns launch mode is a different
+question from the kernel's and nobody has run that test under it.
+
+The copp-* suites ARE included:
 they configure only `control-plane-protection` (no firewall {} block), which
 used to fail "firewall backend not loaded" until ApplyAll learned to load the
 OS-default backend on demand -- this run is that fix's Linux regression guard.
@@ -58,7 +65,7 @@ def _qemu_bin(env_key, name):
 
     Those are built as $(ZE_QEMU_BIN) / $(ZE_QEMU_STRIPPED_BIN) /
     $(ZE_QEMU_TEST_BIN), which sit in this session's own directory under an AI
-    session ($(ZE_BIN_DIR), mk/session.mk). So `bin/<name>-linux-<arch>` is
+    session ($(ZE_BIN_DIR), mk/helper-session.mk). So `bin/<name>-linux-<arch>` is
     NOT the built path in general -- hardcoding it makes this script exec a file
     the make target never wrote. The target passes the real paths in through
     these variables; the literal remains the default for a standalone run.
@@ -70,8 +77,9 @@ ZE_QEMU_BIN = _qemu_bin("ZE_QEMU_BIN", "ze")
 ZE_QEMU_STRIPPED_BIN = _qemu_bin("ZE_QEMU_STRIPPED_BIN", "ze-stripped")
 ZE_QEMU_TEST_BIN = _qemu_bin("ZE_QEMU_TEST_BIN", "ze-test")
 # Confirmed host-safe green firewall subset under the netns launch mode: every
-# test/firewall/*.ci except firewall-set-element-timeout (see the module docstring --
-# it crashes the Alpine QEMU kernel). The copp-* names exercise the standalone
+# test/firewall/*.ci except firewall-set-element-timeout, whose exclusion rests
+# on a claim measured false (see the module docstring). The copp-* names
+# exercise the standalone
 # control-plane-protection path (no firewall {} block) that the ApplyAll
 # on-demand-backend fix unblocks. ddos-local-withdraw drives the ddos-local
 # responder (via the fakeddos injector) through the same on-demand backend to

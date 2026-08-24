@@ -51,6 +51,10 @@ this machine and the linux-only half was proven there, not deferred to CI.
 
 The spec stays OPEN for one item this row never covered: phase 1, the 2026-07-12
 reproduction (AC-1, AC-2, AC-3, AC-7 and `test/plugin/ddos-firewall-concurrency.ci`).
-Assumption A-6 is still unvalidated, and R-6 recommends waiting for
-`plan/spec-fixit-qemu-runtime-kernel.md` rather than debugging on a kernel that
-`mk/test-integration.mk` records as crashing on nft operations.
+Assumption A-6 is still unvalidated. R-6 recommended waiting for
+spec-fixit-qemu-runtime-kernel rather than debugging on a kernel recorded as
+crashing on nft operations. **That wait is over, and on both counts** (2026-08-24):
+that spec closed, both functional QEMU targets boot ze's own runtime kernel, and
+the crash claim itself was measured FALSE. Stock 6.12.13-0-virt runs the whole
+firewall suite 24/24. The reproduction therefore runs against a healthy kernel,
+and a stall it finds is a Go-level defect.

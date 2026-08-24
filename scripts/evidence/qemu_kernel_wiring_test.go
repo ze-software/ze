@@ -8,7 +8,9 @@ package main
 // regression looks exactly like success -- a green run that booted the wrong
 // kernel, or that ran zero firewall tests. These tests read the files.
 //
-// Rule: ai/rules/platform-linux.md. Spec: plan/spec-fixit-qemu-runtime-kernel.md.
+// Rule: ai/rules/platform-linux.md, "Both targets boot ze's own runtime
+// kernel". Origin: spec-fixit-qemu-runtime-kernel, closed 2026-08-24. That
+// spec file is no longer in the tree, so the rule is the durable reference.
 
 import (
 	"os"
@@ -181,9 +183,14 @@ func makeDefine(t *testing.T, mk, name string) string {
 // pass --kernel to qemu-run.py, so both boot ze's 7.x runtime kernel.
 // PREVENTS: a silent return to the stock Alpine 6.12.13-0-virt kernel, which
 // ze itself refuses to support (tools/kernel-builder/build.py requires >= 7.0)
-// and which crashes on the nft set-element-timeout operations the firewall
-// suite performs. Dropping one flag restores that crash, and the target still
-// looks like it runs.
+// and which is not the kernel ze ships. Dropping one flag leaves the target
+// looking like it runs while it judges ze on a kernel no operator gets, which
+// is how CONFIG_NF_TABLES_INET, the qdisc set and CONFIG_DUMMY sat missing
+// from the appliance config unseen.
+//
+// It does NOT prevent an nft set-element-timeout crash. That claim was measured
+// FALSE on 2026-08-24: stock 6.12.13-0-virt runs the whole firewall suite
+// 24/24, firewall-set-element-timeout included.
 func TestQemuFunctionalTargetsBootTheRuntimeKernel(t *testing.T) {
 	mk := readOrFail(t, integrationMk)
 	for _, name := range []string{"ze-qemu-test-all", "ze-qemu-needs-linux-test"} {
@@ -235,7 +242,7 @@ func TestQemuTargetsGuardTheStagedKernel(t *testing.T) {
 		t.Error("ze-qemu-kernel-guard does not key the cache lookup on $(QEMU_GOARCH); it cannot tell an amd64 vmlinuz from an arm64 one")
 	}
 	if strings.Contains(guard, "GOKRAZY_ARCH") {
-		t.Error("ze-qemu-kernel-guard reads GOKRAZY_ARCH, which defaults to amd64 regardless of the host (mk/gokrazy.mk)")
+		t.Error("ze-qemu-kernel-guard reads GOKRAZY_ARCH, which defaults to amd64 regardless of the host (mk/build-gokrazy.mk)")
 	}
 	if !strings.Contains(guard, "cmp -s") {
 		t.Error("ze-qemu-kernel-guard does not compare the staged kernel against the arch-keyed cache entry; existence alone cannot see the architecture")

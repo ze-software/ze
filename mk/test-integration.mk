@@ -434,18 +434,27 @@ ze-deployment-preflight:
 # binaries match the VM. ZE_QEMU_SKIP_SUITES (default: web) lets you drop
 # suites: web needs agent-browser.
 #
-# firewall left that default on 2026-08-07. It was there because the suite
-# "crashes the Alpine QEMU kernel on nft set-element-timeout operations", and
-# both functional targets now boot ze's own runtime kernel instead of stock
-# Alpine (see ze-qemu-kernel-guard below). Measured on 7.1.4: `nft add set ...
-# flags timeout` then `nft add element ... timeout 5s` both succeed, the element
-# reads back with its expiry, and the VM survives a following `nft flush
-# ruleset`. The stock Alpine 6.12.13-0-virt kernel is the one that cannot take
-# it, and no target runs on it any more.
+# firewall left that default on 2026-08-07, when both functional targets moved
+# to ze's own runtime kernel (see ze-qemu-kernel-guard below).
+#
+# The old reason -- the suite "crashes the Alpine QEMU kernel on nft
+# set-element-timeout operations" -- is FALSE, measured on 2026-08-24 and
+# corrected here. On stock 6.12.13-0-virt the probe accepts the set and the
+# element, reads back `1.2.3.4 timeout 5s expires 4s990ms`, accepts `nft add
+# table inet`, and survives `nft flush ruleset`; the whole firewall suite runs
+# 24/24 in 74.1s there, firewall-set-element-timeout included. Do not cite the
+# crash. Nothing in the tree records whether it was fixed in the Alpine kernel,
+# in nftables userland, or in ze.
+#
+# What keeps these two targets on the runtime kernel is a different fact, and
+# it still holds: it is the kernel ze SHIPS, and ze builds nothing below 7.0
+# (tools/kernel-builder/build.py). Running the suites on the operator's kernel
+# is what found CONFIG_NF_TABLES_INET, the qdisc set and CONFIG_DUMMY missing
+# from the appliance config, which no stock run can see.
 # Cross-compiled binaries take the name ze-linux-<arch> so $(ZEBIN_ZE) stays the
 # host-native binary. No need to run `make ze-build test` after QEMU testing.
 QEMU_GOARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
-# $(ZE_BIN_DIR) (mk/session.mk) is bin/ off-session and this session's own
+# $(ZE_BIN_DIR) (mk/helper-session.mk) is bin/ off-session and this session's own
 # directory under an AI session, so two sessions cross-compiling for the VM at
 # once cannot overwrite each other's DUT binaries mid-run. Every consumer below
 # goes through these three variables, so the directory reaches the 9p share and
@@ -462,7 +471,7 @@ ZE_QEMU_PARALLEL ?= 4
 
 # ─── The runtime kernel both functional QEMU targets boot ───────────────────
 #
-# Staged by `make ze-kernel-vmlinuz-stage` (mk/gokrazy.mk), which materializes it from
+# Staged by `make ze-kernel-vmlinuz-stage` (mk/build-gokrazy.mk), which materializes it from
 # the durable arch+config-keyed cache under ~/.cache/ze in seconds on a hit, and
 # builds only on a miss. `make ze-kernel-build` stages it too and then assembles the
 # gokrazy kernel package, which nothing here reads.
@@ -473,7 +482,7 @@ ZE_QEMU_KERNEL := tmp/kernel/vmlinuz
 #
 # `test -f $(ZE_QEMU_KERNEL)` alone, which is what every kernel-consuming target
 # used to do, is not
-# enough: GOKRAZY_ARCH defaults to amd64 (mk/gokrazy.mk), tmp/kernel/vmlinuz is
+# enough: GOKRAZY_ARCH defaults to amd64 (mk/build-gokrazy.mk), tmp/kernel/vmlinuz is
 # not keyed by architecture, and QEMU_GOARCH follows uname. So a bare
 # `make ze-kernel-build` on an Apple Silicon host stages an amd64 vmlinuz, an
 # existence-only guard accepts it, and the VM dies during boot with no line that
@@ -486,8 +495,12 @@ ZE_QEMU_KERNEL := tmp/kernel/vmlinuz
 # right architecture, and current config -- and adds no second copy of the
 # bzImage/Image magic numbers to keep in step (ai/rules/evidence.md).
 #
-# Fail closed. A silent fall back to the stock Alpine kernel would restore the
-# nft crash quietly, which is the one outcome worse than an error message.
+# Fail closed. A silent fall back to the stock Alpine kernel would judge ze on a
+# kernel no operator gets, and it would do it while reporting green. That is how
+# CONFIG_NF_TABLES_INET, the qdisc set and CONFIG_DUMMY sat missing from the
+# appliance config unseen. (Until 2026-08-24 this comment said the fall back
+# would "restore the nft crash". That crash claim was measured FALSE; see the
+# ZE_QEMU_SKIP_SUITES comment above.)
 #
 # EVERY target that uses this guard MUST declare `: ze-host-build`. The first command
 # below execs $(CURDIR)/ze-host, which a clean checkout does not have. Without
@@ -666,7 +679,8 @@ endif
 # writes the Go/workspace env to /etc/profile.d/ze.sh, then idles and prints the
 # ssh command to use. SSH in repeatedly to run ONE .ci test at a time and inspect
 # dmesg / nft / ip state between runs -- the way to diagnose a suite that crashes
-# the VM (e.g. firewall) or a flake that only appears under specific kernel state.
+# the VM or a flake that only appears under specific kernel state. `firewall` was
+# the example here until 2026-08-24, when its crash claim was measured FALSE.
 # It blocks, so run it in the background; stop the process to power off the VM.
 # Cross-compiles linux binaries first unless NOBUILD=1.
 ze-qemu-shell:

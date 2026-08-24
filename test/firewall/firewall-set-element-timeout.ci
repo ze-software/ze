@@ -11,11 +11,20 @@
 #
 # Requires CAP_NET_ADMIN.
 #
-# ENVIRONMENT (not a code bug): nft set-element-timeout ops CRASH the Alpine
-# QEMU minimal kernel, so this test is deliberately EXCLUDED from the
-# scripts/evidence/netns_qemu.py host-safe subset and runs only on a
-# full-kernel host via `make ze-netns-test`. The parse -> apply -> readback
-# chain also has direct Go coverage in
+# EXCLUDED from the scripts/evidence/netns_qemu.py host-safe subset, so this
+# test runs only on a full-kernel host via `make ze-netns-test`.
+#
+# The old reason -- "nft set-element-timeout ops CRASH the Alpine QEMU minimal
+# kernel" -- is FALSE. Measured on 2026-08-24 on stock 6.12.13-0-virt: the set
+# and the element are both accepted, the element reads back
+# `1.2.3.4 timeout 5s expires 4s990ms`, and the whole firewall suite runs 24/24
+# with this test in it. Do not cite the crash.
+#
+# The exclusion stays for a different reason. The netns launch mode is a
+# separate question from the kernel's, and nobody has run this test under it.
+# Re-enrolling it owes one green `make ze-qemu-netns-test`.
+#
+# The parse -> apply -> readback chain also has direct Go coverage in
 # internal/plugins/firewall/nft/*_linux_test.go.
 
 option=needs-linux:caps=net-admin
