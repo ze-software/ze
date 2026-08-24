@@ -53,8 +53,9 @@ cmd=foreground:seq=1:exec=ze doctor --json vpp-lcp-netns.conf
 expect=stdout:contains=doctor-vpp-lcp-netns
 expect=stdout:contains=is not root-reachable
 expect=stdout:contains=dataplane
-# // the `ze explain doctor-vpp-lcp-netns` command and its assertion
-#   are removed from this NEVER-COMMITTED test because they made it WEAKER, not
+# NOTE: an earlier DRAFT of this file, never committed, also ran `ze explain
+#   doctor-vpp-lcp-netns` and asserted on it. Both were dropped before the file
+#   landed, because they made it WEAKER, not
 #   stronger. Assertions match accumulated stdout, so explain's own output
 #   printed the code name and satisfied `contains=doctor-vpp-lcp-netns` even
 #   with checkVPPLCPNetns stubbed to return nil -- proven by a mutation run.

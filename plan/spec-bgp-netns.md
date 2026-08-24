@@ -14,9 +14,10 @@ anchors shifted ~+18 lines; citations below updated in-body --
 (`vishvananda/netns v0.0.5`) and `ze-vpp-conf.yang/201` verified exact.
 
 **DESIGN, APPROVED IN PRINCIPLE, NOT `ready`.** Created 2026-07-16 by splitting
-`plan/spec-fixit-vpp-lcp-reachability.md` (Thomas approved the split; see that spec's Task ->
-"The 2026-07-16 split"). This spec is the **Problem A** half: netns-aware BGP listening. The
-parent keeps **Problem B** (the LCP-presence doctor check) and ships on its own.
+`spec-fixit-vpp-lcp-reachability` (Thomas approved the split on 2026-07-16: the LCP-presence
+doctor check and netns-aware BGP listening are unrelated problems that shared a filename).
+This spec is the **Problem A** half: netns-aware BGP listening. The parent kept **Problem B**
+(the LCP-presence doctor check), shipped it, and closed on 2026-08-24.
 
 → Decision (user, 2026-07-16): **A-7 is ANSWERED: yes, support a non-root netns, because it is
 the DEFAULT and the documented model.** The `vpp.lcp.netns` default of `"dataplane"` **STAYS**
@@ -37,7 +38,7 @@ root-reachable namespace, which Thomas has rejected. See "Why this is the defaul
 3. `ai/rules/evidence.md`, `ai/rules/architecture.md`, `ai/rules/platform-linux.md`
 4. `internal/component/bgp/reactor/reactor.go` (`newListenerFactory`, lines 1394-1422),
    `internal/core/network/network.go` (`RealListenerFactory`, lines 147-194)
-5. `plan/spec-fixit-vpp-lcp-reachability.md` (the doctor half; shares the AC-3 seam)
+5. `spec-fixit-vpp-lcp-reachability` (the doctor half; shared the AC-3 seam; closed 2026-08-24)
 
 ## Task
 
@@ -125,8 +126,8 @@ the conclusion INVERTS with the premise. With `"dataplane"` staying:
 `plan/deferrals.md`, row dated 2026-07-10, source `spec-followup-vpp-iface` A-4 (BGP
 netns-aware listener). Destination recorded there as "none yet (future `spec-bgp-netns` when
 picked up)". This file is that destination. Routed through
-`plan/spec-fixit-vpp-lcp-reachability.md` (research 2026-07-15/16), which split on
-2026-07-16.
+`spec-fixit-vpp-lcp-reachability` (research 2026-07-15/16), which split on
+2026-07-16 and closed on 2026-08-24.
 
 → Constraint: **NAMING COLLISION, carried over.** "A-4" means two different things. In
 the followup-vpp-iface record and in the source comments `doctor.go` /
@@ -140,7 +141,7 @@ was retired with the learned corpus, so they need a live design target
 
 ### Source (read before designing)
 
-<!-- Moved from plan/spec-fixit-vpp-lcp-reachability.md, not duplicated: the parent's copies
+<!-- Moved from spec-fixit-vpp-lcp-reachability, not duplicated: the parent's copies
      are removed and replaced by a pointer to this file. -->
 
 - [ ] `internal/component/bgp/reactor/reactor.go` - lines 1394-1422: `newListenerFactory` is
@@ -438,7 +439,7 @@ reaches `NewListener` (`listener.go`). The BGP netns value enters via a new conf
 
 ## Risks & Assumptions
 
-→ Constraint: A-N and R-N IDs are PRESERVED from `plan/spec-fixit-vpp-lcp-reachability.md`
+→ Constraint: A-N and R-N IDs are PRESERVED from `spec-fixit-vpp-lcp-reachability`
 rather than renumbered, so that spec's Mistake Log rows, its Design Insights, and any future
 learned summary keep pointing at the same things. Gaps in the numbering (A-4, A-5, A-6, R-3,
 R-4, R-5, R-7, R-9, R-10) are the doctor half's rows and stay in the parent.
@@ -477,7 +478,7 @@ R-4, R-5, R-7, R-9, R-10) are the doctor half's rows and stay in the parent.
 
 ## Acceptance Criteria
 
-→ Constraint: AC IDs are MOVED from `plan/spec-fixit-vpp-lcp-reachability.md`, keeping their
+→ Constraint: AC IDs are MOVED from `spec-fixit-vpp-lcp-reachability`, keeping their
 original numbers (AC-1, AC-2, AC-3, AC-8, AC-9, AC-10). The parent's copies are removed, not
 duplicated. Gaps (AC-4 to AC-7, AC-11) are the doctor half's and stay in the parent.
 
@@ -607,6 +608,7 @@ None deferred. Scope is set above and every AC is assigned.
 | 12 | Internal architecture changed? | [ ] Yes. `network.go`'s package doc and `listener.go`'s `// Design:` anchor both describe listener creation; a namespace concept changes that contract | `docs/architecture/core-design.md` |
 | 15 | Registered diagnostic code changed? | [ ] Yes: `doctor-vpp-lcp-netns` description reworded for the narrowed check | `internal/core/diagnostic/codes.go`, `docs/guide/vpp.md` |
 | 16 | Any changed source file referenced by doc source anchors? | [ ] Grep `docs/` for the changed files. Known: `network.go` anchors `docs/architecture/chaos-web-dashboard.md`; `lcp.go` anchors `docs/research/vpp-deployment-reference.md`; `doctor.go` anchors `ai/rules/repo-maintenance.md`. Run `scripts/dev/check_doc_links.py --design-only` | per grep |
+| 17 | Design doc declared by a changed file's `// Design:` header? | [ ] **No change owed.** `internal/core/diagnostic/codes.go` declares `docs/features/ai-first.md`. That document specifies the `ze explain <code>` contract and states that every diagnostic carries a stable code, naming codes only by example. It holds no enumeration of doctor codes. Row 15 rewords one existing description through that documented mechanism and changes neither the contract nor a list, so the design it declares is unaffected. Recorded because `scripts/dev/spec_doc_anchors.py` requires every declared design doc to be named | `docs/features/ai-first.md` (unaffected) |
 
 ## Files to Create
 
@@ -643,7 +645,7 @@ principle, but two gates precede any coding: Thomas promotes the spec to `ready`
 config-surface shape) is decided. Phase 1 is a throwaway prototype and settles A-3, which gates
 the design of every phase after it.**
 
-→ Constraint: phases are MOVED from `plan/spec-fixit-vpp-lcp-reachability.md` Phases 2-6 and
+→ Constraint: phases are MOVED from `spec-fixit-vpp-lcp-reachability` Phases 2-6 and
 renumbered 1-5 here. Mapping, for anyone following a reference to the old numbering: parent
 Phase 2 -> Phase 1; parent Phase 3 -> Phase 2; parent Phase 4 -> Phase 3; parent Phase 5 ->
 Phase 4; parent Phase 6 -> Phase 5. The parent's Phase 1 (the doctor check) stays in the parent.

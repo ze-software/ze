@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Depends | - (shares one file, `internal/plugins/iface/vpp/doctor.go`, with `plan/spec-bgp-netns.md`; neither blocks the other) |
 | Phase | 1/1 (doctor check; research done) |
-| Updated | 2026-08-19 |
+| Updated | 2026-08-24 |
 
 **2026-08-07: the R-5 detection gap homed here is IMPLEMENTED.**
 `plan/deferrals/fixit-vpp-lcp-netns-remediation.md` R-5 recorded that
@@ -765,6 +765,7 @@ lands second must re-read the file rather than trust the other spec's line numbe
 | 12 | Internal architecture changed? | [ ] Problem A: Yes. `network.go`'s package doc and `listener.go`'s `// Design:` anchor both describe listener creation; a namespace concept changes that contract | `docs/architecture/core-design.md` |
 | 15 | Registered diagnostic code changed? | [ ] Yes: `doctor-vpp-lcp-plugin` added; `doctor-vpp-lcp-netns` description reworded if Problem A lands | `internal/core/diagnostic/codes.go`, `docs/guide/vpp.md` |
 | 16 | Any changed source file referenced by doc source anchors? | [ ] Grep `docs/` for the changed files. Known: `lcp.go` anchors `docs/research/vpp-deployment-reference.md`; `network.go` anchors `docs/architecture/chaos-web-dashboard.md`; `doctor.go` anchors `ai/rules/repo-maintenance.md`. Run `scripts/dev/check_doc_links.py --design-only` | per grep |
+| 17 | Design doc declared by a changed file's `// Design:` header? | [ ] **No change owed.** `internal/core/diagnostic/codes.go` declares `docs/features/ai-first.md`. That document specifies the `ze explain <code>` contract and states that every diagnostic carries a stable code, naming codes only by example ("e.g., `config-parse`, `config-yang-type`, `config-listener-conflict`"). It holds no enumeration of doctor codes. This spec ADDS one row to the registry through exactly that documented mechanism and changes neither the contract nor a list, so the design it declares is unaffected. Recorded because `scripts/dev/spec_doc_anchors.py` requires every declared design doc to be named | `docs/features/ai-first.md` (unaffected) |
 
 ## Files to Create
 
@@ -979,10 +980,19 @@ Thomas whether any should be pulled in.
   SCOPE here; follow-up belongs to `plan/spec-bgp-netns.md` (see Q5).
 - **The netns leg is linux-only.** `netns_other.go` stubs it; a configured netns on a
   non-linux build must be a clear error, never a silent host bind (AC-10).
-- **The doctor probe reports API availability, not file presence.** `CheckCompatiblity` proves
+- **The doctor probe reports what the RUNNING VPP loaded, not what is on disk.** ~~`CheckCompatiblity` proves
   the linux_cp API is unreachable on the running VPP; it cannot distinguish "the `.so` is
-  absent" from "the `.so` is present but failed to load" or a CRC drift (R-10). The diagnostic
-  must be worded accordingly (R-7 warns against repeating the wireguard code's over-claim).
+  absent" from "the `.so` is present but failed to load" or a CRC drift (R-10).~~ **CORRECTED
+  2026-08-24: that sentence describes the DESIGNED mechanism, which was not the one delivered.**
+  Q8 records the departure; this bullet had not followed it. The delivered probe is
+  `vppctlShowPlugins` (`internal/plugins/iface/vpp/doctor.go`), which reads the plugin rows of
+  `vppctl show plugins`. What survives from the original wording: the probe still cannot
+  distinguish "the `.so` is absent" from "the `.so` is present but failed to load", because
+  either way VPP lists no such plugin. What does NOT survive: CRC drift is a failure mode of
+  `CheckCompatiblity`, not of a name lookup over a plugin listing, so R-10 does not reach the
+  delivered check (Q10 records the same finding). The diagnostic is worded to the delivered
+  mechanism, saying the running VPP "does not load" the plugin rather than asserting the file
+  is missing (R-7 warns against repeating the wireguard code's over-claim).
 - **The probe needs a reachable VPP.** On a box where VPP is not yet running, the check
   degrades to a warning (AC-6) and cannot answer the question. It is a pre-apply aid, not a
   guarantee.
@@ -1148,30 +1158,49 @@ Only Problem B is in this spec. Problem A moved to `plan/spec-bgp-netns.md`.
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| LCP misconfiguration is diagnosed by `ze doctor` before apply, so a VPP without `linux_cp_plugin.so` is named pre-apply instead of failing the whole apply at the binapi layer | Functional (`.ci`) through the user entry point, plus unit | `ze-test ui --pattern doctor-vpp-lcp` -> `pass 2/2 100.0% 15.9s` (ids 140 `doctor-vpp-lcp-netns`, 141 `doctor-vpp-lcp-plugin`). The Error wording itself is proven by `TestCheckVPPLCPPluginMissingIsAnError`, which asserts Severity Error, `linux_cp_plugin.so` and `linux_cp API` in the message |
+| LCP misconfiguration is diagnosed by `ze doctor` before apply, so a VPP without `linux_cp_plugin.so` is named pre-apply instead of failing the whole apply at the binapi layer | Functional (`.ci`) through the user entry point, plus unit | `ze-test ui --pattern doctor-vpp-lcp` -> `pass 2/2 100.0%`, re-run at closure 2026-08-24 over `doctor-vpp-lcp-netns` and `doctor-vpp-lcp-plugin`. The Error wording itself is proven by `TestCheckVPPLCPPluginMissingIsAnError`, which asserts Severity Error, `linux_cp_plugin.so` and `linux_cp API` in the message |
 | The check never converts a non-answer into a "plugin missing" claim (the diagnostic must be trustworthy, or an operator rebuilds a VPP that is fine) | Unit, mutation-proved | `TestCheckVPPLCPPluginProbeUnavailable` (non-zero exit) and `TestCheckVPPLCPPluginUntrustedOutputWarns` (empty, whitespace-only, headerless output). Discrimination proved by removing the `vppctlPluginsHeader` guard from `checkVPPLCPPlugin`: all three subtests flip to `severity = "error", want "warning"`, and go green again when it is restored |
 | The check actually RUNS: it is registered where `ze doctor` looks, and its code resolves for `ze explain` | Unit, mutation-proved, plus the `.ci` reaching it from the CLI | `TestVPPLCPPluginCheckIsRegistered` finds the entry in `diagnostic.DoctorChecksForPhase(DoctorPhasePostConfig)`, checks its `Codes`, and calls `entry.Check`. Discrimination proved by deleting the `vpp-lcp-plugin` entry from `registerDoctorChecks`: `doctor check vpp-lcp-plugin is not registered for DoctorPhasePostConfig; ze doctor would never run it. Registered names: [vpp-hugepages vpp-lcp-netns vpp-wireguard-plugin]`. Restored, green |
-| The DELIVERED `checkVPPLCPNetns` is reachable from the operator's entry point (AC-12) | Functional (`.ci`) | `test/ui/doctor-vpp-lcp-netns.ci`, id 140 above. Its three assertions gate on doctor output only; the `ze explain` command that would have satisfied the code assertion on its own was removed from the file, and that removal is recorded in the file's own trailer |
+| The DELIVERED `checkVPPLCPNetns` is reachable from the operator's entry point (AC-12) | Functional (`.ci`) | `test/ui/doctor-vpp-lcp-netns.ci`, in the run above. Its three assertions gate on doctor output only; the `ze explain` command that would have satisfied the code assertion on its own was removed from the file, and that removal is recorded in the file's own trailer |
 | VPP LCP interfaces usable by BGP | N/A here | MOVED to `plan/spec-bgp-netns.md` at the 2026-07-16 split, with its QEMU rail. No interop test is owed by this spec: the change is a diagnostic and touches no wire format, no capability and no FSM path (see TDD Test Plan -> Interop Tests) |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/fixit-vpp-lcp-reachability-6c2adacb-9282-4d78-9180-bab7cb6a2f15.md` |
-| `review_gate.py check` | not clean yet: the artifact records `verdict=findings`. `/ze-close` MUST re-record. `internal/core/diagnostic/codes.go` is edited by concurrent sessions in this checkout (its hash moved between two recordings on 2026-08-19), so any artifact over it goes stale on somebody else's edit, not on ours |
-| Rounds | 1 |
-| Reviewer lenses used | Round 1, independent of the implementation: test-validity (does the test assert what its name claims), evidence/guard (does a non-answer reach a confident verdict), and spec-bookkeeping |
+| Artifact | `tmp/review/fixit-vpp-lcp-reachability-9ad8358c-695f-41be-8019-5d92ba08f8e6.md` |
+| `review_gate.py check` | `review_gate: OK (3 code files, clean, hashes match ...)`, run 2026-08-24 over `doctor.go` and both `.ci` files |
+| Rounds | 2 |
+| Reviewer lenses used | Round 1 (implementing session): test-validity, evidence/guard, spec-bookkeeping. Round 2 (this closure, independent): every `/ze-review` lens run by one agent, the `docs/contributing/ze-style.md` pass included |
+| Superseded artifact | `tmp/review/fixit-vpp-lcp-reachability-6c2adacb-9282-4d78-9180-bab7cb6a2f15.md` recorded `verdict=findings` and is not on disk in this checkout |
 
-Round 1 found 0 BLOCKER and 3 ISSUE. All three are fixed, and the fixes were
-authored by this session, so they have had NO independent pass. Round 2 belongs
-to `/ze-close` on Opus 5. Its scope, written before it runs
-(`ai/rules/planning.md`, "Bounding the loop"): the `vppctlPluginsHeader` guard in
-`checkVPPLCPPlugin` and its sibling branches in the same function, the rewritten
-`TestVPPLCPPluginCheckIsRegistered` and the new
+Round 1 found 0 BLOCKER and 3 ISSUE, and all three were fixed by the session
+that authored them, so they carried no independent pass. Round 2 ran that pass.
+Its scope was written before it ran (`ai/rules/planning.md`, "Bounding the
+loop"): the `vppctlPluginsHeader` guard in `checkVPPLCPPlugin` and its sibling
+branches, the rewritten `TestVPPLCPPluginCheckIsRegistered`, the new
 `TestCheckVPPLCPPluginUntrustedOutputWarns`, the `doctor-vpp-lcp-plugin`
 description in `codes.go`, the `docs/guide/vpp.md` paragraph, and the two `.ci`
 citation edits.
+
+### Run 2 (2026-08-24, independent closure pass)
+
+0 BLOCKER, 0 ISSUE, 3 NOTE. The gate is satisfied. The three NOTEs are in the
+artifact and none blocks: `vppctlShowPlugins` drops an `ExitError`'s stderr the
+way its model `checkVPPVersion` (`internal/component/doctor/checks_linux.go`)
+does; `checkVPPLCPPlugin` builds its probe context from `context.Background()`
+because `diagnostic.DoctorCheckContext`
+(`internal/core/diagnostic/doctor_registry.go`) carries none, and
+`vppProbeTimeout` bounds it at 3s; `ai/DOCS-TO-CODE.md` reads stale under `make
+ze-doc-verify` while both of this spec's rows are present and correct, and the
+file is gitignored, so it must not ride on commit A.
+
+Two gate reds were read and charged elsewhere, each named in the artifact:
+`make ze-repository-check` reports 8 unwired exported symbols, every one in
+another session's uncommitted file, and `make ze-doc-verify` fails on one
+anchor in `docs/guide/web-interface.md`, which names
+`liveAAABundleAuthenticator.Authenticate` in `cmd/ze/hub/aaa_authenticator_web.go`
+where that symbol is no longer declared. Neither reaches a file this spec owns.
 
 ### Findings fixed
 
@@ -1192,3 +1221,143 @@ Two more edits landed in the same pass and are NOT findings of round 1:
 - `internal/core/diagnostic/codes.go` and `docs/guide/vpp.md` both enumerated the
   Warning branch as "vppctl missing, socket absent, VPP wedged". Finding 3 adds a
   fourth case, so both were updated (`ai/rules/stale-comments.md`).
+
+## Implementation Summary
+
+### What Was Implemented
+
+- `checkVPPLCPPlugin` (`internal/plugins/iface/vpp/doctor.go`), registered by
+  `registerDoctorChecks` in the same file at `DoctorPhasePostConfig` order 742,
+  beside `vpp-wireguard-plugin` at 740 and `vpp-lcp-netns` at 741. It probes the
+  RUNNING VPP through `vppctlShowPlugins` and reports before apply.
+- Its supporting values in the same file: `lcpPluginSO`, `vppctlPluginsHeader`,
+  `vppProbeTimeout`, the `lcpPluginProbe` var with `defaultLCPPluginProbe`, and
+  `lcpEnabled`, which reads an absent `enabled` leaf as the YANG default ON.
+- The `doctor-vpp-lcp-plugin` row in `internal/core/diagnostic/codes.go`, so
+  `ze explain doctor-vpp-lcp-plugin` resolves.
+- `test/ui/doctor-vpp-lcp-plugin.ci` and `test/ui/doctor-vpp-lcp-netns.ci`, the
+  functional halves `ai/rules/repo-maintenance.md` requires beside the units.
+- The unit suite in `internal/plugins/iface/vpp/doctor_lcp_plugin_test.go`.
+- Problem A was never implemented here. It moved to `spec-bgp-netns` on
+  2026-07-16 with AC-1, AC-2, AC-3, AC-8, AC-9, AC-10 and Phases 2-6.
+
+### Bugs Found/Fixed
+
+- A zero-exit non-answer reached a confident Error. `vppctlShowPlugins` returns
+  `(string(out), nil)` for any zero exit, and the check read a missing substring
+  as proof the plugin is absent. Fixed by requiring `vppctlPluginsHeader`, and
+  covered by `TestCheckVPPLCPPluginUntrustedOutputWarns`.
+- `TestVPPLCPPluginCheckIsRegistered` asserted only the diagnostic-CODE registry
+  while its name and its failure messages claimed check registration. Fixed: it
+  fetches the entry from `diagnostic.DoctorChecksForPhase` and CALLS it.
+- The `doctor-vpp-lcp-netns` remediation recommended `host` or `root`, which VPP
+  resolves as namespace names, so following it broke LCP pair creation. Fixed
+  before this closure and recorded in `plan/deferrals/bgp-netns.md`.
+
+### Documentation Updates
+
+- `docs/guide/vpp.md`: the severity paragraph now states both branches and the
+  `Plugin path is:` condition, under the anchor
+  `<!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPPlugin, lcpEnabled, lcpPluginSO, vppctlPluginsHeader -->`.
+- `internal/core/diagnostic/codes.go`: the registered description carries the
+  same four Warning cases, and it is what `ze explain` prints.
+- `make ze-doc-verify` is red on one anchor,
+  `docs/guide/web-interface.md`, and on `ai/DOCS-TO-CODE.md` staleness. Neither
+  reaches a file this spec owns; see Run 2 above.
+
+### Deviations from Plan
+
+- The probe is `vppctl show plugins`, not GoVPP `CheckCompatiblity`. A-5
+  reasoned for GoVPP and A-6 then broke: doctor is an offline command with no
+  VPP connector, so the check would have had to open its own. Q8 records the
+  departure, and Known Limitations was corrected on 2026-08-24 to describe the
+  delivered mechanism rather than the designed one.
+- Q10 resolved to Error, not the Warning the readiness loop defaulted to, for
+  the one case where the probe ANSWERED. A probe that cannot answer stays a
+  Warning, which is what AC-6 asked for.
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| `plan/deferrals/fixit-vpp-lcp-netns-remediation.md`, 2026-07-16, R-5: `doctor-vpp-lcp-netns` stayed silent for `host` and `root` | done | Landed 2026-08-07. `checkVPPLCPNetns` splits the question: `lcpNetnsMarkerDiagnostic` warns on a marker, `lcpNetnsConfigDiagnostic` and `lcpNetnsHostDiagnostic` cover an ordinary name, and the empty leaf is the only silent value. Tests `TestDoctorLCPNetnsRootMarkerWarns`, `TestDoctorLCPNetnsEmptyLeafSilent`, `TestDoctorLCPNetnsAbsentFromHost`, `TestDoctorLCPNetnsPresentOnHost`, `TestDoctorLCPNetnsProbeError` (`internal/plugins/iface/vpp/register_test.go`) |
+| `plan/deferrals/fixit-vpp-lcp-netns-remediation.md`, 2026-08-07: `validateNetns` admitted whitespace | done | Fixed 2026-08-14 by `5503a81c5`. `validateNetns` (`internal/component/vpp/config.go`) refuses any rune where `unicode.IsSpace` holds or `unicode.IsPrint` does not, so `netns "my ns"` is rejected at parse. Tests beside `TestValidate` in `internal/component/vpp/config_test.go` drive a space, a tab, a newline and a NUL. The row was still `open` at this closure and is set `done` here |
+| `plan/deferrals/bgp-netns.md`, 2026-07-16: the `doctor-vpp-lcp-netns` remediation recommended a config that breaks LCP | done | No doctor surface names a netns VALUE as the remedy now. `lcpNetnsMarkerDiagnostic` and `lcpNetnsConfigDiagnostic` both print "Leave vpp.lcp.netns empty", and `lcpNetnsIsRootMarker` carries the corrected premise. `TestDoctorLCPNetnsRemediation` and `TestDoctorLCPNetnsCodeDescription` assert the message and the registered description. The row was still `deferred` at this closure and is set `done` here |
+
+This spec has no shard of its own: `plan/deferrals/fixit-vpp-lcp-reachability.md`
+does not exist. The two FOREIGN shards above now hold terminal rows only, so both
+are residue and both are removed. `deferral_shard_removal_problems`
+(`scripts/dev/commit_helper.py`) reads a shard at HEAD, so the removal MUST be
+prepared after the commit that sets the rows `done` has landed, never in the same
+helper run.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/iface/vpp/doctor.go` | yes | `ls -l` 2026-08-24: 21070 bytes |
+| `internal/plugins/iface/vpp/doctor_lcp_plugin_test.go` | yes | `ls -l` 2026-08-24: 14760 bytes |
+| `test/ui/doctor-vpp-lcp-plugin.ci` | yes | `ls -l` 2026-08-24: 1433 bytes |
+| `test/ui/doctor-vpp-lcp-netns.ci` | yes | `ls -l` 2026-08-24: 3417 bytes |
+| `internal/core/diagnostic/codes.go` | yes | `grep -c doctor-vpp-lcp-plugin` returns 2, the Code row and its `ze explain` example |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-4 | A VPP that answers without the plugin yields one Error naming the linux_cp API | `make ze-unit-pkg-test PKG=./internal/plugins/iface/vpp/... RUN='TestCheckVPPLCPPlugin\|TestLCPEnabledTreatsAbsentLeafAsOn\|TestVPPLCPPluginCheckIsRegistered\|TestDoctorLCPNetns'` exits 0 with `ok github.com/ze-software/ze/internal/plugins/iface/vpp 1.164s` under race. The sibling `yang` package in the same run prints `[no tests to run]`, which is the marker Go emits when a `-run` filter matches nothing, so its absence on the vpp package is what proves these tests RAN |
+| AC-5 | The plugin present yields no diagnostic | same run, `TestCheckVPPLCPPluginPresentSilent` |
+| AC-6 | A probe that cannot answer degrades to a Warning | same run, `TestCheckVPPLCPPluginProbeUnavailable` and `TestCheckVPPLCPPluginUntrustedOutputWarns`. The functional half is `test/ui/doctor-vpp-lcp-plugin.ci` |
+| AC-7 | The code is registered and `ze explain` resolves it | same run, `TestVPPLCPPluginCheckIsRegistered`, which reads `diagnostic.DoctorChecksForPhase` and calls the entry. `grep '"vpp-lcp-plugin"' internal/plugins/iface/vpp/doctor.go` finds the registration beside `Codes: []string{"doctor-vpp-lcp-plugin"}` and `Check: checkVPPLCPPlugin` |
+| AC-11 | LCP off, an absent tree and a non-Linux platform each skip and open no probe | same run, `TestCheckVPPLCPPluginSkipsWhenNotApplicable` asserting `fake.calls == 0`, and `TestLCPEnabledTreatsAbsentLeafAsOn` |
+| AC-12 | The delivered `checkVPPLCPNetns` is reachable from the operator's entry point | same run, the `TestDoctorLCPNetns*` set. The functional half is `test/ui/doctor-vpp-lcp-netns.ci` |
+
+### Wiring Verified (end-to-end)
+
+Both files were re-run at closure on 2026-08-24: `ze-test ui --pattern
+doctor-vpp-lcp` reports `pass 2/2 100.0% 1.1s`, and both were read line by line
+rather than trusted by name.
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `vpp { lcp { enabled true } }` plus `ze doctor --json` on a host whose VPP cannot be probed | `test/ui/doctor-vpp-lcp-plugin.ci` | Read at closure. It writes the config through `tmpfs=`, runs ONE command, and asserts `doctor-vpp-lcp-plugin` and `could not be probed`. `option=needs-linux` is present and its reason is stated |
+| `vpp { lcp { enabled true } }` plus a `bgp` stanza, `ze doctor --json`, netns omitted so the YANG default applies | `test/ui/doctor-vpp-lcp-netns.ci` | Read at closure. ONE command, three assertions on doctor output alone. The file records why a second `ze explain` command was dropped: assertions match ACCUMULATED stdout, so explain's own output satisfied the code assertion with the check stubbed out |
+| The netns listener wiring | none here | MOVED to `spec-bgp-netns` |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | BGP still has no netns awareness. Not this spec's work; it travels with `spec-bgp-netns` |
+| A-2 | broken | `newListenerFactory` (`internal/component/bgp/reactor/reactor.go`) still returns a fresh `network.RealListenerFactory{MD5Peers, ListenTTL}` and discards `r.listenerFactory`, and `RealListenerFactory` has no `Netns` field. Re-read at the producer 2026-08-24. Mistake Log row exists |
+| A-3 | moved | Kernel-semantics prototype belongs to `spec-bgp-netns` with the QEMU rail. Nothing in this spec depends on it |
+| A-4 | confirmed | A missing plugin IS detectable pre-apply. The delivered detector is `vppctlShowPlugins` rather than the GoVPP route the assumption argued, and the conclusion holds |
+| A-5 | broken in the delivered form | GoVPP was the design answer and A-6 removed its premise. The check execs `vppctl` like its sibling `checkVPPVersion`, and it still lives in the owning plugin, which is what `ai/rules/plugins.md` asked of it |
+| A-6 | broken | Doctor is offline and starts no VPP Manager, so no live connector exists at check time. The delivered probe needs none |
+| A-7 | answered by Thomas, 2026-07-16 | The `vpp.lcp.netns` default STAYS `"dataplane"`. It never gated Problem B |
+| A-8 | broken, resolved | Thomas ruled SPLIT on 2026-07-16. `plan/spec-bgp-netns.md` exists and holds Problem A |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/vpp.md` states both severities and the header condition | Read against `checkVPPLCPPlugin`: the Error branch fires only after `vppctlPluginsHeader` is present and `lcpPluginSO` is absent, which is what the paragraph says | yes |
+| The registered code description matches the check | Read against the same function. Four Warning cases in the description, four Warning paths in the code counting the two error branches and the two non-answers | yes |
+| Row 15, registered diagnostic code changed | `doctor-vpp-lcp-plugin` added to `internal/core/diagnostic/codes.go`; `docs/guide/vpp.md` updated | yes |
+| Row 17, design doc declared by a changed file | `internal/core/diagnostic/codes.go` declares `docs/features/ai-first.md`, which specifies the `ze explain` contract and enumerates no doctor codes. This spec adds a row through that documented mechanism, so the design is unaffected | yes, no change owed |
+| Row 12, internal architecture changed | No. That row is Problem A's, and Problem A moved out | not applicable |
+| Doctor check for a new runtime dependency | The dependency is `vppctl` plus a reachable VPP, and the check IS the doctor check. `ai/rules/repo-maintenance.md` also asks for a functional test beside the unit tests, and both `.ci` files exist | yes |
+| RFC status | No protocol behavior changes. The check touches no wire format, no capability and no FSM path | not applicable |
+
+## Core Insight
+
+A probe has three answers, not two, and the third one is the dangerous one. The
+check began with "the command failed" and "the command said no", and its own
+comment argued correctly that a failure proves nothing about the plugin set. The
+missing case was a command that SUCCEEDS and says nothing: `vppctl` exits zero
+for empty or truncated output, so the absence of a name in that output is the
+absence of a name in nothing. Any code that reads a substring out of a command's
+stdout owes a test that the stdout is an answer at all, and the cheapest such
+test is the header the command always prints first.
