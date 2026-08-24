@@ -43,8 +43,9 @@ option=asn:value=65001
 option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1
 option=update:value=send-route:prefix=10.0.1.0/24:next-hop=10.0.0.1
 # Connection 1: Cease / Maximum Number of Prefixes Reached, with the RFC 4486
-# Section 4 data: AFI 1, SAFI 1, count 2.
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C03060100010100000002
+# Section 4 Figure 1 data: AFI 1, SAFI 1, prefix upper bound 1. The bound is the
+# configured maximum. The count that crossed it is 2 and never reaches the wire.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C03060100010100000001
 # Connection 2 IS the proof of reconnection. ze-peer only reaches this line after
 # it accepted a second TCP connection AND completed a second OPEN handshake on
 # it. A daemon that resolves the family to `never` returns from its run loop and

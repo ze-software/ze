@@ -12,7 +12,9 @@
 
 # ze-peer: sends 3 routes (exceeds maximum=2)
 # Ze sends NOTIFICATION Cease/MaxPrefixes before EOR because it tears down.
-# NOTIFICATION: code=6 (Cease), subcode=1 (MaxPrefixes), data=AFI(0001)+SAFI(01)+count(00000003)
+# NOTIFICATION: code=6 (Cease), subcode=1 (MaxPrefixes),
+# data=AFI(0001)+SAFI(01)+upper bound(00000002), the configured maximum per RFC 4486
+# Section 4 Figure 1. The count that crossed it is 3 and never reaches the wire.
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
@@ -21,7 +23,7 @@ option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1
 option=update:value=send-route:prefix=10.0.1.0/24:next-hop=10.0.0.1
 option=update:value=send-route:prefix=10.0.2.0/24:next-hop=10.0.0.1
 # Expect NOTIFICATION Cease/MaxPrefixes (type 3) instead of EOR
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C03060100010100000003
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C03060100010100000002
 EOF_PEER
 
 # ze bgp configuration: prefix maximum=2 for ipv4/unicast

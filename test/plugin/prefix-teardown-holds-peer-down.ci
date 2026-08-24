@@ -30,9 +30,10 @@ option=timeout:value=12s
 option=asn:value=65001
 option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1
 option=update:value=send-route:prefix=10.0.1.0/24:next-hop=10.0.0.1
-# Cease / Maximum Number of Prefixes Reached, with the RFC 4486 Section 4 data:
-# AFI 1, SAFI 1, count 2.
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C03060100010100000002
+# Cease / Maximum Number of Prefixes Reached, with the RFC 4486 Section 4 Figure 1
+# data: AFI 1, SAFI 1, prefix upper bound 1. The bound is the configured maximum.
+# The count that crossed it is 2 and never reaches the wire.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C03060100010100000001
 EOF_PEER
 
 # ze bgp configuration: one family, maximum 1, and no idle-timeout at all.
