@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render and verify Ze terminal demonstrations from the checked-in VHS tapes."""
+"""Render and verify Ze terminal demonstrations from the checked-in tapes."""
 
 from __future__ import annotations
 
@@ -16,6 +16,14 @@ import subprocess
 import sys
 import time
 from typing import Any
+
+# The sibling screen model. Both of this directory's programs are run by path,
+# and both are also LOADED by path from the tests, where the directory is not on
+# the import path. Putting it there is what makes the sibling reachable either
+# way.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+
+import screen  # noqa: E402  reached by the line above
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 DEMO_ROOT = ROOT / "demos" / "terminal"
@@ -35,6 +43,7 @@ SHARED_SOURCE_PATHS = (
     DEMO_ROOT / "validate-common.sh",
     DEMO_ROOT / "pty-session.py",
     DEMO_ROOT / "render.py",
+    DEMO_ROOT / "screen.py",
 )
 ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 SLEEP_RE = re.compile(r"^Sleep (\d+(?:\.\d+)?)(ms|s|m)$")
@@ -47,6 +56,15 @@ RENDER_SPEEDUP = 5
 RENDER_TYPING_SPEED_MS = 25
 OUTPUT_WIDTH = 1680
 OUTPUT_HEIGHT = 1008
+# The artifacts a demo of each kind produces, keyed by asset name. A terminal
+# demo records the terminal byte stream, so one asciicast replaces both the
+# video and the poster the video needed; a browser demo has no byte stream and
+# keeps its recording. This map is the only place the two sets are written, so
+# a demo cannot be asked for one asset here and checked for another elsewhere.
+ASSET_EXTENSIONS = {
+    "terminal": {"cast": ".cast", "transcript": ".txt"},
+    "browser": {"video": ".webm", "poster": ".png", "transcript": ".txt"},
+}
 
 
 def sha256(path: pathlib.Path) -> str:
@@ -106,7 +124,6 @@ def validate_contract(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
         "page",
         "anchor",
         "platform",
-        "duration",
         "kind",
         "engine",
         "source",
@@ -116,8 +133,22 @@ def validate_contract(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
         for field in required:
             if not isinstance(demo.get(field), str) or not demo[field]:
                 raise ValueError(f"manifest.json: {demo_id}.{field} is required")
-        if demo["kind"] not in ("terminal", "browser"):
+        if demo["kind"] not in ASSET_EXTENSIONS:
             raise ValueError(f"manifest.json: {demo_id}.kind is unsupported")
+        # A cast states its own running time, so a demo that publishes one is
+        # never told how long it runs: the page derives the phrase from the
+        # artifact (website/tools/terminal_demos._load_catalog). Stating it here
+        # as well is what let four published durations drift from their
+        # recordings, so the field is refused where a cast exists and required
+        # where none does.
+        if "cast" in ASSET_EXTENSIONS[demo["kind"]]:
+            if "duration" in demo:
+                raise ValueError(
+                    f"manifest.json: {demo_id}.duration is read from the cast, "
+                    "so the manifest must not state it"
+                )
+        elif not isinstance(demo.get("duration"), str) or not demo["duration"]:
+            raise ValueError(f"manifest.json: {demo_id}.duration is required")
         if "privileged" in demo and not isinstance(demo["privileged"], bool):
             raise ValueError(f"manifest.json: {demo_id}.privileged must be a boolean")
         if "realtime" in demo and not isinstance(demo["realtime"], bool):
@@ -169,8 +200,54 @@ def source_digest(demo: dict[str, Any]) -> str:
         digest.update(b"\0")
     return digest.hexdigest()
 
+
+def asset_paths(demo: dict[str, Any]) -> dict[str, pathlib.Path]:
+    """Every artifact this demo's kind produces, keyed by asset name.
+
+    `validate_contract` already refuses an unknown kind, so the raise below is
+    for a caller that reached here around it. It fails closed rather than
+    returning an empty set, which every caller would read as "this demo owes no
+    artifact" and would report as a clean render.
+    """
+    extensions = ASSET_EXTENSIONS.get(demo["kind"])
+    if extensions is None:
+        raise ValueError(f"{demo['id']}: unsupported kind {demo['kind']!r}")
+    return {
+        name: ARTIFACT_ROOT / f"{demo['id']}{suffix}"
+        for name, suffix in extensions.items()
+    }
+
+
+def remove_superseded_assets(demo: dict[str, Any]) -> list[pathlib.Path]:
+    """Delete the artifacts this demo's kind no longer produces.
+
+    Nothing else in the pipeline would: `verify_assets` reads the set the
+    manifest NAMES, and the site stages the whole directory as it stands. So an
+    artifact that stops being produced is published for as long as the tree
+    survives, and the asciicast conversion produces seventeen `.webm` and
+    seventeen `.png` of exactly that kind.
+
+    Only a file named `<this demo's id><a suffix some kind produces>` is a
+    candidate, so this can never reach the artifact manifest, another demo's
+    recording, or a file this pipeline did not write.
+    """
+    keep = {path.suffix for path in asset_paths(demo).values()}
+    superseded = {
+        suffix
+        for extensions in ASSET_EXTENSIONS.values()
+        for suffix in extensions.values()
+    } - keep
+    removed = []
+    for suffix in sorted(superseded):
+        path = ARTIFACT_ROOT / f"{demo['id']}{suffix}"
+        if path.is_file():
+            path.unlink()
+            removed.append(path)
+    return removed
+
+
 def definition_digest(demo: dict[str, Any]) -> str:
-    """Hash the VHS files that decide whether demo media must be re-rendered."""
+    """Hash the tape files that decide whether demo media must be re-rendered."""
     files = [DEMO_ROOT / "common.tape", DEMO_ROOT / demo["source"]]
     digest = hashlib.sha256()
     render_contract = {
@@ -187,7 +264,6 @@ def definition_digest(demo: dict[str, Any]) -> str:
         digest.update(path.read_bytes())
         digest.update(b"\0")
     return digest.hexdigest()
-
 
 
 @contextlib.contextmanager
@@ -302,6 +378,15 @@ def run_validation(manifest: dict[str, Any], demo: dict[str, Any]) -> None:
 
 
 def accelerated_terminal_tape(demo: dict[str, Any]) -> pathlib.Path:
+    """Rewrite a tape so the capture costs RENDER_SPEEDUP times less time.
+
+    Every `Sleep` is divided and the typing pace is set to the same fraction of
+    the tape's own: `common.tape` asks for 125ms a character and this writes
+    25ms, which is 125 / RENDER_SPEEDUP. So ONE factor describes the whole
+    recording, and multiplying the timeline by it afterwards -- with ffmpeg for
+    a video, with `expand_cast_timeline` for a cast -- gives back the timing the
+    tape states, for the typing as well as for the pauses.
+    """
     source = DEMO_ROOT / demo["source"]
     lines: list[str] = []
     configured = False
@@ -330,7 +415,10 @@ def accelerated_terminal_tape(demo: dict[str, Any]) -> pathlib.Path:
 def capture_speedup(demo: dict[str, Any]) -> int:
     """Timeline compression used while capturing.
 
-    Ordinary demos capture faster and restore presentation timing afterwards.
+    Ordinary demos capture faster and restore presentation timing afterwards:
+    `expand_timeline` gives the time back to a video, `expand_cast_timeline`
+    gives it back to a cast. Rendering seventeen demos in Docker is what this
+    pipeline spends its wall clock on, so the fifth is worth having on both.
     Real-time demos capture at wall-clock speed so output that depends on the
     real clock (commit-confirmed countdowns, per-second traceroute probes) keeps
     its true cadence instead of being stretched.
@@ -422,6 +510,125 @@ def resize_poster(poster: pathlib.Path) -> None:
     original.unlink()
 
 
+def expand_cast_timeline(cast: pathlib.Path, speedup: int) -> None:
+    """Give a recorded terminal back the timing its tape states.
+
+    The capture ran on the accelerated copy of the tape, so every pause and
+    every keystroke is `speedup` times short. A cast's timestamps are decimal
+    numbers in a text file, so multiplying them is exact and reversible; the
+    video arm re-encodes the whole recording to do the same thing.
+
+    This sits here rather than in the recorder for the same reason
+    `expand_timeline` does: the recorder is a driver, and it knows the tape it
+    was handed and nothing about why that tape is fast. It also keeps one place
+    to look for what a stored artifact's clock means -- both arms give the time
+    back after the container exits, so what is committed is real-time paced.
+    """
+    if speedup == 1:
+        return
+    lines = cast.read_text(encoding="utf-8").splitlines()
+    if not lines:
+        raise RuntimeError(f"{cast}: the recorder wrote no header")
+    expanded = [lines[0]]
+    for number, line in enumerate(lines[1:], start=2):
+        try:
+            event = json.loads(line)
+            event[0] = round(event[0] * speedup, 6)
+        except (ValueError, TypeError, IndexError, KeyError) as exc:
+            raise RuntimeError(f"{cast}:{number}: not an asciicast event") from exc
+        expanded.append(json.dumps(event))
+    cast.write_text("\n".join(expanded) + "\n", encoding="utf-8")
+
+
+# A transcript line that quotes the session rather than narrating it. The
+# transcripts are hand-authored prose with the session's commands set among
+# them, each behind the prompt it was typed at: `$ ` for the container shell
+# (container-entrypoint.sh exports PS1='$ '), `ze>` and `ze#` for the two Ze
+# CLI modes.
+TRANSCRIPT_PROMPT_RE = re.compile(r"^(\$|ze[>#])(?:\s+(\S.*?))?\s*$")
+
+
+def cast_visible_text(cast: pathlib.Path) -> list[str]:
+    """Return what a reader of the cast was shown, one entry per painted line.
+
+    Everything the terminal painted is kept, including what later scrolled away
+    or was drawn over: a transcript quotes commands from the whole session, and
+    a snapshot of any one moment holds only the last screen of it.
+    """
+    output: list[str] = []
+    with cast.open(encoding="utf-8") as handle:
+        first = handle.readline()
+        if not first.strip():
+            raise RuntimeError(f"{cast}: the recorder wrote no header")
+        header = json.loads(first)
+        for line in handle:
+            if not line.strip():
+                continue
+            event = json.loads(line)
+            if len(event) == 3 and event[1] == "o":
+                output.append(event[2])
+
+    # The header's own grid, so the reconstruction wraps and scrolls where the
+    # recording did. A wider screen would hold on one line what the reader read
+    # as two, and a taller one would hold lines they never saw together.
+    painted = screen.Screen(header.get("height"), header.get("width"))
+    for burst in output:
+        painted.settle(burst)
+    return painted.painted()
+
+
+def transcript_commands(transcript: pathlib.Path) -> list[tuple[int, str, str]]:
+    """Return the (line number, prompt, command) the transcript claims."""
+    claimed: list[tuple[int, str, str]] = []
+    lines = transcript.read_text(encoding="utf-8").splitlines()
+    for number, line in enumerate(lines, start=1):
+        match = TRANSCRIPT_PROMPT_RE.match(line)
+        if match:
+            claimed.append((number, match.group(1), match.group(2) or ""))
+    return claimed
+
+
+def check_transcript(
+    demo_id: str, cast: pathlib.Path, transcript: pathlib.Path
+) -> None:
+    """Fail the render unless the cast shows the session the transcript claims.
+
+    The transcript is hand-authored and never recorded, so it is the one
+    description of a demo that does not come from the engine driving it. That is
+    what makes it a gate on the engine: a recorder that drives a tape differently
+    -- a command that is never typed, a wait that returns before the answer, a
+    session that ends early -- loses one of these lines or reorders them.
+
+    Each claimed command must appear behind its prompt, on ONE painted line,
+    and the lines are searched forwards only, so the ORDER is gated as well as
+    the presence. What the transcript narrates around them is prose written
+    for a reader and is not looked for.
+    """
+    claimed = transcript_commands(transcript)
+    if not claimed:
+        raise RuntimeError(
+            f"{demo_id}: {transcript} quotes no command line, so it gates nothing"
+        )
+    visible = cast_visible_text(cast)
+    at = 0
+    for matched, (number, prompt, command) in enumerate(claimed):
+        for index in range(at, len(visible)):
+            found = visible[index].find(prompt)
+            if found < 0:
+                continue
+            if not command or visible[index].find(command, found + len(prompt)) >= 0:
+                at = index + 1
+                break
+        else:
+            quoted = f"{prompt} {command}".rstrip()
+            raise RuntimeError(
+                f"{demo_id}: the recording does not show what "
+                f"{transcript}:{number} claims: {quoted!r}. "
+                f"{matched} earlier lines matched, "
+                f"the search reached painted line {at} of {len(visible)}"
+            )
+
+
 def run_demo(
     manifest: dict[str, Any], demo: dict[str, Any], release: str
 ) -> dict[str, Any]:
@@ -447,13 +654,24 @@ def _render_demo(
     source = pathlib.PurePosixPath("/src") / render_source.relative_to(ROOT)
     ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
 
-    capture_path = ARTIFACT_ROOT / f"{demo_id}.webm"
-    expected = {
-        "video": capture_path,
-        "poster": ARTIFACT_ROOT / f"{demo_id}.png",
-        "transcript": ARTIFACT_ROOT / f"{demo_id}.txt",
-    }
+    expected = asset_paths(demo)
+    # None for a terminal demo, which records a byte stream and needs neither
+    # of the two ffmpeg passes below.
+    capture_path = expected.get("video")
+    cast_path = expected.get("cast")
+    # ffmpeg runs on the HOST, and only for a kind that records a video. It used
+    # to arrive with demos/terminal/install-vhs.sh, which was deleted with VHS,
+    # so it is the operator's to install now. Asked for here rather than at the
+    # ffmpeg call, which is reached after the container has run the whole demo.
+    if capture_path is not None and shutil.which("ffmpeg") is None:
+        raise RuntimeError(
+            f"{demo_id}: ffmpeg is required on this host to rescale a "
+            f"{demo['kind']} demo's video and poster; install it and re-run"
+        )
     for name, path in expected.items():
+        # The transcript is hand-authored and copied in, never rendered, so
+        # removing it here would delete the demo's only text description of
+        # itself before anything could rewrite it.
         if name != "transcript":
             path.unlink(missing_ok=True)
 
@@ -468,13 +686,29 @@ def _render_demo(
     print(f"rendering {demo_id}...")
     try:
         subprocess.run(command, cwd=ROOT, check=True)
-        expand_timeline(capture_path, speedup)
-        resize_poster(expected["poster"])
+        if capture_path is not None:
+            expand_timeline(capture_path, speedup)
+            resize_poster(expected["poster"])
+        if cast_path is not None:
+            expand_cast_timeline(cast_path, speedup)
     finally:
         if render_source != source_path:
             render_source.unlink(missing_ok=True)
 
-    shutil.copyfile(source_path.parent / "transcript.txt", expected["transcript"])
+    transcript_source = source_path.parent / "transcript.txt"
+    if cast_path is not None:
+        try:
+            check_transcript(demo_id, cast_path, transcript_source)
+        except RuntimeError:
+            # Nothing reaches the artifact manifest and nothing stays in the
+            # publish tree, which is what AC-5 asks for. The recording itself
+            # is moved rather than removed: it is what the next reader needs
+            # to see, and making it again costs a container run.
+            rejected = ROOT / "tmp" / "terminal-demos" / "rejected" / cast_path.name
+            rejected.parent.mkdir(parents=True, exist_ok=True)
+            cast_path.replace(rejected)
+            raise
+    shutil.copyfile(transcript_source, expected["transcript"])
 
     assets: dict[str, dict[str, Any]] = {}
     for name, path in expected.items():
@@ -550,7 +784,21 @@ def verify_assets(
         assets = entry.get("assets")
         if not isinstance(assets, dict):
             raise ValueError(f"{demo_id}: assets are missing")
-        for name in ("video", "poster", "transcript"):
+        # `asset_paths` is what `_render_demo` writes from, so asking it again
+        # here checks the demo against the set it was rendered as. An asset
+        # the kind does not produce is refused before the files are read: a
+        # terminal demo carrying a video, or a browser demo carrying a cast,
+        # is a half-converted entry that publishes the demo twice (R-5).
+        expected = asset_paths(indexed[demo_id])
+        foreign = sorted(set(assets) - set(expected))
+        if foreign:
+            raise ValueError(
+                f"{demo_id}: a {indexed[demo_id]['kind']} demo does not produce "
+                + ", ".join(foreign)
+                + "; its assets are "
+                + ", ".join(sorted(expected))
+            )
+        for name in expected:
             asset = assets.get(name)
             if not isinstance(asset, dict) or not isinstance(asset.get("path"), str):
                 raise ValueError(f"{demo_id}: missing {name} metadata")
@@ -562,6 +810,7 @@ def verify_assets(
             ):
                 raise ValueError(f"{demo_id}: {name} digest mismatch")
     print("Ze demo artifacts verified: " + ", ".join(selected))
+
 
 def stamp_definition_hashes(
     manifest: dict[str, Any],
@@ -585,7 +834,6 @@ def stamp_definition_hashes(
     verify_assets(manifest, indexed, selected, None, definition_only=True)
 
 
-
 def render_selected(
     manifest: dict[str, Any],
     indexed: dict[str, dict[str, Any]],
@@ -597,6 +845,9 @@ def render_selected(
     The lock covers the whole read-modify-write of that manifest, not only the
     renders inside it. Two runs that each read it before either writes both
     publish their own view, and the second write drops the first run's entries.
+
+    The superseded artifacts go AFTER the manifest is written, so the published
+    manifest never names a file this run is about to delete.
     """
     with demo_lock():
         generated = load_artifact_manifest(manifest)
@@ -605,6 +856,9 @@ def render_selected(
         for demo_id in selected:
             entries[demo_id] = run_demo(manifest, indexed[demo_id], release)
         write_artifact_manifest(generated)
+        for demo_id in selected:
+            for path in remove_superseded_assets(indexed[demo_id]):
+                print(f"removed superseded artifact: {path.name}")
         verify_assets(manifest, indexed, selected, release)
 
 
@@ -629,12 +883,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--check-definition",
         action="store_true",
-        help="verify existing artifacts against VHS definitions only",
+        help="verify existing artifacts against the tape definitions only",
     )
     parser.add_argument(
         "--stamp-definition-hashes",
         action="store_true",
-        help="write VHS definition hashes into the existing artifact manifest",
+        help="write tape definition hashes into the existing artifact manifest",
     )
     return parser.parse_args()
 
@@ -647,15 +901,18 @@ def main() -> int:
     unknown = [demo_id for demo_id in selected if demo_id not in indexed]
     if unknown:
         raise ValueError("unknown demo id(s): " + ", ".join(unknown))
-    if sum(
-        bool(flag)
-        for flag in (
-            args.check,
-            args.validate,
-            args.check_definition,
-            args.stamp_definition_hashes,
+    if (
+        sum(
+            bool(flag)
+            for flag in (
+                args.check,
+                args.validate,
+                args.check_definition,
+                args.stamp_definition_hashes,
+            )
         )
-    ) > 1:
+        > 1
+    ):
         raise ValueError(
             "--check, --validate, --check-definition, and --stamp-definition-hashes cannot be combined"
         )

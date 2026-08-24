@@ -7,8 +7,8 @@ Published site: landing page + talks. `make ze-site-generate` builds the Pages a
 Website sources live in `website/` on the main branch.
 All `../gh-pages` content MUST be generated from this repository.
 `make ze-site-generate` replaces that worktree with the publishable artifact and keeps `.git`.
-It reuses existing VHS media unless the checked-in tape definitions changed.
-Use `make ze-terminal-demo-release-render-all` to force new demo media.
+It reuses the existing demo artifacts unless the checked-in tape definitions changed.
+Use `make ze-terminal-demo-release-render-all` to force new demo artifacts.
 Commit `../gh-pages` without source code.
 
 ## Structure
@@ -265,7 +265,7 @@ The supported fields are:
 | `description` | Required for new pages | SEO and social-card description. |
 | `destination` | Required when the command does not pass an output path | Site-relative directory or a path ending in `index.html`. The renderer rejects paths outside the site root. |
 | `title` | Optional | Browser and social title. The first level-one heading is used when omitted. The body should still have one level-one heading. |
-| `category` | Optional | Heading colour: `operate`, `routing`, `automate`, `observe`, `secure`, `services`, or `platform`. |
+| `category` | Optional | Heading color: `operate`, `routing`, `automate`, `observe`, `secure`, `services`, or `platform`. |
 | `journey` | Optional | Short label shown in the page hero. The renderer derives it from the destination when omitted. |
 | `table-columns` | Optional, defaults to `true` | Enables shared show/hide controls for tables on the page. |
 

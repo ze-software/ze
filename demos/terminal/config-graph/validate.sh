@@ -12,11 +12,14 @@ assert_contains "${graph}" 'peer/upstream-a'
 assert_contains "${graph}" 'peer/upstream-b'
 assert_contains "${graph}" 'group/transit'
 assert_contains "${graph}" '"kind": "inherits"'
-peer_view=$(printf '%s\n' "${graph}" | ze pipe match peer/upstream)
+peer_view=$(printf '%s\n' "${graph}" | ze pipe text | ze pipe match peer/upstream)
 assert_contains "${peer_view}" 'peer/upstream-a'
 assert_contains "${peer_view}" 'peer/upstream-b'
-group_view=$(printf '%s\n' "${graph}" | ze pipe match group/transit)
+group_view=$(printf '%s\n' "${graph}" | ze pipe text | ze pipe match group/transit)
 assert_contains "${group_view}" 'group/transit'
-inherits_view=$(printf '%s\n' "${graph}" | ze pipe match inherits)
-assert_contains "${inherits_view}" '"kind": "inherits"'
+inherits_view=$(printf '%s\n' "${graph}" | ze pipe text | ze pipe match inherits)
+assert_contains "${inherits_view}" 'peer/upstream-a'
+assert_contains "${inherits_view}" 'peer/upstream-b'
+assert_contains "${inherits_view}" 'inherits'
+assert_contains "${inherits_view}" 'group/transit'
 finish_validation config-graph

@@ -1,14 +1,16 @@
 ---
 title: Terminal Demonstrations
-description: Recorded Ze command, configuration, monitoring, and access-control workflows from reproducible VHS tapes.
+description: Recorded Ze command, configuration, monitoring, and access-control workflows from reproducible tape files.
 category: observe
 journey: Evaluate
 ---
 # Terminal Demonstrations
 
-These recordings run real Ze commands against isolated local fixtures. The checked-in VHS tapes define every keystroke, pause, and terminal size, so a release can regenerate the videos when Ze changes. The recordings use no public service.
+These recordings run real Ze commands against isolated local fixtures. Each checked-in tape file defines every keystroke, pause, and terminal size. A release can therefore regenerate the recordings when Ze changes.
 
-Each demo also appears beside the documentation for the feature it exercises. The transcript below each player provides the same command sequence without requiring video playback.
+A terminal demo is an asciicast. The page replays it as text, so you can select a command and copy it. The one browser demo stays a video. The recordings use no public service, and the player is served from this site.
+
+Each demo also appears beside the documentation for the feature it exercises. The transcript below each player provides the same command sequence without replaying the recording.
 
 ## Interactive command launcher
 

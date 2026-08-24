@@ -40,7 +40,7 @@ seed() {
 # (:414) with no fast retry and no backoff -- and this demo's tape sets
 # `refresh-interval 3600`. So an IRR server a few milliseconds late to listen
 # costs an HOUR, not a retry: `show bgp irr` stays empty, the tape's
-# `Wait+Screen /AS-TEST/` blows its 30s VHS budget, and render.py aborts every
+# `Wait+Screen /AS-TEST/` blows its 30s Wait budget, and render.py aborts every
 # remaining demo (check=True, no per-demo try) so the website publishes nothing.
 # prepare() wipes ZE_CONFIG_DIR, so the loadFromStore() fallback (:255) is empty
 # too. The budget is short on purpose: it is spent inside the tape's Wait.

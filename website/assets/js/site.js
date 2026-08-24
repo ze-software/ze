@@ -1802,6 +1802,37 @@ document.addEventListener("DOMContentLoaded", function () {
         initNavigation();
         initSearchOverlay();
     });
+    // Terminal demos are asciicasts replayed by the self-hosted player
+    // (assets/vendor/asciinema-player.min.js), which the page loads only when
+    // it carries a demo. The mount already has the box the recording needs, so
+    // nothing here changes the page's height.
+    //
+    // terminalLineHeight matches the ratio the mount reserved its box with and
+    // the one demos/terminal/pty-session.py derived the recorded grid with.
+    // terminalFontFamily is passed here rather than set in CSS because the
+    // player MEASURES the font to size a character cell, and a stack it renders
+    // with but did not measure gives the wrong cell.
+    function initTerminalDemoPlayers() {
+        var mounts = slice(document.querySelectorAll("[data-terminal-demo-player]"));
+        if (!mounts.length || typeof AsciinemaPlayer === "undefined") {
+            return;
+        }
+        mounts.forEach(function (mount) {
+            var src = mount.getAttribute("data-cast-src");
+            if (!src) {
+                return;
+            }
+            AsciinemaPlayer.create(src, mount, {
+                fit: "both",
+                controls: true,
+                theme: "ze",
+                terminalLineHeight: 1.32,
+                terminalFontFamily:
+                    '"JetBrains Mono", "SFMono-Regular", Consolas, monospace',
+            });
+        });
+    }
+
     initTaglineCarousel();
     initSearchPage();
     initFeatureFilters();
@@ -1815,6 +1846,7 @@ document.addEventListener("DOMContentLoaded", function () {
     initComparisonFilters();
     initAutomaticTableColumnSelectors(document);
     observeAutomaticTableColumnSelectors();
+    initTerminalDemoPlayers();
     initSourceLinks();
     initCodeCopyButtons();
     initFAQDeepLinks();

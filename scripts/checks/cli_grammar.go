@@ -319,9 +319,9 @@ func flagInYANG() []flagHit {
 //
 // Feeder 5 of the grammar gate. The other feeders check how commands are
 // DECLARED; this one checks the repo's own CALL SITES, because nothing else
-// does: `make ze-precommit-verify` never executes demos/terminal (they need Docker + VHS,
-// they run from mk/build-terminal-demo.mk at release time and from the website
-// workflow). When `ze <config-file>` was removed in favour of
+// does: `make ze-precommit-verify` never executes demos/terminal (they need Docker,
+// and they run from mk/build-terminal-demo.mk at release time and from the website
+// workflow). When `ze <config-file>` was removed in favor of
 // `ze start <config-file>`, thirteen demo scripts kept the dead form and the
 // Deploy website job failed at "Generate terminal media" on every push for four
 // days before anyone read the log.

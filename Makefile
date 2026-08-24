@@ -1663,7 +1663,6 @@ help-test:
 	@echo "    ze-evidence-release-verify                 Full matrix: interop + chaos + fuzz + perf + QEMU + deploy"
 	@echo "    ze-release-assets-update                   Rebuild every release-owned website asset"
 	@echo "    ze-terminal-demo-release-render-all        Re-record all terminal demos for this release"
-	@echo "    ze-terminal-demo-tools-install             Install native VHS, ffmpeg, and ttyd (macOS/Ubuntu)"
 	@echo ""
 	@echo "  Escalation: single test -> package -> component group -> ze-precommit-verify"
 	@echo "  See docs/contributing/testing.md for the full workflow."

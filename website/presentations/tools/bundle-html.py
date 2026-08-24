@@ -30,6 +30,32 @@ MIME = {
 }
 
 
+CSS_URL_RE = re.compile(r'url\((["\']?)([^"\')]+)\1\)')
+
+
+def inline_css_urls(css_text, css_dir):
+    """Resolve a stylesheet's own url() references against its directory.
+
+    A data: URI carries no directory, so a relative url() left in an inlined
+    stylesheet resolves against the page instead and finds nothing. The talk
+    decks link assets/vendor/fonts/fonts.css, whose every @font-face names its
+    .woff2 by a bare file name.
+    """
+    def replace(m):
+        quote = m.group(1)
+        path = m.group(2).strip()
+        if path.startswith(('http://', 'https://', 'data:', '#', '/')):
+            return m.group(0)
+        uri = to_data_uri(css_dir, path)
+        if uri is None:
+            print(f'  skip: {path} (not found or unsupported)', file=sys.stderr)
+            return m.group(0)
+        print(f'  inline css url: {path}', file=sys.stderr)
+        return f'url({quote}{uri}{quote})'
+
+    return CSS_URL_RE.sub(replace, css_text)
+
+
 def to_data_uri(base_dir, path):
     full = os.path.normpath(os.path.join(base_dir, path))
     if not os.path.isfile(full):
@@ -38,8 +64,13 @@ def to_data_uri(base_dir, path):
     mime = MIME.get(ext)
     if mime is None:
         return None
-    with open(full, 'rb') as f:
-        data = base64.b64encode(f.read()).decode('ascii')
+    if ext == '.css':
+        with open(full, encoding='utf-8') as f:
+            payload = inline_css_urls(f.read(), os.path.dirname(full)).encode()
+    else:
+        with open(full, 'rb') as f:
+            payload = f.read()
+    data = base64.b64encode(payload).decode('ascii')
     return f'data:{mime};base64,{data}'
 
 

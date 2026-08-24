@@ -558,7 +558,9 @@ def render(
             body_html,
             base_url=markdown_base_url(dest),
         )
-    body_html, md_out = terminal_demos.expand(body_html, md_out, root, doc_rel)
+    body_html, md_out, demo_head = terminal_demos.expand(
+        body_html, md_out, root, doc_rel
+    )
     body_html = relayout_evidence_cells(body_html)
     body_html = colorcode_cells(body_html)
     body_html = sitelib.patch_external_link_targets(body_html)
@@ -580,6 +582,7 @@ def render(
         root,
         og_title=full_title,
         og_desc=description,
+        extra_head=demo_head,
         page_key=sitelib.page_key_for_path(dest),
     )
     head += '            <section class="%s"%s>\n' % (

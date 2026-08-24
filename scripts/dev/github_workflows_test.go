@@ -1056,16 +1056,24 @@ func TestWorkflowMakeTargetsExist(t *testing.T) {
 
 // TestCrossBranchDemoTargetsExist
 //
-// VALIDATES: the make targets the gh-pages deploy invokes BY NAME across the
-// branch boundary still exist in this branch's Makefile set.
+// VALIDATES: the make targets the website publish invokes BY NAME, from
+// outside this branch's own workflow glob, still exist in this branch's
+// Makefile set.
 // PREVENTS: a rename on main breaking the website publish with nothing on main
 // noticing. TestWorkflowMakeTargetsExist only globs THIS branch's
-// .github/workflows, and main's pages.yml -- which used to invoke these two --
-// was deleted so that gh-pages owns the deploy. The invocations did not go away
-// with it: gh-pages/.github/workflows/pages.yml still runs
-// `make -C main ze-terminal-demo-tools-install` and `make -C main
-// ze-terminal-demo-release-render-all` against a checkout of THIS branch. That is a real
-// dependency no glob on main can see, so it is pinned here explicitly.
+// .github/workflows, and main's pages.yml was deleted so that gh-pages owns
+// the deploy. `ze-terminal-demo-release-render-all` is named as the operator's
+// command by docs/contributing/gh-pages.md and by website/AI.md, and it is the
+// aggregate mk/build-terminal-demo.mk says release preparation calls before
+// tagging. None of those is a file a glob on main can see, so the name is
+// pinned here explicitly.
+//
+// The list held a second target until 2026-08-24. `ze-terminal-demo-tools-install`
+// installed native VHS, ttyd and ffmpeg through demos/terminal/install-vhs.sh;
+// the renderer records with its own PTY now, so the script and the target were
+// deleted with VHS. The gh-pages branch carries no .github directory at all
+// since `b0430c2a9 Remove website sources from pages branch`, so no workflow
+// there invokes either name today.
 func TestCrossBranchDemoTargetsExist(t *testing.T) {
 	root := repoRoot(t)
 	frags, err := filepath.Glob(filepath.Join(root, "mk", "*.mk"))
@@ -1080,12 +1088,13 @@ func TestCrossBranchDemoTargetsExist(t *testing.T) {
 	}
 	corpus := sb.String()
 
-	// Invoked by gh-pages/.github/workflows/pages.yml, which runs on the
-	// gh-pages branch against a `main` checkout.
-	for _, target := range []string{"ze-terminal-demo-tools-install", "ze-terminal-demo-release-render-all"} {
+	// Named by docs/contributing/gh-pages.md and website/AI.md as the command
+	// that republishes the demo media, and by mk/build-terminal-demo.mk as the
+	// aggregate release preparation calls.
+	for _, target := range []string{"ze-terminal-demo-release-render-all"} {
 		if !strings.Contains(corpus, "\n"+target+":") {
-			t.Errorf("the gh-pages deploy runs `make -C main %s`, but no such target exists in Makefile or mk/*.mk: "+
-				"the website publish would fail with `No rule to make target` and nothing on main would report it", target)
+			t.Errorf("the website publish runs `make %s`, but no such target exists in Makefile or mk/*.mk: "+
+				"the publish would fail with `No rule to make target` and nothing on main would report it", target)
 		}
 	}
 }

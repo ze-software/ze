@@ -110,12 +110,7 @@ PAGE = """<!doctype html>
         />
         <meta property="og:type" content="website" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="{font_css}"
-            rel="stylesheet"
-        />
+        <link rel="stylesheet" href="{font_css}" />
         <link rel="stylesheet" href="{site_css}" />
         <style>
 {style}
@@ -665,7 +660,7 @@ def main():
     page = PAGE.format(
         style=STYLE,
         site_css=sitelib.asset_url("../../", "assets/site.css"),
-        font_css=sitelib.FONT_CSS_URL,
+        font_css=sitelib.asset_url("../../", sitelib.FONT_CSS_PATH),
         json_ld=sitelib.structured_data_script(),
         site_js=sitelib.asset_url("../../", "assets/site.js"),
         navblock=sitelib.build_navblock("../../"),

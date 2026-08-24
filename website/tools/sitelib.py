@@ -29,14 +29,11 @@ DATA_DIR = GH_PAGES / "data"
 # here: sitemap <loc> entries, the robots.txt Sitemap line, JSON-LD url, and
 # og:image must all point at the final URL, never a cross-host redirect.
 SITE_BASE = "https://ze-software.net/"
-FONT_CSS_URL = (
-    "https://fonts.googleapis.com/css2?"
-    "family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
-)
-# HTML-attribute-safe form (the raw URL's & must be &amp; inside an href). Used
-# both when emitting the <link> and when patching it back into authored pages,
-# so the two paths can never disagree on escaping.
-FONT_CSS_URL_HTML = html.escape(FONT_CSS_URL, quote=True)
+# Poppins and Lato are served from this site, not from fonts.googleapis.com.
+# The stylesheet sits beside the .woff2 files it names, because a face's
+# src: url() is relative to the stylesheet that declares it. Provenance and
+# license: website/assets/vendor/fonts/README.md
+FONT_CSS_PATH = "assets/vendor/fonts/fonts.css"
 
 
 # Build-time drift warnings that MUST be resolved before a build can pass.
@@ -405,9 +402,7 @@ def number_tokens():
         facts = sitefacts.load_facts()
     except (OSError, KeyError, ValueError):
         return {}
-    raw = {
-        name: fact_value(facts, key) for name, key in number_token_specs().items()
-    }
+    raw = {name: fact_value(facts, key) for name, key in number_token_specs().items()}
     return {name: str(value) for name, value in raw.items() if value is not None}
 
 
@@ -679,7 +674,9 @@ def blog_dropdown_columns(n=5):
             title += " (draft)"
         intro = " ".join((post.get("intro") or "").split())
         desc = (intro[:70] + "…") if len(intro) > 70 else (intro or "Weekly update")
-        col.append(("project/changes/%s/" % post["slug"], "\U0001f5d3️", title, desc, False))
+        col.append(
+            ("project/changes/%s/" % post["slug"], "\U0001f5d3️", title, desc, False)
+        )
     return [col]
 
 
@@ -888,7 +885,6 @@ _ASSET_REF_RE = re.compile(r"assets/site\.(css|js)(?:\?v=[0-9a-f]+)?")
 def patch_asset_versions(html_text):
     """Refresh shared generated head bits in already-authored pages."""
     html_text = _ASSET_REF_RE.sub(lambda m: "assets/site.%s" % m.group(1), html_text)
-    html_text = _FONT_REF_RE.sub(FONT_CSS_URL_HTML, html_text)
     html_text = patch_social_meta(html_text)
     return patch_structured_data(html_text)
 
@@ -1025,9 +1021,6 @@ def patch_page_sidebar(html_text, root, page_key):
     return patched[: close.start()] + sidebar + patched[close.start() :]
 
 
-_FONT_REF_RE = re.compile(
-    r"https://fonts\.googleapis\.com/css2\?family=Poppins[^\"']+display=swap"
-)
 _STRUCTURED_DATA_RE = re.compile(
     r'[ \t]*<script type="application/ld\+json">.*?</script>\n?', re.DOTALL
 )
@@ -1154,12 +1147,7 @@ PAGE_HEAD = """<!doctype html>
         <meta name="twitter:description" content="{og_desc}" />
         <meta name="twitter:image" content="{og_image}" />
         <link rel="icon" href="{root}assets/ze.svg" type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="{font_css}"
-            rel="stylesheet"
-        />
+        <link rel="stylesheet" href="{font_css}" />
         <link rel="stylesheet" href="{site_css}" />
 {json_ld}{extra_head}    </head>
     <body>
@@ -1215,7 +1203,7 @@ def page_head(
         theme_bootstrap=THEME_BOOTSTRAP.rstrip(),
         root=root,
         site_css=asset_url(root, "assets/site.css"),
-        font_css=FONT_CSS_URL_HTML,
+        font_css=asset_url(root, FONT_CSS_PATH),
         shared_header_mount=build_shared_header_mount(root),
         extra_head=extra_head,
         json_ld=structured_data_script(),

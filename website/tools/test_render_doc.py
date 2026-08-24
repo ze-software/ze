@@ -20,6 +20,11 @@ import sitefacts  # noqa: E402
 
 
 def terminal_demo_fixture(root):
+    """The one `kind: browser` demo, which keeps the video path (D-3).
+
+    A `kind: terminal` demo publishes a cast and a transcript instead, and the
+    player it embeds is covered by test_render_demos.py.
+    """
     demo_root = root / "terminal"
     demo_root.mkdir(parents=True)
     site_assets = root / "site-assets"
@@ -50,11 +55,11 @@ def terminal_demo_fixture(root):
                     {
                         "id": "demo",
                         "title": "Inspect live state",
-                        "description": "Run a checked terminal workflow.",
+                        "description": "Run a checked browser workflow.",
                         "page": "guide/example.md",
                         "platform": "portable",
-                        "kind": "terminal",
-                        "engine": "VHS 0.11.0",
+                        "kind": "browser",
+                        "engine": "Playwright 1.55.0",
                         "duration": "12 seconds",
                     }
                 ],

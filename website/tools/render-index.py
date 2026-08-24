@@ -22,12 +22,16 @@ import pathlib
 
 import models
 import sitelib
+import terminal_demos
 
 HERE = pathlib.Path(__file__).resolve().parent
 GH_PAGES = HERE.parent
 DATA = GH_PAGES / "data" / "audience.json"
 CHANGES_DATA = GH_PAGES / "data" / "changes.json"
 WHATS_NEW_DATA = GH_PAGES / "data" / "whats-new.json"
+# The hero replays one demo. Its asset paths and digests come from the demo
+# manifest through terminal_demos, so a re-render moves them here too.
+HERO_DEMO_ID = "cli-dashboard"
 DEST = GH_PAGES / "index.html"
 
 # Homepage proof-strip numbers come from data/site-facts.json. The build writes
@@ -300,21 +304,9 @@ BODY = """            <section class="hero" aria-labelledby="hero-title">
                                     <div class="hero-product-bar" aria-hidden="true">
                                         <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
                                         <span>cli-dashboard.terminal</span>
-                                        <span>WEBM</span>
+                                        <span>CAST</span>
                                     </div>
-                                    <video
-                                        class="hero-product-video"
-                                        controls
-                                        muted
-                                        playsinline
-                                        preload="metadata"
-                                        poster="assets/demos/cli-dashboard.png?v=5595195ace"
-                                        aria-label="Operate BGP from the live dashboard demonstration"
-                                    >
-                                        <source src="assets/demos/cli-dashboard.webm?v=56620f9bd0" type="video/webm" />
-                                        Your browser cannot play WebM video.
-                                        <a href="assets/demos/cli-dashboard.webm?v=56620f9bd0">Download the recording</a>.
-                                    </video>
+                                    {hero_demo}
                                 </div>
                                 <figcaption>
                                     <strong id="hero-demo-title">Live BGP dashboard</strong>
@@ -720,7 +712,17 @@ def render(data):
         "protocol-agnostic core, YANG-modeled subsystems, operator "
         "interfaces, runnable labs, and an ExaBGP migration path."
     )
-    head = sitelib.page_head(title, desc, root, og_title=title, og_desc=og_desc)
+    hero_demo = terminal_demos.hero_mount(
+        HERO_DEMO_ID, root, "Operate BGP from the live dashboard demonstration"
+    )
+    head = sitelib.page_head(
+        title,
+        desc,
+        root,
+        og_title=title,
+        og_desc=og_desc,
+        extra_head=terminal_demos.player_head(root),
+    )
 
     counts = sitelib.feature_counts_by_category()
     category_links = "\n".join(
@@ -740,6 +742,7 @@ def render(data):
         models.validate_whats_new(json.loads(WHATS_NEW_DATA.read_text()))
     )
     body = BODY.format(
+        hero_demo=hero_demo,
         run_cards=run_cards,
         who_cards=who_cards,
         category_links=category_links,

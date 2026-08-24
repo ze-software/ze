@@ -10,9 +10,8 @@ OUTPUT_ROOT = pathlib.Path(
     os.environ.get("ZE_SITE_OUTPUT", MAIN_REPO.parent / "gh-pages")
 ).resolve()
 
-if (
-    os.environ.get("ZE_SITE_ALLOW_IN_TREE") != "1"
-    and (OUTPUT_ROOT == SOURCE_ROOT or SOURCE_ROOT in OUTPUT_ROOT.parents)
+if os.environ.get("ZE_SITE_ALLOW_IN_TREE") != "1" and (
+    OUTPUT_ROOT == SOURCE_ROOT or SOURCE_ROOT in OUTPUT_ROOT.parents
 ):
     raise RuntimeError(
         "ZE_SITE_OUTPUT must be outside the website source tree: %s" % OUTPUT_ROOT
@@ -31,6 +30,8 @@ _SOURCE_ONLY_DIRS = (
 _SOURCE_ONLY_FILES = {
     ".gitignore",
     "AI.md",
+    "assets/vendor/README.md",
+    "assets/vendor/fonts/README.md",
     "CACHEDIR.TAG",
     "compare/bgp.md",
     "compare/comparison.md",

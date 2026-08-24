@@ -37,8 +37,8 @@ prepare() {
 # a sub-second operation (measured: `start` completes in ~0.9s end to end).
 #
 # The budget is deliberately SHORT because every wait here is spent inside the
-# tape's `Wait+Screen /RPKI demo ready/`, which VHS bounds at
-# `Set WaitTimeout 30s` (demos/terminal/common.tape:9) -- and a VHS timeout is
+# tape's `Wait+Screen /RPKI demo ready/`, which the tape bounds at
+# `Set WaitTimeout 30s` (demos/terminal/common.tape:9) -- and a blown Wait is
 # not local: render.py runs each demo with check=True and no per-demo try, so
 # one blown Wait aborts every remaining demo and fails the whole website build.
 # Worst case here is 3s + 3s (two fixtures) + 15s (the pre-existing SSH loop) +
@@ -114,7 +114,7 @@ start() {
     # Bounded by WALL CLOCK, not by iteration count: each pass costs an `ze cli`
     # SSH round trip on top of the sleep, so an iteration budget silently means
     # something different on a slow host -- and this budget has to stay inside
-    # the tape's 30s VHS Wait (see wait_port). Syncing 171 VRPs over loopback is
+    # the tape's 30s Wait (see wait_port). Syncing 171 VRPs over loopback is
     # a sub-second exchange once connected.
     local status deadline
     deadline=$((SECONDS + 5))

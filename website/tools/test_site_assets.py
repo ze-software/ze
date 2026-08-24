@@ -3,10 +3,12 @@
 sitelib / page_registry -- the pure string/path functions that the asset and
 number-accuracy work added, which are trivial to test and easy to regress."""
 
+import base64
 import importlib.util
 import json
 import pathlib
 import pytest
+import re
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -30,6 +32,11 @@ LINK_SPEC = importlib.util.spec_from_file_location(
 )
 check_page_links = importlib.util.module_from_spec(LINK_SPEC)
 LINK_SPEC.loader.exec_module(check_page_links)
+BUNDLE_SPEC = importlib.util.spec_from_file_location(
+    "bundle_html", HERE.parent / "presentations" / "tools" / "bundle-html.py"
+)
+bundle_html = importlib.util.module_from_spec(BUNDLE_SPEC)
+BUNDLE_SPEC.loader.exec_module(bundle_html)
 
 
 # --- stable asset URLs (no ?v= churn) --------------------------------------
@@ -47,12 +54,20 @@ def test_patch_asset_versions_strips_legacy_query():
     assert "../assets/site.css" in after
 
 
-def test_patch_asset_versions_escapes_font_ampersand():
-    page = '<link href="%s" rel="stylesheet" />' % sitelib.FONT_CSS_URL
-    patched = sitelib.patch_asset_versions(page)
-    # the raw & in the font URL must be &amp; inside the href attribute
-    assert "&amp;family=Lato" in patched
-    assert "?family=Poppins" in patched
+def test_no_authored_page_requests_a_font_from_google():
+    """D-2: every page is self-hosted, including the hand-written ones.
+
+    `page_head` covers the generated pages, and a test over it cannot see the
+    authored HTML under labs/, performance/ and talks/, which carried the same
+    head block by hand. The talk decks are frozen against every patcher in
+    build.py, so nothing rewrites them on the way out either."""
+    offenders = [
+        path.relative_to(sitelib.GH_PAGES).as_posix()
+        for path in sorted(sitelib.GH_PAGES.rglob("*.html"))
+        if "fonts.googleapis.com" in path.read_text()
+        or "fonts.gstatic.com" in path.read_text()
+    ]
+    assert offenders == []
 
 
 # --- self-referential canonical / og:url -----------------------------------
@@ -134,9 +149,7 @@ def test_update_html_stat_markers_rewrites_stale_values(tmp_path):
         "<span data-ze-stat='rfc.gated_must_display'>2,900</span>\\n"
     )
 
-    errors, pages, markers = check_site_stats.update_html_stat_markers(
-        tmp_path, facts
-    )
+    errors, pages, markers = check_site_stats.update_html_stat_markers(tmp_path, facts)
 
     assert errors == []
     assert pages == [page]
@@ -397,3 +410,76 @@ def test_patch_footer_stamps_an_already_authored_page(monkeypatch):
     assert patched.startswith("<body>\n") and patched.endswith("\n</body>")
     # Re-running the nav step must not stack a second stamp.
     assert sitelib.patch_footer(patched, "../") == patched
+
+
+# --- standalone deck bundling (presentations/tools/bundle-html.py) ----------
+#
+# The bundler turns a talk deck into one file that works with no network. Its
+# <link> pass base64-encodes a local stylesheet into a data:text/css URI, and a
+# data URI has no directory, so any relative url() the stylesheet holds stops
+# resolving the moment it is inlined. The decks link the site's vendored
+# @font-face rules, which is exactly that shape.
+
+
+def inlined_css(bundled):
+    match = re.search(r'href="data:text/css;base64,([^"]+)"', bundled)
+    assert match, bundled
+    return base64.b64decode(match.group(1)).decode()
+
+
+def deck_with_stylesheet(tmp_path, css_rel, css_text, files=()):
+    for name, payload in files:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(payload)
+    css_path = tmp_path / css_rel
+    css_path.parent.mkdir(parents=True, exist_ok=True)
+    css_path.write_text(css_text)
+    deck = tmp_path / "talks" / "example"
+    deck.mkdir(parents=True)
+    link = '<link rel="stylesheet" href="../../%s">' % css_rel
+    page = "<html><head>%s</head><body></body></html>" % link
+    return bundle_html.bundle(page, str(deck))
+
+
+def test_inlined_stylesheet_carries_its_font_files(tmp_path):
+    """A deck bundled for offline use renders in its own fonts."""
+    face = b"wOF2 pretend face"
+    bundled = deck_with_stylesheet(
+        tmp_path,
+        "assets/vendor/fonts/fonts.css",
+        "@font-face {\n"
+        '    font-family: "Poppins";\n'
+        "    font-weight: 600;\n"
+        '    src: url("poppins-600-latin.woff2") format("woff2");\n'
+        "}\n",
+        files=[("assets/vendor/fonts/poppins-600-latin.woff2", face)],
+    )
+
+    css = inlined_css(bundled)
+    assert "poppins-600-latin.woff2" not in css
+    assert "data:font/woff2;base64,%s" % base64.b64encode(face).decode() in css
+
+
+def test_inlined_stylesheet_keeps_an_absolute_url(tmp_path):
+    """Only a relative url() is resolved: an http one is already reachable and
+    a data: one is already inline."""
+    bundled = deck_with_stylesheet(
+        tmp_path,
+        "assets/site.css",
+        'body { background: url("https://example.net/x.png"); }\n'
+        'p { background: url("data:image/gif;base64,AAAA"); }\n',
+    )
+
+    css = inlined_css(bundled)
+    assert "https://example.net/x.png" in css
+    assert "data:image/gif;base64,AAAA" in css
+
+
+def test_inlined_stylesheet_keeps_a_url_it_cannot_find(tmp_path):
+    """A missing file must not stop the build that produces every deck."""
+    bundled = deck_with_stylesheet(
+        tmp_path, "assets/site.css", '@font-face { src: url("gone.woff2"); }\n'
+    )
+
+    assert "gone.woff2" in inlined_css(bundled)

@@ -66,7 +66,7 @@ class DefinitionDigestTest(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         self.tmp_path = pathlib.Path(tmp.name)
 
-    def test_definition_digest_changes_only_for_vhs_definition(self):
+    def test_definition_digest_changes_only_for_the_tape_definition(self):
         render, demo, demo_dir = write_demo_tree(self.tmp_path)
 
         before = render.definition_digest(demo)
@@ -81,33 +81,25 @@ class DefinitionDigestTest(unittest.TestCase):
         )
         self.assertNotEqual(render.definition_digest(demo), before)
 
-    def test_definition_check_ignores_non_vhs_source_digest(self):
-        # Phase 4 of the website-asciinema-terminal-demos spec makes
-        # verify_assets kind-aware, and a `kind: terminal` demo that carries a
-        # video asset MUST be refused once that lands. The fixture below builds
-        # exactly that demo, so this case goes red when phase 4 arrives. That red
-        # is the new rule working. Give the demo the terminal asset set instead
-        # of video, poster and transcript, and keep the assertion this case
-        # makes, which is that a stale source_sha256 is not read under
-        # definition_only.
+    def test_definition_check_ignores_a_non_definition_source_digest(self):
         render, demo, _ = write_demo_tree(self.tmp_path)
         artifact_root = self.tmp_path / "gh-pages" / "assets" / "demos"
         artifact_root.mkdir(parents=True)
+        render.ARTIFACT_ROOT = artifact_root
+        render.ARTIFACT_MANIFEST_PATH = artifact_root / "manifest.json"
+        # `asset_paths` is the accessor `verify_assets` reads, so the fixture
+        # cannot name an asset set the check refuses for a reason this case is
+        # not about. It carried video, poster and transcript until phase 4 of
+        # the website-asciinema-terminal-demos spec made the check kind-aware,
+        # and this demo is `kind: terminal`.
         assets = {}
-        for name, content in {
-            "video": b"webm",
-            "poster": b"png",
-            "transcript": b"text",
-        }.items():
-            path = artifact_root / f"sample.{name}"
-            path.write_bytes(content)
+        for name, path in render.asset_paths(demo).items():
+            path.write_bytes(name.encode())
             assets[name] = {
                 "path": path.name,
                 "bytes": path.stat().st_size,
                 "sha256": render.sha256(path),
             }
-        render.ARTIFACT_ROOT = artifact_root
-        render.ARTIFACT_MANIFEST_PATH = artifact_root / "manifest.json"
         manifest = {"schema": 2, "renderer": {"name": "test"}}
         render.ARTIFACT_MANIFEST_PATH.write_text(
             render.json.dumps(

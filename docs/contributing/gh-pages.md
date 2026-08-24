@@ -3,8 +3,8 @@
 Website sources live under `website/` on the main branch.
 All `../gh-pages` content MUST be generated from this repository.
 `make ze-site-generate` writes the publishable artifact to `../gh-pages` and removes old source-only files there.
-It reuses existing VHS media when `assets/demos/manifest.json` matches the checked-in tape definitions.
-Use `make ze-terminal-demo-release-render-all` to force new demo media.
+It reuses the existing demo artifacts when `assets/demos/manifest.json` matches the checked-in tape definitions.
+Use `make ze-terminal-demo-release-render-all` to force new demo artifacts.
 See `website/AI.md` for the full reference: structure, tools, and how to add a talk.
 
 

@@ -1,10 +1,10 @@
-$ cat "$ZE_INIT_INPUT"
+$ cat $ZE_INIT_INPUT
 admin
 secret123
 127.0.0.1
 2222
 ze-demo
-$ ze init < "$ZE_INIT_INPUT"
+$ ze init < $ZE_INIT_INPUT
 $ ze config ls
 ze.conf
 $ ze data check
@@ -17,7 +17,7 @@ ze# show | compare
 ze# commit
 Session committed
 ze# exit
-ze# exit
+ze> exit
 $ ze cli -c 'show bgp'
 $ ze cli -c 'show bgp | text'
 $ ze cli -c 'show bgp | display router-id local-as peers-established'

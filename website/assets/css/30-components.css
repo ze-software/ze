@@ -835,12 +835,64 @@
         background: #3ee6a8;
     }
 
+    /* The one browser demo keeps the video it has always had. */
     .terminal-demo video {
         display: block;
         width: 100%;
         height: auto;
         aspect-ratio: 5 / 3;
         background: #1d1133;
+    }
+
+    /* A terminal demo is an asciicast, replayed by the self-hosted player.
+       The box is reserved from the recording's own character grid before the
+       script runs, so the page does not reflow as the player loads: the mount
+       carries --demo-aspect, which terminal_demos derives from the cast
+       header. The player scales the terminal into whatever box it is given. */
+    .terminal-demo__player {
+        display: block;
+        width: 100%;
+        aspect-ratio: var(--demo-aspect, 5 / 3);
+        background: #1d1133;
+    }
+
+    .terminal-demo__noscript {
+        margin: 0;
+        padding: var(--space-4) var(--space-5);
+        color: #e6d9f2;
+        font-size: var(--type-small);
+        line-height: 1.5;
+    }
+
+    .terminal-demo__noscript a {
+        color: #94d3ff;
+        font-weight: 800;
+    }
+
+    /* The demo palette is the tape's own `Set Theme` (demos/terminal/common.tape).
+       A cast records a byte stream and carries no colors, so the player reads
+       them here or every demo changes color. The player puts .ap-player and
+       .asciinema-player-theme-ze on the same element, so a two-class selector
+       wins whatever order the two stylesheets load in. */
+    .ap-player.asciinema-player-theme-ze {
+        --term-color-foreground: #e6d9f2;
+        --term-color-background: #1d1133;
+        --term-color-0: #1d1133;
+        --term-color-1: #ff6f9d;
+        --term-color-2: #3ee6a8;
+        --term-color-3: #ffc93c;
+        --term-color-4: #6fc3ff;
+        --term-color-5: #c792ea;
+        --term-color-6: #1fc9c0;
+        --term-color-7: #e6d9f2;
+        --term-color-8: #8f7aa8;
+        --term-color-9: #ff8db4;
+        --term-color-10: #65f0bc;
+        --term-color-11: #ffda70;
+        --term-color-12: #94d3ff;
+        --term-color-13: #d8a9f2;
+        --term-color-14: #68ddd7;
+        --term-color-15: #fffaff;
     }
 
     .terminal-demo figcaption {
@@ -1111,7 +1163,6 @@
 .home-section-panel-why .section-head h2 a,.home-section-panel-why .section-head h2 a:hover,.home-section-panel-why .section-head h2 a:focus-visible{text-decoration:none}
 .hero-product-frame{overflow:hidden;border:1px solid var(--glass-border);border-radius:1rem;background:linear-gradient(180deg,rgba(15,23,42,0.96),rgba(10,6,18,0.98));box-shadow:var(--shadow-clay),0 1.4rem 3rem -1.6rem rgba(0,159,227,0.55)}
 .hero-product-bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:0.7rem;padding:0.58rem 0.72rem;border-bottom:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.72);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;font-size:0.78rem}
-.hero-product-video{display:block;width:100%;aspect-ratio:16/9;background:#05070d}
 .hero-product-demo figcaption{display:flex;flex-wrap:wrap;align-items:center;gap:0.45rem 0.75rem;margin:0.72rem 0 0;color:var(--muted);font-size:var(--type-small);line-height:1.35}
 .hero-release-callout{display:flex;align-items:center;gap:0.42rem;flex:0 0 auto;margin:0}
 .hero-release-speaker{flex:0 0 auto;line-height:0;text-decoration:none;transform:rotate(-3deg)}

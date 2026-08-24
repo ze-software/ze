@@ -23,9 +23,9 @@
 # SOURCE this file and call demo_lock_acquire before the run touches anything
 # shared. The demo shell's prompt is an exported PS1, and a non-interactive
 # bash drops PS1 from the environment it passes on, so a wrapper SCRIPT between
-# the entrypoint and vhs leaves vhs to paint its own `> ` prompt. Every tape
-# then waits for a `$ ` that never comes. Running this file directly stays
-# supported for tests, which do not care about the prompt.
+# the entrypoint and the recorder leaves the demo shell to paint its own default
+# prompt. Every tape then waits for a `$ ` that never comes. Running this file
+# directly stays supported for tests, which do not care about the prompt.
 
 demo_lock_acquire() {
     local lock_dir lock_file wait_seconds status

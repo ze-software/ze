@@ -6,9 +6,9 @@ The scoped configuration shows `upstream-a` and `upstream-b` inside the transit 
 $ ze config validate router.conf
 configuration valid
 
-$ ze config graph router.conf | ze pipe match peer/upstream
-$ ze config graph router.conf | ze pipe match group/transit
-$ ze config graph router.conf | ze pipe match inherits
-The three direct graph views name both peer nodes, their shared group target, and the two `inherits` relationships.
+$ ze config graph router.conf | ze pipe text | ze pipe match peer/upstream
+$ ze config graph router.conf | ze pipe text | ze pipe match group/transit
+$ ze config graph router.conf | ze pipe text | ze pipe match inherits
+The graph answer holds two lists, `nodes` and `edges`. A row operator such as `match` has no single set of rows there, so Ze refuses it by name instead of picking one list. `| text` renders both lists as aligned rows, one relationship to a line. `| match` then keeps the lines that name the two peers, the group they share, and the two `inherits` relationships.
 
 No reporting helper creates the displayed relationships. The command filters Ze's graph output directly through Ze's format pipeline.

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
+import contextlib
 import importlib.util
+import json
 import os
 import pathlib
 import shutil
@@ -16,6 +18,28 @@ HERE = pathlib.Path(__file__).resolve().parent
 SPEC = importlib.util.spec_from_file_location("terminal_render", HERE / "render.py")
 terminal_render = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(terminal_render)
+
+# The site tool that puts a demo on a page. It is the other end of the artifact
+# manifest render.py writes, so the asset set the renderer produces and the
+# markup the page carries are one contract tested from both sides. It reads
+# `sitepaths` as a sibling, so its own directory goes on the path first.
+sys.path.insert(0, str(HERE.parent.parent / "website" / "tools"))
+import terminal_demos  # noqa: E402  needs the path above
+
+# The recorder. Its file name carries a hyphen, so it is loaded the way
+# render.py is above rather than imported: the driver is a program the
+# container runs, and the tests below drive it as one. The parser is reached
+# directly because a tape that fails to parse must fail before any terminal
+# exists, and that is a property of the function, not of a session.
+PTY_SPEC = importlib.util.spec_from_file_location(
+    "pty_session", HERE / "pty-session.py"
+)
+pty_session = importlib.util.module_from_spec(PTY_SPEC)
+PTY_SPEC.loader.exec_module(pty_session)
+
+# The screen model both of them read. It is an ordinary module beside them, and
+# the two loads above put its directory on the import path.
+import screen as terminal_screen  # noqa: E402  needs the loads above
 
 # A process that holds an exclusive lock on argv[1], announces it by creating
 # argv[2], and holds it for argv[3] seconds. Scaffolding for the contention
@@ -419,7 +443,8 @@ class DemoLockTest(unittest.TestCase):
 
         HOME is on the mounted repository and every demo container shares it.
         The setup truncates `.bashrc`, which carries the prompt and the PATH of
-        the shell vhs drives, so a lock taken after it leaves that window open.
+        the shell the recorder drives, so a lock taken after it leaves that
+        window open.
         """
         lines = (HERE / "container-entrypoint.sh").read_text().splitlines()
         source = [
@@ -528,6 +553,10 @@ class DemoLockTest(unittest.TestCase):
                 terminal_render,
                 LOCK_PATH=pathlib.Path(tmp) / "demo-run.lock",
                 LOCK_WAIT_SECONDS=5,
+                # The publish pass removes what the kind no longer produces, so
+                # it reads the artifact root. Pointed inside the temporary tree
+                # here: nothing about locking is worth touching a real one.
+                ARTIFACT_ROOT=pathlib.Path(tmp) / "demos",
                 run_demo=render_one,
                 load_artifact_manifest=mock.Mock(
                     return_value={"schema": 2, "renderer": {}, "demos": {}}
@@ -536,7 +565,12 @@ class DemoLockTest(unittest.TestCase):
                 verify_assets=mock.Mock(),
             ):
                 terminal_render.render_selected(
-                    {"renderer": {}}, {"example": {"id": "example"}}, ["example"], "1"
+                    {"renderer": {}},
+                    # `kind` is required of every demo (`validate_contract`), so
+                    # a fixture without one describes a demo that cannot exist.
+                    {"example": {"id": "example", "kind": "terminal"}},
+                    ["example"],
+                    "1",
                 )
 
         self.assertTrue(seen.get("locked"), "the manifest was written unlocked")
@@ -589,8 +623,9 @@ class DemoLockTest(unittest.TestCase):
         """The demo shell's prompt is an exported PS1.
 
         A non-interactive bash drops PS1 from the environment it passes on, so
-        a lock that runs the demo in a child shell leaves vhs to paint its own
-        `> ` prompt, and every `Wait+Screen /\\$ /` in a tape times out on it.
+        a lock that runs the demo in a child shell leaves the demo shell to paint
+        its own default prompt, and every `Wait+Screen /\\$ /` in a tape times
+        out on it.
         """
         with tempfile.TemporaryDirectory() as tmp:
             caller = pathlib.Path(tmp) / "caller.sh"
@@ -646,6 +681,911 @@ class ValidatorDiagnosticTest(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("bridge stp: permission denied", result.stderr)
+
+
+class TerminalDemoAssetTest(unittest.TestCase):
+    """The four Wiring Test rows of spec-website-asciinema-terminal-demos.
+
+    Each row runs an entry point through to the code that must answer it. The
+    per-kind asset map is the seam they meet at: `_render_demo` asks it what a
+    demo owes, `verify_assets` asks it what to check, and the site asks it what
+    to put on the page. A demo cannot be rendered as one shape and published as
+    another while all three read one map.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        root = pathlib.Path(self.tmp.name)
+        self.demo_root = root / "demos" / "terminal"
+        (self.demo_root / "example").mkdir(parents=True)
+        (self.demo_root / "common.tape").write_text(
+            'Set Shell "bash"\n', encoding="utf-8"
+        )
+        (self.demo_root / "example" / "demo.tape").write_text(
+            "Output artifacts/example.webm\nSource common.tape\n", encoding="utf-8"
+        )
+        self.artifact_root = root / "gh-pages" / "assets" / "demos"
+        self.artifact_root.mkdir(parents=True)
+        patch = mock.patch.multiple(
+            terminal_render,
+            ROOT=root,
+            DEMO_ROOT=self.demo_root,
+            ARTIFACT_ROOT=self.artifact_root,
+            ARTIFACT_MANIFEST_PATH=self.artifact_root / "manifest.json",
+        )
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.renderer = {
+            "name": "ze-demo",
+            "version": "2",
+            "image": "ze-terminal-demo-render-all:test",
+            "platform": "linux/native",
+        }
+
+    def demo(self, kind):
+        return {"id": "example", "kind": kind, "source": "example/demo.tape"}
+
+    def suffix(self, name):
+        """The file extension for an asset name, whichever kind owns it.
+
+        A fixture must be able to name an asset the demo's kind does NOT own,
+        because that half-converted state is what R-5 exists to refuse. So this
+        reads the union of the two kinds rather than one kind's map, and it
+        stays derived from the map instead of repeating it.
+        """
+        for extensions in terminal_render.ASSET_EXTENSIONS.values():
+            if name in extensions:
+                return extensions[name]
+        raise KeyError(name)
+
+    def publish(self, names, demo_id="example"):
+        """Write each named asset to the artifact root and describe it."""
+        assets = {}
+        for name in names:
+            path = self.artifact_root / (demo_id + self.suffix(name))
+            path.write_text(f"{name} bytes\n", encoding="utf-8")
+            assets[name] = {
+                "path": path.name,
+                "bytes": path.stat().st_size,
+                "sha256": terminal_render.sha256(path),
+            }
+        return assets
+
+    def check(self, demo, assets):
+        """Run the demo's assets through `--check-definition`.
+
+        Every digest here matches, so nothing the check reports is about a
+        stale or missing file. What is left for it to judge is the asset SET.
+        """
+        terminal_render.ARTIFACT_MANIFEST_PATH.write_text(
+            json.dumps(
+                {
+                    "schema": 2,
+                    "renderer": self.renderer,
+                    "demos": {
+                        "example": {
+                            "release": "test",
+                            "definition_sha256": terminal_render.definition_digest(
+                                demo
+                            ),
+                            "assets": assets,
+                        }
+                    },
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        terminal_render.verify_assets(
+            {"renderer": self.renderer},
+            {"example": demo},
+            ["example"],
+            None,
+            definition_only=True,
+        )
+
+    def test_render_terminal_demo_produces_cast(self):
+        """AC-1: a terminal demo's artifact is one cast, and the driver writes it.
+
+        Two halves, because the row runs from `render.py` through to the
+        recorder. The map says what the render owes. The tape front end is what
+        must produce it, and `container-entrypoint.sh` is what hands it the
+        tape. The tape below is self-contained so the assertion is about the
+        recorder and not about the demo daemon.
+        """
+        expected = terminal_render.asset_paths(self.demo("terminal"))
+        self.assertEqual(sorted(expected), ["cast", "transcript"])
+        self.assertTrue(expected["cast"].name.endswith(".cast"), expected["cast"])
+
+        work = pathlib.Path(self.tmp.name) / "record"
+        (work / "artifacts").mkdir(parents=True)
+        tape = work / "demo.tape"
+        # The dimensions are PIXELS, as they are in every checked-in tape:
+        # `common.tape` asks for 1680x1008 and `render.py` renders that box.
+        # This fixture read 80x24 when it was written, which is a character
+        # grid, and 80 pixels of width hold no terminal at all.
+        tape.write_text(
+            "Output artifacts/example.cast\n"
+            'Set Shell "bash"\n'
+            "Set Width 1680\n"
+            "Set Height 1008\n"
+            "Set TypingSpeed 5ms\n"
+            'Type "echo hello"\n'
+            "Enter\n"
+            "Sleep 200ms\n",
+            encoding="utf-8",
+        )
+
+        result = subprocess.run(
+            [sys.executable, str(HERE / "pty-session.py"), "--tape", str(tape)],
+            cwd=work,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(
+            (work / "artifacts" / "example.cast").is_file(),
+            "the driver wrote no cast: " + result.stdout + result.stderr,
+        )
+
+    def test_verify_assets_demands_cast_for_terminal_kind(self):
+        """AC-6: a terminal demo whose manifest names a video fails the check.
+
+        Every asset below is on disk with a matching size and digest, so
+        nothing is missing and nothing is stale. What is wrong is the SET: a
+        terminal demo owes a cast and a transcript, and a video beside them
+        means a half-converted tree is about to publish the demo twice (R-5).
+        """
+        demo = self.demo("terminal")
+        with self.assertRaises(ValueError) as raised:
+            self.check(demo, self.publish(["cast", "transcript", "video", "poster"]))
+
+        message = str(raised.exception)
+        self.assertIn("example", message)
+        self.assertIn("video", message)
+        self.assertIn("terminal", message)
+
+    def test_browser_demo_still_produces_video_and_poster(self):
+        """AC-7: the browser demo is untouched by the conversion.
+
+        It keeps its three assets, and the check still accepts exactly those.
+        It also refuses a cast beside them: a browser recording has no terminal
+        byte stream, so a cast on that demo is the same half-converted tree the
+        terminal row refuses from the other side (R-5).
+        """
+        demo = self.demo("browser")
+        expected = terminal_render.asset_paths(demo)
+        self.assertEqual(sorted(expected), ["poster", "transcript", "video"])
+        self.assertTrue(expected["video"].name.endswith(".webm"), expected["video"])
+        self.assertTrue(expected["poster"].name.endswith(".png"), expected["poster"])
+
+        self.check(demo, self.publish(["video", "poster", "transcript"]))
+
+        with self.assertRaises(ValueError) as raised:
+            self.check(demo, self.publish(["video", "poster", "transcript", "cast"]))
+        self.assertIn("cast", str(raised.exception))
+
+    def test_a_video_render_asks_for_ffmpeg_before_the_container_runs(self):
+        """The host binary the VHS installer used to bring is named, not tripped over.
+
+        `expand_timeline` and `resize_poster` run ffmpeg on the HOST, and it
+        arrived with `demos/terminal/install-vhs.sh` until that script was
+        deleted with VHS. Reached at the ffmpeg call it is a bare
+        FileNotFoundError, after the container has already run the whole demo.
+        """
+        (self.demo_root / "example" / "transcript.txt").write_text(
+            "$ ze show version\n", encoding="utf-8"
+        )
+
+        def refuse(*args, **kwargs):
+            raise AssertionError("the container must not start")
+
+        with mock.patch.object(terminal_render.shutil, "which", return_value=None):
+            with mock.patch.object(terminal_render.subprocess, "run", refuse):
+                with self.assertRaises(RuntimeError) as raised:
+                    terminal_render._render_demo(
+                        {"renderer": self.renderer}, self.demo("browser"), "test"
+                    )
+
+        message = str(raised.exception)
+        self.assertIn("ffmpeg", message)
+        self.assertIn("example", message)
+
+    def test_a_render_removes_the_artifacts_its_kind_no_longer_produces(self):
+        """AC-12: the published tree keeps only what the kinds produce.
+
+        The tree this conversion lands on holds a `.webm` and a `.png` for every
+        terminal demo, and the manifest entry a re-render writes stops naming
+        them. Nothing else walks the artifact root: `verify_assets` reads the
+        set the manifest NAMES, and the site stages the directory as it stands.
+        So a file left behind here is published for as long as the tree lives.
+
+        The browser demo is rendered in the same run, because a removal that
+        reached ITS video would be the same defect from the other side.
+        """
+        (self.demo_root / "browser").mkdir()
+        (self.demo_root / "browser" / "demo.tape").write_text(
+            "Output artifacts/browser.webm\nSource common.tape\n", encoding="utf-8"
+        )
+        terminal = self.demo("terminal")
+        browser = dict(self.demo("browser"), id="browser", source="browser/demo.tape")
+
+        # The pre-conversion tree: the terminal demo still carries the video and
+        # the poster the previous renderer recorded for it.
+        self.publish(["video", "poster"])
+        stale_video = self.artifact_root / "example.webm"
+        stale_poster = self.artifact_root / "example.png"
+        self.assertTrue(stale_video.is_file() and stale_poster.is_file())
+
+        def fake_run_demo(manifest, demo, release):
+            assets = self.publish(
+                terminal_render.ASSET_EXTENSIONS[demo["kind"]], demo["id"]
+            )
+            return {
+                "release": release,
+                "source_sha256": terminal_render.source_digest(demo),
+                "definition_sha256": terminal_render.definition_digest(demo),
+                "assets": assets,
+            }
+
+        # The shared sources are real repository files, and this fixture's ROOT
+        # is a temporary tree, so `source_digest` is pointed at a file inside it
+        # instead. Both the fake render and `verify_assets` read the same one.
+        with mock.patch.multiple(
+            terminal_render,
+            run_demo=fake_run_demo,
+            demo_lock=contextlib.nullcontext,
+            SHARED_SOURCE_PATHS=(self.demo_root / "common.tape",),
+        ):
+            terminal_render.render_selected(
+                {"renderer": self.renderer},
+                {"example": terminal, "browser": browser},
+                ["example", "browser"],
+                "test",
+            )
+
+        self.assertFalse(stale_video.exists(), "the superseded video is published")
+        self.assertFalse(stale_poster.exists(), "the superseded poster is published")
+        self.assertTrue((self.artifact_root / "example.cast").is_file())
+        self.assertTrue((self.artifact_root / "example.txt").is_file())
+        # A browser demo records no cast, so its own video is not superseded.
+        self.assertTrue((self.artifact_root / "browser.webm").is_file())
+        self.assertTrue((self.artifact_root / "browser.png").is_file())
+
+    def test_render_demo_page_embeds_player(self):
+        """AC-8: a published page plays a terminal demo through the player.
+
+        `_render_html` is the only producer of a demo's markup on a page. The
+        artifact below names every asset both kinds use, so the video path is
+        available to it and the markup it emits is a choice rather than a
+        fallback.
+        """
+        artifact = {
+            "release": "test",
+            "assets": {
+                name: {
+                    "path": "example" + self.suffix(name),
+                    "bytes": 1,
+                    "sha256": "0" * 64,
+                }
+                for name in ("cast", "video", "poster", "transcript")
+            },
+        }
+        demo = {
+            "title": "Example demo",
+            "description": "Example description.",
+            "platform": "portable",
+            "kind": "terminal",
+            "engine": "Ze recorder",
+        }
+
+        # The duration and the grid are the cast's, which is why the manifest
+        # entry above states neither: the caller reads them off the artifact
+        # (`terminal_demos._cast_facts`) and hands them in.
+        markup = terminal_demos._render_html(
+            "example",
+            demo,
+            artifact,
+            self.renderer,
+            "../",
+            "40 seconds",
+            terminal_demos.CastFacts(137, 36, 40.0),
+            "transcript text\n",
+        )
+
+        self.assertIn(".cast", markup)
+        self.assertNotIn("<video", markup)
+        self.assertNotIn("video/webm", markup)
+
+
+class TapeRecorderTest(unittest.TestCase):
+    """The tape front end of spec-website-asciinema-terminal-demos.
+
+    Every case here drives `pty-session.py` the way the container does, over a
+    tape written for the case. A real shell answers a real pseudo-terminal, so
+    what the cast holds is what a reader would replay, not what the recorder
+    believed it wrote.
+    """
+
+    # Every setting `common.tape` carries that reaches the recording, at the
+    # values it carries them. A case that needs a different one overrides it
+    # after this block, because a later `Set` wins.
+    PROLOGUE = (
+        "Output artifacts/example.cast\n"
+        'Set Shell "bash"\n'
+        "Set Width 1680\n"
+        "Set Height 1008\n"
+        "Set FontSize 20\n"
+        "Set Padding 17\n"
+        "Set TypingSpeed 5ms\n"
+        "Set WaitTimeout 20s\n"
+    )
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.work = pathlib.Path(self.tmp.name)
+        (self.work / "artifacts").mkdir()
+        # HOME is the temporary tree, so the shell the recorder drives reads no
+        # startup file of the person running the tests and prints nothing this
+        # test did not ask for.
+        self.env = dict(
+            os.environ,
+            HOME=str(self.work),
+            PS1="$ ",
+            TERM="xterm-256color",
+            LANG="C.UTF-8",
+            LC_ALL="C.UTF-8",
+        )
+
+    def write_tape(self, body, name="demo.tape"):
+        path = self.work / name
+        path.write_text(body, encoding="utf-8")
+        return path
+
+    def parse(self, body):
+        return pty_session.parse_tape(self.write_tape(body), root=self.work)
+
+    def record(self, body, timeout=120):
+        """Drive a tape and return its cast as (header, events)."""
+        tape = self.write_tape(body)
+        result = subprocess.run(
+            [sys.executable, str(HERE / "pty-session.py"), "--tape", str(tape)],
+            cwd=self.work,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=self.env,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        cast = self.work / "artifacts" / "example.cast"
+        self.assertTrue(cast.is_file(), result.stdout + result.stderr)
+        lines = cast.read_text(encoding="utf-8").splitlines()
+        return json.loads(lines[0]), [json.loads(line) for line in lines[1:]]
+
+    def test_tape_vocabulary_is_covered(self):
+        """AC-13: the closed vocabulary parses, and anything else fails by name.
+
+        The census is taken from the checked-in tapes rather than from a list
+        written here, so a directive that enters the tree without entering the
+        recorder fails this test instead of being skipped at render time. The
+        counts are C-14's, and they are asserted so the walk cannot pass by
+        finding nothing.
+        """
+        directives = set()
+        keys = set()
+        tapes = sorted(HERE.glob("*/demo.tape"))
+        self.assertEqual(len(tapes), 17, tapes)
+        for tape in tapes + [HERE / "common.tape"]:
+            pty_session.parse_tape(tape, root=HERE)
+            for line in tape.read_text(encoding="utf-8").splitlines():
+                word = line.split(" ")[0].strip()
+                if not word or word.startswith("#"):
+                    continue
+                directives.add(word.split("+")[0])
+                if word == "Set":
+                    keys.add(line.split()[1])
+        self.assertEqual(directives - set(pty_session.TAPE_DIRECTIVES), set())
+        self.assertEqual(keys - set(pty_session.TAPE_SET_KEYS), set())
+        self.assertEqual(len(directives), 13, sorted(directives))
+        self.assertEqual(len(keys), 10, sorted(keys))
+
+        with self.assertRaises(pty_session.TapeError) as raised:
+            self.parse(self.PROLOGUE + "Frobnicate now\n")
+        self.assertIn("Frobnicate", str(raised.exception))
+
+        with self.assertRaises(pty_session.TapeError) as raised:
+            self.parse(self.PROLOGUE + "Set Blink 3s\n")
+        self.assertIn("Blink", str(raised.exception))
+
+        with self.assertRaises(pty_session.TapeError) as raised:
+            self.parse(self.PROLOGUE + "Wait+Line /done/\n")
+        self.assertIn("Line", str(raised.exception))
+
+    def test_hide_suspends_recording(self):
+        """AC-2: no byte emitted between `Hide` and `Show` reaches the cast."""
+        _, events = self.record(
+            self.PROLOGUE + 'Type "echo VISIBLE-ONE"\n'
+            "Enter\n"
+            "Wait+Screen /VISIBLE-ONE/\n"
+            "Hide\n"
+            'Type "echo SECRET-TEXT"\n'
+            "Enter\n"
+            "Sleep 500ms\n"
+            "Show\n"
+            'Type "echo VISIBLE-TWO"\n'
+            "Enter\n"
+            "Wait+Screen /VISIBLE-TWO/\n"
+        )
+
+        text = "".join(event[2] for event in events)
+        self.assertIn("VISIBLE-ONE", text)
+        self.assertIn("VISIBLE-TWO", text)
+        self.assertNotIn("SECRET", text)
+        # Nothing was cleared while hidden, so the reader's screen is still
+        # the terminal's screen and the recorder says nothing about it.
+        self.assertNotIn(pty_session.ERASE_SCREEN, text)
+
+    def test_a_hidden_clear_hands_back_the_screen_it_left(self):
+        """A hidden `clear` reaches the cast as a reset plus what survived it.
+
+        Sixty of the tapes' sixty-one hidden regions end in a `clear`, or in a
+        card whose script starts with one, so a reader whose screen kept the
+        section before it would read the whole demo through the setup it was
+        never meant to see. The reset says the screen was thrown away, and what
+        the terminal painted AFTER it is the screen the reader resumes on: the
+        shell prompt, in every tape that ends its hidden region with `clear`.
+        Output erased BEFORE the reset is the setup, and it stays out (AC-2).
+
+        Phase 3 of the spec measured the alternative. With the reset alone,
+        `cli-dashboard` showed `sshpass -e ssh ze-demo` typed onto a bare line,
+        where the transcript and the video it replaces both show it behind the
+        prompt the clear painted, and the transcript gate failed on it.
+        """
+        _, events = self.record(
+            self.PROLOGUE + 'Type "echo VISIBLE-ONE"\n'
+            "Enter\n"
+            "Wait+Screen /VISIBLE-ONE/\n"
+            "Hide\n"
+            'Type "echo SECRET-TEXT"\n'
+            "Enter\n"
+            "Type \"clear; printf 'SCREEN-KEPT'\"\n"
+            "Enter\n"
+            "Sleep 500ms\n"
+            "Show\n"
+            'Type "echo VISIBLE-TWO"\n'
+            "Enter\n"
+            "Wait+Screen /VISIBLE-TWO/\n"
+        )
+
+        text = "".join(event[2] for event in events)
+        # Everything the clear erased is gone, the command that produced it
+        # included: the typed line was echoed before the screen was thrown away.
+        self.assertNotIn("SECRET", text)
+        self.assertNotIn("clear;", text)
+        reset = text.index(pty_session.ERASE_SCREEN)
+        self.assertLess(text.index("VISIBLE-ONE"), reset)
+        self.assertLess(reset, text.index("VISIBLE-TWO"))
+        # What the terminal painted after the clear is on the screen the reader
+        # is handed back, and it arrives with the reset rather than later.
+        self.assertIn("SCREEN-KEPT", text)
+        self.assertLess(reset, text.index("SCREEN-KEPT"))
+        self.assertLess(text.index("SCREEN-KEPT"), text.index("VISIBLE-TWO"))
+
+    def test_hidden_region_rebases_the_clock(self):
+        """AC-3: a hidden region leaves neither a gap nor a rewind behind it.
+
+        The tape hides for four seconds and does almost nothing else, so a
+        recorder that merely stopped writing would leave a four-second gap in
+        the middle and a four-second tail on the end. Both are asserted away.
+        """
+        _, events = self.record(
+            self.PROLOGUE + 'Type "echo BEFORE-HIDE"\n'
+            "Enter\n"
+            "Wait+Screen /BEFORE-HIDE/\n"
+            "Hide\n"
+            "Sleep 4s\n"
+            "Show\n"
+            'Type "echo AFTER-HIDE"\n'
+            "Enter\n"
+            "Wait+Screen /AFTER-HIDE/\n"
+        )
+
+        times = [event[0] for event in events]
+        self.assertGreater(len(times), 2, events)
+        self.assertEqual(times, sorted(times))
+        self.assertGreaterEqual(times[0], 0.0)
+        gaps = [later - earlier for earlier, later in zip(times, times[1:])]
+        self.assertLess(max(gaps), 1.0, times)
+        self.assertLess(times[-1], 2.5, times)
+
+    def test_cast_header_carries_tape_dimensions(self):
+        """AC-4: the cast's grid is the tape's box, and the terminal is that grid.
+
+        `stty size` is answered by the terminal the recorder opened, so the two
+        halves are checked against each other: a header that agreed with the
+        tape while the shell painted into a different grid would still wrap
+        every line at the wrong column.
+        """
+        header, events = self.record(
+            self.PROLOGUE + 'Type "stty size"\nEnter\nWait+Screen /36 137/\n'
+        )
+        self.assertEqual((header["width"], header["height"]), (137, 36))
+        self.assertEqual(header["version"], 2)
+        self.assertIn("36 137", "".join(event[2] for event in events))
+
+        # A second box, so the grid is derived from the tape rather than fixed.
+        header, events = self.record(
+            self.PROLOGUE + "Set Width 800\n"
+            "Set Height 480\n"
+            'Type "stty size"\n'
+            "Enter\n"
+            "Wait+Screen /16 63/\n"
+        )
+        self.assertEqual((header["width"], header["height"]), (63, 16))
+        self.assertIn("16 63", "".join(event[2] for event in events))
+
+        # A box of no pixels has no grid, and is refused rather than rounded
+        # up to one column (the spec's boundary table).
+        with self.assertRaises(pty_session.TapeError) as raised:
+            self.parse(self.PROLOGUE + "Set Width 0\n")
+        self.assertIn("Width", str(raised.exception))
+
+
+class TranscriptGateTest(unittest.TestCase):
+    """AC-5, R-10: the gate on the engine, and the clock the artifact stores.
+
+    The transcript is the one description of a demo that the recorder did not
+    produce, so it is the only thing in the tree that can tell a faithful
+    re-drive from a drifted one (A-4). These tests drive `_render_demo` itself
+    rather than the gate alone: a gate that is never called is the failure this
+    spec is most exposed to, because a render that publishes a wrong cast looks
+    exactly like a render that publishes a right one.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = pathlib.Path(self.tmp.name)
+        self.demo_root = self.root / "demos" / "terminal"
+        (self.demo_root / "example").mkdir(parents=True)
+        (self.demo_root / "common.tape").write_text(
+            'Set Shell "bash"\nSet TypingSpeed 125ms\n', encoding="utf-8"
+        )
+        (self.demo_root / "example" / "demo.tape").write_text(
+            "Output artifacts/example.webm\nSource common.tape\nSleep 10s\n",
+            encoding="utf-8",
+        )
+        for name in (
+            "cards.sh",
+            "Dockerfile",
+            "container-entrypoint.sh",
+            "demo-lock.sh",
+            "validate-common.sh",
+            "pty-session.py",
+            "render.py",
+        ):
+            (self.demo_root / name).write_text(name, encoding="utf-8")
+        self.binary = self.root / "tmp" / "terminal-demos" / "bin" / "ze"
+        self.binary.parent.mkdir(parents=True)
+        self.binary.write_text("ze", encoding="utf-8")
+        self.artifact_root = self.root / "gh-pages" / "assets" / "demos"
+        self.artifact_root.mkdir(parents=True)
+        patch = mock.patch.multiple(
+            terminal_render,
+            ROOT=self.root,
+            DEMO_ROOT=self.demo_root,
+            ARTIFACT_ROOT=self.artifact_root,
+            ARTIFACT_MANIFEST_PATH=self.artifact_root / "manifest.json",
+            BINARY_PATH=self.binary,
+            SHARED_SOURCE_PATHS=(self.demo_root / "common.tape",),
+        )
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.demo = {"id": "example", "kind": "terminal", "source": "example/demo.tape"}
+        self.renderer = {
+            "name": "ze-demo",
+            "version": "2",
+            "image": "ze-terminal-demo-render-all:test",
+            "platform": "linux/native",
+        }
+
+    def write_cast(self, painted, *, columns=137, rows=36, step=0.5):
+        """Write the cast the container would have produced.
+
+        `painted` is what the terminal shows, one entry per painted run, and
+        each entry becomes one event ending in the CRLF a PTY writes.
+        """
+        lines = [json.dumps({"version": 2, "width": columns, "height": rows})]
+        for index, text in enumerate(painted, start=1):
+            lines.append(json.dumps([round(index * step, 6), "o", text + "\r\n"]))
+        path = self.artifact_root / "example.cast"
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return path
+
+    def transcript(self, text):
+        path = self.demo_root / "example" / "transcript.txt"
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def render(self, painted, **kwargs):
+        """Run `_render_demo` with the container replaced by a written cast."""
+
+        def fake_run(command, cwd=None, check=None):
+            self.write_cast(painted, **kwargs)
+
+        with mock.patch.object(terminal_render.subprocess, "run", fake_run):
+            return terminal_render._render_demo(
+                {"renderer": self.renderer}, self.demo, "test"
+            )
+
+    def test_transcript_mismatch_fails_the_render(self):
+        """AC-5: a cast that does not show the claimed session publishes nothing."""
+        self.transcript(
+            "An operator checks the build.\n"
+            "\n"
+            "$ ze show version\n"
+            "The version banner names the release.\n"
+        )
+        with self.assertRaises(RuntimeError) as raised:
+            self.render(["$ ze show config", "running-config is empty", "$ "])
+
+        message = str(raised.exception)
+        self.assertIn("example", message)
+        self.assertIn("transcript.txt:3", message)
+        self.assertIn("ze show version", message)
+        # Nothing published: no cast and no transcript in the artifact tree,
+        # and the recording is where the next reader can still see it.
+        self.assertFalse((self.artifact_root / "example.cast").exists())
+        self.assertFalse((self.artifact_root / "example.txt").exists())
+        self.assertTrue(
+            (
+                self.root / "tmp" / "terminal-demos" / "rejected" / "example.cast"
+            ).is_file()
+        )
+
+    def test_a_faithful_cast_passes_the_render(self):
+        """The other half of AC-5: the gate accepts the session it describes.
+
+        Without this the gate could be a function that always raises, and the
+        test above would still be green.
+        """
+        self.transcript("$ ze show version\nThe version banner names the release.\n")
+        entry = self.render(["$ ze show version", "ze 1.0.0", "$ "])
+        self.assertEqual(sorted(entry["assets"]), ["cast", "transcript"])
+        self.assertTrue((self.artifact_root / "example.cast").is_file())
+
+    def test_the_gate_reads_through_the_escape_sequences(self):
+        """The visible-text rule: colour and cursor moves are not text.
+
+        A recorded terminal wraps almost every line in SGR sequences, so a gate
+        that compared raw payloads would fail every real demo.
+        """
+        self.transcript("$ ze show version\n")
+        self.render(
+            [
+                "\x1b[?25l\x1b[1;1H$ \x1b[32mze show version\x1b[0m\x1b[?25h",
+                "\x1b[38;5;213mze 1.0.0\x1b[m",
+            ]
+        )
+        visible = terminal_render.cast_visible_text(self.artifact_root / "example.cast")
+        self.assertIn("$ ze show version", visible)
+        self.assertIn("ze 1.0.0", visible)
+
+    def test_commands_shown_out_of_order_fail_the_gate(self):
+        """Order is gated, not only presence.
+
+        Both commands are in the recording, so a containment check would pass.
+        A demo whose steps happen in the wrong order shows the reader a
+        different session from the one the transcript describes.
+        """
+        self.transcript("$ ze config validate\n$ ze config commit\n")
+        with self.assertRaises(RuntimeError) as raised:
+            self.render(["$ ze config commit", "$ ze config validate"])
+        self.assertIn("ze config commit", str(raised.exception))
+
+    def test_a_transcript_quoting_no_command_fails_the_render(self):
+        """A gate with nothing to check must say so rather than pass.
+
+        A transcript that is all narration would make the gate vacuous for that
+        demo, silently, and vacuity is exactly what AC-5 exists to prevent.
+        """
+        self.transcript("The dashboard polls three local BGP sessions.\n")
+        with self.assertRaises(RuntimeError) as raised:
+            self.render(["$ ze show version"])
+        self.assertIn("gates nothing", str(raised.exception))
+
+    def test_the_stored_cast_is_paced_in_real_time(self):
+        """R-10: the capture is accelerated and the artifact is not.
+
+        The tape is driven with its sleeps divided by RENDER_SPEEDUP and its
+        typing set to the same fraction (125ms / 5 = 25ms), so ONE factor
+        describes the whole capture and multiplying the timeline by it restores
+        the timing the tape states. A cast has no ffmpeg pass to do that, which
+        is the defect this asserts against: an unscaled cast replays every
+        pause five times too fast.
+        """
+        self.transcript("$ ze show version\n")
+        self.render(["$ ze show version", "ze 1.0.0"], step=1.0)
+        events = [
+            json.loads(line)
+            for line in (self.artifact_root / "example.cast")
+            .read_text(encoding="utf-8")
+            .splitlines()[1:]
+        ]
+        self.assertEqual([event[0] for event in events], [5.0, 10.0])
+
+    def test_a_real_time_demo_keeps_the_clock_it_recorded(self):
+        """A demo that captured at wall-clock speed is not stretched.
+
+        `capture_speedup` returns 1 for it, and the tape it drove was the
+        checked-in one, so its timestamps are already the tape's own.
+        """
+        self.demo["realtime"] = True
+        self.transcript("$ ze show version\n")
+        self.render(["$ ze show version", "ze 1.0.0"], step=1.0)
+        events = [
+            json.loads(line)
+            for line in (self.artifact_root / "example.cast")
+            .read_text(encoding="utf-8")
+            .splitlines()[1:]
+        ]
+        self.assertEqual([event[0] for event in events], [1.0, 2.0])
+
+    def test_expanding_a_cast_leaves_its_header_alone(self):
+        """The grid and the version are not a clock.
+
+        The header is what the player sizes the terminal from, and the artifact
+        is committed (D-1), so a pass that rewrote it would move bytes nobody
+        asked to move.
+        """
+        cast = self.write_cast(["$ ze show version"])
+        header = cast.read_text(encoding="utf-8").splitlines()[0]
+        terminal_render.expand_cast_timeline(cast, 5)
+        self.assertEqual(cast.read_text(encoding="utf-8").splitlines()[0], header)
+
+
+class ScreenTest(unittest.TestCase):
+    """`screen.py`: the difference between a byte stream and a screen.
+
+    Every case here is a sequence a Ze demo actually emits, and every one of
+    them was found by a render that failed against it. The recorder searches
+    `text` for a tape's `Wait+Screen`, and the transcript gate searches
+    `painted` for what a reader was shown, so a mechanism missing here is a
+    demo that cannot be recorded or a gate that cannot see it.
+    """
+
+    def paint(self, *bursts, height=36, width=137):
+        painted = terminal_screen.Screen(height, width)
+        for burst in bursts:
+            painted.settle(burst)
+        return painted
+
+    def test_an_inline_completion_leaves_the_typed_text(self):
+        """The Ze CLI editor's ghost completion, one keystroke at a time.
+
+        Typing "m" emits "m", the dim completion "onitor", an erase to the end
+        of the line, and a cursor move back over the completion. The stream
+        holds "monitoronit..."; the screen holds what was typed.
+        """
+        bursts = []
+        typed = "monitor"
+        for index, character in enumerate(typed):
+            ghost = typed[index + 1 :]
+            bursts.append(f"\x1b[36;{5 + index}H{character}{ghost}\x1b[K")
+        screen = self.paint("\x1b[36;1Hze> ", *bursts)
+        self.assertIn("ze> monitor", screen.text())
+
+    def test_a_scrolling_region_leaves_the_rows_outside_it(self):
+        """`CSI 6;32r` then `CSI 7S`: the editor scrolls its answer, not itself.
+
+        `zefs-config` sets a region over the answer area and scrolls inside it.
+        A scroll of the whole screen carries the status line and the prompt off
+        with it, and every absolute write afterwards lands on the wrong row.
+        """
+        screen = self.paint(
+            "\x1b[10;1Hanswer\x1b[34;1Hstatus\x1b[36;1Hze# commit",
+            "\x1b[6;32r\x1b[32;1H\x1b[7S\x1b[1;36r",
+        )
+        rows = screen.text().splitlines()
+        self.assertIn("status", rows)
+        self.assertIn("ze# commit", rows)
+        self.assertNotIn("answer", rows)
+
+    def test_a_deleted_line_pulls_the_rest_up(self):
+        """`CSI M`: how the launcher removes a row from its filtered list."""
+        screen = self.paint("\x1b[1;1Hone\r\ntwo\r\nthree", "\x1b[2;1H\x1b[M")
+        self.assertEqual(screen.text().splitlines(), ["one", "three"])
+
+    def test_reverse_index_moves_up_a_row(self):
+        """`ESC M`: how the launcher rewrites the line above the cursor."""
+        screen = self.paint("\x1b[1;1Hone\r\ntwo", "\x1bM\rONE")
+        self.assertEqual(screen.text().splitlines(), ["ONE", "two"])
+
+    def test_the_screen_keeps_the_blanks_to_its_right_edge(self):
+        """Six tapes wait for `/\\$ /`, and the container prompt is `$ `.
+
+        A row stripped of its trailing blanks holds `$`, and those six waits
+        time out against a screen that shows the prompt.
+        """
+        self.assertIn("$ ", self.paint("\x1b[1;1H$ ").text())
+
+    def test_a_row_repainted_where_it_stands_reaches_the_history(self):
+        """The gate's half: what the cursor never leaves is still shown.
+
+        The Ze editor replaces `ze# commit` with the answer to it without the
+        cursor going anywhere, so nothing but the settle between two bursts
+        records that the reader saw the command.
+        """
+        # No erase and no cursor move off the row: the second burst simply
+        # writes over the first. Only the settle between them can see it.
+        screen = self.paint("\x1b[36;1Hze# commit", "\x1b[36;1Hze# ......")
+        self.assertIn("ze# commit", screen.painted())
+
+    def test_a_line_wider_than_the_screen_is_read_as_two(self):
+        """A terminal wraps at its width, and so does the player replaying it.
+
+        `zefs-config` paints a 265-column table row into a 137-column terminal.
+        A model that let the line run holds one line where the reader read two.
+        """
+        screen = self.paint("\x1b[1;1H" + "x" * 200)
+        self.assertEqual([len(row) for row in screen.text().splitlines()], [137, 63])
+
+    def test_a_row_that_scrolls_off_the_top_reaches_the_history(self):
+        """A transcript quotes commands from the whole session, not one screen."""
+        screen = self.paint(
+            "\x1b[1;1Hfirst", *[f"\x1b[{row};1Hrow{row}" for row in range(2, 40)]
+        )
+        self.assertIn("first", screen.painted())
+        self.assertNotIn("first", screen.text())
+
+
+class ManifestDurationTest(unittest.TestCase):
+    """The manifest states a duration only for a demo that records no cast.
+
+    VALIDATES: a cast carries its own running time, so the page reads the
+    number off the artifact instead of off the manifest
+    (`website/tools/terminal_demos._load_catalog`).
+    PREVENTS: the second source of truth coming back. Four published durations
+    had already drifted from their recordings while the field was required of
+    every demo: `cli-dashboard` said 40 seconds against a 55.0s cast, and
+    `zefs-config` said 2 minutes 21 seconds against 200.3s.
+    """
+
+    def manifest(self):
+        return json.loads(terminal_render.MANIFEST_PATH.read_text())
+
+    def demo(self, manifest, kind):
+        for demo in manifest["demos"]:
+            if demo["kind"] == kind:
+                return demo
+        raise AssertionError(f"the manifest carries no {kind} demo")
+
+    def test_the_checked_in_manifest_is_accepted(self):
+        terminal_render.validate_contract(self.manifest())
+
+    def test_a_recorded_demo_may_not_state_a_duration(self):
+        manifest = self.manifest()
+        demo = self.demo(manifest, "terminal")
+        demo["duration"] = "40 seconds"
+
+        with self.assertRaises(ValueError) as raised:
+            terminal_render.validate_contract(manifest)
+
+        self.assertIn(f"{demo['id']}.duration", str(raised.exception))
+
+    def test_a_demo_with_no_cast_still_states_its_duration(self):
+        manifest = self.manifest()
+        demo = self.demo(manifest, "browser")
+        del demo["duration"]
+
+        with self.assertRaises(ValueError) as raised:
+            terminal_render.validate_contract(manifest)
+
+        self.assertIn(f"{demo['id']}.duration is required", str(raised.exception))
 
 
 if __name__ == "__main__":
