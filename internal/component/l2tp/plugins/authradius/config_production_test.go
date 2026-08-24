@@ -5,10 +5,11 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/l2tp/plugins/authradius/yang"
+	"github.com/ze-software/ze/internal/core/configorder"
 )
 
 // TestParseConfigProductionTreeShape verifies the parser accepts the exact
-// map shape produced by the real File -> Tree -> Tree.ToMap() pipeline, which
+// map shape produced by the real File -> Tree -> Tree.ToPluginMap() pipeline, which
 // is what both `ze doctor` (in-process verify) and runtime configure deliver.
 //
 // In that shape a YANG keyed list ("server <name> {...}") becomes a
@@ -38,7 +39,7 @@ func TestParseConfigProductionTreeShape(t *testing.T) {
 		t.Fatalf("parse tree: %v", err)
 	}
 
-	parsed, err := parseConfigFromTree(tree.ToMap())
+	parsed, err := parseConfigFromTree(tree.ToPluginMap())
 	if err != nil {
 		t.Fatalf("parseConfigFromTree on production shape: %v", err)
 	}
@@ -60,7 +61,7 @@ func TestParseConfigProductionTreeShape(t *testing.T) {
 }
 
 // TestParseConfigCoAPortProductionPath verifies `coa-port` survives the real
-// File -> Tree -> Tree.ToMap() pipeline and reaches Config.CoAPort.
+// File -> Tree -> Tree.ToPluginMap() pipeline and reaches Config.CoAPort.
 //
 // VALIDATES: an operator writing `coa-port 3799` in a real config file gets a
 // Config whose CoAPort is 3799, which is the sole gate on the CoA listener
@@ -88,7 +89,7 @@ func TestParseConfigCoAPortProductionPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse tree with coa-port: %v", err)
 	}
-	parsed, err := parseConfigFromTree(tree.ToMap())
+	parsed, err := parseConfigFromTree(tree.ToPluginMap())
 	if err != nil {
 		t.Fatalf("parseConfigFromTree: %v", err)
 	}
@@ -124,7 +125,7 @@ func TestParseConfigCoAPortAbsentDisablesListener(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse tree: %v", err)
 	}
-	parsed, err := parseConfigFromTree(tree.ToMap())
+	parsed, err := parseConfigFromTree(tree.ToPluginMap())
 	if err != nil {
 		t.Fatalf("parseConfigFromTree: %v", err)
 	}
@@ -181,8 +182,14 @@ func TestParseConfigCoAPortBounds(t *testing.T) {
 
 // TestParseConfigKeyedServerMap verifies the keyed-list map shape directly
 // (multiple servers keyed by name, scalars as strings), independent of the
-// config parser. Order must be deterministic (sorted by name) for predictable
-// failover.
+// config parser.
+//
+// The failover order is the operator's, not the alphabet's. This test used to
+// assert the opposite -- "sorted by name for predictable failover" -- which
+// pinned the defect rather than the requirement: sorting IS deterministic, and
+// it still made the operator's primary whichever name sorted first. The fixture
+// now writes radius2 first, so the two orders disagree and only the right one
+// passes.
 func TestParseConfigKeyedServerMap(t *testing.T) {
 	tree := map[string]any{
 		"l2tp": map[string]any{
@@ -200,6 +207,7 @@ func TestParseConfigKeyedServerMap(t *testing.T) {
 							"shared-key": "s1",
 						},
 					},
+					configorder.OrderKey("server"): []string{"radius2", "radius1"},
 				},
 			},
 		},
@@ -211,14 +219,81 @@ func TestParseConfigKeyedServerMap(t *testing.T) {
 	if len(parsed.Servers) != 2 {
 		t.Fatalf("servers: got %d, want 2", len(parsed.Servers))
 	}
-	// Sorted by name: radius1 first, radius2 second.
-	if parsed.Servers[0].Address != "10.0.0.1:1812" {
-		t.Errorf("server[0] address: got %q, want %q", parsed.Servers[0].Address, "10.0.0.1:1812")
+	// As the operator wrote them: radius2 first, radius1 second.
+	if parsed.Servers[0].Address != "10.0.0.2:1813" {
+		t.Errorf("server[0] address: got %q, want %q", parsed.Servers[0].Address, "10.0.0.2:1813")
 	}
-	if parsed.Servers[1].Address != "10.0.0.2:1813" {
-		t.Errorf("server[1] address: got %q, want %q", parsed.Servers[1].Address, "10.0.0.2:1813")
+	if parsed.Servers[1].Address != "10.0.0.1:1812" {
+		t.Errorf("server[1] address: got %q, want %q", parsed.Servers[1].Address, "10.0.0.1:1812")
 	}
 	if parsed.Timeout.Seconds() != 5 {
 		t.Errorf("timeout: got %v, want 5s", parsed.Timeout)
+	}
+}
+
+// TestParseConfigProductionTwoServersKeepsTheOperatorOrder drives the whole
+// production pipeline -- config text, Tree, ToPluginMap, parse -- with two
+// RADIUS servers written in a non-alphabetical order.
+//
+// VALIDATES: AC-5 end to end. The failover order an operator writes is the
+// failover order the RADIUS client gets, with nothing hand-built in between.
+// PREVENTS: a fix that works on a fixture and not on the daemon. Every other
+// test in this file uses one server, which cannot tell an ordered reader from
+// an unordered one.
+func TestParseConfigProductionTwoServersKeepsTheOperatorOrder(t *testing.T) {
+	cfg := `l2tp {
+    enabled true
+    auth {
+        radius {
+            server zurich {
+                address 10.0.0.2
+                shared-key testing123
+            }
+            server amsterdam {
+                address 10.0.0.1
+                shared-key testing123
+            }
+        }
+    }
+}`
+	tree, err := config.ParseTreeWithYANG(cfg, map[string]string{
+		"l2tp-auth-radius": yang.ZeL2TPAuthRadiusConfYANG,
+	})
+	if err != nil {
+		t.Fatalf("parse tree: %v", err)
+	}
+
+	lowered := tree.ToPluginMap()
+	parsed, err := parseConfigFromTree(lowered)
+	if err != nil {
+		t.Fatalf("parseConfigFromTree on production shape: %v", err)
+	}
+	if len(parsed.Servers) != 2 {
+		t.Fatalf("servers: got %d, want 2", len(parsed.Servers))
+	}
+	if parsed.Servers[0].Address != "10.0.0.2:1812" {
+		t.Errorf("primary server is %q, want the one written first (10.0.0.2:1812)", parsed.Servers[0].Address)
+	}
+	if parsed.Servers[1].Address != "10.0.0.1:1812" {
+		t.Errorf("secondary server is %q, want 10.0.0.1:1812", parsed.Servers[1].Address)
+	}
+
+	// The lowering, not the reader, is what carries the order: assert the key
+	// is actually in the payload, so a reader that guessed right would not pass
+	// this test by accident.
+	l2tpBlock, ok := lowered["l2tp"].(map[string]any)
+	if !ok {
+		t.Fatalf("lowered l2tp is %T, want a container", lowered["l2tp"])
+	}
+	authBlock, ok := l2tpBlock["auth"].(map[string]any)
+	if !ok {
+		t.Fatalf("lowered auth is %T, want a container", l2tpBlock["auth"])
+	}
+	radiusBlock, ok := authBlock["radius"].(map[string]any)
+	if !ok {
+		t.Fatalf("lowered radius is %T, want a container", authBlock["radius"])
+	}
+	if _, ok := radiusBlock[configorder.OrderKey("server")]; !ok {
+		t.Error("the lowered config carries no server order")
 	}
 }

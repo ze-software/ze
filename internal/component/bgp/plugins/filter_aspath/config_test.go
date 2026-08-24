@@ -3,6 +3,8 @@ package filter_aspath
 import (
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/configorder"
 )
 
 // VALIDATES: AC-9 -- Invalid regex in config rejected at parse time.
@@ -76,7 +78,8 @@ func TestParseOneASPathEntry(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseOneASPathEntry("test-list", tt.in)
+			keyStr, _ := tt.in["regex"].(string)
+			got, err := parseOneASPathEntry("test-list", keyStr, tt.in)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error containing %q, got nil", tt.errSubstr)
@@ -188,8 +191,8 @@ func TestParseAsPathLists_MultiEntryMapFormRejected(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for multi-entry map form, got nil")
 	}
-	if !strings.Contains(err.Error(), "would lose order") {
-		t.Errorf("error %q does not mention order loss", err.Error())
+	if !strings.Contains(err.Error(), "no order") {
+		t.Errorf("error %q does not say the order was missing", err.Error())
 	}
 }
 
@@ -226,5 +229,61 @@ func TestParseAsPathLists_NoPolicyBlock(t *testing.T) {
 	}
 	if len(lists) != 0 {
 		t.Errorf("expected empty map, got %d entries", len(lists))
+	}
+}
+
+// TestParseAsPathListsTwoEntriesInNonLexicalOrder loads a two-entry
+// as-path-list, then loads the same two entries in the opposite order.
+//
+// VALIDATES: AC-3. An as-path-list of two or more entries loads, and the entry
+// the operator wrote first is the one evaluated first.
+// PREVENTS: the reported defect on this reader. `^65001` sorts before `^`, so
+// the two orderings differ from the alphabet in opposite directions and a
+// reader that sorted the keys would return the same answer for both rows.
+func TestParseAsPathListsTwoEntriesInNonLexicalOrder(t *testing.T) {
+	list := func(order []string) map[string]any {
+		return map[string]any{
+			"policy": map[string]any{
+				"as-path-list": map[string]any{
+					"ORDERED": map[string]any{
+						"name": "ORDERED",
+						"entry": map[string]any{
+							`^65001`: map[string]any{"action": "reject"},
+							`^`:      map[string]any{"action": "accept"},
+						},
+						configorder.OrderKey("entry"): order,
+					},
+				},
+			},
+		}
+	}
+
+	for _, tc := range []struct {
+		name       string
+		order      []string
+		wantAction action
+	}{
+		{"specific entry written first", []string{`^65001`, `^`}, actionReject},
+		{"catch-all written first", []string{`^`, `^65001`}, actionAccept},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			lists, err := parseAsPathLists(list(tc.order))
+			if err != nil {
+				t.Fatalf("parseAsPathLists: %v", err)
+			}
+			ordered, ok := lists["ORDERED"]
+			if !ok {
+				t.Fatal("ORDERED list missing")
+			}
+			if len(ordered.entries) != 2 {
+				t.Fatalf("got %d entries, want 2", len(ordered.entries))
+			}
+			if ordered.entries[0].action != tc.wantAction {
+				t.Errorf("first entry action is %v, want %v", ordered.entries[0].action, tc.wantAction)
+			}
+			if got := ordered.entries[0].regex.String(); got != tc.order[0] {
+				t.Errorf("first entry regex is %q, want %q", got, tc.order[0])
+			}
+		})
 	}
 }

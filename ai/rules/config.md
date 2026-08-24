@@ -425,6 +425,18 @@ alphabetically.
 | `configvalue.ListEntries` | a list whose evaluation does not depend on order | entries sorted by key |
 | `configorder.Entries` | a list declared `ordered-by user` | entries in the operator's order, or an error |
 
+**An `ordered-by user` list whose order is RECOVERABLE FROM THE ENTRY DATA is
+the one exception, and such a reader MUST sort on that data rather than reach
+for `configorder.Entries`.** The delivered position would be a second spelling
+of a fact the entry already carries, and two spellings of one fact disagree.
+Two exist and both are named here, so a reader can tell a permitted sort from a
+rediscovered one.
+
+| Permitted sort | What carries the order |
+|----------------|------------------------|
+| `parseERO` (`internal/plugins/rsvpte/register.go`) | the list KEY is the numeric hop index, so sorting by key sorts by the operator's order |
+| `parsePolicyRoute` (`internal/plugins/policyroute/config.go`) | each rule carries an explicit `order` leaf the operator writes |
+
 **The order is carried by the LOWERING, so a plugin's config MUST be lowered
 with `Tree.ToPluginMap` and MUST NOT be lowered with `Tree.ToMap`.**
 `ToPluginMap` emits the entry order of every list holding two or more entries,

@@ -3,6 +3,8 @@ package filter_community_match
 import (
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/configorder"
 )
 
 // VALIDATES: Config parsing for community-match entries.
@@ -87,7 +89,8 @@ func TestParseOneCommunityEntry(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseOneCommunityEntry("test-list", tt.in)
+			keyStr, _ := tt.in["community"].(string)
+			got, err := parseOneCommunityEntry("test-list", keyStr, tt.in)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error containing %q, got nil", tt.errSubstr)
@@ -196,8 +199,8 @@ func TestParseCommunityLists_MultiEntryMapFormRejected(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for multi-entry map form, got nil")
 	}
-	if !strings.Contains(err.Error(), "would lose order") {
-		t.Errorf("error %q does not mention order loss", err.Error())
+	if !strings.Contains(err.Error(), "no order") {
+		t.Errorf("error %q does not say the order was missing", err.Error())
 	}
 }
 
@@ -234,5 +237,61 @@ func TestParseCommunityLists_NoPolicyBlock(t *testing.T) {
 	}
 	if len(lists) != 0 {
 		t.Errorf("expected empty map, got %d entries", len(lists))
+	}
+}
+
+// TestParseCommunityListsTwoEntriesInNonLexicalOrder loads a two-entry
+// community-match, then loads the same two entries in the opposite order.
+//
+// VALIDATES: AC-3. A community-match of two or more entries loads, and the
+// entry the operator wrote first is the one evaluated first.
+// PREVENTS: the reported defect on this reader. The two keys are in the
+// opposite order to the alphabet, so a reader that sorted them would return the
+// same answer for both rows.
+func TestParseCommunityListsTwoEntriesInNonLexicalOrder(t *testing.T) {
+	list := func(order []string) map[string]any {
+		return map[string]any{
+			"policy": map[string]any{
+				"community-match": map[string]any{
+					"ORDERED": map[string]any{
+						"name": "ORDERED",
+						"entry": map[string]any{
+							"65001:200": map[string]any{"action": "reject"},
+							"65001:100": map[string]any{"action": "accept"},
+						},
+						configorder.OrderKey("entry"): order,
+					},
+				},
+			},
+		}
+	}
+
+	for _, tc := range []struct {
+		name       string
+		order      []string
+		wantAction action
+	}{
+		{"reject entry written first", []string{"65001:200", "65001:100"}, actionReject},
+		{"accept entry written first", []string{"65001:100", "65001:200"}, actionAccept},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			lists, err := parseCommunityLists(list(tc.order))
+			if err != nil {
+				t.Fatalf("parseCommunityLists: %v", err)
+			}
+			ordered, ok := lists["ORDERED"]
+			if !ok {
+				t.Fatal("ORDERED list missing")
+			}
+			if len(ordered.entries) != 2 {
+				t.Fatalf("got %d entries, want 2", len(ordered.entries))
+			}
+			if ordered.entries[0].action != tc.wantAction {
+				t.Errorf("first entry action is %v, want %v", ordered.entries[0].action, tc.wantAction)
+			}
+			if ordered.entries[0].community != tc.order[0] {
+				t.Errorf("first entry community is %q, want %q", ordered.entries[0].community, tc.order[0])
+			}
+		})
 	}
 }

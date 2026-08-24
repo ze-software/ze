@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/configorder"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -48,11 +49,15 @@ func VerifyPluginConfigContentTransition(previous, candidate string) error {
 // VerifyPluginConfig runs side-effect-free in-process verifiers for plugins
 // whose config roots are present in the candidate tree. Live external plugin
 // OnConfigVerify callbacks participate only in daemon reload/commit.
+//
+// It lowers with ToPluginMap, not ToMap, so a verifier reads the payload the
+// configure callback will read. A verifier handed a list with no order would
+// refuse a config the daemon then loads, or accept one the daemon then refuses.
 func VerifyPluginConfig(tree *Tree) []error {
 	if tree == nil {
 		return nil
 	}
-	return VerifyPluginConfigMap(tree.ToMap())
+	return VerifyPluginConfigMap(tree.ToPluginMap())
 }
 
 // VerifyPluginConfigTransition is VerifyPluginConfig with deletion awareness.
@@ -61,11 +66,11 @@ func VerifyPluginConfig(tree *Tree) []error {
 func VerifyPluginConfigTransition(previous, candidate *Tree) []error {
 	var oldMap map[string]any
 	if previous != nil {
-		oldMap = previous.ToMap()
+		oldMap = previous.ToPluginMap()
 	}
 	var newMap map[string]any
 	if candidate != nil {
-		newMap = candidate.ToMap()
+		newMap = candidate.ToPluginMap()
 	}
 	return VerifyPluginConfigMapTransition(oldMap, newMap)
 }
@@ -159,6 +164,13 @@ func BuildPluginConfigSections(configTree map[string]any, roots []string) ([]rpc
 
 // ExtractConfigSubtree extracts a subtree from configTree and wraps it in its
 // full path, matching the runtime plugin server's ConfigSection shape.
+//
+// When the extracted node is itself a list whose order was lowered
+// (Tree.ToPluginMap), the order travels with it. The order of a list lives
+// beside the list rather than inside it, so extracting the list alone would
+// leave the order behind in the parent and hand the plugin a multi-entry list
+// it has to refuse. Every list NESTED in the extracted subtree already carries
+// its own order, because the subtree carries the container that holds both.
 func ExtractConfigSubtree(configTree map[string]any, path string) any {
 	if path == "*" {
 		return configTree
@@ -169,20 +181,28 @@ func ExtractConfigSubtree(configTree map[string]any, path string) any {
 		return configTree
 	}
 
+	var parent map[string]any
 	var current any = configTree
 	for _, part := range parts {
 		m, ok := current.(map[string]any)
 		if !ok {
 			return nil
 		}
+		parent = m
 		current = m[part]
 		if current == nil {
 			return nil
 		}
 	}
 
-	result := current
-	for i := len(parts) - 1; i >= 0; i-- {
+	leaf := map[string]any{parts[len(parts)-1]: current}
+	orderKey := configorder.OrderKey(parts[len(parts)-1])
+	if order, ok := parent[orderKey]; ok {
+		leaf[orderKey] = order
+	}
+
+	var result any = leaf
+	for i := len(parts) - 2; i >= 0; i-- {
 		result = map[string]any{parts[i]: result}
 	}
 	return result

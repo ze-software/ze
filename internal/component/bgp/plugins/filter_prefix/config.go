@@ -10,12 +10,18 @@
 // Each list becomes a *prefixList with ordered entries. ge defaults to the
 // prefix length of the entry; le defaults to 32 (IPv4) or 128 (IPv6); action
 // defaults to accept (matches the YANG default).
+//
+// The entry order is the operator's. It is delivered beside the list by
+// Tree.ToPluginMap and read by internal/core/configorder, because a Go map has
+// no order and first-match-wins depends on one.
 
 package filter_prefix
 
 import (
 	"fmt"
 	"net/netip"
+
+	"github.com/ze-software/ze/internal/core/configorder"
 )
 
 // parsePrefixLists walks bgp { policy { prefix-list ... } } and returns a
@@ -46,70 +52,42 @@ func parsePrefixLists(bgpCfg map[string]any) (map[string]*prefixList, error) {
 	return result, nil
 }
 
-// parsePrefixListEntries reads the inner entry list for one prefix-list.
-// Entries arrive as map[prefix]map[leaves...], which loses ordering. Order
-// is recovered by walking the entries in the slice form when the config
-// tree presents them as a list. The configjson layer presents YANG lists as
-// either map (when keyed-by-key) or []any (when explicit list); both are
-// handled here.
+// parsePrefixListEntries reads the inner entry list for one prefix-list, in
+// the order the operator wrote the entries.
+//
+// The `entry` list is `ordered-by user` (yang/ze-filter-prefix.yang) because
+// evaluation is first-match-wins, so configorder.Entries is the reader.
+// configvalue.ListEntries sorts by key, which would swap a reject entry and the
+// catch-all below it without a word.
+//
+// A list of two or more entries delivered with no order is still refused, by
+// configorder rather than here. That refusal is the guard that made this defect
+// loud instead of silent, and it stays.
 func parsePrefixListEntries(listName string, listMap map[string]any) ([]prefixEntry, error) {
-	rawEntries, ok := listMap["entry"]
-	if !ok {
-		return nil, nil
+	entries, err := configorder.Entries(listMap, "entry", "prefix")
+	if err != nil {
+		return nil, fmt.Errorf("prefix-list %q: %w", listName, err)
 	}
 
-	if entriesSlice, ok := rawEntries.([]any); ok {
-		out := make([]prefixEntry, 0, len(entriesSlice))
-		for _, item := range entriesSlice {
-			entryMap, ok := item.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("prefix-list %q: entry is not a map", listName)
-			}
-			e, err := parseOneEntry(listName, entryMap)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, e)
+	out := make([]prefixEntry, 0, len(entries))
+	for _, entry := range entries {
+		parsed, err := parseOneEntry(listName, entry.Key, entry.Map)
+		if err != nil {
+			return nil, err
 		}
-		return out, nil
+		out = append(out, parsed)
 	}
-
-	if entriesMap, ok := rawEntries.(map[string]any); ok {
-		// Keyed-by-prefix map. Order from a Go map is non-deterministic, so
-		// first-match-wins semantics are broken if there are multiple entries.
-		// Reject the map form for multi-entry lists; single-entry lists are
-		// fine because order does not matter. Callers that need multiple
-		// ordered entries MUST present the list (slice) form.
-		if len(entriesMap) > 1 {
-			return nil, fmt.Errorf("prefix-list %q: %d entries in map form would lose order (first-match-wins requires slice form)", listName, len(entriesMap))
-		}
-		out := make([]prefixEntry, 0, len(entriesMap))
-		for keyPrefix, item := range entriesMap {
-			entryMap, ok := item.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("prefix-list %q entry %q: not a map", listName, keyPrefix)
-			}
-			// If the entry map omits the prefix leaf, recover it from the key.
-			if _, has := entryMap["prefix"]; !has {
-				entryMap["prefix"] = keyPrefix
-			}
-			e, err := parseOneEntry(listName, entryMap)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, e)
-		}
-		return out, nil
-	}
-
-	return nil, fmt.Errorf("prefix-list %q: unexpected entry container type %T", listName, rawEntries)
+	return out, nil
 }
 
 // parseOneEntry reads a single entry's leaves into a prefixEntry, applying
 // YANG defaults for missing ge/le/action.
-func parseOneEntry(listName string, m map[string]any) (prefixEntry, error) {
-	prefixStr, ok := m["prefix"].(string)
-	if !ok || prefixStr == "" {
+//
+// prefixStr is the entry's key. It arrives as an argument because the delivered
+// map form keys the list by the prefix and omits the leaf from the entry, so
+// there is nothing in m to read it from (configorder.Entry).
+func parseOneEntry(listName, prefixStr string, m map[string]any) (prefixEntry, error) {
+	if prefixStr == "" {
 		return prefixEntry{}, fmt.Errorf("prefix-list %q: entry missing prefix leaf", listName)
 	}
 	pfx, err := netip.ParsePrefix(prefixStr)

@@ -12,6 +12,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/ze-software/ze/internal/core/configorder"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -953,8 +954,39 @@ func isValidInsertPosition(position string) bool {
 }
 
 // ToMap converts the Tree to a nested map[string]any suitable for JSON serialization.
-// Used for plugin config delivery - plugins receive config as JSON and extract what they need.
+//
+// This is the general-purpose lowering. gNMI Get and Subscribe, `ze config show`,
+// the web config handler, the support bundle and ValidateTreeAllModules all read
+// its output, so every key in it is a name the YANG schema declares. It carries
+// no entry order: a Go map has none, and none of those readers could take a key
+// that is not in the schema.
+//
+// ToPluginMap is the lowering for a plugin's config payload, and it is the one
+// that carries the order.
 func (t *Tree) ToMap() map[string]any {
+	return t.toMap(false)
+}
+
+// ToPluginMap converts the Tree to the nested map[string]any that a plugin
+// receives, which is ToMap plus the entry order of every list holding two or
+// more entries.
+//
+// The order travels beside its list, under configorder.OrderKey(listName), and
+// configorder.Entries is the reader. It is emitted for every such list rather
+// than only for the lists YANG declares `ordered-by user`, because no lowering
+// call site holds the schema and building one costs a full YANG load. A reader
+// that does not want the order never looks the key up.
+//
+// One entry needs no order, so a single-entry list is delivered exactly as
+// ToMap delivers it. That keeps the reserved key out of the payload for the
+// common case, and configorder.Entries answers a one-entry list without it.
+func (t *Tree) ToPluginMap() map[string]any {
+	return t.toMap(true)
+}
+
+// toMap is the one walker behind both lowerings. withListOrder decides whether
+// a multi-entry list is followed by its order.
+func (t *Tree) toMap(withListOrder bool) map[string]any {
 	if t == nil {
 		return nil
 	}
@@ -983,20 +1015,61 @@ func (t *Tree) ToMap() map[string]any {
 		}
 	}
 
-	// v.ToMap() locks v.mu separately.
+	// v.toMap() locks v.mu separately.
 	for k, v := range t.containers {
-		result[k] = v.ToMap()
+		result[k] = v.toMap(withListOrder)
 	}
 
 	for listName, entries := range t.lists {
 		listMap := make(map[string]any)
 		for key, tree := range entries {
-			listMap[key] = tree.ToMap()
+			listMap[key] = tree.toMap(withListOrder)
 		}
-		if len(listMap) > 0 {
-			result[listName] = listMap
+		if len(listMap) == 0 {
+			continue
+		}
+		result[listName] = listMap
+		if withListOrder && len(listMap) > 1 {
+			// A nil order is not an empty order: it means listOrder does not
+			// cover this list, so emitting nothing makes configorder.Entries
+			// refuse the list and name it. Emitting a partial or invented
+			// order would hand the reader a first-match-wins list in an order
+			// no operator wrote.
+			if order := t.entryOrderLocked(listName, listMap); order != nil {
+				result[configorder.OrderKey(listName)] = order
+			}
 		}
 	}
 
 	return result
+}
+
+// entryOrderLocked returns listName's entry keys in the order the operator
+// wrote them. listMap is the lowered list, and it decides which entries are in
+// the answer, so a key listOrder still names after its entry was removed is
+// left out.
+//
+// It returns nil when the recorded order does not account for every entry in
+// listMap. GetList hands out the live entry map, so a caller CAN add an entry
+// without going through AddListEntry and leave listOrder short. Completing the
+// answer here, by any rule, would invent an order the operator did not write
+// and the reader could not tell from a real one. Nil says "no order was
+// recorded", which is the one answer configorder.Entries refuses.
+//
+// Caller MUST hold t.mu.
+func (t *Tree) entryOrderLocked(listName string, listMap map[string]any) []string {
+	order := make([]string, 0, len(listMap))
+	seen := make(map[string]bool, len(listMap))
+
+	for _, key := range t.listOrder[listName] {
+		if _, ok := listMap[key]; !ok || seen[key] {
+			continue
+		}
+		seen[key] = true
+		order = append(order, key)
+	}
+	if len(order) != len(listMap) {
+		return nil
+	}
+	return order
 }

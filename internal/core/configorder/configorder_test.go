@@ -186,6 +186,10 @@ func TestEntriesToleratesAMalformedOrder(t *testing.T) {
 		{"names fewer entries than the list holds", []string{"10.0.0.0/8"}, "the list holds"},
 		{"is not a list of keys", "10.0.0.0/8", "want a list of entry keys"},
 		{"holds something that is not a key", []any{"10.0.0.0/8", 42}, "want a string"},
+		// The right LENGTH and the right MEMBERS, and still wrong: naming one
+		// entry twice leaves another unnamed, so a reader that only counts
+		// returns a duplicate and drops an entry without saying so.
+		{"names one entry twice", []string{"10.0.0.0/8", "10.0.0.0/8"}, "twice"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			container := twoEntryList()

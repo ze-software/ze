@@ -147,6 +147,33 @@ one encoding on every connection, so a plugin READS the record answer form of
 <!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, Stage 3 declare-capabilities -->
 <!-- source: internal/component/plugin/server/startup.go -- engineStartupSink -->
 
+**A list of two or more entries arrives with its order beside it.** A config
+section body is a JSON object, and a YANG list inside it is an object keyed by
+the list key. A JSON object states no order, so the order the operator wrote is
+delivered as a sibling key: the list name with an `@` prefix, holding the entry
+keys as a JSON array of strings. A YANG node name never starts with `@`, so the
+sidecar can never collide with a declared sibling.
+
+```json
+{"policy":{"prefix-list":{"ORDERED":{
+  "@entry":["10.0.0.0/8","0.0.0.0/0"],
+  "entry":{"0.0.0.0/0":{"action":"accept"},
+           "10.0.0.0/8":{"action":"reject"}}}}}}
+```
+
+The sidecar sits beside the list it orders, at whatever depth that list is.
+Here the operator declared one prefix-list, so `prefix-list` has one entry and
+no sidecar, and `entry` has two, so `@entry` rides beside it inside the named
+list. A second prefix-list would give `prefix-list` a sidecar of its own.
+
+A list of one entry carries no sidecar, because one entry has one order. A
+plugin that does not read the order ignores the key. A plugin that needs the
+order reads it with `configorder.Entries` (`internal/core/configorder`), which
+refuses a list of two or more entries that arrives with no order rather than
+substituting a sorted one.
+<!-- source: internal/core/configorder/configorder.go -- Entries, OrderKey -->
+<!-- source: internal/component/config/tree.go -- Tree.ToPluginMap -->
+
 **Timeout:** Each stage has a 5-second timeout (configurable via `stage-timeout` in plugin config).
 If any plugin fails to complete a stage, startup aborts for all plugins.
 

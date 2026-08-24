@@ -4,6 +4,8 @@ import (
 	"net/netip"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/configorder"
 )
 
 // VALIDATES: AC-11 "Config table name wan produces Table with Name ze_wan".
@@ -1521,5 +1523,110 @@ func TestParseAndValidateSourceASN(t *testing.T) {
 				t.Fatalf("ValidateTables rejected an IRR table term: %v", err)
 			}
 		})
+	}
+}
+
+// chainConfig builds one firewall config section holding a single base chain,
+// so the three term-order tests below share one skeleton. terms is the `term`
+// object and order is the JSON array delivered beside it, or "" for a section
+// that carries no order at all.
+func chainConfig(terms, order string) string {
+	chain := `"type":"filter","hook":"input","priority":"0","policy":"drop","term":` + terms
+	if order != "" {
+		chain += `,"` + configorder.OrderKey("term") + `":` + order
+	}
+	return `{"firewall":{"table":{"wan":{"family":"inet","chain":{"input":{` + chain + `}}}}}}`
+}
+
+// threeTermsJSON holds three terms whose alphabetical order (a-drop, m-log,
+// z-accept) matches neither ordering the test asks for, so no sort can pass.
+const threeTermsJSON = `{` +
+	`"z-accept":{"from":{"destination-port":"22"}},` +
+	`"a-drop":{"from":{"destination-port":"80"}},` +
+	`"m-log":{"from":{"destination-port":"443"}}}`
+
+// TestParseChainTermOrderFollowsTheOperator parses a chain of three terms
+// written in a non-alphabetical order, with the order delivered beside the
+// list, and parses it again with the order reversed.
+//
+// VALIDATES: AC-4. Chain terms reach the backend in the order the operator
+// wrote them. The backend emits one nft rule per term in slice order, so this
+// slice IS the rule evaluation order on a first-match-wins dataplane.
+// PREVENTS: the severe half of the ordered-list defect. parseChain used to
+// range the delivered Go map with no sort at all, so the rule order of every
+// firewall chain was whatever Go's randomized map iteration produced, and it
+// changed on every config load. A drop term written above an accept term would
+// silently swap places between one reload and the next.
+//
+// The names are chosen so no accident passes: alphabetical order is
+// a-drop, m-log, z-accept, and neither row asks for that.
+func TestParseChainTermOrderFollowsTheOperator(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		order string
+		want  []string
+	}{
+		{"as the operator wrote them", `["z-accept","a-drop","m-log"]`, []string{"z-accept", "a-drop", "m-log"}},
+		{"with the chain rewritten", `["m-log","z-accept","a-drop"]`, []string{"m-log", "z-accept", "a-drop"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tables, err := ParseFirewallConfig(chainConfig(threeTermsJSON, tc.order))
+			if err != nil {
+				t.Fatalf("ParseFirewallConfig: %v", err)
+			}
+			chain := tables[0].Chains[0]
+			if len(chain.Terms) != len(tc.want) {
+				t.Fatalf("got %d terms, want %d", len(chain.Terms), len(tc.want))
+			}
+			for i := range tc.want {
+				if chain.Terms[i].Name != tc.want[i] {
+					got := make([]string, len(chain.Terms))
+					for j := range chain.Terms {
+						got[j] = chain.Terms[j].Name
+					}
+					t.Fatalf("term order is %v, want %v", got, tc.want)
+				}
+			}
+		})
+	}
+}
+
+// TestParseChainRefusesTermsWithNoOrder parses a chain of two terms with no
+// order delivered beside them.
+//
+// VALIDATES: a multi-term chain whose order was not delivered is refused,
+// naming the chain.
+// PREVENTS: the silent failure returning. An arbitrary rule order on a
+// first-match-wins dataplane is worse than a config that does not load, so the
+// answer to a missing order is an error rather than a sort.
+func TestParseChainRefusesTermsWithNoOrder(t *testing.T) {
+	_, err := ParseFirewallConfig(chainConfig(
+		`{"a-drop":{"from":{"destination-port":"80"}},"z-accept":{"from":{"destination-port":"22"}}}`, ""))
+	if err == nil {
+		t.Fatal("a two-term chain with no delivered order was accepted")
+	}
+	if !strings.Contains(err.Error(), "no order") {
+		t.Errorf("error %q does not say the order was missing", err.Error())
+	}
+	if !strings.Contains(err.Error(), "input") {
+		t.Errorf("error %q does not name the chain", err.Error())
+	}
+}
+
+// TestParseChainSingleTermNeedsNoOrder parses a one-term chain with no order
+// key, which is the shape most chains have.
+//
+// VALIDATES: one term needs no order, so the reserved key stays out of the
+// payload for the common case.
+// PREVENTS: the refusal above from rejecting a config that has nothing to be
+// ambiguous about.
+func TestParseChainSingleTermNeedsNoOrder(t *testing.T) {
+	tables, err := ParseFirewallConfig(chainConfig(
+		`{"a-drop":{"from":{"destination-port":"80"}}}`, ""))
+	if err != nil {
+		t.Fatalf("ParseFirewallConfig: %v", err)
+	}
+	if len(tables[0].Chains[0].Terms) != 1 {
+		t.Fatalf("got %d terms, want 1", len(tables[0].Chains[0].Terms))
 	}
 }

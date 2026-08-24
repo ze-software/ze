@@ -92,12 +92,33 @@ the entry, so asserting a slice drops it at every count.
 Read both through `internal/core/configvalue` (`LeafList`, `ListEntries`) rather
 than asserting a type. The obligation is stated in the configuration rule.
 
-A list is delivered as a map, so the operator's ENTRY ORDER does not survive
-lowering. A `list` declared `ordered-by user` whose semantics depend on that
-order cannot recover it from the delivered map.
+A list is delivered as a map, and a map states no order, so the operator's ENTRY
+ORDER needs a second key to survive lowering. There are two lowerings.
 
-<!-- source: internal/component/config/tree.go -- (*Tree).ToMap -->
+| Lowering | Reads | Carries the order |
+|----------|-------|-------------------|
+| `(*Tree).ToMap` | gNMI, `ze config show`, config validation, the CLI editor | no |
+| `(*Tree).ToPluginMap` | the map delivered to a plugin, at startup and at reload | yes |
+
+`ToPluginMap` emits the order of every list of two or more entries as a sibling
+key: the list name with an `@` prefix, holding the entry keys in the operator's
+order. A YANG node name never starts with `@`, so the sidecar can never collide
+with a declared sibling. A list of one entry carries no sidecar.
+
+`ToMap` carries no sidecar at any count, because its consumers are schema-bound:
+gNMI would publish a path no YANG module declares, `ze config show | json` would
+show the key to the operator, and whole-config validation would refuse it as an
+unknown node.
+
+A `list` declared `ordered-by user` MUST be read with `configorder.Entries`
+(`internal/core/configorder`), which returns the entries in the delivered order
+and refuses a list of two or more entries that arrives with none. Read an
+unordered list with `configvalue.ListEntries`. The obligation is stated in the
+configuration rule.
+
+<!-- source: internal/component/config/tree.go -- (*Tree).ToMap, (*Tree).ToPluginMap -->
 <!-- source: internal/core/configvalue/configvalue.go -- LeafList, ListEntries -->
+<!-- source: internal/core/configorder/configorder.go -- Entries, OrderKey -->
 
 ### Inactive prefix (deactivate / activate)
 

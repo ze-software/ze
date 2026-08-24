@@ -25,9 +25,9 @@ import (
 // of a list named "entry" travels beside it under "@entry".
 //
 // No YANG node name can start with it, because a YANG identifier starts with a
-// letter or an underscore. So the reserved key can never shadow a leaf, a
-// container or a list declared in the same place. This is the argument
-// configjson.GroupKeyPrefix already rests on for its own reserved namespace.
+// letter or an underscore (RFC 7950 Section 6.2). So the reserved key can never
+// shadow a leaf, a container or a list declared in the same place.
+// TestOrderKeyCannotCollideWithAYANGNodeName holds that property.
 const KeyPrefix = "@"
 
 // OrderKey returns the key that carries listName's entry order.
@@ -149,10 +149,18 @@ func orderFor(container, byKey map[string]any, listName string) ([]string, error
 	if len(order) != len(byKey) {
 		return nil, fmt.Errorf("%s: order names %d entries, the list holds %d", listName, len(order), len(byKey))
 	}
+	// The count alone does not prove the two agree: an order that names one
+	// entry twice has the right length and leaves another entry unnamed, so it
+	// would return a duplicate and drop an entry in silence.
+	seen := make(map[string]bool, len(order))
 	for _, key := range order {
 		if _, ok := byKey[key]; !ok {
 			return nil, fmt.Errorf("%s: order names %q, which the list does not hold", listName, key)
 		}
+		if seen[key] {
+			return nil, fmt.Errorf("%s: order names %q twice", listName, key)
+		}
+		seen[key] = true
 	}
 	return order, nil
 }

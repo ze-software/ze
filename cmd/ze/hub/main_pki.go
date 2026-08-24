@@ -4,9 +4,11 @@ package hub
 
 import (
 	"strconv"
+	"strings"
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	zepki "github.com/ze-software/ze/internal/component/pki"
+	"github.com/ze-software/ze/internal/core/configorder"
 )
 
 func preparePKIConfig(tree map[string]any) (*zepki.PKIConfig, error) {
@@ -26,6 +28,12 @@ func configTreeFromMap(m map[string]any) *zeconfig.Tree {
 	}
 	t := zeconfig.NewTree()
 	for k, v := range m {
+		// A reserved order key is not config: it is how ToPluginMap carries a
+		// list's entry order beside the list. Rebuilding it as a container
+		// would put a node in this tree that no YANG module declares.
+		if strings.HasPrefix(k, configorder.KeyPrefix) {
+			continue
+		}
 		switch val := v.(type) {
 		case string:
 			t.Set(k, val)

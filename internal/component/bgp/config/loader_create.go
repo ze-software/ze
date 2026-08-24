@@ -182,11 +182,15 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	// Build reactor config
 	reactorCfg := &reactor.Config{
 		// No global ListenAddr -- Ze derives listeners from per-peer connection > local.
-		RouterID:                  routerID,
-		LocalAS:                   localAS,
-		AllowSharedRouterID:       allowSharedRouterID,
-		ConfigDir:                 configDir,
-		ConfigTree:                tree.ToMap(),
+		RouterID:            routerID,
+		LocalAS:             localAS,
+		AllowSharedRouterID: allowSharedRouterID,
+		ConfigDir:           configDir,
+		// ToPluginMap, not ToMap: ConfigTree is what deliverConfigRPC and the
+		// reload path hand to every plugin, so it owes the entry order of a
+		// list a plugin evaluates in order. This is the standalone reactor's
+		// own lowering; the hub builds the same map at its own call site.
+		ConfigTree:                tree.ToPluginMap(),
 		ConfiguredFamilies:        configuredFamilies,
 		ConfiguredCustomEvents:    configuredCustomEvents,
 		ConfiguredCustomSendTypes: configuredCustomSendTypes,

@@ -17,6 +17,8 @@ package filter_aspath
 import (
 	"fmt"
 	"regexp"
+
+	"github.com/ze-software/ze/internal/core/configorder"
 )
 
 const (
@@ -57,61 +59,41 @@ func parseAsPathLists(bgpCfg map[string]any) (map[string]*aspathList, error) {
 	return result, nil
 }
 
-// parseAsPathEntries reads the inner entry list for one as-path-list.
-// Entries arrive as map[regex]map[leaves...] or []any (slice form).
-// The slice form preserves order; the map form rejects >1 entries because
-// first-match-wins requires deterministic order.
+// parseAsPathEntries reads the inner entry list for one as-path-list, in the
+// order the operator wrote the entries.
+//
+// The `entry` list is `ordered-by user` (yang/ze-filter-aspath.yang) because evaluation is
+// first-match-wins, so configorder.Entries is the reader. configvalue.ListEntries
+// sorts by key, which would silently reorder the entries a filter decision
+// depends on.
+//
+// A list of two or more entries delivered with no order is still refused, by
+// configorder rather than here. That refusal is the guard that made this defect
+// loud instead of silent, and it stays.
 func parseAsPathEntries(listName string, listMap map[string]any) ([]aspathEntry, error) {
-	rawEntries, ok := listMap["entry"]
-	if !ok {
-		return nil, nil
+	entries, err := configorder.Entries(listMap, "entry", "regex")
+	if err != nil {
+		return nil, fmt.Errorf("as-path-list %q: %w", listName, err)
 	}
 
-	if entriesSlice, ok := rawEntries.([]any); ok {
-		out := make([]aspathEntry, 0, len(entriesSlice))
-		for _, item := range entriesSlice {
-			entryMap, ok := item.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("as-path-list %q: entry is not a map", listName)
-			}
-			e, err := parseOneASPathEntry(listName, entryMap)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, e)
+	out := make([]aspathEntry, 0, len(entries))
+	for _, entry := range entries {
+		parsed, err := parseOneASPathEntry(listName, entry.Key, entry.Map)
+		if err != nil {
+			return nil, err
 		}
-		return out, nil
+		out = append(out, parsed)
 	}
-
-	if entriesMap, ok := rawEntries.(map[string]any); ok {
-		if len(entriesMap) > 1 {
-			return nil, fmt.Errorf("as-path-list %q: %d entries in map form would lose order (first-match-wins requires slice form)", listName, len(entriesMap))
-		}
-		out := make([]aspathEntry, 0, len(entriesMap))
-		for keyRegex, item := range entriesMap {
-			entryMap, ok := item.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("as-path-list %q entry %q: not a map", listName, keyRegex)
-			}
-			if _, has := entryMap["regex"]; !has {
-				entryMap["regex"] = keyRegex
-			}
-			e, err := parseOneASPathEntry(listName, entryMap)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, e)
-		}
-		return out, nil
-	}
-
-	return nil, fmt.Errorf("as-path-list %q: unexpected entry container type %T", listName, rawEntries)
+	return out, nil
 }
 
 // parseOneASPathEntry reads a single entry's leaves and compiles the regex.
-func parseOneASPathEntry(listName string, m map[string]any) (aspathEntry, error) {
-	regexStr, ok := m["regex"].(string)
-	if !ok || regexStr == "" {
+//
+// regexStr is the entry's key. It arrives as an argument because the delivered
+// map form keys the list by the regex and omits the leaf from the entry, so
+// there is nothing in m to read it from (configorder.Entry).
+func parseOneASPathEntry(listName, regexStr string, m map[string]any) (aspathEntry, error) {
+	if regexStr == "" {
 		return aspathEntry{}, fmt.Errorf("as-path-list %q: entry missing regex leaf", listName)
 	}
 

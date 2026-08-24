@@ -14,7 +14,11 @@
 // the match is a string comparison against what filter_format.go emits.
 package filter_community_match
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/ze-software/ze/internal/core/configorder"
+)
 
 const (
 	// maxNameLen is the maximum allowed community-list name length.
@@ -54,58 +58,41 @@ func parseCommunityLists(bgpCfg map[string]any) (map[string]*communityList, erro
 	return result, nil
 }
 
-// parseCommunityEntries reads the inner entry list for one community-match.
+// parseCommunityEntries reads the inner entry list for one community-match, in the
+// order the operator wrote the entries.
+//
+// The `entry` list is `ordered-by user` (yang/ze-filter-community-match.yang) because evaluation is
+// first-match-wins, so configorder.Entries is the reader. configvalue.ListEntries
+// sorts by key, which would silently reorder the entries a filter decision
+// depends on.
+//
+// A list of two or more entries delivered with no order is still refused, by
+// configorder rather than here. That refusal is the guard that made this defect
+// loud instead of silent, and it stays.
 func parseCommunityEntries(listName string, listMap map[string]any) ([]communityEntry, error) {
-	rawEntries, ok := listMap["entry"]
-	if !ok {
-		return nil, nil
+	entries, err := configorder.Entries(listMap, "entry", "community")
+	if err != nil {
+		return nil, fmt.Errorf("community-match %q: %w", listName, err)
 	}
 
-	if entriesSlice, ok := rawEntries.([]any); ok {
-		out := make([]communityEntry, 0, len(entriesSlice))
-		for _, item := range entriesSlice {
-			entryMap, ok := item.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("community-match %q: entry is not a map", listName)
-			}
-			e, err := parseOneCommunityEntry(listName, entryMap)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, e)
+	out := make([]communityEntry, 0, len(entries))
+	for _, entry := range entries {
+		parsed, err := parseOneCommunityEntry(listName, entry.Key, entry.Map)
+		if err != nil {
+			return nil, err
 		}
-		return out, nil
+		out = append(out, parsed)
 	}
-
-	if entriesMap, ok := rawEntries.(map[string]any); ok {
-		if len(entriesMap) > 1 {
-			return nil, fmt.Errorf("community-match %q: %d entries in map form would lose order (first-match-wins requires slice form)", listName, len(entriesMap))
-		}
-		out := make([]communityEntry, 0, len(entriesMap))
-		for keyCommunity, item := range entriesMap {
-			entryMap, ok := item.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("community-match %q entry %q: not a map", listName, keyCommunity)
-			}
-			if _, has := entryMap["community"]; !has {
-				entryMap["community"] = keyCommunity
-			}
-			e, err := parseOneCommunityEntry(listName, entryMap)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, e)
-		}
-		return out, nil
-	}
-
-	return nil, fmt.Errorf("community-match %q: unexpected entry container type %T", listName, rawEntries)
+	return out, nil
 }
 
 // parseOneCommunityEntry reads a single entry's leaves.
-func parseOneCommunityEntry(listName string, m map[string]any) (communityEntry, error) {
-	communityStr, ok := m["community"].(string)
-	if !ok || communityStr == "" {
+//
+// communityStr is the entry's key. It arrives as an argument because the
+// delivered map form keys the list by the community and omits the leaf from the
+// entry, so there is nothing in m to read it from (configorder.Entry).
+func parseOneCommunityEntry(listName, communityStr string, m map[string]any) (communityEntry, error) {
+	if communityStr == "" {
 		return communityEntry{}, fmt.Errorf("community-match %q: entry missing community leaf", listName)
 	}
 	if len(communityStr) > maxCommunityLen {

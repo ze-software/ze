@@ -9,12 +9,12 @@ package l2tpauthradius
 import (
 	"fmt"
 	"net"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/core/configorder"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -121,12 +121,18 @@ func parseConfigFromTree(tree map[string]any) (*radiusConfig, error) {
 		cfg.CoAPort = v
 	}
 
-	entries, err := serverEntries(radiusBlock["server"])
+	// The `server` list is `ordered-by user` (yang/ze-l2tp-auth-radius-conf.yang)
+	// because the configured order IS the failover order: Servers[0] is tried
+	// first. configorder.Entries carries that order across the JSON boundary.
+	// Sorting the keyed map, which is what this did until 2026-08-23, made the
+	// operator's primary whichever server name sorted first, and said nothing.
+	entries, err := configorder.Entries(radiusBlock, "server", "name")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s: %w", Name, err)
 	}
 
-	for _, m := range entries {
+	for _, entry := range entries {
+		m := entry.Map
 		address, _ := m["address"].(string)
 		if address == "" {
 			return nil, fmt.Errorf("%s: server entry missing address", Name)
@@ -158,45 +164,6 @@ func parseConfigFromTree(tree map[string]any) (*radiusConfig, error) {
 	}
 
 	return cfg, nil
-}
-
-// serverEntries normalizes the "server" YANG list into a slice of entry maps.
-// Tree.ToMap() (the production verify/configure path) emits a keyed list as a
-// map keyed by the entry name: {"radius1": {"address": ...}}. JSON-delivered
-// config and unit tests may instead use a flat []any of entry maps. Both shapes
-// are accepted.
-func serverEntries(raw any) ([]map[string]any, error) {
-	if raw == nil {
-		return nil, fmt.Errorf("%s: no servers configured", Name)
-	}
-	switch v := raw.(type) {
-	case map[string]any:
-		// Keyed list: values are the entry maps; keys are the entry names.
-		// Map iteration is unordered, so sort by name for deterministic
-		// server (failover) ordering.
-		names := make([]string, 0, len(v))
-		for name := range v {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-		entries := make([]map[string]any, 0, len(v))
-		for _, name := range names {
-			if m, ok := v[name].(map[string]any); ok {
-				entries = append(entries, m)
-			}
-		}
-		return entries, nil
-	case []any:
-		entries := make([]map[string]any, 0, len(v))
-		for _, entry := range v {
-			if m, ok := entry.(map[string]any); ok {
-				entries = append(entries, m)
-			}
-		}
-		return entries, nil
-	default:
-		return nil, fmt.Errorf("%s: invalid server list type %T", Name, raw)
-	}
 }
 
 // intFromAny coerces a config scalar to an int. Tree.ToMap() emits scalars as

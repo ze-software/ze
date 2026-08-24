@@ -2,8 +2,11 @@ package l2tpauthradius
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/configorder"
 )
 
 func TestParseConfigValid(t *testing.T) {
@@ -17,6 +20,7 @@ func TestParseConfigValid(t *testing.T) {
 					"acct-interval":  float64(120),
 					"server": []any{
 						map[string]any{
+							"name":       "radius1",
 							"address":    "10.0.0.1",
 							"port":       float64(1812),
 							"shared-key": "secret123",
@@ -58,6 +62,7 @@ func TestParseConfigDefaults(t *testing.T) {
 				"radius": map[string]any{
 					"server": []any{
 						map[string]any{
+							"name":       "radius2",
 							"address":    "10.0.0.1",
 							"shared-key": "secret",
 						},
@@ -133,6 +138,7 @@ func TestParseConfigMissingSharedKey(t *testing.T) {
 				"radius": map[string]any{
 					"server": []any{
 						map[string]any{
+							"name":    "radius3",
 							"address": "10.0.0.1",
 						},
 					},
@@ -153,7 +159,7 @@ func TestParseConfigBadTimeout(t *testing.T) {
 				"radius": map[string]any{
 					"timeout": float64(0),
 					"server": []any{
-						map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+						map[string]any{"name": "radius1", "address": "10.0.0.1", "shared-key": "s"},
 					},
 				},
 			},
@@ -172,7 +178,7 @@ func TestParseConfigBadRetries(t *testing.T) {
 				"radius": map[string]any{
 					"retries": float64(11),
 					"server": []any{
-						map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+						map[string]any{"name": "radius2", "address": "10.0.0.1", "shared-key": "s"},
 					},
 				},
 			},
@@ -191,6 +197,7 @@ func TestParseConfigBadPort(t *testing.T) {
 				"radius": map[string]any{
 					"server": []any{
 						map[string]any{
+							"name":       "radius4",
 							"address":    "10.0.0.1",
 							"port":       float64(0),
 							"shared-key": "s",
@@ -213,7 +220,7 @@ func TestParseConfigBadAcctInterval(t *testing.T) {
 				"radius": map[string]any{
 					"acct-interval": float64(59),
 					"server": []any{
-						map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+						map[string]any{"name": "radius3", "address": "10.0.0.1", "shared-key": "s"},
 					},
 				},
 			},
@@ -232,7 +239,7 @@ func TestParseConfigSourceAddress(t *testing.T) {
 				"radius": map[string]any{
 					"source-address": "192.168.1.100",
 					"server": []any{
-						map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+						map[string]any{"name": "radius4", "address": "10.0.0.1", "shared-key": "s"},
 					},
 				},
 			},
@@ -258,7 +265,7 @@ func TestParseConfigBadSourceAddress(t *testing.T) {
 				"radius": map[string]any{
 					"source-address": "not-an-ip",
 					"server": []any{
-						map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+						map[string]any{"name": "radius5", "address": "10.0.0.1", "shared-key": "s"},
 					},
 				},
 			},
@@ -278,7 +285,7 @@ func TestParseConfigIPv6SourceAddress(t *testing.T) {
 				"radius": map[string]any{
 					"source-address": "::1",
 					"server": []any{
-						map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+						map[string]any{"name": "radius6", "address": "10.0.0.1", "shared-key": "s"},
 					},
 				},
 			},
@@ -297,7 +304,7 @@ func TestParseConfigNoSourceAddress(t *testing.T) {
 			"auth": map[string]any{
 				"radius": map[string]any{
 					"server": []any{
-						map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+						map[string]any{"name": "radius7", "address": "10.0.0.1", "shared-key": "s"},
 					},
 				},
 			},
@@ -319,8 +326,8 @@ func TestParseConfigMultipleServers(t *testing.T) {
 			"auth": map[string]any{
 				"radius": map[string]any{
 					"server": []any{
-						map[string]any{"address": "10.0.0.1", "shared-key": "s1"},
-						map[string]any{"address": "10.0.0.2", "port": float64(1813), "shared-key": "s2"},
+						map[string]any{"name": "radius8", "address": "10.0.0.1", "shared-key": "s1"},
+						map[string]any{"name": "radius9", "address": "10.0.0.2", "port": float64(1813), "shared-key": "s2"},
 					},
 				},
 			},
@@ -336,5 +343,88 @@ func TestParseConfigMultipleServers(t *testing.T) {
 	}
 	if cfg.Servers[1].Address != "10.0.0.2:1813" {
 		t.Errorf("second server: got %q", cfg.Servers[1].Address)
+	}
+}
+
+// TestServerEntriesFollowTheOperatorNotTheAlphabet parses a two-server RADIUS
+// block in the shape production delivers -- a map keyed by the server name,
+// with the order beside it -- and then parses the same two servers with the
+// order reversed.
+//
+// VALIDATES: AC-5. Servers reach the client in the order the operator wrote
+// them, which is the failover order: cfg.Servers[0] is tried first.
+// PREVENTS: the silent half of the ordered-list defect on this reader.
+// serverEntries used to sort the keyed map by name and call that "deterministic
+// server (failover) ordering". It is deterministic and it is wrong: the
+// operator's primary server became whichever name sorted first.
+//
+// "zurich" is written first and "amsterdam" second, so the alphabet and the
+// config disagree, and the reversed row disagrees with the alphabet the other
+// way. Neither row can pass by sorting.
+func TestServerEntriesFollowTheOperatorNotTheAlphabet(t *testing.T) {
+	tree := func(order []string) map[string]any {
+		return map[string]any{
+			"l2tp": map[string]any{
+				"auth": map[string]any{
+					"radius": map[string]any{
+						"server": map[string]any{
+							"zurich":    map[string]any{"address": "10.0.0.2", "shared-key": "secret123"},
+							"amsterdam": map[string]any{"address": "10.0.0.1", "shared-key": "secret123"},
+						},
+						configorder.OrderKey("server"): order,
+					},
+				},
+			},
+		}
+	}
+
+	for _, tc := range []struct {
+		name    string
+		order   []string
+		primary string
+	}{
+		{"as the operator wrote them", []string{"zurich", "amsterdam"}, "10.0.0.2:1812"},
+		{"with the two servers swapped", []string{"amsterdam", "zurich"}, "10.0.0.1:1812"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg, err := parseConfigFromTree(tree(tc.order))
+			if err != nil {
+				t.Fatalf("parseConfigFromTree: %v", err)
+			}
+			if len(cfg.Servers) != 2 {
+				t.Fatalf("servers: got %d, want 2", len(cfg.Servers))
+			}
+			if cfg.Servers[0].Address != tc.primary {
+				t.Errorf("primary server is %q, want %q", cfg.Servers[0].Address, tc.primary)
+			}
+		})
+	}
+}
+
+// TestServerEntriesRefuseTwoServersWithNoOrder parses two servers with no order
+// delivered beside them.
+//
+// VALIDATES: a multi-server list whose order was not delivered is refused.
+// PREVENTS: a fallback to sorting. A RADIUS failover order that is wrong is
+// invisible until the primary server fails, which is the worst moment to learn
+// that the secondary was being tried first all along.
+func TestServerEntriesRefuseTwoServersWithNoOrder(t *testing.T) {
+	tree := map[string]any{
+		"l2tp": map[string]any{
+			"auth": map[string]any{
+				"radius": map[string]any{
+					"server": map[string]any{
+						"zurich":    map[string]any{"address": "10.0.0.2", "shared-key": "secret123"},
+						"amsterdam": map[string]any{"address": "10.0.0.1", "shared-key": "secret123"},
+					},
+				},
+			},
+		},
+	}
+
+	if _, err := parseConfigFromTree(tree); err == nil {
+		t.Fatal("two servers with no delivered order were accepted")
+	} else if !strings.Contains(err.Error(), "no order") {
+		t.Errorf("error %q does not say the order was missing", err.Error())
 	}
 }

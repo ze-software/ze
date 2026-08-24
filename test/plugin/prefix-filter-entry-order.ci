@@ -1,0 +1,147 @@
+# Test: a prefix-list of TWO entries loads, and first-match-wins follows the
+# order the operator wrote.
+# VALIDATES: AC-1 -- a multi-entry prefix-list loads through the real daemon.
+# VALIDATES: AC-2 -- the entry written first is the entry evaluated first.
+# PREVENTS: two defects at once. A prefix-list of two or more entries could not
+# load at all, so the feature was unusable past one entry. And the fix that was
+# refused -- recovering the order by sorting the keys -- would load the config
+# and evaluate it in the wrong order, silently.
+#
+# The fixture discriminates against BOTH. "0.0.0.0/0" sorts BEFORE "10.0.0.0/8",
+# so a sorted reader would evaluate the catch-all accept first and the route
+# would reach adj-rib-in. The operator wrote the reject entry first, so the
+# route must be dropped.
+#
+# Flow:
+# 1. ze-peer sends UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+# 2. Filter chain calls bgp-filter-prefix:ORDERED
+# 3. 10.0.0.0/24 is inside 10.0.0.0/8 (entry 1, reject) and inside 0.0.0.0/0
+#    (entry 2, accept). Only the order decides.
+# 4. Entry 1 wins: the plugin logs "prefix-list reject" and adj-rib-in stays empty.
+
+# Enable bgp.filter.prefix subsystem at Info level so decision logs are visible.
+option=env:var=ze.log.bgp.filter.prefix:value=info
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# 10.0.0.0/24 from AS 65001
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+EOF_PEER
+
+# Python observer plugin: assert the route was dropped by the FIRST entry.
+tmpfs=test-prefix-order.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Verify a two-entry prefix-list evaluates in the operator's order."""
+import sys
+from ze_api import API, result_json_data
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    return (resp or {}).get('result', {})
+
+def updates_received(api):
+    r = dispatch(api, 'show bgp peer peer1 detail')
+    return r.get('data', {}).get('peers', {}).get('127.0.0.1', {}).get('updates-received', 0)
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait until ze has RECEIVED the UPDATE, then quiesce so the filter decision
+    # has fully drained before asserting the route is absent from adj-rib-in.
+    for _ in range(100):
+        if updates_received(api) >= 1:
+            break
+        api.wait_for_event(timeout=0.2)
+    else:
+        print('FAIL: ze never received the UPDATE', file=sys.stderr)
+        dispatch(api, 'request shutdown'); api.wait_for_shutdown(); sys.exit(1)
+    api.quiesce()
+
+    result = dispatch(api, 'show bgp adj-rib-in status')
+    data = result_json_data(result, {})
+    total = data.get('total-routes', -1)
+
+    if total != 0:
+        print(f'FAIL: expected 0 routes (first entry rejects), got {total}. '
+              'The catch-all accept entry was evaluated first, so the entry '
+              'order was not the operator order.', file=sys.stderr)
+        dispatch(api, 'request shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+
+    print('OK: the first entry the operator wrote is the entry that matched', file=sys.stderr)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-prefix-order {
+		run ./test-prefix-order.run
+		encoder json
+	}
+}
+bgp {
+	policy {
+		prefix-list ORDERED {
+			entry 10.0.0.0/8 {
+				le 32
+				action reject
+			}
+			entry 0.0.0.0/0 {
+				le 32
+				action accept
+			}
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		filter {
+			import [ bgp-filter-prefix:ORDERED ]
+		}
+
+		attach process test-prefix-order {
+			receive [ update state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-prefix --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+# The reject must have come from the FIRST entry. A bug that accepted instead
+# would break the reject assertion; a bug that dispatched to the wrong list
+# would break the filter-name assertion.
+expect=stderr:pattern=prefix-list reject
+expect=stderr:pattern=filter=ORDERED
+reject=stderr:pattern=prefix-list accept

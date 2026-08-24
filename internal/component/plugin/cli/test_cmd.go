@@ -143,7 +143,10 @@ func cmdPluginTest(args []string) int {
 		roots = []string{"bgp"}
 	}
 
-	treeMap := tree.ToMap()
+	// ToPluginMap, not ToMap: both blocks below print what a plugin RECEIVES,
+	// and a command that shows a different payload from the one the daemon
+	// sends is worse than one that shows nothing.
+	treeMap := tree.ToPluginMap()
 
 	// Show tree if requested
 	if *showTree {
