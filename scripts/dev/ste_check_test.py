@@ -262,6 +262,17 @@ class TestSynonymRotation(unittest.TestCase):
     def test_plain_words_pass(self):
         self.assertEqual(habits("Start the daemon. Stop the peer. Get the route."), [])
 
+    def test_cease_as_a_protocol_identifier(self):
+        # RFC 4271 Section 4.5 names the NOTIFICATION error code Cease, so a
+        # capitalized Cease inside a sentence is a wire field and not the verb.
+        text = "Figure 1 labels the Cease/MaxPrefixes Data field the upper bound."
+        self.assertNotIn("synonym-rotation", habits(text))
+
+    def test_cease_as_a_verb_is_still_flagged(self):
+        self.assertIn("synonym-rotation", habits("The workers cease on shutdown."))
+        # A sentence-initial capital is a capital, not an identifier.
+        self.assertIn("synonym-rotation", habits("Cease the accounting worker."))
+
     def test_above_and_below_for_a_limit(self):
         # An approved word keeps its approved meaning: these are positions.
         self.assertIn("synonym-rotation", habits("The value must be above 800 kPa."))
@@ -370,6 +381,74 @@ class TestSentenceSplitting(unittest.TestCase):
         # "**Lead-in.** Body" is two sentences. Treating it as one made every
         # bolded directive bullet look like a run-on.
         self.assertEqual(len(ste.sentences("**Stop the peer.** Then start it.")), 2)
+
+
+class TestLayoutRows(unittest.TestCase):
+    """Column-aligned lines are a list of lines, not one wrapped paragraph.
+
+    Markdown joins consecutive lines into one paragraph. A commit list, an ASCII
+    table, or aligned help output then reads as a single enormous sentence that
+    no rewrite can shorten, which is the finding a reader cannot act on.
+    """
+
+    COMMIT_LIST = (
+        "2a3c185f0  rules: a defect record outlives the defect it records\n"
+        "29cfb09fd  fix(ddos): let the baseline follow load it refused to learn\n"
+        "07b4d3304  fix(bgp): count the route distinguisher in the split\n"
+        "710205bd4  fix(bgp): bound an attribute write to the width it declares\n"
+    )
+
+    def test_a_commit_list_is_not_one_sentence(self):
+        found = [f for f in findings(self.COMMIT_LIST) if f.habit == "run-ons"]
+        self.assertEqual(found, [], "an aligned commit list is layout, not prose")
+
+    def test_each_layout_row_stays_in_the_population(self):
+        # The row is still reviewed. Only the false join is removed, so a habit
+        # inside an aligned line is still reported.
+        text = "abc1234  the daemon may terminate the peer\n"
+        self.assertIn("hedging", habits(text))
+
+    def test_wrapped_prose_is_still_one_paragraph(self):
+        lines = [
+            "The peer holds the route until the hold timer expires and the\n",
+            "reactor withdraws it, and the RIB then releases the attribute.\n",
+        ]
+        self.assertEqual(
+            len(ste.units_markdown(lines)), 1, "wrapped prose joins into one unit"
+        )
+
+    def test_a_joined_paragraph_still_reports_its_run_on(self):
+        # Two lines, 28 words together. The join is what makes the run-on
+        # visible, so removing it would hide the defect this gate exists for.
+        text = (
+            "The peer holds the route until the hold timer expires and the\n"
+            "reactor withdraws it, and the RIB then releases every attribute "
+            "it kept for the whole session.\n"
+        )
+        self.assertIn("run-ons", habits(text))
+
+    def test_two_spaces_after_a_period_is_prose(self):
+        lines = [
+            "Stop the peer.  Then start the peer again.\n",
+            "Wait for the session to reach established.\n",
+        ]
+        self.assertEqual(
+            len(ste.units_markdown(lines)), 1, "a double space after a period is prose"
+        )
+
+    def test_a_commit_list_is_one_unit_for_each_line(self):
+        units = ste.units_markdown(self.COMMIT_LIST.splitlines(keepends=True))
+        self.assertEqual(len(units), 4, "each aligned row is its own unit")
+
+    def test_a_code_span_of_aligned_numbers_is_not_a_column(self):
+        # A vendored README aligns three numbers inside one code span. The
+        # sentence around it is ordinary wrapped prose.
+        line = "you're asking for RGB values of `(-2105.254  300.680  286.185)`,"
+        self.assertFalse(ste.is_layout_row(line))
+
+    def test_an_aligned_command_list_is_layout(self):
+        line = "cache list                       cache retain <id>"
+        self.assertTrue(ste.is_layout_row(line))
 
 
 class TestSurfacesAreScrubbed(unittest.TestCase):

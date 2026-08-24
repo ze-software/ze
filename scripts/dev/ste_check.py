@@ -201,6 +201,18 @@ PLAIN_WORDS = {
     "in order to": "to",
 }
 
+# A plain word that is ALSO a protocol identifier. `Cease` is the BGP
+# NOTIFICATION error code of RFC 4271 Section 4.5, so `the Cease/MaxPrefixes
+# Data field` names a wire field rather than the verb. The capital letter is the
+# tell, and a sentence-initial capital is not, so the guard reads what comes
+# before the word. This is the same reasoning as the RFC 2119 guard in
+# check_hedging: a checker that flags a protocol name teaches its readers to
+# ignore it.
+PLAIN_WORD_IDENTIFIERS = {"Cease"}
+
+# The end of the preceding sentence, or the start of the unit.
+SENTENCE_BOUNDARY_BEFORE = re.compile(r"(?:[.!?:]\s*|^\s*)$")
+
 TERM_SETS = (
     ("peer", ("neighbour", "neighbor")),
     ("plugin", ("plug-in",)),
@@ -545,6 +557,29 @@ BULLET_ITEM = re.compile(r"^\s*[-*+]\s+")
 # rule's **When:** / **Severity:** / **Related:** block join into one 28-word
 # "sentence" that has no verb and cannot be split.
 BOLD_FIELD = re.compile(r"^\s*\*\*[^*]+:\*\*")
+# A run of two or more spaces INSIDE a line is column alignment, and a column is
+# not a wrapped sentence. Markdown joins consecutive lines into one paragraph, so
+# a commit list, an ASCII table, or a two-column note reads as a single sentence
+# that no rewrite can shorten: a 15-line commit list in a handover measured 187
+# words. Prose that puts two spaces after a period is NOT this, so the run must
+# not follow sentence punctuation. Each aligned line still becomes its own unit,
+# so every word stays in the population and only the false join is removed.
+LAYOUT_COLUMNS = re.compile(r"[^\s.!?:,;]\s{2,}\S")
+
+
+def is_layout_row(line):
+    """True when the line is column-aligned layout rather than wrapped prose.
+
+    The probe removes a code span, a link, and a comment WITHOUT leaving a
+    space, because `scrub` pads its placeholders and that padding reads as a
+    column. One vendored README aligns three numbers inside a code span,
+    `(-2105.254  300.680  286.185)`, and the prose around it is an ordinary
+    wrapped paragraph.
+    """
+    probe = CODE_SPAN.sub("CODE", line)
+    probe = AUTOLINK.sub("URL", probe)
+    probe = HTML_COMMENT.sub("", probe)
+    return bool(LAYOUT_COLUMNS.search(probe.strip()))
 
 
 def scrub(text):
@@ -651,6 +686,10 @@ def units_markdown(lines):
         if BULLET_ITEM.match(line):
             flush()
             out.append(Unit(BULLET_ITEM.sub("", text).strip(), number, paragraph=False))
+            continue
+        if is_layout_row(line):
+            flush()
+            out.append(Unit(text.strip(), number, paragraph=False))
             continue
 
         if not paragraph:
@@ -919,7 +958,12 @@ def check_hedging(unit, path, surface, found):
 
 def check_plain_words(unit, path, surface, found):
     for match in _PLAIN_RE.finditer(unit.text):
-        word = " ".join(match.group(1).lower().split())
+        raw = match.group(1)
+        if raw in PLAIN_WORD_IDENTIFIERS and not SENTENCE_BOUNDARY_BEFORE.search(
+            unit.text[: match.start()]
+        ):
+            continue  # a protocol identifier, not the verb
+        word = " ".join(raw.lower().split())
         add(
             found,
             unit,
