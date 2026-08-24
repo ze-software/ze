@@ -86,6 +86,21 @@ Four inputs widen the answer to `./...`, and each one is said on stderr:
 | A changed path that make cannot carry as one unquoted word | the recipes expand the list without quoting |
 | A seed directory `go list ./...` does not report and no rule names | its importers cannot be found |
 
+`uncompiledTreeReaders` is the rule that keeps a directory out of that last row.
+It holds one directory: the module root, where `tools.go` sits behind
+`//go:build tools`. Nothing compiles it and no lint flavor selects it. As a
+result, the wide answer would run exactly the checks the narrow one runs, and
+pay for the whole tree.
+
+`cmd/ze-installer` left that rule on 2026-08-24. Every file there is `//go:build
+linux && ze_installer`. The lint over `./...` now selects that package under a
+`ze_installer` flavor (`scripts/dev/lint_flavors.py`), so the wide answer
+stopped being equal to the narrow one. The wide answer is the only one that
+reports on the initrd's PID 1. Naming `./cmd/ze-installer` in the narrow answer
+instead is not open, because the same list drives `ze-unit-test-changed`. And
+`go test` on that package under the unit tag set fails with "build constraints
+exclude all Go files".
+
 `ZE_VERIFY_STATUS_FILE` names the status file the green commit is read from
 (default `tmp/ze-verify.status`).
 

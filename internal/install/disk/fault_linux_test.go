@@ -28,7 +28,7 @@ func TestParseFaultParam(t *testing.T) {
 }
 
 // injectFault must be a no-op (return promptly, no panic, no block) for an
-// empty or unrecognised fault value. The "panic-goroutine" path is proven by
+// empty or unrecognized fault value. The "panic-goroutine" path is proven by
 // the QEMU fault-injection scenario, not here: it deliberately blocks the
 // caller and reboots.
 func TestInjectFaultNoopForUnknown(t *testing.T) {

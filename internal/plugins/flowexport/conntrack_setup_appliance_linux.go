@@ -5,14 +5,22 @@
 package flowexport
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"os/exec"
 	"sync"
+	"time"
 
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
 )
+
+// modprobeTimeout bounds each module load. On the appliance the modules are
+// built into the kernel, so modprobe either is absent or returns at once. The
+// bound is what stops a wedged modprobe from holding flow-export's startup for
+// ever.
+const modprobeTimeout = 10 * time.Second
 
 // conntrackSetupOnce fences the one-time, process-wide conntrack registration.
 // The tracking hook and accounting are netns-global, so a config reload that
@@ -51,7 +59,14 @@ func loadConntrackModules(log *slog.Logger) {
 		return
 	}
 	for _, mod := range []string{"nf_conntrack", "nf_conntrack_netlink"} {
-		if out, err := exec.Command(modprobe, mod).CombinedOutput(); err != nil { //nolint:gosec // fixed module names, resolved modprobe path
+		// The context is created here rather than passed in. This runs from
+		// conntrackWorker.Start, which carries none, and the bound belongs to
+		// the subprocess rather than to the caller's lifetime.
+		ctx, cancel := context.WithTimeout(context.Background(), modprobeTimeout)
+		out, err := exec.CommandContext(ctx, modprobe, mod).CombinedOutput() //nolint:gosec // fixed module names, resolved modprobe path
+		cancel()
+
+		if err != nil {
 			log.Debug("flow-export: modprobe conntrack module failed (built-in?)", "module", mod, "error", err, "output", string(out))
 		}
 	}

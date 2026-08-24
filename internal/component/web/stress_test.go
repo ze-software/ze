@@ -95,7 +95,7 @@ func TestWebConcurrentEditStress(t *testing.T) {
 		//
 		// Torn-write guard: the atomic store (CreateTemp+Rename) plus per-user
 		// editor serialization must never leave a truncated/interleaved file.
-		data, err := mgr.CommittedConfig()
+		data, err := mgr.committedConfig()
 		require.NoError(t, err, "committed config must be readable")
 		require.NotEmpty(t, data, "committed config must be non-empty")
 		require.Contains(t, string(data), "bgp {", "bgp block survived the storm intact")

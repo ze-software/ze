@@ -18,13 +18,13 @@ func captureRawL2TPStop(stopped []string, _ string) []string { return stopped }
 // stub-honesty rule in ai/rules/plugins.md).
 func captureRawL2TPNote(protocol string) string {
 	if protocol == capL2TP {
-		return "l2tp is not included in this build (ze_l2tp off)"
+		return l2tpNotInBuild
 	}
 	return ""
 }
 
 func captureRawL2TPDump(result map[string]any, protocol, _ string, _ int) {
 	if protocol == capL2TP {
-		result["l2tp"] = "l2tp is not included in this build (ze_l2tp off)"
+		result["l2tp"] = l2tpNotInBuild
 	}
 }

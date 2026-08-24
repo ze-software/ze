@@ -11,7 +11,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
 	"github.com/ze-software/ze/internal/core/metrics"
-	"github.com/ze-software/ze/internal/core/show"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/plugins/cos/yang"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -22,13 +21,6 @@ var dynamicHandler *cosHandler
 
 func init() {
 	coreCos.RegisterResolver(resolveCoSForUnit)
-
-	show.MustRegister("show subscriber detail", "cos", show.Enricher{
-		Detail: enrichSubscriberDetail,
-	})
-	show.MustRegister("show subscriber", "cos", show.Enricher{
-		Brief: enrichSubscriberBrief,
-	})
 
 	reg := registry.Registration{
 		Name:                    Name,

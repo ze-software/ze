@@ -13,9 +13,11 @@ import (
 // Dynamic per-subscriber CoS is a BNG feature: it reacts to L2TP session
 // events and reads RADIUS session metadata, so without ze_l2tp there are no
 // sessions and nothing to react to. These stubs keep the always-on static
-// CoS profile surface (config, verifier, enrichers) compiling while the
-// dynamic handler drops with the BNG. Same dependent-feature shape as
-// authradius (ze_l2tp && ze_radius).
+// CoS profile surface (config, verifier, show class-of-service) compiling
+// while the dynamic handler drops with the BNG. The per-session state and the
+// subscriber enrichers that read it drop with it too, in session_state.go and
+// enricher.go. Same dependent-feature shape as authradius
+// (ze_l2tp && ze_radius).
 
 // updateQoSFunc is the signature for updating VLAN QoS maps on an interface.
 type updateQoSFunc func(ifaceName string, ingress, egress map[uint32]uint32) error

@@ -257,6 +257,49 @@ happened.
 
 Common case (one group changed): ~2 min total instead of 6+.
 
+### The builds the linter reads
+
+<!-- source: scripts/dev/lint_flavors.py -- FLAVORS, scopes -->
+
+golangci-lint analyzes ONE build for each run: one GOOS, one GOARCH, one tag
+set. `make ze-lint` therefore runs more than one.
+
+| Pass | Build | What only it reads |
+|------|-------|--------------------|
+| 1 | the host GOOS, `.golangci.yml` tags | the shipped daemon |
+| 2 | `GOOS=linux`, plus `integration` | every kernel-facing `//go:build integration` test |
+| 3..N | one for each row of `FLAVORS` (`scripts/dev/lint_flavors.py`) | `ze_installer`, `ze_distro`, `ze_appliance`, `ze_setup`, `tinygo`, and the capability tags (`debug`, `race`, `live`, ...). Also the GOOS and GOARCH targets no other pass compiles: `darwin`, `freebsd`, `openbsd`, `dragonfly`, `wasip1`, `linux/arm64` and `linux/riscv64`. Also the `compile-out` build, which drops every feature gate and keeps `ze_core` alone |
+
+Each flavor pass lints only the packages holding a file the two passes above do
+not load. That package set is DERIVED from the tree with `go list` on every run.
+A hand-written list drifts the moment somebody adds a `//go:build debug`
+file in a new package, and the drift is silent.
+
+The driver then asserts coverage. Every tracked Go file must be loaded by some
+pass. The exceptions are `vendor/`, `gokrazy/modcache/`, and the `//go:build
+ignore` files that belong to no build. `make ze-lint` fails when one file is not
+loaded. Ask for the answer alone with:
+
+```sh
+python3 scripts/dev/lint_flavors.py --coverage   # about 40 seconds
+python3 scripts/dev/lint_flavors.py --list       # the flavor table
+```
+
+Two files are still outside it, and the driver names both on every run.
+`examples/plugin/go/main.go`, which is a separate Go module. And `tools.go`,
+whose imports are programs rather than packages.
+
+The `//go:build !ze_<feature>` compile-out stubs -- the code an operator reaches
+when a feature is OFF -- were a third population until 2026-08-24. No pass could
+select one, because `--build-tags` only ADDS to the config's list. The
+`compile-out` row reaches every stub: it runs against a derived copy of
+`.golangci.yml` carrying no build tags at all (`tagless_config`), so the command
+line is the whole tag set and that set is `ze_core`. One row is enough because
+the gates are independent, so a build with none of them on satisfies every
+negated term at once. A feature-only helper must therefore carry its consumer's
+build constraint. Without it, the bare-core build reports the helper as
+`unused`, which is what it is in a binary that compiles its only caller out.
+
 ### Feature-tag structural type check
 
 <!-- source: scripts/checks/staticcheck_feature_matrix.go -- buildFeatureMatrix, runStaticcheckFeatureMatrix -->

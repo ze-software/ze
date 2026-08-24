@@ -113,7 +113,7 @@ func rescueOnConsoles(cfg installConfig, gated bool) {
 	var tb textbuf.Buffer
 	for name := range strings.FieldsSeq(strings.TrimSpace(string(data))) {
 		path := tb.Reset().Str("/dev/").Str(name).String()
-		f, openErr := os.OpenFile(path, os.O_RDWR, 0)
+		f, openErr := os.OpenFile(path, os.O_RDWR, 0) //nolint:gosec // the name comes from the kernel's own console list, not from an operator
 		if openErr != nil {
 			continue
 		}

@@ -53,11 +53,11 @@ func injectFault(cfg installConfig, fault string) {
 }
 
 // triggerRuntimeFault forces a real runtime fault (assignment to a nil map),
-// modelling an unexpected nil deref deep in a library goroutine rather than a
+// modeling an unexpected nil deref deep in a library goroutine rather than a
 // hand-rolled fault string.
 func triggerRuntimeFault() {
 	var m map[string]int
-	m["fault"] = 1
+	m["fault"] = 1 //nolint:staticcheck // SA5000: the write to a nil map IS the fault this function injects
 }
 
 // cmdlineFault returns the ze.fault value from /proc/cmdline, or "" if absent.

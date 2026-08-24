@@ -1,6 +1,8 @@
 // VALIDATES: AC-6, AC-7, AC-8 (CoS enricher detail/brief/noop)
 // PREVENTS: enricher crash on missing session state
 
+//go:build ze_l2tp
+
 package cos
 
 import (

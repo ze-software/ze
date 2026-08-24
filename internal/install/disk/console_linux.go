@@ -41,7 +41,7 @@ func setupConsoles() *consoleWriter {
 	var writers []writerEntry
 	for name := range strings.FieldsSeq(strings.TrimSpace(string(data))) {
 		path := tb.Reset().Str("/dev/").Str(name).String()
-		f, err := os.OpenFile(path, os.O_WRONLY, 0)
+		f, err := os.OpenFile(path, os.O_WRONLY, 0) //nolint:gosec // the name comes from the kernel's own console list, not from an operator
 		if err != nil {
 			continue
 		}
