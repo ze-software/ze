@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | plugin |
 | Depends | `plan/spec-cli-show-bgp-answer-shapes.md` |
 | Phase | - |
@@ -189,7 +189,7 @@ the producing function.
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | The dependency spec's floor rule has landed, so a plugin declaring onto a path the BGP command plugin blanked wins | `plan/spec-cli-show-bgp-answer-shapes.md` Phase 1 | The declaration is silently dropped, or drops the empty declaration and lets the child inherit `show bgp`'s peer columns | `TestPluginShapeOverridesEmptyDeclaration` | unvalidated |
-| A-2 | No caller depends on `show bgp healthcheck` answering one object for a named probe | The command is reached only through the dispatcher | A caller breaks | `gopls references` on `handleShow`, and a grep of `test/` for the command path | unvalidated |
+| A-2 | No caller depends on `show bgp healthcheck` answering one object for a named probe, nor on `show bgp rpki aspa` answering one object for a customer ASN | The commands are reached only through the dispatcher | A caller breaks | `gopls references` on `handleShow` and `aspaCommand`, and a grep of `test/` for both command paths | confirmed 2026-08-24. `handleShow` is called only by `handleCommand` (`healthcheck.go`) and `aspaCommand` only by `handleCommand` (`rpki.go`); every other reference is a test in the same package. One `.ci` reads the named-probe answer, `test/plugin/as112-probe-anycast-not-loopback.ci`, and it matches the SUBSTRINGS `state: UP` and `state: DOWN` in the `\| yaml` render, which survive the two-space sequence indent `writeMapItem` (`internal/component/command/format.go`) adds. No `.ci` reads the aspa lookup answer |
 | A-3 | A plugin that stops and restarts re-declares, so removal on stop loses nothing | `UnregisterPluginAliases` already works this way | A restarted plugin's commands lose their declarations | `TestUnregisterPluginShapes` and a plugin restart in a `.ci` |ered unvalidated |
 | A-4 | `show bgp rpki status` and `show bgp adj-rib-in status` genuinely hold no single row set | Read of `rowsInKeyed` against both producers: one has two candidate keys, the other maps an address to a scalar | Declaring `doc` refuses a row operator that used to answer | A `.ci` asserting the refusal names the operator | unvalidated |
 
