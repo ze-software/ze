@@ -17,3 +17,4 @@ is open.
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
 | 2026-08-24 | b6dab65b | feat(website): rework the blog, FAQ, and pipe reference pages | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-24 | b6dab65b | plan: spec the asciinema conversion of the terminal demos | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
