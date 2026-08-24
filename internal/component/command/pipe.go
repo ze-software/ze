@@ -631,16 +631,40 @@ func validateDeclaredShape(command string, ops []pipeOp) string {
 		var tb textbuf.Buffer
 		return tb.Str(entry.Name).Str(" cannot apply here: this command answers ").
 			Str(shapeDescription(shape)).Str(", and ").Str(entry.Name).
-			Str(" acts on rows").String()
+			Str(" acts on ").Str(operatorNeeds(entry)).String()
 	}
 	return ""
 }
 
 // shapeDescription says what a shape holds, in the words a refusal reads best
 // with.
+//
+// ShapeMap and ShapeTab both hold rows and are described differently, because a
+// refusal that called them both "rows" could not explain itself to an operator
+// whose answer HAS rows and whose operator was still refused. That is `fill`
+// over a `map` answer, and it read "fill cannot apply here: this command answers
+// rows, and fill acts on rows".
 func shapeDescription(shape AnswerShape) string {
-	if shape == ShapeDoc {
+	switch shape {
+	case ShapeDoc:
 		return "one document"
+	case ShapeMap:
+		return "rows that describe themselves"
+	default:
+		return "rows read against a declared column order"
+	}
+}
+
+// operatorNeeds says what an operator acts on, for the second half of a refusal.
+//
+// It is derived from the operator's own shape set rather than written as "rows",
+// because one operator needs more than rows: `fill` brings back the columns a
+// command declared, so it acts on ShapeTab alone and means nothing over an
+// answer whose rows carry their own keys.
+func operatorNeeds(op PipeOperator) string {
+	shapes := op.Shapes()
+	if len(shapes) == 1 && shapes[0] == ShapeTab {
+		return "rows read against a declared column order"
 	}
 	return "rows"
 }

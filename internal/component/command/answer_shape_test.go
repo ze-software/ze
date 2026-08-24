@@ -213,6 +213,50 @@ func TestDeclaredShapeRefusesBeforeTheCommandRuns(t *testing.T) {
 	}
 }
 
+// TestFillRefusalSaysWhatItActuallyNeeds covers the one operator whose refusal
+// cannot say "acts on rows": `fill` brings back the columns a command declared,
+// so it acts on ShapeTab alone and is refused over a `map` answer whose rows
+// carry their own keys.
+//
+// PREVENTS: the message this replaces read "fill cannot apply here: this command
+// answers rows, and fill acts on rows", which states the refusal and its own
+// contradiction in one sentence and tells the operator nothing to do next
+// (ai/rules/cli.md). It became reachable when `show bgp irr prefix` declared
+// `map`.
+func TestFillRefusalSaysWhatItActuallyNeeds(t *testing.T) {
+	ResetShapesForTest()
+	t.Cleanup(ResetShapesForTest)
+	RegisterShape([]string{"show self describing"}, ShapeMap)
+	RegisterShape([]string{"show ordered"}, ShapeTab)
+
+	fillOps := []pipeOp{{kind: pipeFill}}
+
+	msg := validateDeclaredShape("show self describing", fillOps)
+	if msg == "" {
+		t.Fatal("`fill` over a map answer was accepted; it acts on a declared column order")
+	}
+	// The two halves must differ. Asserting that the refusal is non-empty would
+	// pass on the sentence this test exists to remove.
+	if strings.Count(msg, "acts on rows") > 0 && strings.Contains(msg, "answers rows,") {
+		t.Errorf("the refusal contradicts itself: %q", msg)
+	}
+	if !strings.Contains(msg, "declared column order") {
+		t.Errorf("the refusal does not say what `fill` needs: %q", msg)
+	}
+
+	// A row operator that genuinely acts on any row shape keeps the shorter
+	// wording, so this change is scoped to the operator that needed it.
+	countMsg := validateDeclaredShape("show self describing", []pipeOp{{kind: pipeCount}})
+	if countMsg != "" {
+		t.Errorf("`count` over a map answer was refused: %s", countMsg)
+	}
+
+	// `fill` over the shape it does act on is not refused at all.
+	if msg := validateDeclaredShape("show ordered", fillOps); msg != "" {
+		t.Errorf("`fill` over a tab answer was refused: %s", msg)
+	}
+}
+
 // TestDeclaredShapeRefusesTheAddressOperators keeps `| resolve` and `| origin`
 // off a command that declares no address field, which is what stops them
 // decorating a value that happens to parse as an address.
