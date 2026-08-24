@@ -23,6 +23,7 @@ Run: python3 scripts/zeledon/post_weekly_test.py
 (also picked up automatically by TestPythonUnitTests, scripts/dev/python_tests_test.go)
 """
 
+import io
 import pathlib
 import subprocess
 import tempfile
@@ -120,6 +121,103 @@ class SendTest(unittest.TestCase):
         fake = self.send(["one", "two", "three"], [OK], resume_from=3)
 
         self.assertEqual(fake.sent, ["three"])
+
+
+
+class ParsePostTest(unittest.TestCase):
+    def test_stat_snapshot_front_matter_is_not_discord_body(self):
+        """VALIDATES: snapshot metadata stays outside the normalized public body.
+        PREVENTS: site-only publication state becoming Discord text."""
+        expected = "Public text before.\n\nPublic text after."
+        with tempfile.TemporaryDirectory() as tmp:
+            post = pathlib.Path(tmp) / "2026-08-10.md"
+            post.write_text(
+                "---\n"
+                "covers: 2026-08-10 .. 2026-08-16\n"
+                "ze-stat-snapshot: true\n"
+                "---\n\n"
+                + expected
+                + "\n"
+            )
+
+            meta, body = post_weekly.parse_post(post)
+
+        self.assertEqual(meta["ze-stat-snapshot"], "true")
+        self.assertEqual(body, expected)
+        self.assertNotIn("ze-stat-snapshot", body)
+
+    def test_legacy_body_marker_fails_closed_with_front_matter_migration(self):
+        """VALIDATES: the exact legacy body marker is rejected actionably.
+        PREVENTS: invalid site metadata being posted or silently discarded."""
+        with tempfile.TemporaryDirectory() as tmp:
+            post = pathlib.Path(tmp) / "2026-08-10.md"
+            post.write_text(
+                "---\ncovers: 2026-08-10 .. 2026-08-16\n---\n\n"
+                "Public text before.\n\n"
+                "<!-- ze-stat-snapshot: weekly update, frozen at publication -->\n\n"
+                "Public text after.\n"
+            )
+
+            with mock.patch.object(
+                post_weekly.sys, "stderr", new_callable=io.StringIO
+            ) as stderr:
+                with self.assertRaises(SystemExit) as caught:
+                    post_weekly.parse_post(post)
+
+        self.assertEqual(caught.exception.code, 1)
+        self.assertIn("ze-stat-snapshot: true", stderr.getvalue())
+        self.assertIn("front matter", stderr.getvalue())
+
+    def test_terminal_nbsp_is_normalized_before_body_is_chunked(self):
+        """VALIDATES: archive body and Discord chunks share boundary normalization.
+        PREVENTS: a terminal NBSP surviving only in the archived body."""
+        with tempfile.TemporaryDirectory() as tmp:
+            post = pathlib.Path(tmp) / "2026-08-10.md"
+            post.write_text(
+                "---\ncovers: 2026-08-10 .. 2026-08-16\n---\n\n"
+                "Public text.\u00a0\n"
+            )
+
+            _, body = post_weekly.parse_post(post)
+            chunks = post_weekly.chunk(body)
+
+        self.assertEqual(body, "Public text.")
+        self.assertEqual(chunks, ["Public text."])
+
+
+
+
+class MainTest(unittest.TestCase):
+    def test_help_uses_canonical_weekly_post_paths(self):
+        """VALIDATES: argparse help names the repository's weekly post paths.
+        PREVENTS: generic blog placeholders sending operators elsewhere."""
+        with mock.patch.object(
+            post_weekly.sys, "argv", ["post_weekly.py", "--help"]
+        ):
+            with mock.patch.object(
+                post_weekly.sys, "stdout", new_callable=io.StringIO
+            ) as stdout:
+                with self.assertRaises(SystemExit) as caught:
+                    post_weekly.main()
+
+        help_text = stdout.getvalue()
+        self.assertEqual(caught.exception.code, 0)
+        self.assertIn("--all website/changes/posts/", help_text)
+        self.assertIn("website/changes/posts/<start>.md", help_text)
+        self.assertIn(
+            "python3 scripts/zeledon/post_weekly.py "
+            "--all website/changes/posts/ --yes",
+            help_text,
+        )
+        self.assertIn(
+            "python3 scripts/zeledon/post_weekly.py "
+            "website/changes/posts/<start>.md --yes",
+            help_text,
+        )
+        self.assertNotIn("path/to/blog", help_text)
+        self.assertNotIn("blog post", help_text)
+
+
 
 
 class ProcessOneTest(unittest.TestCase):

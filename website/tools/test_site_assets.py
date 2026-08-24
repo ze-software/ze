@@ -6,6 +6,7 @@ number-accuracy work added, which are trivial to test and easy to regress."""
 import importlib.util
 import json
 import pathlib
+import pytest
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -144,6 +145,54 @@ def test_update_html_stat_markers_rewrites_stale_values(tmp_path):
     assert 'data-ze-stat="tests.unit_display">23,100+</span>' in text
     assert "data-ze-stat='rfc.gated_must_display'>2,966</span>" in text
     assert check_site_stats.check_html_stat_markers(tmp_path, facts) == []
+
+
+def _check_changes_post_source(tmp_path, text):
+    post = tmp_path / "changes" / "posts" / "snapshot.md"
+    post.parent.mkdir(parents=True)
+    post.write_text(text)
+    return check_site_stats.check_source_tokens(tmp_path)
+
+
+def test_source_stat_snapshot_requires_canonical_true_front_matter(tmp_path):
+    errors = _check_changes_post_source(
+        tmp_path,
+        "---\n"
+        "title: Historical statistics\n"
+        "ze-stat-snapshot: true\n"
+        "---\n"
+        "There are 3 MUST-level requirements.\n",
+    )
+
+    assert errors == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "---\nze-stat-snapshot: false\n---\nThere are 3 MUST-level requirements.\n",
+        "---\nnot-ze-stat-snapshot: true\n---\nThere are 3 MUST-level requirements.\n",
+        "---\ntitle: Current statistics\n---\n"
+        "ze-stat-snapshot: true\n\nThere are 3 MUST-level requirements.\n",
+        "ze-stat-snapshot: true\n\nThere are 3 MUST-level requirements.\n",
+        "---\nze-stat-snapshot: true\nThere are 3 MUST-level requirements.\n",
+        "---\nze-stat-snapshot: true\nze-stat-snapshot: false\n---\n"
+        "There are 3 MUST-level requirements.\n",
+    ],
+    ids=[
+        "false",
+        "prefixed-key",
+        "body",
+        "missing-front-matter",
+        "unterminated-front-matter",
+        "conflicting-duplicates",
+    ],
+)
+def test_source_stat_snapshot_rejects_noncanonical_markers(tmp_path, source):
+    errors = _check_changes_post_source(tmp_path, source)
+
+    assert len(errors) == 1
+    assert "hardcodes a current repo statistic" in errors[0]
 
 
 def test_substitute_leaves_non_ze_braces_untouched():

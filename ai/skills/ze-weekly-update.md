@@ -80,8 +80,12 @@ read end to end. SHOULD waits behind all of it.
 ---
 covers: <YYYY-MM-DD> .. <YYYY-MM-DD>
 tags: <comma-separated allowed tags>
+ze-stat-snapshot: true
 ---
 ```
+
+Weekly RFC counts are historical at publication. Keep
+`ze-stat-snapshot: true` in front matter, never in a body HTML comment.
 
 3. Choose tags from `website/data/topics.json`. If the week needs a genuinely new topic, add it to `data/topics.json` with the right category. Do not force a near miss.
 4. Decide what the week is about before writing, and leave the rest out. A full week yields far more than fits, so `STYLE.md` ("How long") governs what survives: 3 sections is normal, 5 is the ceiling, and a section carrying one bullet is a sentence in the wrong shape.

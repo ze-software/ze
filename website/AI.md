@@ -470,6 +470,8 @@ this before considering the update done.
    never a tag. `tools/build.py` fails on any tag not in `data/topics.json`; if <!-- doc-links: ignore (path is relative to website/ in this architecture note) -->
    the week did something genuinely new, add the tag to the vocabulary (with
    its category) rather than forcing a near-miss.
+   Weekly RFC counts are historical at publication. Keep
+   `ze-stat-snapshot: true` in front matter, never in a body HTML comment.
 
 1. **Check Features for drift.** Did the week ship something with no card
    yet, or move a feature from Experimental to shipped? Add/move/edit its

@@ -155,6 +155,20 @@ def check_html_stat_markers(root=GH_PAGES, facts=None):
     return errors
 
 
+def has_stat_snapshot(text):
+    lines = text.splitlines()
+    if not lines or lines[0] != "---":
+        return False
+    values = []
+    for line in lines[1:]:
+        if line == "---":
+            return values == ["true"]
+        key, separator, value = line.partition(":")
+        if separator and key.strip() == SNAPSHOT_MARKER:
+            values.append(value.strip())
+    return False
+
+
 def check_source_tokens(root=GH_PAGES):
     valid = set(sitelib.number_token_specs())
     errors = []
@@ -166,7 +180,7 @@ def check_source_tokens(root=GH_PAGES):
                 errors.append(
                     "%s uses unknown site number token {{ze:%s}}" % (rel, match.group(1))
                 )
-        if SNAPSHOT_MARKER in text:
+        if has_stat_snapshot(text):
             continue
         for line_no, line in enumerate(text.splitlines(), 1):
             if "{{ze:" in line:

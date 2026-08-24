@@ -2,8 +2,8 @@
 """Post Zeledon weekly updates to Discord ze-news, consistently every time.
 
 Usage:
-    python3 post_weekly.py --all <path/to/blog/posts/dir> --yes
-    python3 post_weekly.py <path/to/blog/post.md> --yes
+    python3 scripts/zeledon/post_weekly.py --all website/changes/posts/ --yes
+    python3 scripts/zeledon/post_weekly.py website/changes/posts/<start>.md --yes
 
 The normal way to run this is the --all form, regularly (weekly, or
 whenever you remember). It scans the posts directory, skips any week
@@ -12,11 +12,12 @@ posts everything else in chronological order -- one missed week or ten,
 same command. There's no separate "catch up" mode: falling behind and
 catching up are the same operation.
 
-Reads gh-pages blog/posts/<start-date>.md files (front matter: `covers:
-<start> .. <end>`), splits the Zeledon-voice body into Discord messages
-under Discord's 2000-char limit (splitting only at "**emoji Header**"
-section boundaries, never mid-section), and posts each chunk in order via
-the discord.sh CLI ($DISCORD_SH, default ~/Unix/bin/discord.sh).
+Reads `website/changes/posts/<start>.md` files (front matter:
+`covers: <start> .. <end>`), splits the Zeledon-voice body into Discord
+messages under Discord's 2000-char limit (splitting only at
+"**emoji Header**" section boundaries, never mid-section), and posts each
+chunk in order via the discord.sh CLI. It uses $DISCORD_SH when set.
+Otherwise it checks ~/Unix/bin/discord.sh, then ~/bin/discord.sh, then PATH.
 
 A week is only posted once it has fully ended (covers' end date is before
 today) -- posting mid-week would describe a week that hasn't finished
@@ -101,6 +102,9 @@ RATE_LIMIT_BACKOFF = [5, 15, 30, 60]
 FRONT_MATTER_RE = re.compile(r"^---\n(.*?)\n---\n(.*)$", re.DOTALL)
 SECTION_SPLIT_RE = re.compile(r"(?=^\*\*[^\n]+\*\*$)", re.MULTILINE)
 HEADER_LINE_RE = re.compile(r"^\*\*📅 Ze Weekly Update\*\*$", re.MULTILINE)
+STAT_SNAPSHOT_MARKER = (
+    "<!-- ze-stat-snapshot: weekly update, frozen at publication -->"
+)
 
 
 def parse_post(path):
@@ -113,7 +117,16 @@ def parse_post(path):
     for line in m.group(1).splitlines():
         key, _, value = line.partition(":")
         meta[key.strip()] = value.strip()
-    return meta, m.group(2).strip()
+    body = m.group(2).strip()
+    if STAT_SNAPSHOT_MARKER in body:
+        print(
+            "error: %s contains the legacy ze-stat-snapshot HTML marker; "
+            "site-only metadata is invalid in the Discord body; "
+            "put ze-stat-snapshot: true in front matter" % path,
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return meta, body
 
 
 def start_date(covers):
@@ -293,7 +306,7 @@ def main():
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument(
-        "source", nargs="?", type=pathlib.Path, help="one blog post .md file"
+        "source", nargs="?", type=pathlib.Path, help="one weekly post source file (.md)"
     )
     parser.add_argument(
         "--all",
