@@ -2568,6 +2568,79 @@ def _strip_line(line, marker):
     return line if cut < 0 else line[:cut]
 
 
+# The Python shapes, mirroring the Go arms one for one. They exist because the
+# repository's tooling suite IS Python: `scripts/dev/*_test.py` covers the hooks,
+# the commit helper, the rules pipeline and the verify runner, and every one of
+# those files was invisible to `_test_weakening_errs` while `_HASH_COMMENT_CARRIERS`
+# already named `.py` and `_TAUTOLOGY` already carried Python arms.
+#
+# WHICH `.py` files these arms judge is `_is_python_test` below, and no path this
+# hook admits reaches them today: `is_test` in `c_test_weakening` names no `.py`
+# at all, and the one other way in is a tagged `check.py`, which that predicate
+# excludes on purpose. They are the SHAPES, and `scripts/dev/audit-test-relaxation.py`
+# imports this detector whole (`load_detector`), so the day `is_test_path` there
+# admits a `.py` these are what judges it. Widening the population is the other
+# half, it is a commit-gate decision, and it is not made here.
+#
+# A method is indented, so the function arm anchors on leading whitespace rather
+# than on the start of a line the way the Go one does.
+_PY_TEST_FUNC = re.compile(r"^[ \t]*(?:async[ \t]+)?def[ \t]+test", re.MULTILINE)
+
+
+def _is_python_test(fp):
+    """A Python test file, in the two shapes this repository runs.
+
+    `pythonTestGlobs` (scripts/dev/python_tests_test.go) is where they are
+    declared: `<tool>_test.py` mirrors Go and is what scripts/dev and
+    test/scripts use, `test_<tool>.py` is pytest's spelling and is what
+    test/interop/speaker uses. Discovery and this guard must not name different
+    populations.
+
+    An interop `check.py` is deliberately NOT one. It reaches
+    `_test_weakening_errs` only through `_carries_rfc_tag`, and the commit gate
+    never judges it: `is_test_path` (scripts/dev/check_weakened_tests.py,
+    delegating to scripts/dev/audit-test-relaxation.py) admits no `.py` at all.
+    A block here would demand a `test/weakened.md` row that `unmatched_problems`
+    (scripts/dev/check_weakened_tests.py) then refuses as matching no weakening,
+    leaving an author who can satisfy neither gate.
+    """
+    name = os.path.basename(fp)
+    return name.endswith("_test.py") or (
+        name.startswith("test_") and name.endswith(".py")
+    )
+
+
+# The ways a Python test stops running that this pattern KNOWS: unittest's
+# method, its exception, its skip decorators and its expected-failure decorator,
+# and pytest's three. Measured on 2026-08-23, before the last two arms existed:
+# `@unittest.expectedFailure` and `@pytest.mark.xfail` both scored matched=False,
+# and each turns a red test green without touching an assertion, which is the
+# cheapest move an agent makes when the code is broken.
+#
+# It is a KNOWN list, not a complete one. A `conftest.py` collection hook, a
+# `__test__ = False`, and a rename out of `test_` each stop a test running and
+# none of them is here.
+_PY_SKIP_PAT = re.compile(
+    r"\bself\.skipTest[ \t]*\("
+    r"|\braise[ \t]+(?:unittest\.)?SkipTest\b"
+    r"|@(?:unittest\.)?skip(?:If|Unless)?[ \t]*\("
+    r"|@(?:unittest\.)?expectedFailure\b"
+    r"|@pytest\.mark\.skip"
+    r"|@pytest\.mark\.xfail"
+    r"|\bpytest\.skip[ \t]*\("
+)
+# unittest's assertions, pytest's raises, and the bare statement. The bare one is
+# anchored at the start of a line so an `assert` inside a string or a comment
+# about assertions is not counted, which is the same trap `_ASSERT_PAT` fell into
+# on the Go side.
+_PY_ASSERT_PAT = re.compile(
+    r"\bself\.assert[A-Za-z]*[ \t]*\("
+    r"|\bpytest\.raises[ \t]*\("
+    r"|^[ \t]*assert[ \t]",
+    re.MULTILINE,
+)
+
+
 # An assertion that cannot fail. Introducing one is the in-place gutting that no
 # count-based heuristic sees: `assert 'established' in resp` -> `assert True` keeps
 # every line and every assertion count identical. Deliberately narrow. A real test
@@ -2685,6 +2758,19 @@ def _test_weakening_errs(old, new, fp):
             errs.append(
                 f"emptying an expectation's needle ({old_empty} -> {new_empty}); it now matches anything"
             )
+    if _is_python_test(fp):
+        if _PY_TEST_FUNC.search(old_s) and not _PY_TEST_FUNC.search(new_s):
+            errs.append("deleting every def test_ function")
+        old_pyskip = len(_PY_SKIP_PAT.findall(old_s))
+        new_pyskip = len(_PY_SKIP_PAT.findall(new_s))
+        if new_pyskip > old_pyskip:
+            errs.append(
+                f"adding a Python skip ({old_pyskip} -> {new_pyskip}); the test stops running"
+            )
+        old_pyas = len(_PY_ASSERT_PAT.findall(old_s))
+        new_pyas = len(_PY_ASSERT_PAT.findall(new_s))
+        if old_pyas > new_pyas and new.strip():
+            soft.append(f"removing assertions ({old_pyas} -> {new_pyas})")
     old_taut = len(_TAUTOLOGY.findall(old_s))
     new_taut = len(_TAUTOLOGY.findall(new_s))
     if new_taut > old_taut:
@@ -3105,10 +3191,24 @@ def c_test_weakening(ctx):
     is_test = bool(
         re.search(r"_test\.go$", fp) or (fp.endswith((".ci", ".et")) and "/test/" in fp)
     )
-    # A tagged carrier the `is_test` predicate misses still gets the RFC-tagged branch below,
-    # but NOT the generic weakening heuristic: `_test_weakening_errs` counts Go/`.ci` shapes
-    # and would mis-read a Python scenario, and widening two rules at once when only one has a
-    # demonstrated hole is how a guard earns its reputation for over-blocking.
+    # A tagged carrier the `is_test` predicate misses still reaches
+    # `_test_weakening_errs` below, and since 2026-08-23 that detector carries
+    # Python arms as well as the Go and `.ci` ones.
+    #
+    # `is_test` is deliberately NOT widened to `.py` here, and the Python arms
+    # judge `_is_python_test` files only, so no path this hook admits today
+    # reaches them. That is not an oversight, it is the boundary: widening the
+    # POPULATION is one decision and widening the SHAPES is another, and only the
+    # second is made here.
+    #
+    # Widening the population is not a report-only change either, which is what
+    # an earlier version of this comment claimed. `is_test_path`
+    # (scripts/dev/audit-test-relaxation.py) is what `check_weakened_tests`
+    # delegates to, and `weakened_problems` (scripts/dev/commit_helper.py) filters
+    # a commit's `--file` list through it, so every path admitted there is a path
+    # the COMMIT GATE refuses until `test/weakened.md` carries a matching row.
+    # The audit is not where a newly-seen population lands cheaply; it is where it
+    # lands with teeth.
     if not is_test and not _carries_rfc_tag(fp):
         return None
     tool = ctx["tool"]
