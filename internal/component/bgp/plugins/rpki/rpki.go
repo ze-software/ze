@@ -161,6 +161,91 @@ type rPKIPlugin struct {
 	active atomic.Bool
 }
 
+// commandDecls names the commands this plugin serves and states what each
+// answer holds, so the engine publishes the operators a command supports and
+// refuses the ones it cannot before the command is dispatched
+// (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// A column order names the keys of one ROW, in the order a person reads them,
+// and every name below is a key the producing function writes. A name no
+// producer writes orders nothing and publishes a field that does not exist to
+// `| display` completion, and NOTHING fails when it is wrong:
+// TestDeclaredColumnsExistInPayload drives each producer and holds the two
+// together.
+//
+// `request bgp rpki validate` declares no shape. It answers one verdict for one
+// prefix, and it is outside the population this spec measured, so it keeps the
+// derived-at-apply-time behavior every undeclared command has.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{
+			Name:        "show bgp rpki",
+			Description: "Show RPKI validation counters with one row for each cache server",
+			// appendSummaryFields writes the aggregate keys and
+			// appendCacheServers the rows, as siblings at one level. The order
+			// names the row keys: the aggregate half carries none of them, so
+			// it keeps the alphabetical rendering it has today.
+			Shape:         "tab",
+			Columns:       []string{"address", "port", "state", "synced", "version"},
+			AddressFields: []string{"address"},
+		},
+		{
+			Name:        "show bgp rpki status",
+			Description: "Show RPKI validation status and cache server overview",
+			// statusCommand writes two candidate row sets, "cache-servers" and
+			// the per-peer actions, so rowsInKeyed
+			// (internal/component/command/answer_shape.go) can choose neither
+			// and the answer is one document.
+			Shape: "doc",
+		},
+		{
+			Name:        "show bgp rpki cache",
+			Description: "Show RTR cache server sessions with protocol details",
+			// cacheCommand writes the rows, adding the protocol detail of a
+			// session to what the overview carries.
+			Shape: "tab",
+			Columns: []string{
+				"address", "port", "preference", "state", "synced", "version",
+				"session-id", "serial", "refresh-interval", "retry-interval",
+				"expire-interval",
+			},
+			AddressFields: []string{"address"},
+		},
+		{
+			Name:        "show bgp rpki roa",
+			Description: "Show ROA table entries or lookup covering VRPs for a prefix",
+			// roaCommand and roaLookupCommand both write their rows under
+			// "entries" in these three keys, so one declaration describes the
+			// command whichever branch its argument takes.
+			Shape:         "tab",
+			Columns:       []string{"prefix", "max-length", "asn"},
+			AddressFields: []string{"prefix"},
+		},
+		{
+			Name:        "show bgp rpki summary",
+			Description: "Show RPKI validation summary with session and ASPA counts",
+			// summaryCommand writes the aggregate keys alone. No row set, and
+			// no field holding an address, so the row operators and the address
+			// operators are each refused by name.
+			Shape: "doc",
+		},
+		{
+			Name:        "request bgp rpki validate",
+			Description: "Validate a prefix against the ROA cache",
+			Args:        []string{"<prefix>", "<origin-asn>"},
+		},
+		{
+			Name:        "show bgp rpki aspa",
+			Description: "Show ASPA cache or lookup providers for a customer AS",
+			// aspaCommand writes its rows under "entries" in both branches. A
+			// row holds an AS number and the AS numbers that AS authorizes, and
+			// neither is an address.
+			Shape:   "tab",
+			Columns: []string{"customer-asn", "providers"},
+		},
+	}
+}
+
 // runRPKIPlugin runs the bgp-rpki plugin using the SDK RPC protocol.
 func runRPKIPlugin(conn net.Conn) int {
 	logger().Debug("bgp-rpki plugin starting")
@@ -262,15 +347,7 @@ func runRPKIPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		Commands: []sdk.CommandDecl{
-			{Name: "show bgp rpki", Description: "Show RPKI validation counters with one row for each cache server"},
-			{Name: "show bgp rpki status", Description: "Show RPKI validation status and cache server overview"},
-			{Name: "show bgp rpki cache", Description: "Show RTR cache server sessions with protocol details"},
-			{Name: "show bgp rpki roa", Description: "Show ROA table entries or lookup covering VRPs for a prefix"},
-			{Name: "show bgp rpki summary", Description: "Show RPKI validation summary with session and ASPA counts"},
-			{Name: "request bgp rpki validate", Description: "Validate a prefix against the ROA cache", Args: []string{"<prefix>", "<origin-asn>"}},
-			{Name: "show bgp rpki aspa", Description: "Show ASPA cache or lookup providers for a customer AS"},
-		},
+		Commands: commandDecls(),
 		// The alias is a selection over the sibling keys the bare command
 		// writes. `show bgp rpki summary` keeps answering, and the engine
 		// derives from the command list above the empty declaration that stops
@@ -1378,19 +1455,27 @@ func (rp *rPKIPlugin) aspaCommand(args []string) (string, any, error) {
 		providers := rp.aspaCache.lookupCustomer(uint32(asn)) //nolint:gosec // range checked by ParseUint
 		b := textbuf.Get()
 		defer b.Release()
+
+		// The one result goes under "entries", in the row shape the no-argument
+		// branch writes below, so the command answers one shape whatever its
+		// argument and a single answer-shape declaration can describe it. "found"
+		// stays beside it: it separates "this customer has no ASPA record" from
+		// "the cache is empty", which the row count alone cannot say.
 		b.Str(`{"customer-asn":`).Uint(asn)
 		if providers == nil {
-			b.Str(`,"found":false,"providers":[]}`)
-		} else {
-			b.Str(`,"found":true,"providers":[`)
-			for i, p := range providers {
-				if i > 0 {
-					b.Byte(',')
-				}
-				b.Uint32(p)
-			}
-			b.Str(`]}`)
+			b.Str(`,"found":false,"entries":[]}`)
+			return statusDone, json.RawMessage(b.String()), nil
 		}
+
+		b.Str(`,"found":true,"entries":[{"customer-asn":`).Uint(asn)
+		b.Str(`,"providers":[`)
+		for i, p := range providers {
+			if i > 0 {
+				b.Byte(',')
+			}
+			b.Uint32(p)
+		}
+		b.Str(`]}]}`)
 		return statusDone, json.RawMessage(b.String()), nil
 	}
 

@@ -399,6 +399,11 @@ func (m *probeManager) handleCommand(command string, args []string) (string, any
 }
 
 // handleShow returns probe status as JSON.
+//
+// Both branches answer a row set, so the command has one shape whatever its
+// argument and a single answer-shape declaration can describe it. The rows carry
+// different fields in each branch, which is what makes the shape "map" rather than
+// "tab" (internal/component/command/pipe_catalog.go).
 func (m *probeManager) handleShow(args []string) (string, any, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -410,7 +415,7 @@ func (m *probeManager) handleShow(args []string) (string, any, error) {
 		if !exists {
 			return statusError, "", fmt.Errorf("probe %q not found", name)
 		}
-		detail := struct {
+		type probeDetail struct {
 			Name           string `json:"name"`
 			Group          string `json:"group"`
 			State          string `json:"state"`
@@ -421,7 +426,8 @@ func (m *probeManager) handleShow(args []string) (string, any, error) {
 			UpMetric       uint32 `json:"up-metric"`
 			DownMetric     uint32 `json:"down-metric"`
 			DisabledMetric uint32 `json:"disabled-metric"`
-		}{
+		}
+		detail := []probeDetail{{
 			Name:           rp.config.Name,
 			Group:          rp.config.Group,
 			State:          stateName(State(rp.fsmState.Load())),
@@ -432,7 +438,7 @@ func (m *probeManager) handleShow(args []string) (string, any, error) {
 			UpMetric:       rp.config.UpMetric,
 			DownMetric:     rp.config.DownMetric,
 			DisabledMetric: rp.config.DisabledMetric,
-		}
+		}}
 		return statusDone, detail, nil
 	}
 

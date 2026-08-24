@@ -225,10 +225,15 @@ printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DI
 # format on the command makes both branches independent of the configured
 # default, which is why it is spelled out here rather than left implicit.
 #
-# `| yaml` renders handleShow's flat detail struct
+# `| yaml` renders handleShow's detail row
 # (internal/component/bgp/plugins/healthcheck/healthcheck.go) one "key: value"
-# pair per line via RenderYAML/writeKeyValue (internal/component/command/format.go):
-# a passing probe renders "state: UP", a failing one "state: DOWN".
+# pair per line via RenderYAML/writeMapItem (internal/component/command/format.go).
+# The named-probe branch answers a ONE-ELEMENT ROW SET, so the row's first key
+# (sorted: "command") carries the "- " sequence marker and every later key,
+# "state" among them, is indented by two spaces. Both patterns below match a
+# substring, so they read "  state: UP" and "  state: DOWN" exactly as they read
+# the unindented form: a passing probe renders "state: UP", a failing one
+# "state: DOWN".
 #
 # Poll long enough to observe at least one COMPLETED check cycle, not just
 # "still initializing": the FIRST check runs immediately at daemon start (no
