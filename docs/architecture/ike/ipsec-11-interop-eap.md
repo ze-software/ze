@@ -61,3 +61,14 @@ Ze as the initiator and strongSwan as the authenticator. The MS-CHAPv2 and MD4
 primitives worked against strongSwan on the first run; what interop found was
 elsewhere. See `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md` for the five
 defects that a same-implementation suite could not see.
+
+`04-eap-tls` runs against a STOCK strongSwan, which lands on TLS 1.2 and
+negotiates no RFC 7627 extended master secret. Ze cannot derive the RFC 5216
+Section 2.3 MSK there, so the scenario asserts the refusal rather than a tunnel:
+the TLS handshake and every EAP-TLS fragment complete, ze logs one line naming
+the peer, the negotiated version, RFC 7627 and the three remedies, and neither
+end installs an XFRM SA. `06-eap-tls13` is the same exchange with
+`charon.tls.version_max = 1.3` on the same image, and it carries the ESP
+data-plane assertions.
+
+<!-- source: internal/component/ike/eap/eap_tls.go -- exportEAPTLSMSK, eapTLS12ExportRefused -->

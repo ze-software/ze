@@ -1,11 +1,36 @@
 #!/usr/bin/env python3
-"""Scenario 04: EAP-TLS authentication Ze <-> strongSwan.
+"""Scenario 04: EAP-TLS Ze <-> a STOCK strongSwan, which lands on TLS 1.2.
 
-Validates: Ze's IKEv2 engine performs an EAP-TLS exchange inside
-           IKE_AUTH with strongSwan. Both sides present X.509
-           certificates validated against a shared test CA.
-Prevents:  EAP-TLS fragmentation bugs, TLS handshake failures,
-           MSK export errors, certificate chain validation issues.
+Validates: ze drives the whole EAP-TLS exchange with strongSwan over TLS 1.2
+           -- certificate validation, EAP-TLS fragmentation, and the TLS
+           handshake -- and then REFUSES the peer at the RFC 5216 Section 2.3
+           MSK export, with one log line that names the peer, the negotiated
+           version, RFC 7627 and the three things an operator can change.
+Prevents:  EAP-TLS fragmentation defects and certificate chain defects on the
+           TLS 1.2 flights, an SA installed from key material ze never derived,
+           and an operator left holding a raw crypto/tls sentence.
+
+Why this scenario asserts a refusal rather than a tunnel. RFC 5216 Section 2.3
+defines the EAP-TLS MSK as a crypto/tls ExportKeyingMaterial result, and Go
+refuses that export when the session is below TLS 1.3 AND did not negotiate the
+RFC 7627 extended master secret. strongSwan 5.9.14 meets both halves by DEFAULT:
+charon ships `version_max = 1.2` and implements no RFC 7627. So ze cannot derive
+the MSK here, and the correct behaviour is to say why and install nothing.
+
+This is the only place that behaviour is observable. A `.ci` drives ze against
+ze, and Go's own client offers RFC 7627 on every TLS 1.2 ClientHello
+(`makeClientHello`, crypto/tls), so a Ze-driven peer always exports and the
+refusal never happens.
+
+The TLS 1.3 path is scenario 06-eap-tls13, which carries no ze-env file at all
+and reaches an established SA on this SAME strongSwan image with one line of
+peer config (`charon.tls.version_max = 1.3`). That pair is the evidence for the
+first remedy the message below names: a peer config edit, not a peer upgrade.
+
+Until 2026-08-23 this scenario set the `tlsunsafeekm` GODEBUG setting for the ze
+container, which lifted the refusal for this scenario alone. Go 1.27 removed that
+setting, and a removed key carrying its old value is a fatal error raised before
+main(), so the line stopped ze at container start. See ze-env beside this file.
 """
 
 import os
@@ -13,74 +38,72 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from lab import (
-    StrongSwan,
     SWAN_CONTAINER,
-    SWAN_IP,
     ZE_CONTAINER,
-    assert_esp_accepted,
-    docker_exec_quiet,
+    check_xfrm_sa_count,
+    docker_logs_all,
     log_pass,
-    wait_xfrm_sa,
-    xfrm_sa_bytes_by_spi,
+    wait_swan_log,
+    wait_ze_log,
+)
+
+# The refusal ze must log, split into the facts an operator acts on. Each entry
+# is asserted on its own so a failure names the fact that went missing rather
+# than printing one 400-character diff.
+#
+# Producer: eapTLS12ExportRefused (internal/component/ike/eap/eap_tls.go). The
+# peer subject is the strongSwan server certificate this lab's PKI issues
+# (test/interop-ipsec/pki), so it is a fixed string here rather than a pattern.
+REFUSAL_FACTS = (
+    # what failed, and the RFC clause that defines it
+    "cannot export the RFC 5216 Section 2.3 MSK",
+    # who the peer is
+    "for peer CN=172.28.0.3",
+    # what was negotiated, which is the condition the operator must change
+    "on TLS 1.2",
+    # why the export is refused
+    "RFC 7627 extended master secret",
+    # the three remedies
+    "Move the peer to TLS 1.3 (RFC 9190)",
+    "add RFC 7627 to its TLS 1.2 stack",
+    "configure another EAP method",
+    # the crypto/tls sentence, kept so the log names the refusal ze actually met
+    "crypto/tls: ExportKeyingMaterial is unavailable",
 )
 
 
 def check():
-    swan = StrongSwan()
-
-    # 1. IKE SA established with EAP-TLS.
-    swan.wait_sa_established("ze")
-    swan.wait_child_sa()
-
-    # 2. XFRM state on BOTH ends.
+    # 1. The exchange runs to the end of the TLS handshake.
     #
-    # This assertion used to sit inside `except (AssertionError, Exception): log_pass(...)`.
-    # That handler caught the AssertionError the check raises when ESP is BROKEN and then
-    # logged a pass, so the scenario reported success whatever the dataplane did. Its
-    # "expected on Docker for Mac" reason is also stale: scenario 01-psk-site-to-site runs
-    # in this same lab with the Ze-side XFRM SA present and ESP counters advancing on both
-    # peers, measured 2026-08-01.
-    wait_xfrm_sa(SWAN_CONTAINER)
-    wait_xfrm_sa(ZE_CONTAINER)
+    # These two strongSwan lines are what keeps this scenario's ORIGINAL value.
+    # The refusal below happens after the last EAP-TLS fragment is reassembled
+    # and both certificate chains are verified, so a fragmentation or chain
+    # defect reds this check before the refusal is ever reached. The journal row
+    # in plan/journal/shared-leniency-hides-the-defect.md records why that
+    # matters: this is the only test with a peer that is not a second copy of
+    # ze, and a ze-to-ze test shares every leniency it would need to detect.
+    wait_swan_log("negotiated TLS 1.2")
+    wait_swan_log("EAP method EAP_TLS succeeded, MSK established")
 
-    # 3. Data plane: the SAs carry ESP that the peer ACCEPTS.
-    #
-    # An XFRM SA is necessary and not sufficient. It proves the two ends installed
-    # keys, never that those keys agree: an MSK exported on the wrong side of the
-    # RFC 5216 / RFC 9190 split, or KEYMAT derived in the wrong nonce order, installs
-    # a pair of SAs of the right shape whose bytes no peer can decrypt. This scenario
-    # stopped at the SA and reported a pass for that case until 2026-08-15.
-    #
-    # A ping alone proves nothing either: both containers sit on one Docker bridge, so
-    # ICMP arrives with the tunnel down. The oracle is the per-SPI byte counter, read
-    # before and after a blocking ping rather than after a sleep, following scenarios 01
-    # and 07. Nothing here waits on elapsed time (spec R-2).
-    #
-    # Discrimination, measured 2026-08-15: with one octet of the outbound ESP key flipped
-    # in installChildSA (internal/component/ike/engine/child.go), so that both ends still
-    # install SAs whose keys do not agree, the two wait_xfrm_sa calls above still passed
-    # and so did ze's own counter. Only the strongSwan assertion below went red.
-    ze_before = xfrm_sa_bytes_by_spi(ZE_CONTAINER)
-    swan_before = xfrm_sa_bytes_by_spi(SWAN_CONTAINER)
+    # 2. Ze refuses at the export, and the refusal is attributed.
+    wait_ze_log("cannot export the RFC 5216 Section 2.3 MSK")
+    logs = docker_logs_all(ZE_CONTAINER)
+    for fact in REFUSAL_FACTS:
+        if fact not in logs:
+            raise AssertionError("ze's EAP-TLS refusal does not state: %s" % fact)
+    log_pass("ze's EAP-TLS refusal states all %d facts" % len(REFUSAL_FACTS))
 
-    docker_exec_quiet(ZE_CONTAINER, ["ping", "-c", "4", "-W", "2", SWAN_IP])
+    # 3. Fail closed. No key material was derived, so no SA may exist.
+    #
+    # strongSwan's own EAP method SUCCEEDED at step 1: it exports the MSK on a
+    # TLS 1.2 session without RFC 7627 and ze does not. So the peer is willing,
+    # and the only thing keeping an SA off the wire is ze refusing to continue
+    # with an MSK it never derived. An SA here would carry keys the two ends
+    # cannot agree on, which is the failure this assertion exists to catch.
+    check_xfrm_sa_count(ZE_CONTAINER, 0)
+    check_xfrm_sa_count(SWAN_CONTAINER, 0)
 
-    assert_esp_accepted(
-        ZE_CONTAINER,
-        ze_before,
-        xfrm_sa_bytes_by_spi(ZE_CONTAINER),
-        "no traffic through the EAP-TLS tunnel",
+    log_pass(
+        "EAP-TLS over TLS 1.2 without RFC 7627: ze completed the handshake, "
+        "refused the MSK export with an attributed error, and installed no SA"
     )
-
-    # The peer's inbound counter is the interop assertion. Ze's own counter advances
-    # whatever key it encrypted with; strongSwan's advances only after it looks the SPI
-    # up, decrypts, and verifies the tag, so this is where the EAP-TLS MSK the two sides
-    # derived is proven to be the same key.
-    assert_esp_accepted(
-        SWAN_CONTAINER,
-        swan_before,
-        xfrm_sa_bytes_by_spi(SWAN_CONTAINER),
-        "strongSwan accepted no ESP over the EAP-TLS tunnel",
-    )
-
-    log_pass("EAP-TLS tunnel established with certificate authentication, ESP accepted")

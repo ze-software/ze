@@ -574,9 +574,13 @@ func (m *tlsMethod) Process(response *Packet) MethodResult {
 //
 // THE VERSION TEST READS THE NEGOTIATED VERSION, NOT THE CONFIGURED ONE. The
 // section is new against RFC 5216 and "only applies to TLS 1.3", so a TLS 1.2
-// exchange must conclude with the bare EAP-Success it concluded with before
-// (scenario 04-eap-tls is that proof). tlsConfig.MinVersion is TLS 1.2 and says
-// nothing about what this session settled on.
+// exchange must conclude with the bare EAP-Success it concluded with before.
+// TestEAPTLS12SendsNoProtectedSuccessIndication (rfc9190_test.go) is that proof:
+// it drives a TLS 1.2 flight and asserts the authenticator sends no
+// application_data record at all. The interop lab cannot prove it, because ze is
+// the EAP PEER in every TLS 1.2 scenario and this function runs on the
+// authenticator side. tlsConfig.MinVersion is TLS 1.2 and says nothing about
+// what this session settled on.
 //
 // THE CALLER MUST HAVE OBSERVED m.handshaked, which is what satisfies
 // RFC9190-2.5-2, the MUST NOT against sending the indication early. runTLSServer
