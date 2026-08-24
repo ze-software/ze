@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/syntax.md -- the entry order of a YANG list on the plugin config path
+// RFC: rfc/short/rfc7950.md -- Section 6.2, what a YANG identifier can start with
 //
 // Package configorder reads a YANG list declared `ordered-by user`, in the
 // order the operator wrote its entries.
@@ -27,7 +28,9 @@ import (
 // No YANG node name can start with it, because a YANG identifier starts with a
 // letter or an underscore (RFC 7950 Section 6.2). So the reserved key can never
 // shadow a leaf, a container or a list declared in the same place.
-// TestOrderKeyCannotCollideWithAYANGNodeName holds that property.
+// TestOrderKeyCannotCollideWithAYANGNodeName holds that property. It is the
+// argument configjson.GroupKeyPrefix already rests on for its own reserved
+// namespace.
 const KeyPrefix = "@"
 
 // OrderKey returns the key that carries listName's entry order.
