@@ -181,7 +181,7 @@ it decides to fail, not that a path appears somewhere in the log.
 | 5 | `check_design_refs` | nothing of its own | **No, as written.** It runs `check_doc_links.py --design-only` with no `capture_output`, so it holds only `proc.returncode`. The CHILD's own `check_design_refs` (`scripts/dev/check_doc_links.py`) prints `<go>:<line>: broken Design reference: <target>` straight to the inherited stdout | whole tree, unconditional |
 | 6 | `check_wiring`, then `main`'s early `return 1` | `Wiring check FAILED:` then `sym.path:sym.line: exported ...` | **Yes.** `issues` carries `sym.path` | files in `changed`, which is the whole shared tree |
 | 7 | `run_make_target` | the child's stdout and stderr, then `GateFailure("<target> failed")` on stderr | **No.** It holds the TARGET name. Any path in the relayed text was produced by another program | one delegated target |
-| 8 | `check_plugin_imports` | `GateFailure("plugin import check failed")` | **No.** Unreachable from the gate: `main` returns 0 on its `--check-plugin-imports` branch, and the `ze-doc-wiring-check` recipe in `mk/inventory.mk` never passes that flag | n-a |
+| 8 | `check_plugin_imports` | `GateFailure("plugin import check failed")` | **No.** Unreachable from the gate: `main` returns 0 on its `--check-plugin-imports` branch, and the `ze-doc-wiring-check` recipe in `mk/check-docs.mk` never passes that flag | n-a |
 
 **Verdict: A-1 CONFIRMED, with one path that must change to keep the payoff.**
 Every path either names its files or structurally cannot, so no path names files

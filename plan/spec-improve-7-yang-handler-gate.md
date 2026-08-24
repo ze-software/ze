@@ -528,7 +528,7 @@ improve-6's post-wave corrections.)
 | `test/plugin/doctor-config-claims.ci` | Moved | -> `test/ui/doctor-config-claims.ci` (see Deviations) |
 | `internal/core/diagnostic/codes.go` | Modified | Two codes added |
 | doctor registration | Created | `internal/component/doctor/checks_config_claims.go`, called from `runChecks` |
-| `Makefile` / `mk/` | Modified | `ze-yang-leaf-mentions-report` (Makefile), `ze-config-claims-check` (mk/inventory.mk) |
+| `Makefile` / `mk/` | Modified | `ze-yang-leaf-mentions-report` (Makefile), `ze-config-claims-check` (mk/check-cli.mk) |
 | `ai/INDEX.md` | NOT DONE | Out of this session's permitted scope |
 | `docs/comparison.md` | Modified | |
 

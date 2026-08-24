@@ -162,7 +162,7 @@ target over the real tree.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `make ze-doc-verify` | `mk/inventory.mk` | an agent cannot land a package with no documentation home | |
+| `make ze-doc-verify` | `mk/check-docs.mk` | an agent cannot land a package with no documentation home | |
 
 ## Files to Modify
 - `scripts/docvalid/doc_drift.go` - the check

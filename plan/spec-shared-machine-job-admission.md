@@ -215,7 +215,7 @@ Three exclusions, each for a stated reason rather than for size:
 |----------|-----|
 | `ze-qemu-shell`, `ze-qemu-debug`, `ze-gokrazy-run` | interactive. The wrapper pipes a job's output through `tee`, which loses the terminal |
 | Recipe-less aggregates (`ze-integration-test`, `ze-live-test`) | their members are admitted individually; giving the aggregate a recipe would change what `make` does with it |
-| Builds, and the source-reading Python checks in `mk/inventory.mk` | single-threaded, seconds long, and not implicated in the 2026-08-17 freeze. `go build` is bounded by the shared cache |
+| Builds, and the source-reading Python checks in `mk/check-docs.mk` | single-threaded, seconds long, and not implicated in the 2026-08-17 freeze. `go build` is bounded by the shared cache |
 
 **The slot count is DERIVED, not chosen.** `ZE_RUN_SLOTS` (`Makefile`, beside
 `GO_TEST_PROCS`) is cores divided by the per-job ceiling that the owner's

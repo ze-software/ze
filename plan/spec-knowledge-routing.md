@@ -130,7 +130,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 
 ### Integration Points
 - `ai/skills/ze-close.md` step 6, where the summary is written.
-- `mk/inventory.mk` `ze-doc-verify`, where a queue-depth gate would join.
+- `mk/check-docs.mk` `ze-doc-verify`, where a queue-depth gate would join.
 - `ai/INDEX.md` Dev Tools, where any new tool must appear in the same phase.
 
 ### Architectural Verification
@@ -174,7 +174,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `make ze-learned-queue` | → | the queue-depth reporter | `test_queue_reports_unrouted_age` in `scripts/dev/learned_queue_test.py` |
-| `make ze-doc-verify` | → | the gate declared in `mk/inventory.mk` | `test_target_declared_in_doc_test` in `scripts/dev/learned_queue_test.py` |
+| `make ze-doc-verify` | → | the gate declared in `mk/check-docs.mk` | `test_target_declared_in_doc_test` in `scripts/dev/learned_queue_test.py` |
 | `/ze-close` on a spec that produced a lesson | → | the routing step in `ai/skills/ze-close.md` | `test_close_skill_names_the_routing_step` in `scripts/dev/learned_queue_test.py` |
 
 ## Acceptance Criteria
@@ -221,7 +221,7 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 
 - `ai/skills/ze-close.md` - a routing step after the summary is written
 - `ai/rules/planning.md` - "Writing Learned Summaries" states the lifecycle: written, routed, removed
-- `mk/inventory.mk` - declare `ze-learned-queue`, add it to `ze-doc-verify`
+- `mk/check-docs.mk` - declare `ze-learned-queue`, add it to `ze-doc-verify`
 - `ai/INDEX.md` - Dev Tools row, in the same phase (AC-9)
 - `ai/rules/repo-maintenance.md` - discovery-surface row
 
