@@ -608,6 +608,75 @@ func TestSiteToSitePeerEqualAcrossTwoParses(t *testing.T) {
 	}
 }
 
+// makeTwoProposalGroupTree is one ike-group and one esp-group, each offering the same TWO
+// proposals, added to the tree in the order `numbers` names. Two is the smallest number
+// that can show an ORDER, and the order is what TestGroupsEqualWhateverOrderTheyArriveIn
+// is about.
+func makeTwoProposalGroupTree(numbers [2]string) *config.Tree {
+	encryption := map[string]string{"1": "aes256", "2": "aes128"}
+
+	tree := config.NewTree()
+	ipsecTree := tree.GetOrCreateContainer("vpn").GetOrCreateContainer("ipsec")
+
+	espEntry := config.NewTree()
+	ikeEntry := config.NewTree()
+	for _, number := range numbers {
+		espProp := config.NewTree()
+		espProp.Set("encryption", encryption[number])
+		espProp.Set("hash", "sha256")
+		espEntry.AddListEntry("proposal", number, espProp)
+
+		ikeProp := config.NewTree()
+		ikeProp.Set("encryption", encryption[number])
+		ikeProp.Set("hash", "sha256")
+		ikeProp.Set("dh-group", "14")
+		ikeEntry.AddListEntry("proposal", number, ikeProp)
+	}
+	ipsecTree.AddListEntry("esp-group", "ESP-1", espEntry)
+	ipsecTree.AddListEntry("ike-group", "IKE-1", ikeEntry)
+
+	return tree
+}
+
+// VALIDATES: A-1 for the OTHER half of the reload guard. peerConfigChanged
+// (engine/reconcile.go) compares the RESOLVED ike-group and esp-group as well as the peer,
+// and both comparisons are total. A group that does not parse to one stable value would
+// restart every peer naming it on every commit, which is a worse defect than the one the
+// total comparison removes.
+//
+// PREVENTS: the ordering trap. Proposals is a SLICE and reflect.DeepEqual is
+// order-sensitive, so the parse must derive the order from the proposal NUMBER and never
+// from the order the entries arrived in. parseIKEGroup and parseESPGroup sort on Number for
+// that reason; remove either sort and this test reddens. The two trees below declare one
+// pair of proposals in opposite order, which is what an operator's edit to an unrelated
+// leaf can do to the delivery.
+func TestGroupsEqualWhateverOrderTheyArriveIn(t *testing.T) {
+	parse := func(numbers [2]string) (IKEGroup, ESPGroup) {
+		t.Helper()
+		cfg, err := ParseIPsecConfig(makeTwoProposalGroupTree(numbers))
+		if err != nil {
+			t.Fatalf("ParseIPsecConfig: %v", err)
+		}
+		return cfg.IKEGroups["IKE-1"], cfg.ESPGroups["ESP-1"]
+	}
+
+	firstIKE, firstESP := parse([2]string{"1", "2"})
+	secondIKE, secondESP := parse([2]string{"2", "1"})
+
+	if len(firstIKE.Proposals) != 2 || len(firstESP.Proposals) != 2 {
+		t.Fatalf("setup: parsed %d IKE and %d ESP proposals, want 2 of each; one proposal cannot show an order",
+			len(firstIKE.Proposals), len(firstESP.Proposals))
+	}
+	if !firstIKE.Equal(secondIKE) {
+		t.Errorf("one ike-group parsed to two values, so a commit would restart every peer naming it:\nfirst  = %+v\nsecond = %+v",
+			firstIKE, secondIKE)
+	}
+	if !firstESP.Equal(secondESP) {
+		t.Errorf("one esp-group parsed to two values, so a commit would restart every peer naming it:\nfirst  = %+v\nsecond = %+v",
+			firstESP, secondESP)
+	}
+}
+
 func TestIPsecConfigChanged(t *testing.T) {
 	old := &IPsecConfig{
 		Peers: map[string]SiteToSitePeer{

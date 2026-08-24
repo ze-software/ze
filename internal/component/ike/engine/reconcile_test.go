@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/netip"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
@@ -620,5 +621,59 @@ func TestPeersNeedInterfaceAddress(t *testing.T) {
 	}
 	if got := peersWithoutLocalAddress(testIPsecConfig(withAddress, withoutAddress)); got != 1 {
 		t.Errorf("peersWithoutLocalAddress = %d, want 1", got)
+	}
+}
+
+// VALIDATES: unbindablePeers answers on the lookup RESULT it is handed, names the failure
+// that actually happened, and stays silent for a configuration the interface cannot
+// affect. It is the condition a reload refuses and startup only warns about.
+//
+// PREVENTS: two failures that look opposite and are the same mistake. Refusing a
+// configuration whose every peer carries its own local-address would deny a config that
+// works. Reporting "no IPv4 address" for a lookup that never RAN would send the operator
+// to the interface configuration for a fault that is not in it.
+func TestUnbindablePeersReportsOnlyTheDependentCase(t *testing.T) {
+	withAddress := testPeer()
+	withAddress.LocalAddress = "192.0.2.10"
+	withoutAddress := testPeer()
+	withoutAddress.Name = "other-peer"
+	withoutAddress.LocalAddress = ""
+
+	lookupErr := errors.New("iface: no backend loaded")
+
+	independent := testIPsecConfig(withAddress)
+	independent.Interface = "eth0"
+	if err := unbindablePeers(independent, lookupErr); err != nil {
+		t.Errorf("a config whose every peer carries its own local-address was refused: %v", err)
+	}
+	if err := unbindablePeers(independent, nil); err != nil {
+		t.Errorf("the same config with a lookup that found no IPv4 was refused: %v", err)
+	}
+
+	dependent := testIPsecConfig(withAddress, withoutAddress)
+	dependent.Interface = "eth0"
+
+	err := unbindablePeers(dependent, lookupErr)
+	if err == nil {
+		t.Fatal("a peer with no local-address was accepted over an interface that could not be read")
+	}
+	if !errors.Is(err, lookupErr) {
+		t.Errorf("the refusal dropped the lookup failure it is reporting: %v", err)
+	}
+	for _, want := range []string{"eth0", "cannot read addresses", "1 peer(s)"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal %q does not name %q", err, want)
+		}
+	}
+
+	err = unbindablePeers(dependent, nil)
+	if err == nil {
+		t.Fatal("a peer with no local-address was accepted over an interface holding no IPv4 address")
+	}
+	if !strings.Contains(err.Error(), "no IPv4 address") {
+		t.Errorf("refusal %q does not say the interface holds no IPv4 address", err)
+	}
+	if errors.Is(err, lookupErr) {
+		t.Errorf("refusal %q blames a lookup failure that did not happen", err)
 	}
 }

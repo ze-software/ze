@@ -8,7 +8,7 @@
 | Phase | 1/5 |
 | Deferral shard | - |
 | Handoff | - |
-| Updated | 2026-08-23 |
+| Updated | 2026-08-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -408,3 +408,241 @@ narrowing without the test-only override.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+
+The fix landed in two commits before this closure ran: `5e14f7f51` (the spec's own
+work) and `a40bedef5` (the verify-path parser). Closure added a third change, the
+startup regression the review found. All three are described below.
+
+- **`peerConfigChanged` is a subtraction** (`internal/component/ike/engine/reconcile.go`).
+  It compares three whole values: the peer (`ipsec.SiteToSitePeer.Equal`) and the two
+  RESOLVED groups (`ipsec.IKEGroup.Equal`, `ipsec.ESPGroup.Equal`). No member is named,
+  so no member is ignored by omission.
+- **The groups joined the comparison.** A peer holds only the NAMES of its groups, and
+  `startPeerSession` copies the resolved groups onto the session with nothing to refresh
+  them. Rotating a cipher inside `ike-group` edits no peer block, so the peer half
+  compares equal and the tunnel kept negotiating the replaced algorithm.
+- **The second field list is gone** (`internal/component/ike/ipsec/types.go`).
+  `peersEqual` named eight members and `peerConfigChanged` named a DIFFERENT eight.
+  `IPsecConfig.Changed` now asks `SiteToSitePeer.Equal`, so one function produces the
+  answer.
+- **The engine answers config-apply** (`internal/component/ike/engine/register.go`).
+  It registered `OnConfigVerify` and `OnConfigure` and no `OnConfigApply`, and the SDK
+  answers config-apply with OK when no handler is registered: the default callback table
+  in `pkg/plugin/sdk/sdk_callbacks.go` binds `callbackConfigApply` to `marshalStatusOK`.
+  `ikeConfigStaging` carries what verify parsed across to apply, and an apply with
+  nothing staged returns `errIKEApplyWithoutVerify`.
+- **The verify path uses the parser with no side effects** (`a40bedef5`). The staging
+  parse was `parseIPsecSections`, which calls `pki.Load` on a `pki` section and swaps
+  the process-wide certificate store. It is `parseVPNSections` now.
+- **Startup and reload answer an unbindable peer set differently** (closure fix).
+  `applyPhase` carries which delivery is running and `unbindablePeers` names the
+  condition. A reload returns it, so the transaction rolls back. Startup logs it and
+  applies the configuration, so the peers that carry their own `local-address` still
+  come up.
+
+### Bugs Found/Fixed
+
+| Bug | Where | Test that now covers it |
+|-----|-------|-------------------------|
+| The engine registered no `OnConfigApply`, so every reload verified the edit, reported success, and applied nothing | `internal/component/ike/engine/register.go` | `TestIKEConfigApplyWithoutVerifyIsRefused`, and every reload `.ci` below |
+| `peerConfigChanged` named eight of the twelve members of `SiteToSitePeer` | `internal/component/ike/engine/reconcile.go` | `TestPeerConfigChangedIsFailClosed`, `TestPeerConfigChangedIgnoresNothingSilently` |
+| `peersEqual` named a DIFFERENT eight, so two guards answered one question two ways | `internal/component/ike/ipsec/types.go` | `TestIPsecConfigChangedSeesEveryPeerMember` |
+| A cipher rotation inside a group reached no wire, because the guard compared the peer alone | `internal/component/ike/engine/reconcile.go` | `TestPeerConfigChangedSeesTheResolvedGroups`, `TestReconcilePeersRestartsOnGroupRotation` |
+| The verify path called `pki.Load`, swapping the process-wide store for a config that could still be rejected | `internal/component/ike/engine/register.go` | `TestStagingParseDoesNotMutatePKIStore` |
+| **Found at closure.** The reload refusal was returned to BOTH deliveries, so an `interface` that could not be read at boot left the engine with no peer session, no IKE socket and no NAT-T socket, including for peers the interface cannot affect | `internal/component/ike/engine/register.go` | `TestUnbindablePeersReportsOnlyTheDependentCase`, `test/ipsec/ipsec-startup-serves-bindable-peers.ci` |
+| **Found at closure.** Nothing pinned that a group parses to ONE value. `Proposals` is a slice and `reflect.DeepEqual` is order-sensitive, so the guard's new group half rested on an untested sort | `internal/component/ike/ipsec/config.go` (already sorted; the property was unproven) | `TestGroupsEqualWhateverOrderTheyArriveIn` |
+
+### Documentation Updates
+
+| File | What changed | Source anchor |
+|------|--------------|---------------|
+| `docs/architecture/ike/ipsec-7-ikev2-engine.md` | when a reload restarts a peer, why the groups are compared, the `OnConfigApply` staging, and the startup/reload asymmetry | `register.go -- applyIPsecConfig, applyPhase, ikeConfigStaging, unbindablePeers, peersNeedInterfaceAddress` |
+| `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` | its "a new peer field must join the comparison" paragraph described the shape this spec removed | `types.go -- SiteToSitePeer.Equal` |
+| `docs/architecture/ike/ipsec-3-data-model.md` | the recorded decision rejected reflection-based equality; that decision is reversed and the reason is stated | `types.go -- SiteToSitePeer.Equal, AuthConfig.Equal` |
+| `docs/guide/ipsec.md` | which peer edits restart a tunnel, that a group edit bounces every peer naming it, and that a commit is refused when `interface` supplies no address for a dependent peer | `reconcile.go -- reconcilePeers, peerConfigChanged` |
+
+`make ze-doc-verify` result: every check this closure can affect is green. Source
+anchors resolve for all five symbols the new `register.go` anchor names, drift
+reports none, and the digest anchors resolve. The run exits non-zero on ONE anchor
+that belongs to another session's uncommitted work: `docs/guide/web-interface.md`
+names `liveAAABundleAuthenticator.Authenticate` in `cmd/ze/hub/aaa_authenticator_web.go`,
+that doc is unmodified, and the `.go` file's working-tree copy no longer declares
+the symbol (three occurrences at HEAD, one in the tree).
+
+### Deviations from Plan
+
+| Planned | Actual | Why |
+|---------|--------|-----|
+| Modify `peerConfigChanged` and `types.go` | Also `register.go`, which the spec did not open at design time | A-4 was BROKEN: no reload reached the engine at all, so the guard fix alone would have changed nothing visible. It blocked the goal, so it was in scope (`ai/rules/completion.md`) |
+| Compare the peer value | Compare the peer AND both resolved groups | A peer holds group NAMES and no crypto. Comparing the peer alone leaves a cipher rotation unapplied, which is the same defect one indirection along |
+| R-3 closed by this spec | R-3 stays OPEN | A restart applies the narrowing on a fresh IKE_SA_INIT, never on a CREATE_CHILD_SA against a live SA, so RFC 7296 Section 2.9.2's rekey case still has no Ze producer and its requirement stays on the test-only override |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-4 assumed a config reload delivered the new `vpn` section to the IKE engine, so `peerConfigChanged` ran | The engine registered no `OnConfigApply`, and the SDK answers config-apply OK when no handler is registered. `reconcilePeers` was reachable from startup and from operator `clear` alone | A running daemon was SIGHUPed and logged `config reload completed` with neither `ike: stopping peer` nor a second `ike engine configured` | Fixed in `register.go`: the apply is split out of `OnConfigure` and reached by `OnConfigApply` |
+| approach | The reload refusal for an unbindable peer set was placed inside the shared apply body, and `OnConfigure` was left to swallow the error | The early return skipped the transports, the reconcile and the active-config store, so STARTUP applied nothing at all. The code comment and the architecture page both said the opposite | The closure review read `applyIPsecConfig` from source and traced the startup caller | `applyPhase` carries the delivery into the branch. `test/ipsec/ipsec-startup-serves-bindable-peers.ci` reddens on the exact assertion the defect made silent |
+| escalation | Two guards over one type each named their own field list, in one package, and disagreed | The recurrence is the point, not the instance: `plan/journal/guard-enumerates-instead-of-subtracting.md` already held `bgp-peer-settings-reload-ignored`, the same shape one component over | The spec's own research read both lists | A second row was added to that journal class rather than a second local fix |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| An operator's edit to a live IPsec peer reaches the wire | Done | `peerConfigChanged`, `internal/component/ike/engine/reconcile.go` | The restart is what carries it: `startPeerSession` is the only writer of `ps.peerCfg` |
+| The guard must not ignore a member by omission | Done | `SiteToSitePeer.Equal`, `internal/component/ike/ipsec/types.go` | Total comparison; a subtraction is by name with the reason recorded there |
+| A reload that changes nothing must restart no peer | Done | `TestPeerConfigChangedNoEditNoChange`, `TestSiteToSitePeerEqualAcrossTwoParses` | R-1's early signal, plus `ipsec-peer-reload-leaves-tunnel-alone.ci` |
+| A reload must reach the engine at all | Done | `p.OnConfigApply`, `internal/component/ike/engine/register.go` | A-4's repair |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/ipsec/ipsec-peer-reload-applies-selectors.ci` PASS 5.5s; interop scenario `27-peer-reload-narrowing` PASS | The kernel policy names the narrowed prefix and no policy names the wide one |
+| AC-2 | Done | `test/ipsec/ipsec-peer-reload-leaves-tunnel-alone.ci` PASS 25.1s | It carries `reject=stderr:pattern=ike: stopping peer` |
+| AC-3 | Done | `TestPeerConfigChangedIsFailClosed` | Walks `reflect.VisibleFields`, so a member added tomorrow needs no memory of this test |
+| AC-4 | Done | `TestPeerConfigChangedKeepsTheMembersItAlreadyNamed` | The eight the old guard named still force a restart |
+| AC-5 | Done | `ipsec-peer-reload-applies-selectors.ci` reads `ip xfrm policy`; scenario 27 reads both SPDs | Both kernels hold the narrowed pair and neither holds the wide one |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestPeerConfigChangedIsFailClosed` | Done | `internal/component/ike/engine/reconcile_test.go` | |
+| `TestPeerConfigChangedIgnoresNothingSilently` | Done | `internal/component/ike/engine/reconcile_test.go` | |
+| `TestPeerConfigChangedNoEditNoChange` | Done | `internal/component/ike/engine/reconcile_test.go` | |
+| `TestStartPeerSessionWritesTheFreshConfig` | Done | `internal/component/ike/engine/reconcile_test.go` | |
+| `TestPeerConfigChangedKeepsTheMembersItAlreadyNamed` | Done | `internal/component/ike/engine/reconcile_test.go` | |
+| `TestSiteToSitePeerEqualAcrossTwoParses` | Done | `internal/component/ike/ipsec/config_test.go` | Two selectors and two allowed prefixes, so slice order is exercised |
+| `TestIPsecConfigChangedSeesEveryPeerMember` | Done | `internal/component/ike/ipsec/config_test.go` | |
+| `ipsec-peer-reload-applies-selectors` | Done | `test/ipsec/ipsec-peer-reload-applies-selectors.ci` | |
+| `ipsec-peer-reload-leaves-tunnel-alone` | Done | `test/ipsec/ipsec-peer-reload-leaves-tunnel-alone.ci` | |
+| `27-peer-reload-narrowing` | Done | `test/interop-ipsec/scenarios/27-peer-reload-narrowing/` | |
+| `TestUnbindablePeersReportsOnlyTheDependentCase` | Changed | `internal/component/ike/engine/reconcile_test.go` | Added at closure for review finding 1; not in the original plan |
+| `TestGroupsEqualWhateverOrderTheyArriveIn` | Changed | `internal/component/ike/ipsec/config_test.go` | Added at closure for review finding 2; A-1 for the group half the guard gained |
+| `ipsec-startup-serves-bindable-peers` | Changed | `test/ipsec/ipsec-startup-serves-bindable-peers.ci` | Added at closure for review finding 1 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/ike/engine/reconcile.go` | Done | |
+| `internal/component/ike/ipsec/types.go` | Done | `peersEqual` deleted |
+| `internal/component/ike/engine/register.go` | Done | A-4's repair, plus the closure fix |
+| `test/interop-ipsec/lab.py` | Done | `reload_ze_config`, `render_ze_conf`, `find_pki_dir` |
+| `docs/architecture/ike/ipsec-7-ikev2-engine.md` | Done | |
+| `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` | Done | |
+| `docs/architecture/ike/ipsec-3-data-model.md` | Done | |
+| `docs/guide/ipsec.md` | Done | |
+| `test/ipsec/ipsec-peer-reload-applies-selectors.ci` | Done | |
+| `test/ipsec/ipsec-peer-reload-leaves-tunnel-alone.ci` | Done | |
+| `test/interop-ipsec/scenarios/27-peer-reload-narrowing/` | Done | |
+| `internal/component/ike/engine/config_verify_test.go` | Changed | Created by `a40bedef5`, not named in the plan |
+| `test/ipsec/ipsec-startup-serves-bindable-peers.ci` | Changed | Created at closure, not named in the plan |
+
+### Audit Summary
+- **Total items:** 35
+- **Done:** 31
+- **Partial:** 0 (each needs user approval)
+- **Skipped:** 0 (each needs user approval)
+- **Changed:** 4 (three tests and one `.ci` added beyond the plan; each is recorded in Deviations or the Mistake Log)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator who edits a live IPsec peer and commits reaches the wire | functional | `test/ipsec/ipsec-peer-reload-applies-selectors.ci` PASS 5.5s. It reads `ip xfrm policy` before and after the SIGHUP and requires the narrow pair PRESENT and the wide pair ABSENT, and requires the ESP SPIs to be a different pair, so a peer that never restarted fails |
+| The same edit is accepted by another implementation | interop | `make ze-interop-ipsec-test IPSEC_INTEROP_SCENARIO=27-peer-reload-narrowing` PASS. strongSwan's Child SA moves from `10.1.0.0/24 <-> 10.2.0.0/24` to `10.1.0.0/24 <-> 10.2.0.0/25`, both SPDs hold the narrowed pair, and the two are compared to each other |
+| A commit that touches nothing must not bounce a live tunnel | functional | `test/ipsec/ipsec-peer-reload-leaves-tunnel-alone.ci` PASS 25.1s, carrying `reject=stderr:pattern=ike: stopping peer` |
+| A member added to the peer type cannot be ignored in silence | unit | `TestPeerConfigChangedIsFailClosed` walks `reflect.VisibleFields` and turns a kind it cannot mutate into a failure, so it needs no maintenance to cover a member added later |
+| A reload reaches the engine at all | functional | Both reload `.ci` tests drive a real SIGHUP against a running daemon. Against the pre-fix engine the first reports `WIDE-SURVIVED` and the guard never runs |
+| Startup still serves the peers it can when the configured interface supplies no address | functional | `test/ipsec/ipsec-startup-serves-bindable-peers.ci` PASS 3.5s. Simulating the landed defect (the refusal returned to both deliveries, `OnConfigure` swallowing it) reddens it at `stderr does not contain "ike: started peer"`, which is the assertion the defect made silent |
+| A group parses to ONE value, so the new group comparison cannot bounce every tunnel | unit | `TestGroupsEqualWhateverOrderTheyArriveIn`. Removing the `sort.Slice` in `parseESPGroup` reddens it with `one esp-group parsed to two values` |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| The spec declares `Deferral shard: -`, and `ls plan/deferrals/` holds no `fixit-ipsec-peer-reload-ignored.md` | done | Nothing to resolve and no shard to remove |
+| R-3, the test-only `narrowedRekeyPairs` override | deferred | OPEN and stated in the spec's Risks table. A restart applies a narrowing on a fresh IKE_SA_INIT, so RFC 7296 Section 2.9.2's rekey case still has no Ze producer. `testport.go`'s comment says so and interop scenario 13's docstring stays correct |
+| The `tr`, `trNATT` and `ipPool` create-if-nil staleness, so an `interface` or `remote-access` edit is accepted and ignored | deferred | Recorded in Known Limitations and in `plan/journal/stale-artifact-reused.md`. It predates this spec and needs its own work |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fixit-ipsec-peer-reload-ignored-9ad8358c-695f-41be-8019-5d92ba08f8e6.md`, 14 files, `verdict=clean` |
+| `review_gate.py check` | `review_gate: OK (4 code files, clean, hashes match ...)`, exit 0 |
+| Rounds | 2 |
+| Reviewer lenses used | wiring and reachability, removed-behavior audit, logic correctness, comment-versus-code agreement, edge cases over the new total comparisons, security over operator-controlled config, allocation and hot path, project rules and `docs/contributing/ze-style.md`, RFC 7296 conformance, interop and goal validation |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The reload refusal for an unbindable peer set was returned to BOTH deliveries. At startup `applyIPsecConfig` returned before the transports, the reconcile and the active-config store, and `OnConfigure` logged the error and returned nil, so an `interface` that could not be read at boot left the engine with NO peer session, NO IKE socket and NO NAT-T socket, including for peers that carry their own `local-address`. The function's own comment and `docs/architecture/ike/ipsec-7-ikev2-engine.md` both claimed the opposite | `internal/component/ike/engine/register.go`, `applyIPsecConfig` interface branch | `applyPhase` carries the delivery into the branch and `unbindablePeers` names the condition. A reload returns it; startup logs it and applies. `TestUnbindablePeersReportsOnlyTheDependentCase` plus `test/ipsec/ipsec-startup-serves-bindable-peers.ci`, the second proven to redden against a faithful simulation of the defect |
+| 2 | ISSUE | The guard gained a group half with nothing pinning that a group parses to ONE value. `Proposals` is a slice and `reflect.DeepEqual` is order-sensitive, so the whole group comparison rested on a `sort.Slice` no test named. `TestSiteToSitePeerEqualAcrossTwoParses` covers the peer half only, and `TestPeerConfigChangedSeesTheResolvedGroups` builds its groups in Go rather than parsing them | `internal/component/ike/ipsec/config.go`, `parseIKEGroup` and `parseESPGroup` | `TestGroupsEqualWhateverOrderTheyArriveIn` parses one pair of proposals declared in opposite order. Removing either `sort.Slice` reddens it |
+| 3 | NOTE | `register.go` is over the 1000-line advisory in `docs/contributing/ze-style.md`. The staging and interface helpers read as a second concern, but `applyIPsecConfig` is a closure over `runEngine`'s state and cannot move with them, so a split would scatter one concern across two files | `internal/component/ike/engine/register.go` | Recorded, not fixed. NOTEs do not block |
+| 4 | NOTE | `IPsecConfig.Changed` has no non-test caller. It was already dead when the spec opened, and it was kept deliberately so the second field list could be deleted rather than left one caller away | `internal/component/ike/ipsec/types.go` | Recorded in Known Limitations. Removing an exported method is not this spec's change |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/ipsec/ipsec-peer-reload-applies-selectors.ci` | Yes | `ls -la` reports 11414 bytes |
+| `test/ipsec/ipsec-peer-reload-leaves-tunnel-alone.ci` | Yes | `ls -la` reports 11532 bytes |
+| `test/ipsec/ipsec-startup-serves-bindable-peers.ci` | Yes | `ls -la` reports 4463 bytes |
+| `test/interop-ipsec/scenarios/27-peer-reload-narrowing/` | Yes | `ls` reports `check.py`, `swanctl.conf`, `ze.conf`, `ze-narrowed.conf` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | A `TrafficSelectors` edit restarts the peer and the next exchange proposes the new set | `ipsec-peer-reload-applies-selectors` PASS 5.5s in a `pass 21/21 100.0% 64.1s` run; scenario 27 PASS against strongSwan |
+| AC-2 | A reload that changes no member restarts nothing | `ipsec-peer-reload-leaves-tunnel-alone` PASS 25.1s in the same run |
+| AC-3 | An unclassified member forces the conservative answer | `TestPeerConfigChangedIsFailClosed` in `ok github.com/ze-software/ze/internal/component/ike/engine 39.900s` |
+| AC-4 | The eight members the old guard named still force a restart | `TestPeerConfigChangedKeepsTheMembersItAlreadyNamed`, same run |
+| AC-5 | The kernel policy after the reload equals the newly configured set | `ipsec-peer-reload-applies-selectors` reads `ip xfrm policy` and requires the wide pair ABSENT; scenario 27 compares both containers' SPDs and fails if they differ |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| An operator edits a live peer's traffic selectors and commits | `test/ipsec/ipsec-peer-reload-applies-selectors.ci` | Yes. Read: it copies `config2.conf` over `ze-bgp.conf`, reads `daemon.pid`, sends SIGHUP, then polls `ip xfrm policy` and `ip xfrm state` |
+| The same edit, end to end, on a running daemon | `TestStartPeerSessionWritesTheFreshConfig` plus the same `.ci` | Yes |
+| An unrelated commit under a live tunnel | `test/ipsec/ipsec-peer-reload-leaves-tunnel-alone.ci` | Yes. Read: it rejects `ike: stopping peer` on stderr for the life of the run |
+| The daemon starts when `interface` supplies no address | `test/ipsec/ipsec-startup-serves-bindable-peers.ci` | Yes. Read: it asserts `ike: started peer` and `ike engine configured` on stderr, both of which the defect suppressed |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestSiteToSitePeerEqualAcrossTwoParses` (two selectors, two allowed prefixes) and `TestGroupsEqualWhateverOrderTheyArriveIn` (two proposals per group, declared in opposite order). `ipsec-peer-reload-leaves-tunnel-alone` is the running-daemon half |
+| A-2 | confirmed | Interop scenario 27 measures the whole cycle against strongSwan: the tunnel drops, Ze re-initiates, and both SPDs hold the narrowed pair |
+| A-3 | confirmed | Every reader of `sa.PeerCfg` and `ps.peerCfg` is enumerated in the spec's Risks section; none wants the value the session was born with |
+| A-4 | **broken** | The engine registered no `OnConfigApply`. Mistake Log row 1; fixed in `register.go` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| "A reload restarts a peer whose configuration differs in ANY member" (`ipsec-7-ikev2-engine.md`) | `peerConfigChanged` compares three whole values through `.Equal` | Yes |
+| "STARTUP logs the condition and applies the configuration anyway" (`ipsec-7-ikev2-engine.md`) | `applyPhase` and the `unbindable != nil && phase == applyReload` branch, plus `ipsec-startup-serves-bindable-peers.ci` | Yes, corrected at closure. The page previously said this while the code did the opposite |
+| "A new peer field needs no edit to the comparison" (`ipsec-8-ikev2-child-xfrm.md`) | `SiteToSitePeer.Equal` is `reflect.DeepEqual` over the whole value | Yes |
+| "`Changed()` compares the WHOLE value" (`ipsec-3-data-model.md`) | `IPsecConfig.Changed` calls `oldPeer.Equal(newPeers[name])` | Yes |
+| "A commit is REFUSED when `interface` cannot supply an address" (`docs/guide/ipsec.md`) | `unbindablePeers` and the `applyReload` branch; the error text names the interface and the peer count | Yes, added at closure |
+| Categories answered No: YANG, CLI, API/RPC, plugin, wire format, plugin SDK, comparison table, route metadata, Prometheus, registered inventory | No leaf, command, RPC, or registration changed. The payloads are unchanged; their content follows the config | Yes |
+| Doctor checks | No new runtime dependency: the change adds no file path, socket, kernel module, listen port, external binary or certificate | Yes |
+| RFC status | RFC 7296 Section 2.9.2 gains no NEW proven requirement. The restart removes the scope before anything proposes against it, so the rekey case it names still has no Ze producer and its tag stays on the test-only override (R-3) | Yes |
+
+## Core Insight
+
+A guard and the value it protects are two halves of one defect, and a guard that
+nothing calls is a third. This spec met all three at once: `peerConfigChanged`
+compared a list of names, `ps.peerCfg` was written from one place, and no
+`OnConfigApply` was registered, so the first two were unreachable and looked
+correct. The unreachability is what let the other two live: a guard nobody runs
+produces no wrong answer for anybody to notice.
+
+The closure found the same shape a fourth time, in the fix itself. Making the
+reload REFUSE an unbindable peer set was right; putting that refusal in the body
+both deliveries share gave startup an answer nobody chose. A decision that
+differs by caller belongs at the caller, or in a value the caller passes in.

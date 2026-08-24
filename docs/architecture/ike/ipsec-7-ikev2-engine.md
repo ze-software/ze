@@ -64,15 +64,24 @@ holds: a peer whose selectors and allow list arrive behind fresh pointers on
 each parse still compares equal. Without it, a total comparison would bounce
 every tunnel on every commit.
 
-**A reload that cannot be applied is REFUSED, not half-applied.** `interface`
-supplies the local address of every peer that names none, so a failed interface
-read leaves those peers unbindable. `applyIPsecConfig` returns an error for that
-case and `OnConfigApply` propagates it, so the transaction rolls back and the
-running tunnels are untouched. Without it the peers would carry an empty
-`LocalAddress`, differ from the sessions that resolved one at startup, and be
-restarted into a state the engine's own message calls "will fail".
-`OnConfigure` logs the same condition and continues instead, because at startup
-there is no running tunnel to protect and no previous configuration to keep.
+**A reload that cannot be applied is REFUSED, not half-applied. Startup applies
+the same configuration and says what cannot bind.** `interface` supplies the
+local address of every peer that names none, so a failed interface read leaves
+those peers unbindable. `unbindablePeers` names that condition, and it is the
+ONLY thing the two deliveries answer differently: `applyPhase` is what carries
+the difference into `applyIPsecConfig`.
+
+A RELOAD returns the error, `OnConfigApply` propagates it, the transaction rolls
+back and the running tunnels are untouched. Without it the peers would carry an
+empty `LocalAddress`, differ from the sessions that resolved one at startup, and
+every one of them would be stopped and restarted into a state that cannot bind.
+
+STARTUP logs the condition and applies the configuration anyway. There is no
+running tunnel to protect and no previous configuration to keep, so a refusal
+would start no peer, no IKE socket and no NAT-T socket at all, including for the
+peers that carry their own `local-address` and cannot be affected by the
+interface. An interface that comes up after the daemon does is ordinary at boot.
+`test/ipsec/ipsec-startup-serves-bindable-peers.ci` holds that asymmetry.
 
 The restart is also the only way an edit reaches the wire. `startPeerSession` is
 the only writer of `ps.peerCfg`, `initiator.go` and `responder.go` copy that
@@ -99,7 +108,7 @@ success, and applied nothing: `reconcilePeers` was reachable from startup and
 from operator `clear` alone.
 
 <!-- source: internal/component/ike/ipsec/types.go -- SiteToSitePeer.Equal, IKEGroup.Equal, ESPGroup.Equal, IPsecConfig.Changed -->
-<!-- source: internal/component/ike/engine/register.go -- applyIPsecConfig, ikeConfigStaging, peersNeedInterfaceAddress -->
+<!-- source: internal/component/ike/engine/register.go -- applyIPsecConfig, applyPhase, ikeConfigStaging, unbindablePeers, peersNeedInterfaceAddress -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigApply -->
 <!-- source: internal/component/ike/engine/rekey.go -- proposeChildTSPayloads -->
 

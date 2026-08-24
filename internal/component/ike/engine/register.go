@@ -48,6 +48,46 @@ func peersNeedInterfaceAddress(cfg *ipsec.IPsecConfig) bool {
 	return peersWithoutLocalAddress(cfg) > 0
 }
 
+// applyPhase names which delivery is applying a configuration. The two differ in ONE
+// decision and in nothing else: what a peer set the configured interface cannot bind
+// does. A reload REFUSES it, so the transaction rolls back and the running tunnels are
+// untouched. Startup WARNS and applies the configuration anyway, because there is no
+// previous configuration to fall back to and no running tunnel to protect: refusing there
+// would leave the box with no IPsec at all, and no transport, over an interface an
+// operator can bring up after the daemon starts.
+type applyPhase int
+
+const (
+	applyStartup applyPhase = iota
+	applyReload
+)
+
+// unbindablePeers reports the configuration a reload MUST refuse: the interface some
+// peers take their local address from supplied none, so those peers are unbindable. A nil
+// return means the configuration can be applied.
+//
+// It is given the interface lookup's RESULT and does not perform its own. A second lookup
+// can answer differently from the caller's, and the peers would then be applied with the
+// empty LocalAddress this refusal exists to catch.
+//
+// A configuration whose every peer carries its own local-address is unaffected by the
+// interface, so it draws nil: refusing it would refuse a config that works.
+//
+// ifErr separates the two failures. A lookup that never ran is reported as itself,
+// because naming "no IPv4 address" there sends the operator to the interface
+// configuration for a fault that is not in it.
+func unbindablePeers(cfg *ipsec.IPsecConfig, ifErr error) error {
+	if !peersNeedInterfaceAddress(cfg) {
+		return nil
+	}
+	if ifErr != nil {
+		return fmt.Errorf("ike config: cannot read addresses of interface %q (%w), and %d peer(s) have no local-address of their own",
+			cfg.Interface, ifErr, peersWithoutLocalAddress(cfg))
+	}
+	return fmt.Errorf("ike config: interface %q has no IPv4 address, and %d peer(s) have no local-address of their own",
+		cfg.Interface, peersWithoutLocalAddress(cfg))
+}
+
 // ikeConfigStaging carries a reload's configuration from the VERIFY phase that parsed it
 // to the APPLY phase that commits it, and refuses an apply that has nothing staged.
 //
@@ -411,10 +451,11 @@ func runEngine(conn net.Conn) int {
 	// It runs on the SDK's dispatch goroutine, which serves one callback at a time, so
 	// the transport pointers and activeCfg it assigns need no lock.
 	//
-	// It returns an error for ONE condition, and the two callers answer it differently:
-	// a configuration whose peers depend on `interface` for their local address, when
-	// that interface cannot supply one. See the branch below for why.
-	applyIPsecConfig := func(cfg *ipsec.IPsecConfig) error {
+	// It returns an error for ONE condition, and only on the reload phase: a
+	// configuration whose peers depend on `interface` for their local address, when that
+	// interface cannot supply one. See applyPhase and the branch below for why the two
+	// deliveries answer that condition differently.
+	applyIPsecConfig := func(cfg *ipsec.IPsecConfig, phase applyPhase) error {
 		// RFC 7296 Section 2.6. Published before any peer is reconciled, so an
 		// initiation that arrives during the reconcile is judged against the config
 		// being applied rather than the one being replaced.
@@ -425,38 +466,29 @@ func runEngine(conn net.Conn) int {
 			switch {
 			case ifErr != nil, ifIP == "":
 				// The lookup failed, or the interface has no IPv4 address. Every peer
-				// that named no local-address of its own is now unbindable, and the
-				// engine MUST NOT proceed as though it were.
+				// that named no local-address of its own is now unbindable.
 				//
-				// This is a REFUSAL rather than a warning because of what reload does
-				// with the result. The peers keep the empty LocalAddress the parser
-				// gave them, peerConfigChanged compares that against the address the
-				// running sessions resolved successfully at startup, and every one of
-				// them is stopped and restarted into the state this branch's own
-				// message calls "will fail". A transient interface read would take
-				// down every working tunnel on the box.
+				// A RELOAD refuses that, because of what it would otherwise do. The
+				// peers keep the empty LocalAddress the parser gave them,
+				// peerConfigChanged compares that against the address the running
+				// sessions resolved successfully at startup, and every one of them is
+				// stopped and restarted into a state that cannot bind. A transient
+				// interface read would take down every working tunnel on the box.
 				//
-				// The two callers differ, deliberately. OnConfigApply returns this, so
-				// the transaction rolls back and the running tunnels are left exactly
-				// as they are. OnConfigure LOGS it and continues, because at startup
-				// there is no previous configuration to fall back to and no running
-				// tunnel to protect: refusing there would take the whole engine down
-				// for a condition the operator can read in the log and repair.
-				//
-				// The failure itself is reported rather than "no IPv4 address" when
-				// the lookup never ran, because that names the wrong cause and sends
-				// the operator to the interface configuration.
-				if peersNeedInterfaceAddress(cfg) {
-					if ifErr != nil {
-						return fmt.Errorf("ike config: cannot read addresses of interface %q (%w), and %d peer(s) have no local-address of their own",
-							cfg.Interface, ifErr, peersWithoutLocalAddress(cfg))
-					}
-					return fmt.Errorf("ike config: interface %q has no IPv4 address, and %d peer(s) have no local-address of their own",
-						cfg.Interface, peersWithoutLocalAddress(cfg))
-				}
-				if ifErr != nil {
+				// STARTUP applies the configuration anyway and says so. There is no
+				// previous configuration to fall back to and no running tunnel to
+				// protect, so a refusal would start no peer, no IKE socket and no
+				// NAT-T socket at all, including for the peers that carry their own
+				// local-address and are unaffected. An interface that comes up after
+				// the daemon does is ordinary at boot.
+				switch unbindable := unbindablePeers(cfg, ifErr); {
+				case unbindable != nil && phase == applyReload:
+					return unbindable
+				case unbindable != nil:
+					log.Warn("ike: peers without local-address will fail", "error", unbindable)
+				case ifErr != nil:
 					log.Warn("ike: cannot read interface addresses", "interface", cfg.Interface, "error", ifErr)
-				} else {
+				default:
 					log.Warn("ike: no IPv4 address on interface", "interface", cfg.Interface)
 				}
 			default:
@@ -478,7 +510,7 @@ func runEngine(conn net.Conn) int {
 		// for the whole host while the IKE socket was bound to one address.
 		ifaceHost := ""
 		if cfg.Interface != "" {
-			ifaceHost, _ = resolveInterfaceAddr(cfg.Interface) //nolint:errcheck // the OnConfigure branch above already reported this failure
+			ifaceHost, _ = resolveInterfaceAddr(cfg.Interface) //nolint:errcheck // the interface branch above already reported this failure
 		}
 		peerLocal := ""
 		for name := range cfg.Peers {
@@ -571,7 +603,9 @@ func runEngine(conn net.Conn) int {
 		return nil
 	}
 
-	staging := &ikeConfigStaging{apply: applyIPsecConfig}
+	staging := &ikeConfigStaging{apply: func(cfg *ipsec.IPsecConfig) error {
+		return applyIPsecConfig(cfg, applyReload)
+	}}
 
 	// Reject a structurally valid but self-inconsistent config before it is
 	// applied: a peer naming an undefined ike-group or esp-group, a certificate
@@ -611,13 +645,11 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return fmt.Errorf("ike config: %w", err)
 		}
-		if applyErr := applyIPsecConfig(cfg); applyErr != nil {
-			// Startup, not reload: see applyIPsecConfig's interface branch. There is
-			// no running tunnel to protect and no previous configuration to keep, so
-			// the engine reports the condition and serves the peers that CAN bind.
-			log.Warn("ike: peers without local-address will fail", "error", applyErr)
-		}
-		return nil
+		// applyStartup: the interface branch inside applyIPsecConfig states why the
+		// two deliveries answer an unbindable peer set differently. It logs that
+		// condition and applies the configuration, so this phase returns an error only
+		// for a failure a running daemon could not have.
+		return applyIPsecConfig(cfg, applyStartup)
 	})
 
 	// The reload half. Without this handler the SDK answers config-apply OK and calls

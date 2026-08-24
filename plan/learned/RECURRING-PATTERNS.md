@@ -887,6 +887,72 @@ functional test sees it.
 
 ---
 
+### An unregistered plugin callback answers OK, so a whole reload path is dead
+
+**Symptom.** An operator edits a subsystem's configuration, commits, and the
+daemon reports success. `show configuration` agrees. Nothing on the wire
+changes, and no log line says why. The reload handler you would grep for does
+not exist, and the subsystem's other reload code reads correctly because
+nothing runs it.
+
+**Cause.** The plugin SDK's default callback table answers an unimplemented
+callback with success. `callbackConfigApply` is bound to `marshalStatusOK`
+(`pkg/plugin/sdk/sdk_callbacks.go`), so a plugin that registers
+`OnConfigVerify` and `OnConfigure` and no `OnConfigApply` verifies the edit,
+reports the commit landed, and applies nothing. The IKE engine shipped that way:
+`reconcilePeers` was reachable from startup and from operator `clear` alone
+(`spec-fixit-ipsec-peer-reload-ignored`, 2026-08-24). The absence is invisible
+from the plugin's own file, because there is no call site to read, and it hides
+every other reload defect underneath it: a guard nobody runs produces no wrong
+answer for anyone to notice.
+
+**Evidence.** `plan/journal/unwired-feature.md`, 2026-08-24 row.
+
+**Avoid it by.** Reading the handler set against `WantsConfig` whenever you touch
+a plugin's reload path: a plugin that declares a config root and registers no
+`OnConfigApply` has no reload. Then prove it from OUTSIDE the process, with a
+`.ci` that sends a real SIGHUP and asserts something the daemon only does when
+the apply ran. A unit test over the reconciler cannot see an absent registration.
+
+**Recover if you hit it.** Register the handler, and make the empty case DENY.
+The apply request carries diff sections rather than the configuration, so verify
+has to stash what it parsed; an apply that finds nothing stashed must return an
+error rather than OK, or you have rebuilt the same silent success one layer up.
+
+---
+
+### A refusal added for one caller lands in the body both callers share
+
+**Symptom.** A guard you added for the reload path changes what STARTUP does, and
+neither the comment nor the test says so. The new refusal is a `return` in a
+function two callers reach, and the second caller's behaviour is now whatever the
+early return happens to skip.
+
+**Cause.** The decision is per-caller and the code that makes it is per-function.
+`applyIPsecConfig` (`internal/component/ike/engine/register.go`) gained a refusal
+for a configuration whose peers could not bind. A reload must roll that back. At
+startup the same `return` skipped the IKE transport, the NAT-T transport, the
+virtual-IP pool, the reconcile and the active-config store, so a box whose WAN
+link came up after the daemon had no IPsec at all. The function's own comment and
+the architecture page both described the intended asymmetry, and the code
+implemented neither half of it.
+
+**Evidence.** `plan/journal/guard-addition-drops-what-it-refuses.md`, 2026-08-24
+row, the third instance of that class.
+
+**Avoid it by.** Making the differing decision a VALUE the caller passes, not a
+branch inside the shared body. Name the condition as a predicate that returns the
+error without acting on it, and let each caller choose. Then re-read every other
+caller of the function you added the `return` to: a diff that adds one `return`
+touches every path through that function.
+
+**Recover if you hit it.** Write the functional test for the caller you did not
+intend to change, and prove it reddens against the shipped code before you fix
+it. The startup case here passed its exit-code and warning assertions against the
+defect, and only failed on `ike: started peer`.
+
+---
+
 ---
 
 ## Workflow traps
