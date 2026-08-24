@@ -657,6 +657,11 @@ func validateValueOrArrayItems(node *ValueOrArrayNode, name string, items []stri
 }
 
 // deleteFromList handles delete for ListNode (entire list, entry, or field within entry).
+//
+// A whole-entry delete goes through RemoveListEntry, which is the only mutator
+// that drops the key from the recorded entry order as well as from the list.
+// GetList hands out the live map, so deleting from it directly leaves the order
+// naming a key the list no longer holds (Tree.RemoveListEntry).
 func (p *SetParser) deleteFromList(tree *Tree, list *ListNode, name string, tokens []string, lineNum int) error {
 	if len(tokens) == 0 {
 		tree.DeleteList(name)
@@ -669,7 +674,7 @@ func (p *SetParser) deleteFromList(tree *Tree, list *ListNode, name string, toke
 		return nil
 	}
 	if len(tokens) == 0 {
-		delete(entries, key)
+		tree.RemoveListEntry(name, key)
 		return nil
 	}
 	entry := entries[key]
@@ -696,7 +701,8 @@ func deleteFreeformEntry(tree *Tree, name string, tokens []string, lineNum int) 
 	return nil
 }
 
-// deleteFromInlineList handles delete for InlineListNode entries.
+// deleteFromInlineList handles delete for InlineListNode entries. A whole-entry
+// delete goes through RemoveListEntry for the reason deleteFromList states.
 func (p *SetParser) deleteFromInlineList(tree *Tree, il *InlineListNode, name string, tokens []string, lineNum int) error {
 	if len(tokens) == 0 {
 		tree.DeleteList(name)
@@ -709,7 +715,7 @@ func (p *SetParser) deleteFromInlineList(tree *Tree, il *InlineListNode, name st
 		return nil
 	}
 	if len(tokens) == 0 {
-		delete(entries, key)
+		tree.RemoveListEntry(name, key)
 		return nil
 	}
 	entry := entries[key]

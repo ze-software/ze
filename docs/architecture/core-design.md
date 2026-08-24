@@ -70,7 +70,10 @@ flowchart TB
 **Key principles:**
 - **Engine** supervises startup/shutdown order. No BGP knowledge. Starts PluginManager, then Subsystems.
 - **Bus** is a content-agnostic pub/sub backbone for cross-component signaling. Carries opaque `[]byte` payloads (JSON for FIB pipeline, nil for simple notifications). Topics are hierarchical with `/` separators; subscriptions match on prefixes.
-- **ConfigProvider** is the config authority. Populated from YANG-parsed tree via `SetRoot()`. Subsystems and plugins read from it.
+- **ConfigProvider** is the config authority. Populated from the YANG-parsed tree via `SetRoot()`, with the PLUGIN-FACING lowering (`Tree.ToPluginMap`), at boot and at every reload. A failed reload replays the provider snapshot into the plugin server, so a root lowered with `Tree.ToMap` would reach a plugin without the entry order of a list evaluated in order. Subsystems and plugins read from it.
+<!-- source: cmd/ze/hub/main_reload.go -- lowerForPlugins, applyLoadedTreeToProvider, rollbackReload -->
+<!-- source: internal/component/config/tree.go -- (*Tree).ToPluginMap -->
+
 - **PluginManager** owns process lifecycle (spawn/stop via `ProcessSpawner`). Server calls `SpawnMore()` for auto-loaded plugins.
 - **Protocol-agnostic plugin loading** -- Protocols register with `ConfigRoots` (e.g., BGP uses `["bgp"]`). If the config block is present, the protocol auto-loads; if not, ze runs without it. Protocols can be added or removed at runtime via config reload (SIGHUP). The Coordinator provides reactor-optional operation via named reactor slots (`RegisterReactor`/`Reactor`), returning `ErrNoReactor` for protocol-specific queries when no reactor is present. BGP integrates via `SetReactor` for `ReactorLifecycle` delegation; other protocols use `RegisterReactor` with their own interfaces.
 - **OSPF edge plugin** registers `ConfigRoots ["ospf"]`, embeds

@@ -358,3 +358,37 @@ func TestToPluginMapDoesNotResurrectADeletedListsOrder(t *testing.T) {
 
 	assertOrder(t, orderOf(t, tree.ToPluginMap(), "neighbor"), "10.0.0.1", "10.0.0.2")
 }
+
+// TestToPluginMapFollowsAnEntryDeletedAndWrittenAgain deletes one entry of a
+// list through the set-format parser, then writes it again. The operator's
+// order is now the OTHER entry first, because the re-added entry was written
+// last.
+//
+// VALIDATES: a whole-entry delete drops the key from the recorded order, so the
+// key the operator wrote again is ordered where they wrote it.
+// PREVENTS: the delete leaving the key in listOrder and the re-add appending it
+// a second time. The duplicate order has the right length and names only keys
+// the list holds, so entryOrderLocked's own checks pass it and the plugin is
+// handed the DELETED entry's position with nothing said. Tree.GetListOrdered
+// returns the re-added entry twice for the same reason, which is how the four
+// serializers would print it twice.
+func TestToPluginMapFollowsAnEntryDeletedAndWrittenAgain(t *testing.T) {
+	tree, err := NewSetParser(testSchema()).Parse(
+		"set neighbor 10.0.0.2 peer-as 65002\n" +
+			"set neighbor 10.0.0.1 peer-as 65001\n" +
+			"delete neighbor 10.0.0.2\n" +
+			"set neighbor 10.0.0.2 peer-as 65002\n")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	assertOrder(t, orderOf(t, tree.ToPluginMap(), "neighbor"), "10.0.0.1", "10.0.0.2")
+
+	ordered := tree.GetListOrdered("neighbor")
+	if len(ordered) != 2 {
+		t.Fatalf("GetListOrdered returned %d entries for a two-entry list", len(ordered))
+	}
+	if ordered[0].Key != "10.0.0.1" || ordered[1].Key != "10.0.0.2" {
+		t.Fatalf("GetListOrdered returned %q then %q, want 10.0.0.1 then 10.0.0.2", ordered[0].Key, ordered[1].Key)
+	}
+}

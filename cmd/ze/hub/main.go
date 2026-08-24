@@ -599,23 +599,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	// Phase 2: Populate ConfigProvider.
 	configProvider := zeconfig.NewProvider()
-	for root, subtree := range loadResult.Tree.ToMap() {
-		if sub, ok := subtree.(map[string]any); ok {
-			configProvider.SetRoot(root, sub)
-		}
-	}
+	configTree := lowerForPlugins(loadResult.Tree, configProvider)
 
 	// Phase 3: Create PluginCoordinator and plugin server.
 	// The plugin server implements ze.EventBus via its Emit/Subscribe
 	// methods, so there is no separate standalone bus any more; one
 	// namespaced pub/sub backbone serves everyone.
 
-	// ToPluginMap, not ToMap: this map becomes the coordinator's config tree,
-	// which is where deliverConfigRPC and every reload build a plugin's config
-	// section from. It therefore has to carry the entry order of a list whose
-	// evaluation depends on it -- a prefix-list, a firewall chain, a failover
-	// server list (internal/core/configorder).
-	configTree := loadResult.Tree.ToPluginMap()
 	pkiConfig, pkiErr := preparePKIConfig(configTree)
 	if pkiErr != nil {
 		fmt.Fprintf(os.Stderr, "error: pki config: %v\n", pkiErr)

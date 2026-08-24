@@ -616,11 +616,11 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 // applied anything. A reload with no snapshot cannot prove the chain is
 // unchanged, so it rebuilds.
 //
-// The two sides are lowered by different callers, and boot lowers with ToMap
-// while a reload lowers with ToPluginMap (main.go, Phase 2). A multi-entry list
-// under `system authentication` therefore reads as changed on the FIRST reload
-// after boot, which costs one rebuild per daemon start. Every later reload
-// compares two ToPluginMap lowerings and is exact.
+// The two sides are lowered by different callers, and both lower with
+// ToPluginMap: boot at main.go Phase 2 and a reload at loadTreeForReload. So
+// the comparison is exact from the first reload after boot, including for a
+// multi-entry list under `system authentication`, whose entry order is part of
+// what the two sides compare.
 func aaaAuthenticationChanged(prior map[string]map[string]any, next map[string]any) bool {
 	if prior == nil {
 		return true
@@ -656,6 +656,37 @@ func stageSIGHUPCandidate(store storage.Storage, configPath string) error {
 		return fmt.Errorf("stage SIGHUP candidate: %w", err)
 	}
 	return nil
+}
+
+// lowerForPlugins lowers the loaded tree ONCE for every consumer on the plugin
+// path, seeds cp with its roots, and returns it. It is the boot counterpart of
+// applyLoadedTreeToProvider, which does the same for a reload.
+//
+// The lowering MUST be ToPluginMap and MUST NOT be ToMap, because the returned
+// map becomes the coordinator's config tree, which is what deliverConfigRPC and
+// every reload build a plugin's config section from. It therefore owes the
+// entry order of a list whose evaluation depends on it: a prefix-list, a
+// firewall chain, a failover server list (internal/core/configorder).
+//
+// The provider gets that SAME lowering rather than a second one, because a
+// failed reload replays the provider snapshot into the plugin server
+// (rollbackReload -> snapshotToLoadedTree). Seeding the provider with ToMap
+// while the coordinator held ToPluginMap made that replay hand every plugin a
+// multi-entry list with no order, which configorder.Entries refuses, so the
+// recovery path failed on the first reload after boot.
+// The provider gets a CLONE of each root rather than the returned map's own,
+// because Provider.SetRoot stores the reference it is handed. Sharing it would
+// give the provider and the coordinator two names for one map. That is what
+// applyLoadedTreeToProvider does on the reload path, so boot and reload agree on
+// ownership as well as on the lowering.
+func lowerForPlugins(tree *zeconfig.Tree, cp *zeconfig.Provider) map[string]any {
+	configTree := tree.ToPluginMap()
+	for root, subtree := range configTree {
+		if sub, ok := subtree.(map[string]any); ok {
+			cp.SetRoot(root, cloneStringAnyMap(sub))
+		}
+	}
+	return configTree
 }
 
 func snapshotProvider(cp *zeconfig.Provider) (map[string]map[string]any, error) {
