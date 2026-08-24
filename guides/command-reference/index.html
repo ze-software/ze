@@ -3188,12 +3188,12 @@ peer &lt;sel&gt; raw [&lt;type&gt;] &lt;encoding&gt; &lt;data&gt;
 <tr>
 <td><code>show bgp healthcheck</code></td>
 <td>read-only</td>
-<td>JSON summary of all healthcheck probes</td>
+<td>One row for each probe: its name, its group and its state</td>
 </tr>
 <tr>
 <td><code>show bgp healthcheck &lt;name&gt;</code></td>
 <td>read-only</td>
-<td>Detailed status of a single probe</td>
+<td>One row, with the ten fields of that probe</td>
 </tr>
 <tr>
 <td><code>clear bgp healthcheck &lt;name&gt;</code></td>
@@ -3202,7 +3202,13 @@ peer &lt;sel&gt; raw [&lt;type&gt;] &lt;encoding&gt; &lt;data&gt;
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand -->
+<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand, handleShow -->
+
+<p>Both spellings answer a row set, so <code>| count</code>, <code>| first</code> and <code>| match</code> act on
+either. The two answers carry different field sets on purpose. Each row
+therefore carries its own keys, no column order fits both, and the command
+declares <code>map</code> rather than <code>tab</code>. <code>| fill</code> is refused by name.</p>
+<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- commandDecls -->
 
 <h3 id="bmp-rfc-7854">BMP (RFC 7854)</h3>
 <table>
@@ -4054,7 +4060,7 @@ ze-chaos --ai-help                           # Print tool schemas
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 August 2026 11:56 UTC</span>
+                    <span class="footer-published">Published 24 August 2026 12:56 UTC</span>
                 </div>
             </div>
         </footer>

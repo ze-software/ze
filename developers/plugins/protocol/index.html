@@ -407,6 +407,69 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 </tr>
 </tbody>
 </table>
+<p>Each <code>CommandDecl</code> has these fields:</p>
+<!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
+<!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, registerPluginShapes -->
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td><code>string</code></td>
+<td>Command path the plugin serves</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td><code>string</code></td>
+<td>The line help and completion show beside the name</td>
+</tr>
+<tr>
+<td><code>args</code></td>
+<td><code>[]string</code></td>
+<td>Expected argument names, for help and completion</td>
+</tr>
+<tr>
+<td><code>completable</code></td>
+<td><code>bool</code></td>
+<td>Whether the command supports tab completion</td>
+</tr>
+<tr>
+<td><code>hidden</code></td>
+<td><code>bool</code></td>
+<td>Whether the command is left out of help and completion</td>
+</tr>
+<tr>
+<td><code>deprecated-names</code></td>
+<td><code>[]string</code></td>
+<td>Older spellings that still reach this command</td>
+</tr>
+<tr>
+<td><code>shape</code></td>
+<td><code>string</code></td>
+<td>What the answer holds: <code>doc</code>, <code>map</code> or <code>tab</code></td>
+</tr>
+<tr>
+<td><code>columns</code></td>
+<td><code>[]string</code></td>
+<td>The answer's keys, in the order a person reads them. Needs a <code>shape</code> that has rows. Maximum 64</td>
+</tr>
+<tr>
+<td><code>address-fields</code></td>
+<td><code>[]string</code></td>
+<td>The keys whose value holds an IP address or a prefix. Needs a <code>shape</code>. Maximum 16</td>
+</tr>
+</tbody>
+</table>
+<p>The last three are optional and additive. A plugin that sends none keeps the
+behavior it had before they existed. A plugin that sends one the engine refuses
+fails Stage 1 and does not start.</p>
 <p>Each <code>PipeDecl</code> has these fields:</p>
 <!-- source: pkg/plugin/rpc/types.go -- PipeDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes -->
@@ -1091,7 +1154,7 @@ config-verify, etc.) and bye.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 14:05 UTC</span>
+                    <span class="footer-published">Published 24 August 2026 12:56 UTC</span>
                 </div>
             </div>
         </footer>

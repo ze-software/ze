@@ -445,6 +445,12 @@ successful query.</p>
 </table>
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- handleCommand, overviewCommand, statusCommand, cacheCommand, roaCommand, summaryCommand, aspaCommand, validateCommand -->
 
+<p><code>show bgp rpki aspa &lt;customer-asn&gt;</code> answers its one result under <code>entries</code>, in
+the same row shape the no-argument spelling writes, so <code>| count</code> and <code>| display</code>
+act on either. <code>found</code> stays beside the rows: it separates a customer with no
+ASPA record from an empty cache, which the row count alone cannot say.</p>
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- aspaCommand -->
+
 <p><code>show bgp rpki</code> answers the counters and the cache server rows as siblings, so
 <code>show bgp rpki | summary</code> cuts it down to the counters alone. That name is a pipe
 alias the plugin declares over its own command, and it answers the same record
@@ -787,7 +793,7 @@ The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, an
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 24 August 2026 12:56 UTC</span>
                 </div>
             </div>
         </footer>

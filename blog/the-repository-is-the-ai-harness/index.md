@@ -22,7 +22,7 @@ Ze carries that meaning in several layers.
 
 `ai/PACKAGE-MAP.md` gives one short description for each of those 648 packages, and that saves a great deal of blind exploration.
 
-Production Go files carry a `// Design:` line near their top, so opening the implementation reveals the document explaining why it exists. Closely connected files also point to each other with `// Detail:`, `// Overview:` and `// Related:` comments. There are 3,669 of the first kind and 3,195 of the second.
+Production Go files carry a `// Design:` line near their top, so opening the implementation reveals the document explaining why it exists. Closely connected files also point to each other with `// Detail:`, `// Overview:` and `// Related:` comments. There are 3,673 of the first kind and 3,199 of the second.
 
 The documents point back into the source through `<!-- source: ... -->` markers. Small programs generate the two reverse indexes, `ai/CODE-TO-DOCS.md` and `ai/DOCS-TO-CODE.md`:
 

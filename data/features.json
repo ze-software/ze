@@ -1070,6 +1070,32 @@
           ]
         },
         {
+          "category": "secure",
+          "status": "experimental",
+          "title": "DDoS and Anomaly Detection",
+          "href": "guides/anomaly/",
+          "external": false,
+          "chips": [
+            {
+              "text": "DDoS",
+              "mode": false
+            },
+            {
+              "text": "Anomaly",
+              "mode": false
+            },
+            {
+              "text": "FlowSpec",
+              "mode": false
+            }
+          ],
+          "bullets": [
+            "**Volumetric** and behavioral detection",
+            "Bounded incident **history** with durations",
+            "Local and upstream **auto-mitigation**"
+          ]
+        },
+        {
           "category": "platform",
           "status": "experimental",
           "title": "ISO and PXE Install",

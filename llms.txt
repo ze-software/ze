@@ -14,7 +14,7 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 51 shipped or experimental feature cards, 4 roadmap cards, 395 CLI commands, 36 config sections, 96 plugin registrations, 42 direct Go dependencies, 37 weekly change entries.
+- Current generated counts: 52 shipped or experimental feature cards, 4 roadmap cards, 395 CLI commands, 36 config sections, 96 plugin registrations, 42 direct Go dependencies, 37 weekly change entries.
 - Test evidence counts: 23,700+ unit tests, 78 fuzz targets, 1,700+ end-to-end transcript steps, 130 interop scenarios across 9 target implementations.
 - Generated date: 2026-08-24.
 
@@ -80,7 +80,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - Docker Support [platform, current]: chips: Daemon only, Scratch, Compose; Static binary on scratch base; Compose support included; Optional build tags; link: https://ze-software.net/features/index.md
 - Feature Gates [platform, current]: chips: 36 subsystems, Default on; Compile out whole subsystems, BGP included; Smaller binary, smaller attack surface; Config fails closed on blocks the build lacks; link: https://ze-software.net/guides/quickstart/index.md
 
-### Experimental and growing. (18 cards: 18 experimental)
+### Experimental and growing. (19 cards: 19 experimental)
 Implemented and tested, still waiting for production evidence.
 - IPsec VPN [services, experimental]: chips: IKEv2, X.509, EAP; Full IKEv2 engine, rekeying, DPD; NAT-T, keepalive, XFRM interfaces; EAP-MSCHAPv2, EAP-TLS, road warrior; link: https://ze-software.net/features/index.md
 - L2TPv2 BNG [services, experimental]: chips: PPP, RADIUS, CQM; RFC 2661 LNS and LAC with PPP; RADIUS auth, accounting, CoA; CQM monitoring, shaping, web UI; link: https://ze-software.net/guides/l2tp/index.md
@@ -94,6 +94,7 @@ Implemented and tested, still waiting for production evidence.
 - IS-IS [routing, experimental]: chips: ISO 10589, Dual-stack; L1/L2 link-state IGP over Layer 2; RFC 5304/5310 authentication, key chains; Dual-stack IPv6, redistributes with BGP; link: https://ze-software.net/guides/isis/index.md
 - VRRP [routing, experimental]: chips: RFC 9568, RFC 3768, Virtual MAC; First-hop gateway redundancy, IPv4 and IPv6; Per-group virtual-MAC macvlan for L2 failover; keepalived interop, compile-out; link: https://ze-software.net/guides/vrrp/index.md
 - Flow Export [observe, experimental]: chips: sFlow, NetFlow, IPFIX; sFlow v5, NetFlow v9, IPFIX; Packet sampling, conntrack flows; BGP next-hop enrichment; link: https://ze-software.net/guides/flow-export/index.md
+- DDoS and Anomaly Detection [secure, experimental]: chips: DDoS, Anomaly, FlowSpec; Volumetric and behavioral detection; Bounded incident history with durations; Local and upstream auto-mitigation; link: https://ze-software.net/guides/anomaly/index.md
 - ISO and PXE Install [platform, experimental]: chips: PXE, ISO; PXE bare-metal provisioning; Installer ISO media; Local systemd install and uninstall; link: https://ze-software.net/guides/ze-install/index.md
 - Kernel Tunables [platform, experimental]: chips: Sysctl, Profiles; Three-layer precedence; Named profiles (DSR, router, hardened); Originals restored on stop; link: https://ze-software.net/features/index.md
 - AS112 Anycast DNS [services, experimental]: chips: AS112, Anycast; Authoritative sink zones on four fixed anycast addresses (RFC 7534/7535); Conditional BGP origination via healthcheck-gated watchdog; Anycast IPs bound on lo automatically, never operator-typed; link: https://ze-software.net/guides/as112/index.md
@@ -957,7 +958,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ## Evaluate
 
 ### Capabilities and fit
-- [Features](https://ze-software.net/features/index.md): 51 features, color-coded by category (web: https://ze-software.net/features/)
+- [Features](https://ze-software.net/features/index.md): 52 features, color-coded by category (web: https://ze-software.net/features/)
 - [Compare](https://ze-software.net/compare/index.md): Compare Ze with BIRD, FRR, VyOS, and more (web: https://ze-software.net/compare/)
 - [Performance](https://ze-software.net/performance/index.md): Measured BGP benchmarks and reports (web: https://ze-software.net/performance/)
 ### Evidence

@@ -181,6 +181,26 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `claims` | `[]string` | Exclusive runtime roles the plugin takes over |
 
 
+Each `CommandDecl` has these fields:
+<!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
+<!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, registerPluginShapes -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | Command path the plugin serves |
+| `description` | `string` | The line help and completion show beside the name |
+| `args` | `[]string` | Expected argument names, for help and completion |
+| `completable` | `bool` | Whether the command supports tab completion |
+| `hidden` | `bool` | Whether the command is left out of help and completion |
+| `deprecated-names` | `[]string` | Older spellings that still reach this command |
+| `shape` | `string` | What the answer holds: `doc`, `map` or `tab` |
+| `columns` | `[]string` | The answer's keys, in the order a person reads them. Needs a `shape` that has rows. Maximum 64 |
+| `address-fields` | `[]string` | The keys whose value holds an IP address or a prefix. Needs a `shape`. Maximum 16 |
+
+The last three are optional and additive. A plugin that sends none keeps the
+behavior it had before they existed. A plugin that sends one the engine refuses
+fails Stage 1 and does not start.
+
 Each `PipeDecl` has these fields:
 <!-- source: pkg/plugin/rpc/types.go -- PipeDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes -->

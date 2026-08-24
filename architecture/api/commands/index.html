@@ -175,7 +175,7 @@
 <li><a href="#the-pipe-layer-selects-and-re-sequences-it-cannot-compute">The pipe layer selects and re-sequences. It cannot compute</a></li>
 <li><a href="#where-an-alias-resolves-and-where-it-does-not">Where an alias resolves, and where it does not</a></li>
 <li><a href="#discovery-the-running-daemon-is-the-only-source">Discovery: the running daemon is the only source</a></li>
-<li><a href="#a-plugin-cannot-declare-a-column-order">A plugin cannot declare a column order</a></li>
+<li><a href="#a-plugin-declares-its-own-answer-shape">A plugin declares its own answer shape</a></li>
 </ol></li>
 <li><a href="#the-chain-over-a-row-generator">The chain over a row generator</a></li>
 </ol></li>
@@ -2259,15 +2259,20 @@ case this rule was written for. The BGP peer command plugin blanks every direct
 child of <code>show bgp</code>, and the rib command plugin declares <code>tab</code> for
 <code>show bgp rib</code>. Under the earlier last-writer-wins rule, package initialization
 order decided which of the two the path answered.</p>
-<p>Every caller declares from <code>init()</code>, so two different non-empty values are a
-state only a Ze defect reaches. The panic reports it before the daemon serves
-anything (<code>docs/contributing/ze-style.md</code>).</p>
-<p>The ALIAS registry is the exception, and it keeps <code>register</code>.
+<p>Every in-tree caller declares from <code>init()</code>, so two different non-empty values
+are a state only a Ze defect reaches. The panic reports it before the daemon
+serves anything (<code>docs/contributing/ze-style.md</code>).</p>
+<p>A plugin declares from a socket instead, and a bad declaration there is an
+operating error rather than a Ze defect. So the first three registries carry a
+second write, <code>declareFor</code>, which is the same four cases with the panic replaced
+by an error. <code>RegisterPluginShapes</code> calls it, and nothing a plugin sends reaches
+<code>declare</code>.</p>
+<p>The ALIAS registry is the fourth, and it keeps <code>register</code>.
 <code>RegisterPluginAliases</code> stores <code>mergedAliases(path, ...)</code>, which differs from
 what the path holds each time it runs, so the rule would fire on the ordinary
-case. That registry is also reachable from outside this repository, where a bad
-declaration is an operating error owed an error rather than a panic.</p>
-<!-- source: internal/component/command/column_order.go -- declarationRegistry, newDeclarationRegistry, declare -->
+case.</p>
+<!-- source: internal/component/command/column_order.go -- declarationRegistry, newDeclarationRegistry, declare, declareFor -->
+<!-- source: internal/component/command/answer_shape.go -- RegisterPluginShapes -->
 <!-- source: internal/component/command/alias.go -- aliasRegistry, mergedAliases -->
 
 <h4 id="the-declared-shape-refuses-an-operator-before-the-command-runs">The declared shape refuses an operator before the command runs</h4>
@@ -2278,26 +2283,39 @@ acts on rows</code>. The answer's own shape refuses as well, at apply time, and 
 half covers every command including the ones that declare nothing. The
 declaration is what makes the published catalog true, because <code>ze help command
 --json</code> lists a declared command's operators from its shape.</p>
+<p>Both halves of that message are derived, because one operator needs more than
+rows. <code>| fill</code> brings back the columns a command declared. So it acts on <code>tab</code>
+alone, and it means nothing over a <code>map</code> answer whose rows carry their own keys.
+<code>shapeDescription</code> therefore calls <code>map</code> "rows that describe themselves". It
+calls <code>tab</code> "rows read against a declared column order", and <code>operatorNeeds</code>
+reads the operator's own shape set. Calling both "rows" gave a refusal that
+contradicted itself, in front of an operator whose answer HAS rows.</p>
 <p>A declared address-field list is an ADMISSION gate and not a selector. It decides
 whether <code>| resolve</code> and <code>| origin</code> run at all. It does not decide what they
 decorate: <code>resolveJSON</code> and <code>originJSON</code> walk every key of the answer and
 decorate each string that parses as an address.</p>
-<p>Every <code>show bgp</code> command that an in-tree package registers declares a shape.
-Sixteen paths do so, and nine of them name an address field. Scope is the
-registration site rather than the process boundary. <code>show bgp rib</code> and
-<code>show bgp irr</code> are served by a plugin process, and an in-core shim declares for
-them. The commands under <code>show bgp rpki</code>, <code>show bgp rs</code>, <code>show bgp adj-rib-in</code>
-and <code>show bgp healthcheck</code> have no shim and declare nothing, because
-<code>CommandDecl</code> carries no shape.</p>
+<p>Every <code>show bgp</code> command declares a shape, and two channels write them. Go
+compiled into the daemon declares sixteen paths. Nine of those name an address
+field. <code>show bgp rib</code> and <code>show bgp irr</code> are served by a plugin process, and an
+in-core shim declares for them. Scope is therefore the registration site rather
+than the process boundary.</p>
+<p>A plugin process declares the other eleven in its Stage 1 message. Six sit under
+<code>show bgp rpki</code>, two under <code>show bgp rs</code>, two under <code>show bgp adj-rib-in</code>, and
+<code>show bgp healthcheck</code> is the eleventh. Four of the eleven name an address
+field. See "A plugin declares its own answer shape" below.</p>
 <p>A SELECTOR spelling declares nothing of its own. The registry resolves the string
 the operator typed. <code>show bgp peer detail</code> is not a prefix of
 <code>show bgp peer 192.0.2.1 detail</code>, so that spelling resolves <code>show bgp peer</code>, one
 of the empty declarations. It therefore reaches no refusal before dispatch, and
 the answer's own shape refuses after it.</p>
-<!-- source: internal/component/command/pipe.go -- validateDeclaredShape, shapeDescription -->
+<!-- source: internal/component/command/pipe.go -- validateDeclaredShape, shapeDescription, operatorNeeds -->
 <!-- source: internal/component/command/pipe_resolve.go -- resolveJSON -->
 <!-- source: internal/component/command/pipe_origin.go -- originJSON -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- cmdBgpChildren, registerShapes -->
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- commandDecls -->
+<!-- source: internal/component/bgp/plugins/rs/server.go -- commandDecls -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- commandDecls -->
+<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- commandDecls -->
 
 <p>A column order never enters the payload. It is captured when the formatter is
 built, from the command string the wrapper already holds, and it reaches
@@ -2703,21 +2721,72 @@ it never sees a plugin's Stage 1 message.</p>
 listed neither before 2026-08. It reports the expansion beside the description.
 An alias takes no argument and names no other alias, so the chain it stands for
 is the whole of what the name does.</p>
+<p>The same table governs a plugin's declared answer shape. <code>ze help command
+--json</code> and the wiki catalog built from it read the compiled tree in their own
+process. So they list a plugin's commands without the operators the plugin
+declared. The running daemon refuses and publishes correctly. The published
+catalog cannot yet say so.</p>
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp, handleBgpCommandHelp -->
 <!-- source: scripts/inventory/commands.go -- main -->
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
 
-<h4 id="a-plugin-cannot-declare-a-column-order">A plugin cannot declare a column order</h4>
-<p><code>completeDisplayFields</code> reads the column registry, and only Go compiled into the
-daemon writes it. So <code>| display &lt;partial&gt;</code> over a plugin command offers no field
-names, and <code>| table</code> sorts a plugin answer's keys alphabetically. The alias
-itself works and its NAME completes, because that name comes from the alias
-registry. <code>show bgp rpki</code>, <code>show bgp rpki summary</code> and <code>show bgp rpki | summary</code>
-therefore render one identical record in three different orders.</p>
-<p>A plugin-served command whose path an in-core SHIM registers is the exception,
-because the shim is Go compiled into the daemon. <code>show bgp rib</code> and
-<code>show bgp irr</code> each have one, and each declares a shape, a column order and an
-address-field list for an answer a plugin process produces.</p>
+<h4 id="a-plugin-declares-its-own-answer-shape">A plugin declares its own answer shape</h4>
+<p>Each <code>CommandDecl</code> in the Stage 1 message carries three optional fields:
+<code>shape</code>, <code>columns</code> and <code>address-fields</code>. An absent field is an undeclared field,
+so a plugin written before this channel existed keeps its old behavior.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shape</code></td>
+<td><code>doc</code>, <code>map</code> or <code>tab</code>, the same three words the answer head uses on the wire</td>
+</tr>
+<tr>
+<td><code>columns</code></td>
+<td>the answer's keys, in the order a person reads them. It needs a shape with rows</td>
+</tr>
+<tr>
+<td><code>address-fields</code></td>
+<td>the keys whose value holds an address. It needs a shape</td>
+</tr>
+</tbody>
+</table>
+<p><code>validateShapeDecls</code> reads the three fields where <code>validatePipeDecls</code> reads the
+aliases. It refuses four declarations by name:</p>
+<ul>
+<li>a spelling that is not one of the three words.</li>
+<li>a column or address-field list with no shape.</li>
+<li>a declaration on a blank command path.</li>
+<li>a list or a name past its bound.</li>
+</ul>
+<p>The bounds are 64 columns and 16 address fields for one command, with each name
+1 to 64 bytes. A refused declaration fails the plugin's startup and writes
+nothing.</p>
+<p><code>registerPluginShapes</code> then writes under <code>startupRegistrationMu</code>, between the
+pipe aliases and the runtime families, and joins the same unwind.
+<code>UnregisterPluginShapes</code> takes the whole declaration back when the plugin stops.</p>
+<p><strong>A plugin can never panic the daemon with a declaration.</strong> The three registries
+keep the panic on <code>declare</code>, which only Go compiled into the daemon reaches. The
+plugin route is <code>declareFor</code>, which is the same four cases with the panic
+replaced by an error. Two in-tree packages that disagree are still a Ze defect
+and still panic.</p>
+<p>Every declaration writes all THREE registries. A command that declares a shape
+and no column writes an EMPTY column declaration. That empty declaration is the
+barrier that stops the command inheriting its parent's order. Removal restores
+the empty declaration a shim left behind, rather than deleting the path.</p>
+<p>The declaration lives in the daemon's registry. So <code>| display &lt;partial&gt;</code> offers
+a plugin command's field names in the daemon-hosted session, and offers none in
+<code>ze cli</code> with no command argument. That is the same client-side gap the alias
+table above records, for the same reason.</p>
+<!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
+<!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, validateDeclaredFieldName, registerPluginShapes -->
+<!-- source: internal/component/command/answer_shape.go -- RegisterPluginShapes, UnregisterPluginShapes -->
+<!-- source: internal/component/command/column_order.go -- declarationRegistry, declare, declareFor, withdraw -->
 <!-- source: internal/component/command/completer.go -- completeDisplayFields, completePipeForCommand -->
 <!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- registerPipeFilters, registerRibAnswerShapes -->
 <!-- source: internal/component/bgp/plugins/filter_irr/cmd_irr.go -- registerIRRShapes -->
@@ -3073,7 +3142,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 August 2026 11:56 UTC</span>
+                    <span class="footer-published">Published 24 August 2026 12:56 UTC</span>
                 </div>
             </div>
         </footer>

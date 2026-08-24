@@ -14,7 +14,7 @@
   "config_sections": 36,
   "dependencies": 42,
   "features": {
-    "core_experimental": 51,
+    "core_experimental": 52,
     "planned": 4
   },
   "generated_at": "2026-08-24",
@@ -25,12 +25,12 @@
     "target_display": "9",
     "targets": 9
   },
-  "published_at": "2026-08-24T11:56:39+00:00",
+  "published_at": "2026-08-24T12:56:48+00:00",
   "repo": {
-    "design_comments": 3669,
-    "design_comments_display": "3,669",
-    "detail_comments": 3195,
-    "detail_comments_display": "3,195",
+    "design_comments": 3673,
+    "design_comments_display": "3,673",
+    "detail_comments": 3199,
+    "detail_comments_display": "3,199",
     "go_packages": 648,
     "go_packages_display": "648"
   },

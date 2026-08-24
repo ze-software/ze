@@ -2188,10 +2188,16 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `show bgp healthcheck` | read-only | JSON summary of all healthcheck probes |
-| `show bgp healthcheck <name>` | read-only | Detailed status of a single probe |
+| `show bgp healthcheck` | read-only | One row for each probe: its name, its group and its state |
+| `show bgp healthcheck <name>` | read-only | One row, with the ten fields of that probe |
 | `clear bgp healthcheck <name>` | write | Withdraw route, reset FSM to INIT, immediate re-check. Error if DISABLED. |
-<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand -->
+<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand, handleShow -->
+
+Both spellings answer a row set, so `| count`, `| first` and `| match` act on
+either. The two answers carry different field sets on purpose. Each row
+therefore carries its own keys, no column order fits both, and the command
+declares `map` rather than `tab`. `| fill` is refused by name.
+<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- commandDecls -->
 
 ### BMP (RFC 7854)
 

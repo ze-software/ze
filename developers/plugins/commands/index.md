@@ -285,10 +285,61 @@ Commands are declared with these fields:
 
 | Field | Type | Required | Purpose |
 |-------|------|----------|---------|
-| `Name` | string | Yes | Command name (e.g., `"my-plugin status"`) |
+| `Name` | string | Yes | Command name (for example, `"my-plugin status"`) |
 | `Description` | string | No | Human-readable description |
 | `Args` | []string | No | Expected argument names (for help/completion) |
 | `Completable` | bool | No | Whether the command supports tab completion |
+| `Shape` | string | No | What the answer holds: `doc`, `map` or `tab` |
+| `Columns` | []string | No | The answer's keys, in the order a person reads them. Needs a `Shape` that has rows |
+| `AddressFields` | []string | No | The keys whose value holds an IP address or a prefix. Needs a `Shape` |
+
+## Declaring What Your Answer Holds
+
+Declare a shape and the CLI publishes the pipe operators your command supports,
+and refuses the others BY NAME before your handler runs. Declare nothing and the
+CLI waits for the answer, then refuses from what it has in hand.
+
+<!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
+
+| Shape | Your handler answers |
+|-------|----------------------|
+| `doc` | one document or one value. No row operator applies |
+| `map` | rows that carry their own keys, such as a map of name to object |
+| `tab` | rows read against the column names you declare |
+
+```go
+err := p.Run(ctx, sdk.Registration{
+    Commands: []sdk.CommandDecl{{
+        Name:          "my-plugin peers",
+        Description:   "Show the sessions",
+        Shape:         "tab",
+        Columns:       []string{"address", "state", "up"},
+        AddressFields: []string{"address"},
+    }},
+})
+```
+
+Four rules decide whether the engine accepts the declaration:
+
+- The shape MUST be `doc`, `map` or `tab`. Any other spelling fails startup.
+- A `Columns` or `AddressFields` list MUST come with a `Shape`.
+- A column name MUST be a key your handler writes, in the same spelling. The
+  engine cannot check this, and a name that names nothing orders nothing.
+- One command declares at most 64 columns and 16 address fields, each name 1 to
+  64 bytes.
+
+Declare one shape for every argument the command takes. A command answering a
+row set with no argument, and one bare object with an argument, declares neither
+branch truthfully. Make both branches answer rows.
+
+`AddressFields` is an admission gate. It decides whether `| resolve` and
+`| origin` run at all. It does not decide which values they decorate: both walk
+every key of the answer and decorate each string that parses as an address.
+
+<!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
+<!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls -->
+<!-- source: internal/component/command/pipe_resolve.go -- resolveJSON -->
+<!-- source: internal/component/command/pipe_origin.go -- originJSON -->
 
 ## Naming a Pipe Alias for Your Command
 

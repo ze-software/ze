@@ -91,6 +91,7 @@
 <li><a href="#writing-external-plugins">Writing External Plugins</a>
 <ol>
 <li><a href="#answering-a-command-with-rows">Answering a command with rows</a></li>
+<li><a href="#declaring-what-your-commands-answer-holds">Declaring what your command&#x27;s answer holds</a></li>
 <li><a href="#naming-a-pipe-alias-for-your-own-command">Naming a pipe alias for your own command</a></li>
 </ol></li>
 <li><a href="#dependencies">Dependencies</a></li>
@@ -1352,6 +1353,27 @@ of a walk over a large table. <code>Plugin.DispatchCommand</code> reads the same
 one document for a caller that wants the whole payload.</p>
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.DispatchCommandAnswer, Plugin.DispatchCommand -->
 
+<h3 id="declaring-what-your-commands-answer-holds">Declaring what your command's answer holds</h3>
+<p>Each <code>CommandDecl</code> carries an optional <code>Shape</code>, <code>Columns</code> and <code>AddressFields</code>.
+Declare them and the CLI publishes the pipe operators your command supports, and
+refuses the others BY NAME before your handler runs. Declare nothing and the CLI
+waits for the answer, then refuses from what it has in hand.</p>
+<pre><code class="language-go">Commands: []sdk.CommandDecl{{
+    Name:          &quot;my-plugin peers&quot;,
+    Description:   &quot;Show the sessions&quot;,
+    Shape:         &quot;tab&quot;,
+    Columns:       []string{&quot;address&quot;, &quot;state&quot;, &quot;up&quot;},
+    AddressFields: []string{&quot;address&quot;},
+}},
+</code></pre>
+<p>The shape MUST be <code>doc</code>, <code>map</code> or <code>tab</code>, and a column or address-field list MUST
+come with a shape. One command path carries one declaration, so make every
+branch of your handler answer the same shape whatever argument it takes. The
+field list, the bounds and the four refusals are in
+<a href="../../developers/plugins/commands/#declaring-what-your-answer-holds">plugin-development/commands</a>.</p>
+<!-- source: pkg/plugin/sdk/sdk_types.go -- CommandDecl, Registration -->
+<!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls -->
+
 <h3 id="naming-a-pipe-alias-for-your-own-command">Naming a pipe alias for your own command</h3>
 <p>A plugin declares a CLI pipe alias in the <code>Pipes</code> list of the same
 <code>Registration</code>. An alias is the word an operator types after the pipe character,
@@ -1535,7 +1557,7 @@ command argument, which expands the chain in the client process and answers
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 August 2026 06:12 UTC</span>
+                    <span class="footer-published">Published 24 August 2026 12:56 UTC</span>
                 </div>
             </div>
         </footer>

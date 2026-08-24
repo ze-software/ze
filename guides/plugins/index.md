@@ -881,6 +881,31 @@ of a walk over a large table. `Plugin.DispatchCommand` reads the same answer as
 one document for a caller that wants the whole payload.
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.DispatchCommandAnswer, Plugin.DispatchCommand -->
 
+### Declaring what your command's answer holds
+
+Each `CommandDecl` carries an optional `Shape`, `Columns` and `AddressFields`.
+Declare them and the CLI publishes the pipe operators your command supports, and
+refuses the others BY NAME before your handler runs. Declare nothing and the CLI
+waits for the answer, then refuses from what it has in hand.
+
+```go
+Commands: []sdk.CommandDecl{{
+	Name:          "my-plugin peers",
+	Description:   "Show the sessions",
+	Shape:         "tab",
+	Columns:       []string{"address", "state", "up"},
+	AddressFields: []string{"address"},
+}},
+```
+
+The shape MUST be `doc`, `map` or `tab`, and a column or address-field list MUST
+come with a shape. One command path carries one declaration, so make every
+branch of your handler answer the same shape whatever argument it takes. The
+field list, the bounds and the four refusals are in
+[plugin-development/commands](../../developers/plugins/commands/index.md#declaring-what-your-answer-holds).
+<!-- source: pkg/plugin/sdk/sdk_types.go -- CommandDecl, Registration -->
+<!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls -->
+
 ### Naming a pipe alias for your own command
 
 A plugin declares a CLI pipe alias in the `Pipes` list of the same

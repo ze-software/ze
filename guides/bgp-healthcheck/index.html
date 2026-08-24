@@ -289,11 +289,11 @@ on-change &quot;logger -t healthcheck state=$STATE&quot;
 <tbody>
 <tr>
 <td><code>show bgp healthcheck</code></td>
-<td>JSON summary of all probes.</td>
+<td>One row for each probe: its name, its group and its state.</td>
 </tr>
 <tr>
 <td><code>show bgp healthcheck &lt;name&gt;</code></td>
-<td>Detailed status of a single probe.</td>
+<td>One row, with the ten fields of that probe.</td>
 </tr>
 <tr>
 <td><code>clear bgp healthcheck &lt;name&gt;</code></td>
@@ -301,6 +301,12 @@ on-change &quot;logger -t healthcheck state=$STATE&quot;
 </tr>
 </tbody>
 </table>
+<p>Both spellings answer a row set, so <code>| count</code>, <code>| first</code>, <code>| last</code>, <code>| match</code>
+and <code>| display</code> act on either. The list rows come back in ascending probe name.
+The two answers carry different field sets, so the command declares the <code>map</code>
+shape and <code>| fill</code> is refused by name.</p>
+<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleShow, commandDecls -->
+
 <h2 id="migration-from-exabgp">Migration from ExaBGP</h2>
 <p>Ze's healthcheck replaces ExaBGP's <code>healthcheck.py</code> program. Key differences:</p>
 <ul>
@@ -353,7 +359,7 @@ on-change &quot;logger -t healthcheck state=$STATE&quot;
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 24 August 2026 12:56 UTC</span>
                 </div>
             </div>
         </footer>

@@ -74,7 +74,7 @@
 .th-card td, .th-card th, .th-attention td, .th-attention th, .th-trends td, .th-trends th { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid rgba(0,0,0,.08); }
 </style>
 
-<section class="th-attention"><h2>Needs attention</h2><table><thead><tr><th>Metric</th><th>Question</th><th>Value</th><th>What to do</th></tr></thead><tbody><tr><td>Enrolled RFCs with zero test-proven requirements</td><td>Q2</td><td><strong>36 / 170</strong></td><td>Pick the largest and complete a pair, or accept it is a single-polarity claim.</td></tr><tr><td>time.sleep() calls in .ci tests</td><td>Q1</td><td><strong>81 (floor 75)</strong></td><td>Replace a sleep with a payload-predicate wait (wait_until, dispatch_until), then lower the floor in the same change.</td></tr><tr><td>Logged known-failing tests</td><td>Q3</td><td><strong>2</strong></td><td>Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.</td></tr></tbody></table></section>
+<section class="th-attention"><h2>Needs attention</h2><table><thead><tr><th>Metric</th><th>Question</th><th>Value</th><th>What to do</th></tr></thead><tbody><tr><td>Enrolled RFCs with zero test-proven requirements</td><td>Q2</td><td><strong>36 / 170</strong></td><td>Pick the largest and complete a pair, or accept it is a single-polarity claim.</td></tr><tr><td>time.sleep() calls in .ci tests</td><td>Q1</td><td><strong>81 (floor 75)</strong></td><td>Replace a sleep with a payload-predicate wait (wait_until, dispatch_until), then lower the floor in the same change.</td></tr><tr><td>Test files that expect a specific error</td><td>Q2</td><td><strong>1116 / 3279</strong></td><td>Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.</td></tr><tr><td>Logged known-failing tests</td><td>Q3</td><td><strong>2</strong></td><td>Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.</td></tr></tbody></table></section>
 <section><h2>Sensitivity</h2><p><em>If the code were wrong, would something go red?</em></p>
 <article class="th-card th-warn">
   <h3>time.sleep() calls in .ci tests</h3>
@@ -86,8 +86,8 @@
 </article>
 <article class="th-card th-ok">
   <h3>Tests with no reachable failure call</h3>
-  <p class="th-value">133 / 23968 (floor 134) <span class="th-status">Within threshold</span></p>
-  <div class="th-meter" role="img" aria-label="133 of 23968"><span class="th-meter-fill" style="width:0.6%"></span></div><p class="th-meter-note">133 of 23968 (0.6%)</p>
+  <p class="th-value">133 / 23985 (floor 134) <span class="th-status">Within threshold</span></p>
+  <div class="th-meter" role="img" aria-label="133 of 23985"><span class="th-meter-fill" style="width:0.6%"></span></div><p class="th-meter-note">133 of 23985 (0.6%)</p>
   <p>These execute code and pass unconditionally. Breaking the code under test would not turn them red.</p>
   <p class="th-action"><strong>If this degrades:</strong> Add a real assertion, or annotate with `// test-asserts-nothing: &lt;why&gt;` when the oracle is genuinely implicit (a must-not-panic smoke test).</p>
   <table><thead><tr><th>file</th><th>test</th></tr></thead><tbody><tr><td><code>cmd/ze/hub/aaa_lifecycle_test.go</code></td><td><code>TestCloseAAABundleNoBundle</code></td></tr><tr><td><code>internal/chaos/chaos_test.go</code></td><td><code>TestChaosConcurrency</code></td></tr><tr><td><code>internal/chaos/watchdog/watchdog_test.go</code></td><td><code>TestWatchdogRouteRegression</code></td></tr><tr><td><code>internal/component/bfd/api/registry_test.go</code></td><td><code>TestSetGetService_ConcurrentNoRace</code></td></tr><tr><td><code>internal/component/bfd/metrics_test.go</code></td><td><code>TestMetricsHookStateChangeCounters</code></td></tr><tr><td><code>internal/component/bfd/metrics_test.go</code></td><td><code>TestRefreshSessionsGauge</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/event_test.go</code></td><td><code>TestBMPPeerUpSkippedOnCacheMiss</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/event_test.go</code></td><td><code>TestHandleSenderNoSenders</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/route_action_test.go</code></td><td><code>TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/route_action_test.go</code></td><td><code>TestProcessRouteMonitoring_ShortUpdate_Skipped</code></td></tr></tbody></table>
@@ -110,6 +110,14 @@
   <p class="th-action"><strong>If this degrades:</strong> Pick the largest and complete a pair, or accept it is a single-polarity claim.</p>
   
 </article>
+<article class="th-card th-warn">
+  <h3>Test files that expect a specific error</h3>
+  <p class="th-value">1116 / 3279 <span class="th-status">Needs attention</span></p>
+  <div class="th-meter" role="img" aria-label="1116 of 3279"><span class="th-meter-fill" style="width:34.0%"></span></div><p class="th-meter-note">1116 of 3279 (34.0%)</p>
+  <p>Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.</p>
+  <p class="th-action"><strong>If this degrades:</strong> Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.</p>
+  <table><thead><tr><th>area</th><th>files</th><th>negative</th><th>percent</th></tr></thead><tbody><tr><td><code>internal/chaos/report</code></td><td><code>6</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/chaos/web</code></td><td><code>10</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/rib</code></td><td><code>11</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/stats</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/plugins/completion</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/test/mock</code></td><td><code>7</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/component/doctor</code></td><td><code>17</code></td><td><code>1</code></td><td><code>5.9</code></td></tr><tr><td><code>internal/component/lg</code></td><td><code>17</code></td><td><code>1</code></td><td><code>5.9</code></td></tr><tr><td><code>internal/component/sysrib</code></td><td><code>12</code></td><td><code>1</code></td><td><code>8.3</code></td></tr><tr><td><code>internal/chaos/peer</code></td><td><code>11</code></td><td><code>1</code></td><td><code>9.1</code></td></tr></tbody></table>
+</article>
 <article class="th-card th-ok">
   <h3>RFC MUST requirements proven by a positive+negative test pair</h3>
   <p class="th-value">1239 / 2966 <span class="th-status">Within threshold</span></p>
@@ -120,19 +128,11 @@
 </article>
 <article class="th-card th-ok">
   <h3>In-repo test inventory</h3>
-  <p class="th-value">24003 test functions <span class="th-status">Within threshold</span></p>
+  <p class="th-value">24020 test functions <span class="th-status">Within threshold</span></p>
   
-  <p>3275 Go test files, 78 fuzz targets, 132 benchmarks, 1748 .ci scenarios, 166 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.</p>
+  <p>3279 Go test files, 78 fuzz targets, 132 benchmarks, 1749 .ci scenarios, 166 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.</p>
   <p class="th-action"><strong>If this degrades:</strong> This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.</p>
   
-</article>
-<article class="th-card th-ok">
-  <h3>Test files that expect a specific error</h3>
-  <p class="th-value">1116 / 3275 <span class="th-status">Within threshold</span></p>
-  <div class="th-meter" role="img" aria-label="1116 of 3275"><span class="th-meter-fill" style="width:34.1%"></span></div><p class="th-meter-note">1116 of 3275 (34.1%)</p>
-  <p>Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.</p>
-  <p class="th-action"><strong>If this degrades:</strong> Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.</p>
-  <table><thead><tr><th>area</th><th>files</th><th>negative</th><th>percent</th></tr></thead><tbody><tr><td><code>internal/chaos/report</code></td><td><code>6</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/chaos/web</code></td><td><code>10</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/rib</code></td><td><code>11</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/stats</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/plugins/completion</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/test/mock</code></td><td><code>7</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/component/doctor</code></td><td><code>17</code></td><td><code>1</code></td><td><code>5.9</code></td></tr><tr><td><code>internal/component/lg</code></td><td><code>17</code></td><td><code>1</code></td><td><code>5.9</code></td></tr><tr><td><code>internal/component/sysrib</code></td><td><code>12</code></td><td><code>1</code></td><td><code>8.3</code></td></tr><tr><td><code>internal/chaos/peer</code></td><td><code>11</code></td><td><code>1</code></td><td><code>9.1</code></td></tr></tbody></table>
 </article>
 <article class="th-card th-ok">
   <h3>Technique adoption by package age</h3>
@@ -195,7 +195,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 August 2026 11:56 UTC</span>
+                    <span class="footer-published">Published 24 August 2026 12:56 UTC</span>
                 </div>
             </div>
         </footer>

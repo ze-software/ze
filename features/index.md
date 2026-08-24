@@ -1,6 +1,6 @@
 # Every feature Ze ships.
 
-51 shipped features plus the planned roadmap. Each card's category shows where the feature fits: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
+52 shipped features plus the planned roadmap. Each card's category shows where the feature fits: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
 
 ## Built for demanding operators.
 
@@ -462,6 +462,16 @@ Implemented and tested, still waiting for production evidence.
 - BGP **next-hop** enrichment
 
 [Learn more](https://ze-software.net/guides/flow-export/)
+
+### DDoS and Anomaly Detection
+
+*secure / Experimental* -- `DDoS` `Anomaly` `FlowSpec`
+
+- **Volumetric** and behavioral detection
+- Bounded incident **history** with durations
+- Local and upstream **auto-mitigation**
+
+[Learn more](https://ze-software.net/guides/anomaly/)
 
 ### ISO and PXE Install
 
