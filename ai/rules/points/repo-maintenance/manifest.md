@@ -112,6 +112,7 @@ gate-population ## Gate Population
   anchor-a-structural-read-on-a-marker-not-a-position
   share-the-input-contract-not-only-the-check
   compile-the-tests-before-you-call-it-committable
+  judge-the-commit-not-the-repository
 ze-project-knowledge ## Ze Project Knowledge
   project-knowledge-not-in-other-rules
   project-facts-that-no-other-rule-carries
