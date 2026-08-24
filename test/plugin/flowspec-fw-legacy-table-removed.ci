@@ -1,0 +1,179 @@
+# Test: an upgrade removes the FlowSpec table an older ze build left behind, and
+#       a route that reconciles twice leaves one rule rather than two.
+#
+# VALIDATES: AC-3 -- a kernel holding a table named "flowspec" written by an
+#            older build loses it once, and the removal is logged.
+# VALIDATES: AC-2 -- a FlowSpec route that survives two reconciles leaves the
+#            kernel holding exactly the rules the current route set names.
+# PREVENTS:  two failures with one cause, an unprefixed table name.
+#            shouldDeleteTable (internal/plugins/firewall/nft/backend_linux.go)
+#            skips any table without the ownership prefix, so the table an older
+#            build wrote is outside every sweep: renaming the producer alone
+#            would leave its drop rules enforcing for the life of the box. The
+#            same skip made Apply add to a table it never deleted, so one
+#            announced route left one more copy of its rule after every
+#            reconcile.
+#
+# The seeded table is what an older build wrote: family inet, one base chain on
+# the forward hook, one drop rule. It carries a destination prefix no route in
+# this test names, so the ruleset says plainly whether it survived.
+#
+#
+# A concurrent daemon from ANOTHER exclusive group can delete this seed. The
+# `firewall-irr-*.ci` cluster runs in the same suite under its own group, and
+# two groups do not serialize against each other, so an irr daemon's reconcile
+# can sweep `table inet flowspec` before the daemon under test ever sees it.
+# That is a FALSE RED and never a false green: the stderr assertion below
+# requires the daemon THIS test launched to log the removal, and a table a
+# foreign daemon took leaves that line unwritten, so the test fails rather than
+# passing on somebody else's work. Recorded rather than fixed by widening the
+# group, because serializing 12 irr tests against these would cost the suite
+# more than the rare re-run does.
+# Requires CAP_NET_ADMIN.
+
+option=needs-linux:caps=net-admin
+# Every member of this cluster programs the node-wide nftables ruleset and
+# they all use the table name ze_flowspec, so two running at once delete each
+# other's table mid-assertion. The legacy seeds add `table inet flowspec` to
+# the same shared namespace.
+option=exclusive:group=flowspec-nft
+option=env:var=ze.log.firewall:value=info
+option=env:var=ze.log.flowspec.firewall:value=info
+option=timeout:value=40s
+
+tmpfs=seed.sh:mode=755:terminator=EOF_SEED
+#!/bin/sh
+# What a build before the ownership prefix left in the kernel.
+set -e
+nft add table inet flowspec
+nft add chain inet flowspec flowspec-fwd '{ type filter hook forward priority -1 ; policy accept ; }'
+nft add rule inet flowspec flowspec-fwd ip daddr 198.51.100.0/24 drop
+nft list table inet flowspec
+EOF_SEED
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=35s
+# Route A: destination 10.1.0.0/24, destination port 80, traffic-rate 0 (discard)
+#   MP_REACH: 800E12 0001 85 04 01020304 00
+#             NLRI len 08: 01 18 0A0100  destination 10.1.0.0/24
+#                          05 81 50      dest port = 80
+#   EXT_COMM: C01008 8006 0000 00000000  traffic-rate 0 -> discard
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0045020000002E4001010040020040050400000064800E120001850401020304000801180A0100058150C010088006000000000000
+# The same route again. It changes no desired state, and that is the point: the
+# second reconcile must replace the table rather than add to it.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0045020000002E4001010040020040050400000064800E120001850401020304000801180A0100058150C010088006000000000000
+EOF_PEER
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Assert the legacy table is gone, the new one is there, and it holds one rule."""
+import os
+import signal
+import subprocess
+import sys
+
+from ze_api import wait_until
+
+if not wait_until(
+    lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
+    attempts=400,
+    delay=0.05,
+):
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+state = {"ruleset": ""}
+
+
+def table_block(ruleset, header):
+    """The body of one `table ... {` block, or "" when the table is absent."""
+    start = ruleset.find(header)
+    if start < 0:
+        return ""
+    depth = 0
+    for i in range(start, len(ruleset)):
+        if ruleset[i] == "{":
+            depth += 1
+        elif ruleset[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return ruleset[start:i + 1]
+    return ruleset[start:]
+
+
+def settled():
+    snap = subprocess.run(["nft", "list", "ruleset"], capture_output=True, text=True)
+    state["ruleset"] = snap.stdout
+    block = table_block(snap.stdout, "table inet ze_flowspec {")
+    return "10.1.0.0/24" in block
+
+
+ok = wait_until(settled, attempts=200, delay=0.1)
+
+ruleset = state["ruleset"]
+sys.stdout.write(ruleset)
+os.kill(pid, signal.SIGTERM)
+
+if not ok:
+    sys.exit("the announced route never reached table inet ze_flowspec")
+
+# The legacy table and its rule must both be gone.
+if "table inet flowspec {" in ruleset:
+    sys.exit("the table an older build wrote survived the reconcile")
+if "198.51.100.0/24" in ruleset:
+    sys.exit("the rule an older build installed is still enforcing")
+
+# AC-2: two reconciles of the same route leave one rule, not two.
+copies = table_block(ruleset, "table inet ze_flowspec {").count("10.1.0.0/24")
+if copies != 1:
+    sys.exit("table inet ze_flowspec holds %d copies of the announced rule, want 1" % copies)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal flowspec-firewall {
+		use flowspec-firewall
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+		}
+
+		attach process flowspec-firewall {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=sh seed.sh
+cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=3:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=4:exec=python3 driver.py:timeout=35s
+expect=exit:code=0
+expect=stdout:contains=table inet ze_flowspec
+expect=stdout:contains=10.1.0.0/24
+# The removal is logged once, naming the table it took out.
+expect=stderr:contains=deleting a table an earlier ze build left without the ownership prefix

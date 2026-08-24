@@ -52,6 +52,11 @@ func init() { //nolint:gochecknoinits // logger bootstrap only
 	loggerPtr.Store(d)
 }
 
+// Logger returns the firewall component's logger, never nil. A backend logs
+// through it, so a kernel-side decision the backend takes on its own appears
+// under the same `ze.log.firewall` switch as the component's lines.
+func Logger() *slog.Logger { return loggerPtr.Load() }
+
 // Backend defines the operations that a firewall management backend must
 // implement. The firewall component dispatches all kernel-specific work
 // through this interface. Implementations are registered via RegisterBackend

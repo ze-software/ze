@@ -181,7 +181,7 @@ func runCoppPlugin(conn net.Conn) int {
 
 func applyCoppPolicy(policy *coppPolicy, mu *sync.Mutex, currentPolicy **coppPolicy) error {
 	if policy == nil {
-		firewall.RegisterTables("copp", nil)
+		_ = firewall.RegisterTables("copp", nil) // a withdraw registers no name, so it cannot be refused
 		if err := firewall.ApplyAll(); err != nil {
 			return fmt.Errorf("copp withdraw: %w", err)
 		}
@@ -193,9 +193,11 @@ func applyCoppPolicy(policy *coppPolicy, mu *sync.Mutex, currentPolicy **coppPol
 	}
 
 	table := translatePolicy(*policy)
-	firewall.RegisterTables("copp", []firewall.Table{table})
+	if err := firewall.RegisterTables("copp", []firewall.Table{table}); err != nil {
+		return fmt.Errorf("copp apply: %w", err)
+	}
 	if err := firewall.ApplyAll(); err != nil {
-		firewall.RegisterTables("copp", nil)
+		_ = firewall.RegisterTables("copp", nil) // a withdraw registers no name, so it cannot be refused
 		_ = firewall.ApplyAll()
 		return fmt.Errorf("copp apply: %w", err)
 	}

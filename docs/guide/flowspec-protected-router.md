@@ -108,10 +108,10 @@ What each block does:
 export XDG_RUNTIME_DIR=/run/ze
 /usr/local/bin/ze cli -c "show bgp peer list"
 /usr/local/bin/ze show warnings
-sudo nft list ruleset | sed -n '/table inet flowspec/,+80p'
+sudo nft list ruleset | sed -n '/table inet ze_flowspec/,+80p'
 ```
 
-The FlowSpec bridge generates an nft table named `flowspec`. It creates base chains for forwarded traffic and local input traffic when rules exist:
+The FlowSpec bridge generates an nft table named `ze_flowspec`. The `ze_` prefix is what tells the firewall backend the table is ze's, so a route the peer withdraws takes its rules out of the kernel with it. `show firewall ruleset` and the web pages strip the prefix, so the name you type there stays `flowspec`. The bridge creates base chains for forwarded traffic and local input traffic when rules exist:
 
 | Chain | Hook | Used for |
 | --- | --- | --- |
@@ -150,13 +150,29 @@ export XDG_RUNTIME_DIR=/run/ze
 On a non-Ze source, use that router's FlowSpec origination syntax instead. Then, on `edge-01`, check that nftables received a rule:
 
 ```bash
-sudo nft list table inet flowspec
+sudo nft list table inet ze_flowspec
 ```
 
 Withdraw the test rule from the same source:
 
 ```bash
 /usr/local/bin/ze cli -c "peer 192.0.2.10 update text nlri ipv4/flow del destination 10.0.0.0/8 protocol tcp destination-port =80"
+```
+
+The rule leaves the kernel with the route. When the withdrawn route was the last
+one the peer gave `edge-01`, `nft list ruleset` shows no `ze_flowspec` table at
+all. A router upgraded from a build older than 2026-08-23 holds a table named
+`flowspec`, without the prefix. Ze removes that one on its first reconcile and
+logs `deleting a table an earlier ze build left without the ownership prefix`.
+
+That removal runs when the FlowSpec bridge starts, so it needs the bridge to
+still be configured. If you removed the `flowspec-firewall` plugin from the
+config in the same upgrade, nothing reconciles the firewall and the old table
+keeps enforcing its rules. Check for it and remove it by hand:
+
+```bash
+sudo nft list table inet flowspec
+sudo nft delete table inet flowspec
 ```
 
 

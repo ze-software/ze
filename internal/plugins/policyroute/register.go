@@ -196,14 +196,16 @@ func applyPolicies(alloc *allocator, policies []PolicyRoute, oldResult *translat
 		rm.removeAll(oldResult)
 	}
 
-	firewall.RegisterTables("policy-routes", result.Tables)
+	if err := firewall.RegisterTables("policy-routes", result.Tables); err != nil {
+		return err
+	}
 	if err := firewall.ApplyAll(); err != nil {
 		return fmt.Errorf("nftables apply: %w", err)
 	}
 
 	if err := rm.applyAll(result); err != nil {
 		rm.removeAll(result)
-		firewall.RegisterTables("policy-routes", nil)
+		_ = firewall.RegisterTables("policy-routes", nil) // a withdraw registers no name, so it cannot be refused
 		_ = firewall.ApplyAll()
 		return err
 	}
@@ -218,7 +220,7 @@ func applyPolicies(alloc *allocator, policies []PolicyRoute, oldResult *translat
 }
 
 func cleanupOnShutdown(result *translationResult) {
-	firewall.RegisterTables("policy-routes", nil)
+	_ = firewall.RegisterTables("policy-routes", nil) // a withdraw registers no name, so it cannot be refused
 	_ = firewall.ApplyAll()
 
 	if result == nil {

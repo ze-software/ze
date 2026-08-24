@@ -2,6 +2,7 @@ package firewall
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -36,7 +37,7 @@ func TestApplyAllAutoLoadsDefaultBackend(t *testing.T) {
 	t.Cleanup(func() { defaultBackendForAutoload = prev })
 
 	// A plugin registers a table; no firewall {} section ever ran LoadBackend.
-	RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
+	_ = RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
 
 	if err := ApplyAll(); err != nil {
 		t.Fatalf("ApplyAll with no pre-loaded backend: %v", err)
@@ -101,7 +102,7 @@ func TestApplyAllNoDefaultKeepsNotLoadedError(t *testing.T) {
 	defaultBackendForAutoload = "" // mimic non-Linux: no OS default backend
 	t.Cleanup(func() { defaultBackendForAutoload = prev })
 
-	RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
+	_ = RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
 
 	if err := ApplyAll(); err == nil {
 		t.Fatal("ApplyAll with pending tables and no default backend should error")
@@ -132,8 +133,8 @@ func TestFlushAllTablesClearsRegistryAndReconciles(t *testing.T) {
 		t.Fatalf("LoadBackend: %v", err)
 	}
 
-	RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
-	RegisterTables("firewall", []Table{{Name: "ze_fw", Family: FamilyInet}})
+	_ = RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
+	_ = RegisterTables("firewall", []Table{{Name: "ze_fw", Family: FamilyInet}})
 	if err := ApplyAll(); err != nil {
 		t.Fatalf("ApplyAll: %v", err)
 	}
@@ -229,7 +230,7 @@ func TestApplyAllWaitsForAProvidedSet(t *testing.T) {
 	defaultBackendForAutoload = "provided-set-nft"
 	t.Cleanup(func() { defaultBackendForAutoload = prev })
 
-	RegisterTables("firewall", []Table{{
+	_ = RegisterTables("firewall", []Table{{
 		Name:   "ze_wan",
 		Family: FamilyInet,
 		Chains: []Chain{{
@@ -249,7 +250,7 @@ func TestApplyAllWaitsForAProvidedSet(t *testing.T) {
 	}})
 	// A second owner, with no stake in the missing set. Its table is what the
 	// all-or-nothing wait used to take down with the first one.
-	RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
+	_ = RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
 
 	if err := ApplyAll(); err != nil {
 		t.Fatalf("a pending provider must not fail the reconcile: %v", err)
@@ -261,7 +262,7 @@ func TestApplyAllWaitsForAProvidedSet(t *testing.T) {
 		t.Fatalf("applied %+v, want ze_copp alone: ze_wan names a set nobody registered", lastApplied)
 	}
 
-	RegisterTables("firewall-irr", []Table{{
+	_ = RegisterTables("firewall-irr", []Table{{
 		Name:   "ze_wan",
 		Family: FamilyInet,
 		Sets:   []Set{{Name: "irr_v4_AS13335", Type: SetTypeIPv4, Flags: SetFlagInterval}},
@@ -304,7 +305,7 @@ func TestApplyAllDoesNotWaitForADeclaredSet(t *testing.T) {
 	defaultBackendForAutoload = "declared-set-nft"
 	t.Cleanup(func() { defaultBackendForAutoload = prev })
 
-	RegisterTables("firewall", []Table{{
+	_ = RegisterTables("firewall", []Table{{
 		Name:   "ze_wan",
 		Family: FamilyInet,
 		Sets:   []Set{{Name: "blocklist", Type: SetTypeIPv4}},
@@ -380,7 +381,7 @@ func snapshotNames(t *testing.T) []string {
 func TestApplyAllRecordsAPluginOnlyReconcile(t *testing.T) {
 	snapshotBackend(t, "snapshot-plugin-only")
 
-	RegisterTables("firewall-irr", []Table{{Name: "ze_irr_iface", Family: FamilyInet}})
+	_ = RegisterTables("firewall-irr", []Table{{Name: "ze_irr_iface", Family: FamilyInet}})
 
 	if err := ApplyAll(); err != nil {
 		t.Fatalf("ApplyAll: %v", err)
@@ -400,7 +401,7 @@ func TestApplyAllRecordsAPluginOnlyReconcile(t *testing.T) {
 func TestApplyAllSnapshotHoldsTheMergedTable(t *testing.T) {
 	snapshotBackend(t, "snapshot-merge")
 
-	RegisterTables("firewall", []Table{{
+	_ = RegisterTables("firewall", []Table{{
 		Name:   "ze_wan",
 		Family: FamilyInet,
 		Chains: []Chain{{
@@ -416,7 +417,7 @@ func TestApplyAllSnapshotHoldsTheMergedTable(t *testing.T) {
 			}},
 		}},
 	}})
-	RegisterTables("firewall-irr", []Table{{
+	_ = RegisterTables("firewall-irr", []Table{{
 		Name:   "ze_wan",
 		Family: FamilyInet,
 		Sets:   []Set{{Name: "irr_v4_AS13335", Type: SetTypeIPv4, Flags: SetFlagInterval}},
@@ -444,13 +445,13 @@ func TestApplyAllSnapshotHoldsTheMergedTable(t *testing.T) {
 func TestApplyAllFailedApplyKeepsThePreviousSnapshot(t *testing.T) {
 	b := snapshotBackend(t, "snapshot-failed-apply")
 
-	RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
+	_ = RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
 	if err := ApplyAll(); err != nil {
 		t.Fatalf("first ApplyAll: %v", err)
 	}
 
 	b.applyErr = errApplyFailed
-	RegisterTables("firewall-irr", []Table{{Name: "ze_irr_iface", Family: FamilyInet}})
+	_ = RegisterTables("firewall-irr", []Table{{Name: "ze_irr_iface", Family: FamilyInet}})
 	if err := ApplyAll(); !errors.Is(err, errApplyFailed) {
 		t.Fatalf("ApplyAll = %v, want the backend error", err)
 	}
@@ -469,7 +470,7 @@ func TestApplyAllFailedApplyKeepsThePreviousSnapshot(t *testing.T) {
 func TestApplyAllWithdrawRecordsTheEmptySet(t *testing.T) {
 	snapshotBackend(t, "snapshot-withdraw")
 
-	RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
+	_ = RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
 	if err := ApplyAll(); err != nil {
 		t.Fatalf("first ApplyAll: %v", err)
 	}
@@ -481,7 +482,7 @@ func TestApplyAllWithdrawRecordsTheEmptySet(t *testing.T) {
 		t.Fatalf("LastApplied() = %v before the withdraw, want [ze_copp]", got)
 	}
 
-	RegisterTables("copp", nil)
+	_ = RegisterTables("copp", nil)
 	if err := ApplyAll(); err != nil {
 		t.Fatalf("withdraw ApplyAll: %v", err)
 	}
@@ -499,7 +500,7 @@ func TestApplyAllWithdrawRecordsTheEmptySet(t *testing.T) {
 func TestApplyAllNoBackendLeavesTheSnapshot(t *testing.T) {
 	snapshotBackend(t, "snapshot-no-backend")
 
-	RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
+	_ = RegisterTables("copp", []Table{{Name: "ze_copp", Family: FamilyInet}})
 	if err := ApplyAll(); err != nil {
 		t.Fatalf("first ApplyAll: %v", err)
 	}
@@ -515,5 +516,84 @@ func TestApplyAllNoBackendLeavesTheSnapshot(t *testing.T) {
 	}
 	if got := snapshotNames(t); len(got) != 1 || got[0] != "ze_copp" {
 		t.Fatalf("LastApplied() = %v, want the untouched [ze_copp]: no Apply ran", got)
+	}
+}
+
+// VALIDATES: a table name that carries no ownership prefix is refused at
+// registration, so it never reaches a backend and never reaches the kernel.
+// PREVENTS: the FlowSpec defect returning under another owner's name. The nft
+// backend decides which kernel tables ze owns by the prefix, so a table
+// registered without it was never swept: a withdraw left it installed and every
+// reconcile appended a second copy of each rule.
+func TestEveryRegisteredTableCarriesThePrefix(t *testing.T) {
+	resetBackends()
+	resetTables()
+	t.Cleanup(func() {
+		resetBackends()
+		resetTables()
+	})
+
+	var lastApplied []Table
+	if err := RegisterBackend("prefix-guard-test", func() (Backend, error) {
+		return &countingBackend{onApply: func(d []Table) { lastApplied = d }}, nil
+	}); err != nil {
+		t.Fatalf("RegisterBackend: %v", err)
+	}
+	if err := LoadBackend("prefix-guard-test"); err != nil {
+		t.Fatalf("LoadBackend: %v", err)
+	}
+
+	err := RegisterTables("flowspec", []Table{{Name: "flowspec", Family: FamilyInet}})
+	if err == nil {
+		t.Fatal("RegisterTables accepted a table with no ownership prefix")
+	}
+	if !strings.Contains(err.Error(), "flowspec") || !strings.Contains(err.Error(), tableNamePrefix) {
+		t.Fatalf("error names neither the table nor the prefix: %v", err)
+	}
+
+	// Refused means not stored: the next reconcile must not carry it.
+	if err := ApplyAll(); err != nil {
+		t.Fatalf("ApplyAll after a refused registration: %v", err)
+	}
+	if len(lastApplied) != 0 {
+		t.Fatalf("a refused table reached the backend: %v", lastApplied)
+	}
+
+	// One bad name in a set refuses the whole set, so a partial registration
+	// cannot leave the owner half-programmed.
+	err = RegisterTables("mixed", []Table{
+		{Name: "ze_good", Family: FamilyInet},
+		{Name: "bad", Family: FamilyInet},
+	})
+	if err == nil {
+		t.Fatal("RegisterTables accepted a set holding one unprefixed table")
+	}
+	if err := ApplyAll(); err != nil {
+		t.Fatalf("ApplyAll after a refused mixed set: %v", err)
+	}
+	if len(lastApplied) != 0 {
+		t.Fatalf("a refused set reached the backend: %v", lastApplied)
+	}
+
+	// The prefixed name is accepted and reaches the backend.
+	if err := RegisterTables("flowspec", []Table{{Name: "ze_flowspec", Family: FamilyInet}}); err != nil {
+		t.Fatalf("RegisterTables refused a prefixed table: %v", err)
+	}
+	if err := ApplyAll(); err != nil {
+		t.Fatalf("ApplyAll: %v", err)
+	}
+	if len(lastApplied) != 1 || lastApplied[0].Name != "ze_flowspec" {
+		t.Fatalf("Apply got %v, want [ze_flowspec]", lastApplied)
+	}
+
+	// A withdraw registers no name, so it can never be refused.
+	if err := RegisterTables("flowspec", nil); err != nil {
+		t.Fatalf("a withdraw was refused: %v", err)
+	}
+	if err := ApplyAll(); err != nil {
+		t.Fatalf("ApplyAll after withdraw: %v", err)
+	}
+	if len(lastApplied) != 0 {
+		t.Fatalf("the withdrawn table survived the reconcile: %v", lastApplied)
 	}
 }

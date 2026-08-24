@@ -282,7 +282,7 @@ func (plug *irrPlugin) getPrefixStore() *store.PrefixStore {
 func (plug *irrPlugin) applyTables() error {
 	ps := plug.getPrefixStore()
 	if ps == nil {
-		firewall.RegisterTables("firewall-irr", nil)
+		_ = firewall.RegisterTables("firewall-irr", nil) // a withdraw registers no name, so it cannot be refused
 		return nil
 	}
 
@@ -294,13 +294,15 @@ func (plug *irrPlugin) applyTables() error {
 	ifaceBindings := cfg.ifaceBindings
 
 	if len(termRefs) == 0 && len(ifaceBindings) == 0 {
-		firewall.RegisterTables("firewall-irr", nil)
+		_ = firewall.RegisterTables("firewall-irr", nil) // a withdraw registers no name, so it cannot be refused
 		return nil
 	}
 
 	tables := buildIRRTables(ps, termRefs)
 	tables = append(tables, buildIfaceTables(ps, ifaceBindings)...)
-	firewall.RegisterTables("firewall-irr", tables)
+	if err := firewall.RegisterTables("firewall-irr", tables); err != nil {
+		return fmt.Errorf("firewall-irr: register: %w", err)
+	}
 	if err := firewall.ApplyAll(); err != nil {
 		return fmt.Errorf("firewall-irr: apply: %w", err)
 	}

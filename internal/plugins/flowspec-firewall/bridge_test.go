@@ -25,7 +25,7 @@ func TestHandleUpdate(t *testing.T) {
 	tables := b.rules.buildTable()
 	require.NotNil(t, tables)
 	require.Len(t, tables, 1)
-	assert.Equal(t, "flowspec", tables[0].Name)
+	assert.Equal(t, "ze_flowspec", tables[0].Name)
 	require.Len(t, tables[0].Chains, 1)
 	assert.Equal(t, "flowspec-fwd", tables[0].Chains[0].Name)
 	require.Len(t, tables[0].Chains[0].Terms, 1)

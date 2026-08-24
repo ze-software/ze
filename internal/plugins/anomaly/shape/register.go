@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/anomalyevent"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -98,6 +99,16 @@ func runEngine(conn net.Conn) int {
 		}
 		resp = newResponder(cfg)
 		setGlobalResponder(resp)
+
+		// One empty reconcile while the one-time removal of the tables an older
+		// ze build wrote is still pending. This responder's own tables are two
+		// of them, and a box that never arms one gets no other reconcile that
+		// could reach them (internal/component/firewall/legacy_tables.go).
+		if firewall.LegacySweepPending() {
+			if err := applyAll(); err != nil {
+				log.Warn("anomaly-shape: the one-time removal of an older ze build's tables did not run", "error", err)
+			}
+		}
 		unsubDet = anomalyevent.Detected.Subscribe(bus, resp.onDetected)
 		unsubOng = anomalyevent.Ongoing.Subscribe(bus, resp.onOngoing)
 		unsubClr = anomalyevent.Cleared.Subscribe(bus, resp.onCleared)

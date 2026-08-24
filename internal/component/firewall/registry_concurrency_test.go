@@ -68,7 +68,7 @@ func TestApplyAllSerialisesBackendApply(t *testing.T) {
 
 	// A handful of owners so there is always a non-empty desired set to apply.
 	for i := range 4 {
-		RegisterTables(fmt.Sprintf("owner-%d", i),
+		_ = RegisterTables(fmt.Sprintf("owner-%d", i),
 			[]Table{{Name: fmt.Sprintf("ze_o%d", i), Family: FamilyInet}})
 	}
 
@@ -142,7 +142,7 @@ func TestApplyAllConcurrentOwnersConverge(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := range owners {
 		wg.Go(func() {
-			RegisterTables(fmt.Sprintf("owner-%d", i),
+			_ = RegisterTables(fmt.Sprintf("owner-%d", i),
 				[]Table{{Name: fmt.Sprintf("ze_c%d", i), Family: FamilyInet}})
 			if err := ApplyAll(); err != nil {
 				t.Errorf("ApplyAll: %v", err)
@@ -216,7 +216,7 @@ func TestApplyAllStaleSnapshotNotApplied(t *testing.T) {
 	be := &gateBackend{started: make(chan struct{}), release: make(chan struct{})}
 	installBackend(t, "gate", be)
 
-	RegisterTables("A", []Table{{Name: "ze_a", Family: FamilyInet}})
+	_ = RegisterTables("A", []Table{{Name: "ze_a", Family: FamilyInet}})
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
@@ -229,7 +229,7 @@ func TestApplyAllStaleSnapshotNotApplied(t *testing.T) {
 
 	// B registers while the first reconcile is blocked. RegisterTables takes
 	// only tableRegistry.mu, so it is not blocked by reconcileMu -- intended.
-	RegisterTables("B", []Table{{Name: "ze_b", Family: FamilyInet}})
+	_ = RegisterTables("B", []Table{{Name: "ze_b", Family: FamilyInet}})
 
 	secondStarted := make(chan struct{})
 	wg.Go(func() {

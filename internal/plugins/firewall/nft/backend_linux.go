@@ -37,7 +37,9 @@ func newBackend() (firewall.Backend, error) {
 }
 
 // Apply receives the full desired state and reconciles against the kernel.
-// Creates new ze_* tables, replaces changed ones, deletes orphans.
+// Creates new ze_* tables, replaces changed ones, deletes orphans, and, on the
+// FIRST reconcile of the process only, deletes the tables an earlier ze build
+// wrote without the ownership prefix.
 // All operations are atomic via Flush().
 func (b *backend) Apply(desired []firewall.Table) error {
 	// R-2 host-safety gate: under the functional-test netns launch mode, refuse
@@ -50,6 +52,13 @@ func (b *backend) Apply(desired []firewall.Table) error {
 
 	desiredNames := tableNameSet(desired)
 
+	// The removal of what an older ze build left in the kernel is a migration
+	// with an end, not a standing deletion policy: it runs on the first
+	// reconcile of the process and on no later one. Read once, before the loop,
+	// so every table in one reconcile gets the same answer
+	// (firewall.LegacySweepPending, cleared by ApplyAll once this returns).
+	sweepLegacy := firewall.LegacySweepPending()
+
 	// List current ze_* tables.
 	currentTables, err := b.conn.ListTables()
 	if err != nil {
@@ -59,7 +68,25 @@ func (b *backend) Apply(desired []firewall.Table) error {
 	// Delete only tables this Apply owns: current desired names and tables
 	// applied by this backend instance earlier. Unknown ze_* tables may belong
 	// to another Ze producer or process and must not be swept by prefix alone.
+	//
+	// This loop is also where a withdrawn route stops being enforced. RFC 8955
+	// Section 4 carries a flow specification in MP_REACH_NLRI and
+	// MP_UNREACH_NLRI, so it is an ordinary BGP route, and RFC 4271 Section 9
+	// says a withdrawn route "SHALL be removed from the Adj-RIB-In ... the
+	// previously advertised route is no longer available for use". The withdraw
+	// leaves the owner's table out of desiredNames, and deleting it here is what
+	// takes the rules out of the kernel. RFC 8955 states no withdrawal rule of
+	// its own: it never uses the word.
 	for _, ct := range currentTables {
+		if sweepLegacy && b.isLegacyTable(ct) {
+			// An earlier ze build wrote this table without the ownership prefix,
+			// so no sweep could ever reach it and an upgrade would leave its
+			// rules enforcing for the life of the box. Delete it once.
+			firewall.Logger().Info("firewallnft: deleting a table an earlier ze build left without the ownership prefix",
+				"table", ct.Name)
+			b.conn.DelTable(ct)
+			continue
+		}
 		if b.shouldDeleteTable(ct, desiredNames) {
 			b.conn.DelTable(ct)
 		}
@@ -78,6 +105,42 @@ func (b *backend) Apply(desired []firewall.Table) error {
 	}
 	b.applied = desiredNames
 	return nil
+}
+
+// isLegacyTable reports whether a kernel table is one an earlier ze build wrote
+// under a name carrying no ownership prefix, so no sweep could reach it. The
+// caller decides WHETHER to ask: Apply asks on the first reconcile of the
+// process only, which is what keeps this a migration rather than a policy.
+//
+// The name and the family are only the pre-filter. The decision needs the
+// table's CHAINS as well, because these names are ordinary words that another
+// tool programming nftables can use: deleting that tool's table would be a
+// worse failure than the stale rule this removal exists to clear
+// (firewall.IsLegacyTable). Reading the chains costs a netlink round trip, so
+// IsLegacyTableName runs first and keeps that cost off every other table.
+//
+// A kernel that cannot be read here answers no. The table then survives, which
+// is the safe direction: a missed removal leaves a stale rule, and a wrong one
+// destroys somebody else's.
+func (b *backend) isLegacyTable(t *nftables.Table) bool {
+	if t == nil {
+		return false
+	}
+	family, err := raiseFamily(t.Family)
+	if err != nil || !firewall.IsLegacyTableName(t.Name, family) {
+		return false
+	}
+	chains, err := b.conn.ListChainsOfTableFamily(t.Family)
+	if err != nil {
+		return false
+	}
+	names := make([]string, 0, len(chains))
+	for _, kc := range chains {
+		if kc.Table != nil && kc.Table.Name == t.Name {
+			names = append(names, kc.Name)
+		}
+	}
+	return firewall.IsLegacyTable(t.Name, family, names)
 }
 
 func (b *backend) shouldDeleteTable(t *nftables.Table, desiredNames map[string]struct{}) bool {

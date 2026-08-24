@@ -299,6 +299,15 @@ func runEngine(conn net.Conn) int {
 		if !hasFirewallSection(sections) {
 			log.Debug("firewall: no configuration, plugin idle")
 			activeCfg.Store(cfg)
+			// No one-time legacy sweep here. This branch is reached only when
+			// the firewall plugin is loaded and no firewall {} section exists,
+			// which happens only through an explicit `plugin { internal
+			// firewall }` block: getConfigPathPlugins
+			// (internal/component/plugin/server/startup_autoload.go) starts
+			// this plugin for a PRESENT config root and there is no always-load
+			// phase. The owners of the legacy names run that reconcile instead,
+			// at their own startup, where the state is reachable and tested
+			// (legacy_tables.go).
 			return nil
 		}
 		if cfg.Backend == "" {
@@ -318,7 +327,9 @@ func runEngine(conn net.Conn) int {
 		}
 		log.Info("firewall backend loaded", "backend", cfg.Backend)
 
-		RegisterTables("firewall", cfg.Tables)
+		if err := RegisterTables("firewall", cfg.Tables); err != nil {
+			return err
+		}
 		if err := ApplyAll(); err != nil {
 			return fmt.Errorf("firewall config apply: %w", err)
 		}
@@ -378,7 +389,9 @@ func runEngine(conn net.Conn) int {
 		j := sdk.NewJournal()
 		err := j.Record(
 			func() error {
-				RegisterTables("firewall", cfg.Tables)
+				if regErr := RegisterTables("firewall", cfg.Tables); regErr != nil {
+					return regErr
+				}
 				if applyErr := ApplyAll(); applyErr != nil {
 					return fmt.Errorf("firewall reload: %w", applyErr)
 				}
@@ -389,7 +402,9 @@ func runEngine(conn net.Conn) int {
 				if previousCfg != nil {
 					desired = previousCfg.Tables
 				}
-				RegisterTables("firewall", desired)
+				if regErr := RegisterTables("firewall", desired); regErr != nil {
+					return regErr
+				}
 				if rollbackErr := ApplyAll(); rollbackErr != nil {
 					return fmt.Errorf("firewall rollback: %w", rollbackErr)
 				}

@@ -42,7 +42,7 @@ type testResponder struct {
 func newTestResponder(t *testing.T, cfg *Config) *testResponder {
 	t.Helper()
 	tr := &testResponder{}
-	registerTables = func(_ string, tables []firewall.Table) { tr.installed = tables }
+	registerTables = func(_ string, tables []firewall.Table) error { tr.installed = tables; return nil }
 	applyAll = func() error { tr.applies++; return nil }
 	t.Cleanup(func() {
 		registerTables = firewall.RegisterTables

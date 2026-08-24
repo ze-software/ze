@@ -105,8 +105,8 @@ func TestApplyRulesRejectsUntranslatableRuleAndKeepsOthers(t *testing.T) {
 	}))
 	require.NoError(t, firewall.LoadBackend(backendName))
 	t.Cleanup(func() {
-		firewall.RegisterTables("flowspec", nil)
-		firewall.RegisterTables("local-firewall", nil)
+		_ = firewall.RegisterTables("flowspec", nil)
+		_ = firewall.RegisterTables("local-firewall", nil)
 		_ = firewall.CloseBackend()
 	})
 
@@ -119,7 +119,7 @@ func TestApplyRulesRejectsUntranslatableRuleAndKeepsOthers(t *testing.T) {
 
 	// Only now does another owner reconcile. With an unenforceable FlowSpec term
 	// registered, this is the call that never reaches the kernel.
-	firewall.RegisterTables("local-firewall", []firewall.Table{otherOwnerTable()})
+	_ = firewall.RegisterTables("local-firewall", []firewall.Table{otherOwnerTable()})
 	require.NoError(t, firewall.ApplyAll(), "one untranslatable FlowSpec route must not fail every owner's reconcile")
 
 	names := make(map[string]bool, len(be.flushed))
@@ -137,7 +137,7 @@ func TestApplyRulesRejectsUntranslatableRuleAndKeepsOthers(t *testing.T) {
 		}
 	}
 	assert.True(t, names["ze_local_filter"], "every other owner's ruleset must still reach the kernel")
-	assert.True(t, names["flowspec"], "the FlowSpec routes ze can enforce must still reach the kernel")
+	assert.True(t, names["ze_flowspec"], "the FlowSpec routes ze can enforce must still reach the kernel")
 	assert.Contains(t, protocols, "sctp", "the enforceable FlowSpec route must be installed")
 	assert.NotContains(t, protocols, "253", "no MatchProtocol may ever carry digits")
 }

@@ -5,7 +5,9 @@ package firewall
 
 import (
 	"errors"
+	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -84,14 +86,29 @@ var reconcileMu sync.Mutex
 
 // RegisterTables stores a component's desired nftables tables under an
 // owner key. Call ApplyAll to reconcile the merged set against the kernel.
-func RegisterTables(owner string, tables []Table) {
+// Passing nil withdraws the owner and always succeeds.
+//
+// Every table name MUST carry tableNamePrefix, and a name without it is
+// refused rather than stored. A backend decides which kernel tables ze owns by
+// that prefix, so an unprefixed table is never swept: it outlives the config or
+// the route that asked for it, and the next reconcile appends to it instead of
+// replacing it. Refusing here keeps such a table out of the kernel, and tells
+// the owner rather than dropping its rules quietly.
+func RegisterTables(owner string, tables []Table) error {
+	for i := range tables {
+		if !strings.HasPrefix(tables[i].Name, tableNamePrefix) {
+			return fmt.Errorf("firewall: owner %q registered table %q without the %q ownership prefix",
+				owner, tables[i].Name, tableNamePrefix)
+		}
+	}
 	tableRegistry.mu.Lock()
 	defer tableRegistry.mu.Unlock()
 	if tables == nil {
 		delete(tableRegistry.owners, owner)
-		return
+		return nil
 	}
 	tableRegistry.owners[owner] = tables
+	return nil
 }
 
 // ApplyAll merges tables from all registered owners and calls
@@ -152,7 +169,20 @@ func ApplyAll() error {
 	// tables still reach the kernel. Guarded on len(all) > 0 so a withdraw
 	// (register nil + reconcile) with nothing loaded stays a no-op instead of
 	// spinning up a backend just to apply an empty set.
-	if activeBackend == nil && len(all) > 0 && defaultBackendForAutoload != "" {
+	//
+	// LegacySweepPending is the one exemption to that guard, and it is a
+	// one-shot: an empty set must reach a backend once, because the tables an
+	// older ze build wrote without the ownership prefix are deleted inside
+	// Backend.Apply and nothing else can reach them. Without it a box holding
+	// such a table, with no firewall {} section and no owner registering
+	// anything, keeps enforcing that build's rules forever (legacy_tables.go).
+	//
+	// Backend.Apply reads the same flag to decide whether to look for such a
+	// table at all, and legacySweepReached below clears it once this reconcile
+	// succeeds. So the removal happens on the first reconcile of the process
+	// and on no later one: it is a migration with an end, not a standing rule
+	// that deletes a matching table in every release from here on.
+	if activeBackend == nil && (len(all) > 0 || LegacySweepPending()) && defaultBackendForAutoload != "" {
 		if err := loadBackendLocked(defaultBackendForAutoload); err != nil {
 			backendsMu.Unlock()
 			return err
@@ -193,6 +223,11 @@ func ApplyAll() error {
 	err = b.Apply(all)
 	applyResult = applyResultOf(err)
 	if err == nil {
+		// The reconcile reached a backend, which is where the one-time removal
+		// of an older build's tables happens. Record it so the empty-set
+		// exemption above lasts one reconcile rather than the whole process.
+		legacySweepReached()
+
 		// Record the merged set here, at the one call site of Backend.Apply,
 		// because this is the only place that knows what the kernel now holds:
 		// every owner's tables, not one owner's config. The readback

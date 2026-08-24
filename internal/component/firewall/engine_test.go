@@ -175,10 +175,10 @@ func TestConfigureAcceptsIRRTableTerm(t *testing.T) {
 	defaultBackendForAutoload = "irr-merge-nft"
 	t.Cleanup(func() { defaultBackendForAutoload = prev })
 
-	RegisterTables("firewall", cfg.Tables)
+	_ = RegisterTables("firewall", cfg.Tables)
 	// What the firewall-irr owner registers once the prefixes are cached:
 	// the same table name and family, carrying only the sets.
-	RegisterTables("firewall-irr", []Table{{
+	_ = RegisterTables("firewall-irr", []Table{{
 		Name:   "ze_wan",
 		Family: FamilyInet,
 		Sets: []Set{
@@ -242,10 +242,10 @@ func TestConfigureAcceptsIRRTableTermWithOneFamily(t *testing.T) {
 	defaultBackendForAutoload = "irr-one-family-nft"
 	t.Cleanup(func() { defaultBackendForAutoload = prev })
 
-	RegisterTables("firewall", cfg.Tables)
+	_ = RegisterTables("firewall", cfg.Tables)
 	// What buildTermSets produces for an entry holding IPv4 prefixes only: the
 	// IPv6 set is declared and carries no element, so its term matches nothing.
-	RegisterTables("firewall-irr", []Table{{
+	_ = RegisterTables("firewall-irr", []Table{{
 		Name:   "ze_wan",
 		Family: FamilyInet,
 		Sets: []Set{

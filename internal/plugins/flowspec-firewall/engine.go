@@ -214,7 +214,10 @@ func (b *bridge) handleFlowSpecAdd(peer string, fam family.Family, nlriKey strin
 
 func (b *bridge) applyRules() {
 	tables := b.rules.buildTable()
-	firewall.RegisterTables("flowspec", tables)
+	if err := firewall.RegisterTables("flowspec", tables); err != nil {
+		b.log.Error("flowspec: firewall register failed", "error", err)
+		return
+	}
 	if err := firewall.ApplyAll(); err != nil {
 		b.log.Warn("flowspec: firewall apply failed", "error", err)
 	}
@@ -251,12 +254,28 @@ func runEngine(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 
+	// One empty reconcile before the event loop, while the one-time removal of
+	// the tables an older ze build wrote is still pending. This plugin's own
+	// table is one of them: a box upgraded from such a build holds `flowspec`
+	// in the kernel, and if its peer never announces again, no UPDATE and no
+	// peer-down will ever call applyRules. Nothing else reaches that table
+	// either, because ApplyAll returns before it loads a backend when the
+	// desired set is empty (internal/component/firewall/legacy_tables.go).
+	//
+	// Reported and not returned: a daemon whose firewall backend is unusable
+	// must still run BGP.
+	if firewall.LegacySweepPending() {
+		if err := firewall.ApplyAll(); err != nil {
+			log.Warn("flowspec: the one-time removal of an older ze build's tables did not run", "error", err)
+		}
+	}
+
 	if err := p.Run(ctx, sdk.Registration{}); err != nil {
 		log.Error("flowspec-firewall plugin failed", "error", err)
 		return 1
 	}
 
-	firewall.RegisterTables("flowspec", nil)
+	_ = firewall.RegisterTables("flowspec", nil) // a withdraw registers no name, so it cannot be refused
 	log.Info("flowspec-firewall plugin stopped")
 	return 0
 }

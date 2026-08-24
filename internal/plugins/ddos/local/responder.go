@@ -176,13 +176,20 @@ func (r *responder) applyMitigation(target ddosevent.VectorTuple, family ddoseve
 		}},
 	}
 
-	registerTables(tableName, []firewall.Table{table})
+	if err := registerTables(tableName, []firewall.Table{table}); err != nil {
+		// The registry refused the table, so nothing was staged and there is
+		// nothing to roll back. Report no live mitigation, as the apply-failure
+		// path below does: r.active must never claim a rule the kernel lacks.
+		r.setStatus(false, r.target)
+		logger().Error("ddos-local: failed to register the drop rule", "error", err, "phase", phase)
+		return
+	}
 	if err := applyAll(); err != nil {
 		// Roll the registry back to no ddos-local table and reconcile the kernel,
 		// so a half-applied narrow does not leave the registry empty while the
 		// kernel still holds the previous rule and r.active falsely claims a live
 		// mitigation. Best-effort: log a second failure but do not spin.
-		registerTables(tableName, nil)
+		_ = registerTables(tableName, nil) // a withdraw registers no name, so it cannot be refused
 		// A wedged kernel is the one case where re-reconciling is worse than
 		// doing nothing: the registry rollback above has already made the
 		// desired state correct, and a second apply can only burn another full
@@ -237,7 +244,7 @@ func (r *responder) onCleared(_ *ddosevent.AttackCleared) {
 }
 
 func (r *responder) removeMitigation() {
-	registerTables(tableName, nil)
+	_ = registerTables(tableName, nil) // a withdraw registers no name, so it cannot be refused
 	if err := applyAll(); err != nil {
 		logger().Error("ddos-local: failed to remove drop rule", "error", err)
 	}

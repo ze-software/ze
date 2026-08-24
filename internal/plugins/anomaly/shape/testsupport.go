@@ -14,7 +14,7 @@ import (
 // so an in-process integration test can exercise judgment->response without the
 // plugin lifecycle. Test-only.
 func SubscribeForTest(bus ze.EventBus) (armedList func() []string, stop func()) {
-	registerTables = func(string, []firewall.Table) {}
+	registerTables = func(string, []firewall.Table) error { return nil }
 	applyAll = func() error { return nil }
 
 	cfg := DefaultConfig()

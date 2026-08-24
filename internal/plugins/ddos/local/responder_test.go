@@ -14,7 +14,7 @@ import (
 func withNoopFirewall() func() {
 	origReg := registerTables
 	origApply := applyAll
-	registerTables = func(_ string, _ []firewall.Table) {}
+	registerTables = func(_ string, _ []firewall.Table) error { return nil }
 	applyAll = func() error { return nil }
 	return func() {
 		registerTables = origReg
@@ -114,7 +114,7 @@ func TestLocalNarrowsInPlace(t *testing.T) {
 	origReg := registerTables
 	origApply := applyAll
 	var lastTables []firewall.Table
-	registerTables = func(_ string, tables []firewall.Table) { lastTables = tables }
+	registerTables = func(_ string, tables []firewall.Table) error { lastTables = tables; return nil }
 	applyAll = func() error { return nil }
 	defer func() { registerTables = origReg; applyAll = origApply }()
 
@@ -156,7 +156,7 @@ func TestLocalApplyFailureRollsBack(t *testing.T) {
 	origApply := applyAll
 	var lastTables []firewall.Table
 	fail := false
-	registerTables = func(_ string, tables []firewall.Table) { lastTables = tables }
+	registerTables = func(_ string, tables []firewall.Table) error { lastTables = tables; return nil }
 	applyAll = func() error {
 		if fail {
 			return errors.New("nft apply failed")
@@ -208,7 +208,7 @@ func TestLocalHookByDirection(t *testing.T) {
 	origReg := registerTables
 	origApply := applyAll
 	var lastTables []firewall.Table
-	registerTables = func(_ string, tables []firewall.Table) { lastTables = tables }
+	registerTables = func(_ string, tables []firewall.Table) error { lastTables = tables; return nil }
 	applyAll = func() error { return nil }
 	defer func() { registerTables = origReg; applyAll = origApply }()
 
@@ -303,7 +303,7 @@ func TestLocalRefusesUnresolvedVictim(t *testing.T) {
 	origApply := applyAll
 	var registered []firewall.Table
 	var applyCalls int
-	registerTables = func(_ string, tables []firewall.Table) { registered = tables }
+	registerTables = func(_ string, tables []firewall.Table) error { registered = tables; return nil }
 	applyAll = func() error { applyCalls++; return nil }
 	defer func() { registerTables = origReg; applyAll = origApply }()
 
@@ -393,12 +393,13 @@ func TestKernelTimeoutSkipsRollbackReconcile(t *testing.T) {
 
 			var registered []string
 			calls := 0
-			registerTables = func(name string, tables []firewall.Table) {
+			registerTables = func(name string, tables []firewall.Table) error {
 				if tables == nil {
 					registered = append(registered, "withdraw:"+name)
-					return
+					return nil
 				}
 				registered = append(registered, "install:"+name)
+				return nil
 			}
 			applyAll = func() error { calls++; return tt.applyErr }
 
@@ -434,7 +435,7 @@ func TestResponderStatusDuringSlowApply(t *testing.T) {
 	origReg, origApply := registerTables, applyAll
 	entered := make(chan struct{})
 	release := make(chan struct{})
-	registerTables = func(string, []firewall.Table) {}
+	registerTables = func(string, []firewall.Table) error { return nil }
 	applyAll = func() error {
 		close(entered)
 		<-release

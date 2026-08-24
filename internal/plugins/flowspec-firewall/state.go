@@ -10,6 +10,14 @@ import (
 	"github.com/ze-software/ze/internal/component/firewall"
 )
 
+// tableName carries the "ze_" ownership prefix, as every other firewall owner
+// does. The nft backend sweeps a table before it re-adds it only when the name
+// carries that prefix, so without it a withdrawn route kept enforcing and every
+// reconcile appended a second copy of each rule. An operator still reads and
+// types "flowspec": firewall.StripZeTablePrefix removes the prefix for the CLI
+// and the web pages.
+const tableName = "ze_flowspec"
+
 // ruleEntry holds translated firewall terms and their hook assignment.
 type ruleEntry struct {
 	terms []firewall.Term
@@ -130,7 +138,7 @@ func (rm *ruleMap) buildTable() []firewall.Table {
 	}
 
 	return []firewall.Table{{
-		Name:   "flowspec",
+		Name:   tableName,
 		Family: firewall.FamilyInet,
 		Chains: chains,
 	}}

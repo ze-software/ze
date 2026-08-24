@@ -977,6 +977,18 @@ Table ownership: ze tables are prefixed `ze_*`. Backends only touch `ze_*` table
 modify tables owned by other software (e.g., Lachesis). Apply receives the full desired state
 and reconciles against the kernel atomically.
 
+The prefix is the only thing that tells a backend which kernel tables are ze's, so
+`RegisterTables` refuses a table whose name does not carry it. A table registered without the
+prefix reached the kernel and then sat outside every sweep: a withdraw left it installed, and
+the next reconcile added a second copy of each rule instead of replacing the table. Four owners
+did that before the rename: `copp`, `ddos/local`, `flowspec-firewall` and `anomaly/shape`. The
+backend also deletes the names those builds wrote
+(`internal/component/firewall/legacy_tables.go`), and logs when it does. An upgrade otherwise
+leaves the old table enforcing for the life of the box, because renaming a producer does not
+reach a table already in the kernel. That deletion runs on the FIRST reconcile of the process
+and on no later one: every current producer carries the prefix, so a bare table appearing
+afterwards belongs to somebody else.
+
 ### Firewall reconcile concurrency
 
 Several owners register tables into one shared registry: the firewall engine, copp,

@@ -9,7 +9,7 @@
 #            kernel holding the previous ruleset for every firewall owner.
 #
 # Reverting the translator change makes this test fail: the term would carry
-# MatchProtocol{"132"}, the reconcile would fail, and no table named flowspec
+# MatchProtocol{"132"}, the reconcile would fail, and no table named ze_flowspec
 # would ever appear in the kernel. The presence of the RULE is therefore the
 # discriminating assertion, and the spelling nft prints it in is not.
 #
@@ -21,6 +21,11 @@
 # Requires CAP_NET_ADMIN.
 
 option=needs-linux:caps=net-admin
+# Every member of this cluster programs the node-wide nftables ruleset and
+# they all use the table name ze_flowspec, so two running at once delete each
+# other's table mid-assertion. The legacy seeds add `table inet flowspec` to
+# the same shared namespace.
+option=exclusive:group=flowspec-nft
 option=env:var=ze.log.firewall:value=info
 option=env:var=ze.log.flowspec.firewall:value=info
 option=timeout:value=40s
@@ -68,7 +73,7 @@ state = {"ruleset": ""}
 def installed():
     snap = subprocess.run(["nft", "list", "ruleset"], capture_output=True, text=True)
     state["ruleset"] = snap.stdout
-    return "table inet flowspec" in state["ruleset"] and (
+    return "table inet ze_flowspec" in state["ruleset"] and (
         "l4proto 132" in state["ruleset"] or "l4proto sctp" in state["ruleset"]
     )
 
@@ -122,7 +127,7 @@ cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
 cmd=foreground:seq=3:exec=python3 driver.py:timeout=35s
 expect=exit:code=0
-expect=stdout:contains=table inet flowspec
+expect=stdout:contains=table inet ze_flowspec
 expect=stdout:contains=10.1.0.0/24
 # One rule carrying every condition the peer announced. Asserting the protocol
 # alone would accept a rule wider than the announcement, which is the failure

@@ -17,6 +17,11 @@
 # Requires CAP_NET_ADMIN.
 
 option=needs-linux:caps=net-admin
+# Every member of this cluster programs the node-wide nftables ruleset and
+# they all use the table name ze_flowspec, so two running at once delete each
+# other's table mid-assertion. The legacy seeds add `table inet flowspec` to
+# the same shared namespace.
+option=exclusive:group=flowspec-nft
 option=env:var=ze.log.firewall:value=info
 option=env:var=ze.log.flowspec.firewall:value=info
 option=timeout:value=40s
@@ -184,7 +189,7 @@ expect=exit:code=0
 # Another owner's ruleset is still in the kernel.
 expect=stdout:contains=table inet ze_fslocal
 # The enforceable FlowSpec route reached the kernel AFTER the refused one.
-expect=stdout:contains=table inet flowspec
+expect=stdout:contains=table inet ze_flowspec
 expect=stdout:contains=10.1.0.0/24
 # One rule carrying every condition the enforceable route announced.
 expect=stdout:pattern=daddr 10\.1\.0\.0/24 th dport 80 meta l4proto (132|sctp) drop

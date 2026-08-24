@@ -237,7 +237,7 @@ func (r *responder) revertAll() {
 	}
 	r.armed = make(map[netip.Prefix]*armedRecord)
 	r.armedCount = 0
-	registerTables(owner, nil)
+	_ = registerTables(owner, nil) // a withdraw registers no name, so it cannot be refused
 	if err := applyAll(); err != nil {
 		logger().Error("anomaly-shape: failed to revert all", "error", err)
 	}
@@ -275,8 +275,13 @@ func (r *responder) reinstall() {
 	for p := range r.armed {
 		prefixes = append(prefixes, p)
 	}
-	registerTables(owner, buildTables(prefixes, r.cfg))
-	if err := applyAll(); err != nil {
+	// A refused registration leaves the registry holding the previous set, so
+	// applying it would push a desired state that no longer matches r.armed.
+	// The gauge still runs either way: it publishes the armed set, which has
+	// already changed whether or not the kernel heard about it.
+	if err := registerTables(owner, buildTables(prefixes, r.cfg)); err != nil {
+		logger().Error("anomaly-shape: failed to register firewall tables", "error", err)
+	} else if err := applyAll(); err != nil {
 		logger().Error("anomaly-shape: failed to apply firewall tables", "error", err)
 	}
 	r.gauge()

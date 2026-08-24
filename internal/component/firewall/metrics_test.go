@@ -132,7 +132,7 @@ func TestApplyAllCountsKernelTimeout(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			reg := bindCountingMetrics(t)
 			installBackend(t, "errbackend", &errBackend{err: tt.applyErr})
-			RegisterTables("owner", []Table{{Name: "ze_m", Family: FamilyInet}})
+			_ = RegisterTables("owner", []Table{{Name: "ze_m", Family: FamilyInet}})
 
 			err := ApplyAll()
 			if !errors.Is(err, tt.applyErr) {
@@ -225,7 +225,7 @@ func TestApplyDurationBucketsReachTheMaxDeadline(t *testing.T) {
 func TestApplyAllRecordsAPanickingBackend(t *testing.T) {
 	reg := bindCountingMetrics(t)
 	installBackend(t, "panicbackend", &panicBackend{})
-	RegisterTables("owner", []Table{{Name: "ze_m", Family: FamilyInet}})
+	_ = RegisterTables("owner", []Table{{Name: "ze_m", Family: FamilyInet}})
 
 	func() {
 		defer func() {
@@ -305,7 +305,7 @@ func TestApplyAllObservesOutsideTheReconcileLock(t *testing.T) {
 	bindMetrics(probe)
 
 	installBackend(t, "lockprobe", &errBackend{err: ErrKernelTimeout})
-	RegisterTables("owner", []Table{{Name: "ze_m", Family: FamilyInet}})
+	_ = RegisterTables("owner", []Table{{Name: "ze_m", Family: FamilyInet}})
 
 	if err := ApplyAll(); !errors.Is(err, ErrKernelTimeout) {
 		t.Fatalf("ApplyAll error = %v, want ErrKernelTimeout", err)
@@ -336,7 +336,7 @@ func TestApplyAllWithoutMetricsRegistry(t *testing.T) {
 	applyMetricsPtr.Store(nil)
 
 	installBackend(t, "errbackend-unbound", &errBackend{err: ErrKernelTimeout})
-	RegisterTables("owner", []Table{{Name: "ze_m", Family: FamilyInet}})
+	_ = RegisterTables("owner", []Table{{Name: "ze_m", Family: FamilyInet}})
 
 	if err := ApplyAll(); !errors.Is(err, ErrKernelTimeout) {
 		t.Fatalf("ApplyAll error = %v, want ErrKernelTimeout", err)

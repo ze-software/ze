@@ -184,9 +184,9 @@ func TestCoppTranslateEstablishedAcceptsFirst(t *testing.T) {
 }
 
 func TestCoppTableWithdraw(t *testing.T) {
-	firewall.RegisterTables("copp", []firewall.Table{{
+	_ = firewall.RegisterTables("copp", []firewall.Table{{
 		Name:   coppTableName,
 		Family: firewall.FamilyInet,
 	}})
-	firewall.RegisterTables("copp", nil)
+	_ = firewall.RegisterTables("copp", nil)
 }

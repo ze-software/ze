@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/ddosevent"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -122,6 +123,20 @@ func runEngine(conn net.Conn) int {
 		resp = newResponder(cfg, bus)
 		activeResponder.Store(resp)
 		subscribe(bus, resp)
+
+		// One empty reconcile while the one-time removal of the tables an older
+		// ze build wrote is still pending. This responder's own table is one of
+		// them, and it registers nothing until an attack arrives, so a box that
+		// is never attacked gets no other reconcile that could reach it
+		// (internal/component/firewall/legacy_tables.go).
+		//
+		// Reported and not returned: a daemon whose firewall backend is unusable
+		// must still detect and report.
+		if firewall.LegacySweepPending() {
+			if err := applyAll(); err != nil {
+				log.Warn("ddos-local: the one-time removal of an older ze build's tables did not run", "error", err)
+			}
+		}
 		log.Info("ddos-local: configured", "response-level", cfg.ResponseLevel)
 		return nil
 	})

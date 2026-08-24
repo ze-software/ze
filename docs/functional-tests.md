@@ -579,7 +579,7 @@ Dropping a whole suite to `-p 1` is not always the right tool. When only a
 *cluster* of tests inside a large suite contends, they declare
 `option=exclusive:group=<name>`: members of one group never run concurrently with
 each other, while every unrelated test in the suite keeps running in parallel.
-The `plugin` suite is 690 tests and four clusters inside it contend, so serializing
+The `plugin` suite is 690 tests and five clusters inside it contend, so serializing
 all of it would cost minutes per QEMU run.
 
 The ddos tests are the motivating case (`option=exclusive:group=ddos-flood`). Each
@@ -637,6 +637,22 @@ of 12 failed, run serially 12 of 12 pass. Membership is "declares
 <!-- source: internal/component/firewall/plugins/irr/sets.go -- ifaceTableName, the constant no .ci can vary -->
 <!-- source: internal/plugins/firewall/nft/backend_linux.go -- Apply, ListTables then DelTable over the desired ze_* names -->
 <!-- source: internal/core/paths/paths.go -- DefaultConfigDir, binary-derived config dir shared by every daemon in the run -->
+
+The FlowSpec cluster (`option=exclusive:group=flowspec-nft`) is the ratchet's
+sixth and seventh rows and one group, because two suites program one object. The
+FlowSpec bridge names its table `ze_flowspec` and nothing in a `.ci` can vary
+that name, so every member that reaches the kernel writes and deletes the same
+table: two at once delete each other's table mid-assertion. The `firewall` row
+seeds `table inet flowspec`, the name an older ze build wrote, and any concurrent
+ze daemon removes it on its first reconcile. Two `plugin` siblings stay outside
+the selector on purpose: `flowspec-fw-add` and `flowspec-fw-withdraw` assert wire
+bytes and touch no kernel. One exposure stays open and is cheaper than closing
+it: the `firewall-irr` cluster holds a different group, and two groups do not
+serialize against each other, so an irr daemon's sweep can still take a seeded
+table. Each seeding test requires the daemon IT launched to log the removal, so
+that race fails the test rather than passing it.
+<!-- source: internal/plugins/flowspec-firewall/state.go -- tableName, the constant no .ci can vary -->
+<!-- source: internal/component/firewall/legacy_tables.go -- legacyTables, the names any ze daemon removes once -->
 
 Related: a test that binds a *chosen* port must take it from the runner's per-test
 range (`$PORT`, `$PORT2`), never a literal. `bfd-echo-handshake` hardcoded

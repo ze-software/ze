@@ -132,7 +132,7 @@ func useRecordingBackend(t *testing.T) *recordingBackend {
 		t.Fatalf("LoadBackend: %v", err)
 	}
 	t.Cleanup(func() {
-		firewall.RegisterTables("firewall-irr", nil)
+		_ = firewall.RegisterTables("firewall-irr", nil)
 		if err := firewall.CloseBackend(); err != nil {
 			t.Errorf("CloseBackend: %v", err)
 		}

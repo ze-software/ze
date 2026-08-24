@@ -115,6 +115,22 @@ func TestContendingFunctionalTestsDeclareExclusiveGroup(t *testing.T) {
 		{"plugin", "*.ci", "ze.bfd.test-parallel", "option=exclusive:group=bfd-ports", "the RFC-fixed BFD ports 3784/3785 they all co-bind", 10},
 		{"ipsec", "*.ci", "option=needs-linux:caps=net-admin", "option=exclusive:group=ipsec-xfrm", "the node-wide XFRM state and policy tables they each program", 3},
 		{"plugin", "firewall-irr-*.ci", "option=needs-linux:caps=net-admin", "option=exclusive:group=firewall-irr-nft", "the node-wide nftables ruleset and the one database.zefs they all open", 12},
+		// The flowspec bridge names one table, ze_flowspec, so every member
+		// that reaches the kernel writes and deletes the SAME object. Two of
+		// them at once delete each other's table mid-assertion. Two siblings
+		// are deliberately outside the selector: flowspec-fw-add and
+		// flowspec-fw-withdraw assert wire bytes and touch no kernel at all.
+		{"plugin", "flowspec-fw-*.ci", "option=needs-linux:caps=net-admin", "option=exclusive:group=flowspec-nft", "the one ze_flowspec table they each program in the node-wide nftables ruleset", 4},
+		// Same shared object from the other suite: this one seeds `table inet
+		// flowspec` directly, which any concurrent ze daemon sweeps. That
+		// exposure crosses groups and this row does not close it: the
+		// firewall-irr cluster holds its own group, and two groups do not
+		// serialize against each other. It stays open on purpose. The seeding
+		// tests each require the daemon THEY launched to log the removal, so a
+		// table a foreign daemon took fails them rather than passing them, and
+		// a false red on a rare race is cheaper than serializing 12 irr tests
+		// against these.
+		{"firewall", "firewall-legacy-table-*.ci", "option=needs-linux:caps=net-admin", "option=exclusive:group=flowspec-nft", "the `table inet flowspec` it seeds, which any concurrent ze daemon sweeps", 1},
 	}
 
 	for _, c := range clusters {

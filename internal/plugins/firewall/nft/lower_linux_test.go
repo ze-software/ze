@@ -52,6 +52,44 @@ func TestShouldDeleteTableScopesToDesiredOrApplied(t *testing.T) {
 	}
 }
 
+// The name/family/chain decision this file used to test in
+// TestLegacyTableIsSweptOnlyInTheFamilyZeWroteIt now lives where it is decided,
+// firewall.IsLegacyTable, and is tested there with the chain cases this file
+// could not reach (internal/component/firewall/legacy_tables_test.go). The
+// kernel-reading half of the wrapper is driven end to end against a real kernel
+// by TestApplyRemovesTheLegacyUnprefixedTableOnce and
+// TestApplyLeavesAnotherToolsTableAlone in integration_linux_test.go. What
+// neither of those reaches is the wrapper's three REFUSALS, which return before
+// any netlink call, so the test below keeps them covered here.
+
+// VALIDATES: (*backend).isLegacyTable answers no, without touching the kernel,
+// for each input that cannot be a table an older ze build wrote.
+// PREVENTS: two regressions the integration tests cannot see. They drive the
+// wrapper against a live connection, so they exercise only the path that gets
+// as far as reading chains. These three returns happen BEFORE that, and the nil
+// guard is the one that would turn a defensive check into a panic inside the
+// sweep loop if it were dropped. The receiver carries a nil conn on purpose: a
+// case that reached netlink would panic here rather than pass quietly.
+func TestIsLegacyTableRefusesBeforeItReadsTheKernel(t *testing.T) {
+	b := &backend{}
+
+	if b.isLegacyTable(nil) {
+		t.Fatal("a nil table must not be swept")
+	}
+	if b.isLegacyTable(&nftables.Table{Name: "flowspec", Family: nftables.TableFamilyUnspecified}) {
+		t.Fatal("a family raiseFamily cannot name must not be swept")
+	}
+	if b.isLegacyTable(&nftables.Table{Name: "operator-table", Family: nftables.TableFamilyINet}) {
+		t.Fatal("a name ze never wrote bare must not be swept")
+	}
+	if b.isLegacyTable(&nftables.Table{Name: "flowspec", Family: nftables.TableFamilyIPv4}) {
+		t.Fatal("a legacy name in another family must not be swept")
+	}
+	if b.isLegacyTable(&nftables.Table{Name: "ze_flowspec", Family: nftables.TableFamilyINet}) {
+		t.Fatal("the renamed table is owned by its prefix, not by the legacy list")
+	}
+}
+
 // VALIDATES: fw-10 AC-13 -- an element `timeout` leaf reaches the kernel:
 // lowerSet maps SetFlagTimeout to nftables.Set.HasTimeout and converts each
 // element's uint32 seconds to time.Duration. The vendored library emits

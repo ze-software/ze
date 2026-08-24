@@ -78,7 +78,7 @@ func TestBuildTable(t *testing.T) {
 	tables := rm.buildTable()
 	require.NotNil(t, tables)
 	require.Len(t, tables, 1)
-	assert.Equal(t, "flowspec", tables[0].Name)
+	assert.Equal(t, "ze_flowspec", tables[0].Name)
 	assert.Equal(t, firewall.FamilyInet, tables[0].Family)
 	require.Len(t, tables[0].Chains, 2)
 
@@ -99,4 +99,26 @@ func TestBuildTable(t *testing.T) {
 	require.NotNil(t, inChain)
 	assert.Equal(t, firewall.HookInput, inChain.Hook)
 	assert.Len(t, inChain.Terms, 1)
+}
+
+// VALIDATES: AC-4 and AC-5 -- the table this plugin builds carries the "ze_"
+// ownership prefix the firewall registry requires and the nft backend sweeps
+// on, and the name an operator reads is still "flowspec".
+// PREVENTS: the table returning to a name no sweep can reach. Without the
+// prefix a withdrawn route kept enforcing and each reconcile appended a second
+// copy of every rule.
+func TestFlowSpecTableCarriesTheOwnershipPrefix(t *testing.T) {
+	rm := newRuleMap(100)
+	rm.add("peer1", "k1", ruleEntry{terms: []firewall.Term{{Name: "fs-fwd1"}}})
+
+	tables := rm.buildTable()
+	require.Len(t, tables, 1)
+	assert.Equal(t, "ze_flowspec", tables[0].Name)
+
+	// The registry is what enforces the prefix, so the name must satisfy it.
+	require.NoError(t, firewall.RegisterTables("flowspec-prefix-test", tables))
+	t.Cleanup(func() { _ = firewall.RegisterTables("flowspec-prefix-test", nil) })
+
+	// AC-5: the operator-facing name is unchanged.
+	assert.Equal(t, "flowspec", firewall.StripZeTablePrefix(tables[0].Name))
 }

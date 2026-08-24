@@ -10,9 +10,15 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// The table names carry the "ze_" ownership prefix, as every other firewall
+// owner does. The nft backend sweeps a table before it re-adds it only when the
+// name carries that prefix, so without it an auto-reverted rule kept enforcing
+// and every reinstall appended a second copy of each rule. The owner key stays
+// "anomaly-shape" and so does the name an operator reads: the CLI and the web
+// pages render it through firewall.StripZeTablePrefix.
 const (
-	tableNameV4 = "anomaly-shape"
-	tableNameV6 = "anomaly-shape6"
+	tableNameV4 = "ze_anomaly-shape"
+	tableNameV6 = "ze_anomaly-shape6"
 )
 
 var termNameSanitizer = strings.NewReplacer("/", "-", ".", "-", ":", "-")

@@ -20,7 +20,15 @@ own FRR image on 2026-08-22.
 
 Reverting the translator change makes this fail: the term would carry
 MatchProtocol{"132"}, lowerProtoMatch would refuse it, and no table named
-flowspec would ever appear in the kernel.
+ze_flowspec would ever appear in the kernel.
+
+The withdraw at the end is a second requirement, not a teardown. RFC 8955
+Section 4 carries a flow specification in MP_REACH_NLRI and MP_UNREACH_NLRI, so
+it is an ordinary BGP route: RFC 4271 Section 9 removes a withdrawn route
+from the Adj-RIB-In, and the traffic action it carried stops with it. RFC 8955
+itself states no withdrawal rule and never uses the word. The table was named
+without ze's ownership prefix until 2026-08-23, and the nft backend sweeps only
+prefixed tables, so the drop rule outlived the route that asked for it.
 """
 
 import os
@@ -79,13 +87,13 @@ def check():
         # nft prints the lowered value as `meta l4proto 132`, reserving its
         # symbolic names for the protocols its own inet_proto table carries, so
         # both spellings are accepted rather than one being asserted.
-        if "table inet flowspec" in ruleset and (
+        if "table inet ze_flowspec" in ruleset and (
             "l4proto 132" in ruleset or "l4proto sctp" in ruleset
         ):
             break
         time.sleep(1)
 
-    assert "table inet flowspec" in ruleset, (
+    assert "table inet ze_flowspec" in ruleset, (
         "ze installed no flowspec table for the peer's SCTP route:\n%s\n%s"
         % (ruleset, ze.logs(30))
     )
@@ -102,6 +110,42 @@ def check():
         % (FLOW_DEST, ruleset)
     )
     log_pass("the installed rule carries the announced destination %s" % FLOW_DEST)
+
+    # RFC 8955: a FlowSpec NLRI is a route, so withdrawing it stops the traffic
+    # action it carried.
+    docker_exec(
+        GOBGP_CONTAINER,
+        [
+            "gobgp",
+            "global",
+            "rib",
+            "-a",
+            "ipv4-flowspec",
+            "del",
+            "match",
+            "destination",
+            FLOW_DEST,
+            "protocol",
+            "==sctp",
+            "then",
+            "discard",
+        ],
+    )
+    log_pass("GoBGP withdrew the FlowSpec route")
+
+    log_info("waiting for the kernel ruleset on ze to drop the rule...")
+    deadline = time.time() + 30
+    while time.time() < deadline:
+        ruleset = docker_exec(ZE_CONTAINER, ["nft", "list", "ruleset"])
+        if "flowspec" not in ruleset:
+            break
+        time.sleep(1)
+
+    assert "flowspec" not in ruleset, (
+        "the withdrawn route is still enforced: ze keeps a flowspec table\n%s\n%s"
+        % (ruleset, ze.logs(30))
+    )
+    log_pass("the withdrawn route is no longer enforced")
 
     assert gobgp.session_established(ZE_IP), (
         "session dropped after the FlowSpec exchange"
