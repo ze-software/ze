@@ -10,5 +10,5 @@
 package hub
 
 func init() {
-	setGRPCInfra(grpcBuildImpl)
+	grpcBuild = grpcBuildImpl
 }

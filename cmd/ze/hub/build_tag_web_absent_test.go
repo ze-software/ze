@@ -51,14 +51,14 @@ environment {
 func TestBuildTag_Web_AbsentBinaryDropsWebSymbols(t *testing.T) {
 	repoRoot := filepath.Join("..", "..", "..")
 	bin := filepath.Join(t.TempDir(), "ze-core")
-	build := exec.Command("go", "build", "-tags", "ze_core", "-o", bin, "./cmd/ze")
+	build := exec.CommandContext(t.Context(), "go", "build", "-tags", "ze_core", "-o", bin, "./cmd/ze")
 	build.Dir = repoRoot
 	build.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("go build ze_core failed: %v\n%s", err, out)
 	}
 
-	out, err := exec.Command("go", "tool", "nm", bin).CombinedOutput()
+	out, err := exec.CommandContext(t.Context(), "go", "tool", "nm", bin).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool nm failed: %v\n%s", err, out)
 	}
@@ -67,7 +67,7 @@ func TestBuildTag_Web_AbsentBinaryDropsWebSymbols(t *testing.T) {
 		"internal/component/web/",
 		"buildWebService",
 	}
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		for _, needle := range needles {
 			if strings.Contains(line, needle) {
 				t.Fatalf("ze_core binary retained web symbol %q matching %q", line, needle)

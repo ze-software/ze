@@ -1,5 +1,13 @@
+//go:build ze_web
+
 // Design: docs/architecture/hub-architecture.md -- editor contract adapter
-// Related: session_factory.go -- uses the adapter for web editor creation
+// Related: service_web.go -- builds the web editor manager from this adapter
+//
+// The build constraint is its consumer's. newEditorFactory and
+// newEditSessionFactory are called from service_web.go (ze_web) and from
+// web_commit_hang_repro_test.go (ze_web), and from nowhere else. A daemon built
+// without ze_web starts no editor, so an unconstrained adapter would compile
+// into it with no caller.
 
 package hub
 

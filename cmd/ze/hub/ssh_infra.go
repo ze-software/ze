@@ -102,16 +102,3 @@ var sshWirePostStart func(srv sshServer, in *sshWireInputs)
 // returns a shutdown func (nil if ssh did not start). Set alongside sshBuild;
 // nil when ssh is compiled out.
 var sshBuildStandalone func(in *sshStandaloneInputs) func()
-
-// setSSHInfra installs the ssh implementations into the seam. Called from
-// register_ssh.go's init() (under //go:build ze_ssh in Phase 2); absent that
-// file, the seam stays nil and ssh is not built.
-func setSSHInfra(
-	build func(in *sshBuildInputs) sshServer,
-	wire func(srv sshServer, in *sshWireInputs),
-	standalone func(in *sshStandaloneInputs) func(),
-) {
-	sshBuild = build
-	sshWirePostStart = wire
-	sshBuildStandalone = standalone
-}

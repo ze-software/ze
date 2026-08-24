@@ -238,11 +238,10 @@ func (m *listenerMigrator) setLG(s Reconfigurable) {
 	m.registerAuthReporter(svcLG, s)
 }
 
-// setMCP updates the MCP server reference.
-func (m *listenerMigrator) setMCP(s Reconfigurable) {
-	m.mcp = s
-	m.registerAuthReporter(svcMCP, s)
-}
+// setMCP lives in register_mcp.go, under //go:build ze_mcp. Its only caller is
+// that file's registration, so an always-on copy is a method a build without
+// ze_mcp can never reach. setWeb and setLG stay here because untagged tests
+// call them.
 
 // setREST updates the REST API server reference.
 func (m *listenerMigrator) setREST(s Reconfigurable) {

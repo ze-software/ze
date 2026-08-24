@@ -17,7 +17,8 @@
 #      Answered in the Makefile, which now lints ./... -- not here.
 #   2. The compile-out stubs. A `//go:build !ze_<feature>` file is the code an
 #      operator reaches when the feature is OFF, and `.golangci.yml` turns every
-#      feature ON. See COMPILE_OUT_REASON below: this is NOT solved yet.
+#      feature ON. The `compile-out` flavor row drops every gate and keeps
+#      ze_core alone, which is the one subtractive mechanism (see tagless_config).
 #   3. Personality and capability tags. `ze_installer`, `ze_distro`, `debug`,
 #      `race` and the rest. One flavor row each, below.
 #   4. GOOS and GOARCH. `--build-tags` cannot express either, and pass 1 uses the
@@ -69,6 +70,39 @@ LIST_TEMPLATE = (
     "{{range .TestGoFiles}}{{$d}}/{{.}}\n{{end}}"
     "{{range .XTestGoFiles}}{{$d}}/{{.}}\n{{end}}"
 )
+
+
+def config_tags():
+    """Return the build tags .golangci.yml declares, in file order."""
+    tags, inside = [], False
+    with open(CONFIG, encoding="utf-8") as handle:
+        for line in handle:
+            if line.startswith("  build-tags:"):
+                inside = True
+                continue
+            if inside:
+                if line.startswith("    - "):
+                    tags.append(line.strip()[2:])
+                    continue
+                break
+    if not tags:
+        sys.exit(
+            "lint_flavors: .golangci.yml declares no build-tags; the file's shape changed"
+        )
+    return tags
+
+
+def feature_gate_tags():
+    """Return every per-feature compile-out tag, derived from the config.
+
+    `ze_core` is not one of them: it selects the daemon rather than a feature,
+    and a build without it is a different program (the `setup-standalone` row).
+    Everything else in `.golangci.yml`'s list is generated from
+    `feature-gates.txt` by `make generate`, so reading it here is reading the
+    manifest one hop away and cannot drift from it.
+    """
+    return [tag for tag in config_tags() if tag != "ze_core"]
+
 
 # BASE_PASSES are the two golangci-lint runs `_ze-lint-impl` performs. They are
 # declared here so a flavor's scope can subtract what they already load; this
@@ -240,64 +274,19 @@ FLAVORS = [
         "why": "bin/ze-setup, whose dispatch is `ze_setup && !ze_core`. It is a disjoint "
         "cmd/ze program, so the row above (which keeps ze_core) cannot reach it",
     },
+    {
+        "name": "compile-out",
+        "goos": "linux",
+        "goarch": None,
+        "tags": [],
+        "without": feature_gate_tags(),
+        "why": "every `//go:build !ze_<feature>` stub: the code an operator reaches when a "
+        "feature is OFF -- the `not built` message, the no-op registration, the alternative "
+        "dispatch. `.golangci.yml` turns every gate ON, so this row drops all of them and "
+        "keeps ze_core alone. One row reaches every stub because the gates are independent: "
+        "a build with none of them on satisfies every negated term at once",
+    },
 ]
-
-# COMPILE_OUT_REASON states cause 2, which is NOT solved and needs an owner
-# ruling before it can be.
-#
-# A `//go:build !ze_<feature>` file is the code an operator reaches when the
-# feature is OFF: the "not built" message, the no-op registration, the
-# alternative dispatch. `.golangci.yml` turns every feature ON, and
-# `--build-tags` only ADDS, so no flavor row above can select one. The mechanism
-# that would is a second GENERATED config carrying `build-tags: [ze_core]`.
-#
-# Measured on 2026-08-24, over ./cmd/ze/hub with exactly that config: 67
-# findings, of which 20 are real (16 noctx, and one each of errcheck, gocritic,
-# misspell, modernize) and 47 are `unused`. The 47 are an artifact of the build
-# rather than defects: `unused` asks whether a symbol is referenced in THIS
-# build, and a compile-out build is missing the consumers by construction.
-# 38 of them are two whole files (editor_adapter.go, cert_store.go) whose every
-# symbol belongs to a gated consumer; the other 9 are single symbols inside
-# files that the shipped build needs.
-#
-# Two ways to fix it, and the owner picks (ai/rules/quality.md forbids
-# disabling a linter, so neither is this script's to choose):
-#   - run the compile-out pass with every linter except `unused`, because
-#     `unused` cannot judge a build whose consumers are compiled out; or
-#   - give each feature-only helper the build constraint its consumer carries,
-#     so the bare-core daemon genuinely carries no dead code.
-COMPILE_OUT_REASON = (
-    "reached by no flavor: `--build-tags` adds to .golangci.yml's list and cannot "
-    "turn a feature OFF. See COMPILE_OUT_REASON in scripts/dev/lint_flavors.py -- "
-    "the mechanism needs an owner ruling"
-)
-
-# COMPILE_OUT_STUBS is how many stubs this tree holds, and it is a CEILING rather
-# than a note. Until the pass above exists, nothing reports on any of them, so
-# without a number here the population could grow file by file with every run
-# still green -- which is this script's own defect class
-# (plan/journal/gate-excludes-part-of-its-population.md). The count is exact in
-# both directions: a new stub fails the run until this number is raised
-# deliberately, and a stub that stops being one fails it until the number is
-# lowered, so the figure quoted in docs/contributing/testing.md cannot go stale.
-COMPILE_OUT_STUBS = 34
-
-
-def compile_out_stub(path):
-    """Report whether this file is selected only when a feature is OFF.
-
-    The shape is a conjunction whose every term is either a negated feature gate
-    or a GOOS, with at least one negated gate:
-    `!ze_web`, `!ze_tacacs && !ze_exabgp`, `linux && !ze_vpp`. A term that turns
-    something ON is what puts a file in a flavor row instead.
-    """
-    constraint = build_constraint(path)
-    if constraint is None or "||" in constraint:
-        return False
-    terms = [term.strip() for term in constraint.split("&&")]
-    negated = [term for term in terms if re.fullmatch(r"!ze_[a-z0-9_]+", term)]
-    other = [term for term in terms if term not in negated]
-    return bool(negated) and all(re.fullmatch(r"[a-z0-9]+", term) for term in other)
 
 
 def build_constraint(path):
@@ -337,26 +326,6 @@ def run(cmd, env=None, cwd=ROOT):
         cmd, cwd=cwd, env=env, capture_output=True, text=True, check=False
     )
     return proc.returncode, proc.stdout, proc.stderr
-
-
-def config_tags():
-    """Return the build tags .golangci.yml declares, in file order."""
-    tags, inside = [], False
-    with open(CONFIG, encoding="utf-8") as handle:
-        for line in handle:
-            if line.startswith("  build-tags:"):
-                inside = True
-                continue
-            if inside:
-                if line.startswith("    - "):
-                    tags.append(line.strip()[2:])
-                    continue
-                break
-    if not tags:
-        sys.exit(
-            "lint_flavors: .golangci.yml declares no build-tags; the file's shape changed"
-        )
-    return tags
 
 
 def effective_tags(pas):
@@ -408,11 +377,18 @@ def population():
     `gokrazy/modcache/` is a tracked third-party module cache. A `//go:build
     ignore` file belongs to no build by its own declaration, which is how every
     program under scripts/checks/ lives beside its siblings in one directory.
+
+    A fourth is outside it for a different reason: `git ls-files` answers from
+    the INDEX, so a file deleted in the working tree is still tracked. No pass
+    can lint a file that is not on disk, and reporting one as blind would fail
+    every run between the deletion and its commit.
     """
     _, out, _ = run(["git", "ls-files", "*.go"])
     files = []
     for path in out.split():
         if path.startswith("vendor/") or path.startswith("gokrazy/modcache/"):
+            continue
+        if not os.path.exists(os.path.join(ROOT, path)):
             continue
         constraint = build_constraint(path)
         if constraint and re.search(r"\bignore\b", constraint):
@@ -509,16 +485,11 @@ def lint(flavor, scope, extra_args):
 def report_coverage(seen):
     """Print the files no pass loads. Returns the exit code."""
     blind = sorted(population() - seen)
-    stubs = [path for path in blind if path not in RESIDUE and compile_out_stub(path)]
-    unexpected = [path for path in blind if path not in RESIDUE and path not in stubs]
+    unexpected = [path for path in blind if path not in RESIDUE]
     healed = [path for path in RESIDUE if path not in blind]
     for path in blind:
-        if path in stubs:
-            continue
         reason = RESIDUE.get(path, "NOT COVERED BY ANY PASS")
         print(f"  {path}: {reason}")
-    if stubs:
-        print(f"  {len(stubs)} compile-out stubs, {COMPILE_OUT_REASON}")
     if unexpected:
         print(
             f"lint_flavors: {len(unexpected)} tracked Go file(s) are linted by nothing. "
@@ -532,24 +503,6 @@ def report_coverage(seen):
             f"lint_flavors: {len(healed)} RESIDUE entr(y|ies) are now linted: "
             f"{', '.join(healed)}. Delete the entry -- a stated remainder that is no longer "
             "a remainder hides the next one.",
-            file=sys.stderr,
-        )
-        return 1
-    if len(stubs) > COMPILE_OUT_STUBS:
-        print(
-            f"lint_flavors: {len(stubs)} compile-out stubs, and COMPILE_OUT_STUBS caps them "
-            f"at {COMPILE_OUT_STUBS}. Nothing reports on any of them, so a new one is a file "
-            "that lands unlinted. Give the stub the flavor that selects it, or raise the "
-            "ceiling in scripts/dev/lint_flavors.py and say why.",
-            file=sys.stderr,
-        )
-        return 1
-    if len(stubs) < COMPILE_OUT_STUBS:
-        print(
-            f"lint_flavors: {len(stubs)} compile-out stubs, and COMPILE_OUT_STUBS still says "
-            f"{COMPILE_OUT_STUBS}. Lower it -- the number is quoted in "
-            "docs/contributing/testing.md and in the spec that owes the pass, and a ceiling "
-            "above the real count hides the next stub that lands.",
             file=sys.stderr,
         )
         return 1

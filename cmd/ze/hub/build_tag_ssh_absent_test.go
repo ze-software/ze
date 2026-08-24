@@ -161,11 +161,16 @@ func TestBuildTag_SSH_AbsentRESTAuthenticatesConfigUser(t *testing.T) {
 	assertNoSSHImplementationSymbols(t, bin, tags)
 	dir := t.TempDir()
 
-	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	var listenCfg net.ListenConfig
+	listener, err := listenCfg.Listen(t.Context(), "tcp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("reserve REST port: %v", err)
 	}
-	port := listener.Addr().(*net.TCPAddr).Port
+	addr, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatalf("reserved listener address is %T, want *net.TCPAddr", listener.Addr())
+	}
+	port := addr.Port
 	if err := listener.Close(); err != nil {
 		t.Fatalf("release REST port: %v", err)
 	}
@@ -258,7 +263,7 @@ system {
 	ready := false
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		req, reqErr := http.NewRequestWithContext(t.Context(), http.MethodGet, baseURL+"/commands", nil)
+		req, reqErr := http.NewRequestWithContext(t.Context(), http.MethodGet, baseURL+"/commands", http.NoBody)
 		if reqErr != nil {
 			t.Fatalf("build REST readiness request: %v", reqErr)
 		}

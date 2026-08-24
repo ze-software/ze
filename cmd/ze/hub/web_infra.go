@@ -20,10 +20,6 @@ type webPortalService struct {
 // ze_web-gated registration file and stays nil when web is compiled out.
 var webBuildStandalone func(store storage.Storage, listenAddr string, insecureWeb bool) int
 
-func setWebStandalone(start func(store storage.Storage, listenAddr string, insecureWeb bool) int) {
-	webBuildStandalone = start
-}
-
 func webNotCompiledIn() int {
 	fmt.Fprintln(os.Stderr, "error: web UI not compiled in (build with ze_web)")
 	return 1

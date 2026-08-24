@@ -29,6 +29,12 @@ func TestBuildTag_BGP_Absent(t *testing.T) {
 	if pluginreg.GetReactorFactory() != nil {
 		t.Fatal("non-ze_bgp build: reactor factory unexpectedly registered (bgp/config not compiled out)")
 	}
+	// The hex-packet decoder seam is filled by internal/component/bgp/cli,
+	// which only a ze_bgp build links. The web tool page reads that seam, so a
+	// non-nil answer here would be a BGP-less binary still decoding packets.
+	if pluginreg.GetPacketDecoder() != nil {
+		t.Fatal("non-ze_bgp build: hex-packet decoder unexpectedly registered (bgp/cli not compiled out)")
+	}
 }
 
 // TestBuildTag_BGP_AbsentRejectsBGPConfig proves the bgp config schema is gone

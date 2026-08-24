@@ -155,13 +155,3 @@ var (
 	restBuild func(*apiBuildInputs, *apiShared) (apiServerHandle, error)
 	grpcBuild func(*apiBuildInputs, *apiShared) (apiServerHandle, error)
 )
-
-// setRESTInfra installs the gated REST build hook (ze_rest).
-func setRESTInfra(build func(*apiBuildInputs, *apiShared) (apiServerHandle, error)) {
-	restBuild = build
-}
-
-// setGRPCInfra installs the gated gRPC build hook (ze_grpc).
-func setGRPCInfra(build func(*apiBuildInputs, *apiShared) (apiServerHandle, error)) {
-	grpcBuild = build
-}

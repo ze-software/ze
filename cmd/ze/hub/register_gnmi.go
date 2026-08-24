@@ -9,5 +9,6 @@
 package hub
 
 func init() {
-	setGNMIInfra(gnmiBuildImpl, gnmiReloadNotifyImpl)
+	gnmiBuild = gnmiBuildImpl
+	gnmiReloadNotify = gnmiReloadNotifyImpl
 }

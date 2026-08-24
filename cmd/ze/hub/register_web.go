@@ -12,5 +12,5 @@ func init() {
 			lm.setWebTLS(updatable)
 		}
 	})
-	setWebStandalone(runWebOnly)
+	webBuildStandalone = runWebOnly
 }

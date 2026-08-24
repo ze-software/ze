@@ -10,5 +10,5 @@
 package hub
 
 func init() {
-	setRESTInfra(restBuildImpl)
+	restBuild = restBuildImpl
 }

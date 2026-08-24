@@ -1,4 +1,11 @@
+//go:build ze_lg || ze_web
+
 // Design: docs/architecture/hub-architecture.md -- zefs-backed TLS certificate storage
+//
+// The build constraint is the DISJUNCTION of its two consumers'. service_web.go
+// (ze_web) and service_lg.go (ze_lg) each build a blobCertStore for their
+// listener's TLS material, and nothing else refers to it. A daemon with neither
+// listener has no self-signed certificate to store.
 
 package hub
 

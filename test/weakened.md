@@ -89,5 +89,3 @@ that row is where you say which of the two happened.
 
 | Test | Reason |
 |------|--------|
-| TestIsLocalhostPprof | No coverage left the suite: the test MOVED, whole and unchanged, from `cmd/ze/main_test.go` to `cmd/ze/pprof_test.go`, which carries pprof.go's own `//go:build !tinygo && ze_core`. main_test.go carries `//go:build ze_core` and not `!tinygo`, so under `-tags 'ze_core tinygo'` the build selected the test and dropped `isLocalhostPprof` with the file that defines it. cmd/ze then failed to type-check, and no lint or vet pass read `cmd/ze/pprof_tinygo.go` at all. Every case and every assertion is in the new file. Re-run: `go vet -tags 'ze_core tinygo' ./cmd/ze` ok, and `make ze-unit-pkg-test PKG=./cmd/ze` ok. |
-| main_test | The same move, seen whole-file: `cmd/ze/main_test.go` loses the function, its nine cases and its assertion because `cmd/ze/pprof_test.go` now holds all three under pprof.go's `!tinygo && ze_core` constraint. Nothing else in the file changed. |

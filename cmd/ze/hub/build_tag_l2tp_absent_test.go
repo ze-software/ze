@@ -42,7 +42,7 @@ func TestBuildTag_L2TP_Absent(t *testing.T) {
 // admin-auth block (gated under plain ze_radius, which is also off in this
 // !ze_l2tp && !ze_radius build) must all be rejected as unknown. The radius
 // case is the fail-closed proof that AAA cannot silently drop a
-// configured-but-compiled-out method (the analogue of the tacacs case in
+// configured-but-compiled-out method (the analog of the tacacs case in
 // build_tag_gate12_group_b_absent_test.go).
 func TestBuildTag_L2TP_AbsentRejectsConfig(t *testing.T) {
 	cases := map[string]string{

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	pluginreg "github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	zeweb "github.com/ze-software/ze/internal/component/web"
 )
@@ -70,7 +71,7 @@ func TestWithBGPDecodeInterceptsDecodeCommand(t *testing.T) {
 	out, err := dispatch.JSON(context.Background(), wodCaller, "show bgp decode FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304")
 	defer out.TransportComplete()
 	require.NoError(t, err)
-	if bgpDecodeLinked {
+	if pluginreg.GetPacketDecoder() != nil {
 		assert.False(t, innerCalled, "decode must be handled in-process, not forwarded")
 		assert.Equal(t, "keepalive", decodedMessageType(t, out.Output))
 	} else {
@@ -98,7 +99,7 @@ func TestWithBGPDecodeNilInner(t *testing.T) {
 
 	out, err := dispatch.JSON(context.Background(), wodCaller, "show bgp decode FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304")
 	defer out.TransportComplete()
-	if bgpDecodeLinked {
+	if pluginreg.GetPacketDecoder() != nil {
 		require.NoError(t, err)
 		assert.Equal(t, "keepalive", decodedMessageType(t, out.Output))
 	} else {

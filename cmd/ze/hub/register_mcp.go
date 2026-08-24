@@ -13,3 +13,11 @@ func init() {
 		lm.setMCP(svc)
 	})
 }
+
+// setMCP updates the MCP server reference. It carries this file's build
+// constraint because the registration above is its only caller: see the note
+// where its setWeb and setLG siblings live, in listener_migrate.go.
+func (m *listenerMigrator) setMCP(s Reconfigurable) {
+	m.mcp = s
+	m.registerAuthReporter(svcMCP, s)
+}

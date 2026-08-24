@@ -84,8 +84,3 @@ var gnmiBuild func(in *gnmiBuildInputs) gnmiServer
 // gnmiReloadNotify notifies gNMI subscribers after a config reload. It is nil
 // when ze_gnmi is compiled out.
 var gnmiReloadNotify func()
-
-func setGNMIInfra(build func(in *gnmiBuildInputs) gnmiServer, reloadNotify func()) {
-	gnmiBuild = build
-	gnmiReloadNotify = reloadNotify
-}

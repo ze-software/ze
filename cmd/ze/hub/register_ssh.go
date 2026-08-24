@@ -10,5 +10,7 @@
 package hub
 
 func init() {
-	setSSHInfra(sshBuildImpl, sshWireImpl, sshBuildStandaloneImpl)
+	sshBuild = sshBuildImpl
+	sshWirePostStart = sshWireImpl
+	sshBuildStandalone = sshBuildStandaloneImpl
 }
