@@ -41,6 +41,18 @@ The three-part modes break exactly ONE Docker removal, which is the point.
            still DENY: a misconfigured `DOCKER_CONTEXT` answers that way having
            removed nothing.
 
+Two more modes drive the IMAGE the containers are started from, which is the one
+piece of lab state the per-run suffix never covered.
+
+    runner_probe.py image-pinned <scenario>
+    runner_probe.py image-nobuild <scenario>
+
+`image-pinned` runs the real `build_images`, answering each `docker build -q`
+with a distinguishable ID, and prints every `docker run` argv. Every container
+must be started from an ID, because a tag is shared and a concurrent build
+rebinds it. `image-nobuild` is the `NO_BUILD=1` half: nothing is built, so the
+shared tag is the only reference there is and it must still be used.
+
 No mode starts a container, and all of them stub the runner's Docker probe, so
 the result is identical on a host with Docker and on one without.
 """
@@ -66,8 +78,7 @@ _REAL_RUN = subprocess.run
 _ERRORS = {
     "container": "Error response from daemon: removal already in progress",
     "network": (
-        "Error response from daemon: error while removing network: "
-        "has active endpoints"
+        "Error response from daemon: error while removing network: has active endpoints"
     ),
 }
 
@@ -91,9 +102,9 @@ class _DockerFailed:
 class _Result:
     """A docker call that ANSWERED, with the code and text given."""
 
-    def __init__(self, returncode, stderr=""):
+    def __init__(self, returncode, stderr="", stdout=""):
         self.returncode = returncode
-        self.stdout = ""
+        self.stdout = stdout
         self.stderr = stderr
 
 
@@ -132,12 +143,39 @@ def _breaking_stub(target, failure):
             if failure == "notfound":
                 return _Result(
                     1,
-                    'Failed to initialize: unable to resolve docker endpoint: '
+                    "Failed to initialize: unable to resolve docker endpoint: "
                     'context "zz-probe": context not found',
                 )
             return _Result(1, _ERRORS[target])
         if cmd[:2] == ["docker", "run"]:
             return _DockerFailed()
+        return _DockerOK()
+
+    return stub
+
+
+def _image_stub():
+    """Answer every build with a distinguishable ID and record every container start.
+
+    The recorded argv is printed with `%r`, so an assertion can name an argv
+    ELEMENT rather than a substring. That distinction is the whole value here: a
+    volume mount carries the repository path, and a substring match for a tag
+    would be satisfied by any path that happened to contain it.
+
+    `docker run` succeeds until the Ze container, then refuses, so setup always
+    reaches the Ze start whatever sidecars the chosen scenario carries and the
+    scenario still ends in a second instead of waiting out a health poll.
+    """
+
+    def stub(*args, **kwargs):
+        cmd = args[0] if args else []
+        if cmd[:2] == ["docker", "build"]:
+            tag = cmd[cmd.index("-t") + 1]
+            return _Result(0, stdout="sha256:probe-%s\n" % tag)
+        if cmd[:2] == ["docker", "run"]:
+            print("DOCKER_RUN=%r" % (list(cmd),))
+            if cmd[4] == interop.ZE_CONTAINER:
+                return _DockerFailed()
         return _DockerOK()
 
     return stub
@@ -229,6 +267,16 @@ def _configure(mode):
         run.observer_failure_note = interrupting_note
         return True
 
+    if mode in ("image-pinned", "image-nobuild"):
+        # The only modes that let `build_images` run, so they are the only ones
+        # that must not force NO_BUILD. `image-nobuild` sets it back on to drive
+        # the other half.
+        os.environ["NO_BUILD"] = "1" if mode == "image-nobuild" else "0"
+        subprocess.run = _image_stub()
+        run.observer_failure_note = lambda container=None: None
+        run.Scenario = RecordingScenario
+        return True
+
     parts = mode.split("-")
     if len(parts) != 3:
         return False
@@ -302,10 +350,7 @@ def main():
             #                     remembered path. The only one that catches a
             #                     removal that failed quietly.
             path = inst.probe_rendered
-            print(
-                "RENDERED_EXISTED=%s"
-                % (inst.probe_existed if path else "no-render")
-            )
+            print("RENDERED_EXISTED=%s" % (inst.probe_existed if path else "no-render"))
             print(
                 "RENDERED_ON_DISK=%s" % (os.path.isdir(path) if path else "no-render")
             )

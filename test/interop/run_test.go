@@ -348,3 +348,62 @@ func TestInteropRunnerPreCleanExemptsOnlyTheAbsentNetwork(t *testing.T) {
 		}
 	})
 }
+
+// interopSharedImageTags are the image tags run.py builds. Each is shared by
+// every run on the host, which is what makes them unusable as a container's
+// image reference once a build has happened.
+var interopSharedImageTags = []string{
+	"ze-interop",
+	"bird-interop",
+	"gobgp-interop",
+	"keepalived-interop",
+	"stayrtr-interop",
+}
+
+// TestInteropRunnerPinsTheImageItBuilt
+//
+// VALIDATES: after build_images runs, every container of the run is started
+// from the image ID that build printed, never from the shared tag.
+// PREVENTS: a concurrent run rebinding the tag between this run's build and its
+// container start, which makes the scenarios judge a daemon this run never
+// built. That inverts a mutation proof -- the mutated build passes -- and a
+// mutation proof is what `ai/rules/interop-and-goal-validation.md` requires
+// before an interop test can be called discriminating. It was measured twice on
+// 2026-08-05 during one review.
+//
+// The assertion is on argv ELEMENTS, quoted by Python's `%r`, not on
+// substrings. A volume mount carries the repository path, so a substring match
+// for a tag would be answered by a directory name.
+func TestInteropRunnerPinsTheImageItBuilt(t *testing.T) {
+	out := runProbe(t, "image-pinned")
+	if !strings.Contains(out, "DOCKER_RUN=") {
+		t.Fatalf("image-pinned: the probe started no container, so it asserted nothing; got:\n%s", out)
+	}
+	// The Ze image is the one that carries the code under test, so it is named
+	// explicitly rather than left to the negative assertion below.
+	if !strings.Contains(out, "'sha256:probe-ze-interop'") {
+		t.Errorf("image-pinned: the Ze container must run the image ID this run built; got:\n%s", out)
+	}
+	for _, tag := range interopSharedImageTags {
+		if strings.Contains(out, "'"+tag+"'") {
+			t.Errorf("image-pinned: a container was started from the shared tag %q, which any concurrent build can rebind; got:\n%s", tag, out)
+		}
+	}
+}
+
+// TestInteropRunnerReusesTheSharedTagWithoutABuild
+//
+// VALIDATES: `NO_BUILD=1` still starts containers from the shared tag.
+// PREVENTS: the pin above breaking the iterate-fast path. That path builds
+// nothing, so it has no ID to pin, and the tag left by the last real build is
+// the only reference it can have. A pin applied there would leave the run with
+// no image at all.
+func TestInteropRunnerReusesTheSharedTagWithoutABuild(t *testing.T) {
+	out := runProbe(t, "image-nobuild")
+	if !strings.Contains(out, "skipping image builds") {
+		t.Fatalf("image-nobuild: the probe built images, so it drives the wrong path; got:\n%s", out)
+	}
+	if !strings.Contains(out, "'ze-interop'") {
+		t.Errorf("image-nobuild: with nothing built the Ze container must fall back to the shared tag; got:\n%s", out)
+	}
+}

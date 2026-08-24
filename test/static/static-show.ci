@@ -6,7 +6,7 @@
 # Requires a Linux kernel: the daemon auto-loads the interface component for a
 # config-path plugin, and off Linux it aborts startup with "interface: no
 # backend configured and no OS default available" (netlink is linux-only), so
-# no static daemon can boot natively on darwin. Gated needs-linux and validated
+# no static daemon can boot natively on darwin. Gated needs-linux:caps=net-admin and validated
 # under QEMU (make ze-qemu-needs-linux-test). setup.py creates a dummy interface
 # carrying the next-hop subnet so the gateways resolve in the bare VM.
 #
@@ -15,7 +15,11 @@
 # sshclient.ExecCommand) and this config declares no SSH server, so the CLI path
 # could never reach the daemon.
 
-option=needs-linux
+# caps=net-admin because setup.py below runs `ip link add`. Without the
+# declaration an unprivileged Linux host does not skip: it runs, the `ip`
+# calls are refused, and the test FAILS for a capability the host never had
+# (internal/test/runner/record_parse.go, option=needs-linux).
+option=needs-linux:caps=net-admin
 
 tmpfs=setup.py:mode=755:terminator=EOF_SETUP
 #!/usr/bin/env python3

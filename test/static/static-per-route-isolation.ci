@@ -11,11 +11,15 @@
 #
 # Requires a Linux kernel (netlink route programming, and a static daemon cannot
 # boot on darwin -- the interface component has no OS-default backend there):
-# gated needs-linux, validated under QEMU (make ze-qemu-needs-linux-test). The
+# gated needs-linux:caps=net-admin, validated under QEMU (make ze-qemu-needs-linux-test). The
 # discrimination (good programmed, bad skipped) needs a real kernel FIB; the unit
 # tests in internal/plugins/static/isolation_test.go carry the algorithm.
 
-option=needs-linux
+# caps=net-admin because setup.py below runs `ip link add`. Without the
+# declaration an unprivileged Linux host does not skip: it runs, the `ip`
+# calls are refused, and the test FAILS for a capability the host never had
+# (internal/test/runner/record_parse.go, option=needs-linux).
+option=needs-linux:caps=net-admin
 
 tmpfs=setup.py:mode=755:terminator=EOF_SETUP
 #!/usr/bin/env python3

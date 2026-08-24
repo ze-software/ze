@@ -30,107 +30,88 @@ from interop import (  # noqa: E402  (the sys.path insert above must run first)
     log_fail,
     log_pass,
     observer_failure_note,
+    set_images,
 )
 
 
+def _build_image(name, tag, dockerfile, context, required):
+    """Build one image and return the reference this run must use for it.
+
+    The reference is the image ID `docker build -q` prints, never the tag. A tag
+    is shared between concurrent runs and an ID is not, so pinning the ID is
+    what stops this run consuming an image another run built (`set_images`,
+    test/interop/interop.py).
+
+    `required` picks the failure policy, and the two were already different in
+    this suite before the table existed: ze, BIRD and keepalived were fatal, and
+    GoBGP and StayRTR were tolerated. A required build raises. A tolerated one
+    warns and returns the tag, and that is about the blast radius rather than
+    the importance: those two builds reach the network for a module, and being
+    fatal would let one unreachable proxy take down the 100+ scenarios that
+    never touch them. Nothing is waved through by tolerating it, because the
+    scenario that wants the image fails at `docker run` with the image name in
+    the message, so the absence is reported on the scenario it belongs to.
+    """
+    print("Building %s image..." % name)
+    result = subprocess.run(
+        [
+            "docker",
+            "build",
+            "-t",
+            tag,
+            "-f",
+            dockerfile,
+            context,
+            "-q",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+    if result.returncode != 0:
+        if required:
+            raise RuntimeError(
+                "docker build %s failed: %s"
+                % (tag, (result.stderr or "").strip() or "no stderr")
+            )
+        print(
+            "  warning: %s image build failed (%s scenarios will fail)" % (name, name)
+        )
+        return tag
+    image_id = (result.stdout or "").strip().splitlines()
+    image_id = image_id[-1].strip() if image_id else ""
+    if not image_id:
+        # `-q` prints the ID and nothing else, so an empty stdout on a zero exit
+        # means this docker did not answer the question asked. Falling back to
+        # the tag silently would restore the race this function exists to close.
+        raise RuntimeError("docker build %s printed no image id" % tag)
+    print("  %s -> %s" % (tag, image_id))
+    return image_id
+
+
 def build_images(frr_image, no_build=False):
-    """Build ze-interop, bird-interop images. Pull FRR."""
+    """Build the lab images and return the reference each one must be run by.
+
+    Keyed by the logical names `set_images` (test/interop/interop.py) reads. An
+    empty mapping leaves every reference at its shared tag, which is what
+    `NO_BUILD=1` needs: it builds nothing, so it has no ID to pin and the tag it
+    reuses is its only possible reference.
+    """
     if no_build:
         print("  skipping image builds (NO_BUILD=1)")
-        return
+        return {}
 
-    print("Building Ze image...")
-    subprocess.run(
-        [
-            "docker",
-            "build",
-            "-t",
-            "ze-interop",
-            "-f",
-            os.path.join(SCRIPT_DIR, "Dockerfile.ze"),
-            PROJECT_ROOT,
-            "-q",
-        ],
-        check=True,
-        timeout=600,
-    )
-
-    print("Building BIRD image...")
-    subprocess.run(
-        [
-            "docker",
-            "build",
-            "-t",
-            "bird-interop",
-            "-f",
-            os.path.join(SCRIPT_DIR, "Dockerfile.bird"),
-            SCRIPT_DIR,
-            "-q",
-        ],
-        check=True,
-        timeout=600,
-    )
-
-    print("Building GoBGP image...")
-    result = subprocess.run(
-        [
-            "docker",
-            "build",
-            "-t",
-            "gobgp-interop",
-            "-f",
-            os.path.join(SCRIPT_DIR, "Dockerfile.gobgp"),
-            SCRIPT_DIR,
-            "-q",
-        ],
-        capture_output=True,
-        text=True,
-        timeout=600,
-    )
-    if result.returncode != 0:
-        print("  warning: GoBGP image build failed (GoBGP scenarios will fail)")
-
-    print("Building keepalived image...")
-    subprocess.run(
-        [
-            "docker",
-            "build",
-            "-t",
-            "keepalived-interop",
-            "-f",
-            os.path.join(SCRIPT_DIR, "Dockerfile.keepalived"),
-            SCRIPT_DIR,
-            "-q",
-        ],
-        check=True,
-        timeout=600,
-    )
-
-    # Tolerant like GoBGP's, not fatal like keepalived's, and for the blast
-    # radius rather than for the importance: this build fetches a module from
-    # the network, and `check=True` would let one unreachable proxy take down
-    # the 100+ scenarios that need no cache at all. Nothing is waved through by
-    # tolerating it. The one scenario that wants the image fails at
-    # `docker run` with the image name in the message, so the absence is
-    # reported on the scenario it belongs to.
-    print("Building StayRTR image...")
-    result = subprocess.run(
-        [
-            "docker",
-            "build",
-            "-t",
-            "stayrtr-interop",
-            "-f",
-            os.path.join(SCRIPT_DIR, "Dockerfile.stayrtr"),
-            SCRIPT_DIR,
-            "-q",
-        ],
-        capture_output=True,
-        text=True,
-        timeout=600,
-    )
-    if result.returncode != 0:
-        print("  warning: StayRTR image build failed (RTR scenarios will fail)")
+    built = {}
+    for name, tag, dockerfile, context, required in (
+        ("ze", "ze-interop", "Dockerfile.ze", PROJECT_ROOT, True),
+        ("bird", "bird-interop", "Dockerfile.bird", SCRIPT_DIR, True),
+        ("gobgp", "gobgp-interop", "Dockerfile.gobgp", SCRIPT_DIR, False),
+        ("keepalived", "keepalived-interop", "Dockerfile.keepalived", SCRIPT_DIR, True),
+        ("stayrtr", "stayrtr-interop", "Dockerfile.stayrtr", SCRIPT_DIR, False),
+    ):
+        built[name] = _build_image(
+            name, tag, os.path.join(SCRIPT_DIR, dockerfile), context, required
+        )
 
     print("Pulling FRR image...")
     subprocess.run(
@@ -138,6 +119,7 @@ def build_images(frr_image, no_build=False):
         check=True,
         timeout=600,
     )
+    return built
 
 
 def main():
@@ -180,7 +162,11 @@ def main():
         )
         sys.exit(1)
 
-    build_images(frr_image, no_build)
+    # Pin every container of this run to the image THIS run built, by ID. The
+    # shared tags are rebound by any concurrent build, so the pin is what keeps
+    # a mutation proof honest: without it a scenario can pass against a daemon
+    # the run never built (test/interop/interop.py, `set_images`).
+    set_images(build_images(frr_image, no_build))
 
     print("")
     print("\u2501" * 40)

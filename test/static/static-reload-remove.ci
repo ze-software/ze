@@ -4,12 +4,16 @@
 # PREVENTS: reload accepted but removed routes left in kernel
 #           (diff engine reports no removal).
 #
-# Requires a Linux kernel (netlink route programming): gated needs-linux
+# Requires a Linux kernel (netlink route programming): gated needs-linux:caps=net-admin
 # and validated under QEMU (make ze-qemu-needs-linux-test). setup.py first
 # creates a dummy interface carrying the next-hop subnets so the gateways
 # resolve in the bare VM (otherwise RouteReplace fails ENETUNREACH).
 
-option=needs-linux
+# caps=net-admin because setup.py below runs `ip link add`. Without the
+# declaration an unprivileged Linux host does not skip: it runs, the `ip`
+# calls are refused, and the test FAILS for a capability the host never had
+# (internal/test/runner/record_parse.go, option=needs-linux).
+option=needs-linux:caps=net-admin
 
 tmpfs=setup.py:mode=755:terminator=EOF_SETUP
 #!/usr/bin/env python3

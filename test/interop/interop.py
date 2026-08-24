@@ -28,6 +28,45 @@ INJECT_CONTAINER = "ze-iop-inject-%s" % _SUFFIX
 SPEAKER_CONTAINER = "ze-iop-speaker-%s" % _SUFFIX
 SPEAKER2_CONTAINER = "ze-iop-speaker2-%s" % _SUFFIX
 
+# The image every container of this run starts from.
+#
+# The names below are the shared TAGS, and a tag is the one thing the suffix
+# above cannot protect: `docker build -t ze-interop` in a second run rebinds it
+# between the first run's build and its container start, so the first run's
+# scenarios go on to test a daemon it never built. That inverts a mutation
+# proof, which is the procedure `ai/rules/interop-and-goal-validation.md`
+# requires before an interop test may be called discriminating: the mutated
+# build passes, and a test that cannot fail is certified as one that can.
+#
+# `build_images` (run.py) therefore calls `set_images` with the image IDs
+# `docker build -q` printed, and an ID is immutable. A concurrent build can take
+# the tag; it cannot take the ID, so a run that has built is no longer reachable
+# by another run. The tags stay as the values here because they are what
+# `NO_BUILD=1` reuses: that path builds nothing, so it has no ID to pin and the
+# tag is the only reference it can have.
+ZE_IMAGE = "ze-interop"
+BIRD_IMAGE = "bird-interop"
+GOBGP_IMAGE = "gobgp-interop"
+KEEPALIVED_IMAGE = "keepalived-interop"
+STAYRTR_IMAGE = "stayrtr-interop"
+
+
+def set_images(built):
+    """Point every image reference at what THIS run built.
+
+    `built` maps the logical name to the reference to use. A name it omits keeps
+    the shared tag above, which is what a tolerated build failure leaves: the
+    scenario that wants the image then fails at `docker run` with the image name
+    in the message, so the absence is still reported where it belongs.
+    """
+    global ZE_IMAGE, BIRD_IMAGE, GOBGP_IMAGE, KEEPALIVED_IMAGE, STAYRTR_IMAGE
+    ZE_IMAGE = built.get("ze", ZE_IMAGE)
+    BIRD_IMAGE = built.get("bird", BIRD_IMAGE)
+    GOBGP_IMAGE = built.get("gobgp", GOBGP_IMAGE)
+    KEEPALIVED_IMAGE = built.get("keepalived", KEEPALIVED_IMAGE)
+    STAYRTR_IMAGE = built.get("stayrtr", STAYRTR_IMAGE)
+
+
 # IP addresses on the test network.
 _BASE_SUBNET_PREFIX = "172.30.0."
 _SUBNET_POOLS = ((172, 30), (172, 31), (10, 254))
@@ -1971,7 +2010,7 @@ class Scenario:
         if os.path.isfile(bmp_collector):
             docker_run(
                 BMP_CONTAINER,
-                "ze-interop",
+                ZE_IMAGE,
                 BMP_IP,
                 volumes=["%s:/bmp-collector.py:ro" % os.path.abspath(bmp_collector)],
                 extra_args=["--entrypoint", "python3"],
@@ -1996,7 +2035,7 @@ class Scenario:
                     inject_args = fh.read().split()
             docker_run(
                 INJECT_CONTAINER,
-                "ze-interop",
+                ZE_IMAGE,
                 INJECT_IP,
                 volumes=["%s:/inject.msg:ro" % os.path.abspath(inject_expect)],
                 extra_args=["--entrypoint", "ze-test"],
@@ -2017,7 +2056,7 @@ class Scenario:
         if os.path.isfile(stayrtr_vrps):
             docker_run(
                 STAYRTR_CONTAINER,
-                "stayrtr-interop",
+                STAYRTR_IMAGE,
                 STAYRTR_IP,
                 volumes=["%s:/vrps.json:ro" % os.path.abspath(stayrtr_vrps)],
             )
@@ -2028,7 +2067,7 @@ class Scenario:
                 rpki_args = fh.read().split()
             docker_run(
                 RPKI_CONTAINER,
-                "ze-interop",
+                ZE_IMAGE,
                 RPKI_IP,
                 extra_args=["--entrypoint", "ze-test"],
                 cmd=["rpki", "--bind", "0.0.0.0"] + rpki_args,
@@ -2048,7 +2087,7 @@ class Scenario:
         # Start Ze (always present).
         docker_run(
             ZE_CONTAINER,
-            "ze-interop",
+            ZE_IMAGE,
             ZE_IP,
             volumes=volumes,
             caps=["NET_ADMIN"],
@@ -2090,7 +2129,7 @@ class Scenario:
                 speaker_args = fh.read().split()
             docker_run(
                 container,
-                "ze-interop",
+                ZE_IMAGE,
                 ip,
                 volumes=["%s:/speaker:ro" % speaker_dir],
                 extra_args=["--entrypoint", "python3"],
@@ -2120,7 +2159,7 @@ class Scenario:
         if os.path.isfile(bird_conf):
             docker_run(
                 BIRD_CONTAINER,
-                "bird-interop",
+                BIRD_IMAGE,
                 BIRD_IP,
                 volumes=[
                     "%s:/etc/bird/bird.conf:ro" % os.path.abspath(bird_conf),
@@ -2140,7 +2179,7 @@ class Scenario:
         if os.path.isfile(keepalived_conf):
             docker_run(
                 KEEPALIVED_CONTAINER,
-                "keepalived-interop",
+                KEEPALIVED_IMAGE,
                 KEEPALIVED_IP,
                 volumes=[
                     "%s:/etc/keepalived/keepalived.conf:ro"
@@ -2155,7 +2194,7 @@ class Scenario:
         if os.path.isfile(gobgp_conf):
             docker_run(
                 GOBGP_CONTAINER,
-                "gobgp-interop",
+                GOBGP_IMAGE,
                 GOBGP_IP,
                 volumes=[
                     "%s:/etc/gobgp/gobgp.toml:ro" % os.path.abspath(gobgp_conf),

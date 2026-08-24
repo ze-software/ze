@@ -11,6 +11,12 @@ end-to-end labelled IPv6 path.
 
 The MPLS forwarding assertion uses `mpls -ls` inside the QEMU guest (Linux-only AF_MPLS).
 
+NOT RUN as at 2026-08-23. Its OSPFv2 twin (ospf-sr-frr) was, and step 3 there failed on
+the instrument rather than on Ze: `mpls` is not installed in test/interop/Dockerfile.ze,
+and the Docker Desktop kernel exposes no /proc/sys/net/mpls. This file makes the same
+call, so expect the same boundary until step 3 has an instrument a kernel with AF_MPLS
+can answer.
+
 NOTE: requires an FRR ospf6d build with OSPFv3 SR-MPLS support. If the peer build lacks it,
 gate this scenario; the RFC 8666 wire + install behavior is unit-tested
 (TestOSPFv3ERouterBodyCarriesAdjSID / TestOSPFv3PrefixSIDInstallsPush / v3/packet SR codec).
@@ -73,10 +79,30 @@ def check():
             break
         time.sleep(3)
     if "16100" not in mpls:
-        # Ze-side origination + adjacency are validated (steps 1/2). FRR ospf6d SR-MPLS support
-        # varies by build; surface the reception half rather than hard-fail the pending scenario.
-        log_info(
-            "Ze does not yet show label 16100 for FRR's Prefix-SID; origination validated"
+        # RAISE, the same as the OSPFv2 twin. This is the reception half of the
+        # scenario, and logging it left the run reporting success whether or not
+        # Ze ever decoded FRR's Prefix-SID. "FRR ospf6d SR-MPLS support varies by
+        # build" is a reason to pin the FRR version the scenario runs against, or
+        # to state the boundary; it is not a reason to pass either way.
+        #
+        # A readback that came back empty has three causes and they are not the same
+        # fact, so the failure says which. `docker_exec_quiet` returns "" for a
+        # command that could not run at all, so without this the message would
+        # attribute a MISSING INSTRUMENT to a missing route, which is the reverse of
+        # what a reader needs. Measured on 2026-08-23: `mpls` is not in
+        # test/interop/Dockerfile.ze at all, and the Docker Desktop kernel exposes no
+        # /proc/sys/net/mpls, so on that host neither the tool nor the table exists.
+        instrument = docker_exec_quiet(
+            ZE_CONTAINER, ["sh", "-c", "command -v mpls || echo ABSENT"]
+        ).strip()
+        kernel = docker_exec_quiet(
+            ZE_CONTAINER, ["sh", "-c", "ls -d /proc/sys/net/mpls 2>/dev/null || echo ABSENT"]
+        ).strip()
+        raise AssertionError(
+            "Ze did not install an MPLS push for FRR's IPv6 Prefix-SID (label "
+            "16100) within 60s.\n  `mpls -ls` returned: %s\n  mpls binary in the "
+            "Ze container: %s\n  kernel MPLS (/proc/sys/net/mpls): %s"
+            % (mpls.strip() or "(empty)", instrument or "(empty)", kernel or "(empty)")
         )
 
     # 4. Stability: the adjacency must still be Full after a short settle.
