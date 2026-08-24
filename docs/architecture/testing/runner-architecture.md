@@ -113,7 +113,7 @@ Unknown directives or kinds fail parsing immediately.
 
 | Option | Effect |
 |--------|--------|
-| `option=timeout:value=<dur>` | Parsed into `WBTestCase.Timeout` and read by nothing. A `.wb` test has NO wall-clock bound of its own: the real bounds are `agentTimeout` (30s per `agent-browser` command) and `expectDeadline` (15s per retried assertion or `wait-until`) |
+| `option=timeout:value=<dur>` | The test's wall-clock budget, default 30s. `runWBTestCase` checks it before each step, so a test is bounded at its budget plus one step. Each step is bounded by `agentTimeout` (30s per `agent-browser` command) or `expectDeadline` (15s per retried assertion or `wait-until`). A value the runner cannot read is a parse error, never a fall back to the default. A budget nothing can enforce must not leave the file looking bounded |
 | `option=skip:reason=<text>` | Skip the test; `reason` is surfaced in runner output |
 | `option=viewport:width=<n>:height=<n>` | Resize the viewport before the first navigation |
 | `option=locale:lang=<tag>` | Set `Accept-Language` for the session |
@@ -193,8 +193,10 @@ the previous page back, `action=open` there yourself.
 
 **`expectDeadline` stops the POLLING, and is not a wall-clock cap.** The deadline is
 checked between rounds, so the round in flight when it expires runs to completion,
-and each round issues browser commands capped only by `agentTimeout`. Nothing bounds
-a `.wb` test above that: `option=timeout` is inert (see Options).
+and each round issues browser commands capped only by `agentTimeout`. What bounds a
+`.wb` test above that is its own `option=timeout`, checked between steps (see
+Options). It was inert until 2026-08-23, and a web test that stopped making progress
+hung the suite rather than failing one test.
 <!-- source: internal/component/web/testing/runner.go -- WaitUntil, WaitLoad, inflightIdleExpr -->
 <!-- source: internal/component/web/testing/expect.go -- retryPositive, retryCommand, expectDeadline -->
 

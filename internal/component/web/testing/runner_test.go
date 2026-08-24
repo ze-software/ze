@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestBrowserOpenUsesHTTPSIgnoreOnlyForDaemonStart(t *testing.T) {
@@ -257,5 +258,135 @@ func TestAgentEnvEntriesCarryOneSettingEach(t *testing.T) {
 
 	if !slices.Contains(added, "AGENT_BROWSER_IDLE_TIMEOUT_MS=60000") {
 		t.Errorf("agentEnv must state the idle window waitMs works around; it added %q", added)
+	}
+}
+
+// TestWBTimeoutBoundsTheRun
+//
+// VALIDATES: option=timeout is a wall-clock budget the runner enforces, and a
+// test that exceeds it FAILS naming the directive.
+// PREVENTS: the declaration meaning nothing. `parseWBOption` wrote
+// WBTestCase.Timeout and nothing read it, while `pr.Run`
+// (internal/test/runner/parallel.go) gives each web test the suite's context and
+// no deadline of its own. A .wb that stopped making progress therefore hung the
+// whole suite instead of failing one test. Every file that declared 30s or 90s
+// declared nothing.
+//
+// The steps are `action=wait`, which sleeps and issues no browser command below
+// browserIdleWindow/2, so this measures the runner's own bound and not the
+// browser's.
+func TestWBTimeoutBoundsTheRun(t *testing.T) {
+	installFakeAgentBrowser(t)
+	wait := WBAction{Kind: "wait", Values: map[string]string{"ms": "40"}, Line: 1}
+	tc := &WBTestCase{
+		Timeout: 60 * time.Millisecond,
+		Actions: []WBAction{wait, wait, wait, wait, wait},
+		Steps: []WBStep{
+			{Type: WBStepAction, ActionIndex: 0},
+			{Type: WBStepAction, ActionIndex: 1},
+			{Type: WBStepAction, ActionIndex: 2},
+			{Type: WBStepAction, ActionIndex: 3},
+			{Type: WBStepAction, ActionIndex: 4},
+		},
+	}
+
+	start := time.Now()
+	res := runWBTestCase(tc, "https://127.0.0.1:1234", "sess-timeout")
+	elapsed := time.Since(start)
+
+	if res.Passed {
+		t.Fatalf("a test over its declared budget must fail; it passed after %s", elapsed)
+	}
+	if !strings.Contains(res.Error, "option=timeout") {
+		t.Errorf("the failure must name the directive that bounded it, got %q", res.Error)
+	}
+	// Five 40ms waits is 200ms of work against a 60ms budget. Stopping means
+	// fewer steps ran than the file declared. Without the bound all five run.
+	if len(res.Steps) >= len(tc.Steps) {
+		t.Errorf("every step ran (%d of %d), so the budget bounded nothing",
+			len(res.Steps), len(tc.Steps))
+	}
+	// ...and that at least one step DID run. This half separates a deadline
+	// checked before each step from one evaluated once, on entry, against a zero
+	// budget. The second stops with no step at all, and it satisfies every other
+	// assertion here. Step one cannot exceed a budget that starts
+	// when the loop does, so this is one for one with the check being per-round.
+	if len(res.Steps) == 0 {
+		t.Errorf("no step ran at all in %s: the budget is being evaluated before "+
+			"the run rather than between its steps", elapsed)
+	}
+}
+
+// TestWBTimeoutLeavesAnUnderBudgetRunAlone
+//
+// VALIDATES: the bound fails only a test that actually exceeds it.
+// PREVENTS: the guard becoming the thing that reddens the suite. A deadline
+// applied at the wrong moment, or seeded from a zero Timeout, would fail every
+// test at step one and look exactly like a real regression.
+func TestWBTimeoutLeavesAnUnderBudgetRunAlone(t *testing.T) {
+	installFakeAgentBrowser(t)
+	tc := &WBTestCase{
+		Timeout: 10 * time.Second,
+		Actions: []WBAction{{Kind: "wait", Values: map[string]string{"ms": "1"}, Line: 1}},
+		Steps:   []WBStep{{Type: WBStepAction, ActionIndex: 0}},
+	}
+	res := runWBTestCase(tc, "https://127.0.0.1:1234", "sess-under")
+	if !res.Passed {
+		t.Fatalf("a run inside its budget must pass, got %q", res.Error)
+	}
+}
+
+// TestParseWBTimeout
+//
+// VALIDATES: option=timeout parses into a duration, defaults to
+// defaultWBTimeout, and refuses a value the runner cannot enforce.
+// PREVENTS: a malformed timeout silently falling back to the default. The
+// declaration exists to bound the run, so a value nothing can read must not
+// leave the file looking bounded.
+func TestParseWBTimeout(t *testing.T) {
+	tc, err := ParseWBFile("option=timeout:value=45s\naction=open:path=/")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if tc.Timeout != 45*time.Second {
+		t.Errorf("timeout = %s, want 45s", tc.Timeout)
+	}
+
+	tc, err = ParseWBFile("action=open:path=/")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if tc.Timeout != defaultWBTimeout {
+		t.Errorf("default timeout = %s, want %s", tc.Timeout, defaultWBTimeout)
+	}
+
+	for _, bad := range []string{"abc", "30", "0s", "-5s"} {
+		if _, err := ParseWBFile("option=timeout:value=" + bad); err == nil {
+			t.Errorf("timeout %q parsed without error; a budget the runner cannot "+
+				"enforce must not leave the file looking bounded", bad)
+		}
+	}
+}
+
+// TestWBZeroTimeoutMeansUnspecified
+//
+// VALIDATES: a WBTestCase built in code, with no Timeout, runs under the default
+// budget rather than expiring before its first step.
+// PREVENTS: the zero value reading as "no time at all". ParseWBFile always seeds
+// the field, so the only way to reach the runner with zero is a struct literal,
+// and there it means the caller declared nothing. Reading it literally failed
+// TestRunWBTestCaseAppliesViewportAndLocaleFirst the moment the bound was added.
+func TestWBZeroTimeoutMeansUnspecified(t *testing.T) {
+	installFakeAgentBrowser(t)
+	tc := &WBTestCase{
+		Actions: []WBAction{{Kind: "wait", Values: map[string]string{"ms": "1"}, Line: 1}},
+		Steps:   []WBStep{{Type: WBStepAction, ActionIndex: 0}},
+	}
+	if tc.Timeout != 0 {
+		t.Fatalf("the fixture must carry the zero value, got %s", tc.Timeout)
+	}
+	res := runWBTestCase(tc, "https://127.0.0.1:1234", "sess-zero")
+	if !res.Passed {
+		t.Fatalf("an undeclared timeout must fall back to the default, got %q", res.Error)
 	}
 }

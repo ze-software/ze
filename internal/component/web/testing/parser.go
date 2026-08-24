@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // WBStepType identifies the kind of step in a web browser test case.
@@ -93,10 +94,14 @@ type WBEnvVar struct {
 
 // WBTestCase holds a parsed .wb test file.
 type WBTestCase struct {
-	Actions    []WBAction
-	Expects    []WBExpectation
-	Steps      []WBStep
-	Timeout    string       // from option=timeout:value=
+	Actions []WBAction
+	Expects []WBExpectation
+	Steps   []WBStep
+	// Timeout is the wall-clock budget the file declares with
+	// option=timeout:value=. `runWBTestCase` (runner.go) enforces it. Until
+	// 2026-08-23 it was a string that nothing read. Every .wb that declared a
+	// timeout therefore declared nothing, and a hung web test hung the suite.
+	Timeout    time.Duration
 	SkipReason string       // from option=skip:reason=...; non-empty means skip the test
 	Viewport   WBViewport   // from option=viewport:width=..:height=..
 	Locale     string       // from option=locale:lang=.. (sets Accept-Language)
@@ -122,7 +127,7 @@ func (tc *WBTestCase) ServerKind() WBServer {
 // ParseWBFile parses a .wb file content into a WBTestCase.
 func ParseWBFile(content string) (*WBTestCase, error) {
 	tc := &WBTestCase{
-		Timeout: "30s",
+		Timeout: defaultWBTimeout,
 	}
 
 	lineNum := 0
@@ -165,9 +170,27 @@ func parseWBOption(tc *WBTestCase, rest string, line int) error {
 	kind := extractWBKind(rest)
 	switch kind {
 	case "timeout":
-		if v, ok := kv["value"]; ok {
-			tc.Timeout = v
+		// A malformed duration is a parse ERROR, not a fall back to the
+		// default. The declaration exists to bound the run, so a value the
+		// runner cannot read must not leave the file looking bounded.
+		// A MISSING `value=` is an error for the same reason a malformed one
+		// is. `option=timeout` alone, or a misspelled `vlaue=`, otherwise
+		// parses clean and leaves the file looking bounded while the runner
+		// applies the default. That is the shape this repo already paid for
+		// once, where `expect=stdout:matches=` parsed silently and asserted
+		// nothing.
+		v, ok := kv["value"]
+		if !ok {
+			return fmt.Errorf("line %d: option=timeout needs value=<duration>, e.g. option=timeout:value=90s", line)
 		}
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			return fmt.Errorf("line %d: timeout %q: %w", line, v, err)
+		}
+		if d <= 0 {
+			return fmt.Errorf("line %d: timeout %q must be positive", line, v)
+		}
+		tc.Timeout = d
 		return nil
 	case "skip":
 		// option=skip:reason=<text> marks the test as skipped by the

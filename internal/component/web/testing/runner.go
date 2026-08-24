@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/runner"
 	"github.com/ze-software/ze/internal/test/trace"
 )
 
@@ -174,9 +175,9 @@ func (b *Browser) waitMs(ms string) error {
 // NOT a wall-clock cap on the step: retryCommand checks it between rounds, never
 // inside one, so the round in flight when it expires still runs to completion. A
 // round issues an `open`, one or more `eval` polls (WaitLoad) and a `get html`,
-// each capped only by agentTimeout, so a stalled round overshoots. Nothing bounds
-// the test above this either: option=timeout parses into WBTestCase.Timeout and
-// is read by nothing, and zeTestRunWebTest applies no deadline of its own.
+// each capped only by agentTimeout, so a stalled round overshoots. The file's own
+// option=timeout is what bounds the test above this, checked between steps by
+// runWBTestCase.
 func (b *Browser) WaitUntil(path, want string) error {
 	if path == "" || want == "" {
 		return errWaitUntilRequiresPathAndContains
@@ -633,7 +634,51 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 		}
 	}
 
+	// The file's declared budget. Checked BETWEEN steps, which bounds the test at
+	// its timeout plus one step. Every step is itself bounded. A browser command is
+	// bounded by agentTimeout, a retrying step by expectDeadline or
+	// expectRetryDeadline, and `action=wait` by the millisecond count the file
+	// asked for. Checking inside a step would mean threading the deadline through
+	// every retry loop for a bound the caller already has.
+	//
+	// Nothing read the Timeout field until 2026-08-23, so every .wb that declared a
+	// timeout declared nothing. `pr.Run` (internal/test/runner/parallel.go) gives
+	// each test the suite's context and no per-test deadline. A web test that
+	// stopped making progress therefore hung the suite instead of failing it.
+	//
+	// A zero Timeout means UNSPECIFIED, never "no time at all". ParseWBFile always
+	// seeds the field and refuses a non-positive declared value. Zero therefore
+	// reaches here only from a WBTestCase built in code, where the caller declared
+	// nothing. Reading it literally would expire the deadline before step one and
+	// fail every such run. That is a zero value that looks like a valid answer
+	// (docs/contributing/ze-style.md, "Types that cannot lie").
+	// The declared value is scaled by the SAME contention headroom every other
+	// budget in this suite uses. `zeTestReadyTimeout` (internal/test/cli/cmd_web.go)
+	// states the reason: under `make ze-precommit-verify` the web suite runs four
+	// ways concurrent and overlaps the -race unit stage, so a step that takes 2s
+	// standalone can take far longer under that CPU starvation. Every declared
+	// timeout in the corpus was authored while this field was INERT, so no run
+	// ever measured one, and enforcing them literally would turn a green suite
+	// red with a message blaming the test author. A standalone run keeps the
+	// tight declared value, so a genuine hang still surfaces fast.
+	budget := tc.Timeout
+	if budget <= 0 {
+		budget = defaultWBTimeout
+	}
+	if runner.VerifyModeEnabled() {
+		budget *= runner.ParallelTimeoutHeadroom
+	}
+	deadline := time.Now().Add(budget)
+
 	for i, step := range tc.Steps {
+		if !time.Now().Before(deadline) {
+			return &WBTestResult{
+				Error: tb.Reset().Str("timed out after ").Str(budget.String()).
+					Str(" (option=timeout) with ").Int(int64(len(tc.Steps) - i)).
+					Str(" step(s) left; raise the declared timeout or find what stopped making progress").String(),
+				Steps: steps,
+			}
+		}
 		switch step.Type {
 		case WBStepAction:
 			a := tc.Actions[step.ActionIndex]
@@ -670,6 +715,10 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 }
 
 const (
+	// defaultWBTimeout is the wall-clock budget a .wb file gets when it declares
+	// none. ParseWBFile seeds WBTestCase.Timeout with it and
+	// `option=timeout:value=` replaces it.
+	defaultWBTimeout = 30 * time.Second
 	// Generous: under parallel CPU load an HTMX/JS render can land seconds after
 	// WaitLoad reports the network idle, so the assertion must out-wait the slow
 	// render without out-waiting the test's own option=timeout.
