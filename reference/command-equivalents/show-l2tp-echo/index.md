@@ -6,7 +6,8 @@
 - Registry path: `show l2tp echo`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:echo`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show LCP echo health for a subscriber session. Returns echo request/reply counters and round-trip times. Rising loss or high RTT indicates a degraded line.
 

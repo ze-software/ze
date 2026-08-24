@@ -6,7 +6,8 @@
 - Registry path: `show pppoe interfaces`
 - Mode: Read-only
 - Wire method: `ze-pppoe-api:interfaces`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show which interfaces are accepting PPPoE sessions. Lists each PPPoE-enabled interface with its service name, session limit, and how many sessions are currently active.
 

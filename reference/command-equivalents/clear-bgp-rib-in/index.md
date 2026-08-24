@@ -6,7 +6,8 @@
 - Registry path: `clear bgp rib in`
 - Mode: Daemon
 - Wire method: `ze-rib-api:clear-in`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Remove all routes received from a peer. Wipes the Adj-RIB-In for matched peers. They will need to re-advertise everything (or you can send a route-refresh). Selector: IP, name, AS pattern, glob, or *.
 

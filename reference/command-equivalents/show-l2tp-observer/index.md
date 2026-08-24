@@ -6,7 +6,8 @@
 - Registry path: `show l2tp observer`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:observer`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show recent events for a session (debug aid). Returns the event ring buffer for one session ID or 'all'. Useful for understanding why a session failed to establish.
 

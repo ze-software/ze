@@ -6,7 +6,8 @@
 - Registry path: `show ospf ldp-sync`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-ldp-sync`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show OSPF LDP-IGP synchronization state (RFC 5443, RFC 6138). Lists each ldp-sync interface with its state (not-synchronized / hold-down / synchronized), remaining hold-down, effective metric, and whether it is stuck not-synchronized after having been synchronized.
 

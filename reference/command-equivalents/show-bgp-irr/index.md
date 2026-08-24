@@ -6,7 +6,8 @@
 - Registry path: `show bgp irr`
 - Mode: Read-only
 - Wire method: `ze-show:irr-status`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill, resolve, origin
 
 Show IRR filter status per ASN. Lists each enrolled ASN with its resolved AS-SET, prefix counts, last refresh time, and error status. Use this to confirm that IRR prefix-lists are loaded and current.
 

@@ -6,7 +6,8 @@
 - Registry path: `show env registered`
 - Mode: Read-only
 - Wire method: `ze-show:env-registered`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Pipes, on rows: none
 
 List every registered environment variable with metadata. Includes type, default, description, and whether it is currently set.
 

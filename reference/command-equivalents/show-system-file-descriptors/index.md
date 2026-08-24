@@ -6,7 +6,8 @@
 - Registry path: `show system file-descriptors`
 - Mode: Read-only
 - Wire method: `ze-show:system-file-descriptors`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show how many file descriptors the daemon has open. Summary mode: totals by type (socket, pipe, file). Detail mode: every fd with its path and type. Linux only (reads /proc/self/fd). Check this when you suspect fd exhaustion.
 

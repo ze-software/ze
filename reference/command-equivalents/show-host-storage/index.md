@@ -6,7 +6,8 @@
 - Registry path: `show host storage`
 - Mode: Read-only
 - Wire method: `ze-show:host-storage`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show storage devices attached to this box. Returns size, model, transport type (nvme, sata, mmc, virtio), rotational flag, and NVMe firmware version where applicable.
 

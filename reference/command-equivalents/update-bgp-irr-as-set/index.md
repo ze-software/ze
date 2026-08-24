@@ -6,7 +6,8 @@
 - Registry path: `update bgp irr as-set`
 - Mode: Daemon
 - Wire method: `ze-update:irr-as-set`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Refresh IRR prefix-list for a specific AS-SET. Usage: update bgp irr as-set <as-set>. Re-queries the IRR server for all peers using the given AS-SET name.
 

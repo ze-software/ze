@@ -6,7 +6,8 @@
 - Registry path: `update system firmware check`
 - Mode: Daemon
 - Wire method: `ze-update:system-firmware-check`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Check for a new firmware version right now. Bypasses the scheduled interval timer and contacts the update server immediately. Compare the result with 'show system update'.
 

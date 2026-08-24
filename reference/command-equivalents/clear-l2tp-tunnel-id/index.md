@@ -6,7 +6,8 @@
 - Registry path: `clear l2tp tunnel id`
 - Mode: Daemon
 - Wire method: `ze-l2tp-api:tunnel-teardown`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Gracefully tear down one L2TP tunnel. Sends a StopCCN to the peer. All sessions on this tunnel will be disconnected. Pass the local tunnel ID: clear l2tp tunnel id <id>.
 

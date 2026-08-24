@@ -6,7 +6,8 @@
 - Registry path: `show ospf interface`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-interface`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show OSPF-enabled interfaces. Returns area, network-type, cost, ISM state, DR/BDR, hello/dead intervals, priority, and passive flag per interface.
 

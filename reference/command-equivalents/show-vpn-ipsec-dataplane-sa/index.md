@@ -6,7 +6,8 @@
 - Registry path: `show vpn ipsec dataplane sa`
 - Mode: Read-only
 - Wire method: `ze-show:vpn-ipsec-dataplane-sa`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show the Security Association Database the kernel holds. Lists each installed ESP SA with its SPI, addresses, mode, algorithms, replay window, byte and packet counters, and timestamps. Give 'spi <spi>' to show one SA. Without a selector the command dumps every SA, which on a device with many tunnels is one row per SA.
 

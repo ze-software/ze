@@ -6,7 +6,8 @@
 - Registry path: `request reboot`
 - Mode: Daemon
 - Wire method: `ze-system:daemon-reboot`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Gracefully shutdown then reboot the system.
 

@@ -6,7 +6,8 @@
 - Registry path: `delete interface name`
 - Mode: Daemon
 - Wire method: `ze-iface:interface-delete`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Delete an interface from the kernel. Usage: delete interface name <name>.
 

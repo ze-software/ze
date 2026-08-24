@@ -62,7 +62,8 @@
 <div><dt>Registry path</dt><dd><code>show flow recent</code></dd></div>
 <div><dt>Mode</dt><dd>Read-only</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-show:flow-recent</code></dd></div>
-<div><dt>Global pipes</dt><dd>yes</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
+<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
 </dl>
 <h3>Description</h3><p>Show recent conntrack flow records from the bounded recent-flow ring.<br>Without arguments, returns every ring record (oldest to newest, up to the<br>configured recent-flow-ring capacity). With &#x27;dst &lt;prefix&gt;&#x27;, filters to flows<br>whose destination is inside that prefix. The ring is fed only while conntrack<br>export is enabled; the filter is by destination prefix (conntrack is host-global<br>and carries no ingress interface).</p>
 <h3>Arguments</h3>
@@ -131,7 +132,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 06:12 UTC</span>
                 </div>
             </div>
         </footer>

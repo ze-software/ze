@@ -6,7 +6,8 @@
 - Registry path: `create interface veth name`
 - Mode: Daemon
 - Wire method: `ze-iface:interface-create-veth`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Create a veth pair (two linked virtual Ethernet interfaces). Usage: create interface veth name <name> <peer>.
 

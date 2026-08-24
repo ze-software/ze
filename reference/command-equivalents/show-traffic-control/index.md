@@ -6,7 +6,8 @@
 - Registry path: `show traffic control`
 - Mode: Read-only
 - Wire method: `ze-show:traffic`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show traffic control (QoS) configuration per interface. Without arguments, lists every interface with its qdisc type and class/filter counts. With an interface name, shows the full qdisc and class breakdown. Use this to verify your shaping is applied.
 

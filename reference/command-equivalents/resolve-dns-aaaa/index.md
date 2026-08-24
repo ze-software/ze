@@ -6,7 +6,8 @@
 - Registry path: `resolve dns aaaa`
 - Mode: Read-only
 - Wire method: `ze-resolve:dns-aaaa`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Look up IPv6 addresses (AAAA records) for a hostname. Usage: resolve dns aaaa <hostname>.
 

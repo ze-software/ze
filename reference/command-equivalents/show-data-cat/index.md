@@ -6,7 +6,8 @@
 - Registry path: `show data cat`
 - Mode: Read-only
 - Wire method: `ze-show:data-cat`
-- Global pipes: yes
+- Pipes, always: none
+- Pipes, on rows: none
 
 Print the raw content of a blob store entry. Usage: show data cat <key>. Outputs the value for the given key, like 'cat' for ZeFS.
 

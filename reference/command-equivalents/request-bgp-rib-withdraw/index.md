@@ -6,7 +6,8 @@
 - Registry path: `request bgp rib withdraw`
 - Mode: Daemon
 - Wire method: `ze-rib-api:withdraw`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Withdraw a route from the Adj-RIB-In. Removes a previously injected or received route from a peer's Adj-RIB-In, triggering best-path recomputation.
 

@@ -6,7 +6,8 @@
 - Registry path: `request peer pause`
 - Mode: Daemon
 - Wire method: `ze-bgp:peer-pause`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Pause reading from a peer's TCP socket. Usage: request peer <selector> pause.
 

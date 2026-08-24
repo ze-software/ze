@@ -6,7 +6,8 @@
 - Registry path: `resolve peeringdb as-set`
 - Mode: Read-only
 - Wire method: `ze-resolve:peeringdb-as-set`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Find the IRR AS-SET registered for an ASN in PeeringDB. Usage: resolve peeringdb as-set <asn>. Feed the result into 'resolve irr expand' to get the full member list.
 

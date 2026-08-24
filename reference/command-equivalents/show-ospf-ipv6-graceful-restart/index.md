@@ -6,7 +6,8 @@
 - Registry path: `show ospf ipv6 graceful-restart`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-ipv6-graceful-restart`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show OSPFv3 (IPv6) Graceful Restart state (RFC 5187): the restarter state (in-restart or not, grace end, reason) and the per-neighbor helper sessions (which neighbors are being helped and their remaining grace).
 

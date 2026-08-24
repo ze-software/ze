@@ -6,7 +6,8 @@
 - Registry path: `show bgp encode`
 - Mode: Read-only
 - Wire method: `ze-show:bgp-encode`
-- Global pipes: yes
+- Pipes, always: none
+- Pipes, on rows: none
 
 Turn a route announcement into wire-format hex. Takes a route in API syntax and returns the BGP UPDATE as a hex string. Useful for building test payloads, feeding to ze-test, or verifying that your announcement encodes correctly.
 

@@ -6,7 +6,8 @@
 - Registry path: `show system kernel-log`
 - Mode: Read-only
 - Wire method: `ze-show:system-kernel-log`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show kernel log messages (dmesg-style). Reads from /dev/kmsg. Filter by syslog level (emerg through debug) and limit with count. Without count, you get everything available. Linux only. Useful for spotting NIC errors or OOM events.
 

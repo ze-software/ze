@@ -6,7 +6,8 @@
 - Registry path: `show bgp peer statistics`
 - Mode: Read-only
 - Wire method: `ze-bgp:peer-statistics`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill, resolve, origin
 
 Show UPDATE throughput for your peers. Usage: show bgp peer <selector> statistics.
 

@@ -6,7 +6,8 @@
 - Registry path: `request peer eorr`
 - Mode: Daemon
 - Wire method: `ze-bgp:peer-eorr`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Finish an Enhanced Route Refresh cycle (RFC 7313). The peer purges any routes not re-advertised since the matching BORR. Only send this after the peer has finished re-advertising.
 

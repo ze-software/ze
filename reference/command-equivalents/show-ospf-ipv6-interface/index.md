@@ -6,7 +6,8 @@
 - Registry path: `show ospf ipv6 interface`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-ipv6-interface`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show OSPFv3 (IPv6-family) interfaces and their RFC 4552 IPsec status. Returns per interface whether IPsec is configured, the protocol (ah/esp) and SPI, and whether the kernel SA is installed. The key is never shown.
 

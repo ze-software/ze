@@ -6,7 +6,8 @@
 - Registry path: `generate wireguard keypair`
 - Mode: Offline
 - Wire method: `not listed`
-- Global pipes: no
+- Pipes, always: none
+- Pipes, on rows: none
 
 Generate a WireGuard keypair. Prints private and public keys to stdout for use in your config.
 

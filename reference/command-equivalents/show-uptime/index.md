@@ -6,7 +6,8 @@
 - Registry path: `show uptime`
 - Mode: Read-only
 - Wire method: `ze-show:uptime`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show how long the daemon has been running. Returns the start time and elapsed uptime. Handy after a maintenance window to confirm the process restarted.
 

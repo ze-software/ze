@@ -6,7 +6,8 @@
 - Registry path: `show env list`
 - Mode: Read-only
 - Wire method: `ze-show:env-list`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Pipes, on rows: none
 
 List all Ze environment variables with their current values. Shows which env vars are set and their defaults.
 

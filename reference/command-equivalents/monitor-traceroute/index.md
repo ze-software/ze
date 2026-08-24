@@ -6,7 +6,8 @@
 - Registry path: `monitor traceroute`
 - Mode: Read-only
 - Wire method: `ze-monitor:traceroute`
-- Global pipes: yes
+- Pipes, always: none
+- Pipes, on rows: none
 
 Live mtr-style traceroute that updates continuously. Shows each hop with running RTT statistics. Keeps probing so you can watch path changes and latency shifts over time.
 

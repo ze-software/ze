@@ -6,7 +6,8 @@
 - Registry path: `show config ls`
 - Mode: Read-only
 - Wire method: `ze-show:config-ls`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Pipes, on rows: none
 
 List all configuration files stored in the database. Shows archived snapshots and the active config.
 

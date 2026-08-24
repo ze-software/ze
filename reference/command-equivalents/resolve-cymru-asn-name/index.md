@@ -6,7 +6,8 @@
 - Registry path: `resolve cymru asn-name`
 - Mode: Read-only
 - Wire method: `ze-resolve:cymru-asn-name`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Find out who owns an AS number. Queries Team Cymru DNS to return the organization name for the ASN. Usage: resolve cymru asn-name <asn>.
 

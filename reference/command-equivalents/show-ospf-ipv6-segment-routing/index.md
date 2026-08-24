@@ -6,7 +6,8 @@
 - Registry path: `show ospf ipv6 segment-routing`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-ipv6-segment-routing`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show OSPFv3 (IPv6) Segment Routing state (RFC 8666): the configured SRGB/SRLB label ranges, the advertised SR-Algorithm, this node's node Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency.
 

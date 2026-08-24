@@ -6,7 +6,8 @@
 - Registry path: `show bgp peer history`
 - Mode: Read-only
 - Wire method: `ze-bgp:peer-history`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill, resolve, origin
 
 Show FSM state transitions for a peer over time. Usage: show bgp peer <selector> history.
 

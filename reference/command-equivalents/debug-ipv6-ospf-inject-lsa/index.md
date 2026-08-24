@@ -6,7 +6,8 @@
 - Registry path: `debug ipv6 ospf inject lsa`
 - Mode: Daemon
 - Wire method: `ze-debug:ospfv3-inject`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Inject a crafted OSPFv3 LSA into the local LSDB (RFC 5340). Usage: debug ipv6 ospf inject lsa scope <link|area|as> type <ls-type> id <link-state-id> [hex <body>] [withdraw]. The flooding scope is derived from the LS Type S2/S1 bits (a reserved scope is rejected). Requires `debug ospf inject enable`.
 

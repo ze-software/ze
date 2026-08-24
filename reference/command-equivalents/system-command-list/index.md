@@ -6,7 +6,8 @@
 - Registry path: `system command list`
 - Mode: Read-only
 - Wire method: `ze-system:command-list`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 List all commands
 

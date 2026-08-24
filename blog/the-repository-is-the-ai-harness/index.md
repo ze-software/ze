@@ -22,7 +22,7 @@ Ze carries that meaning in several layers.
 
 `ai/PACKAGE-MAP.md` gives one short description for each of those 646 packages, and that saves a great deal of blind exploration.
 
-Production Go files carry a `// Design:` line near their top, so opening the implementation reveals the document explaining why it exists. Closely connected files also point to each other with `// Detail:`, `// Overview:` and `// Related:` comments. There are 3,659 of the first kind and 3,185 of the second.
+Production Go files carry a `// Design:` line near their top, so opening the implementation reveals the document explaining why it exists. Closely connected files also point to each other with `// Detail:`, `// Overview:` and `// Related:` comments. There are 3,655 of the first kind and 3,185 of the second.
 
 The documents point back into the source through `<!-- source: ... -->` markers. Small programs generate the two reverse indexes, `ai/CODE-TO-DOCS.md` and `ai/DOCS-TO-CODE.md`:
 
@@ -114,7 +114,7 @@ All of that is ordinary engineering judgement, and judgement is the part an agen
 | A configuration reload | a scenario driven by SIGHUP | `test/reload/` |
 | Plugin behaviour | a scenario exercising the plugin API | `test/plugin/` |
 
-The rule continues in the same way for interoperability, editor behaviour, fleet management and cross-component work. Unit tests on their own are accepted for genuinely internal logic, and the rule lists those cases so the exception cannot be invented on the spot. Everything else owes both kinds. Around 1,600+ `.ci` scenarios and 160+ editor `.et` scenarios are what that produces, next to the Go unit tests.
+The rule continues in the same way for interoperability, editor behaviour, fleet management and cross-component work. Unit tests on their own are accepted for genuinely internal logic, and the rule lists those cases so the exception cannot be invented on the spot. Everything else owes both kinds. Around 1,700+ `.ci` scenarios and 160+ editor `.et` scenarios are what that produces, next to the Go unit tests.
 
 The test comes first and has to fail before the implementation is written. Each one carries `VALIDATES:` and `PREVENTS:` comments, so a later reader learns what the test proves and which regression it was written against.
 

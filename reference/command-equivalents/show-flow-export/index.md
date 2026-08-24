@@ -6,7 +6,8 @@
 - Registry path: `show flow export`
 - Mode: Read-only
 - Wire method: `ze-show:flow-export`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show flow export (NetFlow/IPFIX) collector status. Without arguments, lists all configured collectors. With 'name <name>', shows details for that collector including protocol stats and errors. Returns not-configured when no exporter is active.
 

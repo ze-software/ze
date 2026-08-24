@@ -6,7 +6,8 @@
 - Registry path: `show event list`
 - Mode: Read-only
 - Wire method: `ze-bgp:event-list`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 List every event type you can subscribe to. Shows event name, category, and payload structure. Use this to discover what events are available before subscribing.
 

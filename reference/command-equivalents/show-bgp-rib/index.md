@@ -6,7 +6,8 @@
 - Registry path: `show bgp rib`
 - Mode: Read-only
 - Wire method: `ze-rib-api:routes`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill, resolve, origin
 
 Query routes in the BGP RIB. Look at received or advertised routes with flexible filters: peer, family, prefix, AS path regex, community, match expression. Pipe operators: | count, | histogram, | graph. This is the main route inspection command.
 

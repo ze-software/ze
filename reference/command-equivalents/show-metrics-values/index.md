@@ -6,7 +6,8 @@
 - Registry path: `show metrics values`
 - Mode: Read-only
 - Wire method: `ze-bgp:metrics-values`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Dump all metrics in Prometheus text format. Outputs every registered metric with labels and values. Suitable for feeding into Prometheus, Grafana, or curl-based monitoring.
 

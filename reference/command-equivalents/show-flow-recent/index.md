@@ -6,7 +6,8 @@
 - Registry path: `show flow recent`
 - Mode: Read-only
 - Wire method: `ze-show:flow-recent`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show recent conntrack flow records from the bounded recent-flow ring. Without arguments, returns every ring record (oldest to newest, up to the configured recent-flow-ring capacity). With 'dst <prefix>', filters to flows whose destination is inside that prefix. The ring is fed only while conntrack export is enabled; the filter is by destination prefix (conntrack is host-global and carries no ingress interface).
 

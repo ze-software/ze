@@ -6,7 +6,8 @@
 - Registry path: `show ospf database network`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-database-network`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show only Network-LSAs (Type 2).
 

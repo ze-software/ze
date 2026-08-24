@@ -6,7 +6,8 @@
 - Registry path: `request peer resume`
 - Mode: Daemon
 - Wire method: `ze-bgp:peer-resume`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Resume reading from a previously paused peer. Usage: request peer <selector> resume.
 

@@ -6,7 +6,8 @@
 - Registry path: `resolve ping`
 - Mode: Read-only
 - Wire method: `ze-resolve:ping`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Ping from the router with optional source binding. Usage: resolve ping <target> [source <ip>] [count <n>] [size <bytes>].
 

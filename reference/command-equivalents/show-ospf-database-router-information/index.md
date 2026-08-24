@@ -6,7 +6,8 @@
 - Registry path: `show ospf database router-information`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-database-router-information`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show the Router Information LSAs (RFC 7770) for both address families -- OSPFv2 opaque type 4 and OSPFv3 function code 12 -- decoded into the advertised informational capability bits and the TLV list.
 

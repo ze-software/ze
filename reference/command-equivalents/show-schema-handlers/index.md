@@ -6,7 +6,8 @@
 - Registry path: `show schema handlers`
 - Mode: Read-only
 - Wire method: `ze-show:schema-handlers`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Pipes, on rows: none
 
 Show which handler serves each YANG module. Maps module names to their implementing Go handler.
 

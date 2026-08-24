@@ -6,7 +6,8 @@
 - Registry path: `delete debug profile name`
 - Mode: Offline
 - Wire method: `not listed`
-- Global pipes: no
+- Pipes, always: none
+- Pipes, on rows: none
 
 Delete a named debug profile.
 

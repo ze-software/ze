@@ -6,7 +6,8 @@
 - Registry path: `show metrics list`
 - Mode: Read-only
 - Wire method: `ze-bgp:metrics-list`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 List all registered metric names (no values). Useful for discovering what metrics exist before querying them.
 

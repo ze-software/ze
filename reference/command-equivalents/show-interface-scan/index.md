@@ -6,7 +6,8 @@
 - Registry path: `show interface scan`
 - Mode: Read-only
 - Wire method: `ze-show:interface-scan`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Discover and classify all OS interfaces. Returns name, Ze type (ethernet, bridge, vxlan, etc.), and MAC for each interface found. Pipe to table, yaml, or json for different views. Useful during initial setup to see what the box has.
 

@@ -6,7 +6,8 @@
 - Registry path: `show l2tp cqm`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:cqm`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show subscriber line quality (CQM latency buckets). Pass a login name for one subscriber or 'summary' for an overview. Helps diagnose poor subscriber experience.
 

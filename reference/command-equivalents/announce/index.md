@@ -6,7 +6,8 @@
 - Registry path: `announce`
 - Mode: Daemon
 - Wire method: `ze-bgp:announce`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Announce a route on demand to selected peers. Usage: announce <unicast|blackhole|flowspec> <args> [tag <key> <value>] [for <duration>]
 

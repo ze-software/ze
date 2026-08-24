@@ -209,9 +209,9 @@ sudo systemctl reload ze.service
 <pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
 /usr/local/bin/ze cli -c &quot;show bgp peer list&quot;
 /usr/local/bin/ze show warnings
-sudo nft list ruleset | sed -n '/table inet flowspec/,+80p'
+sudo nft list ruleset | sed -n '/table inet ze_flowspec/,+80p'
 </code></pre>
-<p>The FlowSpec bridge generates an nft table named <code>flowspec</code>. It creates base chains for forwarded traffic and local input traffic when rules exist:</p>
+<p>The FlowSpec bridge generates an nft table named <code>ze_flowspec</code>. The <code>ze_</code> prefix is what tells the firewall backend the table is ze's, so a route the peer withdraws takes its rules out of the kernel with it. <code>show firewall ruleset</code> and the web pages strip the prefix, so the name you type there stays <code>flowspec</code>. The bridge creates base chains for forwarded traffic and local input traffic when rules exist:</p>
 <table>
 <thead>
 <tr>
@@ -254,11 +254,16 @@ and the rulesets of every other firewall owner, continue to reach the kernel.</p
 /usr/local/bin/ze cli -c &quot;peer 192.0.2.10 update text extended-community discard nlri ipv4/flow add destination 10.0.0.0/8 protocol tcp destination-port =80&quot;
 </code></pre>
 <p>On a non-Ze source, use that router's FlowSpec origination syntax instead. Then, on <code>edge-01</code>, check that nftables received a rule:</p>
-<pre><code class="language-bash">sudo nft list table inet flowspec
+<pre><code class="language-bash">sudo nft list table inet ze_flowspec
 </code></pre>
 <p>Withdraw the test rule from the same source:</p>
 <pre><code class="language-bash">/usr/local/bin/ze cli -c &quot;peer 192.0.2.10 update text nlri ipv4/flow del destination 10.0.0.0/8 protocol tcp destination-port =80&quot;
 </code></pre>
+<p>The rule leaves the kernel with the route. When the withdrawn route was the last
+one the peer gave <code>edge-01</code>, <code>nft list ruleset</code> shows no <code>ze_flowspec</code> table at
+all. A router upgraded from a build older than 2026-08-23 holds a table named
+<code>flowspec</code>, without the prefix; ze removes that one on its first reconcile and
+logs <code>deleting a table an earlier ze build left without the ownership prefix</code>.</p>
 <h2 id="5-protect-the-bgp-session-itself">5. Protect the BGP session itself</h2>
 <p>The example uses three layers:</p>
 <table>
@@ -370,7 +375,7 @@ sudo systemctl reload ze.service
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 16:35 UTC</span>
                 </div>
             </div>
         </footer>

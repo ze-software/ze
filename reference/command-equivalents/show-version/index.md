@@ -6,7 +6,8 @@
 - Registry path: `show version`
 - Mode: Read-only
 - Wire method: `ze-show:version`
-- Global pipes: yes
+- Pipes, always: none
+- Pipes, on rows: none
 
 Show the running Ze version and build date. You can verify which release is deployed on this box.
 

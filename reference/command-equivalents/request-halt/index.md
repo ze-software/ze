@@ -6,7 +6,8 @@
 - Registry path: `request halt`
 - Mode: Daemon
 - Wire method: `ze-system:daemon-quit`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Dump goroutine stacks to stderr and terminate immediately.
 

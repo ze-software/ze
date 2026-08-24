@@ -747,7 +747,7 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 <tr>
 <td><code>needs-linux</code></td>
 <td><code>[caps=&lt;tok&gt;[,&lt;tok&gt;]]</code></td>
-<td>Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via <code>make ze-qemu-test-all</code>. <code>caps=</code> declares the capabilities the test also needs; without them it is SKIPped instead of hanging or failing on <code>operation not permitted</code>. Tokens: <code>net-admin</code> (privileged network configuration: creating interfaces, bringing links up, netlink, nftables), <code>net-raw</code> (raw/packet sockets: <code>resolve ping</code> and traceroute build ICMP through <code>net.ListenPacket("ip4:icmp". )</code>, which the kernel refuses unprivileged), <code>bpf</code> (loading eBPF programs and creating maps). It is a LIST because declaring one of two needed capabilities fails OPEN: a host holding just that one passes a gate it cannot satisfy. See. <span class="ev-src"><span class="ev-ref"><code>ai/rules/platform-linux.md</code></span></span></td>
+<td>Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via <code>make ze-qemu-test-all</code>. <code>caps=</code> declares the capabilities the test also needs; without them it is SKIPped instead of hanging or failing on <code>operation not permitted</code>. Tokens: <code>net-admin</code> (privileged network configuration: creating interfaces, bringing links up, netlink, nftables), <code>net-raw</code> (raw/packet sockets: <code>resolve ping</code> and traceroute build ICMP through <code>net.ListenPacket("ip4:icmp". )</code>, which the kernel refuses unprivileged), <code>bpf</code> (loading eBPF programs and creating maps). It is a LIST because declaring one of two needed capabilities fails OPEN: a host holding just that one passes a gate it cannot satisfy. <code>TestCIPrivilegedIPDeclaresNetAdmin</code> refuses a <code>.ci</code> that runs an iproute2 mutation without <code>net-admin</code>; it sees iproute2 only, so <code>nft</code>, <code>tc</code> and a raw socket are still yours to declare. See. <span class="ev-src"><span class="ev-ref"><code>internal/test/runner/caps_declaration_lint_test.go</code></span><span class="ev-ref"><code>ai/rules/platform-linux.md</code></span></span></td>
 </tr>
 <tr>
 <td><code>needs-path</code></td>
@@ -2187,7 +2187,7 @@ expect=completion:contains=router-id,local-as,peer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 August 2026 22:14 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 16:35 UTC</span>
                 </div>
             </div>
         </footer>

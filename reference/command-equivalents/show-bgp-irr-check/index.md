@@ -6,7 +6,8 @@
 - Registry path: `show bgp irr check`
 - Mode: Read-only
 - Wire method: `ze-show:irr-check`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill, resolve, origin
 
 Check if a prefix is accepted by the IRR filter. Usage: show bgp irr check <peer> <prefix>. Reports whether the prefix would be accepted or rejected, and which entry matches.
 

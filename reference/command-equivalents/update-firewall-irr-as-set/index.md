@@ -6,7 +6,8 @@
 - Registry path: `update firewall irr as-set`
 - Mode: Daemon
 - Wire method: `ze-update:firewall-irr-as-set`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Fetch or refresh IRR prefix-list for an AS-SET. Usage: update firewall irr as-set <as-set>. Queries the IRR server and saves resolved prefixes to the zefs cache.
 

@@ -6,7 +6,8 @@
 - Registry path: `request cache expire`
 - Mode: Daemon
 - Wire method: `ze-bgp:cache-expire`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Remove a cached message immediately. Usage: request cache expire <id>.
 

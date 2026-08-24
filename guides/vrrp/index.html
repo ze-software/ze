@@ -298,6 +298,30 @@ additionally sends gratuitous ARP (IPv4) or unsolicited Neighbor Advertisements
 (IPv6) on promotion so switches relearn the port immediately.</p>
 <p>The macvlan is created and destroyed with the group. It belongs to the plugin,
 not to your config, and you do not declare it.</p>
+<p>It hangs off the device the interface's hardware selector names. If you pin an
+interface to a NIC with <code>mac/match</code>, or alias it with <code>os-name</code>, the virtual
+router lives on THAT NIC, and the kernel name it currently wears does not
+matter. Move the card to another slot, let the kernel rename it, and the group
+follows on the next commit. A group on a VLAN-tagged unit lives on the tag of
+the selected device, not on the tag of the name you chose.</p>
+<p>The <code>device</code> label on ze's VRRP metrics and state-change events names that same
+resolved device. On an interface with no selector nothing changes, because the
+logical name and the kernel name are the same string. On a selected interface
+the label carries the NIC's kernel name rather than the name you chose, so a
+dashboard or alert keyed on the old value follows it.</p>
+<p>A selector that names no present device, or that more than one device answers,
+runs no virtual router at all. Ze does not fall back to a device that merely
+shares the interface's name: that device is not the link you asked to protect.
+The group starts when the selector answers exactly one device, and the daemon
+logs the reason while it does not. That log line says whether the group will
+retry: a group that never started waits for the next configuration apply.</p>
+<p>A group that is ALREADY running is never stopped by a resolution failure. Ze
+cannot tell "this NIC is gone" from "I could not read the interface list this
+second", and treating the second as the first would fail a working master over
+for a transient error. A running group keeps the device it is on, and the
+ordinary liveness check decides whether it advertises there: if the NIC really
+did go away, the group stands down and comes back by itself when the NIC
+returns, with no commit from you.</p>
 <p>A host on the segment that resolves the virtual IP gets the <strong>virtual MAC</strong>, not
 the router's real MAC, so failover is transparent at L2: the address moves to a
 different router without the host's ARP or neighbour entry changing. Achieving
@@ -536,7 +560,7 @@ filters link-local multicast will break the election.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 16:35 UTC</span>
                 </div>
             </div>
         </footer>

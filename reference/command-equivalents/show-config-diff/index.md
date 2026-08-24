@@ -6,7 +6,8 @@
 - Registry path: `show config diff`
 - Mode: Read-only
 - Wire method: `ze-show:config-diff`
-- Global pipes: yes
+- Pipes, always: none
+- Pipes, on rows: none
 
 Compare two configuration versions side by side. Shows what was added, removed, or changed. Commonly used with rollback revisions to review what changed before you roll back.
 

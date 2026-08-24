@@ -6,7 +6,8 @@
 - Registry path: `clear isis counters`
 - Mode: Daemon
 - Wire method: `ze-clear:isis-counters`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Reset IS-IS observational counters and the SPF log. Usage: clear isis counters. Monotonic Prometheus series are not reset; the SPF-run history is cleared.
 

@@ -6,7 +6,8 @@
 - Registry path: `clear debug`
 - Mode: Offline
 - Wire method: `not listed`
-- Global pipes: no
+- Pipes, always: none
+- Pipes, on rows: none
 
 Clear the default debug profile.
 

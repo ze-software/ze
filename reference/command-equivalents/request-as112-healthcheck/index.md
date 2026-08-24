@@ -6,7 +6,8 @@
 - Registry path: `request as112 healthcheck`
 - Mode: Daemon
 - Wire method: `ze-as112:health`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 One-shot authoritative query against an anycast service address (or the given target), exit 0 iff the expected AS112 answer comes back. Finding M4: the tool a healthcheck probe calls, since dig is not on the gokrazy appliance and 'ze resolve dns' cannot target a specific server. Usage: request as112 healthcheck [target <ip>].
 

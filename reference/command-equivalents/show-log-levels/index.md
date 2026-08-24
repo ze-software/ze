@@ -6,7 +6,8 @@
 - Registry path: `show log levels`
 - Mode: Read-only
 - Wire method: `ze-bgp:log-levels`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show what log level each subsystem is using. Lists every registered logger with its current level. Use 'request log level' to change a level at runtime without restarting.
 

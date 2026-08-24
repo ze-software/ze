@@ -6,7 +6,8 @@
 - Registry path: `set system file-descriptors`
 - Mode: Daemon
 - Wire method: `ze-set:system-file-descriptors`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Raise the file descriptor limit for the daemon process. Pass a number or 'max' to go to the hard limit. Takes effect immediately. Check current limits with 'show system file-descriptors'.
 

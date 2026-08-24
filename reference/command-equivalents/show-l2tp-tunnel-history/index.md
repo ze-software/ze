@@ -6,7 +6,8 @@
 - Registry path: `show l2tp tunnel history`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:tunnel-history`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show state transitions for a tunnel over time. Timestamped FSM entries showing how the tunnel reached its current state. Use this to diagnose tunnel establishment failures.
 

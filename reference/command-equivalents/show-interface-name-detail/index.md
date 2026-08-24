@@ -6,7 +6,8 @@
 - Registry path: `show interface name detail`
 - Mode: Read-only
 - Wire method: `ze-show:interface-detail`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show full detail for one interface. Usage: show interface name <name> detail.
 

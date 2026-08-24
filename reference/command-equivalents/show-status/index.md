@@ -6,7 +6,8 @@
 - Registry path: `show status`
 - Mode: Read-only
 - Wire method: `ze-system:daemon-status`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show process status, uptime, and resource usage.
 

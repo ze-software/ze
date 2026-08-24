@@ -62,7 +62,8 @@
 <div><dt>Registry path</dt><dd><code>show policy chain peer</code></dd></div>
 <div><dt>Mode</dt><dd>Read-only</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-show:policy-chain</code></dd></div>
-<div><dt>Global pipes</dt><dd>yes</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
+<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
 </dl>
 <h3>Description</h3><p>Show the import/export filter chain applied to a peer.<br>Usage: show policy chain peer &lt;selector&gt; [import|export]. The selector<br>(IP, name, as&lt;N&gt;) and the optional direction are parsed by the handler.<br>Shows the effective chain after group inheritance is resolved. Without<br>a direction keyword, shows both import and export.</p>
 <h3>Arguments</h3>
@@ -129,7 +130,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 06:12 UTC</span>
                 </div>
             </div>
         </footer>

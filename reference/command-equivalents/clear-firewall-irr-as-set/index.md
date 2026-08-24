@@ -6,7 +6,8 @@
 - Registry path: `clear firewall irr as-set`
 - Mode: Daemon
 - Wire method: `ze-clear:firewall-irr-as-set`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Remove the cached IRR prefix-list for an AS-SET. Usage: clear firewall irr as-set <as-set>. Drops the entry from memory and from the persisted cache, then re-applies the firewall tables.
 

@@ -6,7 +6,8 @@
 - Registry path: `show doctor`
 - Mode: Read-only
 - Wire method: `ze-show:doctor`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Check if this box is ready to run Ze. Verifies runtime dependencies: required files, sockets, ports, and kernel modules. Each check reports pass or fail with a reason. Run this before first start or after changing the platform setup.
 

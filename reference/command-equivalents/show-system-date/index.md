@@ -6,7 +6,8 @@
 - Registry path: `show system date`
 - Mode: Read-only
 - Wire method: `ze-show:system-date`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show the daemon's current wall-clock time and timezone. Useful for correlating log timestamps when the box is in a different timezone than you are.
 

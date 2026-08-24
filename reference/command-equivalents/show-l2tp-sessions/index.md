@@ -6,7 +6,8 @@
 - Registry path: `show l2tp sessions`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:sessions`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 List all active L2TP sessions. One line per session: local/remote ID, parent tunnel, subscriber login, and uptime.
 

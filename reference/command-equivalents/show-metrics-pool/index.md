@@ -6,7 +6,8 @@
 - Registry path: `show metrics pool`
 - Mode: Read-only
 - Wire method: `ze-bgp:pool-stats`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show attribute pool memory usage and dedup efficiency. Returns allocated entries, reference counts, and deduplication hit rates per attribute type. Watch the dedup rate to gauge how much memory pooling is saving you.
 

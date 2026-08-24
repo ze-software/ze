@@ -62,7 +62,8 @@
 <div><dt>Registry path</dt><dd><code>clear bgp rib in</code></dd></div>
 <div><dt>Mode</dt><dd>Daemon</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-rib-api:clear-in</code></dd></div>
-<div><dt>Global pipes</dt><dd>yes</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
+<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
 </dl>
 <h3>Description</h3><p>Remove all routes received from a peer.<br>Wipes the Adj-RIB-In for matched peers. They will need to<br>re-advertise everything (or you can send a route-refresh).<br>Selector: IP, name, AS pattern, glob, or *.</p>
 <h3>Arguments</h3>
@@ -129,7 +130,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 06:12 UTC</span>
                 </div>
             </div>
         </footer>

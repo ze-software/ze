@@ -6,7 +6,8 @@
 - Registry path: `show ospf database router`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-database-router`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show only Router-LSAs (Type 1).
 

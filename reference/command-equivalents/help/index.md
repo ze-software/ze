@@ -6,7 +6,8 @@
 - Registry path: `help`
 - Mode: Read-only
 - Wire method: `ze-bgp:help`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show available commands at this level. Lists every registered command verb with a brief description.
 

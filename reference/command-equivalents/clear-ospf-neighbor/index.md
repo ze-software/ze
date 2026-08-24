@@ -6,7 +6,8 @@
 - Registry path: `clear ospf neighbor`
 - Mode: Daemon
 - Wire method: `ze-clear:ospf-neighbor`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Tear down every OSPF adjacency so neighbors re-form. Usage: clear ospf neighbor. Adjacencies re-learn from the next Hello.
 

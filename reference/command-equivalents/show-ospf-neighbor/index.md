@@ -6,7 +6,8 @@
 - Registry path: `show ospf neighbor`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-neighbor`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show OSPF neighbors. Returns each neighbor's router-id, interface, adjacency state, DR/BDR, priority, dead time, and address.
 

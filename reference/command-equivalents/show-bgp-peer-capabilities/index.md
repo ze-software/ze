@@ -6,7 +6,8 @@
 - Registry path: `show bgp peer capabilities`
 - Mode: Read-only
 - Wire method: `ze-bgp:peer-capabilities`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill, resolve, origin
 
 Show what capabilities were negotiated with a peer. Usage: show bgp peer <selector> capabilities.
 

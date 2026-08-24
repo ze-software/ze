@@ -6,7 +6,8 @@
 - Registry path: `show capture interface`
 - Mode: Read-only
 - Wire method: `ze-show:capture-interface`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Capture live packets on an interface (like tcpdump). Uses AF_PACKET for zero-copy capture. Filter by protocol and port. Limit with count or duration. Output as pcap (for Wireshark) or text. Snap-len controls how many bytes per packet are captured.
 

@@ -6,7 +6,8 @@
 - Registry path: `show system subsystem list`
 - Mode: Read-only
 - Wire method: `ze-show:system-subsystem-list`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 List every registered subsystem and whether it is running. Shows you which components (bgp, dns, web, l2tp, etc.) are active, stopped, or failed.
 

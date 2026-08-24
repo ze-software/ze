@@ -6,7 +6,8 @@
 - Registry path: `show ospf spf`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-spf`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show recent OSPF SPF runs. Returns the most recent per-area SPF runs with their timestamp, duration, node count, and pending state.
 

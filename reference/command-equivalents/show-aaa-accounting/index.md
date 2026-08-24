@@ -6,7 +6,8 @@
 - Registry path: `show aaa accounting`
 - Mode: Read-only
 - Wire method: `ze-show:aaa-accounting`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show AAA accounting counters and any dropped records. Tells you whether TACACS+ accounting is working or if records are being lost due to server unreachability.
 

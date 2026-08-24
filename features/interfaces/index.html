@@ -908,7 +908,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.</p>
 iface component (register.go) -- OnConfigure() loads backend, starts monitor
   |
   v
-Backend interface (backend.go) -- 34 methods: lifecycle, address, sysctl, mirror, monitor
+Backend interface (backend.go) -- 45 methods: lifecycle, address, sysctl, mirror, monitor
   |
   v
 +------------------+--------------------+
@@ -966,14 +966,14 @@ and none falls back to the logical name. That fallback is what made an aliased e
 configure whatever else carried its name. An entry whose <code>mac/match</code> names more than one
 device refuses the apply, and a device only answers a <code>mac/match</code> when the address it is
 matched on is its own: a VLAN inherits its parent's, and a bridge or bond wears a
-member's, so neither is a candidate. <code>resolveOS</code> draws the same line for the by-name
+member's, so neither is a candidate. <code>ResolveDevice</code> draws the same line for the by-name
 dispatch ops: a name with no selector passes through unchanged, and a name WITH a
 selector that fails to resolve returns an error rather than the name.</p>
 <p>The two settings that name a SECOND interface resolve through the same map: a bridge
 member is enslaved by the kernel device its entry selects, and a mirror sends its copy
 to the capture port's kernel device.</p>
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
-<!-- source: internal/component/iface/dispatch.go -- resolveOS translation in the by-name dispatch ops -->
+<!-- source: internal/component/iface/dispatch.go -- ResolveDevice translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->
 <!-- source: scripts/checks/iface_resolution.go -- no-direct-resolution guard -->
 
@@ -1053,10 +1053,25 @@ device appears, and a config is validated on machines that will never run it.</p
   every one that was dropped or changed before it installs the new set. A changed
   destination is a remove followed by an install, because tc filters are additive:
   installing the new destination would otherwise leave the old one duplicating
-  traffic. A daemon restart starts from no previous config, so a mirror deleted from
-  the config file while ze was down is not reconciled away.</li>
+  traffic.</li>
+<li><strong>The reconcile reads the dataplane, so a restart retires a stranded mirror.</strong>
+  A second pass runs inside the config reconcile and compares the mirrors the
+  dataplane carries against the mirrors the configuration asks for. It needs no
+  previous config, so a mirror the operator deleted while ze was down is torn down
+  on the next boot, and a teardown an earlier apply skipped is retried. A backend
+  that cannot report its live mirrors leaves every mirror alone, because "the read
+  failed" is not "no mirror is installed".</li>
+<li><strong>The pass acts only on the interfaces the configuration names.</strong> A priority-1
+  matchall mirred filter is a shape, not a mark of ownership, and another tool can
+  install the same one, so ze removes a mirror only on an interface its own
+  configuration configures (the current one or the previous one). One case is
+  therefore out of reach: an interface whose whole stanza was deleted while ze was
+  down keeps its mirror, because nothing then tells it apart from a filter ze never
+  installed. Delete the interface from the configuration while ze runs, or clear
+  the mirror leaves first, and the mirror is retired.</li>
 </ul>
-<!-- source: internal/component/iface/config_mirror.go -- indexMirrorSpecs, removeStaleMirrors, applyMirror -->
+<!-- source: internal/component/iface/config_mirror.go -- indexMirrorSpecs, removeStaleMirrors, reconcileMirrors, applyMirror -->
+<!-- source: internal/plugins/iface/netlink/mirror_linux.go -- ListMirrors, mirrorDestinationName -->
 
 <h2 id="tunnel-configuration">Tunnel Configuration</h2>
 <pre><code>interface {
@@ -2103,14 +2118,21 @@ underlying mechanism. Cells with a footnote carry a caveat.</p>
 <td><strong>Mirror</strong></td>
 <td><code>SetupMirror</code></td>
 <td>real (tc mirred)</td>
-<td>err (pending SpanEnableDisableL2)</td>
+<td>real (device SPAN)</td>
 <td>err</td>
 </tr>
 <tr>
 <td></td>
 <td><code>RemoveMirror</code></td>
 <td>real</td>
-<td>err (pending SpanEnableDisableL2)</td>
+<td>real (device SPAN)</td>
+<td>err</td>
+</tr>
+<tr>
+<td></td>
+<td><code>ListMirrors</code></td>
+<td>real (tc filter dump)</td>
+<td>real (SwInterfaceSpanDump)</td>
 <td>err</td>
 </tr>
 <tr>
@@ -2231,7 +2253,7 @@ exact-or-reject.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 16:35 UTC</span>
                 </div>
             </div>
         </footer>

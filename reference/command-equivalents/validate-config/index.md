@@ -6,7 +6,8 @@
 - Registry path: `validate config`
 - Mode: Offline
 - Wire method: `not listed`
-- Global pipes: no
+- Pipes, always: none
+- Pipes, on rows: none
 
 Check your config for errors without applying anything. Reports syntax and semantic issues.
 

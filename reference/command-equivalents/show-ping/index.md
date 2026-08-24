@@ -6,7 +6,8 @@
 - Registry path: `show ping`
 - Mode: Read-only
 - Wire method: `ze-show:ping`
-- Global pipes: yes
+- Pipes, always: none
+- Pipes, on rows: none
 
 Ping a target from the router itself. Sends ICMP echo requests to <dest> (IP or hostname). Default count is 5. Timeout uses Go duration syntax (e.g. 3s, 500ms). Confirms reachability from this box, not from your workstation.
 

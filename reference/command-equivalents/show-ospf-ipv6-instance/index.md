@@ -6,7 +6,8 @@
 - Registry path: `show ospf ipv6 instance`
 - Mode: Read-only
 - Wire method: `ze-show:ospfv3-instance`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Enumerate the active OSPFv3 address-family instances (RFC 5838 section 2): each with its address family, Instance ID, area count, and neighbor count.
 

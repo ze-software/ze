@@ -6,7 +6,8 @@
 - Registry path: `peer raw`
 - Mode: Daemon
 - Wire method: `ze-bgp:peer-raw`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Send raw bytes into a peer's TCP stream (dangerous). Injects arbitrary bytes with no BGP framing or validation. Intended for conformance testing and fuzzing only. Will likely break the session if used carelessly.
 

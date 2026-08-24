@@ -6,7 +6,8 @@
 - Registry path: `show traffic feature`
 - Mode: Read-only
 - Wire method: `ze-show:traffic-feature`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show neutral per-source traffic feature signals: fan-out (distinct destinations), out/in byte ratio (exfiltration), destination-port entropy, new-peer, rare-port/proto, and coarse beaconing. Without arguments, shows the top source entities. With 'name <address>', filters to one source.
 

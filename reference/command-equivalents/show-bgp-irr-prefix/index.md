@@ -6,7 +6,8 @@
 - Registry path: `show bgp irr prefix`
 - Mode: Read-only
 - Wire method: `ze-show:irr-prefix`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill, resolve, origin
 
 Show IRR-resolved prefixes for a peer. Usage: show bgp irr prefix <peer>. Lists all IPv4 and IPv6 prefixes in the IRR-resolved prefix-list for the given peer address.
 

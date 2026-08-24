@@ -6,7 +6,8 @@
 - Registry path: `show ospf ipv6 database detail`
 - Mode: Read-only
 - Wire method: `ze-show:ospfv3-database-detail`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Decode every OSPFv3 LSA body with its scope-aware header (RFC 5340 section A.4.2.1).
 

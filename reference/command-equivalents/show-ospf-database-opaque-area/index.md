@@ -6,7 +6,8 @@
 - Registry path: `show ospf database opaque-area`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-database-opaque-area`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show only area-scope opaque-LSAs (Type 10, RFC 5250).
 

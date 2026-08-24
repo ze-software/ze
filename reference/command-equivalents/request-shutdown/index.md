@@ -6,7 +6,8 @@
 - Registry path: `request shutdown`
 - Mode: Daemon
 - Wire method: `ze-system:daemon-shutdown`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Gracefully shutdown: drain connections, close peers, exit.
 

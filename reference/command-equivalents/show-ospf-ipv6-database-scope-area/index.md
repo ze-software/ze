@@ -6,7 +6,8 @@
 - Registry path: `show ospf ipv6 database scope area`
 - Mode: Read-only
 - Wire method: `ze-show:ospfv3-database-scope-area`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show only area-scope (S2/S1 = 01) LSAs.
 

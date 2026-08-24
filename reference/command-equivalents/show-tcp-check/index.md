@@ -6,7 +6,8 @@
 - Registry path: `show tcp-check`
 - Mode: Read-only
 - Wire method: `ze-show:tcp-check`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Test TCP connectivity to a remote host and port. Tries to open a TCP connection and reports success or failure with the connection time. Use 'source <IP>' to bind a specific local address. Quick way to verify a peer's BGP port is reachable.
 

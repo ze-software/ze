@@ -6,7 +6,8 @@
 - Registry path: `show interface brief`
 - Mode: Read-only
 - Wire method: `ze-show:interface-brief`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 One-line summary per interface: name, state, IP, and MTU. Quick way to see what is up and what addresses are assigned.
 

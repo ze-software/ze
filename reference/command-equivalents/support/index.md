@@ -6,7 +6,8 @@
 - Registry path: `support`
 - Mode: Offline
 - Wire method: `not listed`
-- Global pipes: no
+- Pipes, always: none
+- Pipes, on rows: none
 
 Bundle logs, config, state, and diagnostics into one archive file. Send the result to support when reporting an issue.
 

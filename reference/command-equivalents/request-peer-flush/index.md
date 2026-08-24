@@ -6,7 +6,8 @@
 - Registry path: `request peer flush`
 - Mode: Daemon
 - Wire method: `ze-bgp:peer-flush`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Wait until all queued updates for a peer are sent. Usage: request peer <selector> flush.
 

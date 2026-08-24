@@ -6,7 +6,8 @@
 - Registry path: `show route lookup`
 - Mode: Read-only
 - Wire method: `ze-show:route-lookup`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Look up which route the kernel would use for a given IP. Performs a longest-prefix-match and returns the matching route with gateway, interface, protocol, and metric. Usage: show route lookup <ip>.
 

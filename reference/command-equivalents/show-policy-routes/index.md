@@ -6,7 +6,8 @@
 - Registry path: `show policy routes`
 - Mode: Read-only
 - Wire method: `ze-show:policy-routes`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show policy-based routing rules. Lists PBR rules with match criteria and routing actions.
 

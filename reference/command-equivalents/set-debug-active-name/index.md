@@ -6,7 +6,8 @@
 - Registry path: `set debug active name`
 - Mode: Offline
 - Wire method: `not listed`
-- Global pipes: no
+- Pipes, always: none
+- Pipes, on rows: none
 
 Load a named debug profile and apply it to the running daemon.
 

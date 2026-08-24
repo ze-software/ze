@@ -6,7 +6,8 @@
 - Registry path: `show yang completion`
 - Mode: Read-only
 - Wire method: `ze-show:yang-completion`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Pipes, on rows: none
 
 Show YANG paths available for tab completion. Lists every valid completion point in the command tree.
 

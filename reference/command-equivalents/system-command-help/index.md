@@ -6,7 +6,8 @@
 - Registry path: `system command help`
 - Mode: Read-only
 - Wire method: `ze-system:command-help`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show command details
 

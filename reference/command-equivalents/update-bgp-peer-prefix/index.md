@@ -6,7 +6,8 @@
 - Registry path: `update bgp peer prefix`
 - Mode: Daemon
 - Wire method: `ze-update:bgp-peer-prefix`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Refresh max-prefix limits from PeeringDB. Usage: update bgp peer <selector> prefix. Queries PeeringDB for each matched peer's ASN, applies the configured margin, and writes the result to the config draft. Run 'config commit' to apply.
 

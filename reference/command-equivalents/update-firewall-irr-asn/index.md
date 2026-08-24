@@ -6,7 +6,8 @@
 - Registry path: `update firewall irr asn`
 - Mode: Daemon
 - Wire method: `ze-update:firewall-irr-asn`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Fetch or refresh IRR prefix-list for an ASN. Usage: update firewall irr asn <asn>. Queries the IRR server and saves resolved prefixes to the zefs cache. Creates the cache entry if it does not exist.
 

@@ -6,7 +6,8 @@
 - Registry path: `show mpls forwarding`
 - Mode: Read-only
 - Wire method: `ze-show:mpls-forwarding`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show MPLS forwarding entries installed in the kernel. Each entry shows the incoming label, swap/push/pop operation, and outgoing next-hop. Pass 'limit N' to cap large tables. Linux only.
 

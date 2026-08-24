@@ -6,7 +6,8 @@
 - Registry path: `help command`
 - Mode: Offline
 - Wire method: `not listed`
-- Global pipes: no
+- Pipes, always: none
+- Pipes, on rows: none
 
 List every command with its description. Use a filter to narrow the list.
 

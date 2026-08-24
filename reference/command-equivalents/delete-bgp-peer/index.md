@@ -6,7 +6,8 @@
 - Registry path: `delete bgp peer`
 - Mode: Daemon
 - Wire method: `ze-delete:bgp-peer`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Remove a peer from the running config. Tears down the TCP session and deletes the peer from the running configuration. Does not modify the config file on disk.
 

@@ -6,7 +6,8 @@
 - Registry path: `show as112`
 - Mode: Read-only
 - Wire method: `ze-show:as112`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 AS112 node status: enabled, address-family, hostname/ facility/location, allow-from count, served zone count, and the current SOA serial.
 

@@ -103,9 +103,18 @@ alongside `rpki-server` and `bmp-collector.py`:
 ### Prove a scenario discriminates
 
 An interop scenario is evidence only if it goes RED when the behaviour it tests is
-broken. Before relying on a new scenario, revert the fix, rebuild the `ze-interop`
-image (`docker build -f test/interop/Dockerfile.ze -t ze-interop .`), and confirm the
-scenario fails; then restore and confirm it passes. A scenario that passes either way
+broken. Before relying on a new scenario, revert the fix, run the scenario, and
+confirm it fails; then restore and confirm it passes.
+
+**Let the harness build. Do NOT `docker build -t ze-interop` by hand and then run
+with `NO_BUILD=1`.** A tag is shared by every run on the host, so a build in another
+session rebinds it between yours and your container start, and your mutation run then
+measures a daemon you did not build. That inverted a proof twice in one review on
+2026-08-05. `build_images` now reads the image ID `docker build -q` prints and pins
+every container of the run to it, and it prints the ID it resolved: quote that line
+beside the result, because it names the binary the run measured.
+
+A scenario that passes either way
 (common when the peer must accept both the old and new wire form) proves acceptance,
 not correctness -- see `ai/rules/interop-and-goal-validation.md` "Prove the test
 discriminates".

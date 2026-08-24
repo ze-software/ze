@@ -6,7 +6,8 @@
 - Registry path: `show ospf ipv6 database router detail`
 - Mode: Read-only
 - Wire method: `ze-show:ospfv3-database-router-detail`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Decode each OSPFv3 Router-LSA body.
 

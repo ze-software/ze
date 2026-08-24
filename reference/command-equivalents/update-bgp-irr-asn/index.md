@@ -6,7 +6,8 @@
 - Registry path: `update bgp irr asn`
 - Mode: Daemon
 - Wire method: `ze-update:irr-asn`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Refresh IRR prefix-list for a specific ASN. Usage: update bgp irr asn <asn>. Re-queries the IRR server for the given ASN only.
 

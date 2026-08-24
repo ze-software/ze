@@ -6,7 +6,8 @@
 - Registry path: `show pppoe`
 - Mode: Read-only
 - Wire method: `ze-pppoe-api:summary`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 PPPoE session and protocol state. Without a subcommand, shows a summary of active sessions.
 

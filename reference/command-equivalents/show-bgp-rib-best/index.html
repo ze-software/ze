@@ -62,7 +62,8 @@
 <div><dt>Registry path</dt><dd><code>show bgp rib best</code></dd></div>
 <div><dt>Mode</dt><dd>Read-only</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-rib-api:best</code></dd></div>
-<div><dt>Global pipes</dt><dd>yes</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
+<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill, resolve, origin</dd></div>
 </dl>
 <h3>Description</h3><p>Show the winning route for each prefix.<br>Same filters as &#x27;show bgp rib&#x27;. Use &#x27;| reason&#x27; to see why each<br>path was selected (local-pref, AS path length, MED, etc.).</p>
 <h3>Arguments</h3>
@@ -149,7 +150,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 06:12 UTC</span>
                 </div>
             </div>
         </footer>

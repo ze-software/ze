@@ -6,7 +6,8 @@
 - Registry path: `plugin command list`
 - Mode: Read-only
 - Wire method: `ze-plugin:command-list`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 List plugin commands
 

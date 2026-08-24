@@ -6,7 +6,8 @@
 - Registry path: `show yang tree`
 - Mode: Read-only
 - Wire method: `ze-show:yang-tree`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Pipes, on rows: none
 
 Print the YANG tree for a module in a readable hierarchy. Shows node types, data types, and config-vs-state annotations. Similar to 'pyang -f tree'. Useful for understanding the config or command structure.
 

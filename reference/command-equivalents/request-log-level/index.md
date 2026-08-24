@@ -6,7 +6,8 @@
 - Registry path: `request log level`
 - Mode: Daemon
 - Wire method: `ze-bgp:log-set`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Change a subsystem's log level without restarting. Usage: request log level <logger> <level>. Takes effect immediately. Set to debug when troubleshooting, then back to info when you are done.
 

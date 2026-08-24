@@ -6,7 +6,8 @@
 - Registry path: `show rsvp-te lsp`
 - Mode: Read-only
 - Wire method: `ze-show:rsvp-te-lsp`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show RSVP-TE label-switched paths. Returns state, role (ingress/transit/egress), reserved bandwidth, and in/out labels for each LSP.
 

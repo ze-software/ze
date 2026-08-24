@@ -6,7 +6,8 @@
 - Registry path: `show bgp`
 - Mode: Read-only
 - Wire method: `ze-bgp:overview`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
+- Pipes, on rows: none
 
 BGP peers, sessions, RIB, and protocol tools. Typed with no subcommand, lists every peer with state, ASN, prefixes received, and uptime. Optionally scope by address family: ipv4, ipv6, or l2vpn.
 

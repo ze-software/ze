@@ -6,7 +6,8 @@
 - Registry path: `show yang doc`
 - Mode: Read-only
 - Wire method: `ze-show:yang-doc`
-- Global pipes: yes
+- Pipes, always: none
+- Pipes, on rows: none
 
 Generate command reference docs from YANG schemas. Produces structured documentation with descriptions, arguments, and usage patterns for every registered command.
 

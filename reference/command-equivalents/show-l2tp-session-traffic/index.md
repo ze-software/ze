@@ -6,7 +6,8 @@
 - Registry path: `show l2tp session traffic`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:session-traffic`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show traffic counters for a subscriber's PPP interface. Returns byte and packet counts, error counters, and current rates. Compare with CQM data to get the full picture of subscriber health.
 

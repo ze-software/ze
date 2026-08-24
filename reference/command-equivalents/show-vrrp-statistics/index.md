@@ -6,7 +6,8 @@
 - Registry path: `show vrrp statistics`
 - Mode: Read-only
 - Wire method: `ze-show:vrrp-statistics`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show per-virtual-router counters: advertisements sent and received, priority-zero advertisements, gratuitous ARP and unsolicited neighbor advertisement bursts, receive-validation errors by reason, and the derived skew and master-down timers in microseconds (a VRRPv3 skew is sub-millisecond).
 

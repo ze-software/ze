@@ -6,7 +6,8 @@
 - Registry path: `show ddos flowspec`
 - Mode: Read-only
 - Wire method: `ze-show:ddos-flowspec`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show the upstream FlowSpec/RTBH DDoS mitigation status: whether a rule is currently announced, the target vector it covers, and whether the leak-probe is running.
 

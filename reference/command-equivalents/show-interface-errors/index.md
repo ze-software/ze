@@ -6,7 +6,8 @@
 - Registry path: `show interface errors`
 - Mode: Read-only
 - Wire method: `ze-show:interface-errors`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show interfaces that have errors or drops. Filters to only interfaces with non-zero Rx/Tx error or drop counters. Quick way to find troubled links.
 

@@ -6,7 +6,8 @@
 - Registry path: `plugin ack`
 - Mode: Read-only
 - Wire method: `ze-bgp:plugin-ack`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Choose sync or async event delivery. sync: Ze waits for your plugin to acknowledge each event before sending the next one. Safer but slower. async: events fire without waiting, giving higher throughput at the cost of backpressure control.
 

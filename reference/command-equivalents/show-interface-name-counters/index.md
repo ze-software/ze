@@ -6,7 +6,8 @@
 - Registry path: `show interface name counters`
 - Mode: Read-only
 - Wire method: `ze-show:interface-counters`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show counters for one interface. Usage: show interface name <name> counters.
 

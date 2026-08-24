@@ -6,7 +6,8 @@
 - Registry path: `show l2tp tunnel id`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:tunnel`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show full detail for one L2TP tunnel. Pass the local tunnel ID. Returns control channel state, peer endpoint, hello interval, and all assigned sessions.
 

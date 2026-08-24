@@ -6,7 +6,8 @@
 - Registry path: `show bgp decode`
 - Mode: Read-only
 - Wire method: `ze-show:bgp-decode`
-- Global pipes: yes
+- Pipes, always: none
+- Pipes, on rows: none
 
 Decode a hex-encoded BGP message into readable JSON. Paste a hex BGP UPDATE and get back parsed attributes, NLRI, and withdrawn prefixes. Handy for reading pcap captures or debugging wire issues. Also available in the web UI under tools.
 

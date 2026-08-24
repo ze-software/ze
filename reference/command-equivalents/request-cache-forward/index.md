@@ -6,7 +6,8 @@
 - Registry path: `request cache forward`
 - Mode: Daemon
 - Wire method: `ze-bgp:cache-forward`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Forward a cached UPDATE to peers matching a selector. Usage: request cache forward <id> <selector>.
 

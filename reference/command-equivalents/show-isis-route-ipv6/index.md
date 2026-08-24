@@ -6,7 +6,8 @@
 - Registry path: `show isis route ipv6`
 - Mode: Read-only
 - Wire method: `ze-show:isis-route-ipv6`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show IS-IS-computed IPv6 routes (RFC 5308). Lists each IPv6 prefix the SPF installed with its metric, level, and next-hops (link-local address and outgoing interface).
 

@@ -6,7 +6,8 @@
 - Registry path: `show ospf ipv6 database extended`
 - Mode: Read-only
 - Wire method: `ze-show:ospfv3-database-extended`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show the RFC 8362 extended OSPFv3 LSAs (E-Router / E-Network / E-Inter-Area / E-AS-External / E-Link / E-Intra-Area-Prefix) decoded into named TLVs.
 

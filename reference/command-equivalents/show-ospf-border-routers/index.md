@@ -6,7 +6,8 @@
 - Registry path: `show ospf border-routers`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-border-routers`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show routes to OSPF area-border and AS-boundary routers. Lists each reachable ABR/ASBR with its router-id, cost, next-hops, and area.
 

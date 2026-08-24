@@ -6,7 +6,8 @@
 - Registry path: `clear interface name counters`
 - Mode: Daemon
 - Wire method: `ze-clear:interface-counters`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Zero the Rx/Tx counters for one interface. Usage: clear interface name <name> counters.
 

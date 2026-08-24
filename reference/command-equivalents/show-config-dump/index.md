@@ -6,7 +6,8 @@
 - Registry path: `show config dump`
 - Mode: Read-only
 - Wire method: `ze-show:config-dump`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: none
 
 Show the fully resolved configuration tree. Parses the config and outputs it after includes, defaults, and group inheritance have been applied. What you see here is exactly what the daemon is using.
 

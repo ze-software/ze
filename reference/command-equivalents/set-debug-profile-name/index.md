@@ -6,7 +6,8 @@
 - Registry path: `set debug profile name`
 - Mode: Offline
 - Wire method: `not listed`
-- Global pipes: no
+- Pipes, always: none
+- Pipes, on rows: none
 
 Save the current debug state as a named profile.
 

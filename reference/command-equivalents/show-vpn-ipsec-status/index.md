@@ -6,7 +6,8 @@
 - Registry path: `show vpn ipsec status`
 - Mode: Read-only
 - Wire method: `ze-show:vpn-ipsec-status`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Quick IPsec health check. Reports whether the IKE engine is running, how many peers are configured, and how many IKE SAs are Established.
 

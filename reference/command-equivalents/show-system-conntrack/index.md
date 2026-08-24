@@ -6,7 +6,8 @@
 - Registry path: `show system conntrack`
 - Mode: Read-only
 - Wire method: `ze-show:system-conntrack`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show the kernel connection tracking table. Returns conntrack entry count, table size, timeouts, and loaded modules. Requires the nft backend. Check this when you suspect conntrack table exhaustion is dropping traffic.
 

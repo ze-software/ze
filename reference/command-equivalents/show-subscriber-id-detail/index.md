@@ -6,7 +6,8 @@
 - Registry path: `show subscriber id detail`
 - Mode: Read-only
 - Wire method: `ze-subscriber-api:detail`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show everything about one subscriber session. Pass the session ID. Returns access type, assigned addresses, authentication state, uptime, and traffic counters.
 

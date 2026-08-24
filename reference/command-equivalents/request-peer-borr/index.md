@@ -6,7 +6,8 @@
 - Registry path: `request peer borr`
 - Mode: Daemon
 - Wire method: `ze-bgp:peer-borr`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Start an Enhanced Route Refresh cycle (RFC 7313). Tells the peer to mark existing routes as stale. After re-sending, send EORR to purge anything not refreshed.
 

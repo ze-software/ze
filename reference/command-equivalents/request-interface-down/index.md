@@ -6,7 +6,8 @@
 - Registry path: `request interface down`
 - Mode: Daemon
 - Wire method: `ze-iface:interface-down`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Shut down an interface. Usage: request interface <name> down.
 

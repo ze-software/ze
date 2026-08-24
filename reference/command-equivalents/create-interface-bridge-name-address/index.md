@@ -6,7 +6,8 @@
 - Registry path: `create interface bridge name address`
 - Mode: Daemon
 - Wire method: `ze-iface:interface-addr-add`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Add an IP address to the bridge. Usage: create interface bridge name <name> address <prefix>.
 

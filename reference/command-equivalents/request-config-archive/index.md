@@ -6,7 +6,8 @@
 - Registry path: `request config archive`
 - Mode: Daemon
 - Wire method: `ze-config-archive:trigger`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Save a snapshot of the current running configuration. Captures the config into the store for later rollback or comparison. Optional name labels the snapshot; defaults to a timestamp.
 

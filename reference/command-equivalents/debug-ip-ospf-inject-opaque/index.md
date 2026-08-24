@@ -6,7 +6,8 @@
 - Registry path: `debug ip ospf inject opaque`
 - Mode: Daemon
 - Wire method: `ze-debug:ospf-inject`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Inject a crafted IPv4 opaque LSA into the local LSDB (RFC 5250). Usage: debug ip ospf inject opaque scope <link|area|as> id <opaque-id> [type <128-255>] [hex <body> | tlv <type> <value-hex> ...] [withdraw]. The default Opaque Type is Private-Use so a test LSA never collides with a standards-track consumer. Requires `debug ospf inject enable`.
 

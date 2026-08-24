@@ -6,7 +6,8 @@
 - Registry path: `clear l2tp tunnel all`
 - Mode: Daemon
 - Wire method: `ze-l2tp-api:tunnel-teardown-all`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Tear down every L2TP tunnel on this box. Sends StopCCN for all tunnels. Every subscriber session will be disconnected. Use with care during maintenance.
 

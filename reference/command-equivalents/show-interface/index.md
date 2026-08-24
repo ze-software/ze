@@ -6,7 +6,8 @@
 - Registry path: `show interface`
 - Mode: Read-only
 - Wire method: `ze-show:interface`
-- Global pipes: yes
+- Pipes, always: none
+- Pipes, on rows: none
 
 Show network interfaces on this box. Without arguments, returns all interfaces with full detail. Subcommands: brief, type <t>, errors, rate [<name>], name <name> detail, name <name> counters.
 

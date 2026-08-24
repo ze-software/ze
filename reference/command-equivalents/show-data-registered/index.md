@@ -6,7 +6,8 @@
 - Registry path: `show data registered`
 - Mode: Read-only
 - Wire method: `ze-show:data-registered`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
+- Pipes, on rows: none
 
 List the key patterns registered by all subsystems. Shows you what types of data ZeFS knows about.
 

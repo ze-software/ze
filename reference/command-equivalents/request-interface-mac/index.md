@@ -6,7 +6,8 @@
 - Registry path: `request interface mac`
 - Mode: Daemon
 - Wire method: `ze-iface:interface-mac`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Set the MAC address on an interface. Usage: request interface <name> mac <aa:bb:cc:dd:ee:ff>.
 

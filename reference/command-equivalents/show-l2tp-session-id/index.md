@@ -6,7 +6,8 @@
 - Registry path: `show l2tp session id`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:session`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show full detail for one L2TP session. Pass the local session ID. Returns PPP state, assigned addresses, negotiated LCP/NCP options, and traffic counters.
 

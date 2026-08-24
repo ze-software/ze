@@ -6,7 +6,8 @@
 - Registry path: `show pppoe statistics`
 - Mode: Read-only
 - Wire method: `ze-pppoe-api:statistics`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show PPPoE protocol message counters. Returns PADI, PADO, PADR, PADS, PADT counts, active sessions, and errors. A rising PADI count with flat PADS means sessions are not completing.
 

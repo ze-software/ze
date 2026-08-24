@@ -6,7 +6,8 @@
 - Registry path: `plugin session bye`
 - Mode: Read-only
 - Wire method: `ze-plugin:session-bye`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Disconnect
 

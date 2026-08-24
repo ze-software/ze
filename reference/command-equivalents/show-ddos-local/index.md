@@ -6,7 +6,8 @@
 - Registry path: `show ddos local`
 - Mode: Read-only
 - Wire method: `ze-show:ddos-local`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show the on-host DDoS mitigation status: whether an nft drop rule is currently installed and the target vector (prefix / proto / port) it covers.
 

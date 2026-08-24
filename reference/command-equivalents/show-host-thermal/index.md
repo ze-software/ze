@@ -6,7 +6,8 @@
 - Registry path: `show host thermal`
 - Mode: Read-only
 - Wire method: `ze-show:host-thermal`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show temperature sensors and thermal throttle events. Returns hwmon sensor readings and per-CPU throttle counters. Non-zero throttle counts mean the box has been running hot enough to slow down.
 

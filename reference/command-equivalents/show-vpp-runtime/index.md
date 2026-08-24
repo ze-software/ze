@@ -6,7 +6,8 @@
 - Registry path: `show vpp runtime`
 - Mode: Read-only
 - Wire method: `ze-show:vpp-runtime`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show VPP graph node processing statistics. Returns per-node packet counts, vectors, clocks, and suspends. Helps you find which node is the bottleneck. Requires the VPP backend.
 

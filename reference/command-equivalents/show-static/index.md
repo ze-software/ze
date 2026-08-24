@@ -6,7 +6,8 @@
 - Registry path: `show static`
 - Mode: Read-only
 - Wire method: `ze-show:static`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show static routes defined in the configuration. Lists each static route with its prefix, next-hop, and interface.
 

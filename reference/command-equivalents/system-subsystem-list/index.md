@@ -6,7 +6,8 @@
 - Registry path: `system subsystem list`
 - Mode: Read-only
 - Wire method: `ze-system:subsystem-list`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 List available subsystems
 

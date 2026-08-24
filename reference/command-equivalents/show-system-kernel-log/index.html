@@ -62,7 +62,8 @@
 <div><dt>Registry path</dt><dd><code>show system kernel-log</code></dd></div>
 <div><dt>Mode</dt><dd>Read-only</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-show:system-kernel-log</code></dd></div>
-<div><dt>Global pipes</dt><dd>yes</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
+<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
 </dl>
 <h3>Description</h3><p>Show kernel log messages (dmesg-style).<br>Reads from /dev/kmsg. Filter by syslog level (emerg through debug)<br>and limit with count. Without count, you get everything available.<br>Linux only. Useful for spotting NIC errors or OOM events.</p>
 <h3>Arguments</h3>
@@ -132,7 +133,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 06:12 UTC</span>
                 </div>
             </div>
         </footer>

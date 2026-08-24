@@ -6,7 +6,8 @@
 - Registry path: `request peer clear soft`
 - Mode: Daemon
 - Wire method: `ze-bgp:peer-clear-soft`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Soft-clear a peer without dropping the session. Sends ROUTE-REFRESH for every negotiated AFI/SAFI, causing the peer to re-send all routes. No session bounce, no traffic impact.
 

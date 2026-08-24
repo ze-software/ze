@@ -6,7 +6,8 @@
 - Registry path: `show ospf database asbr-summary`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-database-asbr-summary`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show only ASBR-Summary-LSAs (Type 4).
 

@@ -6,7 +6,8 @@
 - Registry path: `show vpp trace clear`
 - Mode: Read-only
 - Wire method: `ze-show:vpp-trace-clear`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Discard the captured VPP trace buffer. Clears all packets so you can start a fresh trace. Requires the VPP backend.
 

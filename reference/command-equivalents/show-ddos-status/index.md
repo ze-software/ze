@@ -6,7 +6,8 @@
 - Registry path: `show ddos status`
 - Mode: Read-only
 - Wire method: `ze-show:ddos-status`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show DDoS observation status: whether the incident store is running, the number of currently active attacks, and the number of incidents retained in the ring.
 

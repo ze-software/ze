@@ -62,7 +62,8 @@
 <div><dt>Registry path</dt><dd><code>show system cpu</code></dd></div>
 <div><dt>Mode</dt><dd>Read-only</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-show:system-cpu</code></dd></div>
-<div><dt>Global pipes</dt><dd>yes</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
+<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
 </dl>
 <h3>Description</h3><p>Show CPU utilization context for the daemon.<br>Returns goroutine count, logical CPU count, and GOMAXPROCS setting.<br>Useful when the box feels sluggish and you want to see if Ze is<br>hogging threads.</p>
 <h3>Arguments</h3>
@@ -136,7 +137,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 06:12 UTC</span>
                 </div>
             </div>
         </footer>

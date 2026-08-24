@@ -6,7 +6,8 @@
 - Registry path: `resolve dns ptr`
 - Mode: Read-only
 - Wire method: `ze-resolve:dns-ptr`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Reverse-lookup an IP address to its hostname (PTR). Usage: resolve dns ptr <ip-address>.
 

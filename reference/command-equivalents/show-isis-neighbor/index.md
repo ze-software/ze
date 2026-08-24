@@ -6,7 +6,8 @@
 - Registry path: `show isis neighbor`
 - Mode: Read-only
 - Wire method: `ze-show:isis-neighbor`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show IS-IS adjacencies. Returns the neighbor System ID, interface, level, adjacency state, and hold time for each IS-IS neighbor.
 

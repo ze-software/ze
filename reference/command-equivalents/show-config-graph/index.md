@@ -6,7 +6,8 @@
 - Registry path: `show config graph`
 - Mode: Offline
 - Wire method: `not listed`
-- Global pipes: no
+- Pipes, always: none
+- Pipes, on rows: none
 
 Show how components and peers depend on each other (DOT graph format).
 

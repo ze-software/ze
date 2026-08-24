@@ -6,7 +6,8 @@
 - Registry path: `show policy list`
 - Mode: Read-only
 - Wire method: `ze-show:policy-list`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 List all available filter types and named instances. Shows each filter type and its implementing plugin. Check here when building a new policy chain to see what filters you can use.
 

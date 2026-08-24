@@ -6,7 +6,8 @@
 - Registry path: `show warnings`
 - Mode: Read-only
 - Wire method: `ze-show:warnings`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show active warnings across all subsystems. Displays any conditions that need your attention (degraded peers, resource limits approaching, etc.). Use 'source <name>' to filter to a single subsystem.
 

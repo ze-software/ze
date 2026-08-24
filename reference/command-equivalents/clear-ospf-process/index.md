@@ -6,7 +6,8 @@
 - Registry path: `clear ospf process`
 - Mode: Daemon
 - Wire method: `ze-clear:ospf-process`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Full OSPF reset: tear down every adjacency and re-run SPF. Usage: clear ospf process. Adjacencies re-form from the next Hello; the configuration is unchanged.
 

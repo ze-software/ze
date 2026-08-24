@@ -6,7 +6,8 @@
 - Registry path: `delete interface name address`
 - Mode: Daemon
 - Wire method: `ze-iface:interface-addr-del`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Remove an IP address from an interface. Usage: delete interface name <name> address <prefix>.
 

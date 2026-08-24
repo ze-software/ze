@@ -6,7 +6,8 @@
 - Registry path: `request peer refresh`
 - Mode: Daemon
 - Wire method: `ze-bgp:peer-refresh`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Ask a peer to re-send all routes (RFC 2918). Sends a ROUTE-REFRESH message for the specified AFI/SAFI. The peer will re-advertise its entire Adj-RIB-Out.
 

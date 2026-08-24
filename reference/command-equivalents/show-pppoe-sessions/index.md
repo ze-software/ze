@@ -6,7 +6,8 @@
 - Registry path: `show pppoe sessions`
 - Mode: Read-only
 - Wire method: `ze-pppoe-api:sessions`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 List all active PPPoE sessions. One line per session: session ID, MAC, subscriber login, uptime, and assigned addresses.
 

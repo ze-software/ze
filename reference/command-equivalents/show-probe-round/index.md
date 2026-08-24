@@ -6,7 +6,8 @@
 - Registry path: `show probe-round`
 - Mode: Read-only
 - Wire method: `ze-show:probe-round`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Run a parallel traceroute probe round to a target. Sends all probes concurrently for faster results than sequential traceroute. Returns per-hop RTT and IP. Use probes and max-hops to tune accuracy vs speed.
 

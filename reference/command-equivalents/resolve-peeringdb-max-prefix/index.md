@@ -6,7 +6,8 @@
 - Registry path: `resolve peeringdb max-prefix`
 - Mode: Read-only
 - Wire method: `ze-resolve:peeringdb-max-prefix`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Get max-prefix limits for an ASN from PeeringDB. Returns IPv4 and IPv6 prefix limits. Apply via the config editor. Usage: resolve peeringdb max-prefix <asn>.
 

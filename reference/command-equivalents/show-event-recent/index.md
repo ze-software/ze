@@ -6,7 +6,8 @@
 - Registry path: `show event recent`
 - Mode: Read-only
 - Wire method: `ze-show:event-recent`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show recent events, newest first. Each event includes timestamp, namespace, and type. Filter with namespace <name> to focus on one area, count <N> to limit output. Useful for reconstructing what happened before an incident.
 

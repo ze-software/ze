@@ -6,7 +6,8 @@
 - Registry path: `clear l2tp session all`
 - Mode: Daemon
 - Wire method: `ze-l2tp-api:session-teardown-all`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Disconnect every L2TP session on this box. Sends CDN for all sessions across all tunnels. Tunnels themselves stay up. Use with care.
 

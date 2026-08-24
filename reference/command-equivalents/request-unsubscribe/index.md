@@ -6,7 +6,8 @@
 - Registry path: `request unsubscribe`
 - Mode: Daemon
 - Wire method: `ze-bgp:unsubscribe`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Stop receiving events you previously subscribed to. Removes the subscription for the specified event type from your current plugin session.
 

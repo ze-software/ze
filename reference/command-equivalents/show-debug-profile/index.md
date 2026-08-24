@@ -6,7 +6,8 @@
 - Registry path: `show debug profile`
 - Mode: Offline
 - Wire method: `not listed`
-- Global pipes: no
+- Pipes, always: none
+- Pipes, on rows: none
 
 Show stored debug profiles (list, 'name <name>' for one, add 'module <prefix>' to filter).
 

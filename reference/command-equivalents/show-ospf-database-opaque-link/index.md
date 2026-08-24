@@ -6,7 +6,8 @@
 - Registry path: `show ospf database opaque-link`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-database-opaque-link`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show only link-local opaque-LSAs (Type 9, RFC 5250).
 

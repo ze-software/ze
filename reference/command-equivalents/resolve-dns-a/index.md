@@ -6,7 +6,8 @@
 - Registry path: `resolve dns a`
 - Mode: Read-only
 - Wire method: `ze-resolve:dns-a`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Look up IPv4 addresses (A records) for a hostname. Usage: resolve dns a <hostname>.
 

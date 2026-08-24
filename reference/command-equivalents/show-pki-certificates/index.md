@@ -6,7 +6,8 @@
 - Registry path: `show pki certificates`
 - Mode: Read-only
 - Wire method: `ze-show:pki-certificates`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 List all loaded certificates with expiry dates. Shows name, type (CA or device), subject, issuer, expiry, and validity status. Check here to find certificates approaching expiration.
 

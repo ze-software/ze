@@ -6,7 +6,8 @@
 - Registry path: `delete interface name unit`
 - Mode: Daemon
 - Wire method: `ze-iface:interface-unit-del`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Remove a VLAN sub-interface. Usage: delete interface name <name> unit.
 

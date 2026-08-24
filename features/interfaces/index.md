@@ -169,7 +169,7 @@ Config (YANG: ze-iface-conf.yang, "backend" leaf selects backend)
 iface component (register.go) -- OnConfigure() loads backend, starts monitor
   |
   v
-Backend interface (backend.go) -- 34 methods: lifecycle, address, sysctl, mirror, monitor
+Backend interface (backend.go) -- 45 methods: lifecycle, address, sysctl, mirror, monitor
   |
   v
 +------------------+--------------------+
@@ -234,7 +234,7 @@ and none falls back to the logical name. That fallback is what made an aliased e
 configure whatever else carried its name. An entry whose `mac/match` names more than one
 device refuses the apply, and a device only answers a `mac/match` when the address it is
 matched on is its own: a VLAN inherits its parent's, and a bridge or bond wears a
-member's, so neither is a candidate. `resolveOS` draws the same line for the by-name
+member's, so neither is a candidate. `ResolveDevice` draws the same line for the by-name
 dispatch ops: a name with no selector passes through unchanged, and a name WITH a
 selector that fails to resolve returns an error rather than the name.
 
@@ -243,7 +243,7 @@ member is enslaved by the kernel device its entry selects, and a mirror sends it
 to the capture port's kernel device.
 
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
-<!-- source: internal/component/iface/dispatch.go -- resolveOS translation in the by-name dispatch ops -->
+<!-- source: internal/component/iface/dispatch.go -- ResolveDevice translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->
 <!-- source: scripts/checks/iface_resolution.go -- no-direct-resolution guard -->
 
@@ -320,9 +320,24 @@ device appears, and a config is validated on machines that will never run it.
   every one that was dropped or changed before it installs the new set. A changed
   destination is a remove followed by an install, because tc filters are additive:
   installing the new destination would otherwise leave the old one duplicating
-  traffic. A daemon restart starts from no previous config, so a mirror deleted from
-  the config file while ze was down is not reconciled away.
-<!-- source: internal/component/iface/config_mirror.go -- indexMirrorSpecs, removeStaleMirrors, applyMirror -->
+  traffic.
+- **The reconcile reads the dataplane, so a restart retires a stranded mirror.**
+  A second pass runs inside the config reconcile and compares the mirrors the
+  dataplane carries against the mirrors the configuration asks for. It needs no
+  previous config, so a mirror the operator deleted while ze was down is torn down
+  on the next boot, and a teardown an earlier apply skipped is retried. A backend
+  that cannot report its live mirrors leaves every mirror alone, because "the read
+  failed" is not "no mirror is installed".
+- **The pass acts only on the interfaces the configuration names.** A priority-1
+  matchall mirred filter is a shape, not a mark of ownership, and another tool can
+  install the same one, so ze removes a mirror only on an interface its own
+  configuration configures (the current one or the previous one). One case is
+  therefore out of reach: an interface whose whole stanza was deleted while ze was
+  down keeps its mirror, because nothing then tells it apart from a filter ze never
+  installed. Delete the interface from the configuration while ze runs, or clear
+  the mirror leaves first, and the mirror is retired.
+<!-- source: internal/component/iface/config_mirror.go -- indexMirrorSpecs, removeStaleMirrors, reconcileMirrors, applyMirror -->
+<!-- source: internal/plugins/iface/netlink/mirror_linux.go -- ListMirrors, mirrorDestinationName -->
 
 ## Tunnel Configuration
 
@@ -907,8 +922,9 @@ underlying mechanism. Cells with a footnote carry a caveat.
 | **Bridge** | `BridgeAddPort` | real | real (SwInterfaceSetL2Bridge) | err |
 | | `BridgeDelPort` | real | real (SwInterfaceSetL2Bridge) | err |
 | | `BridgeSetSTP` | real (sysfs) | err (VPP STP varies by version) | err |
-| **Mirror** | `SetupMirror` | real (tc mirred) | err (pending SpanEnableDisableL2) | err |
-| | `RemoveMirror` | real | err (pending SpanEnableDisableL2) | err |
+| **Mirror** | `SetupMirror` | real (tc mirred) | real (device SPAN) | err |
+| | `RemoveMirror` | real | real (device SPAN) | err |
+| | `ListMirrors` | real (tc filter dump) | real (SwInterfaceSpanDump) | err |
 | **Monitor** | `StartMonitor` | real (netlink multicast) | real (WantInterfaceEvents) | err |
 | | `StopMonitor` | real | real | no-op |
 | | `Close` | real | real | no-op |

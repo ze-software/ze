@@ -6,7 +6,8 @@
 - Registry path: `show vpp trace show`
 - Mode: Read-only
 - Wire method: `ze-show:vpp-trace-show`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Retrieve packets captured since the last trace start. Shows per-packet VPP graph node traversal. Requires the VPP backend.
 

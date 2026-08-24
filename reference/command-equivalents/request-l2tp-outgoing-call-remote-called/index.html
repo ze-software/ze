@@ -62,7 +62,8 @@
 <div><dt>Registry path</dt><dd><code>request l2tp outgoing-call remote called</code></dd></div>
 <div><dt>Mode</dt><dd>Daemon</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-l2tp-api:outgoing-call</code></dd></div>
-<div><dt>Global pipes</dt><dd>yes</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
+<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
 </dl>
 <h3>Description</h3><p>Place an LNS-side outgoing call (RFC 2661 S10.4).<br>Usage: request l2tp outgoing-call remote &lt;name&gt; called &lt;number&gt;. Dials the<br>named remote (which must have outgoing-calls enabled), sends OCRQ, and blocks<br>until the call establishes or fails. On failure the cause and RFC 2661 Result<br>Code are reported (auth reject, tie-breaker loss, peer CDN, or timeout).</p>
 <h3>Arguments</h3>
@@ -132,7 +133,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 06:12 UTC</span>
                 </div>
             </div>
         </footer>

@@ -6,7 +6,8 @@
 - Registry path: `show isis interface`
 - Mode: Read-only
 - Wire method: `ze-show:isis-interface`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show IS-IS-enabled circuits. Returns level, circuit type, metric, hello interval, hold multiplier, passive flag, DIS state, and the count of Up adjacencies per circuit.
 

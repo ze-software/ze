@@ -6,7 +6,8 @@
 - Registry path: `request interface migrate`
 - Mode: Daemon
 - Wire method: `ze-iface:interface-migrate`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Move IP addresses between interfaces with minimal downtime. Takes a source interface, a target interface, and the address to move. Adds addresses to the target before removing them from the source (make-before-break).
 

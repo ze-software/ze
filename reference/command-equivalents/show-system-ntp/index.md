@@ -6,7 +6,8 @@
 - Registry path: `show system ntp`
 - Mode: Read-only
 - Wire method: `ze-show:system-ntp`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 NTP clock synchronization status
 

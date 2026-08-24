@@ -6,7 +6,8 @@
 - Registry path: `monitor system netlink`
 - Mode: Read-only
 - Wire method: `ze-monitor:system-netlink`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Watch kernel networking changes in real time. Streams netlink events: route adds/deletes, link state changes, address assignments. Filter with route, link, address, or all.
 

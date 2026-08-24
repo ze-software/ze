@@ -6,7 +6,8 @@
 - Registry path: `show anomaly shape`
 - Mode: Read-only
 - Wire method: `ze-show:anomaly-shape`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show the shadow-first anomaly responder status: mode (shadow/armed), action, kill-switch state, and the currently armed source entities with live firewall actions.
 

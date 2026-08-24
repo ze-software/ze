@@ -6,7 +6,8 @@
 - Registry path: `show host nic`
 - Mode: Read-only
 - Wire method: `ze-show:host-nic`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show physical NICs installed in this box. Returns driver, PCI vendor/device IDs, link speed, queue counts, and firmware version. Virtual interfaces are excluded. Use this to confirm NIC firmware before an upgrade.
 

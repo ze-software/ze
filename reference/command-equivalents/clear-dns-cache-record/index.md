@@ -6,7 +6,8 @@
 - Registry path: `clear dns cache record`
 - Mode: Daemon
 - Wire method: `ze-clear:dns-cache-record`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Evict DNS cache entries for one record name, or one name and type when a type is provided.
 

@@ -6,7 +6,8 @@
 - Registry path: `show bmp peers`
 - Mode: Read-only
 - Wire method: `ze-show:bmp-peers`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show BGP peers as seen through BMP monitoring. Lists peers reported via BMP with their state and route statistics.
 

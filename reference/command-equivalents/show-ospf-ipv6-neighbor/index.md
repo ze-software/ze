@@ -6,7 +6,8 @@
 - Registry path: `show ospf ipv6 neighbor`
 - Mode: Read-only
 - Wire method: `ze-show:ospfv3-neighbor`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show OSPFv3 (IPv6) neighbors: the link-local address as identity, adjacency state, DR/BDR by Router ID, and dead time.
 

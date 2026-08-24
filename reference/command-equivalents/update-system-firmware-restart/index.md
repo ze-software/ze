@@ -6,7 +6,8 @@
 - Registry path: `update system firmware restart`
 - Mode: Daemon
 - Wire method: `ze-update:system-firmware-restart`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Reboot into the already-staged firmware. No download happens. Use this after 'update system firmware download' when you are ready to activate the new version.
 

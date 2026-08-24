@@ -6,7 +6,8 @@
 - Registry path: `show l2tp`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:summary`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 L2TP tunnel, session, and subscriber state. Without a subcommand, shows a summary of tunnels and sessions.
 

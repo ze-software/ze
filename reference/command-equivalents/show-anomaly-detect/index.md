@@ -6,7 +6,8 @@
 - Registry path: `show anomaly detect`
 - Mode: Read-only
 - Wire method: `ze-show:anomaly`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show recent behavioral anomaly incidents (report-only): source entity, cohort, fired features with their deviation z-scores, combined score, and severity. The detector reports; the anomaly/shape responder (Spec 2b) acts.
 

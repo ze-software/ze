@@ -6,7 +6,8 @@
 - Registry path: `skills`
 - Mode: Offline
 - Wire method: `not listed`
-- Global pipes: no
+- Pipes, always: none
+- Pipes, on rows: none
 
 List or retrieve agent skill definitions matching this Ze version. Use 'get <name>' to fetch a specific skill.
 

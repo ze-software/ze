@@ -6,7 +6,8 @@
 - Registry path: `show ospf database nssa-external`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-database-nssa-external`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show only NSSA-external-LSAs (Type 7, RFC 3101).
 

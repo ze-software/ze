@@ -6,7 +6,8 @@
 - Registry path: `show l2tp session history`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:session-history`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show state transitions for a session over time. Timestamped FSM entries for session establishment. Use this when a subscriber's session fails to come up.
 

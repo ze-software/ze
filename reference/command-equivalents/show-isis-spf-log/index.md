@@ -6,7 +6,8 @@
 - Registry path: `show isis spf-log`
 - Mode: Read-only
 - Wire method: `ze-show:isis-spf-log`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show recent IS-IS SPF runs. Returns the most recent SPF runs with their timestamp, level, trigger, duration, and node count.
 

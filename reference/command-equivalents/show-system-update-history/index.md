@@ -6,7 +6,8 @@
 - Registry path: `show system update history`
 - Mode: Read-only
 - Wire method: `ze-show:system-update-history`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show recent firmware update activity. Lists the last 20 update events: checks, downloads, installs, and rollbacks with timestamps and outcomes.
 

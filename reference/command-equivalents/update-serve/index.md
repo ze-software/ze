@@ -6,7 +6,8 @@
 - Registry path: `update serve`
 - Mode: Offline
 - Wire method: `not listed`
-- Global pipes: no
+- Pipes, always: none
+- Pipes, on rows: none
 
 Run a local update server for firmware checks
 

@@ -6,7 +6,8 @@
 - Registry path: `show debug`
 - Mode: Read-only
 - Wire method: `ze-debug:debug-state`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show live debug state from the running daemon. Lists every registered subsystem with its current log level and any active flag or scope filters. Unlike 'debug show' (which reads the stored profile), this reflects actual runtime state.
 

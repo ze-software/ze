@@ -6,7 +6,8 @@
 - Registry path: `show crashes`
 - Mode: Read-only
 - Wire method: `ze-show:crashes`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 View saved crash reports from panics. Without arguments, lists available crash files. Use 'latest' to see the newest crash or 'name <filename>' to print one specific report. Send the output to support when reporting a crash.
 

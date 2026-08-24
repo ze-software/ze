@@ -6,7 +6,8 @@
 - Registry path: `show bgp peer list`
 - Mode: Read-only
 - Wire method: `ze-bgp:peer-list`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
+- Pipes, on rows: none
 
 List your peers, one line each. Shows name, address, ASN, state, and uptime. Quick overview without the detail of 'show bgp peer <selector> detail'.
 

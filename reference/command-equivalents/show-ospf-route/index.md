@@ -6,7 +6,8 @@
 - Registry path: `show ospf route`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-route`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Show OSPF-computed routes. Lists each prefix with its path type (intra/inter/external-1/2), cost, next-hops, and area.
 

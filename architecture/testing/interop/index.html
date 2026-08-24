@@ -292,9 +292,16 @@ alongside <code>rpki-server</code> and <code>bmp-collector.py</code>:</p>
 
 <h3 id="prove-a-scenario-discriminates">Prove a scenario discriminates</h3>
 <p>An interop scenario is evidence only if it goes RED when the behaviour it tests is
-broken. Before relying on a new scenario, revert the fix, rebuild the <code>ze-interop</code>
-image (<code>docker build -f test/interop/Dockerfile.ze -t ze-interop .</code>), and confirm the
-scenario fails; then restore and confirm it passes. A scenario that passes either way
+broken. Before relying on a new scenario, revert the fix, run the scenario, and
+confirm it fails; then restore and confirm it passes.</p>
+<p><strong>Let the harness build. Do NOT <code>docker build -t ze-interop</code> by hand and then run
+with <code>NO_BUILD=1</code>.</strong> A tag is shared by every run on the host, so a build in another
+session rebinds it between yours and your container start, and your mutation run then
+measures a daemon you did not build. That inverted a proof twice in one review on
+2026-08-05. <code>build_images</code> now reads the image ID <code>docker build -q</code> prints and pins
+every container of the run to it, and it prints the ID it resolved: quote that line
+beside the result, because it names the binary the run measured.</p>
+<p>A scenario that passes either way
 (common when the peer must accept both the old and new wire form) proves acceptance,
 not correctness -- see <code>ai/rules/interop-and-goal-validation.md</code> "Prove the test
 discriminates".</p>
@@ -832,7 +839,7 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 23 August 2026 16:35 UTC</span>
                 </div>
             </div>
         </footer>

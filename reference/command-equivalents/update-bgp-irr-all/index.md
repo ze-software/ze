@@ -6,7 +6,8 @@
 - Registry path: `update bgp irr all`
 - Mode: Daemon
 - Wire method: `ze-update:irr-all`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Refresh all IRR prefix-lists immediately. Re-queries the IRR server for every enrolled ASN and atomically swaps prefix-lists on success. Failed refreshes preserve the existing prefix-list and report an error.
 

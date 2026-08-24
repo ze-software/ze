@@ -6,7 +6,8 @@
 - Registry path: `monitor bgp`
 - Mode: Read-only
 - Wire method: `ze-bgp:monitor`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Live BGP peer dashboard that refreshes automatically. Shows all peers with state, uptime, and prefix counts. State changes highlight as they happen. Ctrl-C to stop.
 

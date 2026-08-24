@@ -6,7 +6,8 @@
 - Registry path: `system command complete`
 - Mode: Read-only
 - Wire method: `ze-system:command-complete`
-- Global pipes: yes
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
 
 Complete command/args
 

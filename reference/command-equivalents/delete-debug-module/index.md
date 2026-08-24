@@ -6,7 +6,8 @@
 - Registry path: `delete debug module`
 - Mode: Offline
 - Wire method: `not listed`
-- Global pipes: no
+- Pipes, always: none
+- Pipes, on rows: none
 
 Disable debug for a subsystem, or remove one of its flags/scopes.
 
