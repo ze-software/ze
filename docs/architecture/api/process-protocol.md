@@ -155,10 +155,10 @@ keys as a JSON array of strings. A YANG node name never starts with `@`, so the
 sidecar can never collide with a declared sibling.
 
 ```json
-{"policy":{"prefix-list":{"ORDERED":{
+{"bgp":{"policy":{"prefix-list":{"ORDERED":{
   "@entry":["10.0.0.0/8","0.0.0.0/0"],
   "entry":{"0.0.0.0/0":{"action":"accept"},
-           "10.0.0.0/8":{"action":"reject"}}}}}}
+           "10.0.0.0/8":{"action":"reject"}}}}}}}
 ```
 
 The sidecar sits beside the list it orders, at whatever depth that list is.

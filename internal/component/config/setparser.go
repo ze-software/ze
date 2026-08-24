@@ -745,12 +745,22 @@ func (t *Tree) Delete(name string) {
 
 // DeleteContainer removes a container from the tree.
 func (t *Tree) DeleteContainer(name string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	delete(t.containers, name)
 }
 
-// DeleteList removes an entire list from the tree.
+// DeleteList removes an entire list from the tree, and the entry order recorded
+// for it. Leaving the order behind makes t.lists and t.listOrder disagree, and
+// a list re-added afterwards would be lowered in the order the DELETED list had
+// (Tree.ToPluginMap, entryOrderLocked).
 func (t *Tree) DeleteList(name string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	delete(t.lists, name)
+	delete(t.listOrder, name)
 }
 
 // resolveSchemaNode looks up a child node from the parent, handling the root case.

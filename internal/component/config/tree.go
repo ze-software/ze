@@ -980,6 +980,11 @@ func (t *Tree) ToMap() map[string]any {
 // One entry needs no order, so a single-entry list is delivered exactly as
 // ToMap delivers it. That keeps the reserved key out of the payload for the
 // common case, and configorder.Entries answers a one-entry list without it.
+//
+// A list whose recorded order does not account for every entry is delivered
+// with no order either, so configorder.Entries refuses it and names it. See
+// entryOrderLocked: an order this Tree did not record is one it must not
+// invent.
 func (t *Tree) ToPluginMap() map[string]any {
 	return t.toMap(true)
 }

@@ -4,10 +4,12 @@ package engine
 import (
 	"encoding/json"
 	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/pki"
+	"github.com/ze-software/ze/internal/core/configorder"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -196,6 +198,12 @@ func parseIPsecFromJSON(data string) (*ipsec.IPsecConfig, error) {
 func treeFromMap(m map[string]any) *config.Tree {
 	t := config.NewTree()
 	for k, v := range m {
+		// A reserved order key is not config: it is how ToPluginMap carries a
+		// list's entry order beside the list. Rebuilding it would put a
+		// multi-value leaf in this tree that no YANG module declares.
+		if strings.HasPrefix(k, configorder.KeyPrefix) {
+			continue
+		}
 		switch val := v.(type) {
 		case string:
 			t.Set(k, val)

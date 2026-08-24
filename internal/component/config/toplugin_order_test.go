@@ -339,3 +339,22 @@ func TestToPluginMapEmitsNoOrderItDidNotRecord(t *testing.T) {
 	}
 	assertOrder(t, orderOf(t, static, "route"), "192.0.2.0/24", "10.0.0.0/8")
 }
+
+// TestToPluginMapDoesNotResurrectADeletedListsOrder deletes a list and writes a
+// new one under the same name, with its entries in the opposite order.
+//
+// VALIDATES: DeleteList clears the recorded order with the list, so the new
+// list is lowered in the order the operator just wrote.
+// PREVENTS: the deleted list's order surviving it. The stale order has the
+// right length and names the right keys, so entryOrderLocked's own check
+// cannot catch it: the two maps have to be cleared together.
+func TestToPluginMapDoesNotResurrectADeletedListsOrder(t *testing.T) {
+	tree := parseForOrder(t, twoNeighboursOutOfAlphabeticalOrder)
+	assertOrder(t, orderOf(t, tree.ToPluginMap(), "neighbor"), "10.0.0.2", "10.0.0.1")
+
+	tree.DeleteList("neighbor")
+	tree.AddListEntry("neighbor", "10.0.0.1", NewTree())
+	tree.AddListEntry("neighbor", "10.0.0.2", NewTree())
+
+	assertOrder(t, orderOf(t, tree.ToPluginMap(), "neighbor"), "10.0.0.1", "10.0.0.2")
+}
