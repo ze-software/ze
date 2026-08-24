@@ -1,4 +1,4 @@
-// Design: plan/spec-plugin-declares-answer-shape.md -- the healthcheck half of Phase 4
+// Design: docs/architecture/api/commands.md -- a plugin declares its own answer shape
 // Related: healthcheck.go -- commandDecls, the declaration under test
 package healthcheck
 

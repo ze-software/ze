@@ -1,4 +1,4 @@
-// Design: plan/spec-plugin-declares-answer-shape.md -- the adj-rib-in half of Phase 4
+// Design: docs/architecture/api/commands.md -- a plugin declares its own answer shape
 // Related: rib.go -- commandDecls, the declaration under test
 package adj_rib_in
 

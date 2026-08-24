@@ -1,4 +1,4 @@
-// Design: plan/spec-plugin-declares-answer-shape.md -- the rpki half of Phase 4
+// Design: docs/architecture/api/commands.md -- a plugin declares its own answer shape
 package rpki
 
 import (
