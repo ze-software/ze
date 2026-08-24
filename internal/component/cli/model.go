@@ -23,20 +23,42 @@ import (
 )
 
 // Styles for the editor UI.
+//
+// The prompt carries three colors, and the color IS the state. An operator
+// reads it on the line they are typing:
+//
+//   - blue (33) in operational mode, where a command runs against the daemon.
+//   - green (82) in configuration mode, where an edit stages and nothing
+//     reaches the daemon until commit.
+//   - magenta (205) when the LAST command failed, in either mode. It clears on
+//     the next command that succeeds.
+//
+// Owner directive, 2026-08-24. This deliberately reassigns three roles that
+// `docs/architecture/cli/color-system.md` gives to structure, value and
+// context. That page records the new mapping.
 var (
-	promptStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("82"))
-	welcomeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("226"))
-	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	dimStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	hintStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("73"))
-	warnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
-	contextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("33"))
-	overlayStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("62")).
-			Padding(1, 2).
-			Background(lipgloss.Color("236"))
+	// promptStyle is the failure color, and the prompt wears it whenever
+	// Model.err is set. It is the old unconditional prompt color: the hue an
+	// operator already associates with the prompt now means something.
+	promptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	// promptOperationalStyle colors `ze> `. A command typed here reaches the
+	// daemon, so the prompt says so before the operator presses enter.
+	promptOperationalStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("33"))
+	// promptConfigStyle colors `ze# ` and `ze[...]# `. An edit typed here
+	// stages and reaches nothing until commit.
+	promptConfigStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("82"))
+	successStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("82"))
+	welcomeStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("226"))
+	errorStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+	dimStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	hintStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("73"))
+	warnStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
+	contextStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("33"))
+	overlayStyle      = lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(lipgloss.Color("62")).
+				Padding(1, 2).
+				Background(lipgloss.Color("236"))
 	// errorLineStyle highlights lines with validation errors (red text on dark background).
 	errorLineStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("196")).

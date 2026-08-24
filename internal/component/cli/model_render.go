@@ -11,6 +11,7 @@ import (
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/muesli/reflow/ansi"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -915,19 +916,38 @@ Press Esc to close this help.`
 	return result.String()
 }
 
+// promptColor returns the style the prompt wears, which is this session's
+// state. Blue is operational mode, green is configuration mode, and magenta is
+// a command that failed. Failure outranks the mode, because the operator needs
+// to see the failure whichever mode they are in. It clears as soon as a command
+// succeeds (Model.err, cleared in Model.Update).
+func (m Model) promptColor() lipgloss.Style {
+	if m.err != nil {
+		return promptStyle
+	}
+	if m.mode == ModeOperational {
+		return promptOperationalStyle
+	}
+	return promptConfigStyle
+}
+
 // buildPrompt returns the context-aware prompt string.
 func (m Model) buildPrompt() string {
+	style := m.promptColor()
+
 	if m.mode == ModeOperational {
-		return promptStyle.Render("ze> ")
+		return style.Render("ze> ")
 	}
 
 	if len(m.contextPath) == 0 {
-		return promptStyle.Render("ze# ")
+		return style.Render("ze# ")
 	}
 
+	// The breadcrumb keeps the context color in every state. It says WHERE the
+	// operator is, which a failed command does not change.
 	contextStr := textbuf.Join(m.contextPath, " ")
 	var tb textbuf.Buffer
-	return tb.Str(promptStyle.Render("ze")).Str(contextStyle.Render(tb.Reset().Byte('[').Str(contextStr).Byte(']').String())).Str(promptStyle.Render("# ")).String()
+	return tb.Str(style.Render("ze")).Str(contextStyle.Render(tb.Reset().Byte('[').Str(contextStr).Byte(']').String())).Str(style.Render("# ")).String()
 }
 
 // renderInputWithGhost renders the text input.

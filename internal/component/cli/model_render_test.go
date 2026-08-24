@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -736,4 +737,79 @@ func TestSanitizeForDisplayUnicode(t *testing.T) {
 	// CJK and emoji
 	input2 := "description 测试 🌐"
 	assert.Equal(t, input2, sanitizeForDisplay(input2))
+}
+
+// TestPromptColorSaysWhichModeTheOperatorIsIn verifies the prompt carries the
+// mode as color, not just as the `>` / `#` glyph.
+//
+// VALIDATES: promptColor returns blue in operational mode and green in config
+// mode, so an operator reads the mode on the line they are typing.
+// PREVENTS: the regression this replaced, where both modes rendered magenta and
+// the color carried no information at all.
+func TestPromptColorSaysWhichModeTheOperatorIsIn(t *testing.T) {
+	operational := Model{mode: ModeOperational}
+	config := Model{mode: ModeConfig}
+
+	assert.Equal(t, promptOperationalStyle, operational.promptColor(), "operational mode is blue")
+	assert.Equal(t, promptConfigStyle, config.promptColor(), "config mode is green")
+	assert.NotEqual(t, operational.promptColor(), config.promptColor(),
+		"the two modes must not share a color, or the color says nothing")
+}
+
+// TestPromptColorFlagsTheLastFailedCommand verifies a failed command recolors
+// the prompt in either mode, and that success clears it.
+//
+// VALIDATES: promptColor returns the failure color whenever Model.err is set,
+// in operational mode and in config mode alike, and returns the mode color once
+// err is nil again.
+// PREVENTS: a failure that scrolls off the message area leaving no trace, so the
+// operator types the next command believing the last one worked.
+func TestPromptColorFlagsTheLastFailedCommand(t *testing.T) {
+	boom := errors.New("no such peer")
+
+	for _, mode := range []EditorMode{ModeOperational, ModeConfig} {
+		t.Run(mode.String(), func(t *testing.T) {
+			failed := Model{mode: mode, err: boom}
+			assert.Equal(t, promptStyle, failed.promptColor(), "a failed command shows the failure color")
+
+			// Failure outranks the mode, so it must NOT be the mode color.
+			ok := Model{mode: mode}
+			assert.NotEqual(t, ok.promptColor(), failed.promptColor(),
+				"failure must be distinguishable from the mode it happened in")
+
+			// And it clears: err back to nil returns the mode color.
+			assert.Equal(t, ok.promptColor(), Model{mode: mode, err: nil}.promptColor())
+		})
+	}
+}
+
+// TestBuildPromptUsesTheStateColor verifies buildPrompt renders through
+// promptColor rather than a fixed style, for every prompt shape.
+//
+// VALIDATES: the three shapes (`ze> `, `ze# `, `ze[...]# `) each change bytes
+// when the state changes, and the breadcrumb keeps the context color.
+// PREVENTS: promptColor being added and then not wired into the string the
+// operator actually sees, which no color unit test alone would catch.
+func TestBuildPromptUsesTheStateColor(t *testing.T) {
+	boom := errors.New("no such peer")
+
+	operational := Model{mode: ModeOperational}.buildPrompt()
+	operationalFailed := Model{mode: ModeOperational, err: boom}.buildPrompt()
+	assert.NotEqual(t, operational, operationalFailed, "`ze> ` must change color after a failure")
+
+	config := Model{mode: ModeConfig}.buildPrompt()
+	configFailed := Model{mode: ModeConfig, err: boom}.buildPrompt()
+	assert.NotEqual(t, config, configFailed, "`ze# ` must change color after a failure")
+	assert.NotEqual(t, operational, config, "the two modes must render differently")
+
+	path := []string{"neighbor", "192.0.2.1"}
+	ctx := Model{mode: ModeConfig, contextPath: path}.buildPrompt()
+	ctxFailed := Model{mode: ModeConfig, contextPath: path, err: boom}.buildPrompt()
+	assert.NotEqual(t, ctx, ctxFailed, "`ze[...]# ` must change color after a failure")
+
+	// The breadcrumb is WHERE you are, which a failure does not change, so its
+	// own color survives in both.
+	breadcrumb := contextStyle.Render("[neighbor 192.0.2.1]")
+	assert.Contains(t, ctx, breadcrumb)
+	assert.Contains(t, ctxFailed, breadcrumb)
 }

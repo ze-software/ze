@@ -85,9 +85,29 @@ what that role looks like across the interface.
 
 ### TUI Config Editor
 
+**The prompt is the one place where color carries STATE rather than category**
+(owner directive, 2026-08-24). Everywhere else on this page a color names what a
+thing IS. On the prompt it names what the session is doing. The operator reads
+the mode on the line they are typing. Three states, and failure outranks the
+mode:
+
+| State | Color | Why |
+|-------|-------|-----|
+| Operational mode | context (33), blue | The next command reaches the daemon |
+| Configuration mode | value (82), green | The next edit stages, and reaches nothing until commit |
+| The last command failed | structure (205), magenta | Clears on the next command that succeeds |
+
+This reuses three hues rather than adding any, so the seven-role ceiling holds.
+The producer is `promptColor` (`internal/component/cli/model_render.go`), and
+the failure state reads `Model.err`. The breadcrumb keeps the context color in
+every state, because it says WHERE the operator is and a failure does not change
+that.
+
 | Element | Role | Example |
 |---------|------|---------|
-| Prompt indicator | structure | `ze#` |
+| Prompt, operational mode | context (33) | `ze> ` |
+| Prompt, configuration mode | value (82) | `ze# `, `ze[...]# ` |
+| Prompt, last command failed | structure (205) | `ze> `, `ze# ` |
 | Welcome/banner text | caution | `Welcome to ze` |
 | Context path (breadcrumb) | context | `[neighbor 192.168.1.1]` |
 | Success messages | value | `commit successful` |
