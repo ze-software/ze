@@ -35,7 +35,7 @@ func TestExtractAuthUsersAvailableWithoutSSHFeature(t *testing.T) {
 }
 
 func TestSSHExtractedConfigIsTransportOnly(t *testing.T) {
-	if field, ok := reflect.TypeOf(infra.SSHExtractedConfig{}).FieldByName("Users"); ok {
+	if field, ok := reflect.TypeFor[infra.SSHExtractedConfig]().FieldByName("Users"); ok {
 		t.Fatalf("SSHExtractedConfig still carries shared identity through field %s", field.Name)
 	}
 }
