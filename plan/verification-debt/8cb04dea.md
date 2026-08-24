@@ -17,3 +17,4 @@ is open.
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
 | 2026-08-24 | 8cb04dea | fix(zeledon): make weekly publication metadata explicit | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-24 | 8cb04dea | fix(zeledon): correct recovered post date | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
