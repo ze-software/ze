@@ -57,6 +57,7 @@ Automated enforcement of `ai/rules/` requirements.
 | `require-fuzz-tests.sh` | PostToolUse:Write\|Edit | testing.md | Advisory |
 | `block-vague-names.sh` | PostToolUse:Write\|Edit | architecture.md | Advisory |
 | `require-boundary-tests.sh` | PostToolUse:Write\|Edit | testing.md | Advisory |
+| `posttool-writeedit.py` (journal-row-shape) | PostToolUse:Write\|Edit | planning.md | Advisory |
 
 ## By Category
 
@@ -114,6 +115,7 @@ Automated enforcement of `ai/rules/` requirements.
 | `pre-write-go.sh` | Session state for Go work |
 | `require-docs-read.sh` | Arch docs before spec |
 | `validate-spec.sh` | Spec format + Current Behavior section + the design document declared by every source file the spec names (`scripts/dev/spec_doc_anchors.py`) |
+| `posttool-writeedit.py` (journal-row-shape) | The two things `journal_row_problems` (`scripts/dev/commit_helper.py`) refuses in a `plan/journal/` row, the five cells and a readable Spec cell, named at the edit instead of when the commit is prepared |
 
 ### Config (config.md)
 | Hook | What it blocks |

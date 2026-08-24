@@ -393,6 +393,19 @@ POST_CASES = [
     ("md deferral", "docs/notes.md", "# notes\n", "this is out of scope for now\n"),
     ("md clean", "docs/clean.md", "# clean\n", "all good here\n"),
     ("py file", "scripts/x.py", "print(1)\n", None),
+    # c_journal_row_shape reads the file from DISK, so the payload adds nothing.
+    # This case exists because hook-fixture-check.py calls that check directly:
+    # with no parity row, deleting it from CHECKS left all its fixtures green
+    # and nothing proved it ever reached an author.
+    (
+        "journal malformed row",
+        "plan/journal/a-class.md",
+        "| Date | Spec | Surface | Symptom | Fix |\n"
+        "|------|------|---------|---------|-----|\n"
+        "| 2026-08-22 | - | hooks | a row was named at commit time | named at the edit |\n"
+        "\nAn alternation written as `a|b` in prose holds a pipe.\n",
+        None,
+    ),
 ]
 
 
@@ -863,6 +876,7 @@ WEAKEN_GOLDEN = {
 POST_GOLDEN = {
     "Edit|big >1000": 1,
     "Edit|big under 1000": 0,
+    "Edit|journal malformed row": 1,
     "Edit|md clean": 0,
     "Edit|md deferral": 1,
     "Edit|numeric no test": 0,
@@ -874,6 +888,7 @@ POST_GOLDEN = {
     "Edit|vague names": 0,
     "Write|big >1000": 1,
     "Write|big under 1000": 0,
+    "Write|journal malformed row": 1,
     "Write|md clean": 0,
     "Write|md deferral": 1,
     "Write|numeric no test": 0,

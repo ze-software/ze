@@ -7,7 +7,8 @@ originals did), including the two file-mutating formatters:
 
     auto-lint        gofmt/goimports -w, then one golangci-lint --new-from-rev pass
     auto-py-format   ruff format -w + ruff check (advisory)
-    + 7 advisory checks (file-size, deferral, rfc, test-docs, fuzz, vague, boundary)
+    + 8 advisory checks (file-size, deferral, journal-row, rfc, test-docs, fuzz,
+      vague, boundary)
 
 NOT folded: validate-spec.sh stays a standalone hook. It has a latent set -e
 crash (greps the wiring table for Unicode `→` while real specs use ASCII `->`,
@@ -19,6 +20,7 @@ Exit codes: 0 allow/advisory, 1 warning, 2 block. Most severe wins. Fails OPEN
 (exit 0) on an unexpected internal error.
 """
 
+import importlib.util
 import os
 import re
 import shutil
@@ -230,6 +232,139 @@ def c_warn_deferral(ctx):
     return None
 
 
+# The journal row parser has ONE implementation, in scripts/dev/journal.py, and
+# commit_helper.py and spec-closure-check.py import it. A second copy here would
+# be the class plan/journal/helper-bypassed-by-an-open-coded-copy.md collects.
+# The path is resolved from THIS FILE, never from CLAUDE_PROJECT_DIR, because
+# that variable can name a fixture tree while the hook always sits two
+# directories below the repo root.
+_JOURNAL_MODULE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "..",
+    "..",
+    "scripts",
+    "dev",
+    "journal.py",
+)
+
+
+def _load_journal():
+    """The shared journal parser, or None when it cannot be loaded.
+
+    Called from inside `c_journal_row_shape`, after the path filter, and never
+    at module scope. Module-scope work runs on EVERY Write and Edit of EVERY
+    file in the repository, and it runs outside the try/except in `main()` that
+    makes a failing check fail open.
+
+    Measured 2026-08-24, 25 runs of this hook over one clean markdown file
+    outside plan/journal/: 52.7ms median as written, 63.7ms with the load moved
+    back to module scope. Every one of those 11ms bought nothing, because the
+    check discards a non-journal path on its first two lines.
+    """
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "ze_journal", _JOURNAL_MODULE_PATH
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    except Exception:
+        return None
+
+
+def c_journal_row_shape(ctx):
+    """Name a journal row this repository's parser cannot read, at the edit.
+
+    `journal_row_problems` (scripts/dev/commit_helper.py) refuses a commit that
+    adds such a row, and it was the only reader. That refusal arrives after the
+    work is done, so the row rules were learned by being rejected. This reads
+    the same parser over the file the edit produced.
+
+    It names the SAME TWO shapes that gate refuses: a row that is not the five
+    cells, and a row whose Spec cell `journal_spec_stems` cannot read. Naming
+    only the first would send the author to fix what the warning said and leave
+    the commit refused anyway, which is the disagreement this check exists to
+    remove.
+
+    The file is read from disk, not from `new_string`: an Edit can make a row
+    malformed by changing a line that is not the whole row.
+
+    The path population mirrors `is_journal_class_file`
+    (scripts/dev/commit_helper.py), nested directories included. That predicate
+    is `startswith("plan/journal/")`, so a class file one directory further down
+    is judged by the commit gate, and a `[^/]+` regex here went silent on it
+    while the commit still blocked. README.md is excluded in both: it states the
+    row format in prose and holds a pipe for that reason.
+    """
+    fp = ctx["fp"]
+    if ctx["tool"] not in ("Write", "Edit") or not fp.endswith(".md"):
+        return None
+    if not re.search(r"(^|/)plan/journal/.+\.md$", fp) or fp.endswith("/README.md"):
+        return None
+    journal = _load_journal()
+    if journal is None:
+        # A guard that cannot judge says so. Returning None removes the check
+        # for every session and reads exactly like a clean file
+        # (ai/rules/evidence.md, "Fail closed or say something").
+        return (
+            1,
+            f"{YELLOW}{BOLD}⚠ journal: the shared parser could not be loaded, so "
+            f"{os.path.basename(fp)} was NOT checked{RESET}\n"
+            f"  {DIM}{_JOURNAL_MODULE_PATH}{RESET}\n"
+            f"  {YELLOW}journal_row_problems (scripts/dev/commit_helper.py) reads "
+            f"the same parser and still blocks the commit.{RESET}",
+        )
+    txt = read_file(fp)
+    if txt is None:
+        return None
+    malformed = []
+    unreadable_spec = []
+    for n, line in enumerate(txt.split("\n"), 1):
+        cells = journal.journal_row_cells(line)
+        if cells == [journal.MALFORMED]:
+            malformed.append((n, line.strip()))
+        elif cells is not None and journal.journal_spec_stems(cells[1]) is None:
+            unreadable_spec.append((n, cells[1]))
+    if not malformed and not unreadable_spec:
+        return None
+    parts = []
+    if malformed:
+        listing = "\n".join(
+            f"  {DIM}line {n}: {text[:110]}{RESET}" for n, text in malformed
+        )
+        parts.append(
+            f"{YELLOW}{BOLD}⚠ journal: {len(malformed)} line(s) in "
+            f"{os.path.basename(fp)} are not the five cells "
+            f"| Date | Spec | Surface | Symptom | Fix |{RESET}\n"
+            f"{listing}\n"
+            f"  {YELLOW}journal_row_cells (scripts/dev/journal.py) counts raw "
+            f"pipes, so a pipe outside a row is read as a row with the wrong cell "
+            f"count. A backslash does not escape it.{RESET}\n"
+            f"  {YELLOW}Two things cause this: a pipe inside the prose, and a "
+            f"second markdown table in the file. Reword the pipe out of the prose, "
+            f"and keep one table in the file.{RESET}"
+        )
+    if unreadable_spec:
+        listing = "\n".join(
+            f"  {DIM}line {n}: Spec cell {text[:110]!r}{RESET}"
+            for n, text in unreadable_spec
+        )
+        parts.append(
+            f"{YELLOW}{BOLD}⚠ journal: {len(unreadable_spec)} row(s) in "
+            f"{os.path.basename(fp)} name no spec stem in the Spec cell{RESET}\n"
+            f"{listing}\n"
+            f"  {YELLOW}The Spec cell is a KEY: the review gate looks up an "
+            f"artifact under it. Write `-` when the defect was found outside a "
+            f"spec and the spec stem when it was not, and put any explanation in "
+            f"a trailing `(note)` or in the Symptom cell.{RESET}"
+        )
+    parts.append(
+        f"  {YELLOW}commit_helper.py blocks the commit on the same rows "
+        f"(plan/journal/README.md).{RESET}"
+    )
+    return 1, "\n".join(parts)
+
+
 def c_require_rfc(ctx):
     fp = ctx["fp"]
     if not _go(ctx, skip_test=False):
@@ -374,6 +509,7 @@ CHECKS = (
     c_auto_py_format,
     c_file_size,
     c_warn_deferral,
+    c_journal_row_shape,
     c_require_rfc,
     c_require_test_docs,
     c_require_fuzz,

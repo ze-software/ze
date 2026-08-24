@@ -105,6 +105,14 @@ def _load_pretool_writeedit():
     return mod
 
 
+def _load_posttool_writeedit():
+    path = os.path.join(HOOKS, "posttool-writeedit.py")
+    spec = importlib.util.spec_from_file_location("posttool_writeedit", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def _load_pretool_bash():
     path = os.path.join(HOOKS, "pretool-bash.py")
     spec = importlib.util.spec_from_file_location("pretool_bash", path)
@@ -7415,6 +7423,302 @@ def run_governed_doc_edit(results: Results) -> None:
     )
 
 
+def run_journal_row_shape(results: Results) -> None:
+    """c_journal_row_shape (posttool-writeedit.py) names a journal row the shared
+    parser cannot read, at the edit that wrote it.
+
+    `journal_row_problems` (scripts/dev/commit_helper.py) reads the same parser and
+    was the only reader. It runs when the commit is prepared, so the row rules were
+    learned by being rejected. These fixtures pin the population (a class file under
+    plan/journal/ at any depth, README.md excluded), both shapes that gate refuses
+    (a row that is not the five cells, a Spec cell naming no stem), that the verdict
+    comes from the file on disk rather than from the edit's new_string, that a
+    parser it cannot load is SAID rather than swallowed, and that the check is
+    reached by the dispatcher at all.
+    """
+    print("journal-row-shape:")
+    mod = _load_posttool_writeedit()
+    check = mod.c_journal_row_shape
+    work = tempfile.mkdtemp(prefix="journal-row-", dir=_fixture_root())
+    try:
+        journal = os.path.join(work, "plan", "journal")
+        os.makedirs(journal, exist_ok=True)
+        os.makedirs(os.path.join(work, "docs"), exist_ok=True)
+
+        header = (
+            "| Date | Spec | Surface | Symptom | Fix |\n"
+            "|------|------|---------|---------|-----|\n"
+            "| 2026-08-22 | - | hooks | a malformed row was named when the commit "
+            "was prepared | the check runs at the edit now |\n"
+        )
+        prose_pipe = "\nA regex alternation written as `a|b` in prose holds a pipe.\n"
+        second_table = "\n| Column | Column |\n|---|---|\n"
+
+        def write(name: str, text: str, where: str = journal) -> str:
+            path = os.path.join(where, name)
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            return path
+
+        def call(path: str, tool: str = "Write", ti: dict | None = None):
+            return check({"tool": tool, "ti": ti or {}, "fp": path})
+
+        r = call(write("clean.md", header))
+        results.check("journal-row-well-formed-passes", r is None, repr(r))
+
+        # A raw pipe in prose: the parser counts pipes, so the line is a row with
+        # the wrong cell count. It sits on line 5, after the blank line.
+        r = call(write("prose-pipe.md", header + prose_pipe))
+        results.check(
+            "journal-row-prose-pipe-caught",
+            r is not None and r[0] == 1 and "1 line(s)" in r[1] and "line 5:" in r[1],
+            repr(r),
+        )
+
+        # A second markdown table is two malformed rows, its header and its
+        # separator, and the message must name both.
+        r = call(write("second-table.md", header + second_table))
+        results.check(
+            "journal-row-second-table-caught",
+            r is not None
+            and r[0] == 1
+            and "2 line(s)" in r[1]
+            and "line 5:" in r[1]
+            and "line 6:" in r[1],
+            repr(r),
+        )
+
+        # The message names the two causes and the fix, so the author does not
+        # have to open the parser to learn why the line is a row.
+        results.check(
+            "journal-row-message-names-the-fix",
+            r is not None
+            and "second markdown table" in r[1]
+            and "Reword the pipe out of the prose" in r[1],
+            repr(r),
+        )
+
+        # README.md states the row format in prose and holds a pipe for that
+        # reason. is_journal_class_file (commit_helper.py) excludes it too.
+        r = call(write("README.md", header + prose_pipe))
+        results.check("journal-row-readme-exempt", r is None, repr(r))
+
+        # A pipe in prose is ordinary markdown everywhere else.
+        r = call(write("notes.md", header + prose_pipe, os.path.join(work, "docs")))
+        results.check("journal-row-outside-journal-ignored", r is None, repr(r))
+
+        r = call(write("spec-foo.md", header + prose_pipe, os.path.join(work, "plan")))
+        results.check("journal-row-spec-file-ignored", r is None, repr(r))
+
+        r = call(write("notes.txt", header + prose_pipe))
+        results.check("journal-row-non-markdown-ignored", r is None, repr(r))
+
+        # An Edit can break a row by changing a line that is not the whole row, so
+        # the verdict comes from the file, never from the edit's new_string.
+        bad = write("edited.md", header + prose_pipe)
+        r = call(bad, tool="Edit", ti={"new_string": "| a | b | c | d | e |"})
+        results.check(
+            "journal-row-reads-the-file-not-new-string",
+            r is not None and r[0] == 1,
+            repr(r),
+        )
+
+        # Nothing outside Write and Edit reaches this check.
+        r = call(bad, tool="Read")
+        results.check("journal-row-other-tool-ignored", r is None, repr(r))
+
+        # The Spec cell is the second half of what the commit gate refuses.
+        # `journal_row_problems` (commit_helper.py) blocks a row whose cell
+        # `journal_spec_stems` cannot read, so a warning that named only the
+        # five cells sent the author to fix what it said and left the commit
+        # refused anyway.
+        r = call(
+            write(
+                "spec-cell.md",
+                header
+                + "| 2026-08-22 | walked into during closure | hooks | s | f |\n",
+            )
+        )
+        results.check(
+            "journal-row-unreadable-spec-cell-caught",
+            r is not None
+            and r[0] == 1
+            and "name no spec stem" in r[1]
+            and "walked into during closure" in r[1],
+            repr(r),
+        )
+
+        # The documented shapes stay quiet: `-`, a stem, a stem with a trailing
+        # note, and two stems (scripts/dev/journal.py, `journal_spec_stems`).
+        r = call(
+            write(
+                "spec-cell-ok.md",
+                header
+                + "| 2026-08-22 | spec-a (measurement only) | hooks | s | f |\n"
+                + "| 2026-08-22 | spec-a, spec-b | hooks | s | f |\n"
+                + "| 2026-08-22 | none | hooks | s | f |\n",
+            )
+        )
+        results.check("journal-row-readable-spec-cells-pass", r is None, repr(r))
+
+        # `is_journal_class_file` (commit_helper.py) is
+        # `startswith("plan/journal/")`, so a class file one directory further
+        # down is a file the commit gate judges. A `[^/]+` regex here went
+        # silent on it while the commit still blocked.
+        nested = os.path.join(journal, "sub")
+        os.makedirs(nested, exist_ok=True)
+        r = call(write("nested.md", header + prose_pipe, nested))
+        results.check(
+            "journal-row-nested-class-file-caught",
+            r is not None and r[0] == 1,
+            repr(r),
+        )
+        r = call(write("README.md", header + prose_pipe, nested))
+        results.check("journal-row-nested-readme-exempt", r is None, repr(r))
+
+        # The parser is loaded INSIDE the check, after the path filter. At module
+        # scope it cost about 11ms on every Write and Edit of every file in the
+        # repository (52.7ms against 63.7ms median over 25 runs on one clean
+        # markdown file, measured 2026-08-24), and it ran outside the try/except
+        # in `main()` that makes a check fail open.
+        results.check(
+            "journal-row-parser-not-loaded-at-import",
+            not hasattr(mod, "_journal"),
+            "posttool-writeedit loads scripts/dev/journal.py at module scope, so "
+            "every edit in the repository pays for it",
+        )
+
+        # A parser that cannot be loaded is SAID, not swallowed. Returning None
+        # there removes the check for every session and looks like a clean file.
+        # This fixture also pins the load as lazy: patching the path after import
+        # can only change the verdict if the check reads it.
+        real_path = mod._JOURNAL_MODULE_PATH
+        try:
+            mod._JOURNAL_MODULE_PATH = os.path.join(work, "no-such-journal.py")
+            r = call(write("clean-again.md", header))
+        finally:
+            mod._JOURNAL_MODULE_PATH = real_path
+        results.check(
+            "journal-row-unloadable-parser-warns",
+            r is not None and r[0] == 1 and "could not be loaded" in r[1],
+            repr(r),
+        )
+
+        # The check must be REACHED by the dispatcher. Deleting it from CHECKS
+        # left every fixture above green, because they call the function
+        # directly (`_writeedit` in this file records the same shape keeping a
+        # NotebookEdit branch unreachable). hook-parity-check.py feeds the hook
+        # real JSON as a subprocess and pins the exit code; this names the cause.
+        results.check(
+            "c_journal_row_shape-wired-into-CHECKS",
+            mod.c_journal_row_shape in mod.CHECKS,
+            "c_journal_row_shape is not in posttool-writeedit.CHECKS, so it never runs",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def run_python_weakening_arms(results: Results) -> None:
+    """The Python arms of `_test_weakening_errs` (pretool-writeedit.py).
+
+    They are driven directly, because no path `c_test_weakening` admits reaches
+    them: `is_test` names `_test.go`, `.ci` and `.et`, and the only `.py` that
+    gets past it is a tagged `check.py`, which `_is_python_test` excludes on
+    purpose. The arms are the SHAPES; the population is a separate decision, and
+    `is_test_path` (scripts/dev/audit-test-relaxation.py) is where it is made.
+
+    What is pinned: the two skip shapes that scored matched=False on 2026-08-23
+    and each turn a red test green without touching an assertion, both Python
+    test-file spellings this repository runs, and that a tagged `check.py` and an
+    ordinary `.py` tool are judged by neither arm.
+    """
+    print("python-weakening-arms:")
+    mod = _load_pretool_writeedit()
+    errs_for = mod._test_weakening_errs
+
+    base = (
+        "import unittest\n"
+        "\n"
+        "class T(unittest.TestCase):\n"
+        "    def test_x(self):\n"
+        "        self.assertEqual(1, f())\n"
+    )
+
+    def skipped(decorator: str) -> str:
+        return base.replace(
+            "    def test_x(self):", f"    {decorator}\n    def test_x(self):"
+        )
+
+    unit = "scripts/dev/tool_test.py"
+    pytest_named = "test/interop/speaker/test_tool.py"
+
+    for label, decorator in (
+        ("expectedFailure", "@unittest.expectedFailure"),
+        ("xfail", "@pytest.mark.xfail"),
+        ("bare-expectedFailure", "@expectedFailure"),
+        ("xfail-with-reason", '@pytest.mark.xfail(reason="broken")'),
+        ("unittest-skip", '@unittest.skip("x")'),
+    ):
+        errs, _ = errs_for(base, skipped(decorator), unit)
+        results.check(
+            f"py-arm-{label}-refused",
+            any("Python skip" in e for e in errs),
+            repr(errs),
+        )
+
+    # pytest's file-name spelling is the same population (`pythonTestGlobs`,
+    # scripts/dev/python_tests_test.go). A predicate that knew only `_test.py`
+    # would cover half the corpus, silently.
+    errs, _ = errs_for(base, skipped("@pytest.mark.xfail"), pytest_named)
+    results.check(
+        "py-arm-pytest-named-file-judged",
+        any("Python skip" in e for e in errs),
+        repr(errs),
+    )
+
+    # An interop `check.py` reaches `_test_weakening_errs` only because
+    # `_carries_rfc_tag` admits it (TAG_CARRIER_SUFFIXES,
+    # scripts/dev/rfc_tagged_scope.py). The commit gate never judges it, so a
+    # block here would demand a `test/weakened.md` row that `unmatched_problems`
+    # (scripts/dev/check_weakened_tests.py) refuses as matching no weakening.
+    check_py = "test/interop/scenarios/rfc7606/check.py"
+    scenario = "def check(api):\n    assert 'established' in dispatch(api)\n"
+    errs, soft = errs_for(
+        scenario, "def check(api):\n    pytest.skip('later')\n", check_py
+    )
+    results.check("py-arm-tagged-check-py-not-refused", errs == [], repr(errs))
+    errs, soft = errs_for(scenario, "def check(api):\n    pass\n", check_py)
+    results.check(
+        "py-arm-tagged-check-py-no-assert-notice", (errs, soft) == ([], []), repr(soft)
+    )
+
+    # An ordinary `.py` tool is not a test in either shape.
+    errs, soft = errs_for(base, skipped("@pytest.mark.xfail"), "scripts/dev/tool.py")
+    results.check("py-arm-non-test-py-ignored", (errs, soft) == ([], []), repr(errs))
+
+    # A count that falls is ADVISORY on the Python side too: consolidating three
+    # assertions into one table lowers it exactly as deleting a check does.
+    errs, soft = errs_for(
+        base,
+        base.replace("        self.assertEqual(1, f())\n", "        f()\n"),
+        unit,
+    )
+    results.check(
+        "py-arm-assertion-count-is-advisory",
+        errs == [] and any("removing assertions" in s for s in soft),
+        repr((errs, soft)),
+    )
+
+    results.check(
+        "py-arm-population-is-the-two-declared-shapes",
+        mod._is_python_test("a/b_test.py")
+        and mod._is_python_test("a/test_b.py")
+        and not mod._is_python_test("a/check.py")
+        and not mod._is_python_test("a/b.py"),
+        "_is_python_test does not match pythonTestGlobs (scripts/dev/python_tests_test.go)",
+    )
+
+
 SECTIONS = {
     "format-alloc": run_format_alloc,
     "design-ref": run_design_ref,
@@ -7438,6 +7742,8 @@ SECTIONS = {
     "delegation-reminder": run_delegation_reminder,
     "phase-gates": run_phase_gates,
     "raw-job-admission": run_raw_job_admission,
+    "journal-row-shape": run_journal_row_shape,
+    "python-weakening-arms": run_python_weakening_arms,
 }
 
 
