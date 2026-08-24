@@ -5,6 +5,7 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -218,6 +219,22 @@ type declarationRegistry[T any] struct {
 	// is a struct, so each registry states its own emptiness rather than this
 	// one testing it generically.
 	isEmpty func(value T) bool
+
+	// byOwner records, for each caller outside this repository, what every path
+	// it declared on held BEFORE it declared. withdraw puts that back.
+	//
+	// The record is what removal reverses, for the reason pluginAliases
+	// (alias.go) keeps one: the registry stores one value for each path, so what
+	// a path held before an owner wrote is already gone from it. Empty and
+	// absent are different answers here, and only this record tells them apart.
+	byOwner map[string]map[string]priorDeclaration[T]
+}
+
+// priorDeclaration is what one command path held before an owner declared on it:
+// the value, and whether the path held one at all.
+type priorDeclaration[T any] struct {
+	value T
+	held  bool
 }
 
 func newDeclarationRegistry[T any](name string, isEmpty func(value T) bool) *declarationRegistry[T] {
@@ -225,6 +242,7 @@ func newDeclarationRegistry[T any](name string, isEmpty func(value T) bool) *dec
 		commandRegistry: commandRegistry[T]{byCommand: make(map[string]T)},
 		name:            name,
 		isEmpty:         isEmpty,
+		byOwner:         make(map[string]map[string]priorDeclaration[T]),
 	}
 }
 
@@ -244,10 +262,11 @@ func newDeclarationRegistry[T any](name string, isEmpty func(value T) bool) *dec
 //     no-op, so equality decides rather than identity.
 //   - The two values differ and neither is empty. Panic. Every caller declares
 //     from init(), so only a Ze defect reaches this state, which is what
-//     panic("BUG:") is for (docs/contributing/ze-style.md). Nothing outside this
-//     repository reaches a declaration registry: a caller's aliases are merged
-//     into the alias registry, which stores rather than declares, and a bad
-//     declaration there is answered with an error.
+//     panic("BUG:") is for (docs/contributing/ze-style.md). A caller outside
+//     this repository never reaches this method: it declares through declareFor
+//     below, which reports the same conflict as an error, because a declaration
+//     that arrived over a socket is an operating error and a plugin MUST NOT be
+//     able to take the daemon down with one string.
 //
 // reflect.DeepEqual reads every value type these four registries hold, which is
 // why each one states its emptiness and none states its equality. Declaration
@@ -290,6 +309,118 @@ func (r *declarationRegistry[T]) declare(commands []string, value T) {
 		panic("BUG: " +
 			tb.String())
 	}
+}
+
+// declareFor records what a caller OUTSIDE this repository states one command
+// path holds, and reports a conflict rather than panicking on it.
+//
+// It is declare with two differences, and both come from where the value came
+// from.
+//
+//   - A conflict is an ERROR. declare panics, because every in-tree caller
+//     declares from init() and only a Ze defect reaches that state. This value
+//     arrived over a socket, so the conflict is an operating error: the caller
+//     is refused and the daemon keeps running
+//     (docs/contributing/ze-style.md).
+//   - What the path held is RECORDED under the owner, so withdraw puts it back
+//     when the owner leaves.
+//
+// The four cases are declare's four, in the same order and for the same
+// reasons. The floor rule is what makes this channel work at all: a caller's
+// value replaces the empty declaration an in-tree package wrote to stop a
+// shorter path being inherited, and a caller declaring nothing never replaces a
+// value.
+//
+// One owner declaring twice on one path keeps the FIRST record. The second
+// write is either equal, refused, or the owner's own value, and none of the
+// three is what the path held before the owner arrived.
+//
+// Safe for concurrent use.
+func (r *declarationRegistry[T]) declareFor(owner, command string, value T) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	command = normalizeCommand(command)
+	if command == "" {
+		var tb textbuf.Buffer
+		tb.Str("an ").Str(r.name).Str(" is declared for no command path")
+		return errors.New(tb.String())
+	}
+
+	held, found := r.byCommand[command]
+	switch {
+	case !found:
+		// The path declares nothing, so this declaration is what it holds.
+	case r.isEmpty(value):
+		// A declaration of nothing is a floor. It never overrides a value.
+		return nil
+	case r.isEmpty(held):
+		// The path holds a floor, and a value replaces one.
+	case reflect.DeepEqual(held, value):
+		// The declaration the path already holds, restated.
+		return nil
+	default:
+		var tb textbuf.Buffer
+		tb.Quoted(command).Str(" already declares the ").Str(r.name).Str(" ").
+			Str(fmt.Sprint(held)).Str(", so it cannot also declare ").Str(fmt.Sprint(value))
+		return errors.New(tb.String())
+	}
+
+	byPath := r.byOwner[owner]
+	if byPath == nil {
+		byPath = make(map[string]priorDeclaration[T])
+		r.byOwner[owner] = byPath
+	}
+	if _, recorded := byPath[command]; !recorded {
+		byPath[command] = priorDeclaration[T]{value: held, held: found}
+	}
+	r.byCommand[command] = value
+	return nil
+}
+
+// withdraw takes back everything one owner declared, so each path it wrote on
+// returns to what it held before.
+//
+// A path the owner found undeclared becomes undeclared again, and a command
+// under it inherits from the nearest declared ancestor once more. A path that
+// held a declaration gets that declaration back, EMPTY declarations included: an
+// empty declaration is a barrier an in-tree package wrote, and restoring nothing
+// in its place would let the path inherit a shape and a column order its answer
+// does not have.
+//
+// It reports nothing. A caller tears an owner down without knowing whether that
+// owner ever declared, so an owner that declared none is not an error.
+//
+// Safe for concurrent use.
+func (r *declarationRegistry[T]) withdraw(owner string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	byPath, declared := r.byOwner[owner]
+	if !declared {
+		return
+	}
+	delete(r.byOwner, owner)
+
+	for command, prior := range byPath {
+		if !prior.held {
+			delete(r.byCommand, command)
+			continue
+		}
+		r.byCommand[command] = prior.value
+	}
+}
+
+// reset clears every declaration AND every record of what an owner outside this
+// repository put there. It shadows commandRegistry.reset, which knows nothing
+// about the owner records: a test that reset one and not the other would leave
+// withdraw restoring a value into a registry that was emptied.
+func (r *declarationRegistry[T]) reset() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.byCommand = make(map[string]T)
+	r.byOwner = make(map[string]map[string]priorDeclaration[T])
 }
 
 func normalizeCommand(command string) string {

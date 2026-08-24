@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -521,4 +522,449 @@ func TestPluginPipesRemovedOnPluginStop(t *testing.T) {
 
 	require.NoError(t, s.runPluginPhase(configs), "the plugin cannot start a second time")
 	assert.True(t, carriesAlias(t), "the second start did not register the declared alias")
+}
+
+// TestValidateShapeDecls verifies every refusal the answer-shape declarations
+// owe, before any of them reaches a registry. The declarations arrive from
+// another process, so each one is checked against a closed set or a bound.
+//
+// VALIDATES: AC-2, AC-3, AC-4, AC-5.
+// PREVENTS: a plugin's typo publishing the operators of a document and refusing
+// the row operators the command supports, and an unbounded list from another
+// process being stored.
+func TestValidateShapeDecls(t *testing.T) {
+	longName := strings.Repeat("a", 65)
+	manyColumns := make([]string, 65)
+	for i := range manyColumns {
+		manyColumns[i] = "column"
+	}
+	manyAddressFields := make([]string, 17)
+	for i := range manyAddressFields {
+		manyAddressFields[i] = "address"
+	}
+
+	cases := []struct {
+		name     string
+		commands []rpc.CommandDecl
+		refuses  []string
+	}{{
+		name:     "no declaration at all",
+		commands: []rpc.CommandDecl{{Name: "show plain"}},
+	}, {
+		name: "a shape, a column order and an address field",
+		commands: []rpc.CommandDecl{{
+			Name:          "show declared",
+			Shape:         "tab",
+			Columns:       []string{"address", "state"},
+			AddressFields: []string{"address"},
+		}},
+	}, {
+		name:     "the last valid column count",
+		commands: []rpc.CommandDecl{{Name: "show declared", Shape: "tab", Columns: manyColumns[:64]}},
+	}, {
+		name: "the last valid address-field count",
+		commands: []rpc.CommandDecl{{
+			Name:          "show declared",
+			Shape:         "tab",
+			AddressFields: manyAddressFields[:16],
+		}},
+	}, {
+		name:     "the last valid name length",
+		commands: []rpc.CommandDecl{{Name: "show declared", Shape: "tab", Columns: []string{longName[:64]}}},
+	}, {
+		name:     "a spelling no shape writes",
+		commands: []rpc.CommandDecl{{Name: "show declared", Shape: "table"}},
+		refuses:  []string{"show declared", "table"},
+	}, {
+		name:     "a capitalized spelling",
+		commands: []rpc.CommandDecl{{Name: "show declared", Shape: "Doc"}},
+		refuses:  []string{"show declared", "Doc"},
+	}, {
+		name:     "a column order with no shape",
+		commands: []rpc.CommandDecl{{Name: "show declared", Columns: []string{"address"}}},
+		refuses:  []string{"show declared", "shape"},
+	}, {
+		name:     "an address-field list with no shape",
+		commands: []rpc.CommandDecl{{Name: "show declared", AddressFields: []string{"address"}}},
+		refuses:  []string{"show declared", "shape"},
+	}, {
+		name:     "a shape on a path the message does not declare",
+		commands: []rpc.CommandDecl{{Name: "   ", Shape: "tab"}},
+		refuses:  []string{"command path"},
+	}, {
+		name:     "one column past the bound",
+		commands: []rpc.CommandDecl{{Name: "show declared", Shape: "tab", Columns: manyColumns}},
+		refuses:  []string{"show declared", "65", "64"},
+	}, {
+		name: "one address field past the bound",
+		commands: []rpc.CommandDecl{{
+			Name:          "show declared",
+			Shape:         "tab",
+			AddressFields: manyAddressFields,
+		}},
+		refuses: []string{"show declared", "17", "16"},
+	}, {
+		name:     "a column name past the bound",
+		commands: []rpc.CommandDecl{{Name: "show declared", Shape: "tab", Columns: []string{longName}}},
+		refuses:  []string{"show declared", "64"},
+	}, {
+		name: "an address-field name past the bound",
+		commands: []rpc.CommandDecl{{
+			Name:          "show declared",
+			Shape:         "tab",
+			AddressFields: []string{longName},
+		}},
+		refuses: []string{"show declared", "64"},
+	}, {
+		name:     "a column name of nothing",
+		commands: []rpc.CommandDecl{{Name: "show declared", Shape: "tab", Columns: []string{" "}}},
+		refuses:  []string{"show declared", "column"},
+	}, {
+		name: "an address-field name of nothing",
+		commands: []rpc.CommandDecl{{
+			Name:          "show declared",
+			Shape:         "tab",
+			AddressFields: []string{""},
+		}},
+		refuses: []string{"show declared", "address field"},
+	}}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateShapeDecls(tc.commands)
+			if len(tc.refuses) == 0 {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			for _, word := range tc.refuses {
+				assert.Contains(t, err.Error(), word)
+			}
+		})
+	}
+}
+
+// TestValidateShapeDeclsClampsTheValueItReports verifies a plugin string reaches
+// an error message, and the daemon log behind it, clamped.
+//
+// VALIDATES: the Security Review row on error leakage.
+// PREVENTS: an unbounded string from another process being mirrored into the
+// daemon log, which is the log the operator reads and the disk it fills.
+func TestValidateShapeDeclsClampsTheValueItReports(t *testing.T) {
+	err := validateShapeDecls([]rpc.CommandDecl{{
+		Name:  strings.Repeat("z", 4096),
+		Shape: strings.Repeat("q", 4096),
+	}})
+	require.Error(t, err)
+	assert.Less(t, len(err.Error()), 512, "the refusal mirrors the plugin's string: %q", err.Error())
+}
+
+// TestRegisterPluginShapes verifies the three declarations a plugin sends reach
+// the three registries, through the whole Stage 1 handshake.
+//
+// VALIDATES: AC-1.
+// PREVENTS: a channel that validates a declaration and stores none of it, which
+// leaves every plugin command deriving its shape from the payload in hand.
+func TestRegisterPluginShapes(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const pluginName = "lifecycle-shape"
+	const commandName = "show lifecycle shape"
+	t.Cleanup(func() { command.UnregisterPluginShapes(pluginName) })
+
+	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
+		p := sdk.NewWithConn(pluginName, conn)
+		err := p.Run(context.Background(), sdk.Registration{
+			Commands: []sdk.CommandDecl{{
+				Name:          commandName,
+				Shape:         "tab",
+				Columns:       []string{"address", "state"},
+				AddressFields: []string{"address"},
+			}},
+		})
+		if err != nil {
+			return 1
+		}
+		return 0
+	})
+
+	s, _ := newLifecycleStartupServer(t)
+	require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{
+		{Name: pluginName, Internal: true, Encoder: plugin.EncodingJSON},
+	}))
+
+	shape, declared := command.ShapeForCommand(commandName)
+	assert.True(t, declared, "the command declares no shape")
+	assert.Equal(t, command.ShapeTab, shape)
+	assert.Equal(t, []command.ColumnOrder{{"address", "state"}}, command.ColumnsForCommand(commandName))
+	assert.Equal(t, []string{"address"}, command.AddressFieldsForCommand(commandName))
+}
+
+// TestPluginShapeDoesNotInheritItsParentsFields verifies a plugin command that
+// declares a shape and names no column and no address field resolves to
+// neither, rather than to the ones the plugin declared on the path above it.
+//
+// VALIDATES: AC-1, the half that says a declaration describes ONE command's
+// answer.
+// PREVENTS: `show x rows` reading its rows against the column order of
+// `show x`, and admitting the address operators on an answer holding no
+// address, because a command that declares nothing resolves to the nearest
+// declared ancestor.
+func TestPluginShapeDoesNotInheritItsParentsFields(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const pluginName = "lifecycle-shape-barrier"
+	const parentCommand = "show lifecycle barrier"
+	const childCommand = "show lifecycle barrier status"
+	t.Cleanup(func() { command.UnregisterPluginShapes(pluginName) })
+
+	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
+		p := sdk.NewWithConn(pluginName, conn)
+		err := p.Run(context.Background(), sdk.Registration{
+			Commands: []sdk.CommandDecl{{
+				Name:          parentCommand,
+				Shape:         "tab",
+				Columns:       []string{"address", "state"},
+				AddressFields: []string{"address"},
+			}, {
+				Name:  childCommand,
+				Shape: "doc",
+			}},
+		})
+		if err != nil {
+			return 1
+		}
+		return 0
+	})
+
+	s, _ := newLifecycleStartupServer(t)
+	require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{
+		{Name: pluginName, Internal: true, Encoder: plugin.EncodingJSON},
+	}))
+
+	shape, declared := command.ShapeForCommand(childCommand)
+	require.True(t, declared)
+	assert.Equal(t, command.ShapeDoc, shape)
+	assert.Empty(t, command.ColumnsForCommand(childCommand),
+		"the child reads its answer against the column order of its parent")
+	assert.Empty(t, command.AddressFieldsForCommand(childCommand),
+		"the child admits the address operators on its parent's address field")
+
+	assert.Equal(t, []command.ColumnOrder{{"address", "state"}}, command.ColumnsForCommand(parentCommand))
+	assert.Equal(t, []string{"address"}, command.AddressFieldsForCommand(parentCommand))
+}
+
+// TestPluginShapeOverridesEmptyDeclaration verifies a plugin's declaration lands
+// on a path an in-tree package declared EMPTY, which is what every direct child
+// of `show bgp` carries.
+//
+// VALIDATES: AC-6, and assumption A-1.
+// PREVENTS: the eleven `show bgp` plugin commands declaring into a path whose
+// empty declaration silently wins, so the channel reaches none of them.
+func TestPluginShapeOverridesEmptyDeclaration(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const pluginName = "lifecycle-shape-floor"
+	const parentCommand = "show lifecycle floor"
+	const commandName = "show lifecycle floor child"
+	t.Cleanup(func() { command.UnregisterPluginShapes(pluginName) })
+
+	// The in-tree half, as the BGP command plugin writes it: a shape on the
+	// parent, and an empty declaration on the child that stops the child
+	// inheriting it.
+	command.RegisterShape([]string{parentCommand}, command.ShapeMap)
+	command.RegisterShape([]string{commandName})
+	command.RegisterColumns([]string{parentCommand}, command.ColumnOrder{"peer", "uptime"})
+	command.RegisterColumns([]string{commandName})
+
+	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
+		p := sdk.NewWithConn(pluginName, conn)
+		err := p.Run(context.Background(), sdk.Registration{
+			Commands: []sdk.CommandDecl{{
+				Name:    commandName,
+				Shape:   "tab",
+				Columns: []string{"address", "port"},
+			}},
+		})
+		if err != nil {
+			return 1
+		}
+		return 0
+	})
+
+	s, _ := newLifecycleStartupServer(t)
+	require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{
+		{Name: pluginName, Internal: true, Encoder: plugin.EncodingJSON},
+	}))
+
+	shape, declared := command.ShapeForCommand(commandName)
+	assert.True(t, declared, "the empty declaration kept the plugin's shape out")
+	assert.Equal(t, command.ShapeTab, shape)
+	assert.Equal(t, []command.ColumnOrder{{"address", "port"}}, command.ColumnsForCommand(commandName))
+}
+
+// TestUnregisterPluginShapes verifies a stopped plugin's declarations leave, and
+// that each path returns to what it held BEFORE the plugin declared: the empty
+// declaration an in-tree package wrote, not nothing.
+//
+// VALIDATES: AC-7, and assumption A-3.
+// PREVENTS: removal restoring inheritance the in-tree declaration exists to
+// stop, which would make the child answer its parent's shape and its parent's
+// columns once the plugin stops.
+func TestUnregisterPluginShapes(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const pluginName = "lifecycle-shape-restart"
+	const parentCommand = "show lifecycle restart shape"
+	const commandName = "show lifecycle restart shape child"
+	t.Cleanup(func() { command.UnregisterPluginShapes(pluginName) })
+
+	command.RegisterShape([]string{parentCommand}, command.ShapeMap)
+	command.RegisterShape([]string{commandName})
+
+	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
+		p := sdk.NewWithConn(pluginName, conn)
+		err := p.Run(context.Background(), sdk.Registration{
+			Commands: []sdk.CommandDecl{{
+				Name:          commandName,
+				Shape:         "tab",
+				Columns:       []string{"address"},
+				AddressFields: []string{"address"},
+			}},
+		})
+		if err != nil {
+			return 1
+		}
+		return 0
+	})
+
+	s, spawner := newLifecycleStartupServer(t)
+	configs := []plugin.PluginConfig{{Name: pluginName, Internal: true, Encoder: plugin.EncodingJSON}}
+	require.NoError(t, s.runPluginPhase(configs))
+
+	shape, declared := command.ShapeForCommand(commandName)
+	require.True(t, declared)
+	require.Equal(t, command.ShapeTab, shape)
+
+	require.NotNil(t, spawner.pm)
+	proc := spawner.pm.GetProcess(pluginName)
+	require.NotNil(t, proc)
+	s.rollbackStartupProcess(proc)
+
+	shape, declared = command.ShapeForCommand(commandName)
+	assert.False(t, declared, "the shape outlived the plugin that declared it")
+	assert.Equal(t, command.ShapeDoc, shape)
+	assert.Empty(t, command.ColumnsForCommand(commandName),
+		"the column order outlived the plugin, or the path fell back to its parent")
+	assert.Empty(t, command.AddressFieldsForCommand(commandName))
+
+	// The parent still declares, which is what makes the assertions above a
+	// statement about the EMPTY declaration rather than about an empty registry.
+	parentShape, parentDeclared := command.ShapeForCommand(parentCommand)
+	assert.True(t, parentDeclared)
+	assert.Equal(t, command.ShapeMap, parentShape)
+
+	require.NoError(t, s.runPluginPhase(configs), "the plugin cannot start a second time")
+	shape, declared = command.ShapeForCommand(commandName)
+	assert.True(t, declared, "the second start did not declare the shape again")
+	assert.Equal(t, command.ShapeTab, shape)
+}
+
+// TestShapeWriteUnwindsWithStageOne verifies a Stage 1 that fails AFTER the
+// shapes are written leaves none of them behind. The family conflict is the
+// failure, because it is the one that runs after the write and under the same
+// lock.
+//
+// onRegistration is called directly, for the reason
+// TestOnRegistrationRollsBackPipesOnLaterFailure states: the driver's own
+// rollback would answer for this unwind a moment later.
+//
+// VALIDATES: AC-8.
+// PREVENTS: a refused plugin leaving a shape on a command path the daemon
+// serves itself, which would publish operators nobody can satisfy.
+func TestShapeWriteUnwindsWithStageOne(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const pluginName = "lifecycle-shape-rollback"
+	const commandName = "show lifecycle rollback shape"
+	t.Cleanup(func() { command.UnregisterPluginShapes(pluginName) })
+
+	s, _ := newLifecycleStartupServer(t)
+	proc := process.NewProcess(plugin.PluginConfig{Name: pluginName, Internal: true})
+	sink := &engineStartupSink{s: s, proc: proc}
+
+	err := sink.onRegistration(&rpc.DeclareRegistrationInput{
+		Commands: []rpc.CommandDecl{{
+			Name:          commandName,
+			Shape:         "tab",
+			Columns:       []string{"address"},
+			AddressFields: []string{"address"},
+		}},
+		// The conflict: the AFI number is IPv4's and the name is not.
+		Families: []rpc.FamilyDecl{
+			{Name: "not-ipv4/shapes", Mode: "both", AFI: uint16(family.AFIIPv4), SAFI: 204},
+		},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "family")
+
+	_, declared := command.ShapeForCommand(commandName)
+	assert.False(t, declared, "a Stage 1 that failed after the shape write left the shape behind")
+	assert.Empty(t, command.ColumnsForCommand(commandName))
+	assert.Empty(t, command.AddressFieldsForCommand(commandName))
+}
+
+// TestOnRegistrationRefusesConflictingShapeDeclaration verifies a plugin
+// declaring a shape a path already carries is REFUSED, and that the refusal is
+// an error rather than a panic.
+//
+// declarationRegistry.declare panics on that conflict, which is right for a
+// table written in init(): only a Ze defect reaches it. This declaration
+// arrived over a socket, so the same conflict is an operating error and the
+// daemon MUST stay up (docs/contributing/ze-style.md).
+//
+// VALIDATES: the Critical Review row "a bad plugin message is REFUSED and never
+// panics".
+// PREVENTS: a plugin process taking the daemon down with one string.
+func TestOnRegistrationRefusesConflictingShapeDeclaration(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const pluginName = "lifecycle-shape-conflict"
+	const commandName = "show lifecycle conflict shape"
+	t.Cleanup(func() { command.UnregisterPluginShapes(pluginName) })
+
+	// The in-tree declaration the plugin will contradict.
+	command.RegisterShape([]string{commandName}, command.ShapeDoc)
+
+	s, _ := newLifecycleStartupServer(t)
+	proc := process.NewProcess(plugin.PluginConfig{Name: pluginName, Internal: true})
+	sink := &engineStartupSink{s: s, proc: proc}
+
+	var err error
+	require.NotPanics(t, func() {
+		err = sink.onRegistration(&rpc.DeclareRegistrationInput{
+			Commands: []rpc.CommandDecl{{Name: commandName, Shape: "tab"}},
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), pluginName)
+	assert.Contains(t, err.Error(), commandName)
+
+	shape, declared := command.ShapeForCommand(commandName)
+	assert.True(t, declared)
+	assert.Equal(t, command.ShapeDoc, shape, "the refused declaration replaced the one the path held")
+	assert.Empty(t, s.registry.LookupCommand(commandName),
+		"the refused plugin left its registry row behind")
 }

@@ -414,6 +414,11 @@ type FamilyDecl struct {
 }
 
 // CommandDecl declares a command the plugin provides.
+//
+// Shape, Columns and AddressFields state what the command's ANSWER holds. All
+// three are optional, and absent means the command declares nothing, which is
+// what every plugin written before they existed sends. The engine then derives
+// the shape from the payload in hand, as it always has.
 type CommandDecl struct {
 	Name            string   `json:"name"`
 	Description     string   `json:"description,omitempty"`
@@ -421,6 +426,23 @@ type CommandDecl struct {
 	Completable     bool     `json:"completable,omitempty"`
 	Hidden          bool     `json:"hidden,omitempty"`
 	DeprecatedNames []string `json:"deprecated-names,omitempty"`
+
+	// Shape is the wire spelling of what the answer holds: "doc" for one
+	// document or one value, "map" for rows that carry their own keys, "tab"
+	// for rows read against column names. It is a string because this package
+	// is the plugin contract and the typed value lives under internal/; the
+	// engine parses it once, at Stage 1, and refuses any other spelling.
+	Shape string `json:"shape,omitempty"`
+
+	// Columns are the answer's JSON keys, in the order a person reads them,
+	// lowercase kebab-case. A key no order names still renders, so ordering
+	// never adds a column and never drops one. It needs a Shape that has rows.
+	Columns []string `json:"columns,omitempty"`
+
+	// AddressFields are the answer's JSON keys whose value holds an IP address
+	// or a prefix, so the address operators decorate those and guess at
+	// nothing. It needs a Shape.
+	AddressFields []string `json:"address-fields,omitempty"`
 }
 
 // SchemaDecl declares the YANG schema the plugin provides.

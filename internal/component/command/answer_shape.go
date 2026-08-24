@@ -130,6 +130,115 @@ func ResetAddressFieldsForTest() {
 	addressFieldRegistry.reset()
 }
 
+// PluginShape is what one command's answer holds, as a caller outside this
+// repository declares it.
+//
+// The three fields travel together because they describe one answer. Columns and
+// AddressFields are read against the rows Shape says the answer has, so a field
+// list with no shape declares nothing that can act: validateDeclaredShape
+// (pipe.go) returns before it reads the address fields when no shape is
+// declared.
+type PluginShape struct {
+	// Command is the command path whose answer this describes.
+	Command string
+	// Shape is what the answer holds: one document, or rows.
+	Shape AnswerShape
+	// Columns are the answer's JSON keys, in the order a person reads them.
+	// Empty declares no order.
+	Columns ColumnOrder
+	// AddressFields are the answer's JSON keys whose value holds an IP address.
+	// Empty declares none, which refuses the address operators by name.
+	AddressFields []string
+}
+
+// RegisterPluginShapes declares the answer shapes of a caller outside this
+// repository. It reports a bad declaration rather than panicking on it.
+//
+// RegisterShape, RegisterColumns and RegisterAddressFields panic when two
+// packages declare two different values for one path, which is right for a
+// table written in init(). These values arrived over a socket, so the same
+// conflict is an operating error: the caller is refused, and the daemon and
+// every other plugin keep running. declareFor (column_order.go) is that route,
+// and it is the only one this function takes.
+//
+// Every declaration writes all three registries, and a caller that named no
+// column and no address field writes an EMPTY declaration into those two. The
+// empty declaration is a barrier: a command path that declares nothing resolves
+// to the nearest declared ancestor, so without it a caller's `show x rows`
+// would read its rows against the column order of its `show x`. Knowing that
+// resolution rule is not a thing a declaring author owes, which is the reason
+// aliasBarriers (alias.go) exists for the alias channel.
+//
+// A barrier never overrides a value another package declared for the same path:
+// declareFor keeps what the path holds when the incoming declaration is empty.
+//
+// Nothing survives a refusal. The first error withdraws everything this call
+// wrote, so a caller never has to undo a partial declaration it did not ask for.
+//
+// The owner is the name UnregisterPluginShapes takes the declaration back
+// under. It is opaque: nothing else in this package reads it.
+//
+// The caller MUST have bounded and checked the strings before this point. This
+// function is the write, not the gate.
+//
+// Safe for concurrent use.
+func RegisterPluginShapes(owner string, declared []PluginShape) error {
+	for _, declaration := range declared {
+		if err := shapeRegistry.declareFor(owner, declaration.Command, []AnswerShape{declaration.Shape}); err != nil {
+			UnregisterPluginShapes(owner)
+			return err
+		}
+
+		var orders []ColumnOrder
+		if order := normalizedNames(declaration.Columns); len(order) > 0 {
+			orders = []ColumnOrder{order}
+		}
+		if err := columnRegistry.declareFor(owner, declaration.Command, orders); err != nil {
+			UnregisterPluginShapes(owner)
+			return err
+		}
+		if err := addressFieldRegistry.declareFor(owner, declaration.Command, normalizedNames(declaration.AddressFields)); err != nil {
+			UnregisterPluginShapes(owner)
+			return err
+		}
+	}
+	return nil
+}
+
+// UnregisterPluginShapes takes back every shape, column order and address-field
+// list the owner declared, so each path returns to what it held before.
+//
+// A path an in-tree package declared EMPTY returns to that empty declaration,
+// not to nothing: `show bgp rpki` carries the barrier the BGP peer command
+// plugin puts on every direct child of `show bgp`, and removing the path would
+// let the child inherit its parent's shape and its parent's columns.
+//
+// It reports nothing. A caller tears an owner down without knowing whether that
+// owner ever declared a shape.
+func UnregisterPluginShapes(owner string) {
+	shapeRegistry.withdraw(owner)
+	columnRegistry.withdraw(owner)
+	addressFieldRegistry.withdraw(owner)
+}
+
+// normalizedNames is the one spelling a declared field name is stored under:
+// lowercase, with no surrounding space. It answers a new slice, so a caller's
+// slice is never aliased into a registry.
+//
+// A name that normalizes to nothing is dropped, which is what RegisterColumns
+// and RegisterAddressFields do with one. A caller outside this repository is
+// refused for such a name before it reaches here, so the drop is the in-tree
+// convention rather than a second answer to the same question.
+func normalizedNames(names []string) []string {
+	normalized := make([]string, 0, len(names))
+	for _, name := range names {
+		if name = normalizeCommand(name); name != "" {
+			normalized = append(normalized, name)
+		}
+	}
+	return normalized
+}
+
 // rowSet answers the rows a value holds, if it is a row set at all.
 //
 // Two spellings carry rows in Ze's answers and both are common:

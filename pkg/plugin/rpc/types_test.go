@@ -212,6 +212,65 @@ func TestDeclareRegistrationInputNoEnrichers(t *testing.T) {
 	assert.Len(t, decoded.Commands, 1)
 }
 
+// TestDeclareRegistrationInputCommandShapes verifies the three answer-shape
+// fields survive the Stage 1 message with their values intact, under
+// kebab-case wire keys.
+//
+// VALIDATES: shape, columns and address-fields round-trip through DeclareRegistrationInput.
+// PREVENTS: A plugin's declaration reaching the engine with a field dropped or renamed.
+func TestDeclareRegistrationInputCommandShapes(t *testing.T) {
+	t.Parallel()
+
+	input := DeclareRegistrationInput{
+		Commands: []CommandDecl{{
+			Name:          "show bgp rpki cache",
+			Shape:         "tab",
+			Columns:       []string{"address", "port", "state"},
+			AddressFields: []string{"address"},
+		}},
+	}
+
+	data, err := json.Marshal(input)
+	require.NoError(t, err)
+
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal(data, &raw))
+	commands, ok := raw["commands"].([]any)
+	require.True(t, ok)
+	require.Len(t, commands, 1)
+	command, ok := commands[0].(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, command, "shape")
+	assert.Contains(t, command, "columns")
+	assert.Contains(t, command, "address-fields")
+
+	var decoded DeclareRegistrationInput
+	require.NoError(t, json.Unmarshal(data, &decoded))
+	require.Len(t, decoded.Commands, 1)
+	assert.Equal(t, "tab", decoded.Commands[0].Shape)
+	assert.Equal(t, []string{"address", "port", "state"}, decoded.Commands[0].Columns)
+	assert.Equal(t, []string{"address"}, decoded.Commands[0].AddressFields)
+}
+
+// TestDeclareRegistrationInputNoCommandShapes verifies backward compat: a
+// command that declares none of the three unmarshals to the zero values, and
+// marshals back to the message a plugin built before the fields existed sends.
+func TestDeclareRegistrationInputNoCommandShapes(t *testing.T) {
+	t.Parallel()
+
+	data := []byte(`{"commands":[{"name":"test-cmd"}]}`)
+	var decoded DeclareRegistrationInput
+	require.NoError(t, json.Unmarshal(data, &decoded))
+	require.Len(t, decoded.Commands, 1)
+	assert.Empty(t, decoded.Commands[0].Shape)
+	assert.Empty(t, decoded.Commands[0].Columns)
+	assert.Empty(t, decoded.Commands[0].AddressFields)
+
+	out, err := json.Marshal(decoded)
+	require.NoError(t, err)
+	assert.JSONEq(t, string(data), string(out))
+}
+
 // TestConfigApplyInputMarshal verifies JSON round-trip for ConfigApplyInput.
 //
 // VALIDATES: ConfigApplyInput with ConfigDiffSection marshals/unmarshals correctly.

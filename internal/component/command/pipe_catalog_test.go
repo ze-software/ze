@@ -94,6 +94,35 @@ func TestShapeSpellingMatchesTheWire(t *testing.T) {
 	}
 }
 
+// TestParseAnswerShape reads the round trip from the shape population itself,
+// so a shape added to allShapes is covered here without an edit. It also proves
+// a spelling no shape writes is refused.
+//
+// VALIDATES: ParseAnswerShape answers every shape String() writes, and only those.
+// PREVENTS: A plugin's typo parsing as doc, which would publish the wrong
+// operator set and refuse operators the command supports.
+func TestParseAnswerShape(t *testing.T) {
+	for _, shape := range allShapes {
+		spelling := shape.String()
+		got, ok := ParseAnswerShape(spelling)
+		if !ok {
+			t.Errorf("shape %d spells %q, and %q does not parse", shape, spelling, spelling)
+			continue
+		}
+		if got != shape {
+			t.Errorf("%q parses to shape %d, and shape %d spells it", spelling, got, shape)
+		}
+	}
+
+	// "Doc" is here because the wire spelling is lowercase: a permissive parse
+	// is what would let a plugin's typo become ShapeDoc in silence.
+	for _, spelling := range []string{"", "Doc", "row", "table", "tabs"} {
+		if got, ok := ParseAnswerShape(spelling); ok {
+			t.Errorf("%q parses to shape %d, and no shape spells it", spelling, got)
+		}
+	}
+}
+
 func sortedEqual(t *testing.T, what string, got, want []string) {
 	t.Helper()
 	g := append([]string(nil), got...)

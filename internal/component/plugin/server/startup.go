@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
@@ -512,6 +513,14 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 	if err := validatePipeDecls(input.Pipes, input.Commands); err != nil {
 		return fmt.Errorf("invalid pipe alias: %w", err)
 	}
+	// Validate the answer-shape declarations in the same position and for the
+	// same reason. A shape decides which operators the command publishes and
+	// which it refuses before dispatch, so a declaration is checked against a
+	// closed set and a bound before any of it is stored.
+	if err := validateShapeDecls(input.Commands); err != nil {
+		logger().Error("plugin answer shape refused", "plugin", proc.Config().Name, "error", err)
+		return fmt.Errorf("invalid answer shape: %s: %w", proc.Config().Name, err)
+	}
 
 	// Convert RPC input to engine registration type.
 	reg := registrationFromRPC(input)
@@ -532,11 +541,11 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 		}
 	}
 
-	// Register the registry rows, then the pipe aliases, then the declared
-	// runtime families. Each failure below unwinds what the ones above it
-	// wrote, in the reverse order, so a refused declaration is invisible to
-	// later startup phases. A failure in a LATER STAGE unwinds the same three
-	// through rollbackStartupProcess.
+	// Register the registry rows, then the pipe aliases, then the answer
+	// shapes, then the declared runtime families. Each failure below unwinds
+	// what the ones above it wrote, in the reverse order, so a refused
+	// declaration is invisible to later startup phases. A failure in a LATER
+	// STAGE unwinds the same four through rollbackStartupProcess.
 	startupRegistrationMu.Lock()
 	if err := s.registry.Register(reg); err != nil {
 		startupRegistrationMu.Unlock()
@@ -549,8 +558,16 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 		logger().Error("plugin pipe alias refused", "plugin", reg.Name, "error", err)
 		return fmt.Errorf("pipe alias refused: %s: %w", reg.Name, err)
 	}
+	if err := registerPluginShapes(reg.Name, input.Commands); err != nil {
+		command.UnregisterPluginAliases(reg.Name)
+		s.registry.Unregister(reg.Name)
+		startupRegistrationMu.Unlock()
+		logger().Error("plugin answer shape refused", "plugin", reg.Name, "error", err)
+		return fmt.Errorf("answer shape refused: %s: %w", reg.Name, err)
+	}
 	addedFamilies, err := registerPluginFamilies(input.Families)
 	if err != nil {
+		command.UnregisterPluginShapes(reg.Name)
 		command.UnregisterPluginAliases(reg.Name)
 		s.registry.Unregister(reg.Name)
 		startupRegistrationMu.Unlock()
@@ -1065,6 +1082,147 @@ func registerPluginPipes(owner string, pipes []rpc.PipeDecl, commands []rpc.Comm
 		declaredCommands = append(declaredCommands, c.Name)
 	}
 	return command.RegisterPluginAliases(owner, declaredCommands, declared)
+}
+
+// validateShapeDecls validates the answer-shape declarations the Stage 1
+// command declarations carry: the wire spelling of the shape, the column order
+// and the address-field list.
+//
+// It runs where validatePipeDecls runs, before onRegistration converts
+// anything. A declaration that reaches a registry decides which operators the
+// command publishes and which it refuses before dispatch, so a refusal happens
+// before the write.
+//
+// Four declarations are refused, and the message names the command and the
+// value each time:
+//
+//   - a spelling no shape writes. Read as ShapeDoc it would publish the
+//     operators of a document and refuse the row operators the command
+//     supports, in silence;
+//   - a column order or an address-field list with no shape. Such a declaration
+//     can never act: validateDeclaredShape (pipe.go) returns before it reads the
+//     address fields when the command declares no shape;
+//   - a declaration on no command path. A shape belongs to the command it is
+//     declared on, so a nameless command declares nothing;
+//   - a list or a name past its bound. The strings arrive from another process
+//     (docs/contributing/ze-style.md, "A limit on everything").
+//
+// The bounds are the spec's: 64 columns and 16 address fields for one command,
+// each name 1 to 64 bytes. They are the widest answer in the tree with room
+// over it, and a plugin past one of them has a defect rather than a wide table.
+func validateShapeDecls(commands []rpc.CommandDecl) error {
+	const maxColumns = 64
+	const maxAddressFields = 16
+	const maxFieldNameLen = 64
+
+	for _, c := range commands {
+		if c.Shape == "" {
+			if len(c.Columns) == 0 && len(c.AddressFields) == 0 {
+				continue
+			}
+			return fmt.Errorf("command %q declares answer fields but no answer shape", clampDeclared(c.Name))
+		}
+		if commandPathKey(c.Name) == "" {
+			return fmt.Errorf("answer shape %q is declared for no command path", clampDeclared(c.Shape))
+		}
+		if _, known := command.ParseAnswerShape(c.Shape); !known {
+			return fmt.Errorf("command %q declares answer shape %q, which is not doc, map or tab",
+				clampDeclared(c.Name), clampDeclared(c.Shape))
+		}
+		if len(c.Columns) > maxColumns {
+			return fmt.Errorf("command %q declares %d columns (max %d)",
+				clampDeclared(c.Name), len(c.Columns), maxColumns)
+		}
+		if len(c.AddressFields) > maxAddressFields {
+			return fmt.Errorf("command %q declares %d address fields (max %d)",
+				clampDeclared(c.Name), len(c.AddressFields), maxAddressFields)
+		}
+		for _, name := range c.Columns {
+			if err := validateDeclaredFieldName(c.Name, "column", name, maxFieldNameLen); err != nil {
+				return err
+			}
+		}
+		for _, name := range c.AddressFields {
+			if err := validateDeclaredFieldName(c.Name, "address field", name, maxFieldNameLen); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// validateDeclaredFieldName refuses a declared field name that names nothing or
+// runs past the bound. The kind is the word the message uses for it, "column" or
+// "address field", so one check reports both lists.
+func validateDeclaredFieldName(command, kind, name string, maxNameLen int) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("command %q declares a %s with no name", clampDeclared(command), kind)
+	}
+	if len(name) > maxNameLen {
+		return fmt.Errorf("command %q declares %s %q, which is %d bytes (max %d)",
+			clampDeclared(command), kind, clampDeclared(name), len(name), maxNameLen)
+	}
+	return nil
+}
+
+// clampDeclared bounds a string from a plugin message before it reaches an error
+// message, and through it the daemon log.
+//
+// A refusal names the value it refused, which is what makes it actionable, and
+// the value is whatever the other process sent. Mirroring it whole gives a
+// plugin an unbounded write to the operator's log and to the disk under it.
+//
+// The clamp stops on a rune boundary, so a log line never carries half a rune.
+func clampDeclared(value string) string {
+	const maxReportedLen = 64
+
+	if len(value) <= maxReportedLen {
+		return value
+	}
+	clamped := value[:maxReportedLen]
+	for clamped != "" && !utf8.ValidString(clamped) {
+		clamped = clamped[:len(clamped)-1]
+	}
+
+	var tb textbuf.Buffer
+	tb.Str(clamped).Str("...")
+	return tb.String()
+}
+
+// registerPluginShapes writes the declared answer shapes, column orders and
+// address-field lists into the three registries the pipe layer reads, under the
+// plugin's name.
+//
+// It runs under startupRegistrationMu, between the pipe aliases and the runtime
+// families, and its failure unwinds the two steps above it. A conflict with a
+// declaration another package holds is refused HERE rather than panicked on,
+// which is the whole reason the registries carry a caller-facing write at all
+// (command.RegisterPluginShapes).
+//
+// The plugin name is what UnregisterPluginShapes takes the declaration back
+// under, on the rollback path and when the plugin stops.
+func registerPluginShapes(owner string, commands []rpc.CommandDecl) error {
+	declared := make([]command.PluginShape, 0, len(commands))
+	for _, c := range commands {
+		if c.Shape == "" {
+			continue
+		}
+		shape, known := command.ParseAnswerShape(c.Shape)
+		if !known {
+			return fmt.Errorf("command %q declares answer shape %q, which is not doc, map or tab",
+				clampDeclared(c.Name), clampDeclared(c.Shape))
+		}
+		declared = append(declared, command.PluginShape{
+			Command:       c.Name,
+			Shape:         shape,
+			Columns:       command.ColumnOrder(c.Columns),
+			AddressFields: c.AddressFields,
+		})
+	}
+	if len(declared) == 0 {
+		return nil
+	}
+	return command.RegisterPluginShapes(owner, declared)
 }
 
 // isLowerKebab reports whether s is a valid lower-kebab-case identifier.

@@ -1183,13 +1183,31 @@ class API:
         """
         self._wants_config.append(pattern)
 
-    def declare_command(self, command: str) -> None:
+    def declare_command(
+        self,
+        command: str,
+        shape: str | None = None,
+        columns: list[str] | None = None,
+        address_fields: list[str] | None = None,
+    ) -> None:
         """Declare a command handler (Stage 1).
 
         Args:
             command: Command name to register
+            shape: What the answer holds: 'doc', 'map' or 'tab'. Omitted
+                declares nothing, and the engine derives the shape from the
+                payload in hand
+            columns: The answer's JSON keys, in the order a person reads them
+            address_fields: The answer's JSON keys whose value holds an address
         """
-        self._commands.append({"name": command})
+        decl: dict[str, Any] = {"name": command}
+        if shape is not None:
+            decl["shape"] = shape
+        if columns:
+            decl["columns"] = columns
+        if address_fields:
+            decl["address-fields"] = address_fields
+        self._commands.append(decl)
 
     def declare_filter(
         self,
@@ -3024,9 +3042,14 @@ def declare_config(pattern: str) -> None:
     _get_api().declare_config(pattern)
 
 
-def declare_command(command: str) -> None:
+def declare_command(
+    command: str,
+    shape: str | None = None,
+    columns: list[str] | None = None,
+    address_fields: list[str] | None = None,
+) -> None:
     """Declare a command handler (Stage 1)."""
-    _get_api().declare_command(command)
+    _get_api().declare_command(command, shape, columns, address_fields)
 
 
 def declare_filter(

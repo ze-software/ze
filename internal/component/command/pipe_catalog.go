@@ -39,6 +39,11 @@ const (
 	ShapeTab
 )
 
+// allShapes is every shape, in wire order. It is the ONE statement of the
+// population: anyShape, Shapes and ParseAnswerShape each read it, so a shape
+// added to this list reaches all three.
+var allShapes = []AnswerShape{ShapeDoc, ShapeMap, ShapeTab}
+
 // String answers the wire spelling of the shape.
 func (s AnswerShape) String() string {
 	switch s {
@@ -49,6 +54,26 @@ func (s AnswerShape) String() string {
 	default:
 		return "doc"
 	}
+}
+
+// ParseAnswerShape answers the shape a wire spelling names, and reports whether
+// any shape names it. It is the reverse of String, and it reads String rather
+// than a second literal, so the two can never disagree.
+//
+// A spelling no shape writes is REFUSED. It is not read as ShapeDoc, because a
+// declaration arrives from another process: a plugin's typo would otherwise
+// publish the operators of a document, and refuse the row operators the command
+// actually supports, in silence.
+//
+// The comparison is exact. The wire spelling is lowercase, so "Doc" is a
+// spelling no shape writes and is refused with the rest.
+func ParseAnswerShape(spelling string) (AnswerShape, bool) {
+	for _, shape := range allShapes {
+		if shape.String() == spelling {
+			return shape, true
+		}
+	}
+	return ShapeDoc, false
 }
 
 // shapeSet is the set of shapes one operator acts on.
@@ -216,7 +241,7 @@ func (op PipeOperator) ArgHint() string {
 // Shapes answers the shapes this operator acts on, in wire order.
 func (op PipeOperator) Shapes() []AnswerShape {
 	var out []AnswerShape
-	for _, shape := range []AnswerShape{ShapeDoc, ShapeMap, ShapeTab} {
+	for _, shape := range allShapes {
 		if op.shapes.has(shape) {
 			out = append(out, shape)
 		}
@@ -225,7 +250,7 @@ func (op PipeOperator) Shapes() []AnswerShape {
 }
 
 // anyShape is every shape: the global class acts on an answer whatever it holds.
-var anyShape = setOf(ShapeDoc, ShapeMap, ShapeTab)
+var anyShape = setOf(allShapes...)
 
 // rowShapes are the shapes that carry rows. ShapeDoc is one value and has none.
 var rowShapes = setOf(ShapeMap, ShapeTab)
