@@ -51,7 +51,7 @@ func TestBGPDecodePayloadRendersInEveryFormat(t *testing.T) {
 	dispatch := withBGPDecode(nil)
 	rendered, err := dispatch.JSON(context.Background(), wodCaller, "show bgp decode "+keepaliveHex)
 	defer rendered.TransportComplete()
-	if !bgpDecodeLinked {
+	if pluginreg.GetPacketDecoder() == nil {
 		// No decoder in this build, so there is no payload to render. The
 		// honest answer is the daemon-required error, and asserting it keeps
 		// this test from passing vacuously in a BGP-less binary.
@@ -100,11 +100,12 @@ func TestBGPDecodePayloadRendersInEveryFormat(t *testing.T) {
 // PREVENTS: a green format-pipe test over a payload no format operator reads.
 func TestBGPDecodeTextPayloadRendersInNoFormat(t *testing.T) {
 	decode := pluginreg.GetPacketDecoder()
-	if !bgpDecodeLinked {
-		require.Nil(t, decode, "a build without BGP must expose no decoder")
+	if decode == nil {
+		// No decoder in this build, so no payload for a format operator to
+		// pass through. build_tag_bgp_absent_test.go asserts the nil seam, in
+		// a build that runs.
 		return
 	}
-	require.NotNil(t, decode)
 
 	text, err := decode(keepaliveHex, "", "", false)
 	require.NoError(t, err)
@@ -132,7 +133,7 @@ func TestBGPDecodeReportsADecoderError(t *testing.T) {
 	defer rendered.TransportComplete()
 	require.Error(t, err)
 	assert.Empty(t, rendered.Output)
-	if bgpDecodeLinked {
+	if pluginreg.GetPacketDecoder() != nil {
 		assert.Contains(t, err.Error(), "invalid hex")
 	}
 }

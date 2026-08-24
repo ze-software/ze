@@ -37,7 +37,22 @@ import (
 	"github.com/ze-software/ze/internal/core/selfcert"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/zefs"
 )
+
+// resolveConfigPath returns the config file path for the editor. It carries
+// this file's build constraint because runWebOnly below is its only caller.
+func resolveConfigPath(store storage.Storage) string {
+	data, err := store.ReadFile(zefs.KeyInstanceName.Pattern)
+	if err == nil && len(data) > 0 {
+		name := strings.TrimSpace(string(data))
+		if name != "" {
+			var tb textbuf.Buffer
+			return tb.Str(name).Str(".conf").String()
+		}
+	}
+	return "ze.conf"
+}
 
 type webService struct {
 	*zeweb.WebServer

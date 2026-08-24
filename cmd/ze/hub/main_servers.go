@@ -10,17 +10,14 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
-	"strings"
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/infra"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/paths"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -270,17 +267,4 @@ func validateLocalAdminCreds(username, hash []byte) (string, error) {
 		return "", errEmptyPasswordInZefs
 	}
 	return name, nil
-}
-
-// resolveConfigPath returns the config file path for the editor.
-func resolveConfigPath(store storage.Storage) string {
-	data, err := store.ReadFile(zefs.KeyInstanceName.Pattern)
-	if err == nil && len(data) > 0 {
-		name := strings.TrimSpace(string(data))
-		if name != "" {
-			var tb textbuf.Buffer
-			return tb.Str(name).Str(".conf").String()
-		}
-	}
-	return "ze.conf"
 }
