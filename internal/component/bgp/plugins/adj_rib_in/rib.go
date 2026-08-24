@@ -213,6 +213,53 @@ func newSeqMap() *seqmap.Map[compactRouteKey, *RawRoute] {
 	return seqmap.New[compactRouteKey, *RawRoute]()
 }
 
+// commandDecls names the commands this plugin serves and states what each
+// answer holds, so the engine publishes the operators a command supports and
+// refuses the ones it cannot before the command is dispatched
+// (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// The `request bgp adj-rib-in` verbs declare no shape. Each answers a report of
+// what it did rather than a data set, and they are outside the population this
+// spec measured, so they keep the derived-at-apply-time behavior every
+// undeclared command has.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{
+			Name: "show bgp adj-rib-in status",
+			// status (rib_commands.go) writes "running", "total-routes" and
+			// "peers". "peers" maps a peer address to a route COUNT, and rowSet
+			// (internal/component/command/answer_shape.go) reads a map as rows
+			// only when every value is an object, so a scalar leaves this answer
+			// one document.
+			Shape: "doc",
+		},
+		{
+			Name: "show bgp adj-rib-in",
+			// show (rib_commands.go) writes {"adj-rib-in": {<peer>: [route,
+			// ...]}}. The inner map's values are ARRAYS, so rowSet refuses it as
+			// a row set for the same reason the status answer is refused, and
+			// the one remaining candidate is the envelope itself: a single row
+			// named "adj-rib-in" carrying every peer. Declaring a row shape here
+			// would publish `| first 1` over that one row, so it would answer
+			// the WHOLE table and `| count` would answer 1, which is a plausible
+			// number and the wrong question. This is the case
+			// validateDeclaredShape (internal/component/command/pipe.go) was
+			// written for: the command knows it is one document, and the payload
+			// does not say so.
+			Shape: "doc",
+		},
+		{Name: "request bgp adj-rib-in replay"},
+		// Plugin-to-plugin plumbing, not an operator verb: bgp-rs claims
+		// peer-up replay ownership with this at startup.
+		{Name: "request bgp adj-rib-in claim-replay", Hidden: true},
+		{Name: "request bgp adj-rib-in enable-validation"},
+		{Name: "request bgp adj-rib-in accept-routes"},
+		{Name: "request bgp adj-rib-in reject-routes"},
+		{Name: "request bgp adj-rib-in batch-validate"},
+		{Name: "request bgp adj-rib-in revalidate"},
+	}
+}
+
 // runAdjRIBInPlugin runs the Adj-RIB-In plugin using the SDK RPC protocol.
 func runAdjRIBInPlugin(conn net.Conn) int {
 	logger().Debug("adj-rib-in plugin starting")
@@ -288,19 +335,7 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		Commands: []sdk.CommandDecl{
-			{Name: "show bgp adj-rib-in status"},
-			{Name: "show bgp adj-rib-in"},
-			{Name: "request bgp adj-rib-in replay"},
-			// Plugin-to-plugin plumbing, not an operator verb: bgp-rs claims
-			// peer-up replay ownership with this at startup.
-			{Name: "request bgp adj-rib-in claim-replay", Hidden: true},
-			{Name: "request bgp adj-rib-in enable-validation"},
-			{Name: "request bgp adj-rib-in accept-routes"},
-			{Name: "request bgp adj-rib-in reject-routes"},
-			{Name: "request bgp adj-rib-in batch-validate"},
-			{Name: "request bgp adj-rib-in revalidate"},
-		},
+		Commands: commandDecls(),
 	})
 	if err != nil {
 		logger().Error("adj-rib-in plugin failed", "error", err)

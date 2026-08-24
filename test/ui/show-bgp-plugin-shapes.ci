@@ -1,0 +1,299 @@
+# Test: a plugin's own `show bgp` commands declare what their answers hold, so
+# an operator a plugin command cannot support is refused BY NAME before the
+# command is dispatched to the plugin process.
+#
+# VALIDATES: spec-plugin-declares-answer-shape AC-9, AC-10, AC-10b, AC-11,
+#   AC-12, AC-13 and AC-17 for the rs, adj-rib-in and healthcheck commands.
+# PREVENTS: a plugin command reaching no pre-dispatch check. validateDeclaredShape
+#   (internal/component/command/pipe.go) returns at `if !declared`, so before
+#   this every plugin-served `show bgp` path accepted every operator until its
+#   answer was in hand, and the published catalog named none of them.
+#
+# THE PLUGINS MUST RUN, and that is what makes this file different from
+# test/ui/show-bgp-declared-shapes.ci, which deliberately starts none. A
+# declaration written into a plugin's Stage 1 message exists in the engine only
+# once that plugin has registered, so a refusal asserted below is evidence that
+# the message reached the shape registry. The four plugins start in-process
+# through `plugin { internal <name> { use <plugin> } }`; bgp-healthcheck names
+# bgp-watchdog as a dependency, so both start.
+#
+# NOTHING HERE NEEDS A SESSION OR A CACHE CONNECTION. No BGP peer is configured,
+# and the two RTR cache servers are TEST-NET addresses that never answer. A
+# cache server becomes a row of `show bgp rpki cache` when the configuration
+# creates its RTR session (applyConfig, rpki.go), not when the session connects,
+# which is what gives this file real rows with no network.
+#
+# Every refusal is asserted on the string "cannot apply here", which
+# validateDeclaredShape writes and nothing else does. Asserting the operator and
+# the reason alone would be VACUOUS: the post-dispatch refusal shares both
+# substrings, so the assertion would pass with every declaration in this spec
+# removed, on a command that ran and was refused after the fact.
+#
+# The daemon runs with an ephemeral SSH listener; ZE_SSH_* carry the credentials
+# `ze cli` has no flags for.
+#
+# The timeout is DECLARED because this file starts a daemon with four plugins,
+# launches `ze` a dozen times, and lets one chain make a PTR lookup that has no
+# answer.
+option=timeout:value=120s
+
+tmpfs=run.py:terminator=EOF_PY
+import json
+import os
+import subprocess
+
+from ze_api import wait_until
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+
+def run(argv, env):
+    r = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, check=False)
+    return r.returncode, r.stdout, r.stderr
+
+
+password_hash = subprocess.check_output(['ze', 'passwd'], input='secret\n', text=True).strip()
+with open('shapes.conf', 'w', encoding='utf-8') as fh:
+    fh.write('''plugin {
+    internal rpki {
+        use bgp-rpki
+    }
+    internal adj-rib-in {
+        use bgp-adj-rib-in
+    }
+    internal rs {
+        use bgp-rs
+    }
+    internal watchdog {
+        use bgp-watchdog
+    }
+    internal healthcheck {
+        use bgp-healthcheck
+    }
+}
+
+bgp {
+    router-id 192.0.2.254
+    session {
+        asn {
+            local 65000
+        }
+    }
+    rpki {
+        cache-server 192.0.2.200 {
+            port 3323
+            preference 10
+        }
+        cache-server 198.51.100.7 {
+            port 3324
+            preference 20
+        }
+    }
+}
+
+system {
+    authentication {
+        user ci {
+            password "''' + password_hash + '''"
+            profile [ admin ]
+        }
+    }
+}
+''')
+
+daemon_env = os.environ.copy()
+daemon_env['ZE_SSH_EPHEMERAL'] = os.path.abspath('ssh.addr')
+daemon_env['ZE_READY_FILE'] = os.path.abspath('ready')
+daemon_env['ZE_CONFIG_DIR'] = os.getcwd()
+# Leave port 179 alone: this suite runs unprivileged and a bind failure there
+# takes the daemon down before it writes `ready`.
+daemon_env['ze_test_bgp_port'] = str(12000 + os.getpid() % 40000)
+daemon = subprocess.Popen(['ze', '-f', 'shapes.conf'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=daemon_env)
+
+
+def daemon_ready():
+    if daemon.poll() is not None:
+        out, err = daemon.communicate()
+        raise SystemExit('daemon exited early\nstdout:\n' + out + '\nstderr:\n' + err)
+    return os.path.exists('ssh.addr') and os.path.exists('ready')
+
+
+try:
+    if not wait_until(daemon_ready, attempts=300, delay=0.1):
+        raise SystemExit('daemon did not become ready')
+
+    host, port = open('ssh.addr', encoding='utf-8').read().strip().rsplit(':', 1)
+    cli_env = os.environ.copy()
+    cli_env.update({
+        'ZE_SSH_HOST': host,
+        'ZE_SSH_PORT': port,
+        'ZE_SSH_USERNAME': 'ci',
+        'ZE_SSH_PASSWORD': 'secret',
+        'ZE_CONFIG_DIR': os.getcwd(),
+    })
+
+    def cli(command):
+        code, out, err = run(['ze', 'cli', '-c', command], cli_env)
+        require(code == 0, '%s exit=%d: %s%s' % (command, code, out, err))
+        return out
+
+    def refusal(command):
+        # A refusal is written to the answer, so the text is what carries the
+        # operator's name and the reason. The exit code alone would not tell a
+        # refusal from a command that failed to run.
+        code, out, err = run(['ze', 'cli', '-c', command], cli_env)
+        return out + err
+
+    def names_the(text, command, operator, reason):
+        # "cannot apply here" is written by validateDeclaredShape
+        # (internal/component/command/pipe.go) and by nothing else, so it is
+        # what tells a refusal made from the DECLARATION from one made from the
+        # answer in hand. The plugin never ran for the chains below.
+        require('cannot apply here' in text,
+                '%s: refused AFTER dispatch, or not refused: the declaration is not what answered: %r' % (command, text))
+        require(operator in text, '%s: the refusal does not name `%s`: %r' % (command, operator, text))
+        require(reason in text, '%s: the refusal does not say %r: %r' % (command, reason, text))
+
+    def rows_of(answer, key):
+        # `| json` renders the ROW SET a shaped answer holds, so a command whose
+        # producer wraps its rows in an envelope answers a bare array here. Both
+        # spellings are accepted, because which one arrives is the renderer's
+        # decision and not this test's subject.
+        parsed = json.loads(answer)
+        rows = parsed.get(key, []) if isinstance(parsed, dict) else parsed
+        require(isinstance(rows, list), 'the answer holds no row list under %r: %r' % (key, parsed))
+        return rows
+
+    # The rpki plugin creates one RTR session for each configured cache server
+    # while it applies the configuration, and the engine has written `ready`, so
+    # both rows are there. Polled rather than assumed: the plugin registers and
+    # configures on its own goroutine.
+    def cache_rows():
+        code, out, _ = run(['ze', 'cli', '-c', 'show bgp rpki cache | json'], cli_env)
+        if code != 0:
+            return []
+        try:
+            return rows_of(out, 'cache-servers')
+        except (json.JSONDecodeError, SystemExit):
+            return []
+
+    require(wait_until(lambda: len(cache_rows()) == 2, attempts=200, delay=0.1),
+            '`show bgp rpki cache` never listed the two configured cache servers: %r' % (cache_rows(),))
+
+    # --- AC-9: `show bgp rpki cache | display address state` answers those two
+    # fields. The command declares eleven columns, and the operator narrows the
+    # answer to the two named here. `| json` follows because the default render
+    # is text, and the fields are what is asserted rather than their alignment.
+    displayed = rows_of(cli('show bgp rpki cache | display address state | json'), 'cache-servers')
+    require(len(displayed) == 2, '`| display address state` answered %d rows, want 2' % (len(displayed),))
+    for row in displayed:
+        require(sorted(row.keys()) == ['address', 'state'],
+                '`| display address state` answered fields %r' % (sorted(row.keys()),))
+
+    # --- AC-10: `| resolve` decorates the "address" field. The lookup has no
+    # answer for a TEST-NET address and is not expected to: what is asserted is
+    # that the operator ACTED, which is the sibling key it writes beside every
+    # address it decorated (applyResolve, pipe_resolve.go). A command that
+    # accepted the operator and decorated nothing would answer the payload
+    # unchanged.
+    resolved = rows_of(cli('show bgp rpki cache | resolve | json compact'), 'cache-servers')
+    require(len(resolved) == 2, '`| resolve` answered %d rows, want 2' % (len(resolved),))
+    for row in resolved:
+        require('address-name' in row, '`| resolve` did not decorate "address": %r' % (row,))
+
+    # --- AC-13: `show bgp rs peers` answers rows, so `| count` answers the peer
+    # count rather than being refused. No peer is configured, so the count is
+    # zero, and zero is an ANSWER: a refused chain writes no count at all.
+    counted = json.loads(cli('show bgp rs peers | count'))
+    count = int(counted['count']) if isinstance(counted, dict) else int(counted)
+    require(count == 0, '`show bgp rs peers | count` = %r, want 0' % (counted,))
+
+    # The healthcheck answer is rows in both branches, so a row operator applies
+    # to it whatever its argument. No probe is configured, so this count is zero
+    # for the same reason.
+    counted = json.loads(cli('show bgp healthcheck | count'))
+    count = int(counted['count']) if isinstance(counted, dict) else int(counted)
+    require(count == 0, '`show bgp healthcheck | count` = %r, want 0' % (counted,))
+
+    # --- The refusals. Each names the operator and the reason.
+    #
+    # AC-11: `show bgp rpki summary` answers the aggregate counters alone, with
+    # no row set anywhere in the payload.
+    text = refusal('show bgp rpki summary | first 2')
+    names_the(text, 'show bgp rpki summary | first 2', 'first', 'one document')
+
+    # AC-12: `show bgp rpki status` holds TWO candidate row sets, which
+    # rowsInKeyed (internal/component/command/answer_shape.go) refuses to choose
+    # between. Refusing beats guessing, and the declaration is what makes the
+    # refusal reach the operator before the command runs.
+    text = refusal('show bgp rpki status | count')
+    names_the(text, 'show bgp rpki status | count', 'count', 'one document')
+
+    # `show bgp rs status` answers {"running": true}. One key holding a scalar
+    # is no row set at either level, so every row operator is refused.
+    text = refusal('show bgp rs status | count')
+    names_the(text, 'show bgp rs status | count', 'count', 'one document')
+
+    # `show bgp adj-rib-in` answers {"adj-rib-in": {<peer>: [route, ...]}}. The
+    # peer map's values are ARRAYS, and rowSet reads a map as rows only when
+    # every value is an OBJECT, so the one candidate row set left is the
+    # envelope itself: a single row named "adj-rib-in" carrying every peer. Over
+    # that row `| first 1` would answer the whole table and `| count` would
+    # answer 1, which is a plausible number and the wrong question.
+    text = refusal('show bgp adj-rib-in | first 1')
+    names_the(text, 'show bgp adj-rib-in | first 1', 'first', 'one document')
+
+    # The same command, a different row operator: the refusal is a property of
+    # the shape, not of one operator.
+    text = refusal('show bgp adj-rib-in | count')
+    names_the(text, 'show bgp adj-rib-in | count', 'count', 'one document')
+
+    # `show bgp adj-rib-in status` maps a peer address to a route COUNT, and a
+    # scalar is no row either.
+    text = refusal('show bgp adj-rib-in status | count')
+    names_the(text, 'show bgp adj-rib-in status | count', 'count', 'one document')
+
+    # --- The address-field refusals. NeedsAddressField is read BEFORE the shape
+    # (validateDeclaredShape), so these name the address rather than the rows.
+    #
+    # AC-10b: each `show bgp` child is judged on its OWN declared address-field
+    # list. Without the empty list the BGP peer command plugin writes for every
+    # child of `show bgp`, these would inherit the "address" field that command
+    # declares and accept the operator over a payload holding no address.
+    text = refusal('show bgp rpki summary | resolve')
+    names_the(text, 'show bgp rpki summary | resolve', 'resolve', 'IP address')
+
+    # An ASPA row holds an AS number and the AS numbers that AS authorizes.
+    # Neither is an address, so the command declares no address field.
+    text = refusal('show bgp rpki aspa | origin')
+    names_the(text, 'show bgp rpki aspa | origin', 'origin', 'IP address')
+
+    text = refusal('show bgp rs status | resolve')
+    names_the(text, 'show bgp rs status | resolve', 'resolve', 'IP address')
+
+    # The peer address of an adj-rib-in answer is the KEY of the peer map, not a
+    # field of a row, so no field of this answer is declared to hold one.
+    text = refusal('show bgp adj-rib-in | resolve')
+    names_the(text, 'show bgp adj-rib-in | resolve', 'resolve', 'IP address')
+
+    # A probe row carries a name, a group and a state, and none of them is an
+    # address.
+    text = refusal('show bgp healthcheck | resolve')
+    names_the(text, 'show bgp healthcheck | resolve', 'resolve', 'IP address')
+finally:
+    daemon.terminate()
+    try:
+        daemon.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        daemon.kill()
+        daemon.wait(timeout=5)
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

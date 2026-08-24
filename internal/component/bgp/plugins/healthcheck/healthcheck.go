@@ -16,7 +16,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -47,6 +49,35 @@ func logger() *slog.Logger { return loggerPtr.Load() }
 func SetLogger(l *slog.Logger) {
 	if l != nil {
 		loggerPtr.Store(l)
+	}
+}
+
+// commandDecls names the commands this plugin serves and states what each
+// answer holds, so the engine publishes the operators a command supports and
+// refuses the ones it cannot before the command is dispatched
+// (pkg/plugin/rpc/types.go, CommandDecl).
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{
+			Name:        "show bgp healthcheck",
+			Description: "Show healthcheck probe status",
+			// handleShow answers rows in both branches, so one declaration
+			// describes the command whichever argument it takes. The shape is
+			// "map" and not "tab" because the two branches carry DIFFERENT row
+			// fields on purpose: three for the probe list and ten for one named
+			// probe (TestHealthcheckNamedProbeAnswersRows pins both). One column
+			// order cannot be read against both, and widening the list branch to
+			// ten fields would change the answer every operator reads today.
+			Shape: "map",
+		},
+		{
+			Name:        "clear bgp healthcheck",
+			Description: "Reset healthcheck probe to INIT",
+			// handleReset answers a report of what it did rather than a data
+			// set, and it is outside the population this spec measured, so it
+			// keeps the derived-at-apply-time behavior every undeclared command
+			// has.
+		},
 	}
 }
 
@@ -95,10 +126,7 @@ func RunHealthcheckPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		WantsConfig: []string{"bgp"},
-		Commands: []sdk.CommandDecl{
-			{Name: "show bgp healthcheck", Description: "Show healthcheck probe status"},
-			{Name: "clear bgp healthcheck", Description: "Reset healthcheck probe to INIT"},
-		},
+		Commands:    commandDecls(),
 	})
 	if err != nil {
 		logger().Error("healthcheck plugin failed", "error", err)
@@ -448,8 +476,18 @@ func (m *probeManager) handleShow(args []string) (string, any, error) {
 		Group string `json:"group"`
 		State string `json:"state"`
 	}
-	probes := make([]probeInfo, 0, len(m.probes))
-	for name, rp := range m.probes {
+	// Ascending probe name, not the Go map iteration order, so the row operators
+	// this command's declared shape publishes -- "first", "last", "display" --
+	// select the same probe on every call
+	// (internal/component/command/answer_shape.go, rowSet). The name is the map
+	// key, so it is unique and the order is total with no tie left to break. An
+	// operator reads a probe list by name, and applyConfig keys this map by the
+	// same name the configuration gives (config.go, ProbeConfig.Name). This runs
+	// on the command goroutine, never on a probe loop.
+	names := slices.Sorted(maps.Keys(m.probes))
+	probes := make([]probeInfo, 0, len(names))
+	for _, name := range names {
+		rp := m.probes[name]
 		probes = append(probes, probeInfo{Name: name, Group: rp.config.Group, State: stateName(State(rp.fsmState.Load()))})
 	}
 	return statusDone, probes, nil

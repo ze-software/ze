@@ -4,6 +4,7 @@ package healthcheck
 
 import (
 	"encoding/json"
+	"reflect"
 	"sort"
 	"testing"
 )
@@ -113,5 +114,56 @@ func TestHealthcheckNamedProbeAnswersRows(t *testing.T) {
 	}
 	if named["up-metric"] != float64(100) {
 		t.Errorf("named-probe up-metric = %v, want 100", named["up-metric"])
+	}
+}
+
+// TestHealthcheckListAnswersSortedOrder proves that the no-argument branch
+// answers one deterministic order, and that the order is the sorted one.
+//
+// Goal: `show bgp healthcheck` declares a row shape, and a declared row shape
+// publishes "first", "last" and "display" as supported, so each of them must
+// select the same probe on every run. Method: register eight probes in an order
+// that is not the sorted one, read the answer many times, and require ascending
+// probe-name order on every read.
+//
+// The probes are written straight into the map rather than through applyConfig,
+// because handleShow only reads them: eight probe goroutines would launch eight
+// shell commands without changing what is under test.
+//
+// VALIDATES: the summary branch of handleShow answers in ascending name order.
+// PREVENTS: Go map iteration randomization reaching the CLI, where `| first 1`
+// answers a different probe on each call and nothing in the answer says so.
+func TestHealthcheckListAnswersSortedOrder(t *testing.T) {
+	mgr := newTestManager()
+
+	inserted := []string{"web", "dns", "ntp", "api", "tftp", "bgp", "radius", "syslog"}
+	expected := []string{"api", "bgp", "dns", "ntp", "radius", "syslog", "tftp", "web"}
+	for _, name := range inserted {
+		mgr.probes[name] = &runningProbe{config: ProbeConfig{Name: name, Group: "hc"}}
+	}
+	if len(mgr.probes) != len(inserted) {
+		t.Fatalf("probes = %d, want %d distinct names", len(mgr.probes), len(inserted))
+	}
+
+	// Go randomizes where a map range starts, so with eight probes a single read
+	// answers the sorted order by luck with probability at most 1/8. Thirty-two
+	// reads put that ceiling at 8^-32, near 5e-29, so a map-ranging
+	// implementation fails this test rather than flaking it. Asserting the whole
+	// sequence rather than its stability is what makes insertion order fail too.
+	const readCount = 32
+
+	for read := range readCount {
+		rows := showRows(t, mgr, nil)
+		names := make([]string, 0, len(rows))
+		for _, row := range rows {
+			name, isText := row["name"].(string)
+			if !isText {
+				t.Fatalf("read %d: row %v carries no name", read, row)
+			}
+			names = append(names, name)
+		}
+		if !reflect.DeepEqual(names, expected) {
+			t.Fatalf("read %d answers %v, want ascending name order %v", read, names, expected)
+		}
 	}
 }

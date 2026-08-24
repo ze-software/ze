@@ -219,6 +219,41 @@ type routeServer struct {
 	adjRibInMissingOnce sync.Once
 }
 
+// commandDecls names the commands this plugin serves and states what each
+// answer holds, so the engine publishes the operators a command supports and
+// refuses the ones it cannot before the command is dispatched
+// (pkg/plugin/rpc/types.go, CommandDecl).
+//
+// A column order names the keys of one ROW, in the order a person reads them,
+// and every name below is a key the producing function writes. A name no
+// producer writes orders nothing and publishes a field that does not exist to
+// `| display` completion, and NOTHING fails when it is wrong:
+// TestDeclaredColumnsExistInPayload drives each producer and holds the two
+// together.
+func commandDecls() []sdk.CommandDecl {
+	return []sdk.CommandDecl{
+		{
+			Name:        "show bgp rs status",
+			Description: "Show RS status",
+			// handleCommand (server_handlers.go) answers {"running": true}. One
+			// key holding a scalar is no row set, so the answer is one document
+			// and the row operators are refused by name.
+			Shape: "doc",
+		},
+		{
+			Name:        "show bgp rs peers",
+			Description: "Show peer states",
+			// peerStatus (server_handlers.go) writes the rows under "peers", in
+			// ascending peer address order. "remote" carries the peer's AS
+			// number in an object of its own, which is the spelling this answer
+			// has always used.
+			Shape:         "tab",
+			Columns:       []string{"address", "remote", "up"},
+			AddressFields: []string{"address"},
+		},
+	}
+}
+
 // RunRouteServer runs the Route Server plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
 func RunRouteServer(conn net.Conn) int {
@@ -381,10 +416,7 @@ func RunRouteServer(conn net.Conn) int {
 		// heavy-peer worker would cumulatively evict intermediate entries that
 		// small-peer workers haven't processed yet, causing ErrUpdateExpired.
 		CacheConsumerUnordered: true,
-		Commands: []sdk.CommandDecl{
-			{Name: "show bgp rs status", Description: "Show RS status"},
-			{Name: "show bgp rs peers", Description: "Show peer states"},
-		},
+		Commands:               commandDecls(),
 	})
 
 	if err != nil {

@@ -9,7 +9,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/netip"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -656,13 +658,24 @@ func (rs *routeServer) handleCommand(command string) (string, any, error) {
 	}
 }
 
-// peerStatus returns peer state.
+// peerStatus returns peer state, one row for each peer, in ascending peer
+// address order.
+//
+// The order is sorted rather than the Go map iteration order so that the row
+// operators of a shaped answer -- "first", "last", "display" -- select the same
+// peer on every call (internal/component/command/answer_shape.go, rowSet).
+// handleState keys rs.peers by the peer address and writes that same string into
+// PeerState.Address, so the key and the row's own "address" field carry one
+// value and one sort key answers for both. This snapshot runs on the command
+// goroutine, never on a forward path.
 func (rs *routeServer) peerStatus() any {
 	rs.mu.RLock()
 	defer rs.mu.RUnlock()
 
-	peers := make([]map[string]any, 0, len(rs.peers))
-	for _, p := range rs.peers {
+	addresses := slices.SortedFunc(maps.Keys(rs.peers), comparePeerAddress)
+	peers := make([]map[string]any, 0, len(addresses))
+	for _, address := range addresses {
+		p := rs.peers[address]
 		peers = append(peers, map[string]any{
 			"address": p.Address,
 			"remote":  map[string]any{"as": p.ASN},
@@ -671,4 +684,30 @@ func (rs *routeServer) peerStatus() any {
 	}
 
 	return map[string]any{"peers": peers}
+}
+
+// comparePeerAddress orders two peer address keys the way an operator reads a
+// peer list: by parsed address, so 192.0.2.2 comes before 192.0.2.10 where the
+// text order puts it after, and every IPv4 peer comes before every IPv6 one.
+//
+// A key arrives from the engine as a string, so this cannot assume it parses. A
+// key that does not parse sorts after every key that does, and the text breaks
+// any remaining tie. The order is therefore total for whatever the engine sent,
+// which is what a row selector needs.
+func comparePeerAddress(left, right string) int {
+	leftAddr, leftErr := netip.ParseAddr(left)
+	rightAddr, rightErr := netip.ParseAddr(right)
+	if leftErr != nil {
+		if rightErr != nil {
+			return strings.Compare(left, right)
+		}
+		return 1
+	}
+	if rightErr != nil {
+		return -1
+	}
+	if order := leftAddr.Compare(rightAddr); order != 0 {
+		return order
+	}
+	return strings.Compare(left, right)
 }

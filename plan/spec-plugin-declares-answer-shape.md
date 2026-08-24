@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | plugin |
 | Depends | `plan/spec-cli-show-bgp-answer-shapes.md` |
-| Phase | - |
+| Phase | 4/5 |
 | Deferral shard | `plan/deferrals/plugin-declares-answer-shape.md` |
 | Handoff | - |
 | Updated | 2026-08-24 |
@@ -191,7 +191,8 @@ the producing function.
 | A-1 | The dependency spec's floor rule has landed, so a plugin declaring onto a path the BGP command plugin blanked wins | `plan/spec-cli-show-bgp-answer-shapes.md` Phase 1 | The declaration is silently dropped, or drops the empty declaration and lets the child inherit `show bgp`'s peer columns | `TestPluginShapeOverridesEmptyDeclaration` | unvalidated |
 | A-2 | No caller depends on `show bgp healthcheck` answering one object for a named probe, nor on `show bgp rpki aspa` answering one object for a customer ASN | The commands are reached only through the dispatcher | A caller breaks | `gopls references` on `handleShow` and `aspaCommand`, and a grep of `test/` for both command paths | confirmed 2026-08-24. `handleShow` is called only by `handleCommand` (`healthcheck.go`) and `aspaCommand` only by `handleCommand` (`rpki.go`); every other reference is a test in the same package. One `.ci` reads the named-probe answer, `test/plugin/as112-probe-anycast-not-loopback.ci`, and it matches the SUBSTRINGS `state: UP` and `state: DOWN` in the `\| yaml` render, which survive the two-space sequence indent `writeMapItem` (`internal/component/command/format.go`) adds. No `.ci` reads the aspa lookup answer |
 | A-3 | A plugin that stops and restarts re-declares, so removal on stop loses nothing | `UnregisterPluginAliases` already works this way | A restarted plugin's commands lose their declarations | `TestUnregisterPluginShapes` and a plugin restart in a `.ci` |ered unvalidated |
-| A-4 | `show bgp rpki status` and `show bgp adj-rib-in status` genuinely hold no single row set | Read of `rowsInKeyed` against both producers: one has two candidate keys, the other maps an address to a scalar | Declaring `doc` refuses a row operator that used to answer | A `.ci` asserting the refusal names the operator | unvalidated |
+| A-4 | `show bgp rpki status` and `show bgp adj-rib-in status` genuinely hold no single row set | Read of `rowsInKeyed` against both producers: one has two candidate keys, the other maps an address to a scalar | Declaring `doc` refuses a row operator that used to answer | A `.ci` asserting the refusal names the operator | confirmed 2026-08-24. `statusCommand` (`rpki.go`) writes two candidate keys, pinned by `TestDocCommandsHoldNoSingleRowSet`; `AdjRIBInManager.status` (`rib_commands.go`) maps an address to an `int`, pinned by `TestStatusHoldsNoRowSet`. `test/ui/show-bgp-plugin-shapes.ci` asserts both refusals by operator name and on `cannot apply here` |
+| A-5 | `show bgp adj-rib-in` holds a row set keyed by peer address, so the `first 1` operator answers one peer's routes. This is the premise of AC-16 and of the Current Behavior row that calls the command `tab` | The Current Behavior table read the payload as "a map keyed by peer address whose values are ARRAYS" and treated that as rows | AC-16 cannot be satisfied, and the command must declare `doc` rather than `tab` | Read of `rowSet` (`internal/component/command/answer_shape.go`) against `AdjRIBInManager.show` (`rib_commands.go`) | **broken 2026-08-24**. `rowSet` reads a map as rows only when EVERY value is an object, and the peer map's values are arrays, so it is no row set. The one candidate left is the envelope itself: one row named `adj-rib-in` carrying every peer, over which the `first 1` operator answers the whole table and `count` answers 1. Making AC-16 true needs the peer map to hold objects, which changes a payload "Behavior to preserve" protects and which `test/interop/scenarios/show-rib-under-frr-load/check.py`, `test/interop/scenarios/rpki-frr/rpki-check.py` and `test/scripts/ze_api.py` navigate. Phase 4 therefore declares `doc`, which refuses the operator by name, and AC-16 is put to the owner |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -238,7 +239,7 @@ the producing function.
 | AC-13 | `show bgp rs peers \| count` | Answers the peer count |
 | AC-14 | `show bgp healthcheck` with a probe name | Answers a one-row set, in the same spelling it uses with no argument |
 | AC-15 | `show bgp rpki aspa` with a customer ASN | Answers a one-row set, in the same spelling it uses with no argument |
-| AC-16 | `show bgp adj-rib-in \| first 1` | Answers one peer's routes |
+| AC-16 | ~~`show bgp adj-rib-in \| first 1`~~ | ~~Answers one peer's routes~~ **FALSE AS WORDED, 2026-08-24, Phase 4, and the Current Behavior table was wrong with it.** `AdjRIBInManager.show` (`internal/component/bgp/plugins/adj_rib_in/rib_commands.go`) writes an envelope whose `adj-rib-in` key holds a map of peer address to an ARRAY of routes. `rowSet` (`internal/component/command/answer_shape.go`) reads a map as rows only when EVERY value is an object, so that map is not a row set; the only candidate left is the envelope itself, read as ONE row named `adj-rib-in` holding every peer. `first 1` would answer the whole table and `count` would answer 1. Declaring `tab` with the route field names would be wrong twice over, because those names are keys two levels below any row. The command therefore declares `doc`, which refuses the row operators by name. Making AC-16 true means the peer map must hold objects rather than arrays, which changes a payload "Behavior to preserve" protects and which three consumers navigate as it stands (`test/interop/scenarios/show-rib-under-frr-load/check.py`, `.../rpki-frr/rpki-check.py`, `test/scripts/ze_api.py`). That is a payload question rather than a declaration question, so it is Thomas's call and not this spec's. Recorded as A-5 broken |
 | AC-17 | Every one of the eleven commands | Declares a shape, and declares a column order and an address-field list where its answer has rows and addresses |
 | AC-18 | `ze help command --json` for a plugin `show bgp` path, from a RUNNING daemon | Lists the operators that path supports |
 
@@ -276,7 +277,7 @@ the producing function.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `show-bgp-plugin-shapes` | `test/ui/show-bgp-plugin-shapes.ci` | An operator uses `\| display`, `\| resolve` and `\| count` over plugin-served `show bgp` commands, and is refused BY NAME where the answer holds no rows | |
+| `show-bgp-plugin-shapes` | `test/ui/show-bgp-plugin-shapes.ci` | An operator uses `\| display`, `\| resolve` and `\| count` over plugin-served `show bgp` commands, and is refused BY NAME where the answer holds no rows | passing 2026-08-24 |
 | `plugin-shape-declaration-refused` | `test/plugin/plugin-shape-declaration-refused.ci` | A plugin declaring a bad shape does not start, and the daemon log names the plugin, the command and the value | |
 
 ### Interop Tests (Scope: protocol)
@@ -458,9 +459,15 @@ additively, and it is not a protocol Ze speaks to another implementation.
 - The engine cannot check a declared column name against a payload it has not
   seen. For the eleven commands the `.ci` checks it; for a third-party plugin it
   stays the author's responsibility.
-- `show bgp adj-rib-in` keys its rows by peer address, so `| resolve` refuses
-  rather than resolving the key. That is the identity-keyed row set limitation
-  carried by `plan/deferrals/cli-show-bgp-answer-shapes.md`.
+- `show bgp adj-rib-in` answers ONE DOCUMENT, and every row operator over it is
+  refused by name. `AdjRIBInManager.show` maps each peer address to an ARRAY of
+  routes, and `rowSet` reads a map as rows only when every value is an object,
+  so the payload holds no row set the engine can address. See A-5: the shape
+  this spec's Current Behavior table predicted for the command was `tab`, and
+  the producer does not support it. The peer address is also the map KEY rather
+  than a field, so no address field is declared and `| resolve` is refused for
+  that separate reason -- the identity-keyed row set limitation carried by
+  `plan/deferrals/cli-show-bgp-answer-shapes.md`.
 
 ## Checklist
 
