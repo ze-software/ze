@@ -813,3 +813,55 @@ func TestBuildPromptUsesTheStateColor(t *testing.T) {
 	assert.Contains(t, ctx, breadcrumb)
 	assert.Contains(t, ctxFailed, breadcrumb)
 }
+
+// TestPromptEmitsTheColorBytesAnSSHClientReceives verifies the prompt carries
+// the ANSI-256 escape an operator's terminal acts on, not merely a distinct
+// lipgloss.Style value.
+//
+// VALIDATES: buildPrompt emits SGR `38;5;33` in operational mode, `38;5;82` in
+// config mode, and `38;5;205` after a failure, under every color profile. Render
+// does not consult lipgloss.Writer.Profile. The escape is therefore in the
+// string whatever the terminal is. Bubbletea's renderer downsamples it per
+// session, and wish sets tea.WithColorProfile from the SSH client's TERM.
+// PREVENTS: a comparison of two Style VALUES passing while the rendered prompt
+// carries no escape at all, which is what a color test that never inspects
+// bytes cannot tell apart.
+func TestPromptEmitsTheColorBytesAnSSHClientReceives(t *testing.T) {
+	const (
+		blue    = "\x1b[38;5;33m"
+		green   = "\x1b[38;5;82m"
+		magenta = "\x1b[38;5;205m"
+	)
+	boom := errors.New("no such peer")
+
+	// The loop ASSERTS an invariant. It does not establish a precondition, and
+	// to read it as setup would mislead. `Style.Render`
+	// (`vendor/charm.land/lipgloss/v2/style.go`) names neither Writer nor
+	// Profile. The escape is emitted whatever this global says, so every
+	// iteration passes with the line deleted.
+	//
+	// What the loop buys is a regression guard. If Render ever starts to
+	// consult the profile, the Ascii iteration goes red HERE. Without the
+	// guard it would instead strip color from one class of terminal in
+	// production, and say nothing. Degradation is downstream and per session,
+	// in bubbletea's renderer, from the SSH client's TERM
+	// (`wish/v2/bubbletea`).
+	//
+	// Other tests in this file set the same global and then assert on Render
+	// output. Those lines are inert for the reason above.
+	t.Cleanup(func() { lipgloss.Writer.Profile = colorprofile.Ascii })
+	for _, prof := range []colorprofile.Profile{
+		colorprofile.Ascii, colorprofile.ANSI256, colorprofile.TrueColor,
+	} {
+		lipgloss.Writer.Profile = prof
+
+		assert.Contains(t, Model{mode: ModeOperational}.buildPrompt(), blue)
+		assert.Contains(t, Model{mode: ModeConfig}.buildPrompt(), green)
+		assert.Contains(t, Model{mode: ModeConfig, err: boom}.buildPrompt(), magenta)
+		assert.Contains(t, Model{mode: ModeOperational, err: boom}.buildPrompt(), magenta)
+
+		// The failure color must REPLACE the mode color, never sit beside it.
+		failed := Model{mode: ModeOperational, err: boom}.buildPrompt()
+		assert.NotContains(t, failed, blue, "failure replaces the mode color")
+	}
+}
