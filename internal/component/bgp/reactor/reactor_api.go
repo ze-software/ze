@@ -91,13 +91,23 @@ type reactorAPIAdapter struct {
 	r *Reactor
 }
 
-// Peers returns peer information for the API.
+// Peers returns peer information for the API, in ascending peer-key order.
+//
+// The order is sorted rather than the Go map iteration order so that the row
+// operators of a shaped answer -- "first", "last", "display" -- select the same
+// peer on every call (answer_shape.go, rowSet). The key is the netip.AddrPort
+// rather than the address alone because two peers can share an address on
+// different ports (peer_settings.go, PeerKey). The sort costs one
+// []netip.AddrPort beside a []plugin.PeerInfo that is already far larger, and
+// this snapshot runs on a command goroutine, never on a wire path.
 func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
 
-	result := make([]plugin.PeerInfo, 0, len(a.r.peers))
-	for _, p := range a.r.peers {
+	peerKeys := slices.SortedFunc(maps.Keys(a.r.peers), netip.AddrPort.Compare)
+	result := make([]plugin.PeerInfo, 0, len(peerKeys))
+	for _, peerKey := range peerKeys {
+		p := a.r.peers[peerKey]
 		s := p.Settings()
 		// PeerAS, the filter chains and the prefix dates via the guarded accessors: this
 		// API snapshot runs on a command goroutine that can race a dynamic peer's
@@ -298,10 +308,11 @@ func (a *reactorAPIAdapter) SoftClearPeer(sel *selector.Selector, sender plugin.
 		}
 	}
 
-	families := make([]string, 0, len(familySet))
-	for f := range familySet {
-		families = append(families, f)
-	}
+	// Sorted for the same reason Peers is: this slice reaches an operator as the
+	// "families-refreshed" key of the `clear bgp <peer> soft` answer
+	// (clear_soft.go), and a Go map range answers a different order on every
+	// call, so `| json` over one unchanged clear differed run to run.
+	families := slices.Sorted(maps.Keys(familySet))
 
 	return families, lastErr
 }
