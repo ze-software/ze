@@ -4,7 +4,8 @@ This page starts from a blank Ubuntu server and leaves you with an installed `ze
 
 The commands assume Ubuntu 24.04 or newer, `sudo`, and an `amd64` or `arm64` host. Replace `edge-01` and every password before running them on a real box.
 
-<!-- source: scripts/dev/dev-setup.py -- Ubuntu package names and setup helper -->
+<!-- source: scripts/le/devtools/tools.py -- Ubuntu package names, in Tool.apt -->
+<!-- source: scripts/le/application/setup.py -- action, the setup helper -->
 <!-- source: Makefile -- build target and default feature tags -->
 <!-- source: internal/plugins/init/main.go -- ze init input format and database.zefs creation -->
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->
@@ -65,10 +66,10 @@ Ze also ships a setup checker. It uses the same tool list as the developer and a
 ```bash
 git clone https://github.com/ze-software/ze.git
 cd ze
-make ze-dev-setup CHECK=1 || true
+./le setup --check || true
 ```
 
-In check mode (`CHECK=1`) this lists anything missing as `[missing] <tool>` and exits non-zero. Run plain `make ze-dev-setup` without `CHECK=1` and it installs the missing packages itself, echoing each command first. Every command it runs as root goes through `sudo -n`, so nothing waits on a prompt it cannot answer. When sudo wants a password it asks once, with `sudo -v`, and only when a terminal is attached; with no terminal it prints the command and exits non-zero instead.
+In check mode (`--check`) this lists anything missing as `[missing] <tool>` and exits non-zero. It probes only and changes nothing. Run plain `./le setup` without `--check` and it installs the missing packages itself, echoing each command first. Every command it runs as root goes through `sudo -n`, so nothing waits on a prompt it cannot answer. When sudo wants a password it asks once, with `sudo -v`, and only when a terminal is attached; with no terminal it prints the command and exits non-zero instead.
 
 ## 2. Build Ze
 

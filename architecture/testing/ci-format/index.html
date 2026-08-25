@@ -1092,8 +1092,8 @@ next command.</p>
 and FreeBSD, the test runner adds loopback aliases via the <code>SIOCAIFADDR</code> ioctl.</p>
 <p>IPv6 works differently, because a host carries exactly one IPv6 loopback
 address. A fixture that needs a second one uses <code>fd00::2</code>, which is unique-local
-(RFC 4193) and never globally routable. <code>make ze-dev-setup</code> adds it, and
-<code>make ze-dev-setup CHECK=1</code> reports whether it is there. The runner never adds it:
+(RFC 4193) and never globally routable. <code>./le setup</code> adds it, and
+<code>./le setup --check</code> reports whether it is there. The runner never adds it:
 the ioctl returns EPERM to an unprivileged process, and <code>make ze-precommit-verify</code> runs as
 an ordinary user. A test that binds an address this host does not carry fails at
 once with <code>loopback_address_missing</code> and the command to run, rather than timing
@@ -1104,11 +1104,11 @@ out on a bind that could not succeed.</p>
 listens on it when <code>accept</code> is true, so the host must carry it too. A local
 address outside 127.0.0.0/8 and fc00::/7 is left alone. A config-validation
 fixture names a routable one (<code>local { ip 192.0.2.1 }</code>), the daemon exits before
-it binds anything, and <code>make ze-dev-setup</code> adds no such address.</p>
+it binds anything, and <code>./le setup</code> adds no such address.</p>
 <!-- source: internal/test/runner/loopback.go -- probe, error text, --bind and config-local scan -->
 <!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux for IPv4 -->
 <!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
-<!-- source: scripts/dev/dev-setup.py -- loopback_addresses, apply_loopback_fix -->
+<!-- source: scripts/le/devtools/system.py -- LOOPBACK_IPV6, loopback_addresses, apply_loopback -->
 
 <h2 id="expectations">Expectations</h2>
 <pre><code>expect=&lt;type&gt;:key=value[:key=value...]
@@ -2182,7 +2182,7 @@ expect=completion:contains=router-id,local-as,peer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 25 August 2026 14:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -656,8 +656,8 @@ and FreeBSD, the test runner adds loopback aliases via the `SIOCAIFADDR` ioctl.
 
 IPv6 works differently, because a host carries exactly one IPv6 loopback
 address. A fixture that needs a second one uses `fd00::2`, which is unique-local
-(RFC 4193) and never globally routable. `make ze-dev-setup` adds it, and
-`make ze-dev-setup CHECK=1` reports whether it is there. The runner never adds it:
+(RFC 4193) and never globally routable. `./le setup` adds it, and
+`./le setup --check` reports whether it is there. The runner never adds it:
 the ioctl returns EPERM to an unprivileged process, and `make ze-precommit-verify` runs as
 an ordinary user. A test that binds an address this host does not carry fails at
 once with `loopback_address_missing` and the command to run, rather than timing
@@ -669,11 +669,11 @@ The check reads both places a fixture names an address it binds. One is
 listens on it when `accept` is true, so the host must carry it too. A local
 address outside 127.0.0.0/8 and fc00::/7 is left alone. A config-validation
 fixture names a routable one (`local { ip 192.0.2.1 }`), the daemon exits before
-it binds anything, and `make ze-dev-setup` adds no such address.
+it binds anything, and `./le setup` adds no such address.
 <!-- source: internal/test/runner/loopback.go -- probe, error text, --bind and config-local scan -->
 <!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux for IPv4 -->
 <!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
-<!-- source: scripts/dev/dev-setup.py -- loopback_addresses, apply_loopback_fix -->
+<!-- source: scripts/le/devtools/system.py -- LOOPBACK_IPV6, loopback_addresses, apply_loopback -->
 
 ## Expectations
 

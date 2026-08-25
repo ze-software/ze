@@ -61,7 +61,8 @@
 <li><a href="#9-stop-or-roll-back">9. Stop or roll back</a></li>
 </ol></nav>
 <p>The commands assume Ubuntu 24.04 or newer, <code>sudo</code>, and an <code>amd64</code> or <code>arm64</code> host. Replace <code>edge-01</code> and every password before running them on a real box.</p>
-<!-- source: scripts/dev/dev-setup.py -- Ubuntu package names and setup helper -->
+<!-- source: scripts/le/devtools/tools.py -- Ubuntu package names, in Tool.apt -->
+<!-- source: scripts/le/application/setup.py -- action, the setup helper -->
 <!-- source: Makefile -- build target and default feature tags -->
 <!-- source: internal/plugins/init/main.go -- ze init input format and database.zefs creation -->
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->
@@ -109,9 +110,9 @@ there.</p>
 <p>Ze also ships a setup checker. It uses the same tool list as the developer and appliance checks.</p>
 <pre><code class="language-bash">git clone https://github.com/ze-software/ze.git
 cd ze
-make ze-dev-setup CHECK=1 || true
+./le setup --check || true
 </code></pre>
-<p>In check mode (<code>CHECK=1</code>) this lists anything missing as <code>[missing] &lt;tool&gt;</code> and exits non-zero. Run plain <code>make ze-dev-setup</code> without <code>CHECK=1</code> and it installs the missing packages itself, echoing each command first. Every command it runs as root goes through <code>sudo -n</code>, so nothing waits on a prompt it cannot answer. When sudo wants a password it asks once, with <code>sudo -v</code>, and only when a terminal is attached; with no terminal it prints the command and exits non-zero instead.</p>
+<p>In check mode (<code>--check</code>) this lists anything missing as <code>[missing] &lt;tool&gt;</code> and exits non-zero. It probes only and changes nothing. Run plain <code>./le setup</code> without <code>--check</code> and it installs the missing packages itself, echoing each command first. Every command it runs as root goes through <code>sudo -n</code>, so nothing waits on a prompt it cannot answer. When sudo wants a password it asks once, with <code>sudo -v</code>, and only when a terminal is attached; with no terminal it prints the command and exits non-zero instead.</p>
 <h2 id="2-build-ze">2. Build Ze</h2>
 <p><code>make build</code> compiles the normal Ze binary and helper binaries.</p>
 <pre><code class="language-bash">cd ~/ze
@@ -314,7 +315,7 @@ sudo /usr/local/bin/ze uninstall local
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 25 August 2026 14:09 UTC</span>
                 </div>
             </div>
         </footer>

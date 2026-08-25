@@ -44,7 +44,8 @@
 
         <main id="top" tabindex="-1">
             <section class="md-content reveal cat-platform">
-<!-- source: scripts/dev/dev-setup.py -- REQUIRED_TOOLS, detect_os -->
+<!-- source: scripts/le/devtools/tools.py -- REQUIRED_TOOLS, OPTIONAL_TOOLS, ALL_TOOLS -->
+<!-- source: scripts/le/devtools/install.py -- detect_package_manager -->
 
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
@@ -53,13 +54,17 @@
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#quick-start">Quick Start</a></li>
-<li><a href="#check-mode">Check Mode</a></li>
+<li><a href="#check-mode">Check Mode</a>
+<ol>
+<li><a href="#editor-plugins">Editor plugins</a></li>
+</ol></li>
 <li><a href="#what-it-installs">What It Installs</a>
 <ol>
 <li><a href="#build-and-lint">Build and Lint</a></li>
 <li><a href="#appliance-and-evidence">Appliance and Evidence</a></li>
 <li><a href="#optional">Optional</a></li>
 </ol></li>
+<li><a href="#lint-the-python-tree">Lint the Python Tree</a></li>
 <li><a href="#platform-notes">Platform Notes</a>
 <ol>
 <li><a href="#macos">macOS</a></li>
@@ -70,20 +75,58 @@
 </ol></nav>
 <h2 id="quick-start">Quick Start</h2>
 <pre><code class="language-bash">git clone &lt;repo-url&gt; &amp;&amp; cd ze
-make ze-dev-setup
+./le setup
 </code></pre>
 <p>This detects your OS (macOS with Homebrew or Debian/Ubuntu with apt), installs
 missing tools, vendors Go dependencies, and reports what it did.</p>
+<p><code>le</code> is the Python build entry point at the root of the checkout. It has two
+subprograms, <code>setup</code> and <code>lint</code>, and each one also runs on its own:</p>
+<pre><code class="language-bash">PYTHONPATH=scripts python3 -m le.application.setup --check
+</code></pre>
+<p>That route calls the same action with the same options as <code>./le setup --check</code>,
+so the two cannot diverge.</p>
 <h2 id="check-mode">Check Mode</h2>
 <p>Probe the current host without installing anything:</p>
-<pre><code class="language-bash">make ze-dev-setup CHECK=1
+<pre><code class="language-bash">./le setup --check
 </code></pre>
-<p>Exits 0 if all required tools are present, nonzero if any are missing.
-Useful as a CI preflight check.</p>
+<p><code>--check</code> probes only and changes nothing: it installs no package, edits no
+sysctl, and adds no loopback address. It exits 0 if all required tools are
+present, nonzero if any are missing. Use it as a CI preflight check. Drop
+<code>--check</code> and the same run installs what it found missing.</p>
 <p>Two of the rows are behaviour, not binaries: <code>gopls-answers</code> and
 <code>pyright-answers</code> run each language server and check that it replies. A server
 on PATH that does not answer fails this check, because every LSP call against
 it fails the same silent way.</p>
+<h3 id="editor-plugins">Editor plugins</h3>
+<p>A language server on PATH is not the whole capability. Claude Code reaches it
+through a plugin, and without that plugin the LSP tool refuses every file of
+that language. A session then reads whole scripts to find one symbol.</p>
+<p><code>./le setup --check</code> reports a missing plugin as a pending step and names the
+command that installs it:</p>
+<table>
+<thead>
+<tr>
+<th>Plugin</th>
+<th>Serves</th>
+<th>Install</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gopls-lsp</code></td>
+<td><code>.go</code></td>
+<td><code>/plugin install gopls-lsp@claude-plugins-official</code></td>
+</tr>
+<tr>
+<td><code>pyright-lsp</code></td>
+<td><code>.py</code>, <code>.pyi</code></td>
+<td><code>/plugin install pyright-lsp@claude-plugins-official</code></td>
+</tr>
+</tbody>
+</table>
+<p>Run the slash command inside a Claude Code session. The plugin and the binary
+it names fail the same way and have different fixes, so the report says which
+of the two is absent.</p>
 <h2 id="what-it-installs">What It Installs</h2>
 <h3 id="build-and-lint">Build and Lint</h3>
 <table>
@@ -199,6 +242,18 @@ it fails the same silent way.</p>
 </tr>
 </tbody>
 </table>
+<h2 id="lint-the-python-tree">Lint the Python Tree</h2>
+<pre><code class="language-bash">./le lint
+</code></pre>
+<p>This runs ruff over the whole tree and mypy <code>--strict</code> over <code>scripts/le</code>. The
+older Python under <code>scripts/</code> is held to a finding ceiling recorded in
+<code>pyproject.toml</code>. A new finding there fails the run, and the ceiling falls as
+the findings are fixed. <code>--fix</code> applies the fixes ruff can make and formats the
+strict scope. <code>--strict-only</code> checks <code>scripts/le</code> alone. <code>--lint-only</code> and
+<code>--types-only</code> each run one half.</p>
+<p>No Makefile target does this. <code>./le lint</code> is the only entry point.</p>
+<!-- source: scripts/le/application/lint.py -- legacy_ceiling, _ruff_strict, _ruff_legacy, _mypy -->
+
 <h2 id="platform-notes">Platform Notes</h2>
 <h3 id="macos">macOS</h3>
 <ul>
@@ -222,7 +277,7 @@ it fails the same silent way.</p>
 <!-- source: scripts/evidence/homebrew.py -- brew_prefixes, brew_keg_dirs -->
 
 <h3 id="linux">Linux</h3>
-<p><code>make ze-dev-setup</code> installs the apt packages itself, the same way it installs the
+<p><code>./le setup</code> installs the apt packages itself, the same way it installs the
 Homebrew ones on macOS. Each command is echoed before it runs. It takes
 <code>apt-get update</code> once per run, because a container image ships no package
 lists, and it sets <code>DEBIAN_FRONTEND=noninteractive</code> so a package with a debconf
@@ -255,7 +310,8 @@ prompt cannot stop the run.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: scripts/dev/dev-setup.py -- privilege_mode, run_privileged, apt_install -->
+<!-- source: scripts/le/process.py -- Privilege, privilege, run_privileged -->
+<!-- source: scripts/le/devtools/install.py -- Installer._apt_install -->
 
 <p><strong>uv</strong> is not in the Debian or Ubuntu repositories, so it installs through
 <code>pipx</code> on both platforms. One route is one thing to fix, and it keeps
@@ -267,14 +323,14 @@ nothing at all, <code>grub-mkstandalone</code> included. <code>ze appliance iso<
 target from the architecture of the image it packs, so building an ISO for the
 OTHER architecture needs that architecture's set too, through
 <code>dpkg --add-architecture</code>.</p>
-<!-- source: scripts/dev/dev-setup.py -- grub_apt_package -->
+<!-- source: scripts/le/devtools/tools.py -- grub_apt_package, GRUB_APT_PACKAGE -->
 <!-- source: internal/appliance/cmd_iso.go -- isoGRUBTarget -->
 
 <p><strong>Unprivileged user namespaces.</strong> Ubuntu 23.10+ ships
 <code>kernel.apparmor_restrict_unprivileged_userns=1</code>, which blocks the sandbox
 Chrome relies on and makes the <code>agent-browser</code> web functional tests fail to
 launch Chrome (<code>No usable sandbox!</code>). Setup checks this tunable as
-<code>userns-unrestricted</code>. When it is restricted, <code>make ze-dev-setup</code> (install mode)
+<code>userns-unrestricted</code>. When it is restricted, <code>./le setup</code> (install mode)
 echoes and then runs these commands via <code>sudo</code> to lift it globally:</p>
 <pre><code class="language-bash">echo &quot;kernel.apparmor_restrict_unprivileged_userns = 0&quot; | sudo tee /etc/sysctl.d/60-ze-userns.conf
 sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
@@ -282,7 +338,7 @@ sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 <p>The <code>/etc/sysctl.d</code> drop-in makes the change survive reboots. It goes through
 the same root route as the package installs, so on a root run the echoed lines
 carry no <code>sudo</code>, and when root is out of reach it prints the commands to run by
-hand instead. <code>make ze-dev-setup CHECK=1</code> only reports the state, never changes it.</p>
+hand instead. <code>./le setup --check</code> only reports the state, never changes it.</p>
 <p><strong>KVM device access.</strong> <code>/dev/kvm</code> is <code>root:kvm</code> mode 0660, so QEMU-backed
 evidence (the appliance boot proofs and every <code>ze-qemu-*</code> target) needs your
 user in the <code>kvm</code> group. Without it QEMU does not quietly fall back to
@@ -291,7 +347,7 @@ Permission denied</code>, and the calling script reports a timeout instead. Setu
 checks this as <code>kvm-access</code> and, in install mode, runs:</p>
 <pre><code class="language-bash">sudo usermod -aG kvm $USER
 </code></pre>
-<!-- source: scripts/dev/dev-setup.py -- kvm_status, apply_kvm_fix -->
+<!-- source: scripts/le/devtools/system.py -- Kvm, kvm_state, apply_kvm, print_kvm_fix -->
 
 <p>Group membership is fixed at login, so an existing shell keeps the old groups
 even after the command succeeds. Log out and back in, or run one command with
@@ -318,7 +374,7 @@ cannot leak a packet toward a real destination. Setup checks this as
 <pre><code class="language-bash">sudo ifconfig lo0 inet6 fd00::2/128 alias      # macOS
 sudo ip -6 addr add fd00::2/128 dev lo         # Linux
 </code></pre>
-<!-- source: scripts/dev/dev-setup.py -- loopback_addresses, apply_loopback_fix -->
+<!-- source: scripts/le/devtools/system.py -- loopback_addresses, missing_loopback, apply_loopback -->
 
 <p>Presence is decided by binding a socket to the address, which is the same
 question a fixture asks and a stronger one than reading the interface list: an
@@ -328,8 +384,8 @@ unprivileged, and the Linux route needs CAP_NET_ADMIN), so a test that binds a
 missing address fails at once naming the command above.</p>
 <!-- source: internal/test/runner/loopback.go -- the runner's probe and its error -->
 
-<p>Neither addition survives a reboot. Re-run <code>make ze-dev-setup</code> after one;
-<code>make ze-dev-setup CHECK=1</code> says when it is needed. The merge gate adds the IPv6
+<p>Neither addition survives a reboot. Re-run <code>./le setup</code> after one;
+<code>./le setup --check</code> says when it is needed. The merge gate adds the IPv6
 address the same way, as its own workflow step (<code>.github/workflows/verify.yml</code>).</p>
 <p>These three, and the apt installs above, are every place setup reaches for root.
 All of them go through one helper, so the table of states earlier in this
@@ -355,7 +411,7 @@ preventing the lists from drifting apart.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 25 August 2026 14:09 UTC</span>
                 </div>
             </div>
         </footer>

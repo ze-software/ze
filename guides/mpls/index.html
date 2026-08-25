@@ -79,9 +79,15 @@ block; it defaults to off, which disables MPLS entirely).</p>
 <p>The Linux kernel must supply MPLS forwarding, either through the <code>mpls_router</code>
 and <code>mpls_iptunnel</code> modules or built in with <code>CONFIG_MPLS_ROUTING</code> and
 <code>CONFIG_MPLS_IPTUNNEL</code>. ze's own appliance kernel builds both in, so it loads no
-module. <code>ze doctor</code> probes the capability rather than the module list: it warns
-(<code>doctor-mpls-unavailable</code>) when <code>/proc/sys/net/mpls/platform_labels</code> does not
-exist, which is the one answer that covers both packagings.</p>
+module. <code>ze doctor</code> probes the capability rather than the module list, and it
+reads the probe's VALUE. It warns <code>doctor-mpls-unavailable</code> when
+<code>/proc/sys/net/mpls/platform_labels</code> does not exist, which is the one answer that
+covers both packagings. It warns <code>doctor-mpls-disabled</code> when the file exists and
+reads 0, because that is the kernel default and it disables MPLS entirely.</p>
+<p>The two codes are separate because the remedies are. An absent probe needs a
+module or a kernel rebuild. A zero probe needs neither, only a size, set through
+the <code>sysctl {}</code> block. A built-in kernel makes the second case the one an
+appliance boots in.</p>
 <h2 id="inspecting-the-forwarding-table">Inspecting the forwarding table</h2>
 <pre><code>ze show mpls forwarding              # all installed MPLS entries
 ze show mpls forwarding limit 500    # cap the response size
@@ -166,7 +172,7 @@ neighbor.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 25 August 2026 13:35 UTC</span>
                 </div>
             </div>
         </footer>

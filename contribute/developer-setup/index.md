@@ -1,6 +1,7 @@
 # Developer Setup
 
-<!-- source: scripts/dev/dev-setup.py -- REQUIRED_TOOLS, detect_os -->
+<!-- source: scripts/le/devtools/tools.py -- REQUIRED_TOOLS, OPTIONAL_TOOLS, ALL_TOOLS -->
+<!-- source: scripts/le/devtools/install.py -- detect_package_manager -->
 
 Set up a Ze development environment with all build, lint, and test dependencies.
 
@@ -8,27 +9,57 @@ Set up a Ze development environment with all build, lint, and test dependencies.
 
 ```bash
 git clone <repo-url> && cd ze
-make ze-dev-setup
+./le setup
 ```
 
 This detects your OS (macOS with Homebrew or Debian/Ubuntu with apt), installs
 missing tools, vendors Go dependencies, and reports what it did.
+
+`le` is the Python build entry point at the root of the checkout. It has two
+subprograms, `setup` and `lint`, and each one also runs on its own:
+
+```bash
+PYTHONPATH=scripts python3 -m le.application.setup --check
+```
+
+That route calls the same action with the same options as `./le setup --check`,
+so the two cannot diverge.
 
 ## Check Mode
 
 Probe the current host without installing anything:
 
 ```bash
-make ze-dev-setup CHECK=1
+./le setup --check
 ```
 
-Exits 0 if all required tools are present, nonzero if any are missing.
-Useful as a CI preflight check.
+`--check` probes only and changes nothing: it installs no package, edits no
+sysctl, and adds no loopback address. It exits 0 if all required tools are
+present, nonzero if any are missing. Use it as a CI preflight check. Drop
+`--check` and the same run installs what it found missing.
 
 Two of the rows are behaviour, not binaries: `gopls-answers` and
 `pyright-answers` run each language server and check that it replies. A server
 on PATH that does not answer fails this check, because every LSP call against
 it fails the same silent way.
+
+### Editor plugins
+
+A language server on PATH is not the whole capability. Claude Code reaches it
+through a plugin, and without that plugin the LSP tool refuses every file of
+that language. A session then reads whole scripts to find one symbol.
+
+`./le setup --check` reports a missing plugin as a pending step and names the
+command that installs it:
+
+| Plugin | Serves | Install |
+|--------|--------|---------|
+| `gopls-lsp` | `.go` | `/plugin install gopls-lsp@claude-plugins-official` |
+| `pyright-lsp` | `.py`, `.pyi` | `/plugin install pyright-lsp@claude-plugins-official` |
+
+Run the slash command inside a Claude Code session. The plugin and the binary
+it names fail the same way and have different fixes, so the report says which
+of the two is absent.
 
 ## What It Installs
 
@@ -75,6 +106,23 @@ The target and its checked feature population are documented in
 | `sshpass` | SSH probe fallback (uv+paramiko is primary) |
 | `docker` / `colima` | Container appliance and kernel builds |
 
+## Lint the Python Tree
+
+```bash
+./le lint
+```
+
+This runs ruff over the whole tree and mypy `--strict` over `scripts/le`. The
+older Python under `scripts/` is held to a finding ceiling recorded in
+`pyproject.toml`. A new finding there fails the run, and the ceiling falls as
+the findings are fixed. `--fix` applies the fixes ruff can make and formats the
+strict scope. `--strict-only` checks `scripts/le` alone. `--lint-only` and
+`--types-only` each run one half.
+
+No Makefile target does this. `./le lint` is the only entry point.
+
+<!-- source: scripts/le/application/lint.py -- legacy_ceiling, _ruff_strict, _ruff_legacy, _mypy -->
+
 ## Platform Notes
 
 ### macOS
@@ -101,7 +149,7 @@ The target and its checked feature population are documented in
 
 ### Linux
 
-`make ze-dev-setup` installs the apt packages itself, the same way it installs the
+`./le setup` installs the apt packages itself, the same way it installs the
 Homebrew ones on macOS. Each command is echoed before it runs. It takes
 `apt-get update` once per run, because a container image ships no package
 lists, and it sets `DEBIAN_FRONTEND=noninteractive` so a package with a debconf
@@ -117,7 +165,8 @@ prompt cannot stop the run.
 | `sudo` wants a password, a terminal is attached | Asks once with `sudo -v`, then runs `sudo -n <command>` |
 | `sudo` wants a password, no terminal (CI, an agent session) | Prints the command, installs nothing, exits nonzero |
 
-<!-- source: scripts/dev/dev-setup.py -- privilege_mode, run_privileged, apt_install -->
+<!-- source: scripts/le/process.py -- Privilege, privilege, run_privileged -->
+<!-- source: scripts/le/devtools/install.py -- Installer._apt_install -->
 
 **uv** is not in the Debian or Ubuntu repositories, so it installs through
 `pipx` on both platforms. One route is one thing to fix, and it keeps
@@ -131,7 +180,7 @@ target from the architecture of the image it packs, so building an ISO for the
 OTHER architecture needs that architecture's set too, through
 `dpkg --add-architecture`.
 
-<!-- source: scripts/dev/dev-setup.py -- grub_apt_package -->
+<!-- source: scripts/le/devtools/tools.py -- grub_apt_package, GRUB_APT_PACKAGE -->
 <!-- source: internal/appliance/cmd_iso.go -- isoGRUBTarget -->
 
 
@@ -139,7 +188,7 @@ OTHER architecture needs that architecture's set too, through
 `kernel.apparmor_restrict_unprivileged_userns=1`, which blocks the sandbox
 Chrome relies on and makes the `agent-browser` web functional tests fail to
 launch Chrome (`No usable sandbox!`). Setup checks this tunable as
-`userns-unrestricted`. When it is restricted, `make ze-dev-setup` (install mode)
+`userns-unrestricted`. When it is restricted, `./le setup` (install mode)
 echoes and then runs these commands via `sudo` to lift it globally:
 
 ```bash
@@ -150,7 +199,7 @@ sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 The `/etc/sysctl.d` drop-in makes the change survive reboots. It goes through
 the same root route as the package installs, so on a root run the echoed lines
 carry no `sudo`, and when root is out of reach it prints the commands to run by
-hand instead. `make ze-dev-setup CHECK=1` only reports the state, never changes it.
+hand instead. `./le setup --check` only reports the state, never changes it.
 
 **KVM device access.** `/dev/kvm` is `root:kvm` mode 0660, so QEMU-backed
 evidence (the appliance boot proofs and every `ze-qemu-*` target) needs your
@@ -163,7 +212,7 @@ checks this as `kvm-access` and, in install mode, runs:
 sudo usermod -aG kvm $USER
 ```
 
-<!-- source: scripts/dev/dev-setup.py -- kvm_status, apply_kvm_fix -->
+<!-- source: scripts/le/devtools/system.py -- Kvm, kvm_state, apply_kvm, print_kvm_fix -->
 
 Group membership is fixed at login, so an existing shell keeps the old groups
 even after the command succeeds. Log out and back in, or run one command with
@@ -197,7 +246,7 @@ sudo ifconfig lo0 inet6 fd00::2/128 alias      # macOS
 sudo ip -6 addr add fd00::2/128 dev lo         # Linux
 ```
 
-<!-- source: scripts/dev/dev-setup.py -- loopback_addresses, apply_loopback_fix -->
+<!-- source: scripts/le/devtools/system.py -- loopback_addresses, missing_loopback, apply_loopback -->
 
 Presence is decided by binding a socket to the address, which is the same
 question a fixture asks and a stronger one than reading the interface list: an
@@ -208,8 +257,8 @@ missing address fails at once naming the command above.
 
 <!-- source: internal/test/runner/loopback.go -- the runner's probe and its error -->
 
-Neither addition survives a reboot. Re-run `make ze-dev-setup` after one;
-`make ze-dev-setup CHECK=1` says when it is needed. The merge gate adds the IPv6
+Neither addition survives a reboot. Re-run `./le setup` after one;
+`./le setup --check` says when it is needed. The merge gate adds the IPv6
 address the same way, as its own workflow step (`.github/workflows/verify.yml`).
 
 These three, and the apt installs above, are every place setup reaches for root.

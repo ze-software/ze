@@ -21,9 +21,9 @@
     "cli-dashboard": {
       "assets": {
         "cast": {
-          "bytes": 15423,
+          "bytes": 15749,
           "path": "cli-dashboard.cast",
-          "sha256": "c3364cbe6a418c2a60c9c0bc05a44054f5b6827935955a9baee1c9c6be50f82d"
+          "sha256": "6868534b179e03db7650f77e16be8b2291360ac77feabb25a15a16a5e8606166"
         },
         "transcript": {
           "bytes": 258,
@@ -31,7 +31,7 @@
           "sha256": "86542601ebff2186dc62874ec3cd82a7730d3be27988972ce3d42cdafe4438b3"
         }
       },
-      "binary_sha256": "8a79f2f82e0078f5134d3840ff8db0ed0683f47ad3a0d5be41a9562603275790",
+      "binary_sha256": "e1ba25f7b567cc7e7c7cfcd3e0a9c7be925b6866fa8736251cedbb4595bbde5d",
       "definition_sha256": "0b8f6fbbaf979774f98877db5d76ee2dbc88a4ca76b4e2d4e465bf592f8faefa",
       "release": "26.08.25",
       "source_sha256": "09e396c3dcd00990b5b4814d406b467d518af827651edf11685855a6676ccaae"
