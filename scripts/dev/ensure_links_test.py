@@ -183,5 +183,87 @@ class EnsureSymlinkTest(unittest.TestCase):
             self.assertTrue((link / "keepme").exists())
 
 
+
+
+class MigrateScratchDirsTest(unittest.TestCase):
+    """Only artifact directories travel. Session data stays where sessions look."""
+
+    def _tree(self, root: Path) -> Path:
+        link = root / "tmp"
+        (link / "qemu" / "pkg").mkdir(parents=True)
+        (link / "qemu" / "pkg" / "blob").write_text("artifact")
+        (link / "kernel").mkdir()
+        (link / "kernel" / "vmlinuz").write_text("artifact")
+        (link / "session" / "state").mkdir(parents=True)
+        (link / "session" / "state" / "notes.md").write_text("do not lose me")
+        (link / "commit-session-id-abc").write_text("abc123")
+        (link / "commit-abc-tag-1234.sh").write_text("#!/bin/bash\n")
+        return link
+
+    def test_artifacts_move_and_session_data_stays(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            link = self._tree(root)
+            target = root / "target"
+
+            result = ensure_links.migrate_scratch_dirs(link, target)
+
+            self.assertTrue(result.startswith("migrated"), result)
+            # tmp/ is still a REAL directory: session data lives at its root.
+            self.assertFalse(link.is_symlink())
+            # The two artifact roots moved and left a symlink behind.
+            for name in ("qemu", "kernel"):
+                self.assertTrue((link / name).is_symlink(), name)
+                self.assertEqual((link / name).resolve(), (target / name).resolve())
+            self.assertEqual((target / "qemu" / "pkg" / "blob").read_text(), "artifact")
+            # Session data did not travel. This is the regression that matters:
+            # a whole-directory move carried these off twice on 2026-08-25 and
+            # no session in the checkout could commit until it was undone.
+            self.assertFalse((target / "session").exists())
+            self.assertFalse((target / "commit-session-id-abc").exists())
+            self.assertEqual((link / "commit-session-id-abc").read_text(), "abc123")
+            self.assertEqual(
+                (link / "session" / "state" / "notes.md").read_text(), "do not lose me"
+            )
+
+    def test_an_undeletable_artifact_is_refused_and_its_siblings_still_move(self):
+        # `go` writes gomodcache directories mode 0555 on purpose, and rmtree
+        # cannot unlink their children, so a cross-device move of that tree
+        # cannot finish. It is refused BEFORE it starts, per directory, so one
+        # poisoned artifact does not strand the others.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            link = self._tree(root)
+            locked = link / "qemu" / "pkg" / "mod"
+            locked.mkdir()
+            (locked / "held").write_text("x")
+            locked.chmod(0o555)
+            target = root / "target"
+            try:
+                result = ensure_links.migrate_scratch_dirs(link, target)
+
+                self.assertTrue(result.startswith("REFUSE"), result)
+                self.assertIn("qemu", result)
+                self.assertIn("gomodcache", result)
+                # qemu stayed whole; kernel still moved.
+                self.assertFalse((link / "qemu").is_symlink())
+                self.assertTrue((locked / "held").exists())
+                self.assertTrue((link / "kernel").is_symlink())
+            finally:
+                locked.chmod(0o755)
+
+    def test_a_second_run_is_a_no_op(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            link = self._tree(root)
+            target = root / "target"
+            ensure_links.migrate_scratch_dirs(link, target)
+
+            result = ensure_links.migrate_scratch_dirs(link, target)
+
+            self.assertIn("moved 0", result)
+            self.assertTrue((link / "qemu").is_symlink())
+
+
 if __name__ == "__main__":
     unittest.main()

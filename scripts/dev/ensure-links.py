@@ -30,7 +30,7 @@ from pathlib import Path
 def repo_root() -> Path:
     """The working-tree root of THIS checkout (per-worktree, not the shared git dir)."""
     out = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"],
+        ['git', 'rev-parse', '--show-toplevel'],
         capture_output=True,
         text=True,
         check=False,
@@ -48,20 +48,20 @@ def checkout_id(root: Path) -> str:
     human-readable. Keyed on the working-tree path so each worktree gets its own scratch.
     """
     digest = hashlib.sha256(str(root).encode()).hexdigest()[:16]
-    return f"{root.name}-{digest}"
+    return f'{root.name}-{digest}'
 
 
 def scratch_target(root: Path) -> Path:
-    base = os.environ.get("TMPDIR") or "/tmp"
-    return Path(base).joinpath("ze", checkout_id(root))
+    base = os.environ.get('TMPDIR') or '/tmp'
+    return Path(base).joinpath('ze', checkout_id(root))
 
 
 def cache_target() -> Path:
     """Match resolveCacheDir() in internal/appliance/cache.go:47-57."""
-    xdg = os.environ.get("XDG_CACHE_HOME")
+    xdg = os.environ.get('XDG_CACHE_HOME')
     if xdg:
-        return Path(xdg) / "ze"
-    return Path.home() / ".cache" / "ze"
+        return Path(xdg) / 'ze'
+    return Path.home() / '.cache' / 'ze'
 
 
 def ensure_symlink(link: Path, target: Path, auto_repoint: bool = True) -> str:
@@ -91,34 +91,34 @@ def ensure_symlink(link: Path, target: Path, auto_repoint: bool = True) -> str:
         current = os.readlink(link)
         if current == str(target):
             target.mkdir(parents=True, exist_ok=True)
-            return f"ok       {link.name} -> {target}"
+            return f'ok       {link.name} -> {target}'
         if not auto_repoint:
             # Do NOT stat `current`: an unreadable target (e.g. /root/.cache/ze
             # as a normal user) makes Path.is_dir() raise PermissionError on
             # Python 3.12 rather than return False, which crashed this script.
             return (
-                f"MISMATCH {link.name} -> {current} (expected {target}); left as is. "
-                f"If this checkout is yours, run: python3 scripts/dev/ensure-links.py --repoint-cache"
+                f'MISMATCH {link.name} -> {current} (expected {target}); left as is. '
+                f'If this checkout is yours, run: python3 scripts/dev/ensure-links.py --repoint-cache'
             )
         target.mkdir(parents=True, exist_ok=True)
         link.unlink()
         link.symlink_to(target)
-        return f"repointed {link.name} -> {target}"
+        return f'repointed {link.name} -> {target}'
 
     target.mkdir(parents=True, exist_ok=True)
 
     if link.exists():
         return (
-            f"SKIP     {link.name}: a real path exists here; "
-            f"run `make ze-scratch-migrate` to convert it to a symlink"
+            f'SKIP     {link.name}: a real path exists here; '
+            f'run `make ze-scratch-migrate` to convert it to a symlink'
         )
 
     try:
         link.symlink_to(target)
     except FileExistsError:
         # Lost a race with a concurrent ensure-links; the winner's link is fine.
-        return f"ok       {link.name} -> {target} (created concurrently)"
-    return f"created  {link.name} -> {target}"
+        return f'ok       {link.name} -> {target} (created concurrently)'
+    return f'created  {link.name} -> {target}'
 
 
 def first_undeletable_dir(root: Path) -> Path | None:
@@ -141,7 +141,7 @@ def first_undeletable_dir(root: Path) -> Path | None:
     Returned as a path rather than a bool so the refusal can name the directory
     the operator has to fix.
     """
-    for path in root.rglob("*"):
+    for path in root.rglob('*'):
         if not path.is_dir() or path.is_symlink():
             continue
         if not os.access(path, os.W_OK | os.X_OK):
@@ -160,16 +160,16 @@ def migrate(link: Path, target: Path, auto_repoint: bool = True) -> str:
     if link.is_symlink() or not link.exists():
         return ensure_symlink(link, target, auto_repoint)
     if not link.is_dir():
-        return f"REFUSE   {link.name}: exists and is not a directory; resolve manually"
+        return f'REFUSE   {link.name}: exists and is not a directory; resolve manually'
 
     undeletable = first_undeletable_dir(link)
     if undeletable is not None:
         return (
-            f"REFUSE   {link.name}: {undeletable} is not writable and searchable, "
-            f"so its contents cannot be unlinked; nothing was moved. "
-            f"A Go module cache is the usual cause: `go` writes gomodcache "
-            f"directories mode 0555 on purpose. Run the download that made it "
-            f"with GOFLAGS=-modcacherw, or remove the cache, then retry"
+            f'REFUSE   {link.name}: {undeletable} is not writable and searchable, '
+            f'so its contents cannot be unlinked; nothing was moved. '
+            f'A Go module cache is the usual cause: `go` writes gomodcache '
+            f'directories mode 0555 on purpose. Run the download that made it '
+            f'with GOFLAGS=-modcacherw, or remove the cache, then retry'
         )
 
     target.mkdir(parents=True, exist_ok=True)
@@ -178,14 +178,93 @@ def migrate(link: Path, target: Path, auto_repoint: bool = True) -> str:
         dest = target / entry.name
         if dest.exists():
             return (
-                f"REFUSE   {link.name}: {dest.name} already exists in the target; "
-                f"resolve manually (moved {moved} so far)"
+                f'REFUSE   {link.name}: {dest.name} already exists in the target; '
+                f'resolve manually (moved {moved} so far)'
             )
         shutil.move(str(entry), str(dest))
         moved += 1
     link.rmdir()
     link.symlink_to(target)
-    return f"migrated {link.name}: moved {moved} entries -> {target}; now a symlink"
+    return f'migrated {link.name}: moved {moved} entries -> {target}; now a symlink'
+
+
+# The subdirectories of tmp/ whose contents are BUILD ARTIFACTS: large,
+# regenerable from the tree, and of no use to a running session. Only these
+# migrate to the cache drive (owner decision, 2026-08-25: "tmp artifact like
+# qemu and kernel: yes, session data: no").
+#
+# It is an ALLOWLIST, and the default is STAY. A denylist would move a name
+# nobody has classified, and the names nobody classifies are the session ones:
+# `commit-session-id-*` and the prepared `commit-*.sh` scripts live at the tmp/
+# root, and a whole-directory move carried them off twice on 2026-08-25, which
+# left every session in this shared checkout unable to commit until the move was
+# undone by hand. A new artifact directory that is not listed here costs disk on
+# the wrong drive. A new session directory that is not listed there costs the
+# work. The two mistakes are not the same size.
+MIGRATABLE_SCRATCH = (
+    'qemu',
+    'kernel',
+    'gokrazy',
+    'golangci-lint-cache',
+    'terminal-demos',
+)
+
+
+def migrate_scratch_dirs(link: Path, target: Path) -> str:
+    """Move the artifact subdirectories of a REAL tmp/ out, one symlink each.
+
+    tmp/ itself stays a real directory, which is the whole point: session data
+    lives at its root and beside these, and it MUST NOT travel. Each artifact
+    directory becomes its own symlink into `target`, so `go list` still needs
+    the sentinel and the caller still writes it.
+
+    Each directory is checked for deletability on its own, immediately before it
+    moves, rather than the tree being checked once up front. Across devices
+    `shutil.move` is copytree-then-rmtree and there is no undo, so a refusal has
+    to arrive before the first byte of THAT directory rather than before the
+    first byte of the batch.
+    """
+    if link.is_symlink():
+        return (
+            f'SKIP     {link.name}: already a symlink; selective migration needs a real directory'
+        )
+    if not link.is_dir():
+        return f'REFUSE   {link.name}: exists and is not a directory; resolve manually'
+
+    target.mkdir(parents=True, exist_ok=True)
+    moved, skipped, refused = [], [], []
+    for name in MIGRATABLE_SCRATCH:
+        entry = link / name
+        if not entry.exists() or entry.is_symlink():
+            continue
+        if not entry.is_dir():
+            skipped.append(f'{name} (not a directory)')
+            continue
+        dest = target / name
+        if dest.exists():
+            skipped.append(f'{name} (already in the target)')
+            continue
+        undeletable = first_undeletable_dir(entry)
+        if undeletable is not None:
+            refused.append(f'{name}/{undeletable}')
+            continue
+        shutil.move(str(entry), str(dest))
+        entry.symlink_to(dest)
+        moved.append(name)
+
+    parts = [f'moved {len(moved)}']
+    if moved:
+        parts.append(' '.join(moved))
+    if skipped:
+        parts.append('skipped: ' + ', '.join(skipped))
+    if refused:
+        parts.append(
+            'REFUSED (not writable and searchable, so their contents cannot be '
+            'unlinked; a Go module cache is the usual cause, `go` writes '
+            'gomodcache directories mode 0555 on purpose): ' + ', '.join(refused)
+        )
+    head = 'REFUSE  ' if refused else 'migrated'
+    return f'{head} {link.name}: ' + '; '.join(parts) + f' -> {target}'
 
 
 # Keep this content byte-for-byte in sync with tmp/go.mod (the tracked sentinel).
@@ -210,36 +289,41 @@ def ensure_sentinel(root: Path) -> None:
     A symlinked tmp/ is skipped by `go list` with no sentinel, so this only writes when tmp/
     is a real dir and the file is missing (e.g. just cleared by `make clean-all`).
     """
-    tmp = root / "tmp"
+    tmp = root / 'tmp'
     if tmp.is_symlink() or not tmp.is_dir():
         return
-    gomod = tmp / "go.mod"
+    gomod = tmp / 'go.mod'
     if not gomod.exists():
         gomod.write_text(SENTINEL)
 
 
 def main(argv: list[str]) -> int:
-    quiet = "--quiet" in argv
-    do_migrate = "--migrate" in argv
-    repoint_cache = "--repoint-cache" in argv
+    quiet = '--quiet' in argv
+    do_migrate = '--migrate' in argv
+    repoint_cache = '--repoint-cache' in argv
     root = repo_root()
+    # tmp/ migrates SELECTIVELY and cache/ migrates whole. cache/ is an artifact
+    # store end to end, so moving all of it is right; tmp/ holds session data at
+    # its root, so only the artifact subdirectories travel and tmp/ stays a real
+    # directory (owner decision, 2026-08-25).
     action = migrate if do_migrate else ensure_symlink
     # cache/ never auto-repoints: its target is HOME/XDG-derived, so a mismatch
     # means "not my checkout" (the QEMU VM runs make with HOME=/root over a
     # read-write 9p mount), never drift. See ensure_symlink.
+    tmp_action = migrate_scratch_dirs if do_migrate else ensure_symlink
     results = [
-        action(root / "tmp", scratch_target(root)),
-        action(root / "cache", cache_target(), repoint_cache),
+        tmp_action(root / 'tmp', scratch_target(root)),
+        action(root / 'cache', cache_target(), repoint_cache),
     ]
     ensure_sentinel(root)
-    noisy = ("SKIP", "REFUSE", "MISMATCH")
+    noisy = ('SKIP', 'REFUSE', 'MISMATCH')
     flagged = any(r.startswith(noisy) for r in results)
     if not quiet or flagged or do_migrate:
         for line in results:
             stream = sys.stderr if line.startswith(noisy) else sys.stdout
             print(line, file=stream)
-    return 1 if any(r.startswith("REFUSE") for r in results) else 0
+    return 1 if any(r.startswith('REFUSE') for r in results) else 0
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     raise SystemExit(main(sys.argv[1:]))
