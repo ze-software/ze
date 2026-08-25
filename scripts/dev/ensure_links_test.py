@@ -44,6 +44,54 @@ def _load():
 ensure_links = _load()
 
 
+class MigrateRefusesAnUndeletableTreeTest(unittest.TestCase):
+    """migrate() has no undo, so what it cannot finish it must not start."""
+
+    def test_a_read_only_directory_is_refused_before_anything_moves(self):
+        # The measured case: `go` writes gomodcache directories mode 0555 on
+        # purpose. Across devices shutil.move is copytree-then-rmtree, and
+        # rmtree cannot unlink a child of a 0555 directory, so the move dies
+        # partway with entries on both sides and no record of how far it got.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            link = root / "tmp"
+            (link / "keep").mkdir(parents=True)
+            (link / "keep" / "session-id").write_text("do not lose me")
+            cache = link / "gomodcache" / "pkg"
+            cache.mkdir(parents=True)
+            (cache / "locked").write_text("x")
+            cache.chmod(0o555)
+            target = root / "target"
+            try:
+                result = ensure_links.migrate(link, target, False)
+
+                self.assertTrue(result.startswith("REFUSE"), result)
+                self.assertIn("gomodcache", result)
+                self.assertIn("modcacherw", result)
+                # Nothing moved: the refusal is the whole point.
+                self.assertFalse(target.exists(), "the target was created anyway")
+                self.assertTrue((link / "keep" / "session-id").exists())
+                self.assertFalse(link.is_symlink())
+            finally:
+                cache.chmod(0o755)
+
+    def test_a_deletable_tree_still_migrates(self):
+        # The refusal must not fire on an ordinary tree, or it replaces one
+        # failure mode with another.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            link = root / "tmp"
+            (link / "sub").mkdir(parents=True)
+            (link / "sub" / "file").write_text("x")
+            target = root / "target"
+
+            result = ensure_links.migrate(link, target, False)
+
+            self.assertTrue(result.startswith("migrated"), result)
+            self.assertTrue(link.is_symlink())
+            self.assertEqual((target / "sub" / "file").read_text(), "x")
+
+
 class EnsureSymlinkTest(unittest.TestCase):
     def test_already_correct_is_ok(self):
         with tempfile.TemporaryDirectory() as tmp:

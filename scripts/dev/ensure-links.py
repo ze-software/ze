@@ -121,6 +121,34 @@ def ensure_symlink(link: Path, target: Path, auto_repoint: bool = True) -> str:
     return f"created  {link.name} -> {target}"
 
 
+def first_undeletable_dir(root: Path) -> Path | None:
+    """The first directory under `root` whose children cannot be unlinked, or None.
+
+    Unlinking a file needs write AND execute on its PARENT directory, never any
+    permission on the file itself. So this is the question a mover has to ask
+    before it starts, and asking about readability instead answers a different
+    one: a 0555 directory reads and searches perfectly and refuses every unlink.
+
+    It exists because `migrate` below has no undo. Across devices
+    `shutil.move` is copytree-then-rmtree, so a failure partway leaves entries
+    moved, one entry copied AND half-deleted, and the rest in place, with
+    nothing recording how far it got. The realistic cause is not exotic: `go`
+    writes gomodcache directories mode 0555 on purpose, so a scratch tree that
+    has ever held a module cache cannot be moved across devices at all. Two
+    runs died that way on 2026-08-25, each taking every session's
+    tmp/commit-session-id-* with it.
+
+    Returned as a path rather than a bool so the refusal can name the directory
+    the operator has to fix.
+    """
+    for path in root.rglob("*"):
+        if not path.is_dir() or path.is_symlink():
+            continue
+        if not os.access(path, os.W_OK | os.X_OK):
+            return path.relative_to(root)
+    return None
+
+
 def migrate(link: Path, target: Path, auto_repoint: bool = True) -> str:
     """One-time cutover: convert an existing REAL dir at `link` into a symlink -> `target`.
 
@@ -133,6 +161,16 @@ def migrate(link: Path, target: Path, auto_repoint: bool = True) -> str:
         return ensure_symlink(link, target, auto_repoint)
     if not link.is_dir():
         return f"REFUSE   {link.name}: exists and is not a directory; resolve manually"
+
+    undeletable = first_undeletable_dir(link)
+    if undeletable is not None:
+        return (
+            f"REFUSE   {link.name}: {undeletable} is not writable and searchable, "
+            f"so its contents cannot be unlinked; nothing was moved. "
+            f"A Go module cache is the usual cause: `go` writes gomodcache "
+            f"directories mode 0555 on purpose. Run the download that made it "
+            f"with GOFLAGS=-modcacherw, or remove the cache, then retry"
+        )
 
     target.mkdir(parents=True, exist_ok=True)
     moved = 0
