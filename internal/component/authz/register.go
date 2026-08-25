@@ -77,11 +77,11 @@ func (localBackend) Priority() int { return 200 }
 // Authorizer (if any). Empty user list yields an authenticator that rejects
 // every login (timing-safe), matching prior behavior.
 //
-// params.LocalUsersFunc wins over params.LocalUsers when both are supplied. The
-// bundle is not rebuilt by a config reload, so a caller that can describe the
-// RUNNING credentials is describing something the snapshot cannot: which users
-// exist now. Passing both and preferring the snapshot would keep the chain
-// authenticating deleted accounts.
+// params.LocalUsersFunc wins over params.LocalUsers when both are supplied. A
+// caller that can describe the RUNNING credentials is describing something the
+// snapshot cannot: which users exist now. Passing both and preferring the
+// snapshot would keep the chain authenticating deleted accounts between the
+// reloads that rebuild the bundle.
 //
 // Authorizer is only contributed when params.LocalAuthorizer is non-nil.
 // A nil LocalAuthorizer means "no local RBAC configured" and the dispatcher
