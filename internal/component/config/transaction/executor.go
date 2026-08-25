@@ -401,16 +401,18 @@ func payloadValues(payload any) []string {
 }
 
 func payloadStringValues(value string) []string {
-	values := []string{value}
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" || trimmed[0] != '{' {
-		return values
+		return []string{value}
 	}
 	var obj map[string]any
 	if err := json.Unmarshal([]byte(trimmed), &obj); err != nil {
-		return values
+		return []string{value}
 	}
-	return append(values, payloadMapValues(obj)...)
+	nested := payloadMapValues(obj)
+	values := make([]string, 0, 1+len(nested))
+	values = append(values, value)
+	return append(values, nested...)
 }
 
 func payloadMapValues(obj map[string]any) []string {
