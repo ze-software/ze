@@ -12,7 +12,7 @@
 # go toolchain are absent. It exits 0 in both PASS and SKIP cases; a genuine
 # mismatch exits non-zero, as does an appliance that never answers under a
 # hardware accelerator (kvm/hvf). On Linux that needs the invoking user in the
-# `kvm` group -- `make ze-dev-setup` checks this as kvm-access. The exhaustive run is
+# `kvm` group -- `./le setup` checks this as kvm-access. The exhaustive run is
 # `make ze-qemu-vpp-hugepages-test`.
 
 # The auto-timeout is derived from this test's rolling baseline (5x the average).
