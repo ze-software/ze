@@ -51,9 +51,9 @@ The dashboard polls three local BGP sessions. Press "s" to sort by the next colu
 
 Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
 
-[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=f73594f3d7) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=f6537d09e3)
+[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=2fa05c76b4) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=f6537d09e3)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 2 minutes 56 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 2 minutes 55 seconds.
 
 ```console
 $ cat $ZE_INIT_INPUT
@@ -125,9 +125,9 @@ The recording displays the command restriction and the NOC user's profile bindin
 
 Run Ze's live traceroute through a deterministic Linux network-namespace lab.
 
-[Download the asciicast recording](../../assets/demos/traceroute.cast?v=19a88d25d0) · [Plain-text transcript](../../assets/demos/traceroute.txt?v=2b9d95cc69)
+[Download the asciicast recording](../../assets/demos/traceroute.cast?v=461543346a) · [Plain-text transcript](../../assets/demos/traceroute.txt?v=2b9d95cc69)
 
-Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 46 seconds.
+Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 49 seconds.
 
 ```console
 $ ssh ze-demo
@@ -170,9 +170,9 @@ Expected result: Ze commits the browser user's isolated draft and the active YAN
 
 Commit a hostname change in the interactive editor, leave the confirmation window unanswered, and verify Ze restores the previous configuration.
 
-[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=85d8b1d166) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1)
+[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=3be3651dab) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 1 minute 18 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 1 minute 8 seconds.
 
 ```console
 $ ze config edit -f ze.conf

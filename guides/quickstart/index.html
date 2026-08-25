@@ -113,7 +113,7 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/zefs-config.cast?v=f73594f3d7"
+      data-cast-src="../../assets/demos/zefs-config.cast?v=2fa05c76b4"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -121,12 +121,12 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/zefs-config.cast?v=f73594f3d7">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/zefs-config.cast?v=2fa05c76b4">Download the asciicast</a> or
       <a href="../../assets/demos/zefs-config.txt?v=f6537d09e3">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.25</span><span>2 minutes 56 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.08.25</span><span>2 minutes 55 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/zefs-config.txt?v=f6537d09e3">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -318,7 +318,7 @@ peer's OWN address on the wire, and Ze refuses to advertise that, because RFC 42
 Section 5.1.3 forbids telling a peer to reach a destination through itself. The
 session still establishes, so the symptom is routes that never arrive rather than
 an error. On Linux the whole 127.0.0.0/8 range is available; on macOS add the
-alias once with <code>sudo ifconfig lo0 alias 127.0.0.2</code>, which <code>make ze-dev-setup</code> also
+alias once with <code>sudo ifconfig lo0 alias 127.0.0.2</code>, which <code>./le setup</code> also
 does. The refusal is <code>originatedNextHopIsPeerOwn</code>
 (<code>internal/component/bgp/reactor/forward_next_hop.go</code>), and <code>precomputeNextHop</code>
 (<code>internal/component/bgp/reactor/peer_forward_facts.go</code>) is what resolves
@@ -376,7 +376,7 @@ bin/ze signal restart          # graceful restart (preserves routes via GR)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 11:34 UTC</span>
+                    <span class="footer-published">Published 25 August 2026 14:09 UTC</span>
                 </div>
             </div>
         </footer>

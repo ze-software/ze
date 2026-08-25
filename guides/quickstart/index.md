@@ -52,9 +52,9 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
 
 Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
 
-[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=f73594f3d7) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=f6537d09e3)
+[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=2fa05c76b4) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=f6537d09e3)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 2 minutes 56 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 2 minutes 55 seconds.
 
 ```console
 $ cat $ZE_INIT_INPUT
@@ -265,7 +265,7 @@ peer's OWN address on the wire, and Ze refuses to advertise that, because RFC 42
 Section 5.1.3 forbids telling a peer to reach a destination through itself. The
 session still establishes, so the symptom is routes that never arrive rather than
 an error. On Linux the whole 127.0.0.0/8 range is available; on macOS add the
-alias once with `sudo ifconfig lo0 alias 127.0.0.2`, which `make ze-dev-setup` also
+alias once with `sudo ifconfig lo0 alias 127.0.0.2`, which `./le setup` also
 does. The refusal is `originatedNextHopIsPeerOwn`
 (`internal/component/bgp/reactor/forward_next_hop.go`), and `precomputeNextHop`
 (`internal/component/bgp/reactor/peer_forward_facts.go`) is what resolves

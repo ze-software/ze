@@ -39,9 +39,9 @@
     "commit-confirmed": {
       "assets": {
         "cast": {
-          "bytes": 19650,
+          "bytes": 19223,
           "path": "commit-confirmed.cast",
-          "sha256": "85d8b1d1668f0a09a59bdf1dab3e6e06bf13281376d988b6a883a7e784209e55"
+          "sha256": "3be3651dab2c70ad01ed93b11ffcd5dfcb1bf9a7c652f14a2799bc9e581e5687"
         },
         "transcript": {
           "bytes": 751,
@@ -49,7 +49,7 @@
           "sha256": "7dcd8dbbc1090349626a1dc534efeeb3699d72359fbf712c348a2b4ea2aa1934"
         }
       },
-      "binary_sha256": "8d9c94de1fb93c28e85b09a11d35cf5d6d92508d6596f41ded0e6b25e618846d",
+      "binary_sha256": "5bfea806787045cafe443b18f3ae84667669071e8eb88cc2b5f62a1f890cbd4e",
       "definition_sha256": "db967ced53d6107c6d7d7760aa34329ac95a38d83147cb89a4659eb06fb2f410",
       "release": "26.08.25",
       "source_sha256": "ffff0f0fa250659e8af45841d65064a4708c1397caca69c26c3f849ca9a45467"
@@ -242,9 +242,9 @@
     "traceroute": {
       "assets": {
         "cast": {
-          "bytes": 18111,
+          "bytes": 18097,
           "path": "traceroute.cast",
-          "sha256": "19a88d25d0790f73d84f942394d52ef31a272a3dc7cac870c24a077f390f6c17"
+          "sha256": "461543346a34a14f3c6cf3bbbf08f392ad7711e13ee2e1f2faa93594781e7db1"
         },
         "transcript": {
           "bytes": 333,
@@ -252,7 +252,7 @@
           "sha256": "2b9d95cc69d49e6ab5bc707d628151dce521d2067e44ad446ef4edb05f0d9980"
         }
       },
-      "binary_sha256": "8d9c94de1fb93c28e85b09a11d35cf5d6d92508d6596f41ded0e6b25e618846d",
+      "binary_sha256": "557afed8bd90775c15382f6b571dbcc28ceeff406508ed807bc29a1cac979808",
       "definition_sha256": "6920d0e2b73bb266d347d9bf1dd20693674f67c0ff505373eb7a56ea5e75e4b2",
       "release": "26.08.25",
       "source_sha256": "785707fe7def4c8cefd10a2f24161f6a0e9162ff79775e2a8e52d630e501d38b"
@@ -319,9 +319,9 @@
     "zefs-config": {
       "assets": {
         "cast": {
-          "bytes": 55382,
+          "bytes": 55195,
           "path": "zefs-config.cast",
-          "sha256": "f73594f3d79651b52991ffa83b96e6f76753417960785cfb5eb9ce6438adebba"
+          "sha256": "2fa05c76b4f05fb760ccec5cf6763e3309687483c37d9ee5cc85a06a0cc4d8a7"
         },
         "transcript": {
           "bytes": 2395,
@@ -329,7 +329,7 @@
           "sha256": "f6537d09e34a4231e863873512159e5c329a5e0ccb5b2bb16fa389462bd90958"
         }
       },
-      "binary_sha256": "dae67e7935911836ae8df4883c5e98926f53d187187cac36a166bf3daae9bdbd",
+      "binary_sha256": "f8ad56a34ca69feed9b34e97120dbc426ffc59fb71263170dd20a2b349221ea8",
       "definition_sha256": "da51551c978ddb2fac474a46f6bcb86bcfd61a9394d4c545d4bce0aff60ff285",
       "release": "26.08.25",
       "source_sha256": "917a37331fb92cb336a52207e269884f0d996c89b1e33f01d9be94bbdd7a25f1"
