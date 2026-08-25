@@ -116,10 +116,18 @@ func TestDashboardSelectedRowKeepsOneStyle(t *testing.T) {
 	if bare := unstyledRuns(selected); bare != "" {
 		t.Errorf("selected row has text outside the selection background (%q), so the highlight breaks there: %q", bare, selected)
 	}
-	// The state keeps its own color ON TOP of the selection, rather than being
-	// dropped to win the background back.
-	if !strings.Contains(selected, ";32;46m") && !strings.Contains(selected, ";46;32m") {
-		t.Errorf("selected row lost the state color; it must carry both a foreground and the selection background: %q", selected)
+	// The selection pins an explicit foreground. Setting a background and
+	// leaving the foreground at the terminal default put light text on the
+	// light cyan selection: 1.53:1 against the palette the website replays
+	// these recordings with, and 4.5:1 is the readable floor.
+	if !strings.Contains(selected, ";30;46m") && !strings.Contains(selected, ";46;30m") {
+		t.Errorf("selected row does not pin a foreground, so its text keeps the terminal default over the selection background: %q", selected)
+	}
+	// The state color is dropped on the selected row. It is picked to read
+	// against the terminal background, and over the selection it measures
+	// 1.29:1, which is the pair an operator reports as unreadable.
+	if strings.Contains(selected, ";32;46m") || strings.Contains(selected, ";46;32m") {
+		t.Errorf("selected row still paints the state color over the selection background: %q", selected)
 	}
 
 	// The unselected row has no wrapping style, so its state color must survive.

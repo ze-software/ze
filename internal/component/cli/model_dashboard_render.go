@@ -16,11 +16,11 @@ import (
 
 // Dashboard styles.
 var (
-	dashHeaderStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")) // white
-	dashFooterStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))           // dim gray
-	dashSelectedStyle = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("6"))  // cyan bg
-	dashErrorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))             // red for errors
-	dashConnStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))             // green for connected
+	dashHeaderStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15"))                                // white
+	dashFooterStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))                                          // dim gray
+	dashSelectedStyle = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("6")).Foreground(lipgloss.Color("0")) // dark on cyan
+	dashErrorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))                                            // red for errors
+	dashConnStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))                                            // green for connected
 )
 
 // Peer-state colors. These are colors rather than styles because the peer table
@@ -182,7 +182,11 @@ func renderPeerRow(p dashboardPeer, cols []dashboardColumnDef, ds *dashboardStat
 		if selected {
 			style = dashSelectedStyle
 		}
-		if fg, ok := stateColor(p.State); ok && c.col == sortColumnState {
+		// The state color is dropped on the selected row. It is chosen to read
+		// against the terminal background, not against the selection background,
+		// where green on cyan measures 1.29:1. The selection already carries the
+		// emphasis the color would add.
+		if fg, ok := stateColor(p.State); ok && c.col == sortColumnState && !selected {
 			style = style.Foreground(fg)
 		}
 		parts = append(parts, style.Render(cell))
