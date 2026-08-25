@@ -447,3 +447,47 @@ func TestComponentToMatchEveryWireValue(t *testing.T) {
 	assert.Len(t, firewall.ProtocolNames(), canonical,
 		"the sweep must have accepted exactly the canonical table and nothing else")
 }
+
+// TestTrafficRatePacketsInstallsAPacketDimension pins the unit the peer asked
+// for. RFC 8955 Section 7.2 defines traffic-rate-packets in PACKETS per second
+// and Section 7.1 defines traffic-rate in BYTES per second; AppendDecoded
+// renders the first as "rate-limit:<n>:packets" and the second as
+// "rate-limit:<n>", so the suffix is the only thing telling them apart.
+//
+// Before this test, actionToFirewall always built RateDimensionBytes, so a peer
+// asking to police 1000 pkt/s had a 1000 byte/s limit installed instead --
+// roughly three orders of magnitude tighter than requested, on traffic the
+// operator asked to be policed rather than dropped.
+func TestTrafficRatePacketsInstallsAPacketDimension(t *testing.T) {
+	// actionToFirewall appends a trailing Accept, so find the Limit rather than
+	// pinning a position: a later action gaining a sibling is not this test's
+	// subject and must not redden it.
+	limitIn := func(t *testing.T, actions []firewall.Action) firewall.Limit {
+		t.Helper()
+		for _, a := range actions {
+			if lim, ok := a.(firewall.Limit); ok {
+				return lim
+			}
+		}
+		t.Fatalf("no firewall.Limit among %d action(s): %#v", len(actions), actions)
+		return firewall.Limit{}
+	}
+
+	lim := limitIn(t, actionToFirewall(parseExtendedCommunities([]string{"rate-limit:1000:packets"})))
+	if lim.Dimension != firewall.RateDimensionPackets {
+		t.Errorf("Dimension = %d, want RateDimensionPackets (%d): RFC 8955 Section 7.2 "+
+			"counts packets, and installing bytes polices ~1000x tighter than asked",
+			lim.Dimension, firewall.RateDimensionPackets)
+	}
+	if lim.Rate != 1000 {
+		t.Errorf("Rate = %d, want 1000", lim.Rate)
+	}
+
+	// The bytes form must keep its own dimension: the suffix decides, and a
+	// blanket switch to packets would be the same defect pointing the other way.
+	limBytes := limitIn(t, actionToFirewall(parseExtendedCommunities([]string{"rate-limit:8000"})))
+	if limBytes.Dimension != firewall.RateDimensionBytes {
+		t.Errorf("Dimension = %d for the suffix-less form, want RateDimensionBytes (%d)",
+			limBytes.Dimension, firewall.RateDimensionBytes)
+	}
+}

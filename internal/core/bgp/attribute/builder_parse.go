@@ -230,7 +230,7 @@ func (b *Builder) ParseExtCommunity(s string) error {
 
 	tokens := strings.FieldsSeq(s)
 	for tok := range tokens {
-		ec, err := parseSingleExtCommunity(tok)
+		ec, err := ParseSingleExtCommunity(tok)
 		if err != nil {
 			return err
 		}
@@ -240,7 +240,15 @@ func (b *Builder) ParseExtCommunity(s string) error {
 	return nil
 }
 
-func parseSingleExtCommunity(s string) (ExtendedCommunity, error) {
+// ParseSingleExtCommunity reads one extended community in the NAMED vocabulary
+// AppendDecoded renders -- target:65000:1, rate-limit:1000:packets -- and returns
+// its eight wire octets.
+//
+// Exported because the decode and the encode directions must agree on one
+// vocabulary. AppendDecoded (extcomm_decoded.go) is the only renderer, and a
+// consumer that reads its output back has to parse what it writes; a second
+// spelling is how the ribOut path came to drop every community it was handed.
+func ParseSingleExtCommunity(s string) (ExtendedCommunity, error) {
 	parts := strings.SplitN(s, ":", 3)
 	if len(parts) != 3 {
 		return ExtendedCommunity{}, fmt.Errorf("invalid extended-community format: %s (expected type:admin:value)", s)

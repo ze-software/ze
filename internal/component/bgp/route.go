@@ -114,10 +114,19 @@ func ParseExtCommunityStrings(ss []string) []attribute.ExtendedCommunity {
 	}
 	result := make([]attribute.ExtendedCommunity, 0, len(ss))
 	for _, s := range ss {
-		raw, err := hex.DecodeString(s)
-		if err == nil && len(raw) == 8 {
+		// Two spellings reach here and both are legitimate. A JSON event carries
+		// whatever appendExtCommunitiesJSON wrote, which since 2fe792839 is the
+		// NAMED form AppendDecoded renders (target:65000:1); older producers and
+		// the raw attr-16 fallback carry 16 hex characters. Reading only hex
+		// dropped every named string in silence, which left the ribOut path
+		// packing an empty EXTENDED_COMMUNITIES attribute.
+		if raw, err := hex.DecodeString(s); err == nil && len(raw) == 8 {
 			var ec attribute.ExtendedCommunity
 			copy(ec[:], raw)
+			result = append(result, ec)
+			continue
+		}
+		if ec, err := attribute.ParseSingleExtCommunity(s); err == nil {
 			result = append(result, ec)
 		}
 	}

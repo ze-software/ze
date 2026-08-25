@@ -29,9 +29,15 @@ var (
 // flowAction holds the parsed traffic action from extended communities.
 type flowAction struct {
 	discard   bool
-	rateLimit uint32 // bytes/sec, 0 = not set
-	markDSCP  uint8
-	hasMark   bool
+	rateLimit uint32 // 0 = not set; the unit is rateInPackets
+	// rateInPackets distinguishes RFC 8955 Section 7.2 traffic-rate-packets
+	// (sub-type 0x800c) from Section 7.1 traffic-rate-bytes (0x8006). Both
+	// render as "rate-limit:<n>", and only the ":packets" suffix tells them
+	// apart, so dropping the suffix installed a packets-per-second rate as a
+	// bytes-per-second limit -- a peer asking for 1000 pkt/s got 1000 byte/s.
+	rateInPackets bool
+	markDSCP      uint8
+	hasMark       bool
 }
 
 // translateFlowSpec converts a parsed FlowSpec NLRI and its actions into
@@ -226,10 +232,14 @@ func actionToFirewall(act flowAction) []firewall.Action {
 	var actions []firewall.Action
 
 	if act.rateLimit > 0 {
+		dimension := firewall.RateDimensionBytes
+		if act.rateInPackets {
+			dimension = firewall.RateDimensionPackets
+		}
 		actions = append(actions, firewall.Limit{
 			Rate:      uint64(act.rateLimit),
 			Unit:      "second",
-			Dimension: firewall.RateDimensionBytes,
+			Dimension: dimension,
 		})
 	}
 
@@ -256,6 +266,12 @@ func parseExtendedCommunities(extComms []string) flowAction {
 			val := ec[len("rate-limit:"):]
 			if val == "" {
 				continue
+			}
+			// AppendDecoded renders the packets form as "rate-limit:<n>:packets"
+			// (extcomm_decoded.go). parseUint32 stops at the colon, so the number
+			// is read the same way either way and only the suffix carries the unit.
+			if _, unit, found := strings.Cut(val, ":"); found {
+				act.rateInPackets = unit == "packets"
 			}
 			act.rateLimit = parseUint32(val)
 			if act.rateLimit == 0 {

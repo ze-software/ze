@@ -295,8 +295,13 @@ func packEventAttrs(event *Event, nextHop string) []byte {
 		buf = appendAttr(buf, byte(attribute.AttrLocalPref), 0x40, val)
 	}
 
-	if len(event.Communities) > 0 {
-		comms := parseCommunityStrings(event.Communities)
+	// Guard on what PARSED, not on what arrived. Each parser drops a string it
+	// cannot read and returns the rest, so a slice of strings none of which parse
+	// yields an empty value -- and appendAttr writes a well-formed header with
+	// length 0 over it. RFC 4271 Section 4.3 defines COMMUNITIES and its siblings
+	// as a set of fixed-width members, so a zero-length one is malformed and
+	// RFC 7606 makes the peer treat-as-withdraw or send a NOTIFICATION.
+	if comms := parseCommunityStrings(event.Communities); len(comms) > 0 {
 		val := make([]byte, 4*len(comms))
 		for i, c := range comms {
 			binary.BigEndian.PutUint32(val[4*i:], uint32(c))
@@ -304,8 +309,7 @@ func packEventAttrs(event *Event, nextHop string) []byte {
 		buf = appendAttr(buf, byte(attribute.AttrCommunity), 0xC0, val)
 	}
 
-	if len(event.ExtendedCommunities) > 0 {
-		ecs := parseExtCommunityStrings(event.ExtendedCommunities)
+	if ecs := parseExtCommunityStrings(event.ExtendedCommunities); len(ecs) > 0 {
 		val := make([]byte, 8*len(ecs))
 		for i, ec := range ecs {
 			copy(val[8*i:], ec[:])
@@ -313,8 +317,7 @@ func packEventAttrs(event *Event, nextHop string) []byte {
 		buf = appendAttr(buf, byte(attribute.AttrExtCommunity), 0xC0, val)
 	}
 
-	if len(event.LargeCommunities) > 0 {
-		lcs := parseLargeCommunityStrings(event.LargeCommunities)
+	if lcs := parseLargeCommunityStrings(event.LargeCommunities); len(lcs) > 0 {
 		val := make([]byte, 12*len(lcs))
 		for i, lc := range lcs {
 			binary.BigEndian.PutUint32(val[12*i:], lc.GlobalAdmin)

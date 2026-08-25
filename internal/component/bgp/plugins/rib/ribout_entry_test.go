@@ -215,3 +215,56 @@ func TestExtractNextHopFromMPReach_IPv6(t *testing.T) {
 	nh := extractNextHopFromMPReach(value)
 	assert.Equal(t, "2001:db8::1", nh)
 }
+
+// TestUnparsableCommunityStringsPackNoAttribute holds the fail-closed shape of
+// packEventAttrs: an attribute is written only when a member actually parsed.
+//
+// Each of the three parsers drops a string it cannot read and returns the rest,
+// so a slice whose members all fail yields an empty value. appendAttr writes a
+// well-formed header over whatever it is given, so guarding on the LENGTH OF THE
+// EVENT SLICE emitted `C0 10 00` -- a zero-length EXTENDED_COMMUNITIES -- into
+// the interned ribOut bytes that are replayed to a peer on reconnect. RFC 4271
+// Section 4.3 defines these attributes as a set of fixed-width members, so a
+// zero-length one is malformed, and RFC 7606 makes a conforming peer
+// treat-as-withdraw or send a NOTIFICATION.
+//
+// The strings below are deliberately unparsable in each vocabulary: not 16 hex
+// characters, not a named form, not an AS:NN pair.
+func TestUnparsableCommunityStringsPackNoAttribute(t *testing.T) {
+	event := &Event{
+		Communities:         []string{"not-a-community"},
+		LargeCommunities:    []string{"not-a-large-community"},
+		ExtendedCommunities: []string{"not-an-ext-community"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{
+				NextHop: "10.0.0.1",
+				Action:  routeaction.Add,
+				NLRIs:   []any{"10.0.0.0/24"},
+			}},
+		},
+	}
+
+	packed := packEventAttrs(event, "10.0.0.1")
+
+	// Walk the attributes and refuse any zero-length one. Reading the bytes
+	// rather than asserting a total length keeps the test honest if an
+	// unrelated attribute is added later.
+	for i := 0; i+2 < len(packed); {
+		flags, code := packed[i], packed[i+1]
+		var valLen int
+		var hdr int
+		if flags&0x10 != 0 {
+			valLen = int(packed[i+2])<<8 | int(packed[i+3])
+			hdr = 4
+		} else {
+			valLen = int(packed[i+2])
+			hdr = 3
+		}
+		if valLen == 0 {
+			t.Errorf("attribute type %d packed with length 0: a set-valued attribute "+
+				"with no members is malformed under RFC 4271 Section 4.3, and this one "+
+				"reaches a peer on reconnect", code)
+		}
+		i += hdr + valLen
+	}
+}

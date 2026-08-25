@@ -153,7 +153,7 @@ func TestExtendedCommunityAppendDecoded(t *testing.T) {
 // TestExtendedCommunityNamedFormRoundTrip parses each named administrator form
 // and decodes the community it built.
 //
-// VALIDATES: parseSingleExtCommunity (builder_parse.go) and AppendDecoded
+// VALIDATES: ParseSingleExtCommunity (builder_parse.go) and AppendDecoded
 // (extcomm_decoded.go) spell one community the same way, in all three
 // administrator forms RFC 4360 Sections 4 and 5 name.
 //
@@ -171,7 +171,7 @@ func TestExtendedCommunityNamedFormRoundTrip(t *testing.T) {
 		"origin:65537:200",
 	} {
 		t.Run(spelling, func(t *testing.T) {
-			comm, err := parseSingleExtCommunity(spelling)
+			comm, err := ParseSingleExtCommunity(spelling)
 			require.NoError(t, err)
 			assert.Equal(t, spelling, comm.String())
 		})
