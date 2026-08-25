@@ -52,13 +52,40 @@ one VM per test):
 No per-test wiring is needed for either: the suites are the same as the native
 runner, so the QEMU pass discovers `needs-linux` tests automatically.
 
-**Both targets boot ze's own runtime kernel, never the stock Alpine one.** Each
-passes `--kernel tmp/kernel/vmlinuz` and refuses to start
-without it, so `make ze-kernel-vmlinuz-stage KERNEL_ARCH=<amd64|arm64>` is a
-precondition of each. That command costs a copy on a cache hit and only builds
-on a miss. `make ze-kernel-build` also satisfies it and additionally assembles the
-gokrazy kernel package, which needs the module cache `make ze-gokrazy-deps-download`
-downloads and a VM boot never reads.
+**EVERY QEMU target boots ze's own runtime kernel, never the stock Alpine one.**
+All thirteen `qemu-run.py` invocations in `mk/test-integration.mk` pass
+`--kernel $(ZE_QEMU_KERNEL)` and refuse to start without it, so
+`make ze-kernel-vmlinuz-stage KERNEL_ARCH=<amd64|arm64>` is a precondition of
+each. That command costs a copy on a cache hit and only builds on a miss. `make
+ze-kernel-build` also satisfies it and additionally assembles the gokrazy kernel
+package, which needs the module cache `make ze-gokrazy-deps-download` downloads
+and a VM boot never reads.
+
+**A QEMU target MUST NOT be written to boot stock.** "It only needs features
+stock has" MUST NOT be offered as a reason. Seven targets booted stock until
+2026-08-24. Six stated no reason at all. The seventh cited two of the other six,
+which is a circle rather than a reason. A target's verdict is about the kernel
+it ran on. A target on stock therefore reports about Alpine, and reads as a
+report about ze. The cost that appeared to justify it does not exist: the ~30
+minutes is a COLD-CACHE cost, paid once per kernel config change and shared by
+every target. An edit under `tools/kernel-builder/` also invalidates that cache
+key, because the builder decides what the kernel is.
+
+**`qemu-run.py` reads `uname -r` in the booted guest and MUST refuse to continue
+unless it matches `internal/appliance/kernel.version`** (`assert_runtime_kernel_booted`).
+The guard below runs on the HOST before the VM exists, so it proves the staged
+FILE and cannot see what QEMU booted. A `-kernel` QEMU fails to load leaves the
+ISO's own kernel running, and only the guest check sees that.
+
+**A test that drives a real `make ze-kernel-build` or `ze-kernel-vmlinuz-stage`
+MUST set `XDG_CACHE_HOME` to its own work directory.** The stage's cache-MISS
+branch POPULATES the durable cache that `ze-qemu-kernel-guard` reads. Unset, a
+fixture's fake kernel lands in the developer's real
+`~/.cache/ze/runtime-kernel/<key>`. The guard then compares a real staged kernel
+against that fake and refuses every QEMU target. The next stage is worse: it
+materializes the fake and reports a match over a file QEMU cannot boot. Measured
+2026-08-24: `test/install/ze-kernel-overlay.ci` left a 518-byte vmlinuz there.
+Saving and restoring `tmp/kernel/` does not reach it.
 
 **A caller that runs one of these targets MUST supply the kernel itself.** The
 guard denies before the VM, so a caller that cannot stage a kernel runs no test.
@@ -76,14 +103,21 @@ staged kernel against the architecture-keyed durable cache entry instead, which
 also catches a kernel staged before a config fragment changed. A missing or
 mismatched kernel is an error exit, never a silent fall back to stock.
 
-**All six kernel-consuming targets use that one guard**, the two above plus
-`ze-qemu-pppoe-test`, `ze-qemu-l2tp-ppp-test`, `ze-qemu-pppoe-accel-test` and
-`ze-qemu-traffic-usage-test`. **A target that uses it MUST declare `: ze-host-build`**,
-because the guard's first command execs that binary; without the prerequisite it
-still denies, but it names the wrong cause. `TestQemuTargetsGuardTheStagedKernel`
-(`scripts/evidence/qemu_kernel_wiring_test.go`) reads the guard's users out of the
-makefile rather than from a list, so a seventh target is checked the day it is
-written.
+**All thirteen kernel-consuming targets use that one guard.** **A target that
+uses it MUST declare `: ze-host-build`.** The guard's first command execs that
+binary. Without the prerequisite the guard still denies, but it names the wrong
+cause. The three properties travel together, and each has its own check in
+`scripts/evidence/qemu_kernel_wiring_test.go`:
+
+| Property | Check |
+|----------|-------|
+| the `--kernel` flag | `TestQemuFunctionalTargetsBootTheRuntimeKernel` |
+| the guard | `TestQemuTargetsGuardTheStagedKernel` |
+| the `ze-host-build` prerequisite | `TestQemuTargetsDependOnHostBuild` |
+
+All three derive the target list from the makefile rather than from a written
+list. A fourteenth target is therefore checked the day it is written. Each names
+which of the three went missing, instead of one compound red.
 
 **Two files carry the default kernel behavior and they MUST move together:**
 `mk/test-integration.mk` and `scripts/evidence/qemu-all-tests.sh`. The script
@@ -247,7 +281,7 @@ The pattern (do all four in the same change):
 
 1. **Netns evidence script** `scripts/evidence/effective-<feature>.py`: you MUST run Ze and the peer daemon in two network namespaces joined by a veth, no Docker. You MUST mirror `effective-l2tp-ppp.py` (LineCollector, marker waits, kernel probe, cleanup).
 2. **Peer from Alpine packages**: you MUST install the peer daemon with `apk` via `--packages`, e.g. `xl2tpd` (L2TP) or `accel-ppp` (PPPoE). If the lab's Docker image built the peer from source, you MUST switch it to the Alpine package so both paths use the same build: `accel-ppp`, `frr`, and `xl2tpd` are all in Alpine community.
-3. **Runtime kernel for kernel modules**: if the feature needs a module absent from the stock Alpine VM kernel, you MUST run with `--kernel tmp/kernel/vmlinuz`, add the `CONFIG_*` to `gokrazy/kernel/runtime.config`, and add the symbol to `gokrazy/kernel/runtime.require`. PPPoE added `CONFIG_PPPOE` there exactly as L2TP added `CONFIG_PPPOL2TP`. `make ze-kernel-vmlinuz-stage` stages the kernel to `tmp/kernel/vmlinuz` (gitignored scratch) but routes through a DURABLE cache first: it asks `ze-host` for the arch+config-keyed dir under `~/.cache/ze/runtime-kernel` and materializes from it in seconds on a hit (no ~30-min rebuild), building + populating only on a miss (or a `runtime.config` change). So `rm -rf tmp` costs a copy, not a rebuild, and a fresh worktree reuses the compiled kernel. The Alpine ISO is likewise cached and `.sha256`-verified under `~/.cache/ze/alpine-iso`. `scripts/dev/ensure-links.py` maintains the repo `cache` symlink (and, after the opt-in `make ze-scratch-migrate`, the `tmp` symlink) so the expensive artifacts live outside the disposable scratch tree.
+3. **Runtime kernel, always**: you MUST run with `--kernel $(ZE_QEMU_KERNEL)`, MUST take `$(ze-qemu-kernel-guard)` and MUST declare `: ze-host-build`, whatever the lab needs; a lab on the stock Alpine kernel reports about Alpine. When the feature needs a `CONFIG_*` this kernel does not yet carry, you MUST add it to `gokrazy/kernel/runtime.config`, and MUST add the symbol to `gokrazy/kernel/runtime.require`. PPPoE added `CONFIG_PPPOE` there exactly as L2TP added `CONFIG_PPPOL2TP`. `make ze-kernel-vmlinuz-stage` stages the kernel to `tmp/kernel/vmlinuz` (gitignored scratch) but routes through a DURABLE cache first: it asks `ze-host` for the arch+config-keyed dir under `~/.cache/ze/runtime-kernel` and materializes from it in seconds on a hit (no ~30-min rebuild), building + populating only on a miss (or a `runtime.config` change). So `rm -rf tmp` costs a copy, not a rebuild, and a fresh worktree reuses the compiled kernel. The Alpine ISO is likewise cached and `.sha256`-verified under `~/.cache/ze/alpine-iso`. `scripts/dev/ensure-links.py` maintains the repo `cache` symlink (and, after the opt-in `make ze-scratch-migrate`, the `tmp` symlink) so the expensive artifacts live outside the disposable scratch tree.
 4. **You MUST add a `ze-qemu-<feature>-test` target** in `mk/test-integration.mk` calling `qemu-run.py --kernel ... --packages ... --run 'python3 scripts/evidence/effective-<feature>.py'`, and add it to `.PHONY` and the `Makefile` help block.
 
 | Lab | Docker target | QEMU target | Netns script |
@@ -258,17 +292,7 @@ The pattern (do all four in the same change):
 
 **When you add a new interop lab, you MUST add its row here and ship both targets together.**
 
-Step 3's custom kernel is conditional for a LAB, not automatic: use `--kernel`
-only when a `CONFIG_*` the lab needs is absent from the stock Alpine kernel.
-L2TP and PPPoE need it (`CONFIG_PPPOL2TP`, `CONFIG_PPPOE`); VRRP does not,
-because the stock Alpine kernel already creates macvlan (bridge
-mode), bridge, veth and netns. Probe the stock kernel before
-reaching for it, so a lab that gains nothing does not gain a precondition.
-
-`make ze-kernel-build` routes through the durable architecture- and config-keyed cache
-under `~/.cache/ze`, so it materializes on a cache hit and builds only on a miss
-or after a config fragment changes. The two functional targets
-(`ze-qemu-test-all`, `ze-qemu-needs-linux-test`) use `--kernel` unconditionally.
+**Probing the stock Alpine kernel proves nothing about a lab, and its result MUST NOT be recorded as a reason to skip step 3's `--kernel`.** A probe answers a question about Alpine, while the lab's verdict is about the kernel ze ships, so a green probe and a green lab on stock together establish only that Alpine works. A capability the probe found MUST be declared in `gokrazy/kernel/runtime.config` with its symbol in `gokrazy/kernel/runtime.require`, so the lab gets it from the kernel under test and a silent demotion to `=m` fails the build instead of the lab.
 
 ## What the QEMU VM Provides
 
@@ -277,7 +301,7 @@ Alpine Linux live system (no systemd) with:
 - Root access (all capabilities)
 - `/dev/ptmx` for PTY pairs
 - Network namespaces (`ip netns`)
-- Kernel modules: nftables, l2tp, ppp (loaded at boot) -- **only under the stock Alpine kernel.** A `--kernel` run pairs ze's kernel with Alpine's initramfs and Alpine's `/lib/modules`, which are built for 6.12.13-0-virt, so NO module of the ze kernel can load. Every symbol such a run needs MUST be `=y` in `gokrazy/kernel/*.config`, and `gokrazy/kernel/kernel.require` is what makes a silent demotion to `=m` fail the build instead of the test
+- Kernel modules: NONE. Every QEMU target boots ze's runtime kernel, and a `--kernel` run pairs it with Alpine's initramfs and Alpine's `/lib/modules`, which are built for 6.12.13-0-virt, so no module loads at all: not Alpine's, and not ze's own. Every symbol any QEMU run needs MUST therefore be `=y` in `gokrazy/kernel/*.config`, and the matching `gokrazy/kernel/*.require` manifest is what makes a silent demotion to `=m` fail the build instead of the test. The Alpine modules a stock boot used to supply (nftables, l2tp, ppp) are now config symbols like every other
 - Go toolchain (downloaded and cached in `tmp/qemu/`)
 - Repo mounted read-write via virtio-9p at `/workspace`
 - No systemd, no getty, no desktop (Alpine minimal)
@@ -340,8 +364,8 @@ Woodpecker instance could not.
 | `ze-fuzz-test` | `.github/workflows/evidence-nightly.yml`, scheduled | advisory |
 | `ze-integration-test` (non-QEMU kernel suites) | `.github/workflows/evidence-nightly.yml`, scheduled, `sudo` (root) | advisory |
 | `ze-qemu-needs-linux-test` (Linux-only `.ci` functional surface) | `.github/workflows/qemu-nightly.yml`, job `needs-linux`, scheduled | advisory |
-| `ze-qemu-ldp-frr-test`, `ze-qemu-isis-frr-test`, `ze-qemu-vrrp-keepalived-test` (stock-kernel protocol labs) | `.github/workflows/qemu-nightly.yml`, job `protocol-labs`, scheduled | advisory |
-| `ze-qemu-l2tp-ppp-test`, `ze-qemu-pppoe-accel-test`, `ze-qemu-pppoe-test`, `ze-qemu-traffic-usage-test` (runtime-kernel labs) | `.github/workflows/qemu-nightly.yml`, job `runtime-kernel-labs`, scheduled | advisory |
+| `ze-qemu-ldp-frr-test`, `ze-qemu-isis-frr-test`, `ze-qemu-vrrp-keepalived-test` (routing-protocol interop labs) | `.github/workflows/qemu-nightly.yml`, job `protocol-labs`, scheduled | advisory |
+| `ze-qemu-l2tp-ppp-test`, `ze-qemu-pppoe-accel-test`, `ze-qemu-pppoe-test`, `ze-qemu-traffic-usage-test` (access-protocol and traffic labs) | `.github/workflows/qemu-nightly.yml`, job `runtime-kernel-labs`, scheduled | advisory |
 | `ze-interop-test`, `ze-interop-ipsec-test` (Docker interop trees) | `.github/workflows/evidence-nightly.yml`, scheduled | advisory |
 | `ze-qemu-integration-test` (Go `integration && linux` packages) | `make ze-evidence-release-verify` only, by hand | -- |
 | `ze-qemu-test-all` (full suite in the VM) | nothing; `manualQemuTargets` records why | -- |

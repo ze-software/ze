@@ -811,7 +811,11 @@ func makefileRecipes(src string) map[string]makefileTarget {
 func TestQemuKernelPreconditionIsMetInTheSameJob(t *testing.T) {
 	root := repoRoot(t)
 	integration := readFileOrFail(t, filepath.Join(root, "mk", "test-integration.mk"))
-	gokrazy := readFileOrFail(t, filepath.Join(root, "mk", "gokrazy.mk"))
+	// build-gokrazy.mk, not gokrazy.mk. 72d2f0d59 renamed every makefile
+	// fragment by what it does and left this path behind, so the read failed and
+	// this check stopped checking. It is the only one that asks whether a
+	// workflow job can satisfy the kernel precondition its targets demand.
+	gokrazy := readFileOrFail(t, filepath.Join(root, "mk", "build-gokrazy.mk"))
 
 	intRecipes := makefileRecipes(integration)
 	var guarded []string

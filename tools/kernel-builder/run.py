@@ -228,6 +228,49 @@ def select_builder(requested: str, arch: str) -> str:
     raise AssertionError
 
 
+def repair_out_dir_ownership(out_dir: Path, image: str, platform: str) -> None:
+    """Give the container's output back to the invoking user.
+
+    build.py runs as uid 0 inside the container, so everything it writes through
+    the `-v {out_dir}:/out` bind mount lands on the host owned root:root. The
+    caller is an unprivileged make recipe: `ze-kernel-vmlinuz-stage`
+    (mk/build-gokrazy.mk) then cannot `rm -rf` its own scratch view, the
+    materialize step leaves an orphaned .copytree-* staging dir, no kernel is
+    staged, and ze-qemu-kernel-guard refuses every QEMU target with a message
+    about permissions rather than about the kernel. Nothing but `sudo rm` clears
+    it, and no automated caller can issue that
+    (plan/journal/container-build-leaves-root-owned-scratch.md).
+
+    Running the build container with `--user` does not fix it. The build also
+    writes two named volumes, /build and /tmp/kbuild, and docker creates a named
+    volume owned root:root 0755. Measured 2026-08-24 on a volume created fresh
+    for the probe: an unprivileged uid is denied there on a clean machine
+    exactly as on one that has built before, so `--user` denies the build its
+    source tree instead of denying it the output. /out is the one mount that
+    reaches the host, so repairing /out is the whole of what the host needs.
+
+    Runs after a FAILED build too: a build that dies during modules_install
+    leaves a partial root-owned tree, which is the same landmine.
+    """
+    subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--platform",
+            platform,
+            "-v",
+            f"{out_dir}:/out",
+            image,
+            "chown",
+            "-R",
+            f"{os.getuid()}:{os.getgid()}",
+            "/out",
+        ],
+        check=True,
+    )
+
+
 def run_docker(
     *,
     version: str,
@@ -307,7 +350,10 @@ def run_docker(
         args.extend(
             ["--fragment", container_fragment_path(fragment, src_dir, common_dir)]
         )
-    subprocess.run(args, check=True)
+    try:
+        subprocess.run(args, check=True)
+    finally:
+        repair_out_dir_ownership(out_dir, image, platform)
 
 
 def run_qemu(

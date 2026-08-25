@@ -7,8 +7,9 @@ diagnostics-on-failure, artifacts kept on failure).
 
 Design: plan/spec-vrrp-6-interop.md -- "Scenario reference (QEMU netns lab)".
 Driven by `make ze-qemu-vrrp-keepalived-test` (mk/test-integration.mk), which
-boots the STOCK Alpine kernel (no --kernel) because VRRP needs only macvlan,
-bridge and veth. ensure_kernel_support() below is the probe that proves it.
+boots ze's runtime kernel (--kernel), as every QEMU target does.
+ensure_kernel_support() below proves that kernel carries the macvlan, bridge and
+veth support VRRP needs.
 
 Topology (spec-vrrp-6): three leaf namespaces, each with a veth into a bridge
 in a fourth namespace, so the observer is an independent third party that sees
@@ -389,23 +390,27 @@ def probe_kernel_feature(cmd: list[str], config_symbol: str, what: str) -> None:
         sys.stderr.write((result.stdout or "") + (result.stderr or ""))
         raise SystemExit(
             f"kernel lacks {what}: `{' '.join(cmd)}` failed in a private namespace. "
-            f"This lab needs {config_symbol} in the running kernel. "
-            f"Either boot a kernel with {config_symbol} built in (add it to "
-            f"gokrazy/kernel/runtime.config and run `make ze-kernel-build`, then pass "
-            f"--kernel tmp/kernel/vmlinuz to qemu-run.py like the l2tp/pppoe labs "
-            f"in mk/test-integration.mk), or install the matching module package."
+            f"This lab needs {config_symbol} in the running kernel. It already boots "
+            f"ze's runtime kernel, so a module package is not the answer and there is "
+            f"nothing to load: add {config_symbol} to gokrazy/kernel/runtime.config and "
+            f"to gokrazy/kernel/runtime.require, then `make ze-kernel-vmlinuz-stage "
+            f"KERNEL_ARCH=<arch>`. The require entry is what makes a later build fail "
+            f"rather than silently ship a kernel without the symbol."
         )
 
 
 def ensure_kernel_support() -> None:
     """Prove the running kernel can build this lab, or fail naming the CONFIG_*.
 
-    The probe result is the evidence for which kernel the make target needs.
-    `ze-qemu-vrrp-keepalived-test` deliberately runs the STOCK Alpine kernel (no
-    --kernel), unlike the l2tp/pppoe labs: those need CONFIG_PPPOL2TP/CONFIG_PPPOE
-    which Alpine lacks, whereas macvlan, bridge and veth are all present. If that
-    ever stops being true, this function is what says so, in one line, instead of
-    a confusing failure five scenarios later.
+    `ze-qemu-vrrp-keepalived-test` boots ze's runtime kernel (--kernel), as every
+    QEMU target does, so this probe asks whether THAT kernel carries CONFIG_VETH,
+    CONFIG_BRIDGE and CONFIG_MACVLAN. A missing one is a gap in
+    gokrazy/kernel/runtime.config, and this function is what says so in one line
+    instead of a confusing failure five scenarios later.
+
+    The probe is not evidence about which kernel the target needs. Every QEMU
+    target boots the kernel ze ships whatever the probe finds, because a lab's
+    verdict is about the kernel under test (ai/rules/platform-linux.md).
 
     Everything is probed inside PROBE_NS, so the host default namespace is never
     touched beyond creating and deleting that namespace.
@@ -463,7 +468,7 @@ def ensure_kernel_support() -> None:
         release = platform.release()
         print(
             f"kernel probe: {release}: veth OK, bridge OK, macvlan (bridge mode) OK "
-            f"-- stock kernel is sufficient, no custom kernel needed"
+            f"-- this kernel carries everything the lab builds"
         )
     finally:
         run(

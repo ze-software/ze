@@ -76,3 +76,12 @@ CONFIG_VXLAN
 #   CONFIG_GRO_CELLS            derives, and hide which request produced it.
 #   CONFIG_IPV6_NDISC_NODETYPE
 #   CONFIG_NET_UDP_TUNNEL       promptless, and CONFIG_VXLAN selects it.
+
+# The AF_MPLS table ze's own forwarding code reads and writes. A `=y` here
+# fails the build if MPLS_ROUTING stops resolving, rather than shipping a
+# kernel on which LDP and RSVP-TE cannot program a single label.
+CONFIG_MPLS
+CONFIG_LWTUNNEL
+CONFIG_MPLS_ROUTING
+CONFIG_MPLS_IPTUNNEL
+CONFIG_NET_MPLS_GSO

@@ -77,6 +77,11 @@ cat > "$work/fakebin/docker" <<'EOF_DOCKER'
 #!/bin/sh
 set -eu
 if [ "$1" = run ]; then
+	# Only a run carrying build.py is a BUILD. run.py issues a second
+	# `docker run ... chown -R <uid>:<gid> /out` to hand the build's output back
+	# to the invoking user, and that run mounts :/out as well. Synthesizing build
+	# output for it rewrites what the build produced.
+	case " $* " in *" /builder/build.py "*) ;; *) exit 0 ;; esac
 	prev=
 	for arg in "$@"; do
 		if [ "$prev" = -v ]; then
@@ -97,7 +102,45 @@ fi
 EOF_DOCKER
 chmod +x "$work/fakebin/docker"
 
-PATH="$work/fakebin:$PATH" make ze-kernel-build KERNEL_ARCH=amd64 >"$work/stdout" 2>"$work/stderr"
+# XDG_CACHE_HOME is REQUIRED, not tidiness. ze-kernel-vmlinuz-stage
+# (mk/build-gokrazy.mk) routes the runtime kernel through the durable cache that
+# ze-host resolves from XDG_CACHE_HOME (cacheHome, internal/appliance/cache.go),
+# and its MISS branch POPULATES that cache with whatever the build produced.
+# Unset, this test writes its 518-byte fake vmlinuz into the developer's real
+# ~/.cache/ze/runtime-kernel/<key>, and from then on ze-qemu-kernel-guard
+# compares the staged kernel against a fake and refuses every QEMU target --
+# or, on the next stage, materializes the fake into tmp/kernel/vmlinuz and
+# reports "Runtime kernel: ... matches" over a 518-byte file QEMU cannot boot.
+# Measured 2026-08-24: one `make ze-functional-install-test` left exactly that
+# entry behind. Saving and restoring tmp/kernel/ covers the working tree and
+# does not reach the durable cache, which is the shared state the guard reads.
+PATH="$work/fakebin:$PATH" XDG_CACHE_HOME="$work/cache" \
+	make ze-kernel-build KERNEL_ARCH=amd64 >"$work/stdout" 2>"$work/stderr"
+
+# The real durable cache holds no kernel this test could have written. Asserted
+# rather than trusted: this test drives make, which drives ze-host, and a
+# variable that stops being read anywhere along that chain fails silently and
+# poisons the host.
+#
+# Keyed on SIZE, not on mtime. A real runtime kernel is about 16 MB and the fake
+# above is 518 bytes, so this names the fake exactly. An mtime comparison would
+# instead accuse this test whenever another session in the same checkout staged
+# a real kernel while it ran.
+#
+# The unit is BYTES and it is load-bearing. `-size -1M` rounds every file UP to a
+# whole megabyte before comparing, so a 518-byte file measures as 1M and `-1M`
+# matches nothing but a 0-byte file. The assertion could not see the fake it
+# exists to catch. Only `c` compares the byte count itself. Measured against a
+# 518-byte fixture built exactly as the fake docker above builds it, on GNU
+# findutils 4.9.0 and on bfs 4.1.1: `-1M` returned nothing and `-1048576c`
+# returned the file.
+real_cache="${XDG_CACHE_HOME:-$HOME/.cache}/ze/runtime-kernel"
+poisoned=$(find "$real_cache" -name vmlinuz -size -1048576c 2>/dev/null | head -n 1)
+if [ -n "$poisoned" ]; then
+	echo "a fake kernel is in the real runtime-kernel cache: $poisoned" >&2
+	echo "ze-qemu-kernel-guard reads that cache, so every QEMU target now refuses" >&2
+	exit 1
+fi
 
 # make ze-kernel-build routes the runtime kernel through the durable cache: it prints
 # "Runtime kernel cache HIT: materializing" (warm cache) or "cache MISS: building"

@@ -8,11 +8,11 @@ with full kernel capabilities.
 ## Quick Start
 
 ```bash
+# Stage the kernel every QEMU target boots. A hit costs a copy.
+make ze-kernel-vmlinuz-stage KERNEL_ARCH=amd64
+
 # Run all QEMU integration tests (first run downloads Alpine ISO + Go)
 make ze-qemu-integration-test
-
-# Run L2TP PPP tests (requires gokrazy kernel)
-make ze-qemu-l2tp-ppp-test
 ```
 
 Prerequisites: `qemu` (`brew install qemu` on macOS).
@@ -20,6 +20,36 @@ Prerequisites: `qemu` (`brew install qemu` on macOS).
 First run takes ~1 min to download Alpine ISO and Go toolchain. Both are
 cached in `tmp/qemu/` and reused on subsequent runs. A typical run boots
 the VM in ~15s and runs tests in ~30-60s.
+
+## Every QEMU target boots the kernel ze ships
+
+The VM runs Alpine userland on **ze's own runtime kernel**, never the kernel
+on the Alpine ISO. Each of the thirteen `qemu-run.py` invocations in
+`mk/test-integration.mk` carries three things together, and a target with one
+but not the others takes `scripts/evidence/qemu_kernel_wiring_test.go` red:
+
+| Property | What it does |
+|----------|--------------|
+| `--kernel $(ZE_QEMU_KERNEL)` | hands QEMU `tmp/kernel/vmlinuz` |
+| `$(ze-qemu-kernel-guard)` | proves that file is THIS tree's kernel for THIS architecture, comparing it against the arch-and-config-keyed cache entry |
+| `: ze-host-build` | supplies the `ze-host` binary the guard execs to resolve the cache key |
+
+`qemu-run.py` then reads `uname -r` in the booted guest. It refuses to go on
+unless the guest reports the release `internal/appliance/kernel.version` names.
+The guard runs on the host before the VM exists, so it cannot see what QEMU
+actually booted. This is the check that can.
+
+Staging is cheap. `ze-kernel-vmlinuz-stage` materializes from a durable cache
+under `~/.cache/ze` in seconds on a hit, and builds only on a miss. Every QEMU
+target shares that hit. The ~30-minute build is a cold-cache cost, paid once per
+kernel config change. An edit under `tools/kernel-builder/` also invalidates the
+key, because the builder decides what the kernel is.
+
+Until 2026-08-24 seven of the thirteen booted stock Alpine 6.12.13-0-virt. This
+tree named 7.2, and the builder refuses any release less than 7.0. Their
+verdicts were true of Alpine and silently untrue of the product.
+`ze-qemu-debug` was among them. That target exists to reproduce a failure, and
+it reproduced it on a different kernel.
 
 ## How It Works
 
@@ -129,14 +159,19 @@ capabilities.
 Add your package to the `--run` argument in the Makefile:
 
 ```makefile
-ze-qemu-integration-test:
+_ze-qemu-integration-test-impl: ze-host-build
+    $(ze-qemu-kernel-guard)
     python3 scripts/evidence/qemu-run.py \
+        --kernel $(ZE_QEMU_KERNEL) \
         --packages "nftables iproute2 iputils-ping kmod iptables" \
         --run 'CGO_ENABLED=0 go test -tags integration -count=1 -timeout 120s \
             ./internal/component/iface/... \
             ./your/new/package/... \           # add here
             ...'
 ```
+
+The three properties above are not optional in a new target either. Copy them,
+and `scripts/evidence/qemu_kernel_wiring_test.go` stays green.
 
 If your tests need Alpine packages not already listed, add them to `--packages`.
 

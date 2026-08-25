@@ -361,6 +361,43 @@ def shell_quote(s: str) -> str:
     return "'" + s.replace("'", "'\\''") + "'"
 
 
+def expected_kernel_version(root: Path) -> str:
+    """The kernel release this tree names, read from the one file that owns it."""
+    return (root / "internal/appliance/kernel.version").read_text().strip()
+
+
+def assert_runtime_kernel_booted(root: Path) -> None:
+    """Prove the guest is RUNNING the kernel ze ships, not stock Alpine.
+
+    --kernel names a file on the host. Nothing about passing it says the guest
+    booted it: the Alpine ISO carries its own kernel, and a -kernel QEMU cannot
+    load leaves the VM running that one. ze-qemu-kernel-guard
+    (mk/test-integration.mk) answers a different question -- whether the staged
+    file is this tree's runtime kernel for this architecture -- and it answers it
+    on the host, before the VM exists. This reads what the guest actually runs,
+    and it is the check that would have caught the whole defect: seven of the
+    thirteen QEMU targets booted stock Alpine 6.12.13-0-virt until 2026-08-24
+    while reporting green.
+
+    The kernel Makefile spells a zero SUBLEVEL, so the 7.2 this tree names is
+    7.2.0 to `uname -r`. Both forms are accepted and nothing else is: a stock
+    6.12.13-0-virt shares no prefix with any release ze builds, and ze builds
+    nothing below 7.0 (validate_version, tools/kernel-builder/build.py).
+    """
+    want = expected_kernel_version(root)
+    probe = (
+        f"actual=$(uname -r); "
+        f'case "$actual" in {want}|{want}.*) exit 0 ;; esac; '
+        f'echo "the VM booted $actual, not the {want} kernel ze ships -- '
+        f"--kernel was passed but QEMU is running another kernel, so every "
+        f'verdict from this run would be about a kernel no operator gets" >&2; '
+        f"exit 1"
+    )
+    if ssh_run(probe, timeout=60) != 0:
+        raise RuntimeError(f"guest is not running ze's {want} runtime kernel")
+    print(f"  Runtime kernel confirmed in the guest: {want}", file=sys.stderr)
+
+
 def run_in_vm(
     iso: Path,
     root: Path,
@@ -452,6 +489,12 @@ def run_in_vm(
         if not ready:
             raise RuntimeError("VM bootstrap failed: SSH not reachable after retries")
         print("  VM ready.", file=sys.stderr)
+
+        # Before the packages, the Go toolchain and the suites: a wrong kernel
+        # makes every one of them answer a question about the wrong machine, and
+        # this costs one ssh round trip to say so.
+        if kernel is not None:
+            assert_runtime_kernel_booted(root)
 
         go_arch = "arm64" if ALPINE_ARCH == "aarch64" else "amd64"
         go_url = f"https://go.dev/dl/go{GO_VERSION}.linux-{go_arch}.tar.gz"

@@ -185,8 +185,10 @@ jobs:
           ZE_QEMU_BOOT_TIMEOUT: "300"
         run: make ze-qemu-needs-linux-test
 
-  # The stock-kernel protocol labs: ze's LDP, IS-IS and VRRP against a real FRR
-  # ldpd, a real FRR isisd and a real keepalived, on the wire in the Alpine VM.
+  # The protocol labs: ze's LDP, IS-IS and VRRP against a real FRR ldpd, a real
+  # FRR isisd and a real keepalived, on the wire in the VM. They booted stock
+  # Alpine until 2026-08-24 and boot ze's runtime kernel now, like every other
+  # QEMU target.
   #
   # WHY A JOB EXISTS FOR THEM. All three worked and none was invoked by anything.
   # ze-qemu-ldp-frr-test was named only by its own `.PHONY` line, by `make help`,
@@ -201,13 +203,19 @@ jobs:
   # SEPARATE FROM needs-linux, and separate from the runtime-kernel job below.
   # Not needs-linux: that job measured 3269s of its 5400s budget on a good night,
   # and appending three more VM boots to it buys a wall-clock kill that presents
-  # as an opaque QEMU timeout. Not the runtime-kernel job: these three boot STOCK
-  # Alpine (VRRP needs only macvlan/bridge/veth, LDP and IS-IS only veth and
-  # netns), so they must not wait on a ~30-minute kernel build on a cache miss.
+  # as an opaque QEMU timeout. Not the runtime-kernel job either: these three are
+  # routing-protocol interop labs against frr and keepalived, and their own job is
+  # what keeps each job's budget sized for the boots it makes. The kernel is not
+  # what separates them: all three boot ze's runtime kernel, exactly as that job's
+  # four do.
   #
-  # BUDGET. The make targets cap themselves at 150s + 180s + 900s of in-VM run
-  # time; the rest is three Alpine boots, the 9p Go toolchain, and an apk fetch of
-  # frr and keepalived. 60 minutes leaves room for the TCG path.
+  # BUDGET, 120 minutes. The make targets cap themselves at 150s + 180s + 900s of
+  # in-VM run time; the rest is three boots, the 9p Go toolchain, and an apk fetch
+  # of frr and keepalived. It was 60 while the labs booted stock Alpine. All three
+  # boot ze's runtime kernel since 2026-08-24, so the job now carries what every
+  # other kernel-consuming job carries -- a cache restore, the stage, and a cache
+  # save -- and the budget follows runtime-kernel-labs for the same reason it does:
+  # a cold kernel build costs about 30 minutes and a hit costs a copy.
   #
   # Each target is its own step so a red one is named by the step that failed
   # rather than by a shell exit code, and so a failing lab does not hide the two
@@ -215,7 +223,7 @@ jobs:
   protocol-labs:
     runs-on: ubuntu-latest
     continue-on-error: true
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -240,6 +248,23 @@ jobs:
           sudo udevadm control --reload-rules || true
           sudo udevadm trigger --name-match=kvm || true
           ls -l /dev/kvm || echo "no /dev/kvm: QEMU will fall back to TCG (slower, still correct)"
+
+      - name: Restore the runtime kernel cache
+        id: kernel-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ze
+          key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
+
+      - name: make ze-kernel-vmlinuz-stage KERNEL_ARCH=amd64
+        run: make ze-kernel-vmlinuz-stage KERNEL_ARCH=amd64
+
+      - name: Save the runtime kernel cache
+        if: steps.kernel-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ze
+          key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
 
       - name: make ze-qemu-ldp-frr-test
         env:
@@ -270,9 +295,11 @@ jobs:
   # proven against the kernel ze actually ships.
   #
   # Same defect as protocol-labs above: all four worked and none was invoked by
-  # anything. They are separated from that job because the kernel is the whole
-  # difference -- these must stage tmp/kernel/vmlinuz first, which costs about 30
-  # minutes on a cache miss, and the stock-kernel three must not queue behind it.
+  # anything. The kernel is no longer what separates the two jobs -- both stage
+  # tmp/kernel/vmlinuz and both boot it. They stay apart because these four are
+  # the slowest targets and a red one here should not hide a red protocol lab,
+  # and because two jobs restore the same kernel cache in parallel rather than
+  # one job serialising seven targets behind a single ~30-minute cold build.
   #
   # The kernel steps are the same shape as the needs-linux job above, for the same
   # reasons, and TestQemuKernelPreconditionIsMetInTheSameJob refuses this job

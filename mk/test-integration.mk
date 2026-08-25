@@ -469,12 +469,24 @@ export ZE_QEMU_BIN ZE_QEMU_STRIPPED_BIN ZE_QEMU_TEST_BIN
 ZE_QEMU_SKIP_SUITES ?= web
 ZE_QEMU_PARALLEL ?= 4
 
-# ─── The runtime kernel both functional QEMU targets boot ───────────────────
+# ─── The runtime kernel EVERY QEMU target boots ─────────────────────────────
 #
 # Staged by `make ze-kernel-vmlinuz-stage` (mk/build-gokrazy.mk), which materializes it from
 # the durable arch+config-keyed cache under ~/.cache/ze in seconds on a hit, and
 # builds only on a miss. `make ze-kernel-build` stages it too and then assembles the
 # gokrazy kernel package, which nothing here reads.
+#
+# Every qemu-run.py invocation in this file passes it, takes the guard below, and
+# declares `: ze-host-build`. Seven of them did not until 2026-08-24: they booted
+# stock Alpine 6.12.13-0-virt while internal/appliance/kernel.version read 7.2 and
+# validate_version (tools/kernel-builder/build.py) refused anything below 7.0, so
+# their verdicts were true of Alpine and silently untrue of the product. Six of the
+# seven stated no reason at all. The one that did cited the other two labs, which
+# stated none -- a circle, not a reason.
+#
+# The cost that appeared to justify stock does not exist. The ~30 minutes is a
+# COLD-CACHE cost, paid once per kernel config change and shared by every target
+# here, not a per-target or per-run cost.
 ZE_QEMU_KERNEL := tmp/kernel/vmlinuz
 
 # Refuse to boot anything but THIS host's architecture and THIS tree's kernel
@@ -508,8 +520,8 @@ ZE_QEMU_KERNEL := tmp/kernel/vmlinuz
 # `sh: ze-host: not found` and then reports the CACHE branch's message, whose
 # hint (`make ze-kernel-build`) does not fix the actual problem. That is a guard that
 # denies while naming the wrong cause, and it is what
-# TestQemuTargetsGuardTheStagedKernel now checks for every user of the guard
-# rather than for a hand-written list of two.
+# TestQemuTargetsGuardTheStagedKernel checks for every user of the guard rather
+# than for a hand-written list.
 define ze-qemu-kernel-guard
 @hint="run: make ze-kernel-vmlinuz-stage KERNEL_ARCH=$(QEMU_GOARCH)"; \
 	cache_dir="$$("$(CURDIR)/ze-host" appliance kernel --target runtime --arch $(QEMU_GOARCH) --print-cache-dir)"; \
@@ -662,13 +674,22 @@ _ze-qemu-needs-linux-test-impl: ze-host-build
 # form needed to run anything but a bare ze-test invocation -- closed the guard's
 # quotes early, test saw four arguments, and the target printed its usage line as
 # though RUN had been empty. Silent, and it looks like the caller's mistake.
+#
+# It boots ze's runtime kernel, like every other target in this file. This one
+# is the sharpest case for it: the target exists to REPRODUCE a failure, so a
+# reproduction on a different kernel than the one that failed answers a question
+# nobody asked. A firewall/ddos concurrency measurement was taken through this
+# target on 2026-08-24 and reported as evidence about the runtime environment.
+# It was Alpine's.
 ze-qemu-debug: export ZE_QEMU_DEBUG_RUN = $(RUN)
-ze-qemu-debug:
+ze-qemu-debug: ze-host-build
 	@test -n "$$ZE_QEMU_DEBUG_RUN" || { echo 'usage: make ze-qemu-debug RUN='"'"'$(ZE_QEMU_TEST_BIN) bgp <suite> <N...> -v'"'"; exit 2; }
+	$(ze-qemu-kernel-guard)
 ifneq ($(NOBUILD),1)
 	$(ze-qemu-crossbuild)
 endif
 	python3 scripts/evidence/qemu-run.py \
+		--kernel $(ZE_QEMU_KERNEL) \
 		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables" \
 		--timeout 1200 \
 		--run 'mkdir -p /tmp/ze-qemu-bin && ln -sf /workspace/$(ZE_QEMU_BIN) /tmp/ze-qemu-bin/ze && ln -sf /workspace/$(ZE_QEMU_STRIPPED_BIN) /tmp/ze-qemu-bin/ze-stripped && ln -sf /workspace/$(ZE_QEMU_TEST_BIN) /tmp/ze-qemu-bin/ze-test && export PATH=/tmp/ze-qemu-bin:$$PATH && ZE_TEST_NO_BUILD=1 ZE_QEMU=1 ZE_BIN="$(ZE_QEMU_BIN)" ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)" $(RUN)'
@@ -683,11 +704,17 @@ endif
 # the example here until 2026-08-24, when its crash claim was measured FALSE.
 # It blocks, so run it in the background; stop the process to power off the VM.
 # Cross-compiles linux binaries first unless NOBUILD=1.
-ze-qemu-shell:
+#
+# It boots ze's runtime kernel, for the same reason ze-qemu-debug does: the
+# dmesg, the nft state and the module list an operator inspects here are only
+# evidence about ze if they come from the kernel ze ships.
+ze-qemu-shell: ze-host-build
+	$(ze-qemu-kernel-guard)
 ifneq ($(NOBUILD),1)
 	$(ze-qemu-crossbuild)
 endif
 	python3 scripts/evidence/qemu-run.py \
+		--kernel $(ZE_QEMU_KERNEL) \
 		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables" \
 		--keep-alive
 
@@ -720,9 +747,11 @@ ZE_QEMU_INTEGRATION_PKGS = $(shell grep -rl --include='*.go' '^//go:build integr
 ze-qemu-integration-test:
 	@scripts/dev/ze-run.sh ze-qemu-integration-test $(MAKE) --no-print-directory _ze-qemu-integration-test-impl
 
-_ze-qemu-integration-test-impl:
+_ze-qemu-integration-test-impl: ze-host-build
+	$(ze-qemu-kernel-guard)
 	@echo "Running integration tests in QEMU Linux VM (requires qemu + internet for first run)..."
 	python3 scripts/evidence/qemu-run.py \
+		--kernel $(ZE_QEMU_KERNEL) \
 		--packages "nftables iproute2 iputils-ping kmod iptables" \
 		--run 'go test -tags integration -count=1 -timeout 120s $(ZE_QEMU_INTEGRATION_PKGS) ./internal/plugins/firewall/vpp/... ./internal/plugins/traffic/vpp/... && go test -tags "ze_core ze_installer" -count=1 -timeout 120s ./internal/install/...'
 
@@ -735,7 +764,8 @@ _ze-qemu-integration-test-impl:
 ze-qemu-netns-test:
 	@scripts/dev/ze-run.sh ze-qemu-netns-test $(MAKE) --no-print-directory _ze-qemu-netns-test-impl
 
-_ze-qemu-netns-test-impl:
+_ze-qemu-netns-test-impl: ze-host-build
+	$(ze-qemu-kernel-guard)
 	# This is the functional-test DUT daemon: zetest pulls in the test-only
 	# plugins (internal/test/plugins/all) the .ci suites need -- it is NOT a
 	# production build (the real $(ZEBIN_ZE) has neither zetest nor ze_test). It builds
@@ -750,23 +780,25 @@ _ze-qemu-netns-test-impl:
 	$(ze-qemu-crossbuild)
 	@echo "Running netns launch-mode evidence in QEMU Linux VM (host-safe firewall subset)..."
 	python3 scripts/evidence/qemu-run.py \
+		--kernel $(ZE_QEMU_KERNEL) \
 		--packages "nftables iproute2 python3 libcap kmod iptables iputils-ping" \
 		--timeout 1200 \
 		--run 'QEMU_GOARCH=$(QEMU_GOARCH) ZE_QEMU_BIN="$(ZE_QEMU_BIN)" ZE_QEMU_STRIPPED_BIN="$(ZE_QEMU_STRIPPED_BIN)" ZE_QEMU_TEST_BIN="$(ZE_QEMU_TEST_BIN)" python3 scripts/evidence/netns_qemu.py'
 
 # The PPPoE access concentrator's own functional suite (test/pppoe/). It needs
-# two things together that no existing target supplies at once:
+# the per-test netns launch mode, because each test asks the runner for a veth
+# PAIR (option=netns-link:peer=) and creating veth-bng in a developer's real
+# host namespace is the one thing that mode exists to prevent.
 #
-#   - the per-test netns launch mode, because each test asks the runner for a
-#     veth PAIR (option=netns-link:peer=) and creating veth-bng in a developer's
-#     real host namespace is the one thing that mode exists to prevent, and
-#   - ze's runtime kernel, because handlePADR opens an AF_PPPOX/PX_PROTO_OE
-#     socket BEFORE it sends PADS (internal/component/l2tp/pppoe/server.go) and
-#     the stock Alpine kernel carries no CONFIG_PPPOE, so every PADR would die on
-#     "kernel socket failed" and no test could pass.
+# The runtime kernel is load-bearing HERE in a way it is not everywhere:
+# handlePADR opens an AF_PPPOX/PX_PROTO_OE socket BEFORE it sends PADS
+# (internal/component/l2tp/pppoe/server.go), and the stock Alpine kernel carries
+# no CONFIG_PPPOE, so on stock every PADR dies on "kernel socket failed" and no
+# test can pass. Every QEMU target in this file boots the runtime kernel now, so
+# this is a note about what breaks first here, not about what makes this target
+# different.
 #
-# ze-qemu-netns-test gives the first on the stock kernel; this gives both. It
-# reuses that target's in-VM driver and selects the suite with
+# It reuses ze-qemu-netns-test's in-VM driver and selects the suite with
 # ZE_NETNS_QEMU_SUITES, so the setcap / uid-drop / host-safety machinery has one
 # implementation rather than two.
 ze-qemu-pppoe-test:
@@ -785,18 +817,22 @@ _ze-qemu-pppoe-test-impl: ze-host-build
 ze-qemu-ldp-frr-test:
 	@scripts/dev/ze-run.sh ze-qemu-ldp-frr-test $(MAKE) --no-print-directory _ze-qemu-ldp-frr-test-impl
 
-_ze-qemu-ldp-frr-test-impl:
+_ze-qemu-ldp-frr-test-impl: ze-host-build
+	$(ze-qemu-kernel-guard)
 	@echo "Running LDP interop test against FRR ldpd in QEMU Linux VM (installs frr)..."
 	python3 scripts/evidence/qemu-run.py \
+		--kernel $(ZE_QEMU_KERNEL) \
 		--packages "frr iproute2 kmod" \
 		--run 'go test -tags integration -count=1 -timeout 150s -run TestLDPInteropFRR ./internal/plugins/ldp/...'
 
 ze-qemu-isis-frr-test:
 	@scripts/dev/ze-run.sh ze-qemu-isis-frr-test $(MAKE) --no-print-directory _ze-qemu-isis-frr-test-impl
 
-_ze-qemu-isis-frr-test-impl:
+_ze-qemu-isis-frr-test-impl: ze-host-build
+	$(ze-qemu-kernel-guard)
 	@echo "Running IS-IS interop test against FRR isisd in QEMU Linux VM (installs frr)..."
 	python3 scripts/evidence/qemu-run.py \
+		--kernel $(ZE_QEMU_KERNEL) \
 		--packages "frr iproute2 kmod tcpdump" \
 		--run 'go test -tags integration -count=1 -timeout 180s -run TestISISInteropFRR ./internal/plugins/isis/...'
 
@@ -865,7 +901,7 @@ _ze-qemu-l2tp-ppp-test-impl: ze-host-build
 	$(ze-qemu-kernel-guard)
 	@echo "Running L2TP PPP/NCP peer test in QEMU Linux VM with gokrazy kernel..."
 	python3 scripts/evidence/qemu-run.py \
-		--kernel tmp/kernel/vmlinuz \
+		--kernel $(ZE_QEMU_KERNEL) \
 		--packages "xl2tpd ppp iproute2 iputils-ping nftables kmod python3" \
 		--run 'python3 scripts/evidence/effective-l2tp-ppp.py' \
 		--timeout 600
@@ -882,7 +918,7 @@ _ze-qemu-pppoe-accel-test-impl: ze-host-build
 	$(ze-qemu-kernel-guard)
 	@echo "Running PPPoE client-vs-accel-ppp test in QEMU Linux VM with runtime kernel..."
 	python3 scripts/evidence/qemu-run.py \
-		--kernel tmp/kernel/vmlinuz \
+		--kernel $(ZE_QEMU_KERNEL) \
 		--packages "accel-ppp ppp iproute2 iputils-ping kmod python3" \
 		--run 'python3 scripts/evidence/effective-pppoe-accel.py' \
 		--timeout 600
@@ -891,19 +927,24 @@ _ze-qemu-pppoe-accel-test-impl: ze-host-build
 # Three netns (ze / keepalived / observer) bridged in a fourth, so the observer
 # sees flooded multicast and can prove the VIP moves at L2, not just in a log.
 #
-# No --kernel here, unlike the l2tp/pppoe labs above: those need CONFIG_PPPOE /
-# CONFIG_PPPOL2TP, which the stock Alpine kernel lacks. VRRP needs only macvlan,
-# bridge and veth, and the stock Alpine 6.12.13-0-virt kernel has all three
-# (probed 2026-07-15: dummy/macvlan-bridge-mode/bridge/veth/netns all create
-# cleanly). Staying on the stock kernel keeps this target runnable without a
-# ~30-minute `make ze-kernel-build` build first, matching the isis-frr/ldp-frr labs.
+# It boots ze's runtime kernel, like every other target here. Until 2026-08-24
+# it did not, and its reason was that VRRP needs only macvlan, bridge and veth,
+# which stock Alpine 6.12.13-0-virt has (probed 2026-07-15), so stock avoided a
+# ~30-minute build and matched the isis-frr/ldp-frr labs. Both halves are gone.
+# The two labs it cited now boot the runtime kernel, and the ~30 minutes is a
+# COLD-CACHE cost: ze-kernel-vmlinuz-stage materializes from the arch+config-keyed
+# cache under ~/.cache/ze in seconds on a hit, and that hit is shared with every
+# other QEMU target. What the old reason never answered is that a lab proving ze
+# interoperates has to prove it on the kernel ze ships.
 # keepalived comes from Alpine community (v2.3.1, built with VRRP + VRRP_VMAC).
 ze-qemu-vrrp-keepalived-test:
 	@scripts/dev/ze-run.sh ze-qemu-vrrp-keepalived-test $(MAKE) --no-print-directory _ze-qemu-vrrp-keepalived-test-impl
 
-_ze-qemu-vrrp-keepalived-test-impl:
+_ze-qemu-vrrp-keepalived-test-impl: ze-host-build
+	$(ze-qemu-kernel-guard)
 	@echo "Running VRRP-vs-keepalived interop test in QEMU Linux VM (installs keepalived)..."
 	python3 scripts/evidence/qemu-run.py \
+		--kernel $(ZE_QEMU_KERNEL) \
 		--packages "keepalived tcpdump iproute2 iputils-ping kmod python3" \
 		--run 'python3 scripts/evidence/effective-vrrp-keepalived.py' \
 		--timeout 900
@@ -920,7 +961,7 @@ _ze-qemu-traffic-usage-test-impl: ze-host-build
 	$(ze-qemu-kernel-guard)
 	@echo "Running traffic-usage eBPF TCX test in QEMU Linux VM with the runtime kernel..."
 	python3 scripts/evidence/qemu-run.py \
-		--kernel tmp/kernel/vmlinuz \
+		--kernel $(ZE_QEMU_KERNEL) \
 		--packages "iproute2 kmod" \
 		--run 'go test -tags integration -count=1 -timeout 180s -run "TestProgram_|TestAttachTCX_CountsTraffic|TestMetricsScrape" ./internal/plugins/trafficusage/...' \
 		--timeout 600
