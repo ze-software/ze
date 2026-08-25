@@ -464,7 +464,13 @@ func (m Model) feedbackLine() string {
 		var tb textbuf.Buffer
 		return style.Render(tb.Str("► ").Str(m.statusMessage).String())
 	}
-	return m.idleInfoLine()
+	// Idle line 1 is BLANK. The idle banner is help, so it belongs to line 2.
+	//
+	// This used to fall through to idleInfoLine as well. With no error, no
+	// status message and no hint, both lines then rendered the same string.
+	// That is the state a session is in the moment it leaves configuration
+	// mode, so the banner was printed twice above the prompt.
+	return ""
 }
 
 // warningLine returns the bottom message line: warnings, help, and hints.

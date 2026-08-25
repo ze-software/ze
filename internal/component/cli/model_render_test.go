@@ -865,3 +865,28 @@ func TestPromptEmitsTheColorBytesAnSSHClientReceives(t *testing.T) {
 		assert.NotContains(t, failed, blue, "failure replaces the mode color")
 	}
 }
+
+// TestMessageLinesDoNotRepeatTheIdleBanner verifies the two-line message area
+// never renders the same idle banner on both of its lines.
+//
+// VALIDATES: an idle model -- no error, no status message, no completion or
+// validation hint -- puts the banner on exactly one of the two lines.
+//
+// PREVENTS: the banner printed twice above the prompt.
+//
+// Line 1 (feedbackLine) and line 2 (warningLine) each fell through to
+// idleInfoLine when they had nothing of their own to say. That is the state a
+// session is in the moment it leaves configuration mode. A recording of
+// `exit` showed "Ze Editor [operational]" on two consecutive rows.
+func TestMessageLinesDoNotRepeatTheIdleBanner(t *testing.T) {
+	m := Model{}
+
+	line1, line2 := m.messageLines()
+
+	if line1 != "" && line1 == line2 {
+		t.Errorf("both message lines carry the same text, so the banner prints twice: %q", line1)
+	}
+	if line2 == "" {
+		t.Errorf("the idle banner is missing from the message area: line1=%q line2=%q", line1, line2)
+	}
+}
