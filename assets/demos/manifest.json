@@ -21,9 +21,9 @@
     "cli-dashboard": {
       "assets": {
         "cast": {
-          "bytes": 15459,
+          "bytes": 15423,
           "path": "cli-dashboard.cast",
-          "sha256": "f3bf065f6ac2f372cd17c6cae57924a4e4b2ef6a33101dee626b4e427c1a33a9"
+          "sha256": "c3364cbe6a418c2a60c9c0bc05a44054f5b6827935955a9baee1c9c6be50f82d"
         },
         "transcript": {
           "bytes": 258,
@@ -31,10 +31,10 @@
           "sha256": "86542601ebff2186dc62874ec3cd82a7730d3be27988972ce3d42cdafe4438b3"
         }
       },
-      "binary_sha256": "d7c4070cb02fdd6233bc6a07e0736a9f25905efedd97212d02c0e6a477830741",
-      "definition_sha256": "25865db788f51e454468b88329fc4693a75a78f5fcfb10354dd6c7d9e491abd6",
+      "binary_sha256": "8a79f2f82e0078f5134d3840ff8db0ed0683f47ad3a0d5be41a9562603275790",
+      "definition_sha256": "0b8f6fbbaf979774f98877db5d76ee2dbc88a4ca76b4e2d4e465bf592f8faefa",
       "release": "26.08.25",
-      "source_sha256": "1833909e3a65471e1671227553e5eecb893352acd4c1989253b2a7171d305a27"
+      "source_sha256": "09e396c3dcd00990b5b4814d406b467d518af827651edf11685855a6676ccaae"
     },
     "commit-confirmed": {
       "assets": {
@@ -242,9 +242,9 @@
     "traceroute": {
       "assets": {
         "cast": {
-          "bytes": 18097,
+          "bytes": 18091,
           "path": "traceroute.cast",
-          "sha256": "461543346a34a14f3c6cf3bbbf08f392ad7711e13ee2e1f2faa93594781e7db1"
+          "sha256": "8ee8ee05dc316f142640409aa3a0b095404a4a6b97c90f11443c315fa8b9aa97"
         },
         "transcript": {
           "bytes": 333,
@@ -252,7 +252,7 @@
           "sha256": "2b9d95cc69d49e6ab5bc707d628151dce521d2067e44ad446ef4edb05f0d9980"
         }
       },
-      "binary_sha256": "557afed8bd90775c15382f6b571dbcc28ceeff406508ed807bc29a1cac979808",
+      "binary_sha256": "8cf342230bc28f4f20affcd918a6e79cb100988375782d60df9209a9907366d1",
       "definition_sha256": "6920d0e2b73bb266d347d9bf1dd20693674f67c0ff505373eb7a56ea5e75e4b2",
       "release": "26.08.25",
       "source_sha256": "785707fe7def4c8cefd10a2f24161f6a0e9162ff79775e2a8e52d630e501d38b"

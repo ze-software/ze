@@ -32,7 +32,7 @@ Press Escape to move back through the menu and return to the shell.
 
 Connect to Ze over SSH, open the live BGP dashboard, sort peers, and inspect one session.
 
-[Download the asciicast recording](../../assets/demos/cli-dashboard.cast?v=f3bf065f6a) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
+[Download the asciicast recording](../../assets/demos/cli-dashboard.cast?v=c3364cbe6a) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
 
 Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 44 seconds.
 
@@ -125,9 +125,9 @@ The recording displays the command restriction and the NOC user's profile bindin
 
 Run Ze's live traceroute through a deterministic Linux network-namespace lab.
 
-[Download the asciicast recording](../../assets/demos/traceroute.cast?v=461543346a) · [Plain-text transcript](../../assets/demos/traceroute.txt?v=2b9d95cc69)
+[Download the asciicast recording](../../assets/demos/traceroute.cast?v=8ee8ee05dc) · [Plain-text transcript](../../assets/demos/traceroute.txt?v=2b9d95cc69)
 
-Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 49 seconds.
+Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 46 seconds.
 
 ```console
 $ ssh ze-demo
