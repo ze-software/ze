@@ -2,6 +2,7 @@ package cli
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -76,19 +77,26 @@ func TestDashboardRowColumnsAlignWithHeader(t *testing.T) {
 	}
 }
 
-// VALIDATES: the selected row carries ONE unbroken style, and an unselected row
-// still colors its state.
+// VALIDATES: the selected row is covered by the selection background end to
+// end, the state keeps its own color on top of it, and an unselected row still
+// colors its state.
 //
-// PREVENTS: the selection background dying halfway along the row. lipgloss
-// renders the selected row by wrapping it in a background escape, and
-// stateStyled emits a FULL reset (`ESC [ m`) after the state text. A reset
-// inside the wrap terminates the background, so every column after State fell
-// back to the terminal default and rendered black against a cyan row. An
-// operator reported it as "the wrong color", and no alignment test could see it
-// because the escapes do not move any column. The fix is to render the selected
-// row without per-cell color -- the selection already carries the emphasis --
-// so this asserts BOTH halves: no reset inside the selected row, and a state
-// color still present on the row that is not selected.
+// PREVENTS: two opposite regressions, which is why it asserts both halves.
+//
+// The first is the selection background dying halfway along the row. It used to
+// be applied by wrapping the whole joined row, and `stateStyled` emitted a FULL
+// reset after the state text; a reset inside the wrap terminates the
+// background, so every column after State fell back to the terminal default and
+// rendered black. No alignment test could see it, because escapes move no
+// column.
+//
+// The second is the fix that dropped the color to win the background back.
+// Rendering the selected row unstyled removes the black, and it also removes
+// the green an operator reads the table by. Both are wrong, and only asserting
+// both catches it: the row is now styled PER CELL, so the state cell carries a
+// foreground and the selection background together and no cell is left bare.
+// Many resets are expected; text between them with no background re-opened is
+// the defect.
 func TestDashboardSelectedRowKeepsOneStyle(t *testing.T) {
 	t.Parallel()
 	peers := []dashboardPeer{
@@ -101,13 +109,17 @@ func TestDashboardSelectedRowKeepsOneStyle(t *testing.T) {
 	}
 	selected, other := lines[1], lines[2]
 
-	// The selected row opens with a style and closes with one reset. Any reset
-	// before the final one is the defect.
-	if inner := strings.Count(strings.TrimSuffix(selected, "\x1b[m"), "\x1b[m"); inner != 0 {
-		t.Errorf("selected row carries %d reset(s) before its end, so the selection background stops there: %q", inner, selected)
+	// Every printable run in the selected row must sit inside a span that
+	// carries the selection background. Cells are styled individually, so the
+	// row holds many resets; what must never appear is text between them with
+	// no background re-opened, which is the gap an operator sees as black.
+	if bare := unstyledRuns(selected); bare != "" {
+		t.Errorf("selected row has text outside the selection background (%q), so the highlight breaks there: %q", bare, selected)
 	}
-	if !strings.HasPrefix(selected, "\x1b[") {
-		t.Errorf("selected row is not styled at all: %q", selected)
+	// The state keeps its own color ON TOP of the selection, rather than being
+	// dropped to win the background back.
+	if !strings.Contains(selected, ";32;46m") && !strings.Contains(selected, ";46;32m") {
+		t.Errorf("selected row lost the state color; it must carry both a foreground and the selection background: %q", selected)
 	}
 
 	// The unselected row has no wrapping style, so its state color must survive.
@@ -123,4 +135,40 @@ func cellAt(s string, offset, width int) string {
 	}
 	end := min(offset+width, len(s))
 	return s[offset:end]
+}
+
+// unstyledRuns returns the first run of s that is not inside a span carrying
+// the selection background, or "" when every run is covered.
+//
+// WHITESPACE COUNTS. A gap of two spaces between cells with no background is
+// exactly where an operator sees black on a highlighted row, so trimming it
+// would make this check blind to the defect it exists for: joining the cells
+// with a plain "  " instead of a styled one leaves the row looking striped, and
+// an earlier version of this helper passed that mutation.
+func unstyledRuns(s string) string {
+	const bg = "46"
+	inBG := false
+	var run strings.Builder
+	for i := 0; i < len(s); {
+		if s[i] == 0x1b && i+1 < len(s) && s[i+1] == '[' {
+			j := i + 2
+			for j < len(s) && s[j] != 'm' {
+				j++
+			}
+			if j >= len(s) {
+				break
+			}
+			inBG = slices.Contains(strings.Split(s[i+2:j], ";"), bg)
+			if run.Len() > 0 {
+				return run.String()
+			}
+			i = j + 1
+			continue
+		}
+		if !inBG {
+			run.WriteByte(s[i])
+		}
+		i++
+	}
+	return run.String()
 }

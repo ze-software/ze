@@ -6,6 +6,7 @@
 package cli
 
 import (
+	"image/color"
 	"strconv"
 
 	"charm.land/lipgloss/v2"
@@ -18,11 +19,17 @@ var (
 	dashHeaderStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")) // white
 	dashFooterStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))           // dim gray
 	dashSelectedStyle = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("6"))  // cyan bg
-	dashGreenStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))             // green
-	dashYellowStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))             // yellow
-	dashRedStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))             // red
 	dashErrorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))             // red for errors
 	dashConnStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))             // green for connected
+)
+
+// Peer-state colors. These are colors rather than styles because the peer table
+// merges the state color into the row's own style, and a style can only be
+// merged from the parts it is built out of.
+var (
+	dashStateGreen  = lipgloss.Color("2") // established
+	dashStateYellow = lipgloss.Color("3") // negotiating
+	dashStateRed    = lipgloss.Color("1") // down
 )
 
 // dashboardColumnDef defines a table column with its sort identity, width, and priority.
@@ -124,16 +131,8 @@ func renderDashboardPeerTable(peers []dashboardPeer, ds *dashboardState, sortCol
 		if maxRows > 0 && i >= maxRows {
 			break
 		}
-		// The SELECTED row is rendered without per-cell color. stateStyled
-		// emits a full reset, which terminates the selection background
-		// mid-line and leaves every column after State on the default
-		// background. The selection already carries the emphasis, so the
-		// state color has nothing left to add there.
 		selected := i == ds.resolveSelectedIndex(peers)
-		row := renderPeerRow(p, cols, ds, !selected)
-		if selected {
-			row = dashSelectedStyle.Render(row)
-		}
+		row := renderPeerRow(p, cols, ds, selected)
 		sb.Str(row)
 		if i < len(peers)-1 && (maxRows <= 0 || i < maxRows-1) {
 			sb.Byte('\n')
@@ -171,33 +170,44 @@ func renderTableHeader(cols []dashboardColumnDef, sortCol dashboardSortColumn, s
 // all. Every column after State then sat one place left of its header for
 // `established`, and eight left for `idle`, which is why the symptom read as a
 // header spacing bug rather than as a row that never got padded.
-func renderPeerRow(p dashboardPeer, cols []dashboardColumnDef, ds *dashboardState, styled bool) string {
+func renderPeerRow(p dashboardPeer, cols []dashboardColumnDef, ds *dashboardState, selected bool) string {
 	var tb textbuf.Buffer
 	parts := make([]string, 0, len(cols))
 	for _, c := range cols {
-		val := peerColumnValue(p, c.col, ds, styled)
-		pad := c.width - lipgloss.Width(val)
-		tb.Reset().Str(val)
-		for range pad {
-			tb.Byte(' ')
+		val := peerColumnValue(p, c.col, ds)
+		tb.Reset().PadRight(val, c.width)
+		cell := tb.String()
+
+		style := lipgloss.NewStyle()
+		if selected {
+			style = dashSelectedStyle
 		}
-		parts = append(parts, tb.String())
+		if fg, ok := stateColor(p.State); ok && c.col == sortColumnState {
+			style = style.Foreground(fg)
+		}
+		parts = append(parts, style.Render(cell))
 	}
-	return textbuf.Join(parts, "  ")
+	return textbuf.Join(parts, joinGap(selected))
+}
+
+// joinGap returns the separator between two cells. On a selected row it carries
+// the selection background, so the highlight does not break in the gaps.
+func joinGap(selected bool) string {
+	if selected {
+		return dashSelectedStyle.Render("  ")
+	}
+	return "  "
 }
 
 // peerColumnValue returns the display value for a peer in the given column.
-func peerColumnValue(p dashboardPeer, col dashboardSortColumn, ds *dashboardState, styled bool) string {
+func peerColumnValue(p dashboardPeer, col dashboardSortColumn, ds *dashboardState) string {
 	switch col {
 	case sortColumnAddress:
 		return p.Address
 	case sortColumnASN:
 		return strconv.Itoa(int(p.RemoteAS))
 	case sortColumnState:
-		if !styled {
-			return p.State
-		}
-		return stateStyled(p.State)
+		return p.State
 	case sortColumnUptime:
 		return p.Uptime
 	case sortColumnRx:
@@ -212,17 +222,34 @@ func peerColumnValue(p dashboardPeer, col dashboardSortColumn, ds *dashboardStat
 	return ""
 }
 
-// stateStyled returns the state string with color applied.
-func stateStyled(state string) string {
+// stateColor returns the color a peer state is shown in, and whether it has one.
+//
+// It answers a COLOR rather than a rendered string on purpose. Rendering here
+// emitted a full reset after the text, and on the selected row that reset landed
+// inside the selection background and ended it, so every column after State fell
+// back to the terminal default. The peer table merges this color into the row's
+// own style, so one escape carries both and nothing resets mid-row.
+func stateColor(state string) (color.Color, bool) {
 	switch state {
 	case "established":
-		return dashGreenStyle.Render(state)
+		return dashStateGreen, true
 	case "connecting", "active", "opensent", "openconfirm":
-		return dashYellowStyle.Render(state)
+		return dashStateYellow, true
 	case "stopped", "idle", "idle-hold":
-		return dashRedStyle.Render(state)
+		return dashStateRed, true
 	}
-	return state
+	return nil, false
+}
+
+// stateStyled returns the state string with its color applied. The detail view
+// uses it: that surface renders one field at a time and has no row style for the
+// color to be merged into.
+func stateStyled(state string) string {
+	fg, ok := stateColor(state)
+	if !ok {
+		return state
+	}
+	return lipgloss.NewStyle().Foreground(fg).Render(state)
 }
 
 // renderDashboardDetail renders the detail view for a single peer.
