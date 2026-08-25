@@ -371,7 +371,7 @@ def number_token_specs():
         "editor-tests": "tests.editor_display",
         "fuzz-targets": "tests.fuzz_display",
         "interop-targets": "interop.target_display",
-        "interop-scenarios": "interop.scenarios",
+        "interop-scenarios": "interop.scenarios_display",
         "cli-commands": "cli_commands",
         "config-sections": "config_sections",
         "dependencies": "dependencies",

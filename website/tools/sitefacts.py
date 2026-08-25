@@ -162,6 +162,18 @@ def count_direct_dependencies():
 
 
 def fmt_exact(n):
+    """Format a count with no rounding, for a number a GATE compares.
+
+    Most published counts go through `fmt_int`, which floors to a boundary and
+    marks the result with a plus. A magnitude's last digits answer nothing, and
+    printing them rewrites every page carrying the number on every build.
+
+    This is the exception, and it is narrow. The RFC counts are checked against
+    the repository by `scripts/dev/rfc_requirements.py`, so a rounded figure
+    would put the site out of agreement with its own gate. Round one of these
+    and the gate goes red for a reason that has nothing to do with the change
+    that turned it.
+    """
     return f"{n:,}"
 
 
@@ -225,9 +237,9 @@ def count_repo_annotations():
         )
     return {
         "design_comments": design,
-        "design_comments_display": fmt_exact(design),
+        "design_comments_display": fmt_int(design),
         "detail_comments": detail,
-        "detail_comments_display": fmt_exact(detail),
+        "detail_comments_display": fmt_int(detail),
     }
 
 
@@ -440,12 +452,13 @@ def build_facts():
             "targets": targets,
             "target_display": fmt_int(targets),
             "scenarios": scenarios["visible"],
+            "scenarios_display": fmt_int(scenarios["visible"]),
             "scenario_dirs_raw": scenarios["raw"],
         },
         "rfc": count_rfc_requirements(),
         "repo": {
             "go_packages": go_packages,
-            "go_packages_display": fmt_exact(go_packages),
+            "go_packages_display": fmt_int(go_packages),
             **repo_annotations,
         },
         "_sources": {

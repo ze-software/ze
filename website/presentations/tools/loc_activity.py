@@ -174,6 +174,35 @@ def display_number(value: int) -> str:
     return f"{value:,}"
 
 
+def display_magnitude(value: int) -> str:
+    """Floor a magnitude to one tenth of its visible unit, with a plus suffix.
+
+    This is the rounding `website/tools/sitefacts.py` applies to every other
+    published count (`display_step`, `fmt_int`); the two must agree, because a
+    reader meets both on the same site.
+
+    A magnitude answers "how big", and its last digits answer nothing. Printed
+    exactly, they rewrite this page on every build: 2,628,360 became 2,639,913
+    in one afternoon and the page changed to say so. Floored, both read
+    2,600,000+, and the page changes when the number crosses a boundary a
+    reader would notice.
+
+    The plus suffix is what makes this honest rather than merely quiet: it
+    states that the true value is higher, so nothing is overstated and no
+    reader is told a false number.
+    """
+    if value < 100:
+        step = 1
+    elif value < 1000:
+        step = 10
+    else:
+        group_power = 3 * ((len(str(value)) - 1) // 3)
+        step = 10 ** (group_power - 1)
+    rounded = (value // step) * step
+    suffix = "+" if rounded != value else ""
+    return f"{rounded:,}{suffix}"
+
+
 def numstat_target_path(path: str) -> str:
     """Return a best-effort destination path for renamed numstat entries."""
     path = path.strip()
@@ -507,11 +536,11 @@ def render_top_days(totals: dict[dt.date, int], empty_text: str) -> str:
 def render_go_cards(stats: GoBucketStats) -> str:
     return "\n".join(
         [
-            f'<div class="stat"><span>Files</span><strong>{display_number(stats.files)}</strong></div>',
-            f'<div class="stat"><span>Total lines</span><strong>{display_number(stats.total_lines)}</strong></div>',
-            f'<div class="stat"><span>Code</span><strong>{display_number(stats.code_lines)}</strong></div>',
-            f'<div class="stat"><span>Blank</span><strong>{display_number(stats.blank_lines)}</strong></div>',
-            f'<div class="stat"><span>Comments</span><strong>{display_number(stats.comment_lines)}</strong></div>',
+            f'<div class="stat"><span>Files</span><strong>{display_magnitude(stats.files)}</strong></div>',
+            f'<div class="stat"><span>Total lines</span><strong>{display_magnitude(stats.total_lines)}</strong></div>',
+            f'<div class="stat"><span>Code</span><strong>{display_magnitude(stats.code_lines)}</strong></div>',
+            f'<div class="stat"><span>Blank</span><strong>{display_magnitude(stats.blank_lines)}</strong></div>',
+            f'<div class="stat"><span>Comments</span><strong>{display_magnitude(stats.comment_lines)}</strong></div>',
         ]
     )
 
@@ -537,7 +566,7 @@ def render_vendor_bucket(stats: GoStats, compact: bool = False) -> str:
             <h3>Vendored Dependencies</h3>
             <div class="go-stats">
 {render_go_cards(stats.vendor)}
-                <div class="stat"><span>Modules</span><strong>{display_number(stats.vendor_modules)}</strong></div>
+                <div class="stat"><span>Modules</span><strong>{display_magnitude(stats.vendor_modules)}</strong></div>
             </div>
             {note_html}
         </div>"""
@@ -605,7 +634,7 @@ def render_page(options: Options) -> str:
     metric_summary = {
         "lines": {
             "totalLabel": "Total added lines",
-            "totalValue": display_number(total_lines),
+            "totalValue": display_magnitude(total_lines),
             "activeLabel": "Days with added lines",
             "activeValue": display_number(line_active_days),
             "peakLabel": f"Peak line day ({line_peak_day.isoformat()})",
@@ -617,7 +646,7 @@ def render_page(options: Options) -> str:
         },
         "commits": {
             "totalLabel": "Total commits",
-            "totalValue": display_number(total_commits),
+            "totalValue": display_magnitude(total_commits),
             "activeLabel": "Days with commits",
             "activeValue": display_number(commit_active_days),
             "peakLabel": f"Peak commit day ({commit_peak_day.isoformat()})",
@@ -993,7 +1022,7 @@ td:last-child, th:last-child {{ text-align: right; }}
 
     <section class="stats" aria-label="Summary">
         <div class="stat"><span id="total-label">Total added lines</span><strong id="total-value">{
-        display_number(total_lines)
+        display_magnitude(total_lines)
     }</strong></div>
         <div class="stat"><span id="active-label">Days with added lines</span><strong id="active-value">{
         display_number(line_active_days)
