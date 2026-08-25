@@ -99,6 +99,16 @@ REGISTRY: tuple[Entry, ...] = (
         module='le.application.lint',
         help='lint and type-check the Python half of the tree',
     ),
+    Entry(
+        name='check-cli',
+        module='le.application.check_cli',
+        help='CLI contract gates: command/handler, ownership, grammar, config claims',
+    ),
+    Entry(
+        name='check-rules',
+        module='le.application.check_rules',
+        help='rules-system gates: the point corpus, its renders, the discovery indexes',
+    ),
 )
 
 
