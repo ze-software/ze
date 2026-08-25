@@ -45,11 +45,23 @@ stale text, and it destroys the one honest signal the check holds.
 
 A reader found each one at a producer. Each one had already redirected work.
 
+**The header's own `Status` field is the cheapest instance of this class, and it
+needs no phrase list.** A spec whose Status says the work has not started can
+name files that carry commits landing that work. The Status then states a claim
+the tree contradicts. The inventory a session reads to choose its next piece of
+work takes that field at face value. The cost of the drift is therefore a
+session spent re-deriving code the tree already holds.
+
+A hand-maintained field that describes another artifact will drift whenever
+nothing compares the two. Deriving the field, or gating it against the artifact,
+is what removes the class.
+
 ## Sketch (not a design)
 
 | Element | Note |
 |---------|------|
 | Input | every spec under `plan/` and `plan/future/` |
+| Status test | a spec whose Status is `ready` or `skeleton` while a file it names carries a commit newer than `Updated`. No phrase list, and no judgement about the claim's meaning |
 | Claim detection | one reviewable phrase list, held in one place |
 | Citation extraction | reuse what `scripts/dev/spec-citation-check.py` parses |
 | Staleness test | `git log -1 --format=%cI -- <cited path>` against `Updated` |
