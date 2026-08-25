@@ -1,77 +1,170 @@
-# Test: VPP backend rejects hfsc qdisc at OnConfigVerify.
-# VALIDATES: spec-fw-7 AC-7 -- the trafficvpp Verifier registered via
-#            traffic.RegisterVerifier("vpp", Verify) runs during the
-#            traffic component's OnConfigVerify and rejects qdisc types
-#            that have no VPP equivalent (hfsc here; same path covers
-#            fq / sfq / fq_codel / netem). clsact and ingress are not in
-#            the qdisc-type enumeration on any backend, so no config can
-#            reach the verifier with one.
-# PREVENTS: regression where an unsupported qdisc silently passes verify
-#           and surfaces only at Apply time, breaking the promise that
-#           operators learn about rejection before `commit` lands.
+# Test: a `qdisc hfsc` under backend vpp CANNOT BE COMMITTED, and the running
+#       configuration survives the attempt.
+# VALIDATES: spec-fw-7 AC-7 -- trafficvpp.Verify, registered by
+#            traffic.RegisterVerifier("vpp", Verify), refuses a qdisc type with
+#            no VPP equivalent. hfsc is the case here; verifyQdiscType refuses
+#            fq, sfq, fq_codel and netem by the same branch. clsact and ingress
+#            are not in the qdisc-type enumeration on any backend, so no config
+#            can reach the verifier carrying one.
+# PREVENTS: an unsupported qdisc reaching the stored active configuration, so
+#           the next boot loads a config the backend cannot program.
 #
-# Scope note: the Verifier runs at daemon config-verify time (not offline
-# `ze config validate`, which per memory.md does not invoke plugin
-# OnConfigVerify callbacks). This test boots ze with the bad config and
-# asserts the rejection log line appears in stderr.
+# Why this shape, and not "boot ze with the bad file and read stderr".
+# Ze's config transaction is two-phase, verify before apply: configTxBridge
+# (internal/component/plugin/server/config_tx_bridge.go) subscribes phaseVerify
+# and phaseApply per plugin, and only phaseApply reaches SendConfigApply. The
+# backend verifier therefore runs on a COMMIT, never on the initial OnConfigure.
+# A config the backend refuses fails at commit, is never promoted to active, and
+# so can never be the file a daemon boots from. Feeding the daemon the bad file
+# directly asserts a state the product cannot reach; this test drives the route
+# an operator actually has, and asserts BOTH halves of "cannot be applied":
+#   1. the commit is REFUSED, with the error naming the real reason;
+#   2. the previously active configuration is STILL ACTIVE afterwards.
+#
+# The same candidate is also refused offline by `ze config validate`, which runs
+# the registered in-process verifiers (runValidation calls
+# config.VerifyPluginConfig, internal/component/config/cli/cmd_validate.go), so
+# an operator learns before touching the daemon. That is a second, cheaper
+# assertion here, never a replacement for the commit one.
+#
+# Producer of the needle, measured: verifyQdiscType
+# (internal/plugins/traffic/vpp/verify.go), `qdisc %s: not supported by backend
+# vpp`, wrapped by parseAndVerifyTrafficSections
+# (internal/component/traffic/register.go) as
+# `traffic-control backend "vpp": interface "eth0": ...`.
 
-tmpfs=wait.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Sleep long enough for ze to read config, attempt verify, log the
-rejection, then exit. Daemon-side verify runs at reload; the initial
-OnConfigure flow follows the same path."""
-import time
+option=env:var=ZE_STORAGE_BLOB:value=false
+option=env:var=ze.log.traffic:value=info
 
-# blind hold: a backgrounded ze gets no ZE_READY_FILE marker to poll; hold until OnConfigure emits the asserted log line, left un-converted (no readiness signal for a background daemon)
-time.sleep(2.5)
-EOF_PY
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=rewrite:conn=1:seq=1:source=tx-vpp-hfsc.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=1
+EOF_PEER
 
+# The ACTIVE configuration. It carries a traffic-control section with the
+# default Linux backend and NO interfaces, and that is load-bearing: the reload
+# transaction sends config-verify only to plugins that are RUNNING and want the
+# changed root (Server.ReloadConfig, internal/component/plugin/server/reload.go
+# walks pm.AllProcesses()). A boot with no traffic section leaves the traffic
+# plugin unstarted, and the reload then finds no affected plugin and accepts the
+# candidate without ever calling the verifier. An empty interface map is a no-op
+# Apply (backend.Apply, internal/plugins/traffic/netlink/backend_linux.go, walks
+# nothing and returns nil), so this boots with neither CAP_NET_ADMIN nor VPP.
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
-	peer peer1 {
-		connection {
-			remote {
-				ip 127.0.0.1
-			}
-			local {
-				ip 127.0.0.1
-				accept false
-			}
-		}
-		session {
-			asn {
-				local 1
-				remote 1
-			}
-			router-id 1.2.3.4
-			family {
-				ipv4/unicast { prefix { maximum 10000; } }
-			}
-			capability {
-				graceful-restart disable
-			}
-		}
-		behavior {
-			group-updates disable
-		}
-	}
+    router-id 1.2.3.4
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart disable
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+    }
 }
 
 traffic {
-	control {
-		backend vpp
-		interface eth0 {
-			qdisc {
-				type hfsc
-			}
-		}
-	}
+    control {
+        backend tc
+    }
 }
 EOF_CONF
 
-option=env:var=ze.log.traffic:value=info
+# The CANDIDATE an operator tries to commit: the same BGP, and a traffic-control
+# section that switches to backend vpp. `backend vpp` is the marker the
+# rollback-snapshot assertions below read: the stored configuration must still
+# say `backend tc`, which proves it is the OLD file and not this one.
+tmpfs=tx-vpp-hfsc.conf:terminator=EOF_BAD_CONF
+bgp {
+    router-id 1.2.3.4
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart disable
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+    }
+}
 
-cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 wait.py:timeout=10s
-expect=exit:code=0
-expect=stderr:contains=not supported by backend vpp
+traffic {
+    control {
+        backend vpp
+        interface eth0 {
+            qdisc {
+                type hfsc
+                class control {
+                    rate 10mbit
+                }
+            }
+        }
+    }
+}
+EOF_BAD_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+cmd=foreground:seq=3:exec=ze config validate tx-vpp-hfsc.conf:exit=1:timeout=20s
+
+# Offline: `ze config validate` refuses the same candidate, on stdout, exit 1.
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=qdisc hfsc: not supported by backend vpp
+
+# Half one: the commit is REFUSED, and the error names the real reason. The
+# await fence holds the daemon until its relayed stderr carries the rejection,
+# so the assertion never races teardown. Its needle carries no ':' because
+# parseAwait kv-splits the value; the expect below pins the full phrase.
+await=stderr:contains=not supported by backend vpp
+expect=stderr:contains=reload error
+expect=stderr:contains=qdisc hfsc: not supported by backend vpp
+
+# Half two: the previously active configuration is STILL ACTIVE. The candidate
+# was cleared, no rollback pointer was left dangling, and the stored snapshot is
+# the OLD file: it still selects backend tc and carries none of the candidate.
+expect=file:path=meta/config/active:exists=true
+expect=file:path=meta/config/candidate:absent=true
+expect=file:path=meta/config/rollback:absent=true
+expect=file:glob=rollback/ze-bgp-*.conf:count=1
+expect=file:glob=rollback/ze-bgp-*.conf:contains=backend tc
+expect=file:glob=rollback/ze-bgp-*.conf:not-contains=backend vpp
+expect=file:glob=rollback/ze-bgp-*.conf:not-contains=hfsc

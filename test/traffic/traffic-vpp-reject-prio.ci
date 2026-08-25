@@ -1,73 +1,171 @@
-# Test: VPP backend REJECTS the prio qdisc at OnConfigVerify with an actionable
-#        error naming the scheduler gap.
+# Test: a `qdisc prio` under backend vpp CANNOT BE COMMITTED, the rejection
+#       stays actionable, and the running configuration survives the attempt.
 # VALIDATES: spec-followup-vpp-traffic AC-4 (RESOLVED 2026-07-10, USER decision:
-#            rejection-retained, no scheduler->remark substitution). qdisc prio
-#            is a priority SCHEDULER; VPP exposes no prio scheduler API, only
-#            classify+policer shaping. Mapping prio to a DSCP egress-map would be
-#            a silent semantic substitution that exact-or-reject forbids, so prio
-#            stays rejected. The error text is asserted to be actionable.
-# PREVENTS: regression where prio silently maps to some VPP construct, or where
-#           the rejection loses its actionable "priority scheduler" explanation.
+#            rejection-retained, no scheduler-to-remark substitution). prio is a
+#            priority SCHEDULER; VPP exposes no prio scheduler API, only
+#            classify plus policer shaping. Mapping prio onto a DSCP egress-map
+#            would be a silent semantic substitution that exact-or-reject
+#            forbids, so prio stays refused, and the error text is asserted to
+#            still name the gap an operator has to work around.
+# PREVENTS: prio silently mapping onto some VPP construct, and the rejection
+#           losing its actionable explanation.
 #
-# Scope note: the Verifier runs at daemon config-verify time; this boots ze with
-# the prio config and asserts the rejection log line in stderr.
+# Why this shape, and not "boot ze with the bad file and read stderr".
+# Ze's config transaction is two-phase, verify before apply: configTxBridge
+# (internal/component/plugin/server/config_tx_bridge.go) subscribes phaseVerify
+# and phaseApply per plugin, and only phaseApply reaches SendConfigApply. The
+# backend verifier therefore runs on a COMMIT, never on the initial OnConfigure.
+# A config the backend refuses fails at commit, is never promoted to active, and
+# so can never be the file a daemon boots from. Feeding the daemon the bad file
+# directly asserts a state the product cannot reach; this test drives the route
+# an operator actually has, and asserts BOTH halves of "cannot be applied":
+#   1. the commit is REFUSED, with the error naming the real reason;
+#   2. the previously active configuration is STILL ACTIVE afterwards.
+#
+# The same candidate is also refused offline by `ze config validate`, which runs
+# the registered in-process verifiers (runValidation calls
+# config.VerifyPluginConfig, internal/component/config/cli/cmd_validate.go), so
+# an operator learns before touching the daemon. That is a second, cheaper
+# assertion here, never a replacement for the commit one.
+#
+# Producer of the needle, measured: errQdiscPrioNotSupportedByBackend
+# (internal/plugins/traffic/vpp/verify.go), returned by verifyQdiscType and
+# wrapped by parseAndVerifyTrafficSections
+# (internal/component/traffic/register.go) as
+# `traffic-control backend "vpp": interface "eth0": ...`.
 
-tmpfs=wait.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Sleep long enough for ze to read config, attempt verify, and log the
-rejection, then exit."""
-import time
+option=env:var=ZE_STORAGE_BLOB:value=false
+option=env:var=ze.log.traffic:value=info
 
-# blind hold: a backgrounded ze gets no ZE_READY_FILE marker to poll; hold until OnConfigure emits the asserted log line, left un-converted (no readiness signal for a background daemon)
-time.sleep(2.5)
-EOF_PY
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=rewrite:conn=1:seq=1:source=tx-vpp-prio.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=1
+EOF_PEER
 
+# The ACTIVE configuration. It carries a traffic-control section with the
+# default Linux backend and NO interfaces, and that is load-bearing: the reload
+# transaction sends config-verify only to plugins that are RUNNING and want the
+# changed root (Server.ReloadConfig, internal/component/plugin/server/reload.go
+# walks pm.AllProcesses()). A boot with no traffic section leaves the traffic
+# plugin unstarted, and the reload then finds no affected plugin and accepts the
+# candidate without ever calling the verifier. An empty interface map is a no-op
+# Apply (backend.Apply, internal/plugins/traffic/netlink/backend_linux.go, walks
+# nothing and returns nil), so this boots with neither CAP_NET_ADMIN nor VPP.
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
-	peer peer1 {
-		connection {
-			remote {
-				ip 127.0.0.1
-			}
-			local {
-				ip 127.0.0.1
-				accept false
-			}
-		}
-		session {
-			asn {
-				local 1
-				remote 1
-			}
-			router-id 1.2.3.4
-			family {
-				ipv4/unicast { prefix { maximum 10000; } }
-			}
-			capability {
-				graceful-restart disable
-			}
-		}
-		behavior {
-			group-updates disable
-		}
-	}
+    router-id 1.2.3.4
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart disable
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+    }
 }
 
 traffic {
-	control {
-		backend vpp
-		interface eth0 {
-			qdisc {
-				type prio
-			}
-		}
-	}
+    control {
+        backend tc
+    }
 }
 EOF_CONF
 
-option=env:var=ze.log.traffic:value=info
+# The CANDIDATE an operator tries to commit: the same BGP, and a traffic-control
+# section that switches to backend vpp. `backend vpp` is the marker the
+# rollback-snapshot assertions below read: the stored configuration must still
+# say `backend tc`, which proves it is the OLD file and not this one.
+tmpfs=tx-vpp-prio.conf:terminator=EOF_BAD_CONF
+bgp {
+    router-id 1.2.3.4
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart disable
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+    }
+}
 
-cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 wait.py:timeout=10s
-expect=exit:code=0
-expect=stderr:contains=priority scheduler
+traffic {
+    control {
+        backend vpp
+        interface eth0 {
+            qdisc {
+                type prio
+                class control {
+                    rate 10mbit
+                }
+            }
+        }
+    }
+}
+EOF_BAD_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+cmd=foreground:seq=3:exec=ze config validate tx-vpp-prio.conf:exit=1:timeout=20s
+
+# Offline: `ze config validate` refuses the same candidate, on stdout, exit 1.
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=qdisc prio: not supported by backend vpp (prio is a priority scheduler
+
+# Half one: the commit is REFUSED, and the error names the real reason. The
+# await fence holds the daemon until its relayed stderr carries the rejection,
+# so the assertion never races teardown. Its needle carries no ':' because
+# parseAwait kv-splits the value; the expect below pins the full phrase.
+await=stderr:contains=priority scheduler
+expect=stderr:contains=reload error
+expect=stderr:contains=qdisc prio: not supported by backend vpp (prio is a priority scheduler
+
+# Half two: the previously active configuration is STILL ACTIVE. The candidate
+# was cleared, no rollback pointer was left dangling, and the stored snapshot is
+# the OLD file: it still selects backend tc and carries none of the candidate.
+expect=file:path=meta/config/active:exists=true
+expect=file:path=meta/config/candidate:absent=true
+expect=file:path=meta/config/rollback:absent=true
+expect=file:glob=rollback/ze-bgp-*.conf:count=1
+expect=file:glob=rollback/ze-bgp-*.conf:contains=backend tc
+expect=file:glob=rollback/ze-bgp-*.conf:not-contains=backend vpp
+expect=file:glob=rollback/ze-bgp-*.conf:not-contains=type prio

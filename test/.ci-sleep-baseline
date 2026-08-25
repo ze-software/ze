@@ -203,3 +203,10 @@
 # 81 against a ceiling of 75 -- already failing, and failing for every session
 # that carried a .ci path, since ze-doc-wiring-check is a structural gate.
 -4
+
+# test/traffic/traffic-vpp-reject-{hfsc,mark,prio}.ci: 3 -> 0. Each held a blind
+# 2.5s `wait.py` hold waiting for a rejection its boot path never produced. The
+# three tests now drive a COMMIT (SIGHUP reload) instead, and fence on the
+# rejection with a declarative `await=stderr:contains=`, so the whole tmpfs block
+# went with the sleep. The ceiling this closes on is 52, which is the count.
+-3
