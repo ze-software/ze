@@ -12,7 +12,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 |---|---|---|---|
 | Enrolled RFCs with zero test-proven requirements | Q2 | **36 / 170** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
 | time.sleep() calls in .ci tests | Q1 | **81 (floor 75)** (attention) | Replace a sleep with a payload-predicate wait (wait_until, dispatch_until), then lower the floor in the same change. |
-| Test files that expect a specific error | Q2 | **1116 / 3282** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
+| Test files that expect a specific error | Q2 | **1117 / 3284** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
 | Logged known-failing tests | Q3 | **2** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
 6 further metric(s) are within threshold and are listed in full below.
@@ -31,7 +31,7 @@ A sleep is a guess about timing that hides the race it was added to mask. The ra
 
 ### Tests with no reachable failure call
 
-**133 / 24002 (floor 134)** (ok)
+**133 / 24010 (floor 134)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -85,7 +85,7 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### Test files that expect a specific error
 
-**1116 / 3282** (attention)
+**1117 / 3284** (attention)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
@@ -127,9 +127,9 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 
 ### In-repo test inventory
 
-**24037 test functions** (ok)
+**24045 test functions** (ok)
 
-3282 Go test files, 78 fuzz targets, 132 benchmarks, 1754 .ci scenarios, 166 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+3284 Go test files, 78 fuzz targets, 132 benchmarks, 1754 .ci scenarios, 166 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
@@ -144,7 +144,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 506 | 31 | 99 | 31 |
+| 2026 | 507 | 31 | 99 | 31 |
 
 ## Integrity
 
@@ -160,7 +160,7 @@ Reds logged rather than fixed, one shard file per live failure (42 entries archi
 
 ### Test files no `go test` target can build
 
-**7 (floor 8)** (ok)
+**8 (floor 8)** (ok)
 
 Their build tags are supplied by no go test invocation in Makefile or mk/*.mk, so these tests exist but never run.
 
@@ -172,6 +172,7 @@ Their build tags are supplied by no go test invocation in Makefile or mk/*.mk, s
 | `cmd/ze/build_tag_distro_test.go` | `ze_appliance, ze_distro, ze_setup` |
 | `cmd/ze/build_tag_full_test.go` | `ze_appliance, ze_distro, ze_setup` |
 | `cmd/ze/build_tag_setup_test.go` | `ze_appliance, ze_distro, ze_setup` |
+| `cmd/ze/ze_chaos_main_test.go` | `ze_chaos` |
 | `internal/component/config/system/backend_ze_distro_test.go` | `ze_distro` |
 | `internal/component/config/system/selfupdate_test.go` | `ze_distro` |
 | `internal/install/disk/fault_linux_test.go` | `ze_installer_fault` |

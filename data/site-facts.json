@@ -25,10 +25,10 @@
     "target_display": "9",
     "targets": 9
   },
-  "published_at": "2026-08-25T03:17:43+00:00",
+  "published_at": "2026-08-25T15:04:29+00:00",
   "repo": {
-    "design_comments": 3672,
-    "design_comments_display": "3,672",
+    "design_comments": 3673,
+    "design_comments_display": "3,673",
     "detail_comments": 3199,
     "detail_comments_display": "3,199",
     "go_packages": 648,
