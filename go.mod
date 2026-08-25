@@ -1,17 +1,28 @@
 module github.com/ze-software/ze
 
-go 1.26
+go 1.27
 
-// The stdlib patch floor, not a language floor. go1.26.5 carries eight
-// vulnerabilities govulncheck reports as reachable from ze code: GO-2026-6218
-// (net/url), GO-2026-6091 (html/template), GO-2026-6090 (crypto/tls),
-// GO-2026-6089 and GO-2026-5026 (net/http), GO-2026-6088 (encoding/xml),
-// GO-2026-5972 (encoding/asn1), GO-2026-5942 (net). All eight are fixed in
-// go1.26.6. Every workflow builds with `go-version-file: go.mod` and
-// actions/setup-go defaults to `check-latest: false`, so a bare `go 1.26` let
-// the runner reuse its cached go1.26.5 and the scheduled govulncheck job went
-// red. This line is what makes the patched stdlib the floor.
-toolchain go1.26.6
+// The stdlib patch floor, not a language floor. It exists because every
+// workflow builds with `go-version-file: go.mod` and actions/setup-go defaults
+// to `check-latest: false`, so a bare `go` directive lets a runner reuse
+// whatever patch release it already cached. That is how the scheduled
+// govulncheck job first went red: `go 1.26` alone let a runner keep go1.26.5,
+// which carried eight vulnerabilities reachable from ze code. Pinning the
+// toolchain is what makes a patched stdlib the floor rather than a hope.
+//
+// Raised to go1.27.0 on 2026-08-25, and the floor is checked rather than
+// asserted: `make ze-dependency-vulnerability-check` runs govulncheck against
+// the live vuln.go.dev database and reported 0 reachable vulnerabilities on
+// this toolchain. Naming the advisories here instead would put a second record
+// of that fact in a file nothing compares against the first, which is how the
+// version this comment used to name went stale.
+//
+// 1.27.0 also carries a behavior ze depends on: it REMOVES the tlsunsafeekm
+// GODEBUG, so an operator who sets it now stops the daemon before main()
+// instead of silently getting an RFC 7627-less key export. cmd/ze/main.go and
+// docs/features/rfc-status.md both state that, and both were false until this
+// line moved.
+toolchain go1.27.0
 
 require (
 	charm.land/bubbles/v2 v2.1.1

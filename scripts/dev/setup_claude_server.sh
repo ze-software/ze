@@ -73,7 +73,7 @@ sudo -u "$TARGET_USER" mkdir -p "${GOPATH}/bin"
 if command -v golangci-lint &>/dev/null; then
     echo "golangci-lint already installed: $(golangci-lint --version 2>/dev/null | head -1)"
 else
-    CGO_ENABLED=0 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
+    CGO_ENABLED=0 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1
     chown -R "$TARGET_USER:$TARGET_USER" "${GOPATH}"
     echo "golangci-lint installed: $(golangci-lint --version 2>/dev/null | head -1)"
 fi
