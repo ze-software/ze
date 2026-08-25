@@ -32,7 +32,7 @@ Press Escape to move back through the menu and return to the shell.
 
 Connect to Ze over SSH, open the live BGP dashboard, sort peers, and inspect one session.
 
-[Download the asciicast recording](../../assets/demos/cli-dashboard.cast?v=9b77d105c3) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
+[Download the asciicast recording](../../assets/demos/cli-dashboard.cast?v=534d4a6951) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
 
 Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 44 seconds.
 

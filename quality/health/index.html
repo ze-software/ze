@@ -81,8 +81,8 @@
 </article>
 <article class="th-card th-ok">
   <h3>Tests with no reachable failure call</h3>
-  <p class="th-value">133 / 23996 (floor 134) <span class="th-status">Within threshold</span></p>
-  <div class="th-meter" role="img" aria-label="133 of 23996"><span class="th-meter-fill" style="width:0.6%"></span></div><p class="th-meter-note">133 of 23996 (0.6%)</p>
+  <p class="th-value">133 / 23998 (floor 134) <span class="th-status">Within threshold</span></p>
+  <div class="th-meter" role="img" aria-label="133 of 23998"><span class="th-meter-fill" style="width:0.6%"></span></div><p class="th-meter-note">133 of 23998 (0.6%)</p>
   <p>These execute code and pass unconditionally. Breaking the code under test would not turn them red.</p>
   <p class="th-action"><strong>If this degrades:</strong> Add a real assertion, or annotate with `// test-asserts-nothing: &lt;why&gt;` when the oracle is genuinely implicit (a must-not-panic smoke test).</p>
   <table><thead><tr><th>file</th><th>test</th></tr></thead><tbody><tr><td><code>cmd/ze/hub/aaa_lifecycle_test.go</code></td><td><code>TestCloseAAABundleNoBundle</code></td></tr><tr><td><code>internal/chaos/chaos_test.go</code></td><td><code>TestChaosConcurrency</code></td></tr><tr><td><code>internal/chaos/watchdog/watchdog_test.go</code></td><td><code>TestWatchdogRouteRegression</code></td></tr><tr><td><code>internal/component/bfd/api/registry_test.go</code></td><td><code>TestSetGetService_ConcurrentNoRace</code></td></tr><tr><td><code>internal/component/bfd/metrics_test.go</code></td><td><code>TestMetricsHookStateChangeCounters</code></td></tr><tr><td><code>internal/component/bfd/metrics_test.go</code></td><td><code>TestRefreshSessionsGauge</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/event_test.go</code></td><td><code>TestBMPPeerUpSkippedOnCacheMiss</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/event_test.go</code></td><td><code>TestHandleSenderNoSenders</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/route_action_test.go</code></td><td><code>TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/route_action_test.go</code></td><td><code>TestProcessRouteMonitoring_ShortUpdate_Skipped</code></td></tr></tbody></table>
@@ -123,7 +123,7 @@
 </article>
 <article class="th-card th-ok">
   <h3>In-repo test inventory</h3>
-  <p class="th-value">24031 test functions <span class="th-status">Within threshold</span></p>
+  <p class="th-value">24033 test functions <span class="th-status">Within threshold</span></p>
   
   <p>3280 Go test files, 78 fuzz targets, 132 benchmarks, 1754 .ci scenarios, 166 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.</p>
   <p class="th-action"><strong>If this degrades:</strong> This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.</p>
@@ -190,7 +190,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 08:39 UTC</span>
+                    <span class="footer-published">Published 25 August 2026 09:07 UTC</span>
                 </div>
             </div>
         </footer>

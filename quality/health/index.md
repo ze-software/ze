@@ -31,7 +31,7 @@ A sleep is a guess about timing that hides the race it was added to mask. The ra
 
 ### Tests with no reachable failure call
 
-**133 / 23996 (floor 134)** (ok)
+**133 / 23998 (floor 134)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -127,7 +127,7 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 
 ### In-repo test inventory
 
-**24031 test functions** (ok)
+**24033 test functions** (ok)
 
 3280 Go test files, 78 fuzz targets, 132 benchmarks, 1754 .ci scenarios, 166 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 

@@ -21,9 +21,9 @@
     "cli-dashboard": {
       "assets": {
         "cast": {
-          "bytes": 14756,
+          "bytes": 14738,
           "path": "cli-dashboard.cast",
-          "sha256": "9b77d105c38e2ff36bec3fcbbe9f76c59984b5e1485dc7333831ab320da28c98"
+          "sha256": "534d4a695161f1232c27421b09b9e8525c93420a645eba53f70e0349c6bbf07e"
         },
         "transcript": {
           "bytes": 258,
