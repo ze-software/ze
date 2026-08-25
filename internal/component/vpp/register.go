@@ -93,7 +93,13 @@ func runVPPEngine(conn net.Conn) int {
 	// a failed OnConfigure returns an error, leaves `settings` as nil, and
 	// NewVPPManager(nil) in OnStarted deref-panics on settings.APISocket.
 	settings := &VPPSettings{Enabled: false}
-	var mgrCancel context.CancelFunc
+
+	// The Manager's context is created here, not inside OnStarted, so every
+	// return path cancels it. A p.Run error below returned without canceling
+	// it and without waiting for the Manager goroutine.
+	mgrCtx, mgrCancel := context.WithCancel(context.Background())
+	defer mgrCancel()
+
 	var mgrDone chan struct{}
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
@@ -124,8 +130,6 @@ func runVPPEngine(conn net.Conn) int {
 		// Start the VPP Manager in a background goroutine.
 		// The Manager owns VPP's full lifecycle; the SDK event loop
 		// continues to handle config reload callbacks.
-		mgrCtx, cancel := context.WithCancel(context.Background())
-		mgrCancel = cancel
 		mgrDone = make(chan struct{})
 
 		mgr := NewVPPManager(settings, defaultConfDir, defaultVPPBinary)
@@ -140,20 +144,20 @@ func runVPPEngine(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
+	rc := 0
 	if err := p.Run(ctx, sdk.Registration{
 		WantsConfig: []string{"vpp"},
 	}); err != nil {
 		lg.Error("vpp plugin failed", "error", err)
-		return 1
+		rc = 1
 	}
 
-	// SDK event loop exited (engine shutdown). Stop the Manager and wait for cleanup.
-	if mgrCancel != nil {
-		mgrCancel()
-	}
+	// The SDK event loop exited (engine shutdown, or p.Run failed). Stop the
+	// Manager and wait for its goroutine before returning.
+	mgrCancel()
 	if mgrDone != nil {
 		<-mgrDone
 	}
 
-	return 0
+	return rc
 }
