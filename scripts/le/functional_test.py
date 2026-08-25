@@ -287,6 +287,36 @@ class TestTheShippedBudgets(unittest.TestCase):
         run = drive(0, suite='plugin', seconds=1)
         self.assertRegex(run.stdout, rf'suite plugin took 1s of its {shipped} budget')
 
+    def test_an_un_overridden_expiry_reports_the_shipped_budget(self) -> None:
+        """The deleted suite drove exit 124 with NO override and asserted the
+        SHIPPED budget reached the failure-group summary.
+
+        `test_a_cap_expiry_names_the_variable_that_owns_the_budget` looks like
+        it covers this and does not: it PASSES 600s and 1500s in the
+        environment. They happen to equal the constants today, so changing
+        DEFAULT_BUDGET or BUDGET_DEFAULTS would leave it green while every
+        un-overridden run reported a budget the repository no longer ships.
+        """
+        # LITERALS, not the constants. Reading DEFAULT_BUDGET here would make
+        # this agree with itself: change the constant and the expectation
+        # changes with it, which is exactly how this case first passed under a
+        # 600s -> 900s mutation. These two numbers are the operator-visible
+        # contract the recipe shipped (ZE_SUITE_TIMEOUT ?= 600s,
+        # ZE_SUITE_TIMEOUT_PLUGIN ?= 1500s), so changing one must fail a test.
+        for suite, budget, variable in (
+            (SHARED, '600s', 'ZE_SUITE_TIMEOUT'),
+            ('plugin', '1500s', 'ZE_SUITE_TIMEOUT_PLUGIN'),
+        ):
+            with self.subTest(suite=suite):
+                run = drive(124, suite=suite)
+                wanted = f'its {budget} wall-clock budget ({variable})'
+                self.assertIn(wanted, run.line('BUDGET EXPIRED'))
+                self.assertIn(wanted, str(run.failure_group()['summary']))
+        # And the constants ARE those literals, so a change to either is a
+        # single failure here rather than a silent drift between the two.
+        self.assertEqual('600s', functional.DEFAULT_BUDGET)
+        self.assertEqual('1500s', functional.BUDGET_DEFAULTS['plugin'])
+
 
 class TestPerSuiteBudget(unittest.TestCase):
     """A suite named in ZE_SUITE_TIMEOUT_<SUITE> runs on its own budget.

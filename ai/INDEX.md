@@ -286,7 +286,7 @@ each gate in an area is for and why it exists.
 | `./le functional` | `scripts/le/application/functional.py` | `mk/test-functional.mk` |
 | `./le test-chaos` | `scripts/le/application/chaos.py` | `mk/test-chaos.mk` |
 | `./le integration` | `scripts/le/application/integration.py` | `mk/test-integration.mk` |
-| `./le fuzz` | `scripts/le/application/fuzz.py` | `mk/test-fuzz.mk` + a generated fragment, both retired |
+| `./le fuzz` | `scripts/le/application/fuzz.py` | `mk/test-fuzz.mk`, whose shim survives. Its generated fragment is retired |
 | `./le build-appliance` | `scripts/le/application/build_appliance.py` | `mk/build-appliance.mk` |
 | `./le gokrazy` | `scripts/le/application/gokrazy.py` | `mk/build-gokrazy.mk` |
 | `./le build-terminal-demo` | `scripts/le/application/build_terminal_demo.py` | `mk/build-terminal-demo.mk` |

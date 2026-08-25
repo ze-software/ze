@@ -1083,9 +1083,11 @@ func TestStagesForModeBranchesAgree(t *testing.T) {
 // and `make ze-precommit-verify-changed` (AC-4).
 // PREVENTS: a stale generated file reaching a commit unnoticed because the only
 // gate that detected it -- `ze-generated-files-reconcile` -- runs nowhere. Scoped honestly:
-// this is NEW coverage for the ai/* discovery indexes, feature_tags' outputs
-// (.golangci.yml, gokrazy/ze/config.json, docs/guide/quickstart.md) and
-// mk/test-fuzz-targets.mk. It is REDUNDANT (a second, uncached path) for
+// this is NEW coverage for the ai/* discovery indexes and feature_tags' outputs
+// (.golangci.yml, gokrazy/ze/config.json, docs/guide/quickstart.md). It named
+// mk/test-fuzz-targets.mk too, until `le fuzz` started discovering fuzzers at
+// run time and that generated fragment was deleted. It is REDUNDANT (a second,
+// uncached path) for
 // plugin/all/all.go, which TestGeneratedPluginImportsCurrent and
 // TestVerifyWiringDocsChecksPluginImports already covered. CLAUDE.md/AGENTS.md
 // and the skill mirrors are NOT covered here at all -- see the two documented

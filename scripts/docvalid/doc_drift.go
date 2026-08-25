@@ -32,6 +32,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 
@@ -205,10 +206,19 @@ type leFunctionalSuite struct {
 // and an empty derivation here is reported as drift in the DOCUMENT, which
 // sends a reader to edit prose that was never wrong.
 //
-// An empty answer is still returned on any failure, and the callers turn it
-// into a loud "could not derive" finding rather than a silent pass.
+// An empty answer is returned on any failure, and BOTH callers turn it into a
+// loud "could not derive" finding rather than a silent pass. That is load
+// bearing rather than tidy. The population used to come from parsing a file in
+// the tree, which cannot fail halfway. It now comes from running a program,
+// which can be missing, wedged or broken. A caller that read empty as "no
+// suites to check" would disable itself on exactly that failure, and say
+// nothing.
 func functionalGateSuites(root string) []string {
-	cmd := osexec.CommandContext(context.Background(), filepath.Join(root, "le"),
+	// Bounded: this runs inside ze-doc-verify, and a wedged `le` would
+	// otherwise hold that gate open with no output and no deadline.
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	cmd := osexec.CommandContext(ctx, filepath.Join(root, "le"),
 		"functional", "--list", "--json")
 	cmd.Dir = root
 	out, err := cmd.Output()
@@ -668,6 +678,9 @@ func checkFunctionalTestsMD(root string, gateSuites []string) []issue {
 	if err != nil {
 		return nil
 	}
+	// Same order and the same reason as checkMakefileHelp: the read decides
+	// whether there is anything here to check, and only then does an empty
+	// population mean the derivation failed.
 	if len(gateSuites) == 0 {
 		return []issue{{
 			File:    "docs/functional-tests.md",
@@ -726,8 +739,20 @@ func checkFunctionalTestsMD(root string, gateSuites []string) []issue {
 func checkMakefileHelp(root string, gateSuites []string) []issue {
 	path := filepath.Join(root, "Makefile")
 	lines, err := readLines(path)
-	if err != nil || len(gateSuites) == 0 {
+	if err != nil {
 		return nil
+	}
+	// Emptiness is judged AFTER the read and separately from it. The read
+	// answers "is there anything here to check", and a fixture root with no
+	// Makefile must stay silent. Once the file exists, an empty population
+	// means the derivation FAILED, and reading that as "no suites to check"
+	// would disable this check on exactly the failure it must report.
+	if len(gateSuites) == 0 {
+		return []issue{{
+			File:    "Makefile",
+			Line:    0,
+			Message: "could not derive ze-functional-test suites from `le functional --list --json`",
+		}}
 	}
 
 	listRe := regexp.MustCompile(`ze-functional-test\s+- Run ze functional tests \(([^)]*)\)`)

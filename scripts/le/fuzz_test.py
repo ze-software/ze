@@ -23,15 +23,52 @@ was true and unguarded. A reviewer caught it.
 
 from __future__ import annotations
 
+import io
+import re
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from le.application.fuzz import FUZZTIME, TIMEOUT, Target, discover
+from le.application.fuzz import (
+    FUZZTIME,
+    SKIP_DIRS,
+    TIMEOUT,
+    Options,
+    Target,
+    action,
+    discover,
+)
 from le.paths import REPO_ROOT
+
+# Go's own rule for a fuzz target name, restated rather than imported: `Fuzz`
+# alone, or `Fuzz` followed by a character that is not a lower-case letter.
+# `\w+` was wrong in both directions -- it took `func Fuzzing(`, which is not a
+# target, and missed the bare `func Fuzz(`, which is one. A second opinion that
+# uses a DIFFERENT definition of the thing is not independence, it is a second
+# bug waiting for the first name that separates them.
+_FUZZ_FUNC = re.compile(r'^func (Fuzz(?:[A-Z][A-Za-z0-9_]*)?)\s*\(', re.MULTILINE)
+
+
+def _grep_fuzz_names(root: Path) -> set[str]:
+    """Every top-level `func Fuzz*` under internal/, found independently.
+
+    Deliberately NOT a call into `discover`: this is the second opinion the
+    equality above compares against, so it repeats the walk rather than
+    sharing it. It repeats the SKIP set too, from `fuzz.SKIP_DIRS`, because
+    excluding a different set of directories would red the equality on correct
+    code the moment a `tmp/` or `node_modules/` appeared under internal/.
+    """
+    names: set[str] = set()
+    for path in (root / 'internal').rglob('*_test.go'):
+        if any(part in SKIP_DIRS for part in path.relative_to(root).parts):
+            continue
+        names.update(_FUZZ_FUNC.findall(path.read_text(encoding='utf-8', errors='replace')))
+    return names
 
 
 def _tree(**files: str) -> Path:
@@ -154,13 +191,93 @@ class TestDiscovery(unittest.TestCase):
     def test_a_tree_with_no_internal_yields_nothing(self) -> None:
         assert discover(Path(tempfile.mkdtemp())) == []
 
-    def test_the_real_tree_declares_targets(self) -> None:
-        """A guard against the whole thing silently finding nothing.
+    def test_the_real_tree_matches_an_independent_grep(self) -> None:
+        """Equality against ground truth, not a threshold.
 
-        Every assertion above passes vacuously on an empty result, so a walk
-        that stopped working would leave them all green.
+        The deleted `fuzz_targets_test.py` compared discovery against its own
+        `func Fuzz` grep of the real tree. A `> 50` threshold does not replace
+        that: a walk that silently drops one package still passes it, which is
+        the failure the equality exists to catch.
         """
-        assert len(discover(REPO_ROOT)) > 50
+        discovered = {target.name for target in discover(REPO_ROOT)}
+        ground = _grep_fuzz_names(REPO_ROOT)
+        assert discovered == ground, (
+            f'discovery and grep disagree: '
+            f'only discovered {sorted(discovered - ground)}, '
+            f'only grepped {sorted(ground - discovered)}'
+        )
+        # Non-vacuity: an empty set would satisfy the equality above if the
+        # grep broke in the same direction.
+        assert len(discovered) > 50
+
+
+class TestRunOnePassesTheCallerThrough(unittest.TestCase):
+    """`ze-fuzz-test-one` hands FUZZ and PKG to Go untouched.
+
+    An earlier version filtered discovery by exact equality on both, so the
+    documented `PKG=./internal/component/bgp/wireu/...` exited 2 and a Go
+    regexp in FUZZ stopped matching. Discovery enumerates ALL targets; it has
+    no business narrowing one the caller already named.
+    """
+
+    def _argv(self, **kwargs: str) -> str:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = action(Options(listing=True, timeout=TIMEOUT, **kwargs))
+        assert code == 0
+        return buffer.getvalue()
+
+    def test_a_regexp_name_reaches_go_unaltered(self) -> None:
+        printed = self._argv(name='FuzzParse.*')
+        assert '-fuzz=FuzzParse.*' in printed, printed
+
+    def test_a_wildcard_package_reaches_go_unaltered(self) -> None:
+        printed = self._argv(package='./internal/component/bgp/wireu/...')
+        assert './internal/component/bgp/wireu/...' in printed, printed
+
+    def test_naming_one_does_not_consult_discovery(self) -> None:
+        """A name no `func Fuzz` declares still runs: Go decides, not us."""
+        printed = self._argv(name='FuzzNothingDeclaresThisName')
+        assert '-fuzz=FuzzNothingDeclaresThisName' in printed, printed
+
+
+class TestTheSweepStopsAtTheFirstFailure(unittest.TestCase):
+    """The Make recipe gave each fuzzer its own line, so the first non-zero
+    aborted the target and the rest never ran. Continuing would spend another
+    ~13 minutes fuzzing after a crash is in hand, and bury the failure that
+    matters under everything that followed it.
+    """
+
+    def _sweep(self, codes: list[int]) -> tuple[int, int]:
+        """Run the sweep over len(codes) targets, each returning its code.
+
+        Returns (exit code, how many targets actually ran).
+        """
+        targets = [Target(f'Fuzz{i}', f'./internal/p{i}') for i in range(len(codes))]
+        calls: list[str] = []
+
+        def fake_stream(argv: object, **_: object) -> int:
+            calls.append(str(argv))
+            return codes[len(calls) - 1]
+
+        with (
+            mock.patch('le.application.fuzz.discover', return_value=targets),
+            mock.patch('le.application.fuzz.stream', side_effect=fake_stream),
+            redirect_stdout(io.StringIO()),
+        ):
+            code = action(Options(fuzztime='1s', timeout=TIMEOUT))
+        return code, len(calls)
+
+    def test_a_failing_fuzzer_stops_the_sweep(self) -> None:
+        code, ran = self._sweep([0, 3, 0, 0])
+        assert code == 3, "the failing target's exit code must survive"
+        assert ran == 2, f'the sweep must stop at the failure, ran {ran} of 4'
+
+    def test_an_all_green_sweep_runs_every_target(self) -> None:
+        """Non-vacuity: the stop above is a stop, not a sweep that never ran."""
+        code, ran = self._sweep([0, 0, 0, 0])
+        assert code == 0
+        assert ran == 4
 
 
 if __name__ == '__main__':

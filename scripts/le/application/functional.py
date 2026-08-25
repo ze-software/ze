@@ -256,8 +256,12 @@ def _cores() -> int:
         # and `?=` did not overwrite an empty command-line value either.
         stripped = raw.strip()
         return int(stripped) if stripped.isdigit() else PARALLEL_FLOOR
-    # Affinity rather than the machine's total, which is what `nproc` reports
-    # and therefore what the recipe measured.
+    # Affinity rather than the machine's total. Bare `nproc` honors the affinity
+    # mask, so this matches what the recipe measured on any host that has it.
+    # `nproc --all` is the spelling that reports the total and ignores the mask,
+    # and neither the recipe nor this uses it. The recipe's own fallback was
+    # `getconf _NPROCESSORS_ONLN`, which does ignore the mask, so a host without
+    # `nproc` measured the total there and measures affinity here.
     if hasattr(os, 'sched_getaffinity'):
         return len(os.sched_getaffinity(0)) or PARALLEL_FLOOR
     return os.cpu_count() or PARALLEL_FLOOR
