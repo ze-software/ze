@@ -52,5 +52,5 @@ where the toolchain is present by construction and calling it is the point.
 
 - `ai/rules/go-standards.md`, "External Commands" -- the rule this register serves.
 - `ai/rules/platform-linux.md` -- Linux-only code and its QEMU evidence.
-- `docs/contributing/ze-style.md` -- dependencies carry a supply-chain, safety,
+- `docs/contributing/ze-go-style.md` -- dependencies carry a supply-chain, safety,
   performance and install cost, multiplied down the stack for infrastructure.

@@ -651,7 +651,7 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 	// reaches here only from a WBTestCase built in code, where the caller declared
 	// nothing. Reading it literally would expire the deadline before step one and
 	// fail every such run. That is a zero value that looks like a valid answer
-	// (docs/contributing/ze-style.md, "Types that cannot lie").
+	// (docs/contributing/ze-go-style.md, "Types that cannot lie").
 	// The declared value is scaled by the SAME contention headroom every other
 	// budget in this suite uses. `zeTestReadyTimeout` (internal/test/cli/cmd_web.go)
 	// states the reason: under `make ze-precommit-verify` the web suite runs four

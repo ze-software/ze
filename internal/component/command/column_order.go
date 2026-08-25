@@ -262,7 +262,7 @@ func newDeclarationRegistry[T any](name string, isEmpty func(value T) bool) *dec
 //     no-op, so equality decides rather than identity.
 //   - The two values differ and neither is empty. Panic. Every caller declares
 //     from init(), so only a Ze defect reaches this state, which is what
-//     panic("BUG:") is for (docs/contributing/ze-style.md). A caller outside
+//     panic("BUG:") is for (docs/contributing/ze-go-style.md). A caller outside
 //     this repository never reaches this method: it declares through declareFor
 //     below, which reports the same conflict as an error, because a declaration
 //     that arrived over a socket is an operating error and a plugin MUST NOT be
@@ -321,7 +321,7 @@ func (r *declarationRegistry[T]) declare(commands []string, value T) {
 //     declares from init() and only a Ze defect reaches that state. This value
 //     arrived over a socket, so the conflict is an operating error: the caller
 //     is refused and the daemon keeps running
-//     (docs/contributing/ze-style.md).
+//     (docs/contributing/ze-go-style.md).
 //   - What the path held is RECORDED under the owner, so withdraw puts it back
 //     when the owner leaves.
 //

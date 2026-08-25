@@ -26,7 +26,7 @@ See also: `/ze-commit` (commit without verification), `/ze-precommit-verify` (st
 
    For each hit, trace the input back to its source. A state that only a Ze defect
    reaches keeps its `panic("BUG:")`. A state a peer can produce returns an error
-   instead (`docs/contributing/ze-style.md`). A `panic()` a peer can reach STOPS
+   instead (`docs/contributing/ze-go-style.md`). A `panic()` a peer can reach STOPS
    the commit. Report it and wait.
 
    Then read the added lines once and ask three questions. What bounds each new

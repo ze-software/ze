@@ -252,7 +252,7 @@ _WRITES_GO = re.compile(
     re.IGNORECASE,
 )
 # The guide, however the brief spells it.
-_NAMES_STYLE_GUIDE = re.compile(r"docs/contributing/ze-style\.md|\bze-style\b")
+_NAMES_STYLE_GUIDE = re.compile(r"docs/contributing/ze-(?:go-)?style\.md|\bze-(?:go-)?style\b")
 # An implementation verb near the top says the agent WRITES rather than reads.
 # `change` and `port` are deliberately absent. "Do not change anything" made a
 # read-only brief look like work, and `port` is a networking noun long before it
@@ -266,7 +266,7 @@ _BRIEF_IS_WORK = re.compile(
 def style_guide_reminder(prompt: str) -> str | None:
     """WARN when a brief that will produce Go never names the style guide.
 
-    `docs/contributing/ze-style.md` is read in full before any code, every
+    `docs/contributing/ze-go-style.md` is read in full before any code, every
     session (owner directive, 2026-08-18). A subagent inherits that checklist
     through no mechanism the main thread can verify, so the brief is the only
     place the requirement reliably reaches it -- and the main thread cannot
@@ -274,7 +274,7 @@ def style_guide_reminder(prompt: str) -> str | None:
     which `check_system_tmp` in pretool-bash.py refuses.
 
     Measured 2026-08-19: three fix agents were briefed with "Read
-    docs/contributing/ze-style.md before writing Go" filed under a heading
+    docs/contributing/ze-go-style.md before writing Go" filed under a heading
     reading "Before you finish". The instruction was present, placed where it
     reads as a closing checklist item, and bought nothing.
 
@@ -290,7 +290,7 @@ def style_guide_reminder(prompt: str) -> str | None:
         return None
     return (
         "WARN: this brief will produce Go and never names "
-        "docs/contributing/ze-style.md\n"
+        "docs/contributing/ze-go-style.md\n"
         "  The guide is read in full BEFORE any code, every session, and a\n"
         "  subagent gets it from your brief or not at all.\n"
         "  → Name it as a PRECONDITION in the brief's opening, never under a\n"

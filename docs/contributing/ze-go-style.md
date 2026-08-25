@@ -1,4 +1,4 @@
-# Ze Style
+# Ze Go Style
 
 Ze runs on a router that nobody restarts. A defect drops a session, blackholes a
 prefix, or leaks a buffer that grows for a year. The peer on the other side of
@@ -6,8 +6,9 @@ the socket is not friendly, and the operator reading the log is not a Go
 developer.
 
 Ze code is written to that standard. This page is the working standard for every
-line of Go in the repository. It is the code companion to `writing-style.md`,
-which is the standard for every word.
+line of Go in the repository. It has two companions. `writing-style.md` is the
+standard for every word. `ze-python-style.md` is the standard for every line of
+Python, which is the language of every gate and every test driver here.
 
 This page carries the reasoning. The blocking mechanical detail lives in
 `ai/rules/`, and each section names the rule that owns it. When this page and a
@@ -448,7 +449,8 @@ specialist instruments, each with its own manual.
 
 Ze writes its tooling in Python, never in shell. A shell script is fragile, it
 is hard to debug, and it fails differently on each machine. The precedent is
-`test/interop/run.py`.
+`test/interop/run.py`. That Python has a standard of its own, and it is
+`ze-python-style.md`.
 <!-- source: ai/rules/go-standards.md -- Scripts: Python Only -->
 
 ## Where Ze differs from TigerStyle

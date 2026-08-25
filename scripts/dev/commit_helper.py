@@ -3237,7 +3237,7 @@ def go_style_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
     `Write|Edit|MultiEdit|NotebookEdit`. Go written through a Bash heredoc
     reaches none of its checks, and auto mode tells agents to prefer Bash for
     file changes, so the bypass is the DEFAULT route rather than an unusual one.
-    c_panic is the one that matters most: docs/contributing/ze-style.md calls "a
+    c_panic is the one that matters most: docs/contributing/ze-go-style.md calls "a
     peer MUST NOT be able to panic the daemon" the single most important line on
     the page, and that check was exactly as bypassable as the rest.
 

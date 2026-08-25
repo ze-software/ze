@@ -7,7 +7,7 @@ Rationale: `ai/rationale/session-start.md`
 
 ```
 [ ] 1. Load LSP tool (`ToolSearch query="select:LSP"`). UNCONDITIONAL FIRST ACTION.
-[ ] 2. Read `docs/contributing/ze-style.md`. EVERY session, before any code.
+[ ] 2. Read `docs/contributing/ze-go-style.md`. EVERY session, before any code.
 [ ] 3. Run `scripts/dev/spec-session.sh current` to see this session's claimed spec
 [ ] 4. Read plan/<spec-name> (if a spec is claimed)
 [ ] 5. Read per-spec session state (tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md) if exists
@@ -19,7 +19,7 @@ Rationale: `ai/rationale/session-start.md`
 ## Style Read (step 2) -- owner directive, 2026-08-18
 
 **BLOCKING, every session, whatever the task looks like.** Read
-`docs/contributing/ze-style.md` in full before writing any code.
+`docs/contributing/ze-go-style.md` in full before writing any code.
 
 This REPLACES the older instruction in
 `ai/rules/points/go-standards/directives/read-the-ze-style-guide-before-go-design-or-review.md`,

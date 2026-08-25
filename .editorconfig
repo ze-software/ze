@@ -1,5 +1,5 @@
 # Indentation conventions for the Ze tree.
-# The narrative version lives in docs/contributing/ze-style.md, "By the numbers".
+# The narrative version lives in docs/contributing/ze-go-style.md, "By the numbers".
 # Each rule below records what the tracked files already do. It does not
 # introduce a new convention.
 

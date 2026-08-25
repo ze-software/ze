@@ -1105,7 +1105,7 @@ func registerPluginPipes(owner string, pipes []rpc.PipeDecl, commands []rpc.Comm
 //   - a declaration on no command path. A shape belongs to the command it is
 //     declared on, so a nameless command declares nothing;
 //   - a list or a name past its bound. The strings arrive from another process
-//     (docs/contributing/ze-style.md, "A limit on everything").
+//     (docs/contributing/ze-go-style.md, "A limit on everything").
 //
 // The bounds are the spec's: 64 columns and 16 address fields for one command,
 // each name 1 to 64 bytes. They are the widest answer in the tree with room

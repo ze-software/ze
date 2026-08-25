@@ -1841,7 +1841,7 @@ def run_commit_gate(results: Results) -> None:
     # --- go-style: the content checks pretool-writeedit.py applies to Go,
     # re-run over the lines the commit ADDS. Same bypass as go-design-ref, a
     # different half of it: design-ref judges a file property, these judge the
-    # code. c_panic is the one that matters most -- ze-style.md calls "a peer
+    # code. c_panic is the one that matters most -- ze-go-style.md calls "a peer
     # MUST NOT be able to panic the daemon" the single most important line on
     # the page, and it was exactly as bypassable as the rest.
     #
@@ -6242,7 +6242,7 @@ def run_phase_gates(results: Results) -> None:
     results.check('agent-skill-unknown-skill-name-blocks', r.returncode == 2, repr(r.stderr))
 
     # --- the style-guide reminder on a brief that will produce Go.
-    # docs/contributing/ze-style.md is read before any code, every session, and a
+    # docs/contributing/ze-go-style.md is read before any code, every session, and a
     # subagent gets it from the brief or not at all. The main thread cannot audit
     # it afterwards: subagent transcripts are under /tmp, which the Bash guard
     # refuses. Measured 2026-08-19: three fix agents carried the instruction under
@@ -6252,7 +6252,7 @@ def run_phase_gates(results: Results) -> None:
     results.check('agent-style-guide-warns', r.returncode == 1, repr(r.stderr))
     results.check(
         'agent-style-guide-names-the-guide',
-        'docs/contributing/ze-style.md' in r.stderr,
+        'docs/contributing/ze-go-style.md' in r.stderr,
         repr(r.stderr)[:160],
     )
     results.check(
@@ -6262,7 +6262,7 @@ def run_phase_gates(results: Results) -> None:
     )
 
     # Naming the guide is the whole point, so it must silence the reminder.
-    r = spawn('Fix the port 0 handling in translate.go. Read docs/contributing/ze-style.md first.')
+    r = spawn('Fix the port 0 handling in translate.go. Read docs/contributing/ze-go-style.md first.')
     results.check('agent-style-guide-named-passes', r.returncode == 0, repr(r.stderr))
 
     # The three shapes that must NOT warn, each one a real brief from this repo.

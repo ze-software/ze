@@ -375,7 +375,7 @@ func ignoredNames(root string, entries []os.DirEntry) (map[string]bool, error) {
 	//
 	// One guard per fact, rather than one condition holding three: a reader deciding
 	// whether every case is covered should not have to hold "did it exit at all",
-	// "is it an ExitError" and "which code" at once (docs/contributing/ze-style.md,
+	// "is it an ExitError" and "which code" at once (docs/contributing/ze-go-style.md,
 	// "Control flow a reader can simulate").
 	if err != nil {
 		var exit *exec.ExitError

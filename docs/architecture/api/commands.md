@@ -1423,7 +1423,7 @@ order decided which of the two the path answered.
 
 Every in-tree caller declares from `init()`, so two different non-empty values
 are a state only a Ze defect reaches. The panic reports it before the daemon
-serves anything (`docs/contributing/ze-style.md`).
+serves anything (`docs/contributing/ze-go-style.md`).
 
 A plugin declares from a socket instead, and a bad declaration there is an
 operating error rather than a Ze defect. So the first three registries carry a

@@ -230,9 +230,9 @@ phase itself.
 | Config parsing | `config.md` -- fail on unknown keys, no version numbers |
 | New data wrapper/struct | `architecture.md` -- lazy over eager, no identity wrappers |
 | Any new abstraction, option, layer, or parameter | `simplicity.md` -- the simplest fully correct answer, and nothing beyond it |
-| Any changed Go file | `docs/contributing/ze-style.md` -- the style pass below |
+| Any changed Go file | `docs/contributing/ze-go-style.md` -- the style pass below |
 
-    **Style pass (every changed Go file).** These six are judgement calls that no linter and no other step in this review makes. Each maps to a section of `docs/contributing/ze-style.md`.
+    **Style pass (every changed Go file).** These six are judgement calls that no linter and no other step in this review makes. Each maps to a section of `docs/contributing/ze-go-style.md`.
 
     | Ask | Report unless |
     |-----|---------------|

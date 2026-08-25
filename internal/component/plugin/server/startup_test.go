@@ -931,7 +931,7 @@ func TestShapeWriteUnwindsWithStageOne(t *testing.T) {
 // declarationRegistry.declare panics on that conflict, which is right for a
 // table written in init(): only a Ze defect reaches it. This declaration
 // arrived over a socket, so the same conflict is an operating error and the
-// daemon MUST stay up (docs/contributing/ze-style.md).
+// daemon MUST stay up (docs/contributing/ze-go-style.md).
 //
 // VALIDATES: the Critical Review row "a bad plugin message is REFUSED and never
 // panics".

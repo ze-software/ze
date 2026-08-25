@@ -8,7 +8,8 @@ Ze development is expected on macOS or Linux. Windows is not a supported develop
 | Document | Purpose |
 |----------|---------|
 | `writing-style.md` | Rule one: how every word in the repository is written. The six habits to avoid, the sentence limits, and how to check your own prose |
-| `ze-style.md` | Rule one for code: how every line of Go in the repository is written. The reasoning behind the Go rules, adapted from TigerStyle |
+| `ze-go-style.md` | Rule one for code: how every line of Go in the repository is written. The reasoning behind the Go rules, adapted from TigerStyle |
+| `ze-python-style.md` | How every line of Python in the repository is written. The tooling standard: gates, checkers, test drivers, and generators |
 | `rule-authoring.md` | How to change an agent rule: the point files behind `ai/rules/`, the manifest, the generators, and how a hook check binds to one instruction |
 | `testing.md` | How the test suites are organised and run (unit, functional, fuzz, race) |
 | `documentation-testing.md` | The `make ze-doc-verify` drift and contract checks, and how to fix failures |

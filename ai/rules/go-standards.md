@@ -6,7 +6,7 @@
 
 ## Directives
 
-- **You MUST read `docs/contributing/ze-style.md` at the START of EVERY session, before any code (owner directive, 2026-08-18).** `.claude/rules/session-start.md` step 2 carries it as a blocking checklist item.
+- **You MUST read `docs/contributing/ze-go-style.md` at the START of EVERY session, before any code (owner directive, 2026-08-18).** `.claude/rules/session-start.md` step 2 carries it as a blocking checklist item.
 - **The three-trigger gate this point used to state is WITHDRAWN.** It read the guide only before a Go design decision, a review, or an argument about how Ze code is written, and told you not to open it for an ordinary edit. It was set to save context and it cost more than it saved: a session can write Go all day, meet none of those three triggers, and never learn that Ze guards with early returns, splits a compound condition, and states an invariant positively. Measured 2026-08-18, on four `internal/` files in one session.
 - That page carries the reasoning behind these rules. It states Ze's three design goals in their order: safety, performance, and developer experience.
 - It covers control flow, limits, assertions in a language that has none, memory, errors, goroutines, and the shape of a function. It also covers names, comments, duplicated state, off-by-one errors, and the numbers.
@@ -19,7 +19,7 @@
 - **State the invariant POSITIVELY.** `if index < length` reads directly. `if index >= length` states the failure of the invariant and makes the reader invert it before they can check it.
 - **Name a compound test rather than inlining it.** Two exit codes tested inline are a condition; `isCheckIgnoreAnswer(code)` is a sentence. The name is where the reason lives, and a reviewer checks a name against its call site far faster than they re-derive a boolean.
 - **Every non-exempt `.go` file MUST carry a `// Design:` header, and that is now checked at COMMIT time as well as at write time.** `go_design_ref_problems` (`scripts/dev/commit_helper.py`) refuses a commit whose `.go` files lack it. It exists because `c_require_design_ref` reaches the Write and Edit tools only, so a file written from Bash met no gate; a commit's changed-file set is a fact, and it does not matter which tool produced the file. Exempt: `_test.go`, `_gen.go`, `register.go`, `embed.go`, `doc.go`, `vendor/`, and a generated file saying `Code generated` or `DO NOT EDIT` in its first 500 bytes.
-- **This obliges; `docs/contributing/ze-style.md` explains.** That page's "Control flow a reader can simulate" carries the reasoning. When the two disagree, this file wins.
+- **This obliges; `docs/contributing/ze-go-style.md` explains.** That page's "Control flow a reader can simulate" carries the reasoning. When the two disagree, this file wins.
 - **The one-fact rule was guidance-only until 2026-08-18 and that cost real code.** It lived on a page reachable through three triggers a session could miss entirely, so `timedOut` (`internal/component/ike/engine/dpd.go`) shipped opening on a two-fact condition and `ignoredNames` (`scripts/vendor/check_web.go`) decided its error case on three. Both were written by a session that never opened the guide, because `c_pre_write_go` (`.claude/hooks/pretool-writeedit.py`) fires only for the Write and Edit tools and every one of those edits went through a Bash heredoc.
 
 ### Required
