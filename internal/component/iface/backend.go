@@ -230,6 +230,20 @@ type Backend interface {
 	SetupMirror(srcIface, dstIface string, ingress, egress bool) error
 	RemoveMirror(srcIface string) error
 
+	// ListMirrors reports every mirror the dataplane carries right now, one
+	// entry per source interface. It is what lets a reconcile compare LIVE
+	// state against the configuration rather than against the previous config.
+	// A mirror the operator removed while ze was down appears in no previous
+	// config. A mirror whose teardown was skipped was already consumed by the
+	// apply that skipped it. Neither is reachable from a delta.
+	//
+	// A backend that cannot enumerate them MUST return an error and MUST NOT
+	// return an empty slice. "No mirror is installed" and "I cannot tell" are
+	// different answers. Reading the second as the first reports that the
+	// dataplane matches the configuration while it copies packets to a
+	// destination the operator deleted.
+	ListMirrors() ([]MirrorState, error)
+
 	// SetupLCPPair creates a Linux Control Plane pair for a VPP interface: a
 	// Linux TAP that shadows the named VPP interface so kernel networking (the
 	// ze BGP listener, ssh, ...) can bind on it. hostName is the desired Linux

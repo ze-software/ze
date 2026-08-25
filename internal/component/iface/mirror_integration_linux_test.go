@@ -569,3 +569,213 @@ func TestIntegrationApplyConfigMirrorKeepsForeignFilterOnConfigDelete(t *testing
 		}
 	})
 }
+
+func TestIntegrationListMirrorsReportsTheLiveMirror(t *testing.T) {
+	// VALIDATES: the netlink backend reads its own mirror back out of the
+	// kernel, naming the source and the destination DEVICE in each direction.
+	// PREVENTS: a reconcile deciding from a read that answers "no mirror" for
+	// an interface the kernel is copying every packet from. The reconcile then
+	// leaves the mirror installed and reports that the dataplane matches the
+	// config.
+	withNetNS(t, func() {
+		createDummyForTest(t, "src0")
+		createDummyForTest(t, "dst0")
+		b := GetBackend()
+
+		empty, err := b.ListMirrors()
+		if err != nil {
+			t.Fatalf("ListMirrors before setup: %v", err)
+		}
+		if len(empty) != 0 {
+			t.Fatalf("ListMirrors before setup = %v, want none", empty)
+		}
+
+		if err := SetupMirror("src0", "dst0", true, false); err != nil {
+			t.Fatalf("SetupMirror(ingress): %v", err)
+		}
+		t.Cleanup(func() { _ = RemoveMirror("src0") })
+
+		live, err := b.ListMirrors()
+		if err != nil {
+			t.Fatalf("ListMirrors after setup: %v", err)
+		}
+		if len(live) != 1 {
+			t.Fatalf("ListMirrors after setup = %v, want one entry", live)
+		}
+		want := MirrorState{Interface: "src0", Ingress: "dst0"}
+		if live[0] != want {
+			t.Fatalf("ListMirrors after setup = %+v, want %+v", live[0], want)
+		}
+
+		if err := RemoveMirror("src0"); err != nil {
+			t.Fatalf("RemoveMirror: %v", err)
+		}
+		gone, err := b.ListMirrors()
+		if err != nil {
+			t.Fatalf("ListMirrors after removal: %v", err)
+		}
+		if len(gone) != 0 {
+			t.Fatalf("ListMirrors after removal = %v, want none", gone)
+		}
+	})
+}
+
+func TestIntegrationListMirrorsIgnoresAForeignFilter(t *testing.T) {
+	// VALIDATES: a filter another subsystem installed on the shared clsact
+	// qdisc is not reported as a mirror.
+	// PREVENTS: a reconcile retiring flow-export sampling because it read the
+	// sampler's filter as a mirror the configuration does not ask for.
+	withNetNS(t, func() {
+		createDummyForTest(t, "src0")
+		createDummyForTest(t, "smp0")
+		addClsactQdisc(t, "src0")
+		addForeignFilter(t, "src0")
+
+		live, err := GetBackend().ListMirrors()
+		if err != nil {
+			t.Fatalf("ListMirrors: %v", err)
+		}
+		if len(live) != 0 {
+			t.Fatalf("ListMirrors = %v, want none: the sampler's filter is not a mirror", live)
+		}
+	})
+}
+
+func TestIntegrationApplyConfigRetiresAMirrorNoConfigAsksFor(t *testing.T) {
+	// VALIDATES: the restart hole, against a real kernel -- a mirror installed
+	// in tc and absent from the configuration is torn down by an apply that has
+	// NO previous config to derive it from.
+	// PREVENTS: a mirror the operator deleted while ze was down surviving every
+	// boot, copying each packet to a destination that no longer exists in the
+	// configuration.
+	withNetNS(t, func() {
+		createDummyForTest(t, "mir0")
+		createDummyForTest(t, "cap0")
+
+		// Installed by an earlier ze, whose memory this boot does not have.
+		if err := SetupMirror("mir0", "cap0", true, true); err != nil {
+			t.Fatalf("SetupMirror: %v", err)
+		}
+		t.Cleanup(func() { _ = RemoveMirror("mir0") })
+
+		// Both hooks carry a filter BEFORE the apply. Without this the two
+		// assertions below are satisfied by a mirror that was never installed,
+		// which is the whole failure mode of asserting an absence.
+		if filterAt(t, "mir0", netlink.HANDLE_MIN_INGRESS, testMirrorPriority) == nil {
+			t.Fatal("the stranded ingress mirror was not installed by the setup")
+		}
+		if filterAt(t, "mir0", netlink.HANDLE_MIN_EGRESS, testMirrorPriority) == nil {
+			t.Fatal("the stranded egress mirror was not installed by the setup")
+		}
+
+		current := &ifaceConfig{
+			Backend: "netlink",
+			Dummy: []ifaceEntry{
+				{Name: "mir0", Units: []unitEntry{{}}},
+				{Name: "cap0"},
+			},
+		}
+		if errs := applyConfig(current, nil, GetBackend()); len(errs) > 0 {
+			t.Fatalf("apply current config: %v", errs)
+		}
+
+		if filterAt(t, "mir0", netlink.HANDLE_MIN_INGRESS, testMirrorPriority) != nil {
+			t.Error("the ingress mirror filter survived a boot whose configuration does not ask for it")
+		}
+		if filterAt(t, "mir0", netlink.HANDLE_MIN_EGRESS, testMirrorPriority) != nil {
+			t.Error("the egress mirror filter survived a boot whose configuration does not ask for it")
+		}
+	})
+}
+
+func TestIntegrationApplyConfigKeepsAForeignFilterWhileRetiringAStrandedMirror(t *testing.T) {
+	// VALIDATES: the kernel-state reconcile removes ze's own filter and leaves
+	// every other subsystem's filter on the shared qdisc alone.
+	// PREVENTS: the reconcile taking flow-export sampling down as a side effect
+	// of retiring a mirror it found stranded in the kernel.
+	withNetNS(t, func() {
+		createDummyForTest(t, "mir0")
+		createDummyForTest(t, "cap0")
+		createDummyForTest(t, "smp0")
+
+		if err := SetupMirror("mir0", "cap0", true, false); err != nil {
+			t.Fatalf("SetupMirror: %v", err)
+		}
+		t.Cleanup(func() { _ = RemoveMirror("mir0") })
+		addForeignFilter(t, "mir0")
+
+		if filterAt(t, "mir0", netlink.HANDLE_MIN_INGRESS, testMirrorPriority) == nil {
+			t.Fatal("the stranded mirror was not installed by the setup")
+		}
+
+		current := &ifaceConfig{
+			Backend: "netlink",
+			Dummy: []ifaceEntry{
+				{Name: "mir0", Units: []unitEntry{{}}},
+				{Name: "cap0"},
+				{Name: "smp0"},
+			},
+		}
+		if errs := applyConfig(current, nil, GetBackend()); len(errs) > 0 {
+			t.Fatalf("apply current config: %v", errs)
+		}
+
+		if filterAt(t, "mir0", netlink.HANDLE_MIN_INGRESS, testMirrorPriority) != nil {
+			t.Error("the stranded mirror filter survived the reconcile")
+		}
+		if filterAt(t, "mir0", netlink.HANDLE_MIN_INGRESS, testForeignPriority) == nil {
+			t.Error("the reconcile removed the sampler's filter along with the mirror")
+		}
+	})
+}
+
+func TestIntegrationApplyConfigLeavesAMirrorOnAnInterfaceItDoesNotConfigure(t *testing.T) {
+	// VALIDATES: against a real kernel, the reconcile retires ze's mirror on a
+	// configured interface and leaves an identically shaped filter on an
+	// interface the configuration does not name.
+	// PREVENTS: the kernel-state pass reading priority 1, matchall and mirred
+	// as ownership. Another tool installs that same shape, and removing every
+	// match would tear an operator's own capture down on every apply.
+	withNetNS(t, func() {
+		createDummyForTest(t, "mir0")
+		createDummyForTest(t, "cap0")
+		createDummyForTest(t, "other0")
+		createDummyForTest(t, "tap0")
+
+		if err := SetupMirror("mir0", "cap0", true, false); err != nil {
+			t.Fatalf("SetupMirror(mir0): %v", err)
+		}
+		t.Cleanup(func() { _ = RemoveMirror("mir0") })
+		// Stands for another tool's capture: the same filter shape, on an
+		// interface the configuration below never names.
+		if err := SetupMirror("other0", "tap0", true, false); err != nil {
+			t.Fatalf("SetupMirror(other0): %v", err)
+		}
+		t.Cleanup(func() { _ = RemoveMirror("other0") })
+
+		if filterAt(t, "mir0", netlink.HANDLE_MIN_INGRESS, testMirrorPriority) == nil {
+			t.Fatal("the configured interface's mirror was not installed by the setup")
+		}
+		if filterAt(t, "other0", netlink.HANDLE_MIN_INGRESS, testMirrorPriority) == nil {
+			t.Fatal("the unmanaged interface's filter was not installed by the setup")
+		}
+
+		current := &ifaceConfig{
+			Backend: "netlink",
+			Dummy: []ifaceEntry{
+				{Name: "mir0", Units: []unitEntry{{}}},
+				{Name: "cap0"},
+			},
+		}
+		if errs := applyConfig(current, nil, GetBackend()); len(errs) > 0 {
+			t.Fatalf("apply current config: %v", errs)
+		}
+
+		if filterAt(t, "mir0", netlink.HANDLE_MIN_INGRESS, testMirrorPriority) != nil {
+			t.Error("the stranded mirror on a configured interface survived the reconcile")
+		}
+		if filterAt(t, "other0", netlink.HANDLE_MIN_INGRESS, testMirrorPriority) == nil {
+			t.Error("the reconcile removed a filter on an interface the configuration does not name")
+		}
+	})
+}

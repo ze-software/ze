@@ -22,6 +22,8 @@ import (
 
 	"go.fd.io/govpp/binapi/interface_types"
 	"go.fd.io/govpp/binapi/span"
+
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // SetupMirror programs a VPP SPAN entry copying traffic from srcIface to
@@ -88,6 +90,73 @@ func (b *vppBackendImpl) RemoveMirror(srcIface string) error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// ListMirrors reports every device-level SPAN entry the dataplane carries, by
+// dumping VPP rather than by reading the map recordMirror keeps. The map is
+// in-memory and it empties on restart. It can never answer for a mirror the
+// operator removed from the configuration while ze was down, which is the case
+// this exists for.
+//
+// Only device SPAN (is_l2 false) is dumped, matching what SetupMirror installs.
+// A bridge-domain SPAN entry is not ze's and is not reported.
+//
+// An entry whose source or destination index no longer resolves to a ze name is
+// still reported. The entry is a live copy, and hiding it would leave the
+// reconcile with nothing to retire. The destination then reads as
+// iface.MirrorDestinationUnresolved, which no configuration can ask for, so the
+// reconcile removes the entry.
+func (b *vppBackendImpl) ListMirrors() ([]iface.MirrorState, error) {
+	if err := b.ensureChannel(); err != nil {
+		return nil, err
+	}
+
+	const isL2 = false // device SPAN: what SetupMirror installs
+	ctx := b.ch.SendMultiRequest(&span.SwInterfaceSpanDump{IsL2: isL2})
+
+	byInterface := make(map[string]*iface.MirrorState)
+	var order []string
+	for {
+		details := &span.SwInterfaceSpanDetails{}
+		last, err := ctx.ReceiveReply(details)
+		if err != nil {
+			return nil, fmt.Errorf("ifacevpp: SwInterfaceSpanDump: %w", err)
+		}
+		if last {
+			break
+		}
+		if details.State == span.SPAN_STATE_API_DISABLED {
+			continue
+		}
+		source, ok := b.names.lookupName(uint32(details.SwIfIndexFrom))
+		if !ok {
+			// The source is not a device ze names, so no configuration can ask
+			// for it and no reconcile of ze's owns it.
+			continue
+		}
+		destination, ok := b.names.lookupName(uint32(details.SwIfIndexTo))
+		if !ok {
+			destination = iface.MirrorDestinationUnresolved
+		}
+		state := byInterface[source]
+		if state == nil {
+			state = &iface.MirrorState{Interface: source}
+			byInterface[source] = state
+			order = append(order, source)
+		}
+		if details.State == span.SPAN_STATE_API_RX || details.State == span.SPAN_STATE_API_RX_TX {
+			state.Ingress = destination
+		}
+		if details.State == span.SPAN_STATE_API_TX || details.State == span.SPAN_STATE_API_RX_TX {
+			state.Egress = destination
+		}
+	}
+
+	states := make([]iface.MirrorState, 0, len(order))
+	for _, name := range order {
+		states = append(states, *byInterface[name])
+	}
+	return states, nil
 }
 
 // spanState maps the (ingress, egress) direction flags to the VPP SPAN state.

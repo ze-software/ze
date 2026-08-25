@@ -82,9 +82,15 @@ func validateUnitName(name string) error {
 
 // ValidateIfaceName checks that name is a valid interface name for
 // every platform ze targets. The Linux kernel forbids '/' and NUL in
-// interface names (IFNAMSIZ); we also reject whitespace, ".."
+// interface names (IFNAMSIZ); we also reject whitespace, "?", ".."
 // path-traversal sequences, and a small set of names reserved by the
 // CLI command grammar (see reservedIfaceNames).
+//
+// "?" is refused because it is MirrorDestinationUnresolved, the destination a
+// backend reports for a mirror whose device it cannot name. That sentinel is
+// only useful while no configuration can ask for it: an interface an operator
+// named "?" would compare equal to it, and the reconcile would read an
+// unresolvable mirror as the one the config asks for and leave it standing.
 //
 // Exported so backend implementations AND the config parser can use
 // it -- the parser invocation ensures `ze config validate` rejects
@@ -97,7 +103,7 @@ func ValidateIfaceName(name string) error {
 	}
 	for i := range n {
 		c := name[i]
-		if c == '/' || c == 0 || c == ' ' || c == '\t' || c == '\n' || c == '\r' {
+		if c == '/' || c == 0 || c == '?' || c == ' ' || c == '\t' || c == '\n' || c == '\r' {
 			return fmt.Errorf("iface: name %q contains forbidden character", name)
 		}
 	}

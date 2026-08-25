@@ -184,6 +184,91 @@ func (b *netlinkBackend) RemoveMirror(srcIface string) error {
 	return nil
 }
 
+// ListMirrors reports every mirror ze's own filters install right now. It reads
+// the clsact hooks of every link rather than the memory of an earlier apply. A
+// restart keeps no memory and a skipped teardown leaves none, so the kernel is
+// the only place the answer survives either.
+//
+// The cost is two filter dumps per link. A link with no ingress-side qdisc
+// answers ENOENT or EINVAL and costs one round trip.
+//
+// A filter that is not ze's own is not reported. The mirror owns priority 1
+// with a matchall classifier and a mirred action. Every other filter on those
+// hooks belongs to another subsystem (flow-export sampling sits at priority
+// 100) or to the operator.
+func (b *netlinkBackend) ListMirrors() ([]iface.MirrorState, error) {
+	links, err := netlink.LinkList()
+	if err != nil {
+		return nil, fmt.Errorf("iface: mirror: list links: %w", err)
+	}
+
+	names := make(map[int]string, len(links))
+	for _, link := range links {
+		names[link.Attrs().Index] = link.Attrs().Name
+	}
+
+	var states []iface.MirrorState
+	for _, link := range links {
+		ingress, err := mirrorDestinationName(link, netlink.HANDLE_MIN_INGRESS, names)
+		if err != nil {
+			return nil, err
+		}
+		egress, err := mirrorDestinationName(link, netlink.HANDLE_MIN_EGRESS, names)
+		if err != nil {
+			return nil, err
+		}
+		if ingress == "" && egress == "" {
+			continue
+		}
+		states = append(states, iface.MirrorState{
+			Interface: link.Attrs().Name,
+			Ingress:   ingress,
+			Egress:    egress,
+		})
+	}
+	return states, nil
+}
+
+// mirrorDestinationName returns the device the mirror's own filter on one
+// clsact hook copies to, and "" when the hook carries no mirror of ze's.
+//
+// A listing that fails for any reason other than "there is nothing there" is
+// returned as an error, never as "". The caller reconciles against this answer
+// and an empty one reads as "no mirror to retire", which is the permissive
+// no-op a read must not invent (ai/rules/evidence.md).
+func mirrorDestinationName(link netlink.Link, parent uint32, names map[int]string) (string, error) {
+	filters, err := netlink.FilterList(link, parent)
+	if err != nil {
+		if isNotFound(err) {
+			// No qdisc at ffff:, or the qdisc is there and this hook holds no
+			// filter. Both mean this direction copies nothing.
+			return "", nil
+		}
+		return "", fmt.Errorf("iface: mirror: list filters on %q: %w", link.Attrs().Name, err)
+	}
+	for _, filter := range filters {
+		attrs := filter.Attrs()
+		if attrs == nil || attrs.Priority != mirrorFilterPriority {
+			continue
+		}
+		matchAll, ok := filter.(*netlink.MatchAll)
+		if !ok {
+			continue
+		}
+		for _, action := range matchAll.Actions {
+			mirred, ok := action.(*netlink.MirredAction)
+			if !ok || mirred.MirredAction != netlink.TCA_EGRESS_MIRROR {
+				continue
+			}
+			if name, known := names[mirred.Ifindex]; known {
+				return name, nil
+			}
+			return iface.MirrorDestinationUnresolved, nil
+		}
+	}
+	return "", nil
+}
+
 // removeMirrorFilters deletes the mirror's own filters from both clsact hooks.
 // A filter that is already gone is not an error: the desired state is reached
 // either way.

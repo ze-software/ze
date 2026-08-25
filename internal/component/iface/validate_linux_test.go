@@ -49,3 +49,25 @@ func TestValidateIfaceName_NormalNames(t *testing.T) {
 		}
 	}
 }
+
+// TestValidateIfaceNameRefusesTheMirrorSentinel verifies that the destination a
+// backend reports for a mirror it cannot resolve is not a name an operator can
+// give an interface.
+//
+// VALIDATES: MirrorDestinationUnresolved's own doc comment -- "It is not a
+// device name and ValidateIfaceName refuses it, so it can never equal a
+// destination the configuration asks for."
+// PREVENTS: the claim being false, which it was. The character loop rejected
+// '/', NUL and whitespace and nothing else, so "?" passed. An interface named
+// "?" would then compare EQUAL to the sentinel, and reconcileMirrors would read
+// a mirror whose device the dataplane cannot name as the mirror the config asks
+// for, and leave it copying traffic. SetupMirror validates its destination
+// through this same function, so closing it here closes it on both sides.
+func TestValidateIfaceNameRefusesTheMirrorSentinel(t *testing.T) {
+	if err := ValidateIfaceName(MirrorDestinationUnresolved); err == nil {
+		t.Fatalf("ValidateIfaceName(%q) = nil, want the sentinel refused", MirrorDestinationUnresolved)
+	}
+	if err := ValidateIfaceName("eth?0"); err == nil {
+		t.Error(`ValidateIfaceName("eth?0") = nil, want '?' refused wherever it appears`)
+	}
+}

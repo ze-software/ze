@@ -242,6 +242,115 @@ func TestApplyConfigReportsMirrorTeardownFailure(t *testing.T) {
 	}
 }
 
+func TestApplyConfigRetiresAMirrorNoConfigAsksFor(t *testing.T) {
+	// VALIDATES: a mirror the dataplane carries and the configuration does not
+	// ask for is torn down, with no previous config to derive it from.
+	// PREVENTS: the restart hole. The operator deletes the mirror while ze is
+	// down, then the next boot applies with a nil previous config. That leaves
+	// removeStaleMirrors nothing to compare, so the tc filter keeps copying
+	// every packet to a destination the operator deleted.
+	b := &fakeBackend{}
+	b.seedMirror("mir0", "cap0", "")
+
+	current := &ifaceConfig{
+		Backend: "netlink",
+		Dummy:   []ifaceEntry{{Name: "mir0", Units: []unitEntry{{}}}},
+	}
+	if errs := applyConfig(current, nil, b); len(errs) > 0 {
+		t.Fatalf("apply current config: %v", errs)
+	}
+
+	requireOps(t, b, []string{"remove mir0"})
+}
+
+func TestApplyConfigRetiresAMirrorAnEarlierTeardownSkipped(t *testing.T) {
+	// VALIDATES: a live mirror the configuration does not ask for is retired
+	// even when the delta between this config and the previous one is EMPTY.
+	// PREVENTS: the skipped-teardown hole -- removeStaleMirrors skips a mirror
+	// whose interface it cannot read, the apply that skipped it consumes the
+	// delta, and every later commit compares two configs that agree.
+	b := &fakeBackend{}
+	b.seedMirror("mir0", "cap0", "")
+
+	settled := &ifaceConfig{
+		Backend: "netlink",
+		Dummy:   []ifaceEntry{{Name: "mir0", Units: []unitEntry{{}}}},
+	}
+	if errs := applyConfig(settled, settled, b); len(errs) > 0 {
+		t.Fatalf("apply settled config: %v", errs)
+	}
+
+	requireOps(t, b, []string{"remove mir0"})
+}
+
+func TestApplyConfigRestoresAMirrorDirectionTheConfigDropped(t *testing.T) {
+	// VALIDATES: a live mirror that differs from the configured one is retired
+	// and re-installed, rather than overwritten.
+	// PREVENTS: a dropped direction surviving -- tc filters are additive per
+	// hook, so installing ingress leaves an egress filter from a config nobody
+	// asks for any more copying traffic.
+	b := &fakeBackend{}
+	b.seedMirror("mir0", "cap0", "cap0")
+
+	settled := mirrorCfg("cap0", "")
+	if errs := applyConfig(settled, settled, b); len(errs) > 0 {
+		t.Fatalf("apply settled config: %v", errs)
+	}
+
+	requireOps(t, b, []string{"setup mir0 -> cap0 (i)", "remove mir0", "setup mir0 -> cap0 (i)"})
+}
+
+func TestApplyConfigRemovesNoMirrorWhenTheDataplaneCannotBeRead(t *testing.T) {
+	// VALIDATES: a backend that cannot report its live mirrors leaves every
+	// mirror alone.
+	// PREVENTS: reading "I cannot tell" as "there is nothing there". An empty
+	// answer from a failed read makes the pass believe the dataplane carries
+	// nothing. The mirror the operator DOES ask for is then reinstalled on every
+	// apply. A mirror the failed read never reported is never retired. Returning
+	// the error and acting on nothing is the only answer that claims neither.
+	b := &fakeBackend{}
+	b.seedMirror("mir0", "cap0", "")
+	b.listMirrorsErr = errors.New("netlink refused the filter dump")
+
+	current := &ifaceConfig{
+		Backend: "netlink",
+		Dummy:   []ifaceEntry{{Name: "mir0", Units: []unitEntry{{}}}},
+	}
+	if errs := applyConfig(current, nil, b); len(errs) > 0 {
+		t.Fatalf("apply current config: %v", errs)
+	}
+
+	requireOps(t, b, nil)
+	if _, live := b.mirrors["mir0"]; !live {
+		t.Fatal("an unreadable dataplane must leave the installed mirror alone")
+	}
+}
+
+func TestApplyConfigLeavesAMirrorOnAnInterfaceItDoesNotConfigure(t *testing.T) {
+	// VALIDATES: the reconcile acts only on the interfaces the configuration
+	// names, and leaves a mirror on every other interface alone.
+	// PREVENTS: the pass reading a priority-1 matchall mirred filter as a mark
+	// of ownership. It is a SHAPE, and another tool can install the same one.
+	// Removing every match would then stop an operator's own capture on an
+	// interface ze does not manage, on every apply.
+	b := &fakeBackend{}
+	b.seedMirror("mir0", "cap0", "")
+	b.seedMirror("other0", "tap0", "")
+
+	current := &ifaceConfig{
+		Backend: "netlink",
+		Dummy:   []ifaceEntry{{Name: "mir0", Units: []unitEntry{{}}}},
+	}
+	if errs := applyConfig(current, nil, b); len(errs) > 0 {
+		t.Fatalf("apply current config: %v", errs)
+	}
+
+	requireOps(t, b, []string{"remove mir0"})
+	if _, live := b.mirrors["other0"]; !live {
+		t.Fatal("the reconcile removed a mirror on an interface the configuration does not name")
+	}
+}
+
 func TestIndexMirrorSpecsSkipsDisabledEntries(t *testing.T) {
 	// VALIDATES: a disabled interface asks for no mirror, so the delta pass
 	// retires the one it had.
@@ -341,4 +450,40 @@ func TestMirrorDefersWhenItsDestinationIsAbsent(t *testing.T) {
 		t.Fatalf("applyConfig: %v", errs)
 	}
 	requireOps(t, b, nil)
+}
+
+// TestReconcileRetiresTheMirrorOnADisabledInterfacesDevice verifies two things
+// about a disabled entry. Its mirror is retired on the device its selector
+// names. No mirror is touched on a kernel device that merely shares the entry's
+// logical name.
+//
+// VALIDATES: mirrorScope's own contract -- "A disabled entry or unit is still
+// ze's, so it is in scope and its mirror is retired rather than left."
+// PREVENTS: the measured defect. bindDevices skipped every disabled entry. The
+// entry was therefore absent from the selector map, and deviceFor fell through
+// to `return name, true`. For `ethernet uplink { os-name eth3; disable; }` the
+// scope then held "uplink" rather than "eth3". That broke the contract in both
+// directions at once. The real mirror on eth3 kept copying traffic the config
+// no longer asks for. A kernel device literally called `uplink` was claimed,
+// and ze configures nothing on it, so the reconcile would remove an operator's
+// own capture there.
+func TestReconcileRetiresTheMirrorOnADisabledInterfacesDevice(t *testing.T) {
+	b := selectorBackend()
+	b.ifaces["eth3"] = fakeIface{name: "eth3", linkType: "device", index: 8}
+	b.ifaces["uplink"] = fakeIface{name: "uplink", linkType: "device", index: 9}
+	b.seedMirror("eth3", "cap0", "")
+	b.seedMirror("uplink", "tap0", "")
+
+	cfg := &ifaceConfig{
+		Backend:  "netlink",
+		Ethernet: []ifaceEntry{{Name: "uplink", OSName: "eth3", Disable: true}},
+	}
+	if errs := applyConfig(cfg, nil, b); len(errs) > 0 {
+		t.Fatalf("applyConfig: %v", errs)
+	}
+
+	requireOps(t, b, []string{"remove eth3"})
+	if _, live := b.mirrors["uplink"]; !live {
+		t.Fatal("the reconcile removed a mirror on the kernel device that merely shares the disabled entry's logical name")
+	}
 }

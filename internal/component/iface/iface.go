@@ -72,6 +72,32 @@ type StatePayload struct {
 	Index int    `json:"index"`
 }
 
+// MirrorState is one interface's live mirror as the dataplane holds it: the
+// destination device of each direction, empty when that direction copies
+// nothing. It is the answer Backend.ListMirrors gives, and it is deliberately
+// the same shape as the mirror a unit asks for. A reconcile therefore compares
+// the two with one equality rather than a rule per direction.
+//
+// Interface and both destinations are OS DEVICE names, never logical ze names.
+// The dataplane knows only devices, and the reconcile resolves the config's
+// selectors to devices before it compares.
+type MirrorState struct {
+	Interface string `json:"interface"`
+	Ingress   string `json:"ingress,omitempty"`
+	Egress    string `json:"egress,omitempty"`
+}
+
+// MirrorDestinationUnresolved is the MirrorState destination a backend reports
+// when a mirror IS installed and the device it copies to cannot be named. The
+// dataplane holds an index, and no device in this namespace answers to it.
+//
+// It is not a device name and ValidateIfaceName refuses it, so it can never
+// equal a destination the configuration asks for. That is the point: a
+// reconcile then sees live and desired disagree, and it retires the mirror. An
+// empty destination would have hidden that disagreement by reporting "no mirror
+// is installed" for one that is.
+const MirrorDestinationUnresolved = "?"
+
 // InterfaceStats holds interface traffic counters from the kernel.
 type InterfaceStats struct {
 	RxBytes     uint64 `json:"rx-bytes"`

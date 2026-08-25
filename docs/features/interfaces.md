@@ -72,8 +72,8 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | Persistent counter tracking | missing | medium |
 | **Per-Interface Tuning** | IPv4 forwarding | have | |
 | | ARP filter / ARP accept | have | |
-| | IPv6 autoconf (SLAAC) | have | |
-| | IPv6 accept-ra (0/1/2) | have | |
+| | IPv6 autoconf (SLAAC), netlink backend only | have | |
+| | IPv6 accept-ra (0/1/2), netlink backend only | have | |
 | | IPv6 forwarding | have | |
 | | Proxy ARP | have | |
 | | ARP announce / ARP ignore | have | |
@@ -169,7 +169,7 @@ Config (YANG: ze-iface-conf.yang, "backend" leaf selects backend)
 iface component (register.go) -- OnConfigure() loads backend, starts monitor
   |
   v
-Backend interface (backend.go) -- 34 methods: lifecycle, address, sysctl, mirror, monitor
+Backend interface (backend.go) -- 45 methods: lifecycle, address, route, bridge, mirror, monitor
   |
   v
 +------------------+--------------------+
@@ -234,7 +234,7 @@ and none falls back to the logical name. That fallback is what made an aliased e
 configure whatever else carried its name. An entry whose `mac/match` names more than one
 device refuses the apply, and a device only answers a `mac/match` when the address it is
 matched on is its own: a VLAN inherits its parent's, and a bridge or bond wears a
-member's, so neither is a candidate. `resolveOS` draws the same line for the by-name
+member's, so neither is a candidate. `ResolveDevice` draws the same line for the by-name
 dispatch ops: a name with no selector passes through unchanged, and a name WITH a
 selector that fails to resolve returns an error rather than the name.
 
@@ -243,7 +243,7 @@ member is enslaved by the kernel device its entry selects, and a mirror sends it
 to the capture port's kernel device.
 
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
-<!-- source: internal/component/iface/dispatch.go -- resolveOS translation in the by-name dispatch ops -->
+<!-- source: internal/component/iface/dispatch.go -- ResolveDevice translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->
 <!-- source: scripts/checks/iface_resolution.go -- no-direct-resolution guard -->
 
@@ -315,14 +315,29 @@ device appears, and a config is validated on machines that will never run it.
   per direction. `tc qdisc show` on an interface that once mirrored reports a clsact
   qdisc with no filter on it, which is expected.
 <!-- source: internal/plugins/iface/netlink/mirror_linux.go -- RemoveMirror, removeMirrorFilters, undoMirrorSetup, ensureClsactQdisc -->
-- **A mirror the config drops is torn down.** `applyConfig` compares the mirrors the
+- **A mirror the config drops is removed.** `applyConfig` compares the mirrors the
   new config asks for against the mirrors the previous config installed, and removes
   every one that was dropped or changed before it installs the new set. A changed
   destination is a remove followed by an install, because tc filters are additive:
   installing the new destination would otherwise leave the old one duplicating
-  traffic. A daemon restart starts from no previous config, so a mirror deleted from
-  the config file while ze was down is not reconciled away.
-<!-- source: internal/component/iface/config_mirror.go -- indexMirrorSpecs, removeStaleMirrors, applyMirror -->
+  traffic.
+- **The reconcile reads the dataplane, so a restart retires a stranded mirror.**
+  A second pass runs inside the config reconcile. It compares the mirrors the
+  dataplane carries against the mirrors the configuration asks for, so it needs
+  no previous config. A mirror the operator deleted while ze was down is
+  therefore removed on the next boot. So is a mirror an earlier apply failed to
+  remove. A backend that cannot read its live mirrors removes nothing, because
+  "the read failed" is not "no mirror is installed".
+- **The pass acts only on the interfaces the configuration names.** A priority-1
+  matchall mirred filter is a shape, not a mark of ownership, and another tool
+  can install the same one. So ze removes a mirror only on an interface named by
+  the current config or the previous one. One case is out of reach: an interface
+  whose whole stanza was deleted while ze was down keeps its mirror. Nothing then
+  tells that mirror apart from a filter ze never installed. To retire that
+  mirror, delete the interface from the configuration while ze runs, or clear the
+  mirror leaves first.
+<!-- source: internal/component/iface/config_mirror.go -- indexMirrorSpecs, removeStaleMirrors, reconcileMirrors, applyMirror -->
+<!-- source: internal/plugins/iface/netlink/mirror_linux.go -- ListMirrors, mirrorDestinationName -->
 
 ## Tunnel Configuration
 
@@ -598,6 +613,25 @@ profile after verify runs. Ze reports the state instead. The
 interface whose `net.ipv6.conf.<device>.forwarding` is 0.
 
 <!-- source: internal/plugins/iface/ra/doctor.go -- checkRAForwarding, doctor-iface-ra-forwarding -->
+
+### Receiving advertisements needs the netlink backend
+
+The `autoconf` and `accept-ra` leaves of the per-unit `ipv6` container each carry
+`ze:backend "netlink"`. The kernel builds a SLAAC address only when Router
+Advertisements reach the device it owns. On the netlink backend that device is
+the NIC. On the vpp backend VPP owns the NIC, the kernel sees the Linux Control
+Plane tap, and no advertisement reaches it. Ze writes
+`net.ipv6.conf.<device>.autoconf` and `net.ipv6.conf.<device>.accept_ra` on the
+tap, the kernel waits, and no address appears.
+
+A tree that sets either leaf with `backend vpp` is rejected at config verify with
+`feature not supported by backend "vpp" (supported: netlink)`, and the message
+names the unit. This matches the refusal the `dhcp`, `dhcpv6` and
+`router-advertisement` containers already carry.
+
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf autoconf, leaf accept-ra -->
+<!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures, backendAnnotation -->
+<!-- source: internal/component/iface/config_sysctl.go -- applySysctl emits the two keys -->
 
 ### Container leaves
 
@@ -907,8 +941,9 @@ underlying mechanism. Cells with a footnote carry a caveat.
 | **Bridge** | `BridgeAddPort` | real | real (SwInterfaceSetL2Bridge) | err |
 | | `BridgeDelPort` | real | real (SwInterfaceSetL2Bridge) | err |
 | | `BridgeSetSTP` | real (sysfs) | err (VPP STP varies by version) | err |
-| **Mirror** | `SetupMirror` | real (tc mirred) | err (pending SpanEnableDisableL2) | err |
-| | `RemoveMirror` | real | err (pending SpanEnableDisableL2) | err |
+| **Mirror** | `SetupMirror` | real (tc mirred) | real (device SPAN) | err |
+| | `RemoveMirror` | real | real (device SPAN) | err |
+| | `ListMirrors` | real (tc filter dump) | real (SwInterfaceSpanDump) | err |
 | **Monitor** | `StartMonitor` | real (netlink multicast) | real (WantInterfaceEvents) | err |
 | | `StopMonitor` | real | real | no-op |
 | | `Close` | real | real | no-op |

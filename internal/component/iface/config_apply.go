@@ -244,13 +244,26 @@ func deviceFor(devices map[string]string, name string) (device string, bound boo
 	return device, device != ""
 }
 
-// bindDevices maps the logical name of every enabled ethernet entry to the
-// kernel device the apply path must act on, derived from one interface listing.
+// bindDevices maps the logical name of every ethernet entry to the kernel
+// device the apply path must act on, derived from one interface listing.
 // mac/match binds to the device whose match MAC the selector names; os-name
 // aliases a kernel device by name; an entry with neither binds to its own name.
 // Ethernet is the only kind that carries a selector and the only kind Ze does
 // not create, so it is the only kind in this map: every other name is its own
 // kernel device and is absent here.
+//
+// A DISABLED entry is bound like any other. Disabling an interface says what ze
+// must do with it. It never says which device it is. The reconcile phases need
+// the device precisely because the entry is disabled. mirrorScope retires the
+// mirror on a disabled interface. It can name that mirror only by the device
+// the selector answers with.
+//
+// Leaving a disabled entry out of this map made
+// deviceFor fall back to the logical name. A disabled
+// `ethernet uplink { os-name eth3; disable; }` then left its real mirror on
+// eth3 standing. It also claimed authority over any kernel device called
+// `uplink`. Every apply phase filters on Disable itself, so none of them sees
+// a difference.
 //
 // An entry maps to the empty string -- UNBOUND -- when no device answers its
 // selector, when several do, or when the device it names is not present. Every
@@ -273,9 +286,6 @@ func (cfg *ifaceConfig) bindDevices(infos []InterfaceInfo) map[string]string {
 	devices := make(map[string]string, len(cfg.Ethernet))
 	for i := range cfg.Ethernet {
 		e := &cfg.Ethernet[i]
-		if e.Disable {
-			continue
-		}
 		device := e.Name
 		switch {
 		case e.MatchMAC != "":
@@ -1194,8 +1204,8 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	return errs
 }
 
-// reconcileOnReady runs Phase 3 (address reconcile) and Phase 4 (prune
-// non-config interfaces) for cfg against backend b. It is called from
+// reconcileOnReady runs Phase 3 (address reconcile), the mirror reconcile, and
+// Phase 4 (prune non-config interfaces) for cfg against backend b. It is called from
 // applyConfig on every config apply; it is also called from the
 // vppevents.EventConnected / EventReconnected handler in register.go so that
 // reconciliation deferred at startup (because the vpp backend was not yet
@@ -1325,6 +1335,21 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 				log.Info("iface config: removed stale address", "iface", osName, "addr", addr)
 			}
 		}
+	}
+
+	// Mirror pass: make the dataplane's mirrors equal the ones cfg asks for,
+	// read from live state rather than from a delta. It runs HERE, after the
+	// devices this config creates exist and before Phase 4 deletes the ones it
+	// dropped. A mirror on an interface about to be deleted is therefore still
+	// readable and removable. A mirror on a VLAN sub-interface created in this
+	// same apply has a device to be installed on.
+	//
+	// This is also the pass that reaches a reconcile no commit triggered. A vpp
+	// connect or a registry change re-decides the mirrors exactly as it
+	// re-decides every address.
+	if mirrorErrs := reconcileMirrors(cfg, previous, b, devices, previousDevices, journal); len(mirrorErrs) > 0 {
+		errs = append(errs, mirrorErrs...)
+		return errs, false
 	}
 
 	// Phase 4: Delete interfaces Ze owned in the previous config but which are

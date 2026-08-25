@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -2167,10 +2168,17 @@ type fakeBackend struct {
 	mirrorCalls      []mirrorCall           // ordered log of SetupMirror + RemoveMirror calls
 	setupMirrorErr   map[string]error       // per-source-interface SetupMirror error injection
 	removeMirrorErr  map[string]error       // per-source-interface RemoveMirror error injection
-	nextIndex        int                    // hands each created device its own kernel index
-	mtuSet           map[string]int         // kernel device -> MTU recorded by SetMTU
-	adminSet         map[string]string      // kernel device -> "up"/"down" recorded by SetAdminUp/Down
-	bridgePorts      []bridgePortCall       // ordered log of BridgeAddPort + BridgeDelPort calls
+	// mirrors is the fake dataplane's LIVE mirror state, keyed by source
+	// device. SetupMirror and RemoveMirror maintain it, and ListMirrors reports
+	// it. A test can therefore seed a mirror no config asks for, which is what a
+	// restart leaves behind. The test then watches the reconcile retire it. A
+	// recorded CALL cannot express that: the seed happened before the test ran.
+	mirrors        map[string]MirrorState
+	listMirrorsErr error             // if non-nil, ListMirrors returns this instead of the state
+	nextIndex      int               // hands each created device its own kernel index
+	mtuSet         map[string]int    // kernel device -> MTU recorded by SetMTU
+	adminSet       map[string]string // kernel device -> "up"/"down" recorded by SetAdminUp/Down
+	bridgePorts    []bridgePortCall  // ordered log of BridgeAddPort + BridgeDelPort calls
 }
 
 // The two membership operations a bridge can be asked for.
@@ -2632,12 +2640,71 @@ func (b *fakeBackend) SetupMirror(srcIface, dstIface string, ingress, egress boo
 	if err := b.setupMirrorErr[srcIface]; err != nil {
 		return err
 	}
+	// One direction at a time, as the kernel does. A second call for the other
+	// hook leaves the first hook alone. A dropped direction therefore has to be
+	// removed rather than overwritten.
+	b.setMirror(srcIface, func(state *MirrorState) {
+		if ingress {
+			state.Ingress = dstIface
+		}
+		if egress {
+			state.Egress = dstIface
+		}
+	})
 	return nil
 }
 
 func (b *fakeBackend) RemoveMirror(srcIface string) error {
 	b.mirrorCalls = append(b.mirrorCalls, mirrorCall{op: mirrorOpRemove, iface: srcIface})
-	return b.removeMirrorErr[srcIface]
+	if err := b.removeMirrorErr[srcIface]; err != nil {
+		return err
+	}
+	delete(b.mirrors, srcIface)
+	return nil
+}
+
+// ListMirrors reports the fake dataplane's live mirrors in a stable order.
+func (b *fakeBackend) ListMirrors() ([]MirrorState, error) {
+	if b.listMirrorsErr != nil {
+		return nil, b.listMirrorsErr
+	}
+	names := make([]string, 0, len(b.mirrors))
+	for name := range b.mirrors {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	states := make([]MirrorState, 0, len(names))
+	for _, name := range names {
+		states = append(states, b.mirrors[name])
+	}
+	return states, nil
+}
+
+// setMirror installs or updates one source device's live mirror.
+func (b *fakeBackend) setMirror(srcIface string, edit func(*MirrorState)) {
+	if b.mirrors == nil {
+		b.mirrors = make(map[string]MirrorState)
+	}
+	state := b.mirrors[srcIface]
+	state.Interface = srcIface
+	edit(&state)
+	if state.Ingress == "" && state.Egress == "" {
+		delete(b.mirrors, srcIface)
+		return
+	}
+	b.mirrors[srcIface] = state
+}
+
+// seedMirror installs a mirror in the fake dataplane with no apply behind it,
+// which is the state a restart inherits. The tc filters an earlier ze installed
+// are still there, and nothing in memory records that they are. The source is a
+// parameter because a mirror on an interface ze does NOT configure is one of
+// the states that has to be reproduced.
+func (b *fakeBackend) seedMirror(srcIface, ingress, egress string) {
+	b.setMirror(srcIface, func(state *MirrorState) {
+		state.Ingress = ingress
+		state.Egress = egress
+	})
 }
 func (b *fakeBackend) SetupLCPPair(vppIface, hostName string) error {
 	if b.lcpPairs == nil {
