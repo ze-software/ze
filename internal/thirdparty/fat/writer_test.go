@@ -106,7 +106,7 @@ func TestWriterReaderRoundTrip(t *testing.T) {
 // constraint the caller must meet. The writer does not refuse a longer name --
 // `shortFileNameWrite` converts it, as FAT itself does -- so a caller who
 // believes the prose gets a file under a name it did not choose. This pins the
-// behaviour that exists: the long name goes in, a short name comes out, and the
+// behavior that exists: the long name goes in, a short name comes out, and the
 // two halves of this package agree on which.
 func TestWriterManglesALongNameConsistently(t *testing.T) {
 	t.Parallel()
