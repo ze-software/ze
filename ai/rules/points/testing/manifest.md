@@ -225,6 +225,7 @@ ci-sleep-justification ## CI Sleep Justification
   what-counts-as-justified
   the-comment-must-name-the-kind-of-sleep
   what-the-comment-must-say-for-each-kind-of-sleep
+  try-a-sync-primitive-before-you-write-a-sleep
   where-to-put-the-comment-and-how-to-indent-it
   enforcement
   justify-every-sleep-in-a-ci-test

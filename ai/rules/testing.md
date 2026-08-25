@@ -1138,10 +1138,11 @@ MANY sleeps exist: this section caps how many are unexplained. Two reasons:
    readiness signal) is knowledge that MUST live next to the code, not in a
    reviewer's head.
 
-Prefer converting the sleep to a deterministic wait
-(`ze_api` `wait_until` / `wait_for_event` / `dispatch_until`, see
-"Python Observer API" below). Only when conversion is not possible
-does the sleep stay, and then it MUST be justified.
+The sleep MUST be converted to a deterministic wait (`ze_api` `wait_until` /
+`wait_for_event` / `dispatch_until`, see "Python Observer API" below) whenever a
+condition exists to wait on. Only when no such condition exists does the sleep
+stay, and then it MUST be justified. See "Try a sync primitive before you write
+a sleep" below for what trying means and how the comment records it.
 
 ### What counts as justified
 
@@ -1154,6 +1155,35 @@ The comment must state which of these the sleep is:
 | Timeout under test | The sleep waits out a fixed internal timeout that the test asserts ("the 5s vpp WaitConnected timeout IS the behaviour under test"). |
 | needs-linux effect | A dataplane effect (tc/qdisc/nft/kernel FIB) with no readback in the driver, convertible only after a QEMU run ("needs-linux; no queryable signal that the qdisc was programmed"). |
 | No readiness signal | The awaited effect exposes no queryable state to this driver ("backgrounded ze gets no ZE_READY_FILE marker; hold until OnConfigure emits the asserted log line"). |
+
+**A `time.sleep(` MUST NOT be written until a synchronisation primitive has been
+tried and found not to fit.** The primitives are in `test/scripts/ze_api.py`:
+`wait_until`, `wait_for_output`, `wait_for_event`, `wait_for_events`,
+`dispatch_until`, `dispatch_until_done`, `wait_for_daemon_ready`,
+`wait_for_shutdown`, `wait_peer_counter`, `wait_peer_eor_sent`,
+`wait_peers_established`, `wait_rs_replayed`, `wait_for_config`,
+`wait_for_registry`, `quiesce`. A duration is what a test writes when it cannot
+name the thing it is waiting for, so naming that thing is the work, and the
+sleep is what remains when the name does not exist.
+
+**The comment MUST declare which kind the sleep is, in the marker form
+`# sleep(<kind>): <reason>`.** The kinds are the closed set the table above
+names: `poll-interval`, `timer`, `timeout-under-test`, `needs-linux`,
+`no-signal`. The marker is what makes "I tried" checkable. A free-text comment
+is not: `# settle` satisfied every gate this repository had, and a reader
+learned nothing from it.
+
+**A `timer`, `timeout-under-test` or `no-signal` reason MUST name the mechanism
+and where its period is set.** "The tracker pushes live carrier once a second"
+is a reason a later reader can check and overturn. "Needs a moment" is not, and
+it is the shape that turns a deliberate timer and a guessed duration into the
+same line of code.
+
+`wait_until` deserves its own sentence, because it is the answer more often than
+it looks. It takes a predicate, so it converts any readback the test can already
+perform, including one that shells out. Its own internal sleep is EXEMPT from
+the ratchet, so moving a poll interval into it removes a counted sleep without
+removing a wait.
 
 Placement (mechanical): one `#` comment line directly above the sleep, indented to
 match the sleep exactly (these are Python heredocs; wrong indentation is a syntax
