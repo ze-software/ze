@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -120,12 +121,24 @@ func netnsChildIDs() (uid, gid int, ok bool) {
 // the ze daemon is dropped to a normal user and must be able to chdir into that
 // dir, read its config, and write daemon.ready there. os.MkdirTemp creates the
 // dir 0700-root, so without this the dropped ze cannot enter its own workdir.
+//
+// Lchown changes the link itself. os.Chown follows a symlink, so a link inside
+// the tree that points outside it gave the test user the file it pointed at,
+// and the runner does this as root under sudo. os.Root confines every name the
+// walk produces to the directory opened here, so an entry replaced by a symlink
+// while the walk runs cannot move an operation out of the tree either.
 func chownTree(root string, uid, gid int) error {
-	return filepath.Walk(root, func(p string, _ os.FileInfo, err error) error {
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = r.Close() }()
+
+	return fs.WalkDir(r.FS(), ".", func(p string, _ fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		return os.Chown(p, uid, gid)
+		return r.Lchown(p, uid, gid)
 	})
 }
 
