@@ -157,12 +157,25 @@ func renderTableHeader(cols []dashboardColumnDef, sortCol dashboardSortColumn, s
 }
 
 // renderPeerRow renders a single peer row.
+//
+// The pad width is the VISIBLE width, not the rune count. peerColumnValue
+// returns a styled string for the State column (stateStyled wraps it in an ANSI
+// escape), and textbuf.PadRight counts runes, so those escapes were counted as
+// content: the count already exceeded the column and PadRight added nothing at
+// all. Every column after State then sat one place left of its header for
+// `established`, and eight left for `idle`, which is why the symptom read as a
+// header spacing bug rather than as a row that never got padded.
 func renderPeerRow(p dashboardPeer, cols []dashboardColumnDef, ds *dashboardState) string {
 	var tb textbuf.Buffer
 	parts := make([]string, 0, len(cols))
 	for _, c := range cols {
 		val := peerColumnValue(p, c.col, ds)
-		parts = append(parts, tb.Reset().PadRight(val, c.width).String())
+		pad := c.width - lipgloss.Width(val)
+		tb.Reset().Str(val)
+		for range pad {
+			tb.Byte(' ')
+		}
+		parts = append(parts, tb.String())
 	}
 	return textbuf.Join(parts, "  ")
 }
