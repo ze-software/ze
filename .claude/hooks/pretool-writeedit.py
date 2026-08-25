@@ -3305,11 +3305,14 @@ def c_switch_dispatch(ctx):
     return None
 
 
-# ze point: testing/ci-sleep-justification/justify-every-sleep-in-a-ci-test
 # The closed set of reasons a sleep MAY stay, and the marker that declares one.
 # A free-text comment satisfied every gate this repo had, and `# settle` taught a
 # reader nothing: the marker is what makes "I tried a sync primitive" checkable.
 # Kinds are the table in the testing rule, "CI Sleep Justification".
+#
+# These sit ABOVE the `ze point:` binding below on purpose. That comment binds
+# the rule point to the check DIRECTLY under it, so anything wedged between the
+# two leaves the point bound to nothing and reddens ze-doc-wiring-check.
 _SLEEP_KINDS = (
     'poll-interval',
     'timer',
@@ -3320,6 +3323,7 @@ _SLEEP_KINDS = (
 _SLEEP_MARKER = re.compile(r'#\s*sleep\(\s*(' + '|'.join(_SLEEP_KINDS) + r')\s*\)\s*:\s*\S')
 
 
+# ze point: testing/ci-sleep-justification/justify-every-sleep-in-a-ci-test
 def c_ci_sleep_justification(ctx):
     # Edit-time BLOCK; the commit-time twin is check_ci_sleep_justification in
     # scripts/dev/verify_wiring_docs.py (run by the inventory make gate). Every
