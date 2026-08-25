@@ -429,7 +429,7 @@ func buildSegmentListSubTLV(sl srpSegmentList) []byte {
 		payload = append(payload, buildSegmentSubSubTLV(sl.segments[i])...)
 	}
 
-	header := make([]byte, 3)
+	header := make([]byte, 3, 3+len(payload))
 	header[0] = subTLVSegmentList
 	binary.BigEndian.PutUint16(header[1:3], uint16(len(payload)))
 
