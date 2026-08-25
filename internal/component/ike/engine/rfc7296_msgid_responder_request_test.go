@@ -19,12 +19,9 @@ import (
 // the responding daemon send "child-sa: rekey initiated msgid=2", the initiating daemon
 // answer nothing, and the Child SA reach "hard lifetime expired" five seconds later.
 //
-// NOT TAGGED with an RFC requirement id. The obligation it proves is stated in Section
-// 2.2 in indicative prose that carries no RFC 2119 keyword, so rfc/short/rfc7296.md --
-// whose rows are keyword sentences quoted verbatim -- has no row for it. RFC7296-2.2-1
-// is about RETRANSMISSION reusing an id and RFC7296-2.2-2 about the 32-bit ceiling;
-// neither is this. The unextracted obligation is raised rather than mislabeled here
-// (ai/rules/rfc-compliance.md, Extraction Completeness).
+// The obligation is extracted: rfc/short/rfc7296.md carries RFC7296-2.2-3 for it, and the
+// tag below is that row. RFC7296-2.2-1 is about RETRANSMISSION reusing an id and
+// RFC7296-2.2-2 about the 32-bit ceiling; neither is this.
 //
 // Section 2.2: "Each endpoint in the IKE
 // Security Association maintains two 'current' Message IDs: the next one to be used for
