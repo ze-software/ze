@@ -654,3 +654,46 @@ func TestDashboardViewAnswersItsFaultRatherThanRenderingIt(t *testing.T) {
 		t.Errorf("the header carries the fault, which belongs to the error zone: %q", header)
 	}
 }
+
+// TestDashboardPollIntervalCountsLikeAClock verifies the dashboard refreshes
+// once a second.
+//
+// VALIDATES: dashboardPollInterval is one second, so uptime counts up the way
+// a clock does. Nothing between polls is interpolated, so the poll rate IS the
+// rate the numbers move at.
+//
+// PREVENTS: uptime advancing in visible jumps. At two seconds an operator
+// watching a session saw it step 30s, 32s, 34s, which reads as a stalled
+// display rather than as a slow refresh.
+func TestDashboardPollIntervalCountsLikeAClock(t *testing.T) {
+	if dashboardPollInterval != time.Second {
+		t.Errorf("poll interval: got %v, want %v", dashboardPollInterval, time.Second)
+	}
+}
+
+// TestDashboardRatesUseMeasuredElapsedTime verifies the rate column is derived
+// from the gap between two snapshots, not from dashboardPollInterval.
+//
+// VALIDATES: updateRates divides by the timestamps it is given. A poll that
+// arrives late, early, or at a changed interval reports the true rate.
+//
+// PREVENTS: the rate column becoming wrong when the poll interval changes.
+// A rate computed as diff/dashboardPollInterval would have doubled every
+// reported rate the moment the interval moved from two seconds to one.
+func TestDashboardRatesUseMeasuredElapsedTime(t *testing.T) {
+	ds := &dashboardState{}
+	now := time.Now()
+
+	ds.updateRates(&dashboardSnapshot{
+		Peers: []dashboardPeer{{Address: "10.0.0.1", UpdatesReceived: 100}},
+	}, now)
+
+	// Ten updates over four seconds is 2.5/s, whatever the poll interval is.
+	ds.updateRates(&dashboardSnapshot{
+		Peers: []dashboardPeer{{Address: "10.0.0.1", UpdatesReceived: 110}},
+	}, now.Add(4*time.Second))
+
+	if got := ds.peerRate("10.0.0.1"); got != "2.5/s" {
+		t.Errorf("rate over a measured 4s gap: got %q, want %q", got, "2.5/s")
+	}
+}

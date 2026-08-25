@@ -18,7 +18,18 @@ import (
 )
 
 // dashboardPollInterval is how often the dashboard refreshes data.
-const dashboardPollInterval = 2 * time.Second
+//
+// One second is what an operator watching a session expects: uptime counts up
+// the way a clock does. At two seconds it advanced in visible jumps, because
+// nothing between polls is interpolated.
+//
+// The rate column does not depend on this value. updateRates divides by the
+// MEASURED time between two snapshots, and holds the previous rate when that
+// measure is under half a second.
+//
+// A shorter interval therefore changes how often a rate is recomputed. It
+// never changes what the rate reports.
+const dashboardPollInterval = 1 * time.Second
 
 // DashboardFactory creates a dashboard polling function.
 // The returned function calls commandExecutor("show bgp") and returns the JSON.
