@@ -18,7 +18,8 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "cli-dashboard/demo.tape",
-      "validate": "cli-dashboard/validate.sh"
+      "validate": "cli-dashboard/validate.sh",
+      "realtime": true
     },
     {
       "id": "zefs-config",
@@ -30,7 +31,8 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "zefs-config/demo.tape",
-      "validate": "zefs-config/validate.sh"
+      "validate": "zefs-config/validate.sh",
+      "realtime": true
     },
     {
       "id": "rbac",
@@ -168,7 +170,8 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "bfd-failover/demo.tape",
-      "validate": "bfd-failover/validate.sh"
+      "validate": "bfd-failover/validate.sh",
+      "realtime": true
     },
     {
       "id": "ospf-adjacency",
