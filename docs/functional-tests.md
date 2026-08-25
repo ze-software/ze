@@ -112,7 +112,7 @@ before presenting work as complete.
 <!-- source: scripts/dev/ze-run.sh -- job admission, one registry entry per running job -->
 <!-- source: scripts/dev/verify-status.sh -- tmp/ze-verify.status -->
 <!-- source: scripts/checks/staticcheck_feature_matrix.go -- deriveFeatureMatrix, scopeFeatureMatrix, validateScopedMatrix -->
-<!-- source: mk/test-functional.mk -- ze-functional-test suite list -->
+<!-- source: scripts/le/application/functional.py -- GATING, the ze-functional-test suite list -->
 
 The following shipped test suites are **not in the default release gate** and
 must be run manually:
@@ -137,7 +137,7 @@ equivalent run. Several sessions share this machine, and `bin/ze-test` typed
 into a shell lands on it unadmitted. To run a SELECTION that no target
 expresses, queue the runner yourself:
 `scripts/dev/ze-run.sh <label> bin/ze-test <suite> <selection>`.
-<!-- source: mk/test-functional.mk -- non-gated functional targets and ze-functional-test suite list -->
+<!-- source: scripts/le/application/functional.py -- SUITES and GATING: the non-gated suites are the difference -->
 
 Linux-tagged Go unit tests are separate from the functional suites. From a
 non-Linux workstation, use `make ze-unit-linux-test`; it runs the default Linux-only
@@ -191,9 +191,12 @@ v2.3.1) on one L2 segment. Three network namespaces (Ze, keepalived, and a
 passive observer) are bridged in a fourth, so the observer sees flooded
 multicast and can prove the virtual IP moves at layer 2 and not merely in a log.
 It proves RFC 9568 VRRPv3 election, failover on node death, the prio-0 graceful
-stop, and that keepalived accepts Ze's advert format. Unlike the L2TP and PPPoE
-labs it needs no `make ze-kernel-build`: the stock Alpine kernel already provides
-macvlan, bridge and veth (probed 2026-07-15), so the target runs standalone.
+stop, and that keepalived accepts Ze's advert format. Like every other QEMU
+target it boots Ze's own runtime kernel, so
+`make ze-kernel-vmlinuz-stage KERNEL_ARCH=<amd64|arm64>` is a precondition. That
+costs a file copy on a warm cache and a build only on a miss. The lab's verdict
+is about the kernel Ze ships, which is the reason the flag is unconditional even
+though the stock Alpine kernel also carries macvlan, bridge and veth.
 Keepalived state is read from its `notify_*` markers and every timing assertion
 is measured from tcpdump wire timestamps against the acceptance bands in
 `plan/spec-vrrp-6-interop.md`, never from wall clock.
@@ -206,12 +209,13 @@ the vrrp plugin failing at stage Init) and run as root under
 ### Which pipeline runs each QEMU lab
 
 `.github/workflows/qemu-nightly.yml` runs every QEMU lab on a schedule, in three
-advisory jobs. `needs-linux` runs the `option=needs-linux` `.ci` suites.
-`protocol-labs` runs the three labs that boot the stock Alpine kernel:
-`ze-qemu-ldp-frr-test`, `ze-qemu-isis-frr-test` and
-`ze-qemu-vrrp-keepalived-test`. `runtime-kernel-labs` stages
-`tmp/kernel/vmlinuz` and then runs the four labs that need ze's own kernel:
-`ze-qemu-l2tp-ppp-test`, `ze-qemu-pppoe-accel-test`, `ze-qemu-pppoe-test` and
+advisory jobs. Every one of them stages `tmp/kernel/vmlinuz` first, because every
+QEMU target boots Ze's own runtime kernel. `needs-linux` runs the
+`option=needs-linux` `.ci` suites. `protocol-labs` runs the three routing-protocol
+interop labs: `ze-qemu-ldp-frr-test`, `ze-qemu-isis-frr-test` and
+`ze-qemu-vrrp-keepalived-test`. `runtime-kernel-labs` runs the four
+access-protocol and traffic labs: `ze-qemu-l2tp-ppp-test`,
+`ze-qemu-pppoe-accel-test`, `ze-qemu-pppoe-test` and
 `ze-qemu-traffic-usage-test`.
 
 Before 2026-08-12 the last seven of those had no caller at all. Each target
@@ -387,9 +391,9 @@ make ze-functional-plugin-test ZE_SUITE_TIMEOUT_PLUGIN=1800s
 
 `ZE_SUITE_TIMEOUT` protects the other 23 suites, so a slow suite must not raise
 it for all of them. A suite that needs more wall clock gets a
-`ZE_SUITE_TIMEOUT_<SUITE>` of its own instead, and `run_suite` reads that budget
-everywhere: the `timeout` that kills the suite, the runtime line, the warning
-arithmetic, and the variable name the reports tell you to raise.
+`ZE_SUITE_TIMEOUT_<SUITE>` of its own instead, and `Suite.budget` answers with
+that budget everywhere: the `timeout` that kills the suite, the runtime line,
+the warning arithmetic, and the variable name the reports tell you to raise.
 
 The `plugin` suite is the one suite that has such a budget today. It holds 663
 `.ci` tests, and it measured 855s on 2026-08-19 against the 600s shared cap that
@@ -399,15 +403,14 @@ run and the warning names no creep. That gives 855 * 1.40 / 0.80 = 1496s,
 rounded up to the whole minute. The kill then lands at 1.75x the measurement,
 which is a wedged suite and not a busy box.
 
-Adding a suite to that family means four edits in `mk/test-functional.mk`, and
-`scripts/dev/functional_suite_test.py` refuses a name that is missing one:
+Adding a suite to that family is one line: a `BUDGET_DEFAULTS` entry in
+`scripts/le/application/functional.py`. Setting `ZE_SUITE_TIMEOUT_<SUITE>` in
+the environment gives any suite one with no edit at all, because the variable
+name is derived from the suite's name.
 
-| Edit | Why |
-|------|-----|
-| `ZE_SUITE_TIMEOUT_<SUITE> ?= <duration>` | the budget, overridable and finite |
-| `SUITE_RUN_<SUITE> = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT_<SUITE>)` | the kill uses it |
-| an arm in `run_suite`'s budget `case` | the report uses the same number the kill does |
-| `$(SUITE_RUN_<SUITE>)` on the `run_suite` line and on `_ze-functional-<suite>-test-impl` | `make ze-functional-test` and `make ze-functional-<suite>-test` agree |
+In the makefile this took four edits that a test had to hold in step, since the
+budget could be spelled in one place and not another: the run would then say
+1500s while the kill landed at 600s.
 
 `make ze-functional-test` prints one runtime line per suite, and a table of all
 of them at the end:
@@ -437,8 +440,8 @@ nothing about the product. The same expiry lands in
 
 A budget that is raised and never watched creeps back to its cap, so the
 warning exists to make the creep visible while the suite is still green.
-<!-- source: mk/test-functional.mk -- ZE_SUITE_TIMEOUT, ZE_SUITE_TIMEOUT_PLUGIN, ZE_SUITE_WARN_PERCENT, run_suite -->
-<!-- source: scripts/dev/functional_suite_test.py -- the budget report's tests -->
+<!-- source: scripts/le/application/functional.py -- DEFAULT_BUDGET, BUDGET_DEFAULTS, DEFAULT_WARN_PERCENT, Run.record -->
+<!-- source: scripts/le/functional_test.py -- the budget report's tests -->
 
 ---
 
@@ -674,7 +677,7 @@ A `.ci` suite runs `-p N` tests at once. Where N comes from depends on the suite
 
 | Suite | Source of `-p` | Value |
 |-------|----------------|-------|
-| `plugin`, `encode` | `ZE_PLUGIN_PARALLEL`, `ZE_ENCODE_PARALLEL` (`mk/test-functional.mk`) | derived from the host: the core count, floored at 8 |
+| `plugin`, `encode` | `ZE_PLUGIN_PARALLEL`, `ZE_ENCODE_PARALLEL` (`scripts/le/application/functional.py`) | derived from the host: the core count, floored at 8 |
 | `reload`, `managed` | the make recipe, explicitly | 1. They share the kernel routing table |
 | `vpp` | the command's own default | 1 |
 | the other bgp-runner suites | `runner.DefaultParallelConcurrent` | 20 |
@@ -721,7 +724,7 @@ The runner does NOT read the job-admission budget. `scripts/dev/ze-run.sh` admit
 several jobs on a shared box, and a suite still sizes itself for the whole
 machine, so concurrent sessions can oversubscribe it.
 
-<!-- source: mk/test-functional.mk -- ZE_SUITE_PARALLEL_FLOOR, ZE_SUITE_CORES, ZE_SUITE_PARALLEL -->
+<!-- source: scripts/le/application/functional.py -- PARALLEL_FLOOR, ZE_SUITE_CORES, parallel -->
 <!-- source: internal/test/runner/parallel.go -- SuiteConcurrencyFloor, DefaultSuiteConcurrency, ParallelTimeoutHeadroom, ParallelFactorEnv -->
 <!-- source: internal/test/cli/cmd_bgp.go -- the bgp runner's -p default -->
 <!-- source: internal/test/cli/cmd_vpp.go -- the vpp suite's -p default of 1 -->
@@ -873,7 +876,7 @@ make ze-precommit-verify                                                        
 
 #### Test binaries are isolated from your dev binary (automatic)
 
-Every functional target in `mk/test-functional.mk` — the gating
+Every functional target — the gating
 `ze-functional-test`, every per-suite target, and therefore the functional stage
 of `make ze-precommit-verify` — runs against its **own** binary set by default, so testing
 and development never touch each other's binaries:
@@ -923,7 +926,7 @@ An interrupted run (SIGKILL) can leave its `testbin-*` directory behind.
 Off-session `make ze-scratch-clean` sweeps directories older than 24h; on-session
 nothing is removed automatically, and `make ze-session-clean BEFORE=<YYYY-MM-DD>`
 takes the whole session directory when the operator asks for it.
-<!-- source: mk/test-functional.mk -- isolated-binary block, inline ZE_ALT_BUILD, per-recipe trap -->
+<!-- source: scripts/le/application/functional.py -- binary_root, prepare, release -->
 <!-- source: internal/test/runner/runner.go -- ze.bin/ze.test.bin/ze.test.no.build env, Build/verifyPrebuilt -->
 <!-- source: internal/test/runner/runner_exec.go -- bare-name ze/ze-test resolution, PATH prepend -->
 
@@ -2745,17 +2748,29 @@ parsing, cryptographic operations, protocol state machines, IGP packet decoders
 (IS-IS, OSPF), and receiver/server-facing parsers (BMP, RADIUS, DHCP, VRRP).
 Fuzz tests catch crashes, panics, and memory corruption on malformed input.
 
-The target list is not hand-maintained: `scripts/dev/fuzz-targets.py` discovers
-every `func Fuzz` under `internal/` and emits the committed
-`mk/test-fuzz-targets.mk` fragment (one anchored `-fuzz=^<Name>$` invocation per
-target). A new fuzzer is included by existing, not by editing the makefile;
-`make ze-fuzz-targets-check` fails if the committed fragment drifts.
+The target list is not maintained at all. `le fuzz` walks `internal/` for
+`func Fuzz` when it runs, and emits one anchored `-fuzz=^<Name>$` invocation
+per target against that target's exact package. A new fuzzer is included by
+existing.
+
+There was a committed enumeration until 2026-08-25: a generator wrote
+`mk/test-fuzz-targets.mk`, a check target held it fresh, and the regen guard
+listed it. Make cannot read the tree when a target runs, so the fact had to be
+frozen into a file and then policed. All four mechanisms are gone.
 
 ```bash
-make ze-fuzz-test                                    # All fuzz targets, 10s each
-make ze-fuzz-test-one FUZZ=FuzzParseUpdate TIME=30s       # Single target, custom duration
+./le fuzz                                   # every target, 10s each
+./le fuzz --list                            # what would run, and where
+./le fuzz --name FuzzParseUpdate --time 30s # one target, longer
+
+make ze-fuzz-test                                  # same, through job admission
+make ze-fuzz-test-one FUZZ=FuzzParseUpdate TIME=30s
 ```
-<!-- source: mk/test-fuzz.mk -- ze-fuzz-test -->
+
+The `make` targets remain because `scripts/dev/ze-run.sh` takes a job slot
+before the run, which keeps a fuzz sweep from fighting every other session on a
+shared machine.
+<!-- source: scripts/le/application/fuzz.py -- discover, Target.command -->
 
 Fuzz tests are not part of `make ze-precommit-verify` (they're time-bounded, not pass/fail
 in the traditional sense). Run them periodically or before releases.
@@ -2779,7 +2794,7 @@ in the traditional sense). Run them periodically or before releases.
 | Other | 6 | `FuzzHandleRoundTrip`, `FuzzInvalidHandle`, `FuzzParseAttributes`, `FuzzEncodeDecode`, `FuzzScanner`, `FuzzFSMEventSequence` |
 <!-- source: internal/plugins/isis/packet/fuzz_test.go -- IS-IS packet fuzz targets -->
 <!-- source: internal/plugins/ospf/packet/fuzz_test.go -- OSPF packet fuzz targets -->
-<!-- source: scripts/dev/fuzz-targets.py -- generated mk/test-fuzz-targets.mk enumeration -->
+<!-- source: scripts/le/application/fuzz.py -- run-time fuzz target discovery -->
 <!-- source: internal/component/bgp/message/fuzz_test.go -- BGP message fuzz targets -->
 <!-- source: internal/component/bgp/plugins/bmp/fuzz_test.go -- FuzzDecodeBMPTLV -->
 <!-- source: internal/component/radius/fuzz_test.go -- FuzzDecodeRADIUSVSA -->
