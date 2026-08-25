@@ -66,7 +66,7 @@ Ze also ships a setup checker. It uses the same tool list as the developer and a
 ```bash
 git clone https://github.com/ze-software/ze.git
 cd ze
-./le setup --check || true
+./le setup --check
 ```
 
 In check mode (`--check`) this lists anything missing as `[missing] <tool>` and exits non-zero. It probes only and changes nothing. Run plain `./le setup` without `--check` and it installs the missing packages itself, echoing each command first. Every command it runs as root goes through `sudo -n`, so nothing waits on a prompt it cannot answer. When sudo wants a password it asks once, with `sudo -v`, and only when a terminal is attached; with no terminal it prints the command and exits non-zero instead.
