@@ -18,6 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from le.devtools.gate import Gate, run_all, run_gate
 from le.devtools.inproc import CannotImport, call, importable
 from le.paths import REPO_ROOT
 from le.registry import REGISTRY
@@ -180,9 +181,53 @@ class TestRefusals(unittest.TestCase):
             call(_script('raise RuntimeError("boom")\ndef main():\n    return 0\n'))
 
     def test_an_exception_inside_main_propagates(self) -> None:
-        """NOT wrapped: a gate that crashes should show its own traceback."""
+        """The PRIMITIVE lets it through, so a caller can decide.
+
+        `run_gate` is where that decision is made, and it counts a raising
+        gate as one failure rather than the end of the sweep
+        (`TestARaisingGateDoesNotAbortTheSweep`).
+        """
         with self.assertRaises(RuntimeError):
             call(_script('def main():\n    raise RuntimeError("inside")\n'))
+
+
+class TestARaisingGateDoesNotAbortTheSweep(unittest.TestCase):
+    """A gate that raises is ONE failure, not the end of the run.
+
+    Forking made this free: an uncaught exception became a non-zero exit code
+    the caller collected. In process it propagated, and `le build-terminal-demo`
+    ran one check of three before dying with a traceback.
+    `demos/terminal/render.py` raises ValueError when an asset is stale, so
+    this was live rather than hypothetical.
+    """
+
+    def _raising_gate(self) -> Gate:
+        script = _script('def main():\n    raise ValueError("stale")\n')
+        return Gate(name='ze-probe-check', argv=('python3', script), why='probe')
+
+    def test_it_is_counted_as_a_failure(self) -> None:
+        with redirect_stdout(io.StringIO()):
+            assert run_gate(self._raising_gate()) == 1
+
+    def test_the_traceback_is_still_shown(self) -> None:
+        """It is the reason importing beats forking; losing it costs the point."""
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            run_gate(self._raising_gate())
+        said = buffer.getvalue()
+        assert 'ValueError' in said
+        assert 'stale' in said
+
+    def test_the_gates_behind_it_still_run(self) -> None:
+        raising = self._raising_gate()
+        after = Gate(
+            name='ze-probe-after',
+            argv=('python3', _script('def main():\n    return 0\n')),
+            why='runs after',
+        )
+        with redirect_stdout(io.StringIO()):
+            failed = run_all([raising, after])
+        assert failed == ['ze-probe-check'], 'the second gate must still have run'
 
 
 class TestEveryInProcessGateCanRun(unittest.TestCase):

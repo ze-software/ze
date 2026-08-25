@@ -18,6 +18,7 @@ callers parse what came back.
 
 from __future__ import annotations
 
+import traceback
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
@@ -157,19 +158,33 @@ def run_gate(gate: Gate, *, as_json: bool = False, env: dict[str, str] | None = 
         # import and a call reach it without an interpreter start. The gate's
         # environment goes with it -- `call` applies it to os.environ and
         # restores it -- because a forked gate gets its environment from its
-        # process and an imported one must be given the same view.
+        # process, and an imported one must be given the same view.
         #
-        # An earlier version skipped the in-process route whenever an
-        # environment was supplied. Every gate an area dispatches carries the
-        # toolchain environment, so that made the route unreachable and the
-        # whole mechanism inert.
+        # An earlier version skipped this route whenever an environment was
+        # supplied. Every gate an area dispatches carries the toolchain
+        # environment, so that made the route unreachable and the mechanism
+        # inert.
         try:
             return call(script, argv[2:], env=env)
         except CannotImport as why:
             # Never silently a different answer: say the import failed and
-            # fall back, so a gate that stops importing is visible rather
-            # than quietly forking forever.
+            # fall back, so a gate that stops importing is visible rather than
+            # quietly forking forever.
             echo(f'  (in-process import failed, forking) {why}')
+        except Exception:
+            # A gate that RAISES rather than exiting is ONE failed gate, not
+            # the end of the sweep. `demos/terminal/render.py` raises
+            # ValueError when an asset is stale; forking turned that into an
+            # exit code the caller collected, and in process it propagated and
+            # aborted the run -- `le build-terminal-demo` did one check of
+            # three and died with a traceback.
+            #
+            # The traceback is still printed: it is the reason importing beats
+            # forking. What changes is that it no longer decides the fate of
+            # every gate queued behind it.
+            echo(traceback.format_exc().rstrip())
+            echo(f'  {gate.name}: raised rather than exiting, counted as a failure')
+            return 1
 
     return stream(argv, cwd=REPO_ROOT, env=env)
 
