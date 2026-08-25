@@ -3,9 +3,9 @@
 // Design: docs/architecture/iface/logical-name-resolution.md -- sub-spec 5 dispatch translation.
 //
 // VALIDATES: the iface dispatch ops translate a LOGICAL interface name to its os
-// device via resolveOS before the backend call, so a mutation issued against a
+// device via ResolveDevice before the backend call, so a mutation issued against a
 // logical name (os-name selector) lands on the right kernel device. SetMTU and
-// SetAdminDown are representative; every by-name dispatch op shares the resolveOS
+// SetAdminDown are representative; every by-name dispatch op shares the ResolveDevice
 // path. GetStats/ResetCounters additionally prove the counter baseline is keyed
 // on the resolved os device so a clear-then-read cycle through the selector does
 // not error or miss its baseline.

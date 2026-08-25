@@ -363,7 +363,7 @@ func sendLatest(c chan LinkEvent, ev LinkEvent) bool {
 // an os-name alias or a mac/match binding. It is what separates "this name IS
 // its kernel device" from "this name was bound to other hardware", which is the
 // difference between a failed resolution that may fall back to the name and one
-// that must not (resolveOS in dispatch.go).
+// that must not (ResolveDevice in dispatch.go).
 func (r *resolver) hasSelector(name string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()

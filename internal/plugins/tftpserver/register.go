@@ -168,7 +168,7 @@ func closeLogged(c closer, log *slog.Logger, what string) {
 }
 
 // bindDeviceFor resolves a logical interface name to its kernel device for
-// SO_BINDTODEVICE. It is best-effort, mirroring iface.resolveOS: when the iface
+// SO_BINDTODEVICE. It is best-effort, mirroring iface.ResolveDevice: when the iface
 // backend is not loaded -- the install/provision path configures the interface
 // directly via netlink without starting the iface component -- it returns the
 // name verbatim (and the resolve error, so the caller can log the fallback).
