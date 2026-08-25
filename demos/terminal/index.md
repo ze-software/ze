@@ -32,7 +32,7 @@ Press Escape to move back through the menu and return to the shell.
 
 Connect to Ze over SSH, open the live BGP dashboard, sort peers, and inspect one session.
 
-[Download the asciicast recording](../../assets/demos/cli-dashboard.cast?v=534d4a6951) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
+[Download the asciicast recording](../../assets/demos/cli-dashboard.cast?v=ab18698a54) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
 
 Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 44 seconds.
 
@@ -51,9 +51,9 @@ The dashboard polls three local BGP sessions. Press "s" to sort by the next colu
 
 Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
 
-[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=b62d833819) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=f6537d09e3)
+[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=f73594f3d7) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=f6537d09e3)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 2 minutes 57 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 2 minutes 56 seconds.
 
 ```console
 $ cat $ZE_INIT_INPUT
@@ -94,7 +94,7 @@ The five lines answer `ze init`'s prompts in order: username, password, host, po
 
 Run an allowed NOC command, then show Ze explicitly refuse a known state-changing command.
 
-[Download the asciicast recording](../../assets/demos/rbac.cast?v=91686ce31e) · [Plain-text transcript](../../assets/demos/rbac.txt?v=939addc51a)
+[Download the asciicast recording](../../assets/demos/rbac.cast?v=f2c3d93465) · [Plain-text transcript](../../assets/demos/rbac.txt?v=939addc51a)
 
 Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 1 minute 10 seconds.
 

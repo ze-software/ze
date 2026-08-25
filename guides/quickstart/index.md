@@ -52,9 +52,9 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
 
 Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
 
-[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=b62d833819) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=f6537d09e3)
+[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=f73594f3d7) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=f6537d09e3)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 2 minutes 57 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 2 minutes 56 seconds.
 
 ```console
 $ cat $ZE_INIT_INPUT

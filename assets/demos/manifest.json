@@ -21,9 +21,9 @@
     "cli-dashboard": {
       "assets": {
         "cast": {
-          "bytes": 14738,
+          "bytes": 15200,
           "path": "cli-dashboard.cast",
-          "sha256": "534d4a695161f1232c27421b09b9e8525c93420a645eba53f70e0349c6bbf07e"
+          "sha256": "ab18698a548a3219b1fb2c9b384f32f6aaea58a1bb404ba912f7aa420d453564"
         },
         "transcript": {
           "bytes": 258,
@@ -31,7 +31,7 @@
           "sha256": "86542601ebff2186dc62874ec3cd82a7730d3be27988972ce3d42cdafe4438b3"
         }
       },
-      "binary_sha256": "8d9c94de1fb93c28e85b09a11d35cf5d6d92508d6596f41ded0e6b25e618846d",
+      "binary_sha256": "44a6b0c6695c277cd9975718ddd30948000fc6b5680192faf0acc8a3acdab491",
       "definition_sha256": "25865db788f51e454468b88329fc4693a75a78f5fcfb10354dd6c7d9e491abd6",
       "release": "26.08.25",
       "source_sha256": "1833909e3a65471e1671227553e5eecb893352acd4c1989253b2a7171d305a27"
@@ -109,7 +109,7 @@
         }
       },
       "binary_sha256": "df457f352110b470cfaaeb402a220a98cce451ca8daf67614a27be6baea7185c",
-      "definition_sha256": "0861051b44af236d7866b0bcf1a541a13633da158855a21def3b03a76e44b4a5",
+      "definition_sha256": "ad5663ec461fcfcb7710f5b39102962b1c9b1669dd50fb45ac81303b4767017c",
       "release": "26.08.19",
       "source_sha256": "2bb0b56070f98863be34573ae74170948542b239a95b7f8814340f40b30138ed"
     },
@@ -188,9 +188,9 @@
     "rbac": {
       "assets": {
         "cast": {
-          "bytes": 6813,
+          "bytes": 6812,
           "path": "rbac.cast",
-          "sha256": "91686ce31e2321fc4cd2fb7334ebced6cfcf065d2076be53f16392f9cacf9e11"
+          "sha256": "f2c3d934652dbe6710273d96aff405f2f546cc6c04a2e01e05453f8484778bdd"
         },
         "transcript": {
           "bytes": 577,
@@ -198,7 +198,7 @@
           "sha256": "939addc51ab572d4f17d96628ada90e2fb23d4d245e0a9f9e82bb34e3ed05d17"
         }
       },
-      "binary_sha256": "8d9c94de1fb93c28e85b09a11d35cf5d6d92508d6596f41ded0e6b25e618846d",
+      "binary_sha256": "c6f0bdcaec14dff0c331e83dadb75b6193053eac8b01fc21af85baffde8e262e",
       "definition_sha256": "1e5618e220d921a980217064ad0ef2211c6eab9267265bbd2d33f39bfc5b6660",
       "release": "26.08.25",
       "source_sha256": "f0b08f27036fdc674b2e18af6aad300fd0e2f15ff7e4757e5fc6c6041b94583d"
@@ -319,9 +319,9 @@
     "zefs-config": {
       "assets": {
         "cast": {
-          "bytes": 55358,
+          "bytes": 55382,
           "path": "zefs-config.cast",
-          "sha256": "b62d833819a18d5f8c7a2df8eb150d788d2e7bb54d076317f449226fee493895"
+          "sha256": "f73594f3d79651b52991ffa83b96e6f76753417960785cfb5eb9ce6438adebba"
         },
         "transcript": {
           "bytes": 2395,
@@ -329,7 +329,7 @@
           "sha256": "f6537d09e34a4231e863873512159e5c329a5e0ccb5b2bb16fa389462bd90958"
         }
       },
-      "binary_sha256": "8d9c94de1fb93c28e85b09a11d35cf5d6d92508d6596f41ded0e6b25e618846d",
+      "binary_sha256": "dae67e7935911836ae8df4883c5e98926f53d187187cac36a166bf3daae9bdbd",
       "definition_sha256": "da51551c978ddb2fac474a46f6bcb86bcfd61a9394d4c545d4bce0aff60ff285",
       "release": "26.08.25",
       "source_sha256": "917a37331fb92cb336a52207e269884f0d996c89b1e33f01d9be94bbdd7a25f1"

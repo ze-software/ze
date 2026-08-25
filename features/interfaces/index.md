@@ -169,7 +169,7 @@ Config (YANG: ze-iface-conf.yang, "backend" leaf selects backend)
 iface component (register.go) -- OnConfigure() loads backend, starts monitor
   |
   v
-Backend interface (backend.go) -- 45 methods: lifecycle, address, sysctl, mirror, monitor
+Backend interface (backend.go) -- 45 methods: lifecycle, address, route, bridge, mirror, monitor
   |
   v
 +------------------+--------------------+
