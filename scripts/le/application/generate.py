@@ -59,7 +59,15 @@ def _go(script: str, *args: str) -> tuple[str, ...]:
 
 
 def _py(script: str, *args: str) -> tuple[str, ...]:
-    return ('python3', f'scripts/dev/{script}', *args)
+    """`python3 <script>`, where a bare name still means scripts/dev.
+
+    The bare form is what every generator here spelled while all of them lived
+    in scripts/dev. A script that has moved into `le` gives its full
+    repo-relative path instead, and `Gate.python_script` then runs it in this
+    process rather than forking one.
+    """
+    path = script if '/' in script else f'scripts/dev/{script}'
+    return ('python3', path, *args)
 
 
 GATES = GateSet(
@@ -163,6 +171,12 @@ def action(opts: gateapp.Options) -> int:
 
     The two generators here write different files and read none of each
     other's output, so `--write` needs no order of its own.
+
+    `proto_json_tags` is deliberately NOT among them. It rewrites what protoc
+    has just written and is not idempotent: run a second time it finds zero of
+    the tags it converted and refuses, which is the guard working. That makes
+    it a stage of `ze-proto-generate` rather than a gate, because a gate is
+    something a person can run on its own and this is not.
     """
     return gateapp.action(opts, GATES)
 

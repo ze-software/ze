@@ -322,7 +322,7 @@ ze-proto-generate:
 		--go_out=. --go_opt=module=$(ZE_MODULE) \
 		--go-grpc_out=. --go-grpc_opt=module=$(ZE_MODULE) \
 		api/proto/ze.proto
-	@python3 scripts/codegen/proto_json_tags.py
+	@PYTHONPATH=$(CURDIR)/scripts python3 -m le.devtools.proto_json_tags
 	@echo "Regenerated api/proto/ze.pb.go api/proto/ze_grpc.pb.go"
 
 ze-plugin-imports-check:

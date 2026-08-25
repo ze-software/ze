@@ -12,9 +12,11 @@ So the root is answered once, three ways, in a fixed order of authority.
 
 from __future__ import annotations
 
+import io
 import os
 import sys
 import tempfile
+import tokenize
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -122,6 +124,32 @@ class TestExport(unittest.TestCase):
             assert os.environ[ROOT_ENV] == '/workspace'
 
 
+def _counts_depth(source: str) -> bool:
+    """Whether `source` rediscovers the root by counting directories, in CODE.
+
+    Comments and string literals are stripped first. The check exists to stop
+    the habit, and a comment explaining why a module no longer has the habit is
+    the opposite of it: matching prose made the explanation the offence and
+    made deleting the explanation the fix.
+
+    `tokenize` rather than `ast`: the two names can be an arbitrary expression
+    apart (`here = Path(__file__).parent` then `here.parents[1]` later), so
+    what is wanted is "both names appear in executable text", not one shape.
+    """
+    kept: list[str] = []
+    try:
+        for token in tokenize.generate_tokens(io.StringIO(source).readline):
+            if token.type in (tokenize.COMMENT, tokenize.STRING):
+                continue
+            kept.append(token.string)
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        # Unparseable is not a pass. Fall back to the whole text, which is
+        # the stricter answer and the one the check had before.
+        return 'parents[' in source and '__file__' in source
+    code = ' '.join(kept)
+    return 'parents' in code and '__file__' in code
+
+
 class TestRelativeToRoot(unittest.TestCase):
     def test_a_path_inside_the_tree_loses_the_prefix(self) -> None:
         assert relative_to_root(paths.REPO_ROOT / 'scripts' / 'le') == 'scripts/le'
@@ -145,10 +173,30 @@ class TestNoModuleCountsItsOwnDepth(unittest.TestCase):
         for path in (paths.REPO_ROOT / 'scripts' / 'le').rglob('*.py'):
             if path.name.endswith('_test.py') or path.name == 'paths.py':
                 continue
-            text = path.read_text(encoding='utf-8', errors='replace')
-            if 'parents[' in text and '__file__' in text:
+            if _counts_depth(path.read_text(encoding='utf-8', errors='replace')):
                 offenders.append(str(path.relative_to(paths.REPO_ROOT)))
         assert not offenders, f'these count their own depth: {offenders}'
+
+    def test_a_comment_about_the_habit_is_not_the_habit(self) -> None:
+        """The check reads CODE. Prose that names the pattern must not trip it.
+
+        This was a live false positive: a module that had just been converted
+        to REPO_ROOT explained the conversion in a comment quoting the
+        `parents[2]` it replaced, and the grep-based check failed it. The
+        cheapest way to green was to delete the explanation, which would have
+        removed the one line telling the next reader why the module does not
+        count directories.
+        """
+        assert not _counts_depth(
+            '# the old version used Path(__file__).parents[2] and this does not\n'
+            'from le.paths import REPO_ROOT\n'
+        )
+        assert not _counts_depth('"""Docstring naming __file__ and parents[2]."""\n')
+
+    def test_it_still_catches_the_real_thing(self) -> None:
+        """Non-vacuity: the relaxation above must not disarm the check."""
+        assert _counts_depth('root = Path(__file__).resolve().parents[2]\n')
+        assert _counts_depth('here = Path(__file__).parent\nroot = here.parents[1]\n')
 
 
 if __name__ == '__main__':
