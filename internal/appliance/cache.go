@@ -400,7 +400,13 @@ func walkCopyInto(src, dst string) error {
 				return err
 			}
 			os.Remove(target) //nolint:errcheck // best-effort replace
-			return os.Symlink(link, target)
+			// G122 reads link as a path this call resolves, because it came
+			// from os.Readlink(path) inside the walk. It is the new link's
+			// CONTENT: Symlink writes the string and never resolves it. The
+			// name that is resolved, target, sits under the private staging
+			// dir created in copyTree, and WalkDir does not descend into a
+			// symlink, so no name built here has a symlink ancestor.
+			return os.Symlink(link, target) //nolint:gosec // G122: link is the link body, not a resolved path
 		}
 		if !d.Type().IsRegular() {
 			return nil
