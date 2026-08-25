@@ -1,0 +1,111 @@
+---
+title: One Error Surface
+description: Where a fault appears, for every command and on every surface.
+category: architecture
+---
+# One Error Surface
+
+A command states its own subject. It does not state whether Ze is well.
+
+This is one rule, and it holds for every command, every live view, and every
+surface Ze renders to.
+
+## The rule
+
+**A command's output area holds facts about the thing the command asked
+about. A fault goes to the error zone.**
+
+The error zone is one place per surface:
+
+| Surface | Where a fault appears |
+|---------|-----------------------|
+| CLI, ordinary command | line 2 of the message area, above the prompt |
+| CLI, live view (`monitor bgp`, `ping`, `traceroute`) | the same zone, rendered under the view |
+| Web | the page's own error region, from the same value |
+
+An operator learns one place. What they learned holds for the next command.
+
+## Why the rule exists
+
+`monitor bgp` used to print a second header line. It read `connected` when the
+CLI's last poll of the daemon succeeded, and the poll's error text when it did
+not.
+
+Three things were wrong with it.
+
+The word said nothing in its healthy state. It sat directly under
+`peers 3/3`, where a reader takes it for a statement about the BGP sessions.
+The peer rows already said `established` three times.
+
+The word was not about BGP. It reported the CLI's own transport to the daemon,
+inside a command whose subject is the routing protocol.
+
+The fault had nowhere else to go, so the header grew a place for it. Every view
+that did the same grew a different place, and an operator had to learn each one.
+
+## What a view owes
+
+A live view answers `problem(m *Model) string` on the `activeView` interface
+(`internal/component/cli/view_registry.go`). It returns the fault, or `""`.
+
+The view does NOT render it. `Model.View`
+(`internal/component/cli/model_render.go`) renders what `problem` answers, in
+the shared zone, in the error style. A view that paints its own error line is
+the defect this rule names.
+
+## Every command resolves
+
+**A command MUST tell the operator that it finished, and what it did.** Silence
+after a command is a question the operator cannot answer: did it work, is it
+still running, did it do nothing?
+
+The confirmation goes to line 1 of the message area (`Model.feedbackLine`). It
+is the same zone the fault would have used.
+
+**The healthy state is written in the muted role. A fault is written in the
+danger role.** Both roles are defined once, in
+`docs/architecture/cli/color-system.md`, which is the authority for every color
+this document names. Salience comes from the ROLE, not from the line being
+empty.
+
+| State | Role | Why |
+|-------|------|-----|
+| Healthy | muted (gray 241) | Safe to skip on a fast scan. The text is there for a reader who looks, and for nobody else |
+| Fault | danger (red 196) | Broken, act now. It is the only color in a quiet zone, so it is what the eye lands on |
+
+Lack of color IS the message. A reader who wants to know that a command worked
+reads the gray line. A reader who does not care never notices it, and the same
+zone turning red is unmissable because nothing around it competes.
+
+This is why `connected` failed, and the failure was in the color rather than in
+the word. `dashConnStyle` painted it `Color("2")`, the **value** role, which
+`docs/architecture/cli/color-system.md` reserves for "what the system is
+reporting". A word in the data color, sitting under `peers 3/3`, is read as
+data about the peers. In the muted role it is a line the curious CAN read and
+everyone else skips.
+
+**Prefer an outcome to a fixed word where there is one to state.** `committed 3
+changes` answers more than `OK`, and it costs the same line. But a fixed word
+in the muted role is not the defect a fixed word in a loud color is.
+
+**A live view confirms with freshness, not with a word.** `monitor bgp` and
+`traceroute` are continuous, so `Last update: 0s ago` is the confirmation: it
+changes every second, and it goes stale visibly when the data stops. A view
+that shows fresh data is a view that is working.
+
+## What this rule does not say
+
+It does not say a command hides a state it is asked about. `waiting for data`
+is a fact about the BGP dashboard's own subject, so it stays in the header. A
+peer in `idle` is a BGP fact, and it stays in the peer table, in its own color.
+
+The test is the subject, not the severity: ask what the operator typed, and
+whether the line answers it.
+
+## Related
+
+- `docs/architecture/cli/color-system.md` -- the seven semantic roles, and the
+  ANSI values behind them. This document names roles (muted, danger, value) and
+  never names a color. The color system is where a role becomes a number, for
+  the CLI, the web UI, and every other surface.
+- `ai/rules/cli.md` -- command surface rules

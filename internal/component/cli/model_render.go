@@ -348,6 +348,16 @@ func (m Model) View() tea.View {
 	// falls through to the normal viewport render below.
 	if m.activeView != nil {
 		if content := m.activeView.render(&m); content != "" {
+			// The view states its own subject and nothing else.
+			//
+			// A fault it reports is rendered HERE, in the one error zone
+			// every surface shares. A reader then looks in the same place
+			// whatever command they ran
+			// (docs/architecture/cli/error-surface.md).
+			if problem := m.activeView.problem(&m); problem != "" {
+				var tb textbuf.Buffer
+				content = tb.Str(content).Byte('\n').Str(errorStyle.Render(problem)).String()
+			}
 			return paddedAltView(content)
 		}
 	}

@@ -52,7 +52,10 @@ func (v *pingView) update(m *Model, msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	return *m, nil
 }
-func (v *pingView) render(m *Model) string      { return m.renderPingMonitor() }
+func (v *pingView) render(m *Model) string { return m.renderPingMonitor() }
+
+// problem answers the view's current fault. The Model renders it.
+func (v *pingView) problem(m *Model) string     { return "" }
 func (v *pingView) key(m *Model, k string) bool { return m.handlePingMonitorKey(k) }
 func (v *pingView) release() {
 	if v.st != nil && v.st.cancel != nil {
@@ -66,6 +69,9 @@ func (v *pingPipedView) update(m *Model, msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	return *m, nil
 }
+
+// problem answers the view's current fault. The Model renders it.
+func (v *pingPipedView) problem(m *Model) string { return "" }
 
 func (v *pingPipedView) render(m *Model) string {
 	// In | log mode the piped view appends to the scrollback viewport; return ""

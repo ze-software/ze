@@ -19,7 +19,15 @@ func (v *tracerouteView) update(m *Model, msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	return *m, nil
 }
-func (v *tracerouteView) render(m *Model) string      { return m.renderTraceroute() }
+func (v *tracerouteView) render(m *Model) string { return m.renderTraceroute() }
+
+// problem answers the last poll fault. The Model renders it, not this view.
+func (v *tracerouteView) problem(m *Model) string {
+	if ts := m.activeTraceroute(); ts != nil {
+		return ts.pollError
+	}
+	return ""
+}
 func (v *tracerouteView) key(m *Model, k string) bool { return m.handleTracerouteKey(k) }
 func (v *tracerouteView) release() {
 	if v.st != nil && v.st.cancelRound != nil {
@@ -33,6 +41,9 @@ func (v *traceroutePipedView) update(m *Model, msg tea.Msg) (tea.Model, tea.Cmd)
 	}
 	return *m, nil
 }
+
+// problem answers the view's current fault. The Model renders it.
+func (v *traceroutePipedView) problem(m *Model) string { return "" }
 
 func (v *traceroutePipedView) render(m *Model) string {
 	// | log mode appends to the scrollback viewport; "" falls through to the

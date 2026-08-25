@@ -808,11 +808,14 @@ func (m Model) renderTraceroute() string {
 	var sb textbuf.Buffer
 	sb.Reset(1024)
 
+	// The header states the path this traceroute is about, and nothing else.
+	//
+	// It used to have the poll fault appended to it. The no-hops branch below
+	// rendered the SAME string again, so one failure was printed twice in a
+	// frame. The fault now goes to the error zone the Model renders for every
+	// view (docs/architecture/cli/error-surface.md).
 	var hb textbuf.Buffer
 	hb.Str("Traceroute to ").Str(ts.target).Str("  rounds ").Int(int64(ts.rounds))
-	if ts.pollError != "" {
-		hb.Str("  ").Str(ts.pollError)
-	}
 	sb.Str(trHeaderStyle.Render(hb.String()))
 	sb.Byte('\n')
 
@@ -860,12 +863,9 @@ func (m Model) renderTraceroute() string {
 	}
 
 	if len(ts.hops) == 0 {
-		if ts.pollError != "" {
-			var tbE textbuf.Buffer
-			sb.Str(trLossBad.Render(tbE.Str("  error: ").Str(ts.pollError).String()))
-		} else {
-			sb.Str(trDimStyle.Render("  waiting for data..."))
-		}
+		// `waiting for data` is a fact about this traceroute, so it stays. The
+		// fault that used to replace it belongs to the error zone.
+		sb.Str(trDimStyle.Render("  waiting for data..."))
 		sb.Byte('\n')
 	}
 

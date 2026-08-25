@@ -28,7 +28,7 @@ Wait+Screen /ze>/
 Sleep 3s
 Type "monitor bgp"
 Enter
-Wait+Screen /connected/
+Wait+Screen /established/
 Sleep 8s
 
 Type "s"

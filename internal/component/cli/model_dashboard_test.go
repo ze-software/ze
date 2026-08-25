@@ -301,21 +301,24 @@ func TestDashboardRenderHeader(t *testing.T) {
 		PeersEstablished: 2,
 	}
 
-	header := renderDashboardHeader(snap, "", 120)
+	header := renderDashboardHeader(snap, 120)
 	for _, want := range []string{"65000", "1.2.3.4", "2h30m0s", "2/3"} {
 		if !strings.Contains(header, want) {
 			t.Errorf("header missing %q in: %s", want, header)
 		}
 	}
 
-	// With error.
-	errHeader := renderDashboardHeader(snap, "connection lost", 120)
-	if !strings.Contains(errHeader, "connection lost") {
-		t.Errorf("error header missing error message: %s", errHeader)
+	// The header states BGP facts only. It used to carry the CLI's own poll
+	// status on a second line, which read as a statement about the sessions.
+	if strings.Contains(header, "connected") {
+		t.Errorf("header states the poll status, which is not a BGP fact: %s", header)
+	}
+	if lines := strings.Count(header, "\n"); lines != 0 {
+		t.Errorf("header is %d lines, want 1: %q", lines+1, header)
 	}
 
 	// Nil snapshot.
-	nilHeader := renderDashboardHeader(nil, "", 120)
+	nilHeader := renderDashboardHeader(nil, 120)
 	if !strings.Contains(nilHeader, "waiting for data") {
 		t.Errorf("nil snapshot header: got %q", nilHeader)
 	}
@@ -622,5 +625,32 @@ func TestDashboardParsesFlatPayload(t *testing.T) {
 	}
 	if stale.RouterID != "" || len(stale.Peers) != 0 {
 		t.Errorf("an enveloped payload parsed as %+v, want an empty snapshot", stale)
+	}
+}
+
+// TestDashboardViewAnswersItsFaultRatherThanRenderingIt verifies a poll failure
+// reaches the Model through the view interface instead of the BGP header.
+//
+// VALIDATES: dashboardView.problem answers the last poll fault, and the header
+// stays free of it. The Model renders every view's fault in one error zone
+// (docs/architecture/cli/error-surface.md).
+//
+// PREVENTS: a view growing its own error line. The header used to hold one,
+// and in its healthy state it read `connected` directly under `peers 3/3`,
+// where it looked like a claim about the BGP sessions. An operator who learns
+// where one command puts its faults MUST find every other command's faults in
+// the same place.
+func TestDashboardViewAnswersItsFaultRatherThanRenderingIt(t *testing.T) {
+	m := NewCommandModel()
+	view := &dashboardView{st: &dashboardState{pollError: "connection lost"}}
+	m.activeView = view
+
+	if got := view.problem(&m); got != "connection lost" {
+		t.Errorf("problem: got %q, want %q", got, "connection lost")
+	}
+
+	snap := &dashboardSnapshot{RouterID: "1.2.3.4", LocalAS: 65000, Uptime: "1m0s"}
+	if header := renderDashboardHeader(snap, 120); strings.Contains(header, "connection lost") {
+		t.Errorf("the header carries the fault, which belongs to the error zone: %q", header)
 	}
 }

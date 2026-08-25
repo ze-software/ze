@@ -33,6 +33,14 @@ type activeView interface {
 	// key handles a key press. It returns true when the key is absorbed by the
 	// view (Model returns without further handling), false to fall through.
 	key(m *Model, keyStr string) bool
+	// problem returns the view's current fault, or "" when it has none.
+	//
+	// A view MUST NOT render its own fault. It answers here, and the Model
+	// renders it in the one error zone every surface shares.
+	//
+	// A reader then looks in one place, whatever command they ran
+	// (docs/architecture/cli/error-surface.md).
+	problem(m *Model) string
 	// release cancels the view's live resources (its context / probe round) when
 	// the view is being REPLACED by another view. It performs no scrollback or
 	// viewport teardown (that is the concrete stop* path, driven by Esc/q): a

@@ -51,11 +51,19 @@ var dashboardColumns = []dashboardColumnDef{
 	{col: sortColumnRate, width: 8, priority: 7},
 }
 
-// renderDashboardHeader renders the 2-line header bar.
-func renderDashboardHeader(snap *dashboardSnapshot, pollError string, width int) string {
+// renderDashboardHeader renders the 1-line header bar.
+//
+// It states BGP facts and nothing else.
+//
+// It used to carry a second line reading `connected`, the CLI's own poll
+// status. Under `peers 3/3` that read as a statement about the sessions, and
+// it said nothing the peer rows did not say. A poll fault now goes to the
+// error zone the Model renders for every view
+// (docs/architecture/cli/error-surface.md).
+func renderDashboardHeader(snap *dashboardSnapshot, width int) string {
 	var tb textbuf.Buffer
 	if snap == nil {
-		return tb.Str(dashHeaderStyle.Render("BGP Dashboard")).Byte('\n').Str(dashErrorStyle.Render("waiting for data...")).String()
+		return dashHeaderStyle.Render("BGP Dashboard  waiting for data...")
 	}
 
 	line1 := tb.Str("AS ").Uint32(snap.LocalAS).Str("  rid ").Str(snap.RouterID).Str("  up ").Str(snap.Uptime).Str("  peers ").Int(int64(snap.PeersEstablished)).Byte('/').Int(int64(snap.PeersConfigured)).String()
@@ -63,14 +71,7 @@ func renderDashboardHeader(snap *dashboardSnapshot, pollError string, width int)
 		line1 = line1[:width]
 	}
 
-	var line2 string
-	if pollError != "" {
-		line2 = dashErrorStyle.Render(pollError)
-	} else {
-		line2 = dashConnStyle.Render("connected")
-	}
-
-	return tb.Reset().Str(dashHeaderStyle.Render(line1)).Byte('\n').Str(line2).String()
+	return dashHeaderStyle.Render(line1)
 }
 
 // renderDashboardFooter renders the 1-line footer with key hints and last update info.

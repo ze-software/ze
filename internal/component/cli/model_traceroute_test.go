@@ -615,3 +615,38 @@ func TestFormatTracerouteLogLineEmpty(t *testing.T) {
 	assert.Contains(t, line, "1")
 	assert.Equal(t, 2, strings.Count(line, "*"))
 }
+
+// TestTracerouteViewAnswersItsFaultRatherThanRenderingIt verifies a poll
+// failure reaches the Model through the view interface instead of the
+// traceroute output.
+//
+// VALIDATES: tracerouteView.problem answers the last poll fault, and neither
+// the header nor the body carries it. The Model renders every view's fault in
+// one error zone (docs/architecture/cli/error-surface.md).
+//
+// PREVENTS: the same failure printed twice in one frame. The header appended
+// the fault to "Traceroute to X rounds N", and the no-hops branch rendered the
+// same string again as "error: ...". A reader saw one failure as two, and
+// neither copy was where the faults of any other command appear.
+func TestTracerouteViewAnswersItsFaultRatherThanRenderingIt(t *testing.T) {
+	m := NewCommandModel()
+	m.width = 120
+	view := &tracerouteView{st: &tracerouteState{
+		target:    "192.0.2.1",
+		rounds:    2,
+		pollError: "connection lost",
+	}}
+	m.activeView = view
+
+	if got := view.problem(&m); got != "connection lost" {
+		t.Errorf("problem: got %q, want %q", got, "connection lost")
+	}
+
+	out := m.renderTraceroute()
+	if strings.Contains(out, "connection lost") {
+		t.Errorf("the traceroute output carries the fault, which belongs to the error zone: %q", out)
+	}
+	if !strings.Contains(out, "192.0.2.1") {
+		t.Errorf("the traceroute output lost its own subject: %q", out)
+	}
+}

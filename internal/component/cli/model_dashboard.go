@@ -467,7 +467,7 @@ func (m Model) renderDashboard() string {
 	}
 
 	// Header (2 lines).
-	sb.Str(renderDashboardHeader(ds.snapshot, ds.pollError, width)).Byte('\n')
+	sb.Str(renderDashboardHeader(ds.snapshot, width)).Byte('\n')
 
 	// Peer table or detail view.
 	if ds.detailAddr != "" {
@@ -477,7 +477,7 @@ func (m Model) renderDashboard() string {
 		if ds.snapshot != nil {
 			peers = sortDashboardPeers(ds.snapshot.Peers, ds.sortColumn, ds.sortAsc)
 		}
-		tableHeight := max(1, m.height-4) // header(2) + footer(1) + separator(1)
+		tableHeight := max(1, m.height-3) // header(1) + footer(1) + separator(1)
 		sb.Str(renderDashboardPeerTable(peers, ds, ds.sortColumn, ds.sortAsc, width, tableHeight))
 	}
 

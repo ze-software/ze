@@ -29,6 +29,14 @@ func (v *dashboardView) update(m *Model, msg tea.Msg) (tea.Model, tea.Cmd) {
 func (v *dashboardView) render(m *Model) string      { return m.renderDashboard() }
 func (v *dashboardView) key(m *Model, k string) bool { return m.handleDashboardKey(k) }
 
+// problem answers the last poll fault. The BGP header states BGP facts only.
+func (v *dashboardView) problem(m *Model) string {
+	if ds := m.activeDashboard(); ds != nil {
+		return ds.pollError
+	}
+	return ""
+}
+
 // release is a no-op: the dashboard drives one-shot pull pollers via tea.Cmd and
 // holds no context/goroutine, so a view-switch has nothing to cancel. It still
 // satisfies the activeView interface so the dashboard can be released uniformly.
