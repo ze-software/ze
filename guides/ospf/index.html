@@ -18,15 +18,12 @@
         <meta name="twitter:description" content="Ze documentation: guide/ospf.md" />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
-            rel="stylesheet"
-        />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
         <link rel="canonical" href="https://ze-software.net/guides/ospf/" />
         <meta property="og:url" content="https://ze-software.net/guides/ospf/" />
         <link rel="stylesheet" href="../../assets/site.css" />
+        <link rel="stylesheet" href="../../assets/vendor/asciinema-player.css" />
+        <script src="../../assets/vendor/asciinema-player.min.js" defer></script>
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -441,16 +438,26 @@ show ospf border-routers
     <div class="terminal-demo__bar" aria-hidden="true">
       <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
       <span>ospf-adjacency.terminal</span>
-      <span>WEBM</span>
+      <span>CAST</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/ospf-adjacency.png?v=18f9f5f412" aria-label="Diagnose a missing OSPF route demonstration">
-      <source src="../../assets/demos/ospf-adjacency.webm?v=0f9d490996" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/ospf-adjacency.webm?v=0f9d490996">Download the recording</a>.
-    </video>
+    <div
+      class="terminal-demo__player"
+      data-terminal-demo-player
+      data-cast-src="../../assets/demos/ospf-adjacency.cast?v=f9a5d056ce"
+      data-cols="137"
+      data-rows="36"
+      style="--demo-aspect: 82.2 / 47.52"
+      aria-label="Diagnose a missing OSPF route demonstration"
+    ></div>
+    <noscript>
+      <p class="terminal-demo__noscript">This recording is replayed by the
+      page's own player. <a href="../../assets/demos/ospf-adjacency.cast?v=f9a5d056ce">Download the asciicast</a> or
+      <a href="../../assets/demos/ospf-adjacency.txt?v=b074a3b6ad">read the transcript</a>.</p>
+    </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.19</span><span>54 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
-    <a href="../../assets/demos/ospf-adjacency.txt?v=d82925c752">Plain-text transcript</a>
+    <span>Ze 26.08.25</span><span>49 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/ospf-adjacency.txt?v=b074a3b6ad">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -459,13 +466,13 @@ show ospf border-routers
 $ ze config show demos/terminal/ospf-adjacency/ze.conf ospf
 The daemon configuration shows the OSPF process, area, interface, and router ID used by the recording.
 
-$ ze cli -c &quot;show ospf neighbor detail&quot;
+$ ze cli -c &#x27;show ospf neighbor detail&#x27;
 The live FRR neighbor at 172.31.0.3 is Full.
 
-$ ze cli -c &quot;show ospf database router&quot;
+$ ze cli -c &#x27;show ospf database router&#x27;
 The live link-state database contains FRR&#x27;s Router-LSA.
 
-$ ze cli -c &quot;show ospf route&quot;
+$ ze cli -c &#x27;show ospf route&#x27;
 The FRR loopback 10.255.0.3/32 is an intra-area route through 172.31.0.3.
 
 The recording uses `ze cli` directly. No output wrapper or synthetic summary sits between the operator and the running control plane.</code></pre>
@@ -517,7 +524,7 @@ The recording uses `ze cli` directly. No output wrapper or synthetic summary sit
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
                 </div>
             </div>
         </footer>

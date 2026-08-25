@@ -8191,7 +8191,7 @@
               {
                 "children": [
                   {
-                    "description": "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding",
+                    "description": "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding.\nNeeds the netlink backend for the same reason as autoconf:\nthe two leaves describe one behavior.",
                     "kind": "leaf",
                     "name": "accept-ra",
                     "source": "config",
@@ -8205,7 +8205,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Enable IPv6 stateless autoconfiguration",
+                    "description": "Enable IPv6 stateless autoconfiguration. The kernel\nlearns an address only when Router Advertisements reach\nthe device it owns, so this leaf needs the netlink\nbackend. On the vpp backend the NIC belongs to VPP and\nno advertisement reaches the Linux Control Plane tap.",
                     "kind": "leaf",
                     "name": "autoconf",
                     "source": "config",
@@ -8890,7 +8890,7 @@
               {
                 "children": [
                   {
-                    "description": "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding",
+                    "description": "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding.\nNeeds the netlink backend for the same reason as autoconf:\nthe two leaves describe one behavior.",
                     "kind": "leaf",
                     "name": "accept-ra",
                     "source": "config",
@@ -8904,7 +8904,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Enable IPv6 stateless autoconfiguration",
+                    "description": "Enable IPv6 stateless autoconfiguration. The kernel\nlearns an address only when Router Advertisements reach\nthe device it owns, so this leaf needs the netlink\nbackend. On the vpp backend the NIC belongs to VPP and\nno advertisement reaches the Linux Control Plane tap.",
                     "kind": "leaf",
                     "name": "autoconf",
                     "source": "config",
@@ -9582,7 +9582,7 @@
               {
                 "children": [
                   {
-                    "description": "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding",
+                    "description": "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding.\nNeeds the netlink backend for the same reason as autoconf:\nthe two leaves describe one behavior.",
                     "kind": "leaf",
                     "name": "accept-ra",
                     "source": "config",
@@ -9596,7 +9596,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Enable IPv6 stateless autoconfiguration",
+                    "description": "Enable IPv6 stateless autoconfiguration. The kernel\nlearns an address only when Router Advertisements reach\nthe device it owns, so this leaf needs the netlink\nbackend. On the vpp backend the NIC belongs to VPP and\nno advertisement reaches the Linux Control Plane tap.",
                     "kind": "leaf",
                     "name": "autoconf",
                     "source": "config",
@@ -10044,7 +10044,7 @@
               {
                 "children": [
                   {
-                    "description": "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding",
+                    "description": "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding.\nNeeds the netlink backend for the same reason as autoconf:\nthe two leaves describe one behavior.",
                     "kind": "leaf",
                     "name": "accept-ra",
                     "source": "config",
@@ -10058,7 +10058,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Enable IPv6 stateless autoconfiguration",
+                    "description": "Enable IPv6 stateless autoconfiguration. The kernel\nlearns an address only when Router Advertisements reach\nthe device it owns, so this leaf needs the netlink\nbackend. On the vpp backend the NIC belongs to VPP and\nno advertisement reaches the Linux Control Plane tap.",
                     "kind": "leaf",
                     "name": "autoconf",
                     "source": "config",
@@ -11296,7 +11296,7 @@
               {
                 "children": [
                   {
-                    "description": "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding",
+                    "description": "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding.\nNeeds the netlink backend for the same reason as autoconf:\nthe two leaves describe one behavior.",
                     "kind": "leaf",
                     "name": "accept-ra",
                     "source": "config",
@@ -11310,7 +11310,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Enable IPv6 stateless autoconfiguration",
+                    "description": "Enable IPv6 stateless autoconfiguration. The kernel\nlearns an address only when Router Advertisements reach\nthe device it owns, so this leaf needs the netlink\nbackend. On the vpp backend the NIC belongs to VPP and\nno advertisement reaches the Linux Control Plane tap.",
                     "kind": "leaf",
                     "name": "autoconf",
                     "source": "config",
@@ -11930,7 +11930,7 @@
               {
                 "children": [
                   {
-                    "description": "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding",
+                    "description": "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding.\nNeeds the netlink backend for the same reason as autoconf:\nthe two leaves describe one behavior.",
                     "kind": "leaf",
                     "name": "accept-ra",
                     "source": "config",
@@ -11944,7 +11944,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Enable IPv6 stateless autoconfiguration",
+                    "description": "Enable IPv6 stateless autoconfiguration. The kernel\nlearns an address only when Router Advertisements reach\nthe device it owns, so this leaf needs the netlink\nbackend. On the vpp backend the NIC belongs to VPP and\nno advertisement reaches the Linux Control Plane tap.",
                     "kind": "leaf",
                     "name": "autoconf",
                     "source": "config",
@@ -12506,7 +12506,7 @@
               {
                 "children": [
                   {
-                    "description": "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding",
+                    "description": "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding.\nNeeds the netlink backend for the same reason as autoconf:\nthe two leaves describe one behavior.",
                     "kind": "leaf",
                     "name": "accept-ra",
                     "source": "config",
@@ -12520,7 +12520,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Enable IPv6 stateless autoconfiguration",
+                    "description": "Enable IPv6 stateless autoconfiguration. The kernel\nlearns an address only when Router Advertisements reach\nthe device it owns, so this leaf needs the netlink\nbackend. On the vpp backend the NIC belongs to VPP and\nno advertisement reaches the Linux Control Plane tap.",
                     "kind": "leaf",
                     "name": "autoconf",
                     "source": "config",
@@ -12945,7 +12945,7 @@
               {
                 "children": [
                   {
-                    "description": "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding",
+                    "description": "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding.\nNeeds the netlink backend for the same reason as autoconf:\nthe two leaves describe one behavior.",
                     "kind": "leaf",
                     "name": "accept-ra",
                     "source": "config",
@@ -12959,7 +12959,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Enable IPv6 stateless autoconfiguration",
+                    "description": "Enable IPv6 stateless autoconfiguration. The kernel\nlearns an address only when Router Advertisements reach\nthe device it owns, so this leaf needs the netlink\nbackend. On the vpp backend the NIC belongs to VPP and\nno advertisement reaches the Linux Control Plane tap.",
                     "kind": "leaf",
                     "name": "autoconf",
                     "source": "config",

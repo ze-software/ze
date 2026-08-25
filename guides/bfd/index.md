@@ -349,9 +349,9 @@ scripts can parse the output while the interactive CLI renders them.
 
 Establish BFD and BGP with a local FRR peer, cut the peer link, and verify BFD drives BGP down before protocol timers expire.
 
-[Play the WebM recording](../../assets/demos/bfd-failover.webm?v=b815e46d6a) · [View the poster](../../assets/demos/bfd-failover.png?v=eadc3dfcc7) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=ae76cb645e)
+[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=eb9d95abd7) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=5e444cee6f)
 
-Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 2 minutes 4 seconds.
+Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 1 minute 57 seconds.
 
 ```console
 An operator needs to verify that BFD, not the 300-second BGP hold timer, protects an edge session.
@@ -361,16 +361,16 @@ $ ze config show demos/terminal/bfd-failover/ze.conf bgp peer edge-peer connecti
 $ ze config show demos/terminal/bfd-failover/ze.conf bgp peer edge-peer timer
 The daemon configuration shows the 300 ms BFD profile, multiplier 3, single-hop binding, and 300-second BGP hold time.
 
-$ ze cli -c "show bfd sessions"
+$ ze cli -c 'show bfd sessions'
 The running control plane shows the complete Up BFD session.
 
 $ date -u +%T; ip link set bfd-p down
-$ ze cli -c "show bfd sessions"
-$ ze cli -c "show bgp peer list"
+$ ze cli -c 'show bfd sessions'
+$ ze cli -c 'show bgp peer list'
 Five seconds after the kernel link is cut, the full command output shows no live BFD session and BGP has left Established.
 
 $ ip link set bfd-p up
-$ ze cli -c "show bgp peer list"
+$ ze cli -c 'show bgp peer list'
 The same peer returns to Established after the link is restored.
 
 Every protocol result comes directly from `ze cli`; the lab helper is used only to create and reset the isolated FRR peer.

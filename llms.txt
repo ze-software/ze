@@ -16,7 +16,7 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
 - Current generated counts: 52 shipped or experimental feature cards, 4 roadmap cards, 395 CLI commands, 36 config sections, 96 plugin registrations, 42 direct Go dependencies, 37 weekly change entries.
 - Test evidence counts: 23,700+ unit tests, 78 fuzz targets, 1,700+ end-to-end transcript steps, 130 interop scenarios across 9 target implementations.
-- Generated date: 2026-08-24.
+- Generated date: 2026-08-25.
 
 ## Quality and verification model
 
@@ -873,7 +873,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [TACACS+ AAA](https://ze-software.net/guides/tacacs/index.md): Ze authenticates SSH logins against TACACS+ servers (RFC 8907) when the `system.authentication.tacacs` block is present. Local bcrypt users keep working as the fallback so an unreachable server cannot lock you out of... (web: https://ze-software.net/guides/tacacs/)
 - [Operator access with SSH and RBAC](https://ze-software.net/guides/operator-access-rbac/index.md): Use this when the box already has Ze installed and `database.zefs` created, and you want real operator accounts instead of a single bootstrap admin. (web: https://ze-software.net/guides/operator-access-rbac/)
 - [Traffic Usage](https://ze-software.net/guides/traffic-usage/index.md): Ze accounts per-(port, protocol) and, optionally, per-IP byte totals on operator-selected interfaces using eBPF programs attached via TCX. The counters are exported as Prometheus metrics and viewed with `show traffic... (web: https://ze-software.net/guides/traffic-usage/)
-- [Terminal Demonstrations](https://ze-software.net/demos/terminal/index.md): These recordings run real Ze commands against isolated local fixtures. The checked-in VHS tapes define every keystroke, pause, and terminal size, so a release can regenerate the videos when Ze changes. The recordings... (web: https://ze-software.net/demos/terminal/)
+- [Terminal Demonstrations](https://ze-software.net/demos/terminal/index.md): These recordings run real Ze commands against isolated local fixtures. Each checked-in tape file defines every keystroke, pause, and terminal size. A release can therefore regenerate the recordings when Ze changes. (web: https://ze-software.net/demos/terminal/)
 - [VRRP](https://ze-software.net/guides/vrrp/index.md): VRRP gives a LAN a gateway address that survives the loss of the router holding it. Two or more routers share a virtual IP; one is Active (Master) and answers for it, the others wait. If the Active router dies, a Backup... (web: https://ze-software.net/guides/vrrp/)
 - [VPP Data Plane](https://ze-software.net/guides/vpp/index.md): Status: the VPP component manages the VPP process lifecycle (startup, crash recovery, DPDK NIC binding, GoVPP connection), the `fib-vpp` plugin programs routes from ze's system RIB directly into VPP's FIB via the GoVPP... (web: https://ze-software.net/guides/vpp/)
 - [VM Appliance](https://ze-software.net/guides/appliance/index.md): Build a bootable VM image with Ze baked in using gokrazy. The default target is x86_64. The legacy Make workflow uses `GOKRAZY_ARCH=arm64` for native Apple Silicon QEMU images; the structured `ze appliance build`... (web: https://ze-software.net/guides/appliance/)

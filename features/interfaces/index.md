@@ -72,8 +72,8 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | Persistent counter tracking | missing | medium |
 | **Per-Interface Tuning** | IPv4 forwarding | have | |
 | | ARP filter / ARP accept | have | |
-| | IPv6 autoconf (SLAAC) | have | |
-| | IPv6 accept-ra (0/1/2) | have | |
+| | IPv6 autoconf (SLAAC), netlink backend only | have | |
+| | IPv6 accept-ra (0/1/2), netlink backend only | have | |
 | | IPv6 forwarding | have | |
 | | Proxy ARP | have | |
 | | ARP announce / ARP ignore | have | |
@@ -613,6 +613,25 @@ profile after verify runs. Ze reports the state instead. The
 interface whose `net.ipv6.conf.<device>.forwarding` is 0.
 
 <!-- source: internal/plugins/iface/ra/doctor.go -- checkRAForwarding, doctor-iface-ra-forwarding -->
+
+### Receiving advertisements needs the netlink backend
+
+The `autoconf` and `accept-ra` leaves of the per-unit `ipv6` container each carry
+`ze:backend "netlink"`. The kernel builds a SLAAC address only when Router
+Advertisements reach the device it owns. On the netlink backend that device is
+the NIC. On the vpp backend VPP owns the NIC, the kernel sees the Linux Control
+Plane tap, and no advertisement reaches it. Ze writes
+`net.ipv6.conf.<device>.autoconf` and `net.ipv6.conf.<device>.accept_ra` on the
+tap, the kernel waits, and no address appears.
+
+A tree that sets either leaf with `backend vpp` is rejected at config verify with
+`feature not supported by backend "vpp" (supported: netlink)`, and the message
+names the unit. This matches the refusal the `dhcp`, `dhcpv6` and
+`router-advertisement` containers already carry.
+
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf autoconf, leaf accept-ra -->
+<!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures, backendAnnotation -->
+<!-- source: internal/component/iface/config_sysctl.go -- applySysctl emits the two keys -->
 
 ### Container leaves
 

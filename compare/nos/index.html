@@ -18,12 +18,7 @@
         <meta name="twitter:description" content="How Ze compares to VyOS and freeRtr as full router operating systems." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
-            rel="stylesheet"
-        />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
         <link rel="canonical" href="https://ze-software.net/compare/nos/" />
         <meta property="og:url" content="https://ze-software.net/compare/nos/" />
         <link rel="stylesheet" href="../../assets/site.css" />
@@ -2913,7 +2908,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Image generation</td>
 <td>Appliance disk image</td>
-<td>defines gokrazy instance, arch, raw image path, image size, and <code>/perm</code> offsets; builds image with <code>bin/gok overwrite</code>, formats <code>/perm</code>, and injects <code>database.zefs</code>; <code>gokrazy/</code> directory contains <code>ze/config.json</code>, <code>ze/ze.conf</code>, builddir, modcache, and kernel files. <span class="ev-src"><span class="ev-ref"><code>mk/gokrazy.mk:35-43</code></span><span class="ev-ref"><code>mk/gokrazy.mk:68-113</code></span></span></td>
+<td>defines gokrazy instance, arch, raw image path, image size, and <code>/perm</code> offsets; builds image with <code>bin/gok overwrite</code>, formats <code>/perm</code>, and injects <code>database.zefs</code>; <code>gokrazy/</code> directory contains <code>ze/config.json</code>, <code>ze/ze.conf</code>, builddir, modcache, and kernel files. <span class="ev-src"><span class="ev-ref"><code>mk/build-gokrazy.mk:35-43</code></span><span class="ev-ref"><code>mk/build-gokrazy.mk:68-113</code></span></span></td>
 <td>ISO image generation itself is delegated to <code>vyos-build</code>: says use vyos-build to build an image, and CI calls <code>./build-vyos-image --architecture amd64. generic</code> in. <span class="ev-src"><span class="ev-ref"><code>README.md:8-10</code></span><span class="ev-ref"><code>.github/workflows/package-smoketest.yml:167-180</code></span></span></td>
 <td>Demo VM image creator exists: <code>misc/image</code> is a demo VM ISO creator and <code>misc/img2ova</code> is OVA creator. selects Debian packages and excludes large subsystems; assembles kernel/initrd/rootfs artifacts. <span class="ev-src"><span class="ev-ref"><code>readme.md:89-90</code></span><span class="ev-ref"><code>misc/image/image.beg:1-40</code></span><span class="ev-ref"><code>misc/image/image.end:1-54</code></span></span></td>
 <td>Ze has source-local image generation. VyOS image generation is in a sibling repo, with this root contributing packages and tests. freeRtr has demo image recipes.</td>
@@ -2921,7 +2916,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Image generation</td>
 <td>Installer ISO</td>
-<td><code>ze-iso-build-full</code> flow initializes appliance, builds installer kernel, initrd, disk image, and ISO; <code>ze-iso-build</code>; describes bare-metal flow and disk image output. <span class="ev-src"><span class="ev-ref"><code>mk/appliance.mk:42-72</code></span><span class="ev-ref"><code>mk/appliance.mk:83-99</code></span><span class="ev-ref"><code>docs/guide/ze-install.md:98-141</code></span></span></td>
+<td><code>ze-iso-build-full</code> flow initializes appliance, builds installer kernel, initrd, disk image, and ISO; <code>ze-iso-build</code>; describes bare-metal flow and disk image output. <span class="ev-src"><span class="ev-ref"><code>mk/build-appliance.mk:42-72</code></span><span class="ev-ref"><code>mk/build-appliance.mk:83-99</code></span><span class="ev-ref"><code>docs/guide/ze-install.md:98-141</code></span></span></td>
 <td>This root exposes install/add image commands, not ISO builder internals. CI builds a custom ISO through <code>vyos-build</code> in. <span class="ev-src"><span class="ev-ref"><code>.github/workflows/package-smoketest.yml:167-180</code></span></span></td>
 <td><code>java -jar rtr.jar test image. image.dsk</code> and <code>image.gns</code>; image finalization in. <span class="ev-src"><span class="ev-ref"><code>misc/image/ci.sh:1-3</code></span><span class="ev-ref"><code>misc/image/image.end:1-54</code></span></span></td>
 <td>Ze ISO builder is in-tree. VyOS ISO builder is external. freeRtr image recipes use router test image commands.</td>
@@ -2929,7 +2924,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Image generation</td>
 <td>Installer initrd and kernel</td>
-<td>documents building installer kernel and initrd for target arch, and profiles <code>qemu</code> versus <code>hardware</code>; <code>appliance kernel</code>, <code>appliance initrd</code>; <code>ze-installer</code> for linux amd64 and arm64; <code>GOOS=linux</code>, <code>CGO_ENABLED=0</code>, arch from <code>GOARCH</code> or <code>runtime.GOARCH</code>, and <code>ze_installer</code> tag at lines 73-76, 122-155. <span class="ev-src"><span class="ev-ref"><code>docs/guide/ze-install.md:122-142</code></span><span class="ev-ref"><code>mk/appliance.mk:86-90</code></span><span class="ev-ref"><code>mk/appliance.mk:101-104</code></span><span class="ev-ref"><code>internal/appliance/cmd_initrd.go</code></span></span></td>
+<td>documents building installer kernel and initrd for target arch, and profiles <code>qemu</code> versus <code>hardware</code>; <code>appliance kernel</code>, <code>appliance initrd</code>; <code>ze-installer</code> for linux amd64 and arm64; <code>GOOS=linux</code>, <code>CGO_ENABLED=0</code>, arch from <code>GOARCH</code> or <code>runtime.GOARCH</code>, and <code>ze_installer</code> tag at lines 73-76, 122-155. <span class="ev-src"><span class="ev-ref"><code>docs/guide/ze-install.md:122-142</code></span><span class="ev-ref"><code>mk/build-appliance.mk:86-90</code></span><span class="ev-ref"><code>mk/build-appliance.mk:101-104</code></span><span class="ev-ref"><code>internal/appliance/cmd_initrd.go</code></span></span></td>
 <td>Installer uses the live ISO squashfs and boot files: <code>filesystem.squashfs</code>; install flow copies boot files and squashfs in <code>1029-1033</code>. <span class="ev-src"><span class="ev-ref"><code>src/op_mode/image_installer.py:143-145</code></span><span class="ev-ref"><code>/boot/</code></span></span></td>
 <td>moves boot kernel to <code>%img%.krn</code>, creates cpio initrd, compresses with zstd, and wraps with <code>wraplinux</code>; <code>linux-image-%kern%</code>, busybox, udev, kmod and libs. <span class="ev-src"><span class="ev-ref"><code>misc/image/image.end:1-54</code></span><span class="ev-ref"><code>misc/image/image.beg:57-66</code></span></span></td>
 <td>Ze's installer is a Go initrd path. VyOS uses live ISO rootfs installation. freeRtr demo image creates custom initrd artifacts.</td>
@@ -3001,7 +2996,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>OS integration</td>
 <td>Non-systemd appliance mode</td>
-<td>The gokrazy appliance runtime is kernel, gokrazy init, and Ze, with no systemd, no package manager, and no general shell: builds a gokrazy image and injects <code>/perm</code>. <span class="ev-src"><span class="ev-ref"><code>mk/gokrazy.mk:68-113</code></span></span></td>
+<td>The gokrazy appliance runtime is kernel, gokrazy init, and Ze, with no systemd, no package manager, and no general shell: builds a gokrazy image and injects <code>/perm</code>. <span class="ev-src"><span class="ev-ref"><code>mk/build-gokrazy.mk:68-113</code></span></span></td>
 <td>not found in inspected sources. VyOS uses Debian/systemd as a base in inspected package dependencies.</td>
 <td>also writes SysV init script; however it still uses systemd later in. Dedicated non-systemd appliance mode not found. <span class="ev-src"><span class="ev-ref"><code>misc/service/c.sh:21-59</code></span><span class="ev-ref"><code>/etc/init.d/rtr</code></span><span class="ev-ref"><code>misc/service/c.sh:61-95</code></span></span></td>
 <td>Ze is source-grounded as gokrazy appliance. freeRtr has SysV script compatibility, not a standalone no-systemd OS claim.</td>
@@ -3025,7 +3020,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Kernel/sysctl</td>
 <td>Kernel command line tuning</td>
-<td>Ze runtime/installer kernel build and profiles are present in; custom runtime kernel build comments in; QEMU runtime kernel tests in. Specific sysctl defaults are not enumerated here. <span class="ev-src"><span class="ev-ref"><code>docs/guide/ze-install.md:122-142</code></span><span class="ev-ref"><code>mk/gokrazy.mk:162-193</code></span><span class="ev-ref"><code>mk/test-integration.mk:334-360</code></span></span></td>
+<td>Ze runtime/installer kernel build and profiles are present in; custom runtime kernel build comments in; QEMU runtime kernel tests in. Specific sysctl defaults are not enumerated here. <span class="ev-src"><span class="ev-ref"><code>docs/guide/ze-install.md:122-142</code></span><span class="ev-ref"><code>mk/build-gokrazy.mk:162-193</code></span><span class="ev-ref"><code>mk/test-integration.mk:334-360</code></span></span></td>
 <td>VyOS maps config options to GRUB kernel cmdline: <code>image_installer.py</code> <code>532-576</code> include mitigations, power saving, panic, CPU isolate/nohz/rcu_nocbs/NMI watchdog; the runtime counterpart renders the same cmdline in. <span class="ev-src"><span class="ev-ref"><code>src/conf_mode/system_option.py:307-369</code></span></span></td>
 <td><code>net.ipv6.conf.*.disable_ipv6=1</code> and <code>kernel.panic=10</code>, and edits <code>/etc/default/grub</code> to add <code>panic=10 nomodeset nofb</code> and lower timeout. <span class="ev-src"><span class="ev-ref"><code>misc/service/c.sh:10-15</code></span></span></td>
 <td>VyOS and freeRtr have direct kernel/sysctl tuning evidence. Ze has kernel build evidence and a runtime sysctl component. <span class="ev-src"><span class="ev-ref"><code>internal/component/sysctl/</code></span></span></td>
@@ -3057,7 +3052,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Provisioning</td>
 <td>PXE or remote provisioning</td>
-<td><code>ze install remote</code> with DHCP/PXE, TFTP, HTTP image server, iPXE chainloading, generated boot script, and credential <code>database.zefs</code>; stages PXE boot files and builds iPXE binaries. <span class="ev-src"><span class="ev-ref"><code>docs/guide/ze-install.md:144-193</code></span><span class="ev-ref"><code>mk/appliance.mk:106-130</code></span></span></td>
+<td><code>ze install remote</code> with DHCP/PXE, TFTP, HTTP image server, iPXE chainloading, generated boot script, and credential <code>database.zefs</code>; stages PXE boot files and builds iPXE binaries. <span class="ev-src"><span class="ev-ref"><code>docs/guide/ze-install.md:144-193</code></span><span class="ev-ref"><code>mk/build-appliance.mk:106-130</code></span></span></td>
 <td>not found in inspected vyos-1x sources. VyOS installer can fetch remote images by URL/VRF in, but no PXE provisioning server found. <span class="ev-src"><span class="ev-ref"><code>image_installer.py:692-760</code></span></span></td>
 <td>not found in inspected sources.</td>
 <td>Ze only in inspected sources.</td>
@@ -3065,7 +3060,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Provisioning</td>
 <td>Init/bootstrap database or seed config</td>
-<td>Ze creates or reuses <code>database.zefs</code>, writes SSH/TLS credentials and template config; <code>111-116</code> write credential keys and <code>209-223</code> append environment listener overrides. <span class="ev-src"><span class="ev-ref"><code>mk/gokrazy.mk:72-104</code></span><span class="ev-ref"><code>internal/appliance/cmd_assemble.go</code></span></span></td>
+<td>Ze creates or reuses <code>database.zefs</code>, writes SSH/TLS credentials and template config; <code>111-116</code> write credential keys and <code>209-223</code> append environment listener overrides. <span class="ev-src"><span class="ev-ref"><code>mk/build-gokrazy.mk:72-104</code></span><span class="ev-ref"><code>internal/appliance/cmd_assemble.go</code></span></span></td>
 <td>VyOS install creates target config dir, copies config, configures auth and serial console, touches <code>.vyatta_config</code>, <code>1011-1022</code>; default boot config exists at. <span class="ev-src"><span class="ev-ref"><code>data/config.boot.default:43-52</code></span></span></td>
 <td>Docker script starts with <code>run/&lt;hostname&gt;-hw.txt</code> and <code>run/&lt;hostname&gt;-sw.txt</code> in; service installer copies <code>default.cfg</code> to <code>rtr-sw.txt</code> and runs hwdet in. <span class="ev-src"><span class="ev-ref"><code>misc/docker/run/freertr-hw.txt</code>, <code>freertr-sw.txt</code></span><span class="ev-ref"><code>misc/docker/scripts/freertr.sh:49-54</code></span><span class="ev-ref"><code>misc/service/c.sh:107-118</code></span></span></td>
 <td>All three have bootstrap/config seed paths.</td>
@@ -3089,7 +3084,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Testing harness</td>
 <td>Image/QEMU tests</td>
-<td>Ze has QEMU and image installer targets: <code>ze-qemu-integration-test</code>, FRR interop QEMU, installer QEMU, ISO QEMU, scenarios, Ventoy, L2TP/PPPoE runtime kernel, traffic usage; boots gokrazy image in x86_64 or aarch64 QEMU. <span class="ev-src"><span class="ev-ref"><code>mk/test-integration.mk:260-360</code></span><span class="ev-ref"><code>mk/gokrazy.mk:119-159</code></span></span></td>
+<td>Ze has QEMU and image installer targets: <code>ze-qemu-integration-test</code>, FRR interop QEMU, installer QEMU, ISO QEMU, scenarios, Ventoy, L2TP/PPPoE runtime kernel, traffic usage; boots gokrazy image in x86_64 or aarch64 QEMU. <span class="ev-src"><span class="ev-ref"><code>mk/test-integration.mk:260-360</code></span><span class="ev-ref"><code>mk/build-gokrazy.mk:119-159</code></span></span></td>
 <td>CI builds ISO and passes to test jobs; builds and uploads ISO. README says runtime tests execute inside QEMU and smoketests are placed into <code>vyos-1x-smoketest</code>. <span class="ev-src"><span class="ev-ref"><code>.github/workflows/package-smoketest.yml:167-193</code></span><span class="ev-ref"><code>README.md:70-72</code></span></span></td>
 <td><code>rtr.jar test image</code> for dsk and gns image recipes; lists image/test output dirs; defines qemu target. <span class="ev-src"><span class="ev-ref"><code>misc/image/ci.sh:1-3</code></span><span class="ev-ref"><code>readme.md:36-44</code></span><span class="ev-ref"><code>platform.mips32:1-8</code></span></span></td>
 <td>Ze has the richest QEMU matrix in inspected source.</td>
@@ -3097,7 +3092,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Cross-compilation and architecture</td>
 <td>Target architectures</td>
-<td>Ze installer is built for <code>linux/amd64</code> and <code>linux/arm64</code> in; gokrazy arch defaults to amd64 and supports amd64/arm64 QEMU run in <code>119-159</code>; kernel target only accepts amd64 or arm64 in <code>GOARCH</code> or <code>runtime.GOARCH</code> and <code>GOOS=linux</code> in <code>122-155</code>. <span class="ev-src"><span class="ev-ref"><code>mk/appliance.mk:101-104</code></span><span class="ev-ref"><code>mk/gokrazy.mk:35-47</code></span><span class="ev-ref"><code>mk/gokrazy.mk:190-193</code></span><span class="ev-ref"><code>cmd_initrd.go:73-76</code></span></span></td>
+<td>Ze installer is built for <code>linux/amd64</code> and <code>linux/arm64</code> in; gokrazy arch defaults to amd64 and supports amd64/arm64 QEMU run in <code>119-159</code>; kernel target only accepts amd64 or arm64 in <code>GOARCH</code> or <code>runtime.GOARCH</code> and <code>GOOS=linux</code> in <code>122-155</code>. <span class="ev-src"><span class="ev-ref"><code>mk/build-appliance.mk:101-104</code></span><span class="ev-ref"><code>mk/build-gokrazy.mk:35-47</code></span><span class="ev-ref"><code>mk/build-gokrazy.mk:190-193</code></span><span class="ev-ref"><code>cmd_initrd.go:73-76</code></span></span></td>
 <td>Debian package <code>Architecture: amd64 arm64</code> in; CI ISO build passes <code>--architecture amd64</code> in; installer compatibility compares current/new architecture in. <span class="ev-src"><span class="ev-ref"><code>debian/control:38-43</code></span><span class="ev-ref"><code>.github/workflows/package-smoketest.yml:167-176</code></span><span class="ev-ref"><code>image_installer.py:886-929</code></span></span></td>
 <td>shows mips32/mipsel descriptors; many files; Docker pulls <code>rtr-$(uname -m).tgz</code> in; native dependencies are documented in. <span class="ev-src"><span class="ev-ref"><code>misc/image/platform.mips32:1-8</code></span><span class="ev-ref"><code>misc/image/platform.*</code></span><span class="ev-ref"><code>misc/docker/Dockerfile:15-18</code></span><span class="ev-ref"><code>readme.md:28-35</code></span></span></td>
 <td>Ze and VyOS explicitly support amd64/arm64 in inspected build/package files. freeRtr image descriptors show broader platform concept, with at least mips32 read.</td>
@@ -3113,7 +3108,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Appliance mode</td>
 <td>Router appliance behavior</td>
-<td>Ze gokrazy appliance image is first class via; install guide builds disk image with TLS, SSH credentials and seed config baked into <code>/perm</code> zefs. <span class="ev-src"><span class="ev-ref"><code>mk/gokrazy.mk:68-113</code></span><span class="ev-ref"><code>docs/guide/ze-install.md:132-141</code></span></span></td>
+<td>Ze gokrazy appliance image is first class via; install guide builds disk image with TLS, SSH credentials and seed config baked into <code>/perm</code> zefs. <span class="ev-src"><span class="ev-ref"><code>mk/build-gokrazy.mk:68-113</code></span><span class="ev-ref"><code>docs/guide/ze-install.md:132-141</code></span></span></td>
 <td>VyOS is a router OS image managed as live/installable images; default config includes system option <code>reboot-on-upgrade-failure</code> in. <span class="ev-src"><span class="ev-ref"><code>system-image.xml.in:1-220</code></span><span class="ev-ref"><code>image_installer.py:929-1080</code></span><span class="ev-ref"><code>data/config.boot.default:43-45</code></span></span></td>
 <td>freeRtr service/image scripts aim at router appliance behavior: disables network managers, sets default target, creates router service, masks services; creates initrd and default config. <span class="ev-src"><span class="ev-ref"><code>misc/service/c.sh:10-95</code></span><span class="ev-ref"><code>misc/image/image.end:37-54</code></span></span></td>
 <td>All can be appliance-like, but Ze and VyOS have clearer end-to-end image/install flows in inspected source.</td>
@@ -3312,7 +3307,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Performance</td>
 <td>Benchmarks and performance tools</td>
-<td><code>ze-perf</code> BGP propagation benchmark with sender/DUT/receiver, modes, repeats/warmups, outlier removal, JSON/HTML/MD reporting and regression checks, <code>bin/ze-perf</code>; perf targets in. <span class="ev-src"><span class="ev-ref"><code>docs/guide/benchmarking.md:1-37</code>, <code>:39-94</code>, <code>:96-146</code>, <code>:148-221</code></span><span class="ev-ref"><code>Makefile:145-148</code>, <code>:184-187</code></span><span class="ev-ref"><code>mk/perf.mk:1-22</code></span></span></td>
+<td><code>ze-perf</code> BGP propagation benchmark with sender/DUT/receiver, modes, repeats/warmups, outlier removal, JSON/HTML/MD reporting and regression checks, <code>bin/ze-perf</code>; perf targets in. <span class="ev-src"><span class="ev-ref"><code>docs/guide/benchmarking.md:1-37</code>, <code>:39-94</code>, <code>:96-146</code>, <code>:148-221</code></span><span class="ev-ref"><code>Makefile:145-148</code>, <code>:184-187</code></span><span class="ev-ref"><code>mk/perf-bench.mk:1-22</code></span></span></td>
 <td>Bandwidth test wraps <code>iperf</code>, choosing IPv6 option based on address/FQDN; no benchmark harness found in inspected sources. <span class="ev-src"><span class="ev-ref"><code>src/op_mode/execute_bandwidth_test.sh:16-32</code></span></span></td>
 <td>Native dataplane benchmark script runs <code>p4bench.bin</code> for IPv4, IPv6, VLAN, PPPoE, MPLS, <code>misc/tests</code> as volumetric generators and native dataplanes. <span class="ev-src"><span class="ev-ref"><code>misc/native/p4emu_bench.sh:1-13</code></span><span class="ev-ref"><code>readme.md:64-85</code></span></span></td>
 <td>Ze has most complete benchmark and regression tooling.</td>
@@ -3624,7 +3619,7 @@ about non-BGP router OS breadth.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 August 2026 11:56 UTC</span>
+                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
                 </div>
             </div>
         </footer>

@@ -423,9 +423,9 @@ The runtime can be reset without reconfiguring via `clear ospf process` (tear do
 
 Inspect the active OSPF configuration, query the running control plane with Ze's CLI, trace a Full neighbor through the LSDB, and confirm the expected route.
 
-[Play the WebM recording](../../assets/demos/ospf-adjacency.webm?v=0f9d490996) · [View the poster](../../assets/demos/ospf-adjacency.png?v=18f9f5f412) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=d82925c752)
+[Download the asciicast recording](../../assets/demos/ospf-adjacency.cast?v=f9a5d056ce) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=b074a3b6ad)
 
-Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 54 seconds.
+Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 49 seconds.
 
 ```console
 An operator is investigating why 10.255.0.3/32 is missing.
@@ -433,13 +433,13 @@ An operator is investigating why 10.255.0.3/32 is missing.
 $ ze config show demos/terminal/ospf-adjacency/ze.conf ospf
 The daemon configuration shows the OSPF process, area, interface, and router ID used by the recording.
 
-$ ze cli -c "show ospf neighbor detail"
+$ ze cli -c 'show ospf neighbor detail'
 The live FRR neighbor at 172.31.0.3 is Full.
 
-$ ze cli -c "show ospf database router"
+$ ze cli -c 'show ospf database router'
 The live link-state database contains FRR's Router-LSA.
 
-$ ze cli -c "show ospf route"
+$ ze cli -c 'show ospf route'
 The FRR loopback 10.255.0.3/32 is an intra-area route through 172.31.0.3.
 
 The recording uses `ze cli` directly. No output wrapper or synthetic summary sits between the operator and the running control plane.

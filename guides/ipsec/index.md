@@ -372,7 +372,7 @@ strongSwan 5.9.14 is such a peer, by default rather than by limitation. charon s
 `version_max = 1.2` in `/etc/strongswan.d/charon.conf`, with the comment "default to TLS
 1.2 until 1.3 is stable for use in EAP", and it implements no extended master secret. Set
 `charon.tls.version_max = 1.3` and the same 5.9.14 build reaches an established SA, which
-is what `test/interop-ipsec/scenarios/06-eap-tls13` runs.
+is what `test/interop-ipsec/scenarios/eap-tls13` runs.
 
 | Answer | What to change |
 |--------|----------------|

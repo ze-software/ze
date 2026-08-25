@@ -18,15 +18,12 @@
         <meta name="twitter:description" content="Ze documentation: guide/vrrp.md" />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
-            rel="stylesheet"
-        />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
         <link rel="canonical" href="https://ze-software.net/guides/vrrp/" />
         <meta property="og:url" content="https://ze-software.net/guides/vrrp/" />
         <link rel="stylesheet" href="../../assets/site.css" />
+        <link rel="stylesheet" href="../../assets/vendor/asciinema-player.css" />
+        <script src="../../assets/vendor/asciinema-player.min.js" defer></script>
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -399,16 +396,26 @@ keepalived under QEMU (<code>ze-test</code>'s VRRP interop lab).</p>
     <div class="terminal-demo__bar" aria-hidden="true">
       <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
       <span>vrrp-failover.terminal</span>
-      <span>WEBM</span>
+      <span>CAST</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/vrrp-failover.png?v=27c2d1640a" aria-label="Keep the gateway reachable while Ze stops demonstration">
-      <source src="../../assets/demos/vrrp-failover.webm?v=07fd9dcaf7" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/vrrp-failover.webm?v=07fd9dcaf7">Download the recording</a>.
-    </video>
+    <div
+      class="terminal-demo__player"
+      data-terminal-demo-player
+      data-cast-src="../../assets/demos/vrrp-failover.cast?v=eabb1c82f7"
+      data-cols="137"
+      data-rows="36"
+      style="--demo-aspect: 82.2 / 47.52"
+      aria-label="Keep the gateway reachable while Ze stops demonstration"
+    ></div>
+    <noscript>
+      <p class="terminal-demo__noscript">This recording is replayed by the
+      page's own player. <a href="../../assets/demos/vrrp-failover.cast?v=eabb1c82f7">Download the asciicast</a> or
+      <a href="../../assets/demos/vrrp-failover.txt?v=9d5d29cb11">read the transcript</a>.</p>
+    </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.19</span><span>2 minutes 38 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>VHS 0.11.0</span>
-    <a href="../../assets/demos/vrrp-failover.txt?v=0b9dc45f28">Plain-text transcript</a>
+    <span>Ze 26.08.25</span><span>2 minutes 46 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/vrrp-failover.txt?v=9d5d29cb11">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -417,17 +424,17 @@ keepalived under QEMU (<code>ze-test</code>'s VRRP interop lab).</p>
 $ ze config show demos/terminal/vrrp-failover/ze.conf interface ethernet eth0 unit 0 ipv4 vrrp group gateway
 The daemon configuration shows VRID 10, VIP 192.0.2.1, priority 200, and the advertisement interval.
 
-$ grep -E &#x27;interface|virtual_router_id|priority|192.0.2.1&#x27; keepalived.conf
+$ grep -E &#x27;interface|virtual_router_id|priority|192.0.2.1&#x27; /src/demos/terminal/vrrp-failover/keepalived.conf
 The peer is configured as BACKUP on the same interface, VRID, and VIP with a lower priority of 100.
 
-$ ze cli -c &quot;show vrrp&quot;
+$ ze cli -c &#x27;show vrrp&#x27; | ze pipe yaml
 The complete live state shows Ze is master.
 
-$ ip -n vrrp-ze -o addr show | grep 192.0.2.1
+$ ip -n vrrp-ze -o addr show | grep 192.0.2.1 | tr -s &#x27; &#x27; | cut -d&#x27; &#x27; -f2,4
 The kernel shows the VIP on Ze&#x27;s RFC virtual-MAC interface.
 
-$ cat failover-proof.sh
-$ bash -x failover-proof.sh
+$ cat /src/demos/terminal/vrrp-failover/failover-proof.sh
+$ bash -x /src/demos/terminal/vrrp-failover/failover-proof.sh
 The recording displays and traces the exact commands that kill Ze, remove its namespace, inspect the VIP on keepalived, and send two probes.
 
 The final kernel output shows 192.0.2.1 on keepalived&#x27;s `vrrp.10` interface, and both probes succeed after failover.</code></pre>
@@ -560,7 +567,7 @@ filters link-local multicast will break the election.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 August 2026 16:35 UTC</span>
+                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
                 </div>
             </div>
         </footer>

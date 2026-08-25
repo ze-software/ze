@@ -52,18 +52,18 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
 
 Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
 
-[Play the WebM recording](../../assets/demos/zefs-config.webm?v=e1f065f598) · [View the poster](../../assets/demos/zefs-config.png?v=395cc5eb0c) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=061ef7a006)
+[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=b2ff33a1ce) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=f6537d09e3)
 
-Recorded with Ze 26.08.21 on macOS and Linux using VHS 0.11.0. Duration: 2 minutes 21 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 3 minutes 28 seconds.
 
 ```console
-$ cat "$ZE_INIT_INPUT"
+$ cat $ZE_INIT_INPUT
 admin
 secret123
 127.0.0.1
 2222
 ze-demo
-$ ze init < "$ZE_INIT_INPUT"
+$ ze init < $ZE_INIT_INPUT
 $ ze config ls
 ze.conf
 $ ze data check
@@ -76,7 +76,7 @@ ze# show | compare
 ze# commit
 Session committed
 ze# exit
-ze# exit
+ze> exit
 $ ze cli -c 'show bgp'
 $ ze cli -c 'show bgp | text'
 $ ze cli -c 'show bgp | display router-id local-as peers-established'

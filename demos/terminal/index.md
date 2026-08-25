@@ -1,8 +1,10 @@
 # Terminal Demonstrations
 
-These recordings run real Ze commands against isolated local fixtures. The checked-in VHS tapes define every keystroke, pause, and terminal size, so a release can regenerate the videos when Ze changes. The recordings use no public service.
+These recordings run real Ze commands against isolated local fixtures. Each checked-in tape file defines every keystroke, pause, and terminal size. A release can therefore regenerate the recordings when Ze changes.
 
-Each demo also appears beside the documentation for the feature it exercises. The transcript below each player provides the same command sequence without requiring video playback.
+A terminal demo is an asciicast. The page replays it as text, so you can select a command and copy it. The one browser demo stays a video. The recordings use no public service, and the player is served from this site.
+
+Each demo also appears beside the documentation for the feature it exercises. The transcript below each player provides the same command sequence without replaying the recording.
 
 ## Interactive command launcher
 
@@ -10,9 +12,9 @@ Each demo also appears beside the documentation for the feature it exercises. Th
 
 Use type-ahead filtering and drill-down navigation in Ze's interactive command launcher.
 
-[Play the WebM recording](../../assets/demos/launcher.webm?v=1536c23832) · [View the poster](../../assets/demos/launcher.png?v=7b0e4ac048) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
+[Download the asciicast recording](../../assets/demos/launcher.cast?v=c49373f1b2) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
 
-Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 44 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 57 seconds.
 
 ```console
 $ ze
@@ -30,9 +32,9 @@ Press Escape to move back through the menu and return to the shell.
 
 Connect to Ze over SSH, open the live BGP dashboard, sort peers, and inspect one session.
 
-[Play the WebM recording](../../assets/demos/cli-dashboard.webm?v=56620f9bd0) · [View the poster](../../assets/demos/cli-dashboard.png?v=5595195ace) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
+[Download the asciicast recording](../../assets/demos/cli-dashboard.cast?v=483ed2e752) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
 
-Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 40 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 55 seconds.
 
 ```console
 $ ssh ze-demo
@@ -49,18 +51,18 @@ The dashboard polls three local BGP sessions. Press "s" to sort by the next colu
 
 Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
 
-[Play the WebM recording](../../assets/demos/zefs-config.webm?v=e1f065f598) · [View the poster](../../assets/demos/zefs-config.png?v=395cc5eb0c) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=061ef7a006)
+[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=b2ff33a1ce) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=f6537d09e3)
 
-Recorded with Ze 26.08.21 on macOS and Linux using VHS 0.11.0. Duration: 2 minutes 21 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 3 minutes 28 seconds.
 
 ```console
-$ cat "$ZE_INIT_INPUT"
+$ cat $ZE_INIT_INPUT
 admin
 secret123
 127.0.0.1
 2222
 ze-demo
-$ ze init < "$ZE_INIT_INPUT"
+$ ze init < $ZE_INIT_INPUT
 $ ze config ls
 ze.conf
 $ ze data check
@@ -73,7 +75,7 @@ ze# show | compare
 ze# commit
 Session committed
 ze# exit
-ze# exit
+ze> exit
 $ ze cli -c 'show bgp'
 $ ze cli -c 'show bgp | text'
 $ ze cli -c 'show bgp | display router-id local-as peers-established'
@@ -92,9 +94,9 @@ The five lines answer `ze init`'s prompts in order: username, password, host, po
 
 Run an allowed NOC command, then show Ze explicitly refuse a known state-changing command.
 
-[Play the WebM recording](../../assets/demos/rbac.webm?v=189c6c578f) · [View the poster](../../assets/demos/rbac.png?v=83eb6771ce) · [Plain-text transcript](../../assets/demos/rbac.txt?v=939addc51a)
+[Download the asciicast recording](../../assets/demos/rbac.cast?v=91686ce31e) · [Plain-text transcript](../../assets/demos/rbac.txt?v=939addc51a)
 
-Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 12 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 1 minute 10 seconds.
 
 ```console
 $ ze config show rbac.conf system authorization profile read-only
@@ -123,9 +125,9 @@ The recording displays the command restriction and the NOC user's profile bindin
 
 Run Ze's live traceroute through a deterministic Linux network-namespace lab.
 
-[Play the WebM recording](../../assets/demos/traceroute.webm?v=076e9f586a) · [View the poster](../../assets/demos/traceroute.png?v=8dcfcd9e64) · [Plain-text transcript](../../assets/demos/traceroute.txt?v=2b9d95cc69)
+[Download the asciicast recording](../../assets/demos/traceroute.cast?v=19a88d25d0) · [Plain-text transcript](../../assets/demos/traceroute.txt?v=2b9d95cc69)
 
-Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 42 seconds.
+Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 46 seconds.
 
 ```console
 $ ssh ze-demo
@@ -142,9 +144,9 @@ The destination and router live in an isolated Linux network-namespace lab. Ze s
 
 Change a YANG-backed setting, review the generated diff, commit the draft, and verify the active value.
 
-[Play the WebM recording](../../assets/demos/web-config.webm?v=a8458dd75a) · [View the poster](../../assets/demos/web-config.png?v=300f2e8e47) · [Plain-text transcript](../../assets/demos/web-config.txt?v=a614767cf2)
+[Play the WebM recording](../../assets/demos/web-config.webm?v=c9196c88c2) · [View the poster](../../assets/demos/web-config.png?v=300f2e8e47) · [Plain-text transcript](../../assets/demos/web-config.txt?v=a614767cf2)
 
-Recorded with Ze 26.08.19 on macOS and Linux using Playwright 1.55.0. Duration: 58 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Playwright 1.55.0. Duration: 58 seconds.
 
 ```console
 Ze web configuration demo
@@ -168,9 +170,9 @@ Expected result: Ze commits the browser user's isolated draft and the active YAN
 
 Commit a hostname change in the interactive editor, leave the confirmation window unanswered, and verify Ze restores the previous configuration.
 
-[Play the WebM recording](../../assets/demos/commit-confirmed.webm?v=91983a21e7) · [View the poster](../../assets/demos/commit-confirmed.png?v=39936789b5) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1)
+[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=85d8b1d166) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1)
 
-Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 10 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 1 minute 18 seconds.
 
 ```console
 $ ze config edit -f ze.conf
@@ -204,9 +206,9 @@ The first change is left unconfirmed and rolls back. The second receives `confir
 
 Feed three local routes through a deterministic RTR cache, then show Valid and NotFound routes installed while the Invalid route is absent.
 
-[Play the WebM recording](../../assets/demos/rpki.webm?v=971e751f4f) · [View the poster](../../assets/demos/rpki.png?v=4e7e9269d8) · [Plain-text transcript](../../assets/demos/rpki.txt?v=bf49f52038)
+[Download the asciicast recording](../../assets/demos/rpki.cast?v=3edba2c02c) · [Plain-text transcript](../../assets/demos/rpki.txt?v=bf49f52038)
 
-Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 34 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 32 seconds.
 
 ```console
 $ ze cli -c 'show bgp rpki status | no-more'
@@ -226,9 +228,9 @@ The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, an
 
 Inject one route, inspect BGP best-path selection, and verify Linux installed it with Ze's route protocol ID. Validation also proves withdrawal removes it.
 
-[Play the WebM recording](../../assets/demos/rib-fib.webm?v=6b2efa49fe) · [View the poster](../../assets/demos/rib-fib.png?v=7173a6febd) · [Plain-text transcript](../../assets/demos/rib-fib.txt?v=ca05c09bc8)
+[Download the asciicast recording](../../assets/demos/rib-fib.cast?v=908cbeb9d1) · [Plain-text transcript](../../assets/demos/rib-fib.txt?v=ca05c09bc8)
 
-Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 49 seconds.
+Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 49 seconds.
 
 ```console
 $ ze cli -c 'request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42'
@@ -243,28 +245,13 @@ The route enters Ze's BGP RIB, wins best-path selection, reaches the protocol-in
 
 ## Live warnings and retained errors
 
-### Demo: Separate live warnings from recent errors
-
-Read aggregate component health, follow a live stale-prefix warning from the SSH banner into show warnings, then reset a peer and find the retained event in show errors.
-
-[Play the WebM recording](../../assets/demos/health-reports.webm?v=c95587e1ba) · [View the poster](../../assets/demos/health-reports.png?v=4b94b2625a) · [Plain-text transcript](../../assets/demos/health-reports.txt?v=113557fa9c)
-
-Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 1 minute.
-
-```console
-$ ssh ze-demo
-Warning: stale-prefix-data has stale prefix data (updated 2024-01-01)
-ze# run show health
-ipsec  down  ike engine not running
-ze# run show warnings source bgp
-bgp  prefix-stale  warning  127.0.0.2  ... 2024-01-01
-ze# run request peer 127.0.0.2 teardown 4
-ze# run show errors source bgp
-bgp  notification-sent  error  127.0.0.2  direction sent  code 6  subcode 4
-
-Health reports aggregate component state. Warnings describe conditions that remain active and disappear when resolved. Errors retain discrete events. The login banner and filtered commands use the same report bus.
-```
-
+<!-- The health-reports demo is not embedded while its recording is wrong. Its
+     tape drives an SSH session whose commands the CLI answers with a completion
+     listing rather than a result, so the recording holds the intro card, a
+     config box and the recap, and none of the output this gallery describes.
+     Restore this marker when the recording shows the session again.
+     Recorded in plan/journal/green-that-could-not-have-been-red.md -->
+<!-- terminal-demo-disabled: health-reports -->
 
 ## Configuration views and formatter pipes
 
@@ -272,9 +259,9 @@ Health reports aggregate component state. Warnings describe conditions that rema
 
 Show one BGP peer as hierarchical blocks and set commands, round-trip between both with identical canonical output, then compose match and count over Ze's plugin registry.
 
-[Play the WebM recording](../../assets/demos/config-views.webm?v=9286711b41) · [View the poster](../../assets/demos/config-views.png?v=ad33316247) · [Plain-text transcript](../../assets/demos/config-views.txt?v=0f968daa34)
+[Download the asciicast recording](../../assets/demos/config-views.cast?v=46af3dc00a) · [Plain-text transcript](../../assets/demos/config-views.txt?v=35a1a90923)
 
-Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 16 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 1 minute 19 seconds.
 
 ```console
 $ ze config show router.conf bgp peer transit-a
@@ -286,7 +273,7 @@ session {
     asn { local 65000; remote 65001; }
     family ipv4/unicast { prefix maximum 1000000; }
 }
-$ ze config migrate --format set router.conf | ze pipe match 'bgp peer transit-a'
+$ ze config migrate --format set router.conf 2>/dev/null | ze pipe match 'bgp peer transit-a'
 set bgp peer transit-a connection local ip 192.0.2.1
 set bgp peer transit-a connection remote ip 192.0.2.2
 set bgp peer transit-a session asn local 65000
@@ -311,9 +298,9 @@ Hierarchical and set syntax are alternate presentations of the same parsed confi
 
 Establish BFD and BGP with a local FRR peer, cut the peer link, and verify BFD drives BGP down before protocol timers expire.
 
-[Play the WebM recording](../../assets/demos/bfd-failover.webm?v=b815e46d6a) · [View the poster](../../assets/demos/bfd-failover.png?v=eadc3dfcc7) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=ae76cb645e)
+[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=eb9d95abd7) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=5e444cee6f)
 
-Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 2 minutes 4 seconds.
+Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 1 minute 57 seconds.
 
 ```console
 An operator needs to verify that BFD, not the 300-second BGP hold timer, protects an edge session.
@@ -323,16 +310,16 @@ $ ze config show demos/terminal/bfd-failover/ze.conf bgp peer edge-peer connecti
 $ ze config show demos/terminal/bfd-failover/ze.conf bgp peer edge-peer timer
 The daemon configuration shows the 300 ms BFD profile, multiplier 3, single-hop binding, and 300-second BGP hold time.
 
-$ ze cli -c "show bfd sessions"
+$ ze cli -c 'show bfd sessions'
 The running control plane shows the complete Up BFD session.
 
 $ date -u +%T; ip link set bfd-p down
-$ ze cli -c "show bfd sessions"
-$ ze cli -c "show bgp peer list"
+$ ze cli -c 'show bfd sessions'
+$ ze cli -c 'show bgp peer list'
 Five seconds after the kernel link is cut, the full command output shows no live BFD session and BGP has left Established.
 
 $ ip link set bfd-p up
-$ ze cli -c "show bgp peer list"
+$ ze cli -c 'show bgp peer list'
 The same peer returns to Established after the link is restored.
 
 Every protocol result comes directly from `ze cli`; the lab helper is used only to create and reset the isolated FRR peer.
@@ -345,9 +332,9 @@ Every protocol result comes directly from `ze cli`; the lab helper is used only 
 
 Inspect the active OSPF configuration, query the running control plane with Ze's CLI, trace a Full neighbor through the LSDB, and confirm the expected route.
 
-[Play the WebM recording](../../assets/demos/ospf-adjacency.webm?v=0f9d490996) · [View the poster](../../assets/demos/ospf-adjacency.png?v=18f9f5f412) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=d82925c752)
+[Download the asciicast recording](../../assets/demos/ospf-adjacency.cast?v=f9a5d056ce) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=b074a3b6ad)
 
-Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 54 seconds.
+Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 49 seconds.
 
 ```console
 An operator is investigating why 10.255.0.3/32 is missing.
@@ -355,13 +342,13 @@ An operator is investigating why 10.255.0.3/32 is missing.
 $ ze config show demos/terminal/ospf-adjacency/ze.conf ospf
 The daemon configuration shows the OSPF process, area, interface, and router ID used by the recording.
 
-$ ze cli -c "show ospf neighbor detail"
+$ ze cli -c 'show ospf neighbor detail'
 The live FRR neighbor at 172.31.0.3 is Full.
 
-$ ze cli -c "show ospf database router"
+$ ze cli -c 'show ospf database router'
 The live link-state database contains FRR's Router-LSA.
 
-$ ze cli -c "show ospf route"
+$ ze cli -c 'show ospf route'
 The FRR loopback 10.255.0.3/32 is an intra-area route through 172.31.0.3.
 
 The recording uses `ze cli` directly. No output wrapper or synthetic summary sits between the operator and the running control plane.
@@ -374,9 +361,9 @@ The recording uses `ze cli` directly. No output wrapper or synthetic summary sit
 
 Attach Ze's pure-Go eBPF accounting to a local veth, generate ICMP and HTTP traffic, and inspect source, protocol, port, and byte totals.
 
-[Play the WebM recording](../../assets/demos/traffic-anomaly.webm?v=f4c762cadb) · [View the poster](../../assets/demos/traffic-anomaly.png?v=bd373dfcc3) · [Plain-text transcript](../../assets/demos/traffic-anomaly.txt?v=fe6d21bab0)
+[Download the asciicast recording](../../assets/demos/traffic-anomaly.cast?v=de2a0154a3) · [Plain-text transcript](../../assets/demos/traffic-anomaly.txt?v=ebe3635e22)
 
-Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 1 minute 27 seconds.
+Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 1 minute 24 seconds.
 
 ```console
 An operator sees an unexpected burst on `traffic0` and needs to identify the source and application without capturing payloads.
@@ -384,14 +371,14 @@ An operator sees an unexpected burst on `traffic0` and needs to identify the sou
 $ ze config show demos/terminal/traffic-anomaly/ze.conf traffic usage
 The daemon configuration shows eBPF accounting enabled on `traffic0`, with per-IP tracking and bounded maps.
 
-$ ze cli -c "show traffic usage name traffic0"
+$ ze cli -c 'show traffic usage name traffic0'
 The complete baseline snapshot is displayed.
 
 $ ip netns exec traffic-peer ping -c 4 10.77.0.1
 $ ip netns exec traffic-peer curl -s -o /dev/null http://10.77.0.1:8080/payload.txt
 The isolated workload sends ICMP and HTTP traffic.
 
-$ ze cli -c "show traffic usage name traffic0"
+$ ze cli -c 'show traffic usage name traffic0'
 The complete live snapshot attributes bytes to source 10.77.0.2, ICMP, TCP destination port 8080, and reports map occupancy. The accounting path observes traffic only and never modifies or drops packets.
 ```
 
@@ -402,9 +389,9 @@ The complete live snapshot attributes bytes to source 10.77.0.2, ICMP, TCP desti
 
 Inspect the active and live VRRP state, stop the higher-priority Ze router, and prove keepalived takes the same reachable VIP.
 
-[Play the WebM recording](../../assets/demos/vrrp-failover.webm?v=07fd9dcaf7) · [View the poster](../../assets/demos/vrrp-failover.png?v=27c2d1640a) · [Plain-text transcript](../../assets/demos/vrrp-failover.txt?v=0b9dc45f28)
+[Download the asciicast recording](../../assets/demos/vrrp-failover.cast?v=eabb1c82f7) · [Plain-text transcript](../../assets/demos/vrrp-failover.txt?v=9d5d29cb11)
 
-Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 2 minutes 38 seconds.
+Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 46 seconds.
 
 ```console
 An operator needs to stop the active router without changing the default gateway on every host.
@@ -412,17 +399,17 @@ An operator needs to stop the active router without changing the default gateway
 $ ze config show demos/terminal/vrrp-failover/ze.conf interface ethernet eth0 unit 0 ipv4 vrrp group gateway
 The daemon configuration shows VRID 10, VIP 192.0.2.1, priority 200, and the advertisement interval.
 
-$ grep -E 'interface|virtual_router_id|priority|192.0.2.1' keepalived.conf
+$ grep -E 'interface|virtual_router_id|priority|192.0.2.1' /src/demos/terminal/vrrp-failover/keepalived.conf
 The peer is configured as BACKUP on the same interface, VRID, and VIP with a lower priority of 100.
 
-$ ze cli -c "show vrrp"
+$ ze cli -c 'show vrrp' | ze pipe yaml
 The complete live state shows Ze is master.
 
-$ ip -n vrrp-ze -o addr show | grep 192.0.2.1
+$ ip -n vrrp-ze -o addr show | grep 192.0.2.1 | tr -s ' ' | cut -d' ' -f2,4
 The kernel shows the VIP on Ze's RFC virtual-MAC interface.
 
-$ cat failover-proof.sh
-$ bash -x failover-proof.sh
+$ cat /src/demos/terminal/vrrp-failover/failover-proof.sh
+$ bash -x /src/demos/terminal/vrrp-failover/failover-proof.sh
 The recording displays and traces the exact commands that kill Ze, remove its namespace, inspect the VIP on keepalived, and send two probes.
 
 The final kernel output shows 192.0.2.1 on keepalived's `vrrp.10` interface, and both probes succeed after failover.
@@ -435,9 +422,9 @@ The final kernel output shows 192.0.2.1 on keepalived's `vrrp.10` interface, and
 
 Use Ze's offline command fallback to read the complete kernel, CPU, and memory inventory in human-readable structured output.
 
-[Play the WebM recording](../../assets/demos/host-inventory.webm?v=3644670538) · [View the poster](../../assets/demos/host-inventory.png?v=fc7a447153) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
+[Download the asciicast recording](../../assets/demos/host-inventory.cast?v=ede5ff9591) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
 
-Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 37 seconds.
+Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 36 seconds.
 
 ```console
 An operator needs to inspect an unfamiliar Linux host before starting Ze.
@@ -461,9 +448,9 @@ The commands work without a running Ze daemon. Every field returned by `ze show 
 
 Inspect and validate a BGP group, then use Ze's dependency graph to prove which peers inherit the value before scheduling maintenance.
 
-[Play the WebM recording](../../assets/demos/config-graph.webm?v=e0904130d3) · [View the poster](../../assets/demos/config-graph.png?v=cf972162a4) · [Plain-text transcript](../../assets/demos/config-graph.txt?v=1708ee2fac)
+[Download the asciicast recording](../../assets/demos/config-graph.cast?v=b2868dc650) · [Plain-text transcript](../../assets/demos/config-graph.txt?v=7a64ac5a0c)
 
-Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 31 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 1 minute 8 seconds.
 
 ```console
 An operator needs to change the transit group's remote ASN and identify every peer that inherits it before scheduling maintenance.
@@ -474,10 +461,10 @@ The scoped configuration shows `upstream-a` and `upstream-b` inside the transit 
 $ ze config validate router.conf
 configuration valid
 
-$ ze config graph router.conf | ze pipe match peer/upstream
-$ ze config graph router.conf | ze pipe match group/transit
-$ ze config graph router.conf | ze pipe match inherits
-The three direct graph views name both peer nodes, their shared group target, and the two `inherits` relationships.
+$ ze config graph router.conf | ze pipe text | ze pipe match peer/upstream
+$ ze config graph router.conf | ze pipe text | ze pipe match group/transit
+$ ze config graph router.conf | ze pipe text | ze pipe match inherits
+The graph answer holds two lists, `nodes` and `edges`. A row operator such as `match` has no single set of rows there, so Ze refuses it by name instead of picking one list. `| text` renders both lists as aligned rows, one relationship to a line. `| match` then keeps the lines that name the two peers, the group they share, and the two `inherits` relationships.
 
 No reporting helper creates the displayed relationships. The command filters Ze's graph output directly through Ze's format pipeline.
 ```

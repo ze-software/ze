@@ -18,12 +18,7 @@
         <meta name="twitter:description" content="Ze documentation: guide/health-checks.md" />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
-            rel="stylesheet"
-        />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
         <link rel="canonical" href="https://ze-software.net/guides/system-readiness/" />
         <meta property="og:url" content="https://ze-software.net/guides/system-readiness/" />
         <link rel="stylesheet" href="../../assets/site.css" />
@@ -229,45 +224,16 @@ when any component is <code>down</code>.</p>
 <!-- source: internal/plugins/flowexport/health.go -- RegisterHealthCheck, checkFlowExportHealth; internal/core/report/register.go -- init -->
 <p>Each check completes within 1 second. Components report <code>healthy</code>, <code>degraded</code>,
 or <code>down</code>. The overall status is the worst of all components.</p>
-<figure class="terminal-demo" data-terminal-demo="health-reports">
-  <div class="terminal-demo__intro">
-    <div>
-      <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
-      <h3>Separate live warnings from recent errors</h3>
-      <p>Read aggregate component health, follow a live stale-prefix warning from the SSH banner into show warnings, then reset a peer and find the retained event in show errors.</p>
-    </div>
-    <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
-  </div>
-  <div class="terminal-demo__frame">
-    <div class="terminal-demo__bar" aria-hidden="true">
-      <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
-      <span>health-reports.terminal</span>
-      <span>WEBM</span>
-    </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/health-reports.png?v=4b94b2625a" aria-label="Separate live warnings from recent errors demonstration">
-      <source src="../../assets/demos/health-reports.webm?v=c95587e1ba" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/health-reports.webm?v=c95587e1ba">Download the recording</a>.
-    </video>
-  </div>
-  <figcaption>
-    <span>Ze 26.08.19</span><span>1 minute</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
-    <a href="../../assets/demos/health-reports.txt?v=113557fa9c">Plain-text transcript</a>
-  </figcaption>
-  <details class="terminal-demo__transcript">
-    <summary>Read the demonstration transcript</summary>
-    <pre><code>$ ssh ze-demo
-Warning: stale-prefix-data has stale prefix data (updated 2024-01-01)
-ze# run show health
-ipsec  down  ike engine not running
-ze# run show warnings source bgp
-bgp  prefix-stale  warning  127.0.0.2  ... 2024-01-01
-ze# run request peer 127.0.0.2 teardown 4
-ze# run show errors source bgp
-bgp  notification-sent  error  127.0.0.2  direction sent  code 6  subcode 4
-
-Health reports aggregate component state. Warnings describe conditions that remain active and disappear when resolved. Errors retain discrete events. The login banner and filtered commands use the same report bus.</code></pre>
-  </details>
-</figure>
+<!-- The health-reports demo is not embedded while its recording is wrong. The
+     tape drives an SSH session whose commands the CLI answers with a completion
+     listing rather than a result, so the recording shows the intro card, a
+     config box and the recap, and none of the health, warning or error output
+     the page describes. The transcript gate refuses it, which is the first
+     check that has ever compared this demo against what it claims: a .webm
+     cannot report that it recorded a rejection. Restore this marker when the
+     recording shows the session again.
+     Recorded in plan/journal/green-that-could-not-have-been-red.md -->
+<!-- terminal-demo-disabled: health-reports -->
 
 <h2 id="runtime-show-warnings-show-errors">Runtime: <code>show warnings</code> / <code>show errors</code></h2>
 <p>The report bus surfaces individual anomalies:</p>
@@ -500,7 +466,7 @@ for the full protocol.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
                 </div>
             </div>
         </footer>

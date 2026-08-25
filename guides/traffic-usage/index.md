@@ -121,9 +121,9 @@ set of pipe operators applies.
 
 Attach Ze's pure-Go eBPF accounting to a local veth, generate ICMP and HTTP traffic, and inspect source, protocol, port, and byte totals.
 
-[Play the WebM recording](../../assets/demos/traffic-anomaly.webm?v=f4c762cadb) · [View the poster](../../assets/demos/traffic-anomaly.png?v=bd373dfcc3) · [Plain-text transcript](../../assets/demos/traffic-anomaly.txt?v=fe6d21bab0)
+[Download the asciicast recording](../../assets/demos/traffic-anomaly.cast?v=de2a0154a3) · [Plain-text transcript](../../assets/demos/traffic-anomaly.txt?v=ebe3635e22)
 
-Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 1 minute 27 seconds.
+Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 1 minute 24 seconds.
 
 ```console
 An operator sees an unexpected burst on `traffic0` and needs to identify the source and application without capturing payloads.
@@ -131,14 +131,14 @@ An operator sees an unexpected burst on `traffic0` and needs to identify the sou
 $ ze config show demos/terminal/traffic-anomaly/ze.conf traffic usage
 The daemon configuration shows eBPF accounting enabled on `traffic0`, with per-IP tracking and bounded maps.
 
-$ ze cli -c "show traffic usage name traffic0"
+$ ze cli -c 'show traffic usage name traffic0'
 The complete baseline snapshot is displayed.
 
 $ ip netns exec traffic-peer ping -c 4 10.77.0.1
 $ ip netns exec traffic-peer curl -s -o /dev/null http://10.77.0.1:8080/payload.txt
 The isolated workload sends ICMP and HTTP traffic.
 
-$ ze cli -c "show traffic usage name traffic0"
+$ ze cli -c 'show traffic usage name traffic0'
 The complete live snapshot attributes bytes to source 10.77.0.2, ICMP, TCP destination port 8080, and reports map occupancy. The accounting path observes traffic only and never modifies or drops packets.
 ```
 

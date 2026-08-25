@@ -18,12 +18,7 @@
         <meta name="twitter:description" content="Ze documentation: contributing/documentation-testing.md" />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
-            rel="stylesheet"
-        />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
         <link rel="canonical" href="https://ze-software.net/contribute/documentation-testing/" />
         <meta property="og:url" content="https://ze-software.net/contribute/documentation-testing/" />
         <link rel="stylesheet" href="../../assets/site.css" />
@@ -70,7 +65,7 @@ changed-file-aware wiring, documentation, command, and inventory gate.</p>
 <li><a href="#adding-a-new-documentation-check">Adding a new documentation check</a></li>
 <li><a href="#see-also">See also</a></li>
 </ol></nav>
-<!-- source: mk/inventory.mk -- ze-doc-verify and ze-doc-wiring-check -->
+<!-- source: mk/check-docs.mk -- ze-doc-verify and ze-doc-wiring-check -->
 <!-- source: scripts/status/verify_run.go -- stagesForMode -->
 
 <h2 id="quick-start">Quick start</h2>
@@ -348,7 +343,7 @@ and scans <code>docs/</code>/<code>scripts/</code> for references to packages th
 <ol>
 <li>Write the check as a <code>//go:build ignore</code> Go program in <code>scripts/docvalid/</code>,
    following the patterns in <code>doc_drift.go</code>.</li>
-<li>Add a <code>make ze-foo-check</code> target to <code>mk/inventory.mk</code> or the owning <code>mk/</code>
+<li>Add a <code>make ze-foo-check</code> target to <code>mk/check-docs.mk</code> or the owning <code>mk/</code>
    file.</li>
 <li>Add the new target to <code>ze-doc-verify</code> if failure should fail the umbrella.</li>
 <li>Add the new target to <code>scripts/dev/verify_wiring_docs.py</code> if changed files
@@ -368,7 +363,7 @@ and scans <code>docs/</code>/<code>scripts/</code> for references to packages th
 <li><code>ai/rules/repo-maintenance.md</code> -- required discovery updates when new
   checks, tools, or verification gates are added</li>
 <li><code>ai/rules/repo-maintenance.md</code> -- which hooks and make gates enforce which rules</li>
-<li><code>mk/inventory.mk</code> -- owning make targets for documentation, inventory,
+<li><code>mk/check-docs.mk</code> -- owning make targets for documentation, inventory,
   command validation, and wiring/doc gates</li>
 </ul>
             </section>
@@ -380,7 +375,7 @@ and scans <code>docs/</code>/<code>scripts/</code> for references to packages th
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
                 </div>
             </div>
         </footer>

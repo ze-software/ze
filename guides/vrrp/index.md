@@ -258,9 +258,9 @@ State changes are logged as `vrrp: state change` with `from`, `to`, and a
 
 Inspect the active and live VRRP state, stop the higher-priority Ze router, and prove keepalived takes the same reachable VIP.
 
-[Play the WebM recording](../../assets/demos/vrrp-failover.webm?v=07fd9dcaf7) · [View the poster](../../assets/demos/vrrp-failover.png?v=27c2d1640a) · [Plain-text transcript](../../assets/demos/vrrp-failover.txt?v=0b9dc45f28)
+[Download the asciicast recording](../../assets/demos/vrrp-failover.cast?v=eabb1c82f7) · [Plain-text transcript](../../assets/demos/vrrp-failover.txt?v=9d5d29cb11)
 
-Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 2 minutes 38 seconds.
+Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 46 seconds.
 
 ```console
 An operator needs to stop the active router without changing the default gateway on every host.
@@ -268,17 +268,17 @@ An operator needs to stop the active router without changing the default gateway
 $ ze config show demos/terminal/vrrp-failover/ze.conf interface ethernet eth0 unit 0 ipv4 vrrp group gateway
 The daemon configuration shows VRID 10, VIP 192.0.2.1, priority 200, and the advertisement interval.
 
-$ grep -E 'interface|virtual_router_id|priority|192.0.2.1' keepalived.conf
+$ grep -E 'interface|virtual_router_id|priority|192.0.2.1' /src/demos/terminal/vrrp-failover/keepalived.conf
 The peer is configured as BACKUP on the same interface, VRID, and VIP with a lower priority of 100.
 
-$ ze cli -c "show vrrp"
+$ ze cli -c 'show vrrp' | ze pipe yaml
 The complete live state shows Ze is master.
 
-$ ip -n vrrp-ze -o addr show | grep 192.0.2.1
+$ ip -n vrrp-ze -o addr show | grep 192.0.2.1 | tr -s ' ' | cut -d' ' -f2,4
 The kernel shows the VIP on Ze's RFC virtual-MAC interface.
 
-$ cat failover-proof.sh
-$ bash -x failover-proof.sh
+$ cat /src/demos/terminal/vrrp-failover/failover-proof.sh
+$ bash -x /src/demos/terminal/vrrp-failover/failover-proof.sh
 The recording displays and traces the exact commands that kill Ze, remove its namespace, inspect the VIP on keepalived, and send two probes.
 
 The final kernel output shows 192.0.2.1 on keepalived's `vrrp.10` interface, and both probes succeed after failover.

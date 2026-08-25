@@ -51,6 +51,12 @@ For each scenario, `interop.py` manages the container lifecycle:
 Daemons start conditionally: FRR if `frr.conf` exists, BIRD if `bird.conf` exists,
 GoBGP if `gobgp.toml` exists. This means each scenario only runs the daemons it needs.
 
+**A scenario directory is NAMED, never numbered** (owner directive, 2026-08-24).
+Run order is `sorted(os.listdir(scenarios_dir))` and no scenario depends on it.
+The rule and its reasoning live in `ai/rules/interop-and-goal-validation.md`,
+which is always-on, so a spec author planning a scenario meets it without
+opening this page.
+
 ### Container Addresses
 
 | Daemon | IP | Container |

@@ -18,12 +18,7 @@
         <meta name="twitter:description" content="Ze documentation: architecture/testing/interop.md" />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
-            rel="stylesheet"
-        />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
         <link rel="canonical" href="https://ze-software.net/architecture/testing/interop/" />
         <meta property="og:url" content="https://ze-software.net/architecture/testing/interop/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
@@ -189,6 +184,11 @@ For each scenario, <code>interop.py</code> manages the container lifecycle:</p>
 
 <p>Daemons start conditionally: FRR if <code>frr.conf</code> exists, BIRD if <code>bird.conf</code> exists,
 GoBGP if <code>gobgp.toml</code> exists. This means each scenario only runs the daemons it needs.</p>
+<p><strong>A scenario directory is NAMED, never numbered</strong> (owner directive, 2026-08-24).
+Run order is <code>sorted(os.listdir(scenarios_dir))</code> and no scenario depends on it.
+The rule and its reasoning live in <code>ai/rules/interop-and-goal-validation.md</code>,
+which is always-on, so a spec author planning a scenario meets it without
+opening this page.</p>
 <h3 id="container-addresses">Container Addresses</h3>
 <table>
 <thead>
@@ -839,7 +839,7 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 August 2026 11:56 UTC</span>
+                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
                 </div>
             </div>
         </footer>

@@ -18,15 +18,12 @@
         <meta name="twitter:description" content="Ze documentation: features/configuration.md" />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
-            rel="stylesheet"
-        />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
         <link rel="canonical" href="https://ze-software.net/features/bgp-configuration/" />
         <meta property="og:url" content="https://ze-software.net/features/bgp-configuration/" />
         <link rel="stylesheet" href="../../assets/site.css" />
+        <link rel="stylesheet" href="../../assets/vendor/asciinema-player.css" />
+        <script src="../../assets/vendor/asciinema-player.min.js" defer></script>
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -459,16 +456,26 @@ in the build declares a config root at all.</p>
     <div class="terminal-demo__bar" aria-hidden="true">
       <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
       <span>config-graph.terminal</span>
-      <span>WEBM</span>
+      <span>CAST</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/config-graph.png?v=cf972162a4" aria-label="Find every peer affected by a group change demonstration">
-      <source src="../../assets/demos/config-graph.webm?v=e0904130d3" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/config-graph.webm?v=e0904130d3">Download the recording</a>.
-    </video>
+    <div
+      class="terminal-demo__player"
+      data-terminal-demo-player
+      data-cast-src="../../assets/demos/config-graph.cast?v=b2868dc650"
+      data-cols="137"
+      data-rows="36"
+      style="--demo-aspect: 82.2 / 47.52"
+      aria-label="Find every peer affected by a group change demonstration"
+    ></div>
+    <noscript>
+      <p class="terminal-demo__noscript">This recording is replayed by the
+      page's own player. <a href="../../assets/demos/config-graph.cast?v=b2868dc650">Download the asciicast</a> or
+      <a href="../../assets/demos/config-graph.txt?v=7a64ac5a0c">read the transcript</a>.</p>
+    </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.19</span><span>1 minute 31 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
-    <a href="../../assets/demos/config-graph.txt?v=1708ee2fac">Plain-text transcript</a>
+    <span>Ze 26.08.25</span><span>1 minute 8 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/config-graph.txt?v=7a64ac5a0c">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -480,10 +487,10 @@ The scoped configuration shows `upstream-a` and `upstream-b` inside the transit 
 $ ze config validate router.conf
 configuration valid
 
-$ ze config graph router.conf | ze pipe match peer/upstream
-$ ze config graph router.conf | ze pipe match group/transit
-$ ze config graph router.conf | ze pipe match inherits
-The three direct graph views name both peer nodes, their shared group target, and the two `inherits` relationships.
+$ ze config graph router.conf | ze pipe text | ze pipe match peer/upstream
+$ ze config graph router.conf | ze pipe text | ze pipe match group/transit
+$ ze config graph router.conf | ze pipe text | ze pipe match inherits
+The graph answer holds two lists, `nodes` and `edges`. A row operator such as `match` has no single set of rows there, so Ze refuses it by name instead of picking one list. `| text` renders both lists as aligned rows, one relationship to a line. `| match` then keeps the lines that name the two peers, the group they share, and the two `inherits` relationships.
 
 No reporting helper creates the displayed relationships. The command filters Ze&#x27;s graph output directly through Ze&#x27;s format pipeline.</code></pre>
   </details>
@@ -521,7 +528,7 @@ No reporting helper creates the displayed relationships. The command filters Ze&
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
                 </div>
             </div>
         </footer>

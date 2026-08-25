@@ -18,12 +18,7 @@
         <meta name="twitter:description" content="Ze documentation: features/interfaces.md" />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
-            rel="stylesheet"
-        />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
         <link rel="canonical" href="https://ze-software.net/features/interfaces/" />
         <meta property="og:url" content="https://ze-software.net/features/interfaces/" />
         <link rel="stylesheet" href="../../assets/site.css" />
@@ -73,6 +68,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.</p>
 <li><a href="#ipv6-router-advertisements">IPv6 Router Advertisements</a>
 <ol>
 <li><a href="#send-and-accept-are-separate">Send and accept are separate</a></li>
+<li><a href="#receiving-advertisements-needs-the-netlink-backend">Receiving advertisements needs the netlink backend</a></li>
 <li><a href="#container-leaves">Container leaves</a></li>
 <li><a href="#prefix-list">Prefix list</a></li>
 <li><a href="#resolvers-rdnss">Resolvers (RDNSS)</a></li>
@@ -479,13 +475,13 @@ JunOS-style two-layer model: physical interfaces with named logical units.</p>
 </tr>
 <tr>
 <td></td>
-<td>IPv6 autoconf (SLAAC)</td>
+<td>IPv6 autoconf (SLAAC), netlink backend only</td>
 <td>have</td>
 <td></td>
 </tr>
 <tr>
 <td></td>
-<td>IPv6 accept-ra (0/1/2)</td>
+<td>IPv6 accept-ra (0/1/2), netlink backend only</td>
 <td>have</td>
 <td></td>
 </tr>
@@ -1393,6 +1389,22 @@ profile after verify runs. Ze reports the state instead. The
 interface whose <code>net.ipv6.conf.&lt;device&gt;.forwarding</code> is 0.</p>
 <!-- source: internal/plugins/iface/ra/doctor.go -- checkRAForwarding, doctor-iface-ra-forwarding -->
 
+<h3 id="receiving-advertisements-needs-the-netlink-backend">Receiving advertisements needs the netlink backend</h3>
+<p>The <code>autoconf</code> and <code>accept-ra</code> leaves of the per-unit <code>ipv6</code> container each carry
+<code>ze:backend "netlink"</code>. The kernel builds a SLAAC address only when Router
+Advertisements reach the device it owns. On the netlink backend that device is
+the NIC. On the vpp backend VPP owns the NIC, the kernel sees the Linux Control
+Plane tap, and no advertisement reaches it. Ze writes
+<code>net.ipv6.conf.&lt;device&gt;.autoconf</code> and <code>net.ipv6.conf.&lt;device&gt;.accept_ra</code> on the
+tap, the kernel waits, and no address appears.</p>
+<p>A tree that sets either leaf with <code>backend vpp</code> is rejected at config verify with
+<code>feature not supported by backend "vpp" (supported: netlink)</code>, and the message
+names the unit. This matches the refusal the <code>dhcp</code>, <code>dhcpv6</code> and
+<code>router-advertisement</code> containers already carry.</p>
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf autoconf, leaf accept-ra -->
+<!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures, backendAnnotation -->
+<!-- source: internal/component/iface/config_sysctl.go -- applySysctl emits the two keys -->
+
 <h3 id="container-leaves">Container leaves</h3>
 <table>
 <thead>
@@ -2253,7 +2265,7 @@ exact-or-reject.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 August 2026 11:56 UTC</span>
+                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
                 </div>
             </div>
         </footer>

@@ -46,7 +46,7 @@ finds them by itself, in `/usr/sbin`, `/sbin`, `/usr/local/sbin`, then the
 homebrew Cellar, and it takes the first directory holding both. Pass
 `make ze-gokrazy-build E2FS=/path/to/sbin` to name the directory instead. An empty
 `E2FS=` is not an override and does not resume the search.
-<!-- source: mk/gokrazy.mk -- E2FS autodetect and the ze-gokrazy-build e2fsprogs guard -->
+<!-- source: mk/build-gokrazy.mk -- E2FS autodetect and the ze-gokrazy-build e2fsprogs guard -->
 
 For appliance ISO creation, install `grub-mkstandalone` (or `grub2-mkstandalone`)
 plus `xorriso`.
@@ -135,7 +135,7 @@ those into an out-of-tree kernel package (`tmp/kernel/pkg`, a copy of the pinned
 `go.mod` `replace`. The pinned module cache is never mutated in place and there
 is no backup to restore; `make ze-kernel-clean` drops the `replace` and removes
 `tmp/kernel`.
-<!-- source: mk/gokrazy.mk -- ze-kernel-build -->
+<!-- source: mk/build-gokrazy.mk -- ze-kernel-build -->
 <!-- source: gokrazy/kernel/Makefile -- all -->
 <!-- source: tools/kernel-builder/run.py -- main -->
 
@@ -156,7 +156,7 @@ and an L2TP-capable kernel: skip-build bypasses the proof's own kernel
 resolution, and an image on the pinned rtr7 kernel (which has no l2tp support)
 crash-loops at first boot instead of serving.
 <!-- source: gokrazy/kernel/runtime.config -- Ze L2TP/PPP kernel config -->
-<!-- source: mk/gokrazy.mk -- ze-kernel-build -->
+<!-- source: mk/build-gokrazy.mk -- ze-kernel-build -->
 <!-- source: scripts/evidence/effective-gokrazy-l2tp-ppp.py -- appliance L2TP proof -->
 
 ## Build an image
@@ -200,7 +200,7 @@ rebuilds. Structured `ze appliance build` also writes a build manifest into
 `/perm/ze/build.json`; the legacy `make ze-gokrazy-build` flow does not.
 
 The image lands at `tmp/gokrazy/ze.img`.
-<!-- source: mk/gokrazy.mk -- ze-gokrazy-build -->
+<!-- source: mk/build-gokrazy.mk -- ze-gokrazy-build -->
 
 ## Test in QEMU
 
@@ -222,7 +222,7 @@ The Gokrazy management UI shows process status, stdout/stderr ring buffers, and
 resource usage. In appliance mode it is exposed under Ze's authenticated web UI
 at `/gokrazy/`; the proxy reads Gokrazy's password from the same password-file
 locations Gokrazy uses when it needs to inject upstream Basic Auth.
-<!-- source: mk/gokrazy.mk -- ze-gokrazy-run -->
+<!-- source: mk/build-gokrazy.mk -- ze-gokrazy-run -->
 <!-- source: internal/component/web/register_gokrazy.go -- /gokrazy route -->
 <!-- source: internal/core/gokrazyutil/gokrazyutil.go -- ReadPassword -->
 
@@ -259,7 +259,7 @@ runs `ze init --seed`, the seed DB has no `file/active/ze.conf` to shadow the
 template, so the template becomes the effective config on first boot (`ze
 appliance assemble` never wrote an active config, so it was already correct).
 <!-- source: gokrazy/ze/ze.conf -- seed template -->
-<!-- source: mk/gokrazy.mk -- GOKRAZY_TEMPLATE write, ze init --seed -->
+<!-- source: mk/build-gokrazy.mk -- GOKRAZY_TEMPLATE write, ze init --seed -->
 <!-- source: internal/plugins/init/main.go -- runInit seed skips file/active write -->
 <!-- source: internal/appliance/cmd_assemble.go -- resolveSeedConfig -->
 
@@ -385,7 +385,7 @@ make ze-gokrazy-build KERNEL_PKG=tmp/kernel/pkg USER=admin PASS=secret
 The `replace` is written into the prepared copy only, so nothing needs reverting
 afterwards and a later build without `KERNEL_PKG` uses the pinned kernel.
 
-<!-- source: mk/gokrazy.mk -- KERNEL_PKG, ze-kernel-build -->
+<!-- source: mk/build-gokrazy.mk -- KERNEL_PKG, ze-kernel-build -->
 <!-- source: internal/appliance/instance/prepare.go -- replaceKernel -->
 
 
@@ -469,7 +469,7 @@ make ze-pxe-build NAME=prod
 ```
 
 See `make help-deploy` for all variables (`APPLIANCE_BUILDER`, `PXE_DIR`, etc.).
-<!-- source: mk/appliance.mk -- ze-iso-build-full, ze-iso-build, ze-pxe-build -->
+<!-- source: mk/build-appliance.mk -- ze-iso-build-full, ze-iso-build, ze-pxe-build -->
 
 ### Manual steps
 
@@ -663,7 +663,7 @@ artifacts automatically:
 `Image`); `--target runtime` builds the gokrazy runtime kernel tree (modules +
 `vmlinuz`) from `gokrazy/kernel/` with the runtime requirement floor enforced.
 The command reports the target it built (`kernel ready: ... (target=installer,
-profile=qemu, version=7.1.4)`). The installer target tries cache first, then a
+profile=qemu, version=7.2)`). The installer target tries cache first, then a
 configured prebuilt-artifact URL if `ze.appliance.kernel.url` is set, then local
 build. Every local build runs through the shared driver
 `tools/kernel-builder/run.py`, which selects Docker when available and falls back

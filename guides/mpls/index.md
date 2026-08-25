@@ -25,8 +25,12 @@ This sets `net.mpls.conf.eth0.input=1`. The global label-table size is governed
 by the `net.mpls.platform_labels` sysctl (configure it via the `sysctl {}`
 block; it defaults to off, which disables MPLS entirely).
 
-The Linux kernel must have the `mpls_router` and `mpls_iptunnel` modules
-loaded. `ze doctor` warns (`doctor-mpls-unavailable`) when they are missing.
+The Linux kernel must supply MPLS forwarding, either through the `mpls_router`
+and `mpls_iptunnel` modules or built in with `CONFIG_MPLS_ROUTING` and
+`CONFIG_MPLS_IPTUNNEL`. ze's own appliance kernel builds both in, so it loads no
+module. `ze doctor` probes the capability rather than the module list: it warns
+(`doctor-mpls-unavailable`) when `/proc/sys/net/mpls/platform_labels` does not
+exist, which is the one answer that covers both packagings.
 
 ## Inspecting the forwarding table
 

@@ -75,9 +75,9 @@ from stdin (`ze -`) is unaffected.
 
 Use type-ahead filtering and drill-down navigation in Ze's interactive command launcher.
 
-[Play the WebM recording](../../assets/demos/launcher.webm?v=1536c23832) · [View the poster](../../assets/demos/launcher.png?v=7b0e4ac048) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
+[Download the asciicast recording](../../assets/demos/launcher.cast?v=c49373f1b2) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
 
-Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 44 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 57 seconds.
 
 ```console
 $ ze
@@ -434,9 +434,9 @@ ze show host kernel                # Kernel release, cmdline, microcode, arch fl
 
 Use Ze's offline command fallback to read the complete kernel, CPU, and memory inventory in human-readable structured output.
 
-[Play the WebM recording](../../assets/demos/host-inventory.webm?v=3644670538) · [View the poster](../../assets/demos/host-inventory.png?v=fc7a447153) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
+[Download the asciicast recording](../../assets/demos/host-inventory.cast?v=ede5ff9591) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
 
-Recorded with Ze 26.08.19 in a Linux namespace lab using VHS 0.11.0. Duration: 37 seconds.
+Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 36 seconds.
 
 ```console
 An operator needs to inspect an unfamiliar Linux host before starting Ze.

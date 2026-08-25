@@ -175,9 +175,9 @@ ze cli -c "monitor traceroute 8.8.8.8 | log | resolve"
 
 Connect to Ze over SSH, open the live BGP dashboard, sort peers, and inspect one session.
 
-[Play the WebM recording](../../assets/demos/cli-dashboard.webm?v=56620f9bd0) · [View the poster](../../assets/demos/cli-dashboard.png?v=5595195ace) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
+[Download the asciicast recording](../../assets/demos/cli-dashboard.cast?v=483ed2e752) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
 
-Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 40 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 55 seconds.
 
 ```console
 $ ssh ze-demo

@@ -5,16 +5,16 @@ $ ze config show demos/terminal/bfd-failover/ze.conf bgp peer edge-peer connecti
 $ ze config show demos/terminal/bfd-failover/ze.conf bgp peer edge-peer timer
 The daemon configuration shows the 300 ms BFD profile, multiplier 3, single-hop binding, and 300-second BGP hold time.
 
-$ ze cli -c "show bfd sessions"
+$ ze cli -c 'show bfd sessions'
 The running control plane shows the complete Up BFD session.
 
 $ date -u +%T; ip link set bfd-p down
-$ ze cli -c "show bfd sessions"
-$ ze cli -c "show bgp peer list"
+$ ze cli -c 'show bfd sessions'
+$ ze cli -c 'show bgp peer list'
 Five seconds after the kernel link is cut, the full command output shows no live BFD session and BGP has left Established.
 
 $ ip link set bfd-p up
-$ ze cli -c "show bgp peer list"
+$ ze cli -c 'show bgp peer list'
 The same peer returns to Established after the link is restored.
 
 Every protocol result comes directly from `ze cli`; the lab helper is used only to create and reset the isolated FRR peer.

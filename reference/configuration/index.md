@@ -2322,11 +2322,11 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
     - **ipv6** `container`
       IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       - **accept-ra** `uint8`
-        Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding
+        Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding. Needs the netlink backend for the same reason as autoconf: the two leaves describe one behavior.
       - **address** `string[]`
         IPv6 addresses in CIDR notation (e.g., fd00::1/64)
       - **autoconf** `boolean`
-        Enable IPv6 stateless autoconfiguration
+        Enable IPv6 stateless autoconfiguration. The kernel learns an address only when Router Advertisements reach the device it owns, so this leaf needs the netlink backend. On the vpp backend the NIC belongs to VPP and no advertisement reaches the Linux Control Plane tap.
       - **dhcpv6** `container`
         DHCPv6 stateful client. Requests addresses and/or delegated prefixes from a DHCPv6 server (RFC 8415). Runs alongside SLAAC when autoconf is also enabled.
         - **duid** `string`
@@ -2516,11 +2516,11 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
     - **ipv6** `container`
       IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       - **accept-ra** `uint8`
-        Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding
+        Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding. Needs the netlink backend for the same reason as autoconf: the two leaves describe one behavior.
       - **address** `string[]`
         IPv6 addresses in CIDR notation (e.g., fd00::1/64)
       - **autoconf** `boolean`
-        Enable IPv6 stateless autoconfiguration
+        Enable IPv6 stateless autoconfiguration. The kernel learns an address only when Router Advertisements reach the device it owns, so this leaf needs the netlink backend. On the vpp backend the NIC belongs to VPP and no advertisement reaches the Linux Control Plane tap.
       - **dhcpv6** `container`
         DHCPv6 stateful client. Requests addresses and/or delegated prefixes from a DHCPv6 server (RFC 8415). Runs alongside SLAAC when autoconf is also enabled.
         - **duid** `string`
@@ -2708,11 +2708,11 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
     - **ipv6** `container`
       IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       - **accept-ra** `uint8`
-        Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding
+        Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding. Needs the netlink backend for the same reason as autoconf: the two leaves describe one behavior.
       - **address** `string[]`
         IPv6 addresses in CIDR notation (e.g., fd00::1/64)
       - **autoconf** `boolean`
-        Enable IPv6 stateless autoconfiguration
+        Enable IPv6 stateless autoconfiguration. The kernel learns an address only when Router Advertisements reach the device it owns, so this leaf needs the netlink backend. On the vpp backend the NIC belongs to VPP and no advertisement reaches the Linux Control Plane tap.
       - **dhcpv6** `container`
         DHCPv6 stateful client. Requests addresses and/or delegated prefixes from a DHCPv6 server (RFC 8415). Runs alongside SLAAC when autoconf is also enabled.
         - **duid** `string`
@@ -2836,11 +2836,11 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
     - **ipv6** `container`
       IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       - **accept-ra** `uint8`
-        Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding
+        Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding. Needs the netlink backend for the same reason as autoconf: the two leaves describe one behavior.
       - **address** `string[]`
         IPv6 addresses in CIDR notation (e.g., fd00::1/64)
       - **autoconf** `boolean`
-        Enable IPv6 stateless autoconfiguration
+        Enable IPv6 stateless autoconfiguration. The kernel learns an address only when Router Advertisements reach the device it owns, so this leaf needs the netlink backend. On the vpp backend the NIC belongs to VPP and no advertisement reaches the Linux Control Plane tap.
       - **dhcpv6** `container`
         DHCPv6 stateful client. Requests addresses and/or delegated prefixes from a DHCPv6 server (RFC 8415). Runs alongside SLAAC when autoconf is also enabled.
         - **duid** `string`
@@ -3178,11 +3178,11 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
     - **ipv6** `container`
       IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       - **accept-ra** `uint8`
-        Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding
+        Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding. Needs the netlink backend for the same reason as autoconf: the two leaves describe one behavior.
       - **address** `string[]`
         IPv6 addresses in CIDR notation (e.g., fd00::1/64)
       - **autoconf** `boolean`
-        Enable IPv6 stateless autoconfiguration
+        Enable IPv6 stateless autoconfiguration. The kernel learns an address only when Router Advertisements reach the device it owns, so this leaf needs the netlink backend. On the vpp backend the NIC belongs to VPP and no advertisement reaches the Linux Control Plane tap.
       - **dhcpv6** `container`
         DHCPv6 stateful client. Requests addresses and/or delegated prefixes from a DHCPv6 server (RFC 8415). Runs alongside SLAAC when autoconf is also enabled.
         - **duid** `string`
@@ -3354,11 +3354,11 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
     - **ipv6** `container`
       IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       - **accept-ra** `uint8`
-        Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding
+        Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding. Needs the netlink backend for the same reason as autoconf: the two leaves describe one behavior.
       - **address** `string[]`
         IPv6 addresses in CIDR notation (e.g., fd00::1/64)
       - **autoconf** `boolean`
-        Enable IPv6 stateless autoconfiguration
+        Enable IPv6 stateless autoconfiguration. The kernel learns an address only when Router Advertisements reach the device it owns, so this leaf needs the netlink backend. On the vpp backend the NIC belongs to VPP and no advertisement reaches the Linux Control Plane tap.
       - **dhcpv6** `container`
         DHCPv6 stateful client. Requests addresses and/or delegated prefixes from a DHCPv6 server (RFC 8415). Runs alongside SLAAC when autoconf is also enabled.
         - **duid** `string`
@@ -3514,11 +3514,11 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
     - **ipv6** `container`
       IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       - **accept-ra** `uint8`
-        Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding
+        Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding. Needs the netlink backend for the same reason as autoconf: the two leaves describe one behavior.
       - **address** `string[]`
         IPv6 addresses in CIDR notation (e.g., fd00::1/64)
       - **autoconf** `boolean`
-        Enable IPv6 stateless autoconfiguration
+        Enable IPv6 stateless autoconfiguration. The kernel learns an address only when Router Advertisements reach the device it owns, so this leaf needs the netlink backend. On the vpp backend the NIC belongs to VPP and no advertisement reaches the Linux Control Plane tap.
       - **dhcpv6** `container`
         DHCPv6 stateful client. Requests addresses and/or delegated prefixes from a DHCPv6 server (RFC 8415). Runs alongside SLAAC when autoconf is also enabled.
         - **duid** `string`
@@ -3636,11 +3636,11 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
     - **ipv6** `container`
       IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       - **accept-ra** `uint8`
-        Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding
+        Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding. Needs the netlink backend for the same reason as autoconf: the two leaves describe one behavior.
       - **address** `string[]`
         IPv6 addresses in CIDR notation (e.g., fd00::1/64)
       - **autoconf** `boolean`
-        Enable IPv6 stateless autoconfiguration
+        Enable IPv6 stateless autoconfiguration. The kernel learns an address only when Router Advertisements reach the device it owns, so this leaf needs the netlink backend. On the vpp backend the NIC belongs to VPP and no advertisement reaches the Linux Control Plane tap.
       - **dhcpv6** `container`
         DHCPv6 stateful client. Requests addresses and/or delegated prefixes from a DHCPv6 server (RFC 8415). Runs alongside SLAAC when autoconf is also enabled.
         - **duid** `string`

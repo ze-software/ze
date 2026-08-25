@@ -81,28 +81,16 @@ when any component is `down`.
 Each check completes within 1 second. Components report `healthy`, `degraded`,
 or `down`. The overall status is the worst of all components.
 
-### Demo: Separate live warnings from recent errors
-
-Read aggregate component health, follow a live stale-prefix warning from the SSH banner into show warnings, then reset a peer and find the retained event in show errors.
-
-[Play the WebM recording](../../assets/demos/health-reports.webm?v=c95587e1ba) · [View the poster](../../assets/demos/health-reports.png?v=4b94b2625a) · [Plain-text transcript](../../assets/demos/health-reports.txt?v=113557fa9c)
-
-Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 1 minute.
-
-```console
-$ ssh ze-demo
-Warning: stale-prefix-data has stale prefix data (updated 2024-01-01)
-ze# run show health
-ipsec  down  ike engine not running
-ze# run show warnings source bgp
-bgp  prefix-stale  warning  127.0.0.2  ... 2024-01-01
-ze# run request peer 127.0.0.2 teardown 4
-ze# run show errors source bgp
-bgp  notification-sent  error  127.0.0.2  direction sent  code 6  subcode 4
-
-Health reports aggregate component state. Warnings describe conditions that remain active and disappear when resolved. Errors retain discrete events. The login banner and filtered commands use the same report bus.
-```
-
+<!-- The health-reports demo is not embedded while its recording is wrong. The
+     tape drives an SSH session whose commands the CLI answers with a completion
+     listing rather than a result, so the recording shows the intro card, a
+     config box and the recap, and none of the health, warning or error output
+     the page describes. The transcript gate refuses it, which is the first
+     check that has ever compared this demo against what it claims: a .webm
+     cannot report that it recorded a rejection. Restore this marker when the
+     recording shows the session again.
+     Recorded in plan/journal/green-that-could-not-have-been-red.md -->
+<!-- terminal-demo-disabled: health-reports -->
 
 ## Runtime: `show warnings` / `show errors`
 

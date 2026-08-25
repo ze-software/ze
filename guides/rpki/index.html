@@ -18,15 +18,12 @@
         <meta name="twitter:description" content="Ze documentation: guide/rpki.md" />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
-            rel="stylesheet"
-        />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
         <link rel="canonical" href="https://ze-software.net/guides/rpki/" />
         <meta property="og:url" content="https://ze-software.net/guides/rpki/" />
         <link rel="stylesheet" href="../../assets/site.css" />
+        <link rel="stylesheet" href="../../assets/vendor/asciinema-player.css" />
+        <script src="../../assets/vendor/asciinema-player.min.js" defer></script>
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
@@ -692,15 +689,25 @@ bgp {
     <div class="terminal-demo__bar" aria-hidden="true">
       <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
       <span>rpki.terminal</span>
-      <span>WEBM</span>
+      <span>CAST</span>
     </div>
-    <video controls playsinline preload="metadata" poster="../../assets/demos/rpki.png?v=4e7e9269d8" aria-label="Accept valid routes and reject RPKI-invalid ones demonstration">
-      <source src="../../assets/demos/rpki.webm?v=971e751f4f" type="video/webm">
-      Your browser cannot play WebM video. <a href="../../assets/demos/rpki.webm?v=971e751f4f">Download the recording</a>.
-    </video>
+    <div
+      class="terminal-demo__player"
+      data-terminal-demo-player
+      data-cast-src="../../assets/demos/rpki.cast?v=3edba2c02c"
+      data-cols="137"
+      data-rows="36"
+      style="--demo-aspect: 82.2 / 47.52"
+      aria-label="Accept valid routes and reject RPKI-invalid ones demonstration"
+    ></div>
+    <noscript>
+      <p class="terminal-demo__noscript">This recording is replayed by the
+      page's own player. <a href="../../assets/demos/rpki.cast?v=3edba2c02c">Download the asciicast</a> or
+      <a href="../../assets/demos/rpki.txt?v=bf49f52038">read the transcript</a>.</p>
+    </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.19</span><span>34 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>VHS 0.11.0</span>
+    <span>Ze 26.08.25</span><span>32 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/rpki.txt?v=bf49f52038">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -793,7 +800,7 @@ The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, an
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 August 2026 12:56 UTC</span>
+                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
                 </div>
             </div>
         </footer>

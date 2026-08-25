@@ -167,9 +167,9 @@ If you never want the bootstrap admin to authenticate, disable it explicitly wit
 
 Run an allowed NOC command, then show Ze explicitly refuse a known state-changing command.
 
-[Play the WebM recording](../../assets/demos/rbac.webm?v=189c6c578f) · [View the poster](../../assets/demos/rbac.png?v=83eb6771ce) · [Plain-text transcript](../../assets/demos/rbac.txt?v=939addc51a)
+[Download the asciicast recording](../../assets/demos/rbac.cast?v=91686ce31e) · [Plain-text transcript](../../assets/demos/rbac.txt?v=939addc51a)
 
-Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 12 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 1 minute 10 seconds.
 
 ```console
 $ ze config show rbac.conf system authorization profile read-only

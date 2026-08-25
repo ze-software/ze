@@ -17,7 +17,7 @@
     "core_experimental": 52,
     "planned": 4
   },
-  "generated_at": "2026-08-24",
+  "generated_at": "2026-08-25",
   "github_stars": 50,
   "interop": {
     "scenario_dirs_raw": 130,
@@ -25,10 +25,10 @@
     "target_display": "9",
     "targets": 9
   },
-  "published_at": "2026-08-24T12:56:48+00:00",
+  "published_at": "2026-08-25T03:17:43+00:00",
   "repo": {
-    "design_comments": 3673,
-    "design_comments_display": "3,673",
+    "design_comments": 3672,
+    "design_comments_display": "3,672",
     "detail_comments": 3199,
     "detail_comments_display": "3,199",
     "go_packages": 648,
@@ -39,12 +39,12 @@
     "enrolled_display": "171",
     "gated_must": 2966,
     "gated_must_display": "2,966",
-    "must": 3044,
-    "must_display": "3,044",
-    "requirements": 4703,
-    "requirements_display": "4,703",
-    "summaries": 177,
-    "summaries_display": "177"
+    "must": 3061,
+    "must_display": "3,061",
+    "requirements": 4730,
+    "requirements_display": "4,730",
+    "summaries": 178,
+    "summaries_display": "178"
   },
   "tests": {
     "e2e": 1728,

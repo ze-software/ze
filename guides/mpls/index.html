@@ -18,12 +18,7 @@
         <meta name="twitter:description" content="Ze documentation: guide/mpls.md" />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
-            rel="stylesheet"
-        />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
         <link rel="canonical" href="https://ze-software.net/guides/mpls/" />
         <meta property="og:url" content="https://ze-software.net/guides/mpls/" />
         <link rel="stylesheet" href="../../assets/site.css" />
@@ -81,8 +76,12 @@ accept labeled packets:</p>
 <p>This sets <code>net.mpls.conf.eth0.input=1</code>. The global label-table size is governed
 by the <code>net.mpls.platform_labels</code> sysctl (configure it via the <code>sysctl {}</code>
 block; it defaults to off, which disables MPLS entirely).</p>
-<p>The Linux kernel must have the <code>mpls_router</code> and <code>mpls_iptunnel</code> modules
-loaded. <code>ze doctor</code> warns (<code>doctor-mpls-unavailable</code>) when they are missing.</p>
+<p>The Linux kernel must supply MPLS forwarding, either through the <code>mpls_router</code>
+and <code>mpls_iptunnel</code> modules or built in with <code>CONFIG_MPLS_ROUTING</code> and
+<code>CONFIG_MPLS_IPTUNNEL</code>. ze's own appliance kernel builds both in, so it loads no
+module. <code>ze doctor</code> probes the capability rather than the module list: it warns
+(<code>doctor-mpls-unavailable</code>) when <code>/proc/sys/net/mpls/platform_labels</code> does not
+exist, which is the one answer that covers both packagings.</p>
 <h2 id="inspecting-the-forwarding-table">Inspecting the forwarding table</h2>
 <pre><code>ze show mpls forwarding              # all installed MPLS entries
 ze show mpls forwarding limit 500    # cap the response size
@@ -167,7 +166,7 @@ neighbor.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 22 August 2026 10:50 UTC</span>
+                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
                 </div>
             </div>
         </footer>

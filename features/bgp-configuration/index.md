@@ -203,9 +203,9 @@ in the build declares a config root at all.
 
 Inspect and validate a BGP group, then use Ze's dependency graph to prove which peers inherit the value before scheduling maintenance.
 
-[Play the WebM recording](../../assets/demos/config-graph.webm?v=e0904130d3) · [View the poster](../../assets/demos/config-graph.png?v=cf972162a4) · [Plain-text transcript](../../assets/demos/config-graph.txt?v=1708ee2fac)
+[Download the asciicast recording](../../assets/demos/config-graph.cast?v=b2868dc650) · [Plain-text transcript](../../assets/demos/config-graph.txt?v=7a64ac5a0c)
 
-Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 31 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 1 minute 8 seconds.
 
 ```console
 An operator needs to change the transit group's remote ASN and identify every peer that inherits it before scheduling maintenance.
@@ -216,10 +216,10 @@ The scoped configuration shows `upstream-a` and `upstream-b` inside the transit 
 $ ze config validate router.conf
 configuration valid
 
-$ ze config graph router.conf | ze pipe match peer/upstream
-$ ze config graph router.conf | ze pipe match group/transit
-$ ze config graph router.conf | ze pipe match inherits
-The three direct graph views name both peer nodes, their shared group target, and the two `inherits` relationships.
+$ ze config graph router.conf | ze pipe text | ze pipe match peer/upstream
+$ ze config graph router.conf | ze pipe text | ze pipe match group/transit
+$ ze config graph router.conf | ze pipe text | ze pipe match inherits
+The graph answer holds two lists, `nodes` and `edges`. A row operator such as `match` has no single set of rows there, so Ze refuses it by name instead of picking one list. `| text` renders both lists as aligned rows, one relationship to a line. `| match` then keeps the lines that name the two peers, the group they share, and the two `inherits` relationships.
 
 No reporting helper creates the displayed relationships. The command filters Ze's graph output directly through Ze's format pipeline.
 ```

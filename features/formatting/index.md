@@ -194,9 +194,9 @@ comparison.
 
 Show one BGP peer as hierarchical blocks and set commands, round-trip between both with identical canonical output, then compose match and count over Ze's plugin registry.
 
-[Play the WebM recording](../../assets/demos/config-views.webm?v=9286711b41) · [View the poster](../../assets/demos/config-views.png?v=ad33316247) · [Plain-text transcript](../../assets/demos/config-views.txt?v=0f968daa34)
+[Download the asciicast recording](../../assets/demos/config-views.cast?v=46af3dc00a) · [Plain-text transcript](../../assets/demos/config-views.txt?v=35a1a90923)
 
-Recorded with Ze 26.08.19 on macOS and Linux using VHS 0.11.0. Duration: 1 minute 16 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 1 minute 19 seconds.
 
 ```console
 $ ze config show router.conf bgp peer transit-a
@@ -208,7 +208,7 @@ session {
     asn { local 65000; remote 65001; }
     family ipv4/unicast { prefix maximum 1000000; }
 }
-$ ze config migrate --format set router.conf | ze pipe match 'bgp peer transit-a'
+$ ze config migrate --format set router.conf 2>/dev/null | ze pipe match 'bgp peer transit-a'
 set bgp peer transit-a connection local ip 192.0.2.1
 set bgp peer transit-a connection remote ip 192.0.2.2
 set bgp peer transit-a session asn local 65000
