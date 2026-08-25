@@ -1,0 +1,42 @@
+# Rules for scripts/le, which is held to a stricter standard than the rest of
+# the tree.
+#
+# Ruff finds this file because it is the config nearest these files, so
+# `ruff check` from the repository root applies the root pyproject.toml to the
+# legacy tree and this file to scripts/le, in one invocation. There is no flag
+# to pass and no second run to remember.
+#
+# The reason for the split is measured, not stylistic: the rules below report
+# 59,207 findings against the legacy tree and a handful against this package.
+# See the comment at the top of ../../pyproject.toml.
+
+extend = "../../pyproject.toml"
+line-length = 100
+target-version = "py312"
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # import sorting
+    "UP",  # pyupgrade: modern syntax for the target version
+    "B",   # bugbear: defect shapes, not style
+    "SIM", # simplify
+    "RET", # return-path clarity
+    "PTH", # pathlib over os.path
+    "Q",   # quote style: single, matching ExaBGP
+    "RUF", # ruff's own rules
+]
+ignore = [
+    "E501", # line length belongs to the formatter, not the linter
+]
+
+[lint.flake8-quotes]
+inline-quotes = "single"
+docstring-quotes = "double"
+
+[format]
+quote-style = "single"
+indent-style = "space"
+docstring-code-format = true

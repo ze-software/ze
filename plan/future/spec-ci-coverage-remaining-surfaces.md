@@ -93,7 +93,7 @@ never started.** No gRPC client is available to a `.ci` helper script:
 
 | Candidate | State at HEAD |
 |-----------|---------------|
-| `grpcurl` | not on PATH, not installed by `make ze-dev-setup`, and named by no `Makefile`, `mk/`, `scripts/` or `test/` file |
+| `grpcurl` | not on PATH, not installed by `./le setup`, and named by no `Makefile`, `mk/`, `scripts/` or `test/` file |
 | Python `grpcio` | `python3 -c "import grpc"` fails with `ModuleNotFoundError`. Every `.ci` helper is Python |
 | Go `google.golang.org/grpc` | vendored, and already a build dependency |
 
@@ -101,7 +101,8 @@ So the question is which of three shapes the test takes. That is a decision abou
 test tooling, and the owner MUST make it. A session that picks one for him is how
 a dependency arrives that nobody agreed to:
 
-1. Vendor or install `grpcurl` and add it to `make ze-dev-setup` plus a `ze doctor`
+1. Vendor or install `grpcurl` and add it to the `le setup` tool table
+   (`scripts/le/devtools/tools.py`) plus a `ze doctor`
    check. It adds a runtime dependency to every developer machine and to CI.
 2. Add `grpcio` to the test-side Python requirements. It puts a generated-stub
    build step in front of the functional suite, and the `.ci` helper environment

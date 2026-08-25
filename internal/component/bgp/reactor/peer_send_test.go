@@ -155,7 +155,7 @@ func newAnnouncePeer(t *testing.T, peerAddr string) (*Peer, *recordingConn) {
 // that gives both ends ::1 asserts the wire form of a message Ze must never send.
 // Section 3's condition holds on both halves: fd00::2 is connected so the peer is
 // on-link, and ::1 is connected and passes ValidateGlobalNextHop so the global
-// next hop still shares a subnet. `make ze-dev-setup` provisions fd00::2 on the
+// next hop still shares a subnet. `./le setup` provisions fd00::2 on the
 // loopback.
 func TestSendAnnounceAppendsLinkLocalWhenSection3Holds(t *testing.T) {
 	peer, conn := newAnnouncePeer(t, "fd00::2")

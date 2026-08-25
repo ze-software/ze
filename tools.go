@@ -4,7 +4,7 @@
 
 // Package main imports tool dependencies so they are vendored.
 // Run tools via: go run <import-path> [args...]
-// See Makefile ze-dev-setup target.
+// See the `setup` subprogram of ./le (scripts/le/application/setup.py).
 package main
 
 import (

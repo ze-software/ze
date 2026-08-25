@@ -30,7 +30,11 @@ HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[1]
 
 sys.path.insert(0, str(HERE))
-dev_setup = importlib.import_module("dev-setup")
+# The setup resolver moved from scripts/dev/dev-setup.py into `le` when that
+# program replaced `./le setup`. The copies it is held against did not
+# move, so only the import changed.
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+dev_setup = importlib.import_module("le.devtools.probes")
 
 
 def _load(name: str, path: Path):
@@ -64,7 +68,7 @@ INTEL_PREFIX = "/usr/" + "local"
 # allowlist nobody reads.
 RESOLVERS = {
     "internal/appliance/homebrew.go",
-    "scripts/dev/dev-setup.py",
+    "scripts/le/devtools/probes.py",
     "scripts/evidence/homebrew.py",
     "scripts/evidence/effective-install-qemu.py",
     "Makefile",
@@ -354,7 +358,7 @@ class TestTheMakefileResolvesToo(unittest.TestCase):
 
 
 class TestTheCopiesAgree(unittest.TestCase):
-    """dev-setup.py carries its own brew_prefixes rather than importing one.
+    """le carries its own brew_prefixes rather than importing one.
 
     That is deliberate: it is what a contributor runs against a machine where
     nothing is set up, so it stays runnable on its own. The cost of a copy is
@@ -408,7 +412,7 @@ class TestTheCopiesAgree(unittest.TestCase):
         try:
             with (
                 mock.patch.object(dev_setup.sys, "platform", "linux"),
-                mock.patch.object(dev_setup.shutil, "which", return_value=None),
+                mock.patch.object(dev_setup, "which", return_value=None),
             ):
                 from_setup = dev_setup.brew_prefixes()
             with (
@@ -436,7 +440,7 @@ class TestTheCopiesAgree(unittest.TestCase):
                 # add it whatever the platform says.
                 with (
                     mock.patch.object(dev_setup.sys, "platform", "linux"),
-                    mock.patch.object(dev_setup.shutil, "which", return_value=None),
+                    mock.patch.object(dev_setup, "which", return_value=None),
                 ):
                     from_setup = dev_setup.brew_prefixes()
                 with (
@@ -505,7 +509,7 @@ class TestKegOnlyLookupCoversBothLayouts(unittest.TestCase):
         """Asserted over WHERE the probe looks, not over what it answers.
 
         `probe_e2fsprogs` ends its list with /usr/sbin and /sbin, so on
-        any Linux host that has e2fsprogs -- which `make ze-dev-setup` installs as a
+        any Linux host that has e2fsprogs -- which `./le setup` installs as a
         required tool, and which is where `python_tests_test.go` runs this --
         the boolean is True with both Homebrew branches deleted. A test on the
         boolean alone is green either way. `e2fsprogs_dirs` exists so this
@@ -540,7 +544,7 @@ class TestKegOnlyLookupCoversBothLayouts(unittest.TestCase):
 
         `shutil.which` answers nothing for a keg-only formula however well it is
         installed, so this is the only thing standing between a correct machine
-        and `make ze-dev-setup` offering to reinstall what is already there.
+        and `./le setup` offering to reinstall what is already there.
         """
         for layout in (
             ("opt", "e2fsprogs", "sbin"),

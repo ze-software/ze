@@ -1,0 +1,97 @@
+# Python tooling for the Ze repository.
+#
+# The repository holds 370 Python files and 145k lines of them, and until this
+# file existed none of it was linted or type-checked.
+#
+# That population cannot be held to one standard, and measuring it is what says
+# so: the full rule set reports 59,207 findings against it, 53,625 of them the
+# quote style alone. A gate nobody can pass is not a gate. So there are two
+# scopes, with two rule sets and two obligations:
+#
+#   scripts/le    new code. Every rule, plus mypy --strict, and clean from its
+#                 first commit. Its rules live in scripts/le/ruff.toml, which
+#                 ruff finds because it is the config nearest those files.
+#   everything    the rules below: real defect shapes only, no style. 116
+#   else          findings today, which is a number somebody can drain. `le
+#                 lint` holds it to a ratchet so it cannot grow while it does.
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [
+    "vendor",
+    "tmp",
+    "cache",
+    "bin",
+    "gokrazy",
+]
+
+[tool.ruff.lint]
+# Defect shapes, not style. Every rule here describes code that is wrong rather
+# than code that is spelled differently to how this repository spells it.
+select = [
+    "E9", # syntax and runtime errors
+    "F",  # pyflakes: undefined names, unused imports, duplicate keys
+    "B",  # bugbear: mutable defaults, loop-variable capture, bare raise
+]
+
+[tool.ruff.format]
+# The legacy tree is not formatted by this program, and `le lint` never asks
+# ruff to check that it is. These settings apply where formatting IS enforced,
+# which scripts/le/ruff.toml restates for its own scope.
+quote-style = "single"
+indent-style = "space"
+docstring-code-format = true
+
+# --- The legacy lint ratchet ----------------------------------------------
+#
+# The count above is not a target to hit, it is a ceiling that must fall. `le
+# lint` counts the findings in the legacy scope and fails when there are more
+# than `legacy-max`. Fixing some means lowering this number in the same commit,
+# which is the point: the ratchet cannot be satisfied by leaving it alone.
+
+[tool.le.lint]
+legacy-max = 114
+
+# --- Type checking --------------------------------------------------------
+#
+# Two checkers, one job each, and they are not redundant:
+#
+#   pyright  answers the LSP. `le setup` already installs it and already probes
+#            that it answers, so it costs nothing extra, and it is what an
+#            editor and an agent see while the code is being written.
+#   mypy     is the GATE. ExaBGP has run it in strict mode since 2025-12-17, so
+#            this configuration is that one. A contributor who knows that
+#            repository's rules already knows this one's.
+#
+# Both are pointed at scripts/le alone. Turning either loose on the legacy tree
+# would produce thousands of findings on day one, which is a report nobody
+# reads rather than a gate anybody passes.
+
+[tool.mypy]
+python_version = "3.12"
+files = ["scripts/le"]
+mypy_path = "scripts"
+
+strict = true
+warn_unused_configs = true
+warn_return_any = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+disallow_untyped_defs = true
+disallow_untyped_calls = true
+disallow_incomplete_defs = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_decorators = true
+
+no_implicit_optional = true
+strict_equality = true
+extra_checks = true
+
+[tool.pyright]
+include = ["scripts/le"]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false

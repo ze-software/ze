@@ -17,7 +17,7 @@ anywhere, so a Linuxbrew install is found by being asked for rather than by
 being guessed.
 
 The Go half of the same story is `brewPrefixes` in
-internal/appliance/homebrew.go, and scripts/dev/dev-setup.py carries its own
+internal/appliance/homebrew.go, and scripts/le/application/setup.py carries its own
 copy because it must run before anything on the machine is set up.
 """
 

@@ -139,7 +139,7 @@ def c_auto_py_format(ctx):
     if not shutil.which("ruff"):
         return (
             0,
-            "⚠ ruff not found; run 'make ze-dev-setup' to install the Python formatter",
+            "⚠ ruff not found; run './le setup' to install the Python formatter",
         )
     try:
         subprocess.run(

@@ -356,7 +356,7 @@ option=<type>:key=value[:key=value...]
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
-| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via `make ze-qemu-test-all`. `caps=` declares the capabilities the test also needs; without them it is SKIPped instead of hanging or failing on `operation not permitted`. Tokens: `net-admin` (privileged network configuration: creating interfaces, bringing links up, netlink, nftables), `net-raw` (raw/packet sockets: `resolve ping` and traceroute build ICMP through `net.ListenPacket("ip4:icmp", ...)`, which the kernel refuses unprivileged), `bpf` (loading eBPF programs and creating maps). It is a LIST because declaring one of two needed capabilities fails OPEN: a host holding just that one passes a gate it cannot satisfy. See `ai/rules/platform-linux.md`. |
+| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via `make ze-qemu-test-all`. `caps=` declares the capabilities the test also needs; without them it is SKIPped instead of hanging or failing on `operation not permitted`. Tokens: `net-admin` (privileged network configuration: creating interfaces, bringing links up, netlink, nftables), `net-raw` (raw/packet sockets: `resolve ping` and traceroute build ICMP through `net.ListenPacket("ip4:icmp", ...)`, which the kernel refuses unprivileged), `bpf` (loading eBPF programs and creating maps). It is a LIST because declaring one of two needed capabilities fails OPEN: a host holding just that one passes a gate it cannot satisfy. `TestCIPrivilegedIPDeclaresNetAdmin` (`internal/test/runner/caps_declaration_lint_test.go`) refuses a `.ci` that runs an iproute2 mutation without `net-admin`. It sees iproute2 only, so `nft`, `tc` and a raw socket are still yours to declare. See `ai/rules/platform-linux.md`. |
 | `needs-path` | `value=<repo-rel-path>[:hint=<cmd>]` | Declares an OPTIONAL heavyweight artifact the test cannot run without, and SKIPs (visibly, naming the path and the `hint` command) when it is absent. For prerequisites a checkout does not carry: the appliance module cache, where `gokrazy/modcache/.gitignore` ignores everything except the vendored gokrazy init source, so the pinned `rtr7/kernel` module and its 15 MB `vmlinuz` exist only after `make ze-gokrazy-deps-download`. The path is resolved against the repo root (each test runs in its own temp dir) and must be repo-relative with no `..`; a malformed value is a parse error on every platform. Deliberately a SKIP and not an `exit 0`: `test/install/ze-kernel-overlay.ci` read the pinned `vmlinuz` with no guard and failed `shasum: ... No such file or directory` on every CI run, and hiding that behind a silent pass would swap a red for a green bar over a test that ran nothing. |
 | `netns-link` | `name=<if>[:address=<cidr>]` | Provision an interface inside the per-test network namespace before ze launches. Created as a dummy link, assigned the CIDR when given, then brought up. Needed when a test matches or routes through an interface the daemon never creates itself: a policy-routing next-hop needs a connected route to resolve its gateway, and an active OSPF interface needs a real link, since `enterTestNetns` brings up only loopback. **The option is a prerequisite, so declaring it makes the test SKIP outside netns mode** (`ZE_TEST_NETNS`, set by `make ze-netns-test` and `make ze-qemu-netns-test`): nothing else may create the link (the names are real host interfaces such as `eth0`/`eth1`), so running anyway would test a daemon whose interface does not exist. In particular these tests do NOT run under `make ze-qemu-needs-linux-test` even though they also carry `needs-linux`. |
 | `exclusive` | `group=<name>` | Never run concurrently with another test carrying the same group name. Tests outside the group are unaffected and keep running alongside, so this costs far less wall-clock than dropping a whole suite to `-p 1`. Use it when tests contend for a kernel-global observation surface that unique names or addresses cannot partition: the ddos tests (`group=ddos-flood`) all flood the same loopback interface, and each daemon's detector picks its victim by top-destination-bytes over that interface's counters, so a sibling's concurrent flood is indistinguishable from the test's own. Applies on every platform and in every runner mode, because the contention is a property of the tests rather than of the host. |
@@ -656,8 +656,8 @@ and FreeBSD, the test runner adds loopback aliases via the `SIOCAIFADDR` ioctl.
 
 IPv6 works differently, because a host carries exactly one IPv6 loopback
 address. A fixture that needs a second one uses `fd00::2`, which is unique-local
-(RFC 4193) and never globally routable. `make ze-dev-setup` adds it, and
-`make ze-dev-setup CHECK=1` reports whether it is there. The runner never adds it:
+(RFC 4193) and never globally routable. `./le setup` adds it, and
+`./le setup --check` reports whether it is there. The runner never adds it:
 the ioctl returns EPERM to an unprivileged process, and `make ze-precommit-verify` runs as
 an ordinary user. A test that binds an address this host does not carry fails at
 once with `loopback_address_missing` and the command to run, rather than timing
@@ -669,11 +669,11 @@ The check reads both places a fixture names an address it binds. One is
 listens on it when `accept` is true, so the host must carry it too. A local
 address outside 127.0.0.0/8 and fc00::/7 is left alone. A config-validation
 fixture names a routable one (`local { ip 192.0.2.1 }`), the daemon exits before
-it binds anything, and `make ze-dev-setup` adds no such address.
+it binds anything, and `./le setup` adds no such address.
 <!-- source: internal/test/runner/loopback.go -- probe, error text, --bind and config-local scan -->
 <!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux for IPv4 -->
 <!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
-<!-- source: scripts/dev/dev-setup.py -- loopback_addresses, apply_loopback_fix -->
+<!-- source: scripts/le/devtools/system.py -- LOOPBACK_IPV6, loopback_addresses, apply_loopback -->
 
 ## Expectations
 

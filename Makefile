@@ -10,7 +10,7 @@
 .PHONY: ze-vendor-web-sync ze-vendor-web-check ze-vendor-web-update-report ze-htmx-upgrade-check ze-htmx-upgrade-report ze-ai-skills-sync ze-ai-instructions-generate ze-ai-sync-check
 .PHONY: ze-proto-generate ze-plugin-snapshot-update ze-plugin-imports-check ze-fuzz-targets-check ze-yang-glue-check ze-feature-tags-check ze-web-assets-check ze-templ-orphan-check ze-templ-output-check ze-generated-files-update ze-generated-files-reconcile ze-generated-files-check ze-arch-map-update ze-arch-map-check
 .PHONY: ze-web-golden-check ze-web-golden-update ze-templ-port-check ze-chaos-golden-update ze-doc-links-check ze-site-generate
-.PHONY: check ze-dev-setup
+.PHONY: check
 .PHONY: help-test help-deploy help-dev
 .PHONY: ze-rfc-check ze-rfc-index-update ze-rfc-reseal ze-rfc-extraction-create ze-rfc-extraction-status
 
@@ -232,7 +232,7 @@ ZE_MODULE = github.com/ze-software/ze
 # packages. The QEMU unit phase uses it for ./scripts/... : those are host
 # developer-tooling gates with no //go:build linux surface at all, so the VM adds
 # no coverage, and several of them assert on the DEVELOPER's environment rather
-# than on ze -- dev_setup_test.py checks for brew or apt, and Alpine has neither.
+# than on ze -- scripts/le/install_test.py checks for brew or apt, and Alpine has neither.
 # The rest shell out to gate binaries they compile on the fly, which over the 9p
 # mount blows their own 60s timeouts. They cost ~33 minutes of the VM run and
 # every failure was environmental. They still run in full under `make ze-precommit-verify`
@@ -1497,17 +1497,15 @@ check: fmt vet
 
 # ─── Setup ──────────────────────────────────────────────────────────────────
 
-ze-dev-setup:
-	python3 scripts/dev/dev-setup.py $(if $(CHECK),--check)
-
 # ─── Help ───────────────────────────────────────────────────────────────────
 
 help:
 	@echo "Ze Network OS -- Build & Test"
 	@echo ""
 	@echo "  Start here (new contributor):"
-	@echo "    make ze-dev-setup                          Full dev setup: build deps, linters, appliance tools (one-time)"
-	@echo "    make ze-dev-setup CHECK=1                  Probe only: list missing tools, exit nonzero if any required"
+	@echo "    ./le setup                                 Full dev setup: build deps, linters, appliance tools (one-time)"
+	@echo "    ./le setup --check                         Probe only: list missing tools, exit nonzero if any required"
+	@echo "    ./le lint                                  Lint and type-check the Python half of the tree"
 	@echo "    make ze-smoke-verify                       Verify setup: lint + unit + build (~2 min)"
 	@echo ""
 	@echo "  Daily development:"

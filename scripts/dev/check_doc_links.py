@@ -54,6 +54,7 @@ import argparse
 import ast
 import glob as globmod
 import os
+import pathlib
 import re
 import subprocess
 import sys
@@ -412,14 +413,25 @@ def check_design_refs(verbose: bool) -> list[tuple[str, str]]:
 
 
 def python_check_sources() -> list[str]:
-    """Tracked Python under scripts/ and .claude/hooks/ -- where checks live."""
+    """Tracked Python under scripts/ and .claude/hooks/ -- where checks live.
+
+    Filtered to what is ON DISK, not merely tracked. `git ls-files` still names
+    a file whose deletion has not been staged yet, and every caller here OPENS
+    what this returns, so the un-staged half of an ordinary `rm` turned the
+    dead-name lint red with "cannot parse for check names: No such file". That
+    is a state any contributor reaches by deleting a script before committing,
+    and the lint has nothing to say about a file that is going away.
+
+    A file that is tracked, present, and unparseable is a different finding and
+    is still reported: `known_names` raises on it rather than skipping it.
+    """
     out = subprocess.run(
         ["git", "ls-files", "scripts", ".claude/hooks"],
         capture_output=True,
         text=True,
         check=True,
     ).stdout.splitlines()
-    return [f for f in out if f.endswith(".py")]
+    return [f for f in out if f.endswith(".py") and pathlib.Path(f).is_file()]
 
 
 def known_names() -> tuple[set[str], set[str], list[str]]:

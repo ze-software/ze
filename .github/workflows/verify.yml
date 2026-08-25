@@ -107,7 +107,7 @@ jobs:
       # step below does not have. fd00::/8 is unique-local (RFC 4193), never
       # globally routable, so a fixture cannot leak a packet onto a real network.
       # Same address, same reason, on a developer machine:
-      # `make ze-dev-setup` (scripts/dev/dev-setup.py, loopback_addresses).
+      # `./le setup` (scripts/le/devtools/system.py, loopback_addresses).
       #
       # This runs after the apt step because `ip` comes from iproute2 there.
       - name: Add the loopback address the functional suite binds

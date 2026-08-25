@@ -7,7 +7,7 @@ directives, fuzz target list), see `docs/functional-tests.md`.
 ## First time setup
 
 ```sh
-make ze-dev-setup    # install all dev tools: build deps, linters, appliance tools (one-time)
+./le setup    # install all dev tools: build deps, linters, appliance tools (one-time)
 make ze-smoke-verify    # verify everything works: lint + unit + build (~2 min)
 ```
 

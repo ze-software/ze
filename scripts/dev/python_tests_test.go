@@ -79,6 +79,11 @@ var pythonTestRoots = []string{
 	// the 2026-08-03 update as seven of its eight messages, because a rate
 	// limit on the last one exited the run instead of waiting.
 	"scripts/zeledon",
+	// `le`, the typed Python replacement for the Makefile, built beside it.
+	// Its tests run from its first commit. Every other root on this list was
+	// added after its tests had already sat unrun. This one is added before
+	// that can happen.
+	"scripts/le",
 }
 
 // pythonTestGlobs are the file-name shapes that count as a Python test.

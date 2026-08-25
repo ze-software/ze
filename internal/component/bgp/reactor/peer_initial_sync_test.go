@@ -520,7 +520,7 @@ var defaultRouteNLRI = []byte{0x00}
 // RFC 4271 Section 5.1.3 forbids advertising a peer its own address as NEXT_HOP,
 // and originatedNextHopIsPeerOwn (forward_next_hop.go) refuses it, so a fixture
 // that gives both ends ::1 asserts the wire form of a message Ze must never send.
-// `make ze-dev-setup` provisions fd00::2 on the loopback.
+// `./le setup` provisions fd00::2 on the loopback.
 func TestDefaultOriginateAppendsLinkLocalWhenSection3Holds(t *testing.T) {
 	peer, conn := newDefaultOriginatePeer(t, "fd00::2", "::1", "fe80::1")
 

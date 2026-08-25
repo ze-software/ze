@@ -82,7 +82,7 @@ ze-cadence-daily-run:
 		run_check note ze-ste-check $(MAKE) --no-print-directory ze-ste-check; \
 		run_check note ze-spec-status $(MAKE) --no-print-directory ze-spec-status; \
 		run_check note ze-journal-report $(MAKE) --no-print-directory ze-journal-report; \
-		run_check note ze-setup-probe $(MAKE) --no-print-directory ze-dev-setup CHECK=1; \
+		run_check note ze-setup-probe $(CURDIR)/le setup --check; \
 	)
 
 # ─── Weekly ─────────────────────────────────────────────────────────────────
