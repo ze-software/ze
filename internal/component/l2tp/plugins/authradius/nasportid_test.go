@@ -184,7 +184,7 @@ func nasPortIDConfigTree(format string) map[string]any {
 	radiusBlock := map[string]any{
 		"nas-identifier": "lns1",
 		"server": []any{
-			map[string]any{"address": "10.0.0.1", "shared-key": "secret123"},
+			map[string]any{"name": "radius1", "address": "10.0.0.1", "shared-key": "secret123"},
 		},
 	}
 	if format != "" {
