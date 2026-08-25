@@ -127,6 +127,32 @@ def run_in_repo(argv: Command, *, timeout: float | None = None) -> Result:
     return run(argv, cwd=REPO_ROOT, timeout=timeout)
 
 
+def stream(
+    argv: Command,
+    *,
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
+) -> int:
+    """Run one command with its output going straight to the terminal.
+
+    The opposite trade from `run`, and the right one for anything that takes
+    minutes: a test suite, a linter, a fuzz target. The caller learns only the
+    exit code, and the reader watches it happen instead of waiting for a
+    transcript that arrives after the fact.
+
+    stdout is flushed first. Ours is buffered and the child writes to the same
+    descriptor directly, so without the flush any heading we printed appears
+    AFTER the output it introduces.
+    """
+    sys.stdout.flush()
+    try:
+        completed = subprocess.run(argv, cwd=str(cwd) if cwd else None, env=env, check=False)
+    except OSError as err:
+        print(f'  cannot run {argv[0]}: {err}', file=sys.stderr)
+        return 127
+    return completed.returncode
+
+
 class Privilege(Enum):
     """How this process can run a root command right now.
 
