@@ -12,7 +12,7 @@
 The repo commits its Go dependencies TWICE, in two different formats:
 
 - `vendor/` — a flat, one-version-per-package tree, read only by `-mod=vendor`, tied to the
-  root module's `go.mod`. Used to build `bin/gok` (`mk/gokrazy.mk`, `-mod=vendor`) and the
+  root module's `go.mod`. Used to build `bin/gok` (`mk/build-gokrazy.mk`, `-mod=vendor`) and the
   rest of the repo.
 - `gokrazy/modcache/` — a committed, versioned `pkg@vX.Y.Z` GOMODCACHE (60+ tracked files),
   read by normal module resolution (`GOMODCACHE=$(CURDIR)/gokrazy/modcache`), used by the
@@ -95,13 +95,13 @@ status quo is worth changing.
 ## Required Reading
 
 - `ai/rules/platform-linux.md` — the vendored-init bump runbook and modcache cache-permission rules
-- `mk/gokrazy.mk` — how `bin/gok` and the image build consume the two stores today
+- `mk/build-gokrazy.mk` — how `bin/gok` and the image build consume the two stores today
 - `spec-relocate-scratch-and-cache` (closed) — must land first (Depends)
 
 ## Current Behavior
 
 **Source files read:** (during the 2026-07-18 audit + spike recorded above)
-- [x] `mk/gokrazy.mk` — `bin/gok` built with `-mod=vendor` from the root module
+- [x] `mk/build-gokrazy.mk` — `bin/gok` built with `-mod=vendor` from the root module
 - [x] `gokrazy/ze/builddir/*/go.mod` — independently-pinned builddir modules read `GOMODCACHE=$(CURDIR)/gokrazy/modcache`
 - [x] `gokrazy/modcache/.gitignore` — whitelists only `gokrazy/gokrazy@*/**`; everything else is downloaded, not committed
 - [x] `.gitignore:1` — "Dependencies are vendored and committed" (the property step 2 would reverse)
@@ -113,7 +113,7 @@ status quo is worth changing.
 ## Data Flow
 
 ### Entry Point
-- `make ze-gokrazy-build` (image build) and the `bin/gok` build in `mk/gokrazy.mk` — both are build-time consumers of the committed dependency stores; there is no runtime data flow.
+- `make ze-gokrazy-build` (image build) and the `bin/gok` build in `mk/build-gokrazy.mk` — both are build-time consumers of the committed dependency stores; there is no runtime data flow.
 
 ### Transformation Path
 1. Root-module builds resolve deps from `vendor/` via `-mod=vendor`.
@@ -128,7 +128,7 @@ status quo is worth changing.
 | Builddir modules -> modcache | versioned `pkg@vX.Y.Z` GOMODCACHE layout |
 
 ### Integration Points
-- `mk/gokrazy.mk` build targets; `scripts` around `ze-gokrazy-deps-download`; `.gitignore` whitelists.
+- `mk/build-gokrazy.mk` build targets; `scripts` around `ze-gokrazy-deps-download`; `.gitignore` whitelists.
 
 ## Wiring Test
 
@@ -153,7 +153,7 @@ Build tooling only — no daemon feature, no new runtime entry point; existing t
 
 | File | Change |
 |------|--------|
-| `mk/gokrazy.mk` | (step 2, if pursued) point `bin/gok` build at the unified store |
+| `mk/build-gokrazy.mk` | (step 2, if pursued) point `bin/gok` build at the unified store |
 | `gokrazy/modcache/.gitignore` | (step 2, if pursued) adjust whitelists for the generated cache |
 
 ## Implementation Steps

@@ -24,7 +24,7 @@ appliance database, which remains genuinely divergent:
 
 | Concern | make path | Go path |
 |---------|-----------|---------|
-| database seeding | shell: `ze init --force --yes --seed`, per-`CERTNAME` TLS cert cache, `ze data write file/template/ze.conf` (`mk/gokrazy.mk`) | `assembleZeFS` from an appliance directory (`internal/appliance/cmd_assemble.go`) |
+| database seeding | shell: `ze init --force --yes --seed`, per-`CERTNAME` TLS cert cache, `ze data write file/template/ze.conf` (`mk/build-gokrazy.mk`) | `assembleZeFS` from an appliance directory (`internal/appliance/cmd_assemble.go`) |
 | external database | `ZEFS=/path` copies one in | no equivalent |
 | output | fixed `tmp/gokrazy/ze.img` | timestamped under `AppliancePath` |
 | encryption, manifest, checksum, GPT-discovered mkfs offsets | absent | present |
@@ -44,7 +44,7 @@ some form: they are developer conveniences with no Go equivalent today.
 Found while closing `spec-gokrazy-init-bump`. Its deferral shard
 `plan/deferrals/gokrazy-init-bump.md` carries the row that homes this work here.
 
-The credential injection at `mk/gokrazy.mk` runs `debugfs -w -R "mkdir ze"` and
+The credential injection at `mk/build-gokrazy.mk` runs `debugfs -w -R "mkdir ze"` and
 `debugfs -w -R "write ... ze/database.zefs"`, each with `2>/dev/null`. Measured
 on e2fsprogs 1.47.0: `debugfs` exits **0 even when the command fails**, and it
 reports the failure only on stderr, which those two redirections discard. An
@@ -64,7 +64,7 @@ missing outright; the silent failure of a tool that IS present is what remains.
 
 #### FIXED 2026-08-05
 
-`mk/gokrazy.mk` now reads the database back out of the image and compares it
+`mk/build-gokrazy.mk` now reads the database back out of the image and compares it
 byte for byte against the source, failing the build on any mismatch. Content
 comparison rather than `stat` output, so it does not depend on debugfs field
 formatting and it catches a truncated write as well as an absent one.
@@ -137,7 +137,7 @@ removes; this spec is their home):
   longer runs in `builddir` (every build copies it into a prepared instance under
   project `tmp/`), so the name does misdescribe its role as a pinned module
   manifest. That is upstream's name to change, not ze's. The header comment of
-  `mk/gokrazy.mk` already tells a reader where builds actually run.
+  `mk/build-gokrazy.mk` already tells a reader where builds actually run.
 
 ## Required Reading
 
@@ -173,7 +173,7 @@ removes; this spec is their home):
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- The gokrazy make target (`mk/gokrazy.mk`, `ze-gokrazy-build` recipe): operator supplies USER/PASS, or ZEFS, or neither.
+- The gokrazy make target (`mk/build-gokrazy.mk`, `ze-gokrazy-build` recipe): operator supplies USER/PASS, or ZEFS, or neither.
 - `ze appliance build <name>` (`internal/appliance/cmd_build.go`, `buildOne`): operator builds a named appliance created by `ze appliance init`.
 - Both converge on the shared preparer and gok. Only the seeding above them differs.
 

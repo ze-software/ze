@@ -115,7 +115,7 @@ socket-layer write coalescing), not to remaining low-hanging fruit.
 - [ ] `docs/architecture/perf-round-3.md` - the third campaign, and the two before it in outline
   → Decision: profile-first; reject proposals that profiling shows are stack-allocated already
   → Decision: value-type struct keys over interned strings; one commit for bisection safety
-- [ ] `mk/perf.mk` - ze-perf-bench / PPROF / report targets
+- [ ] `mk/perf-bench.mk` - ze-perf-bench / PPROF / report targets
   → Constraint: results land in `test/perf/results/`, profiles in `tmp/perf-run/pprof`
 
 ### RFC Summaries (MUST for protocol work)

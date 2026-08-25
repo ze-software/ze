@@ -18,7 +18,7 @@ outstanding step is the full evidence-matrix verification re-run.
 1. This spec file
 2. `mk/test-integration.mk` - existing heavy test targets
 3. `mk/test-functional.mk` - shell runner pattern (lines 48-86)
-4. `mk/perf.mk` - perf bench/track targets
+4. `mk/perf-bench.mk` - perf bench/track targets
 5. `Makefile` - ze-precommit-verify, ze-verify-all, ze-test-all composition
 
 ## Task
@@ -67,7 +67,7 @@ rather than skipping honestly.
   → Constraint: use same run_suite() pattern for category tracking
 - [x] `mk/test-integration.mk` - all heavy test targets and ze-deployment-preflight
   → Constraint: preflight checks tools before starting, exits non-zero on missing
-- [x] `mk/perf.mk` - ze-perf-bench and ze-perf-history-record targets
+- [x] `mk/perf-bench.mk` - ze-perf-bench and ze-perf-history-record targets
   → Decision: ze-perf track --check already exits non-zero on regression
 - [x] `mk/test-chaos.mk` - chaos test targets
   → Constraint: chaos tests run in-process, no external infra needed
