@@ -124,8 +124,14 @@ func renderDashboardPeerTable(peers []dashboardPeer, ds *dashboardState, sortCol
 		if maxRows > 0 && i >= maxRows {
 			break
 		}
-		row := renderPeerRow(p, cols, ds)
-		if i == ds.resolveSelectedIndex(peers) {
+		// The SELECTED row is rendered without per-cell color. stateStyled
+		// emits a full reset, which terminates the selection background
+		// mid-line and leaves every column after State on the default
+		// background. The selection already carries the emphasis, so the
+		// state color has nothing left to add there.
+		selected := i == ds.resolveSelectedIndex(peers)
+		row := renderPeerRow(p, cols, ds, !selected)
+		if selected {
 			row = dashSelectedStyle.Render(row)
 		}
 		sb.Str(row)
@@ -165,11 +171,11 @@ func renderTableHeader(cols []dashboardColumnDef, sortCol dashboardSortColumn, s
 // all. Every column after State then sat one place left of its header for
 // `established`, and eight left for `idle`, which is why the symptom read as a
 // header spacing bug rather than as a row that never got padded.
-func renderPeerRow(p dashboardPeer, cols []dashboardColumnDef, ds *dashboardState) string {
+func renderPeerRow(p dashboardPeer, cols []dashboardColumnDef, ds *dashboardState, styled bool) string {
 	var tb textbuf.Buffer
 	parts := make([]string, 0, len(cols))
 	for _, c := range cols {
-		val := peerColumnValue(p, c.col, ds)
+		val := peerColumnValue(p, c.col, ds, styled)
 		pad := c.width - lipgloss.Width(val)
 		tb.Reset().Str(val)
 		for range pad {
@@ -181,13 +187,16 @@ func renderPeerRow(p dashboardPeer, cols []dashboardColumnDef, ds *dashboardStat
 }
 
 // peerColumnValue returns the display value for a peer in the given column.
-func peerColumnValue(p dashboardPeer, col dashboardSortColumn, ds *dashboardState) string {
+func peerColumnValue(p dashboardPeer, col dashboardSortColumn, ds *dashboardState, styled bool) string {
 	switch col {
 	case sortColumnAddress:
 		return p.Address
 	case sortColumnASN:
 		return strconv.Itoa(int(p.RemoteAS))
 	case sortColumnState:
+		if !styled {
+			return p.State
+		}
 		return stateStyled(p.State)
 	case sortColumnUptime:
 		return p.Uptime

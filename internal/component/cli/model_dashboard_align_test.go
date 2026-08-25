@@ -76,6 +76,46 @@ func TestDashboardRowColumnsAlignWithHeader(t *testing.T) {
 	}
 }
 
+// VALIDATES: the selected row carries ONE unbroken style, and an unselected row
+// still colors its state.
+//
+// PREVENTS: the selection background dying halfway along the row. lipgloss
+// renders the selected row by wrapping it in a background escape, and
+// stateStyled emits a FULL reset (`ESC [ m`) after the state text. A reset
+// inside the wrap terminates the background, so every column after State fell
+// back to the terminal default and rendered black against a cyan row. An
+// operator reported it as "the wrong color", and no alignment test could see it
+// because the escapes do not move any column. The fix is to render the selected
+// row without per-cell color -- the selection already carries the emphasis --
+// so this asserts BOTH halves: no reset inside the selected row, and a state
+// color still present on the row that is not selected.
+func TestDashboardSelectedRowKeepsOneStyle(t *testing.T) {
+	t.Parallel()
+	peers := []dashboardPeer{
+		{Address: "10.0.0.1", RemoteAS: 65001, State: "established", Uptime: "1h2m"},
+		{Address: "10.0.0.2", RemoteAS: 65002, State: "idle", Uptime: "5m"},
+	}
+	lines := strings.Split(renderDashboardPeerTable(peers, &dashboardState{}, sortColumnAddress, true, 200, 0), "\n")
+	if len(lines) < 3 {
+		t.Fatalf("want a header and two rows, got %d lines", len(lines))
+	}
+	selected, other := lines[1], lines[2]
+
+	// The selected row opens with a style and closes with one reset. Any reset
+	// before the final one is the defect.
+	if inner := strings.Count(strings.TrimSuffix(selected, "\x1b[m"), "\x1b[m"); inner != 0 {
+		t.Errorf("selected row carries %d reset(s) before its end, so the selection background stops there: %q", inner, selected)
+	}
+	if !strings.HasPrefix(selected, "\x1b[") {
+		t.Errorf("selected row is not styled at all: %q", selected)
+	}
+
+	// The unselected row has no wrapping style, so its state color must survive.
+	if !strings.Contains(other, "\x1b[") {
+		t.Errorf("unselected row lost its state color entirely: %q", other)
+	}
+}
+
 // cellAt returns width runes of s starting at offset, or "" past the end.
 func cellAt(s string, offset, width int) string {
 	if offset >= len(s) {
