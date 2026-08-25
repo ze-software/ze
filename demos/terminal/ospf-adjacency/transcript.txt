@@ -3,13 +3,13 @@ An operator is investigating why 10.255.0.3/32 is missing.
 $ ze config show demos/terminal/ospf-adjacency/ze.conf ospf
 The daemon configuration shows the OSPF process, area, interface, and router ID used by the recording.
 
-$ ze cli -c "show ospf neighbor detail"
+$ ze cli -c 'show ospf neighbor detail'
 The live FRR neighbor at 172.31.0.3 is Full.
 
-$ ze cli -c "show ospf database router"
+$ ze cli -c 'show ospf database router'
 The live link-state database contains FRR's Router-LSA.
 
-$ ze cli -c "show ospf route"
+$ ze cli -c 'show ospf route'
 The FRR loopback 10.255.0.3/32 is an intra-area route through 172.31.0.3.
 
 The recording uses `ze cli` directly. No output wrapper or synthetic summary sits between the operator and the running control plane.

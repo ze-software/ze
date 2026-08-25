@@ -81,7 +81,16 @@ when any component is `down`.
 Each check completes within 1 second. Components report `healthy`, `degraded`,
 or `down`. The overall status is the worst of all components.
 
-<!-- terminal-demo: health-reports -->
+<!-- The health-reports demo is not embedded while its recording is wrong. The
+     tape drives an SSH session whose commands the CLI answers with a completion
+     listing rather than a result, so the recording shows the intro card, a
+     config box and the recap, and none of the health, warning or error output
+     the page describes. The transcript gate refuses it, which is the first
+     check that has ever compared this demo against what it claims: a .webm
+     cannot report that it recorded a rejection. Restore this marker when the
+     recording shows the session again.
+     Recorded in plan/journal/green-that-could-not-have-been-red.md -->
+<!-- terminal-demo-disabled: health-reports -->
 
 ## Runtime: `show warnings` / `show errors`
 

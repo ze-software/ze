@@ -3,6 +3,8 @@ Source common.tape
 Set WaitTimeout 60s
 
 Hide
+Type "cd /src/demos/terminal/rbac"
+Enter
 Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/rbac/config NOC_PASSWORD=noc-secret ADMIN_PASSWORD=admin-secret"
 Enter
 Type "/src/demos/terminal/rbac/run.sh start"
@@ -19,11 +21,11 @@ Hide
 Type "clear"
 Enter
 Show
-Type "ze config show /src/demos/terminal/rbac/rbac.conf system authorization profile read-only"
+Type "ze config show rbac.conf system authorization profile read-only"
 Enter
 Wait+Screen /match clear/
 Sleep 6s
-Type "ze config show /src/demos/terminal/rbac/rbac.conf system authentication user noc profile"
+Type "ze config show rbac.conf system authentication user noc profile"
 Enter
 Wait+Screen /profile read-only/
 Sleep 4s

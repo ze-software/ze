@@ -16,10 +16,12 @@ Sleep 500ms
 Screenshot artifacts/commit-confirmed.png
 
 Hide
+Type "cd /src/tmp/terminal-demos/state/commit-confirmed"
+Enter
 Type "clear"
 Enter
 Show
-Type "ze config edit -f /src/tmp/terminal-demos/state/commit-confirmed/ze.conf"
+Type "ze config edit -f ze.conf"
 Enter
 Wait+Screen /ze#/
 Type "show system host"

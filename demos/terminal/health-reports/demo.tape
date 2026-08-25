@@ -30,12 +30,12 @@ Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /stale prefix data/
 Sleep 5s
-Type "run show health | no-more"
+Type "run show health"
 Enter
 Wait+Screen /ipsec/
 Wait+Screen /Ze Editor/
 Sleep 6s
-Type "run show warnings source bgp | no-more"
+Type "run show warnings source bgp"
 Enter
 Wait+Screen /prefix-stale/
 Wait+Screen /Ze Editor/
@@ -44,7 +44,7 @@ Type "run request peer 127.0.0.2 teardown 4"
 Enter
 Wait+Screen /Ze Editor/
 Sleep 4s
-Type "run show errors source bgp | no-more"
+Type "run show errors source bgp"
 Enter
 Wait+Screen /notification-sent/
 Sleep 6s
