@@ -137,14 +137,19 @@ func encryptAESCBC(key, plaintext []byte) ([]byte, error) {
 		return nil, err
 	}
 	padded := pkcs7Pad(plaintext, aes.BlockSize)
-	iv := make([]byte, aes.BlockSize)
+
+	// One buffer carries the whole result: the IV takes the first block and the
+	// ciphertext is encrypted into the rest, so iv || ciphertext needs no
+	// second buffer and no copy. NewCBCEncrypter clones the IV it is given, so
+	// writing the ciphertext after it does not disturb the mode's own state.
+	out := make([]byte, aes.BlockSize+len(padded))
+	iv := out[:aes.BlockSize]
 	if _, err := rand.Read(iv); err != nil {
 		return nil, err
 	}
 	mode := cipher.NewCBCEncrypter(block, iv)
-	ct := make([]byte, len(padded))
-	mode.CryptBlocks(ct, padded)
-	return append(iv, ct...), nil
+	mode.CryptBlocks(out[aes.BlockSize:], padded)
+	return out, nil
 }
 
 // decryptAESCBC decrypts data produced by EncryptAESCBC (iv || ciphertext).
