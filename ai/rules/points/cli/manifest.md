@@ -137,6 +137,7 @@ error-messages ## Error Messages
   verify-the-remediation-actually-works
   where-the-corrective-action-is-mandatory
   format-humans-scan-agents-parse
+  name-what-the-operator-configured-never-the-library
   the-error-formatting-rules-and-their-reasons
   a-value-carries-no-marker-state-is-a-field-never-a-sigil
   a-row-s-state-is-a-field-never-a-glued-character

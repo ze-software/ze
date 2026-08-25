@@ -275,7 +275,7 @@ func (m *VPPManager) runOnce(ctx context.Context, confPath string) error {
 			_ = cmd.Process.Kill()
 			_ = cmd.Wait()
 		}
-		return fmt.Errorf("govpp connect: %w", err)
+		return fmt.Errorf("vpp: connect: %w", err)
 	}
 	lg.Info("vpp: GoVPP connected", "socket", m.settings.APISocket)
 

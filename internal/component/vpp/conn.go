@@ -16,9 +16,9 @@ import (
 )
 
 var (
-	errGovppConnectAlreadyInProgress    = errors.New("govpp: connect already in progress")
-	errGovppNotConnected                = errors.New("govpp: not connected")
-	errGovppWaitconnectedTimeoutMustBe0 = errors.New("govpp WaitConnected: timeout must be > 0")
+	errVppConnectAlreadyInProgress  = errors.New("vpp: connect already in progress")
+	errVppNotConnected              = errors.New("vpp: not connected")
+	errVppConnectTimeoutNotPositive = errors.New("vpp: connect timeout must be greater than 0")
 )
 
 // Connector manages the GoVPP connection to VPP's binary API socket.
@@ -49,7 +49,7 @@ func (c *Connector) Connect(ctx context.Context, maxAttempts int, retryInterval 
 	}
 	if c.connecting {
 		c.mu.Unlock()
-		return errGovppConnectAlreadyInProgress
+		return errVppConnectAlreadyInProgress
 	}
 	c.connecting = true
 	c.mu.Unlock()
@@ -66,7 +66,7 @@ func (c *Connector) Connect(ctx context.Context, maxAttempts int, retryInterval 
 		retryInterval,
 	)
 	if err != nil {
-		return fmt.Errorf("govpp async connect to %s: %w", c.socket, err)
+		return fmt.Errorf("vpp: connect to %s: %w", c.socket, err)
 	}
 
 	// Wait for connection event without holding the mutex.
@@ -80,7 +80,7 @@ func (c *Connector) Connect(ctx context.Context, maxAttempts int, retryInterval 
 			return nil
 		}
 		conn.Disconnect()
-		return fmt.Errorf("govpp connection failed: state=%v: %w", e.State, e.Error)
+		return fmt.Errorf("vpp: connection failed: state=%v: %w", e.State, e.Error)
 	case <-ctx.Done():
 		conn.Disconnect()
 		return ctx.Err()
@@ -95,12 +95,12 @@ func (c *Connector) NewChannel() (api.Channel, error) {
 	defer c.mu.Unlock()
 
 	if !c.connected || c.conn == nil {
-		return nil, errGovppNotConnected
+		return nil, errVppNotConnected
 	}
 
 	ch, err := c.conn.NewAPIChannel()
 	if err != nil {
-		return nil, fmt.Errorf("govpp new channel: %w", err)
+		return nil, fmt.Errorf("vpp: new channel: %w", err)
 	}
 	return ch, nil
 }
@@ -124,7 +124,7 @@ func (c *Connector) IsConnected() bool {
 // happen from any goroutine and we do not want to re-architect the mutex.
 func (c *Connector) WaitConnected(ctx context.Context, timeout time.Duration) error {
 	if timeout <= 0 {
-		return errGovppWaitconnectedTimeoutMustBe0
+		return errVppConnectTimeoutNotPositive
 	}
 	if err := ctx.Err(); err != nil {
 		return err
@@ -141,7 +141,7 @@ func (c *Connector) WaitConnected(ctx context.Context, timeout time.Duration) er
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-deadline.C:
-			return fmt.Errorf("govpp WaitConnected: not connected after %s", timeout)
+			return fmt.Errorf("vpp not connected after %s", timeout)
 		case <-tick.C:
 			if c.IsConnected() {
 				return nil
