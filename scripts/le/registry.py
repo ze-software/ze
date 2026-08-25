@@ -109,6 +109,31 @@ REGISTRY: tuple[Entry, ...] = (
         module='le.application.check_rules',
         help='rules-system gates: the point corpus, its renders, the discovery indexes',
     ),
+    Entry(
+        name='check-docs',
+        module='le.application.check_docs',
+        help='documentation gates: drift, wiring, anchors, indexes, Simplified Technical English',
+    ),
+    Entry(
+        name='report-inventory',
+        module='le.application.report_inventory',
+        help='repository reports: inventory, the command list, the rules readouts, the journal',
+    ),
+    Entry(
+        name='perf-bench',
+        module='le.application.perf_bench',
+        help='performance benchmark reports',
+    ),
+    Entry(
+        name='helper-verify',
+        module='le.application.helper_verify',
+        help='verify helpers: what the working tree holds, and the worktree gate run',
+    ),
+    Entry(
+        name='build-terminal-demo',
+        module='le.application.build_terminal_demo',
+        help='website terminal demonstrations: check the published assets, or render them again',
+    ),
 )
 
 

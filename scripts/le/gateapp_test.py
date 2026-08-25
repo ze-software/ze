@@ -88,9 +88,11 @@ class TestSelection(unittest.TestCase):
 
     def test_a_failing_gate_fails_the_run_and_is_named(self) -> None:
         buffer = io.StringIO()
-        with mock.patch.object(gateapp, 'run_all', return_value=['ze-beta-check']):
-            with redirect_stdout(buffer):
-                code = gateapp.action(_options([]), SET)
+        with (
+            mock.patch.object(gateapp, 'run_all', return_value=['ze-beta-check']),
+            redirect_stdout(buffer),
+        ):
+            code = gateapp.action(_options([]), SET)
         assert code == 1
         assert 'ze-beta-check' in buffer.getvalue()
 

@@ -1,35 +1,71 @@
-# Documentation gates: drift, wiring, anchors, indexes, and Simplified Technical English
+# Documentation gates -- MOVED to `le`.
 #
-# Quick reference:
-#   make ze-doc-verify        All doc checks (drift + anchors + YANG/handler)
-#   make ze-doc-wiring-check  Changed-file-aware wiring/doc/inventory gate
-#   make ze-ste-review        ASD-STE100 findings, with file:line and the fix
-#   make ze-ste-check         ASD-STE100 gate: no habit grew vs HEAD
+# The gates themselves now live in scripts/le/application/check_docs.py. This
+# file is a shim: each target forwards to `le` so that every existing caller
+# keeps working -- CI, ze-doc-verify, ze-precommit-verify, and the several
+# thousand `make ze-...` references across docs, rules and plan/.
 #
+# AGENTS AND HUMANS: use `le` directly. It is the source of truth.
+#
+#   ./le check-docs                       every check in this area
+#   ./le check-docs --list                what each gate is for
+#   ./le check-docs ze-digest-check       one gate
+#   ./le check-docs ze-ste-review --json
+#
+# THREE TARGETS DID NOT MOVE, and their recipes are still here, at the bottom:
+# ze-doc-verify is a twelve-step sequence over one FAIL flag ending in a
+# conditional exit, ze-wiki-commands-update is a pipeline into a redirect
+# outside the checkout, and ze-wiki-update is an alias whose only content is a
+# prerequisite edge. A gate is one command; those three are shell programs.
+#
+# Nothing else here carries logic. A change to what a gate DOES belongs in the
+# Python module; a change here can only break the forwarding. When the last
+# caller stops spelling these as Make targets, the forwarding half is deleted.
 
 .PHONY: ze-spec-citation-check ze-wiki-update ze-wiki-commands-update ze-doc-drift-check ze-doc-wiring-check ze-doc-verify ze-ste-check ze-ste-review ze-ste-review-changed ze-ste-review-json ze-doc-index-update ze-doc-index-check ze-digest-check ze-consistency-check
 
-# Spec citation freshness gate: a plan/spec-*.md that cites a sibling
-# plan/spec-*.md absent on disk fails (unless the target is grandfathered in
-# plan/.citation-baseline); a path:line citation whose backtick-quoted token
-# drifted off that line WARNs (non-fatal). Runs on the verify path when a plan/
-# file changes (scripts/dev/verify_wiring_docs.py routes it). Regenerate the
-# baseline with `scripts/dev/spec-citation-check.py --write-baseline`.
 ze-spec-citation-check:
-	@python3 scripts/dev/spec-citation-check.py
+	@$(CURDIR)/le check-docs ze-spec-citation-check
 
+ze-doc-drift-check:
+	@$(CURDIR)/le check-docs ze-doc-drift-check
+
+ze-doc-wiring-check:
+	@$(CURDIR)/le check-docs ze-doc-wiring-check
+
+ze-doc-index-check:
+	@$(CURDIR)/le check-docs ze-doc-index-check
+
+ze-doc-index-update:
+	@$(CURDIR)/le check-docs ze-doc-index-update
+
+ze-digest-check:
+	@$(CURDIR)/le check-docs ze-digest-check
+
+ze-consistency-check:
+	@$(CURDIR)/le check-docs ze-consistency-check
+
+ze-ste-check:
+	@$(CURDIR)/le check-docs ze-ste-check
+
+ze-ste-review:
+	@$(CURDIR)/le check-docs ze-ste-review
+
+ze-ste-review-changed:
+	@$(CURDIR)/le check-docs ze-ste-review-changed
+
+ze-ste-review-json:
+	@$(CURDIR)/le check-docs ze-ste-review --json
+
+# --- The three that stayed -------------------------------------------------
+
+# The prerequisite edge is the ordering `make -j` actually enforces. Keep it.
 ze-wiki-update: ze-wiki-commands-update
 	@echo "Wiki updated"
 
 ze-wiki-commands-update:
 	@$(ZEBIN_ZE) help command --json | python3 scripts/dev/gen_wiki_commands.py > ../wiki/command-catalog.md
 	@echo "  -> ../wiki/command-catalog.md"
-
-ze-doc-drift-check:
-	@$(GO_RUN) scripts/docvalid/doc_drift.go
-
-ze-doc-wiring-check:
-	@python3 scripts/dev/verify_wiring_docs.py --make "$(MAKE)"
 
 ze-doc-verify:
 	@echo "Running documentation tests..."
@@ -79,43 +115,3 @@ ze-doc-verify:
 		exit 1; \
 	fi; \
 	echo "Documentation tests PASSED"
-
-# Simplified Technical English (ASD-STE100 Issue 9) -- rule one of the repository
-# (ai/rules/writing.md). ze-ste-check counts the six banned
-# habits in each file the working tree changed, against that file's own HEAD
-# version, and fails when a habit grew. HEAD is the baseline, so legacy prose
-# stays until someone rewrites it, no baseline file exists to re-bless, and the
-# one way to green is to fix the prose. About 2 seconds.
-#
-# It is NOT wired into ze-doc-verify. Several sessions share this checkout, so a
-# tree-wide run reports a sibling session's in-flight sentences and nobody can
-# tell whose they are. The BLOCKING gate lives in commit_helper.py
-# (ste_problems), scoped to the files of ONE commit, which is the only place
-# where prose has a single author.
-ze-ste-check:
-	@python3 scripts/dev/ste_check.py --check
-
-ze-ste-review:
-	@python3 scripts/dev/ste_check.py
-
-ze-ste-review-changed:
-	@python3 scripts/dev/ste_check.py --changed
-
-ze-ste-review-json:
-	@python3 scripts/dev/ste_check.py --json
-
-ze-doc-index-update:
-	@python3 scripts/dev/code_to_docs.py
-
-ze-doc-index-check:
-	@python3 scripts/dev/code_to_docs.py --check
-
-# Digest anchor validity: every `file:line` reference in ai/digests/*.md resolves
-# to a real file and an in-range line. The digests are hand-maintained, so this
-# catches the anchors rotting when code moves. Runs inside ze-doc-verify.
-ze-digest-check:
-	@python3 scripts/dev/digest_check.py
-
-ze-consistency-check:
-	@echo "Running consistency checks..."
-	@go run scripts/lint/consistency.go .

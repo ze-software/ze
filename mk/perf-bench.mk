@@ -1,14 +1,35 @@
-# Performance benchmarks
+# Performance benchmarks -- the suggestion report MOVED to `le`.
+#
+# That one report now lives in scripts/le/application/perf_bench.py, and the
+# target below forwards to it so every existing caller keeps working.
+#
+# AGENTS AND HUMANS: use `le` directly for it. It is the source of truth.
+#
+#   ./le perf-bench                            every check in this area
+#   ./le perf-bench --list                     what each one is for
+#   ./le perf-bench ze-perf-suggestion-report  one of them
+#
+# FOUR TARGETS DID NOT MOVE, and their recipes are still here. ze-perf-build is
+# an alias for the $(ZEBIN_PERF) file target, whose one build recipe lives in
+# the root Makefile. ze-perf-bench passes through the shared-machine admission
+# wrapper (scripts/dev/ze-run.sh), which re-enters make for the `-impl` half,
+# and it needs Docker. ze-perf-report and ze-perf-history-record expand a shell
+# glob, the second inside a `for` loop. A gate is one command.
 #
 # Quick reference:
 #   make ze-perf-bench                 Run benchmarks against all DUTs (Docker)
 #   make ze-perf-bench PERF_DUT=ze     Single DUT
 #   make ze-perf-report                Generate comparison report
-#   make ze-perf-history-record                 Update history tracking
+#   make ze-perf-history-record        Update history tracking
 
 .PHONY: ze-perf-build ze-perf-bench ze-perf-report ze-perf-history-record ze-perf-suggestion-report
 
 PERF_DUT ?=
+
+ze-perf-suggestion-report:
+	@$(CURDIR)/le perf-bench ze-perf-suggestion-report
+
+# --- The four that stayed --------------------------------------------------
 
 # One build recipe for ze-perf, and it lives in the root Makefile beside every
 # other binary ($(ZEBIN_PERF): tags 'ze_perf ze_bgp' over ./cmd/ze). This target
@@ -34,16 +55,6 @@ ze-perf-history-record: ze-perf-build
 		$(ZEBIN_PERF) track "test/perf/history/$${dut}.ndjson" --append "$$f"; \
 	done
 	@python3 scripts/dev/perf-suggest.py --record
-
-# Advisory: if BGP data-plane code changed since the last perf run, suggest one.
-# A NUDGE, never a gate -- always exits 0. The heavy suite (ze-evidence-perf-record) needs
-# Docker and minutes, so it is not run every edit; this notices when a Docker
-# perf run is overdue on THIS machine. It complements the scheduled Docker-free
-# regression check (.github/workflows/perf-nightly.yml): that guards the committed
-# NDJSON history on every nightly, this nudges the developer to refresh it with a
-# local Docker run. See scripts/dev/perf-suggest.py.
-ze-perf-suggestion-report:
-	@python3 scripts/dev/perf-suggest.py
 
 # The `_<target>-impl` half of every admitted pair defined in this file.
 # The public half calls the admission wrapper and this half holds the work;

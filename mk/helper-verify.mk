@@ -1,27 +1,28 @@
-# Verify helpers: what the working tree holds, and the throwaway-worktree gate run
+# Verify helpers -- MOVED to `le`.
 #
-# Quick reference:
-#   make ze-working-tree-check  Changed paths, grouped by area
-#   make ze-verify-worktree     Run the gate against a COMMIT, not this tree
+# The helpers themselves now live in scripts/le/application/helper_verify.py.
+# This file is a shim: each target forwards to `le` so that every existing
+# caller keeps working -- the rules, the hooks, and the `make ze-...`
+# references across docs and plan/.
 #
+# AGENTS AND HUMANS: use `le` directly. It is the source of truth.
+#
+#   ./le helper-verify --list                 what each one is for
+#   ./le helper-verify ze-working-tree-check  changed paths, grouped by area
+#   ./le helper-verify ze-verify-worktree     the gate, against a COMMIT
+#
+# MAX_AREAS, COMMIT and KEEP moved with the targets and are read from the
+# environment there. A variable set on the make command line reaches the
+# recipe's environment, so `make ze-verify-worktree COMMIT=<rev> KEEP=1` still
+# works and so does the same assignment in front of `./le`.
+#
+# Nothing here carries logic. A change to what a helper DOES belongs in the
+# Python module; a change here can only break the forwarding.
 
 .PHONY: ze-working-tree-check ze-verify-worktree
 
-# How wide the uncommitted tree is, grouped by area. Advisory: it reports and
-# exits 0, because only a person can say whether two areas are one logical
-# change. The failure it exists to surface is several FINISHED chunks held in
-# one tree, which a checkout destroys and which every later chunk must be
-# diffed around (ai/rules/git-safety.md, "Commit Granularity").
-# Pass MAX_AREAS=N to make it a gate.
 ze-working-tree-check:
-	@python3 scripts/dev/working_tree_check.py $(if $(MAX_AREAS),--max-areas $(MAX_AREAS),)
+	@$(CURDIR)/le helper-verify ze-working-tree-check
 
-# Run the pre-commit gate against a COMMIT, in a throwaway worktree, so the
-# working tree stays free and no mid-run edit can invalidate the result.
-# The gate is 25-53 minutes on this hardware (measured 2026-08-21), which is
-# why verifying in place pushes people to batch commits.
-# COMMIT=<rev> picks the commit (default HEAD), KEEP=1 leaves the worktree.
-# See ai/rules/git-safety.md, "Verify a Commit, Not the Working Tree".
 ze-verify-worktree:
-	@python3 scripts/dev/verify_worktree.py \
-		$(if $(COMMIT),--commit $(COMMIT),) $(if $(KEEP),--keep,)
+	@$(CURDIR)/le helper-verify ze-verify-worktree
