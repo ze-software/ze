@@ -2,7 +2,7 @@ package cli
 
 import (
 	"regexp"
-	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -37,7 +37,8 @@ func TestDashboardRowColumnsAlignWithHeader(t *testing.T) {
 		// Walk the column starts. The header's first cell carries a sort
 		// indicator, so its own text differs; what must match is where every
 		// LATER column begins.
-		offset := 0
+		// Both the header and the rows start with the selection-marker gutter.
+		offset := selectionMarkerWidth
 		for i, c := range dashboardColumns {
 			if i > 0 {
 				hCell := strings.TrimRight(cellAt(header, offset, c.width), " ")
@@ -61,7 +62,7 @@ func TestDashboardRowColumnsAlignWithHeader(t *testing.T) {
 
 		// Uptime is the column the report named. Assert it directly: the row's
 		// uptime must begin exactly where the header's does.
-		up := 0
+		up := selectionMarkerWidth
 		for _, c := range dashboardColumns {
 			if c.col == sortColumnUptime {
 				break
@@ -77,9 +78,8 @@ func TestDashboardRowColumnsAlignWithHeader(t *testing.T) {
 	}
 }
 
-// VALIDATES: the selected row is covered by the selection background end to
-// end, the state keeps its own color on top of it, and an unselected row still
-// colors its state.
+// VALIDATES: the selected row is marked without a background, and every row --
+// selected or not -- keeps the color its state column means.
 //
 // PREVENTS: two opposite regressions, which is why it asserts both halves.
 //
@@ -97,7 +97,7 @@ func TestDashboardRowColumnsAlignWithHeader(t *testing.T) {
 // foreground and the selection background together and no cell is left bare.
 // Many resets are expected; text between them with no background re-opened is
 // the defect.
-func TestDashboardSelectedRowKeepsOneStyle(t *testing.T) {
+func TestDashboardSelectedRowKeepsStateColor(t *testing.T) {
 	t.Parallel()
 	peers := []dashboardPeer{
 		{Address: "10.0.0.1", RemoteAS: 65001, State: "established", Uptime: "1h2m"},
@@ -109,31 +109,44 @@ func TestDashboardSelectedRowKeepsOneStyle(t *testing.T) {
 	}
 	selected, other := lines[1], lines[2]
 
-	// Every printable run in the selected row must sit inside a span that
-	// carries the selection background. Cells are styled individually, so the
-	// row holds many resets; what must never appear is text between them with
-	// no background re-opened, which is the gap an operator sees as black.
-	if bare := unstyledRuns(selected); bare != "" {
-		t.Errorf("selected row has text outside the selection background (%q), so the highlight breaks there: %q", bare, selected)
+	// The selection is a marker and weight. It paints no background, because
+	// a background has to be picked against a palette the terminal owns and
+	// the website re-declares, and every cell's own color then lands on top of
+	// it: the state green over the selection cyan measured 1.29:1, and pinning
+	// a foreground to win that back cost the state its color.
+	if bg := backgroundCodes(selected); bg != "" {
+		t.Errorf("selected row paints a background (SGR %s), which no palette can be trusted to keep readable: %q", bg, selected)
 	}
-	// The selection pins an explicit foreground. Setting a background and
-	// leaving the foreground at the terminal default put light text on the
-	// light cyan selection: 1.53:1 against the palette the website replays
-	// these recordings with, and 4.5:1 is the readable floor.
-	if !strings.Contains(selected, ";30;46m") && !strings.Contains(selected, ";46;30m") {
-		t.Errorf("selected row does not pin a foreground, so its text keeps the terminal default over the selection background: %q", selected)
+	if !strings.Contains(selected, "> ") {
+		t.Errorf("selected row carries no selection marker: %q", selected)
 	}
-	// The state color is dropped on the selected row. It is picked to read
-	// against the terminal background, and over the selection it measures
-	// 1.29:1, which is the pair an operator reports as unreadable.
-	if strings.Contains(selected, ";32;46m") || strings.Contains(selected, ";46;32m") {
-		t.Errorf("selected row still paints the state color over the selection background: %q", selected)
+	// The state color is the column's own meaning, so it survives selection.
+	if !strings.Contains(selected, "32m") {
+		t.Errorf("selected row lost the state color: %q", selected)
 	}
+	if !strings.Contains(other, "31m") {
+		t.Errorf("unselected row lost its state color: %q", other)
+	}
+	if strings.HasPrefix(other, "> ") {
+		t.Errorf("unselected row carries the selection marker: %q", other)
+	}
+}
 
-	// The unselected row has no wrapping style, so its state color must survive.
-	if !strings.Contains(other, "\x1b[") {
-		t.Errorf("unselected row lost its state color entirely: %q", other)
+// backgroundCodes returns the first SGR background parameter the string sets,
+// or "" when it sets none. 40-47 and 100-107 are the background introducers.
+func backgroundCodes(s string) string {
+	for _, m := range regexp.MustCompile(`\x1b\[([0-9;]*)m`).FindAllStringSubmatch(s, -1) {
+		for _, p := range strings.Split(m[1], ";") {
+			n, err := strconv.Atoi(p)
+			if err != nil {
+				continue
+			}
+			if (n >= 40 && n <= 47) || (n >= 100 && n <= 107) {
+				return p
+			}
+		}
 	}
+	return ""
 }
 
 // cellAt returns width runes of s starting at offset, or "" past the end.
@@ -153,30 +166,3 @@ func cellAt(s string, offset, width int) string {
 // would make this check blind to the defect it exists for: joining the cells
 // with a plain "  " instead of a styled one leaves the row looking striped, and
 // an earlier version of this helper passed that mutation.
-func unstyledRuns(s string) string {
-	const bg = "46"
-	inBG := false
-	var run strings.Builder
-	for i := 0; i < len(s); {
-		if s[i] == 0x1b && i+1 < len(s) && s[i+1] == '[' {
-			j := i + 2
-			for j < len(s) && s[j] != 'm' {
-				j++
-			}
-			if j >= len(s) {
-				break
-			}
-			inBG = slices.Contains(strings.Split(s[i+2:j], ";"), bg)
-			if run.Len() > 0 {
-				return run.String()
-			}
-			i = j + 1
-			continue
-		}
-		if !inBG {
-			run.WriteByte(s[i])
-		}
-		i++
-	}
-	return run.String()
-}

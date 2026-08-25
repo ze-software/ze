@@ -16,11 +16,11 @@ import (
 
 // Dashboard styles.
 var (
-	dashHeaderStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15"))                                // white
-	dashFooterStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))                                          // dim gray
-	dashSelectedStyle = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("6")).Foreground(lipgloss.Color("0")) // dark on cyan
-	dashErrorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))                                            // red for errors
-	dashConnStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))                                            // green for connected
+	dashHeaderStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")) // white
+	dashFooterStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))           // dim gray
+	dashSelectedStyle = lipgloss.NewStyle().Bold(true)                                  // selection, no color of its own
+	dashErrorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))             // red for errors
+	dashConnStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))             // green for connected
 )
 
 // Peer-state colors. These are colors rather than styles because the peer table
@@ -92,8 +92,11 @@ func visibleColumns(width int) []dashboardColumnDef {
 	cols := make([]dashboardColumnDef, len(dashboardColumns))
 	copy(cols, dashboardColumns)
 
-	// Calculate total width needed.
-	total := 0
+	// The selection marker's gutter is part of what a row occupies, so it is
+	// counted before any column is judged to fit. Leaving it out let the table
+	// run selectionMarkerWidth past the terminal, and the wrapped tail then
+	// overwrote the line under it.
+	total := selectionMarkerWidth
 	for _, c := range cols {
 		total += c.width + 2 // 2 for spacing
 	}
@@ -158,18 +161,21 @@ func renderTableHeader(cols []dashboardColumnDef, sortCol dashboardSortColumn, s
 		header := tb.String()
 		parts = append(parts, tb.Reset().PadRight(header, c.width).String())
 	}
-	return dashHeaderStyle.Render(textbuf.Join(parts, "  "))
+	// selectionMarkerWidth of leading blanks keeps the headers over the cells
+	// the marker shifts right.
+	return dashHeaderStyle.Render(tb.Reset().Repeat(" ", selectionMarkerWidth).Str(textbuf.Join(parts, "  ")).String())
 }
 
 // renderPeerRow renders a single peer row.
 //
-// The pad width is the VISIBLE width, not the rune count. peerColumnValue
-// returns a styled string for the State column (stateStyled wraps it in an ANSI
-// escape), and textbuf.PadRight counts runes, so those escapes were counted as
-// content: the count already exceeded the column and PadRight added nothing at
-// all. Every column after State then sat one place left of its header for
-// `established`, and eight left for `idle`, which is why the symptom read as a
-// header spacing bug rather than as a row that never got padded.
+// Each cell is padded BEFORE it is styled. peerColumnValue answers plain text.
+// The style is applied to the padded cell, so textbuf.PadRight counts content
+// rather than escapes.
+//
+// Padding a cell that already carried an ANSI escape counted the escape as
+// content. The count exceeded the column, so PadRight added nothing. Every
+// column after State then sat left of its header
+// for `established` and eight left for `idle`.
 func renderPeerRow(p dashboardPeer, cols []dashboardColumnDef, ds *dashboardState, selected bool) string {
 	var tb textbuf.Buffer
 	parts := make([]string, 0, len(cols))
@@ -178,30 +184,35 @@ func renderPeerRow(p dashboardPeer, cols []dashboardColumnDef, ds *dashboardStat
 		tb.Reset().PadRight(val, c.width)
 		cell := tb.String()
 
+		// The selection is a marker and weight, and paints no background.
+		//
+		// A background must be chosen against a palette the terminal owns and
+		// the website re-declares. Every choice put a cell's own color on top
+		// of it. The state green landed on the selection cyan at 1.29:1.
+		// Pinning a foreground won that back and cost the state its color.
+		//
+		// Weight reads whatever the palette says, so every cell keeps the
+		// color it would have had.
 		style := lipgloss.NewStyle()
 		if selected {
 			style = dashSelectedStyle
 		}
-		// The state color is dropped on the selected row. It is chosen to read
-		// against the terminal background, not against the selection background,
-		// where green on cyan measures 1.29:1. The selection already carries the
-		// emphasis the color would add.
-		if fg, ok := stateColor(p.State); ok && c.col == sortColumnState && !selected {
+		if fg, ok := stateColor(p.State); ok && c.col == sortColumnState {
 			style = style.Foreground(fg)
 		}
 		parts = append(parts, style.Render(cell))
 	}
-	return textbuf.Join(parts, joinGap(selected))
+	marker := "  "
+	if selected {
+		marker = dashSelectedStyle.Render("> ")
+	}
+	return tb.Reset().Str(marker).Str(textbuf.Join(parts, "  ")).String()
 }
 
-// joinGap returns the separator between two cells. On a selected row it carries
-// the selection background, so the highlight does not break in the gaps.
-func joinGap(selected bool) string {
-	if selected {
-		return dashSelectedStyle.Render("  ")
-	}
-	return "  "
-}
+// selectionMarkerWidth is the gutter renderPeerRow writes the selection marker
+// into, and the blanks renderTableHeader writes so the headers stay over their
+// cells.
+const selectionMarkerWidth = 2
 
 // peerColumnValue returns the display value for a peer in the given column.
 func peerColumnValue(p dashboardPeer, col dashboardSortColumn, ds *dashboardState) string {
@@ -277,7 +288,13 @@ func renderDashboardDetail(ds *dashboardState) string {
 
 	var sb textbuf.Buffer
 	var tb textbuf.Buffer
-	sb.Str(dashHeaderStyle.Render(tb.Str("  Peer Detail: ").Str(peer.Address).String()))
+	// Indented to three, which is where every row under it starts.
+	//
+	// It is NOT where the peer table's header starts. That header opens with
+	// the selection marker's two-space gutter and then "Peer". A two-space
+	// indent here made the first seven characters of the two lines identical,
+	// and a differential repaint then left them from the previous frame.
+	sb.Str(dashHeaderStyle.Render(tb.Str("   Peer Detail: ").Str(peer.Address).String()))
 	sb.Str("\n\n")
 
 	rows := []struct{ label, value string }{
