@@ -23,6 +23,7 @@ implement-full-compliance-ask-thomas-only-before-doing-less ## Implement Full Co
   raise-a-void-answer-the-moment-you-find-one
 rfc-summaries-rfc-short ## RFC Summaries (`rfc/short/`)
   keep-ze-specifics-out-of-an-rfc-summary
+  mark-every-requirement-of-a-superseded-summary-with-its-successor
 extraction-completeness-blocking-when-enrolling-a-summary ## Extraction Completeness (BLOCKING when enrolling a summary)
   the-gate-is-bounded-by-what-was-extracted
   walk-the-rfc-text-before-enrolling-a-summary

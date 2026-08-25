@@ -51,6 +51,7 @@ Exit 2 = violations found, or the gate could not run (unparseable input, nothing
          and found nothing", never "I compared nothing" (ai/rules/evidence.md).
 """
 
+import ast
 import calendar
 import datetime
 import hashlib
@@ -132,6 +133,59 @@ POLARITIES = frozenset({"positive", "negative"})
 
 ANNOTATION_KINDS = frozenset({"not-applicable", "gap", "single-polarity"})
 
+# The one `{...}` kind that is NOT a coverage annotation, which is why it is named apart
+# from ANNOTATION_KINDS rather than added to it.
+#
+# Every member of ANNOTATION_KINDS says something about Ze's COVERAGE, and `evaluate`
+# reads `Requirement.annotation` to decide what a requirement still owes. `{superseded}`
+# says something about the DOCUMENT: the obligation moved, so here is where it now lives.
+# Those are different registers and a reader must never trade one for the other.
+#
+# So the marker lands on its own field, `Requirement.superseded`, and `evaluate` never
+# looks at it. That is not a stylistic choice: it is the mechanism by which a marked
+# requirement stays gated, stays counted and stays ratcheted. Had `superseded` joined
+# ANNOTATION_KINDS and shared the single `annotation` slot, marking a requirement would
+# have EVICTED its `{gap}` or `{single-polarity}`, and a document's obsolescence would
+# have become a way to move a MUST out of the population every ratchet judges.
+SUPERSEDED_KIND = "superseded"
+
+# What a superseded document's obligation became. A closed set for the reason
+# ANNOTATION_KINDS is one: free text lets "the RFC was replaced" read as "Ze need not
+# comply", and these four spellings each say the opposite in a different way.
+#
+#   restated <ID>       the successor states the same obligation, under that id. The id is
+#                       CHECKED against the successor's summary, so a pointer written to
+#                       satisfy the gate fails the gate.
+#   dropped             the successor states no equivalent obligation. Ze still owes this
+#                       one for as long as it speaks the wire format this document
+#                       defines: a dropped obligation is a fact about the successor, never
+#                       an exemption.
+#   unextracted <§sec>  the successor STATES the obligation, at the section named, and its
+#                       summary declares no row for it. DEBT, and the fix is an extraction
+#                       pass over the successor.
+#   unresolved          the successor's own text is not in this repository, so nobody can
+#                       say what it does with the obligation. DEBT, and the fix is to fetch
+#                       and summarise the successor.
+#
+# Each disposition carries a precondition a machine checks, which is what stops the set
+# collapsing into one cheap escape. `restated` needs the successor's summary and the id in
+# it. `dropped` and `unextracted` need the successor's own text, because both claim
+# somebody read it. `unresolved` needs that text to be ABSENT, so it cannot stand in for
+# the other three. The two debt kinds are counted and published as debt
+# (`_render_rollup`), never as a settled pointer.
+SUCCESSOR_RESTATED = "restated"
+SUCCESSOR_DROPPED = "dropped"
+SUCCESSOR_UNEXTRACTED = "unextracted"
+SUCCESSOR_UNRESOLVED = "unresolved"
+SUCCESSOR_DISPOSITIONS = frozenset(
+    {
+        SUCCESSOR_RESTATED,
+        SUCCESSOR_DROPPED,
+        SUCCESSOR_UNEXTRACTED,
+        SUCCESSOR_UNRESOLVED,
+    }
+)
+
 # Why a summary is not enrolled. A closed set, exactly as ANNOTATION_KINDS is: a free-text
 # reason alone lets "not enrolled" read as "settled", and only `non-normative` is a claim
 # about conformance. `backlog` and `blocked` are DEBT and render as debt.
@@ -193,12 +247,8 @@ _ID_RE = re.compile(r"^(?P<head>.+)-(?P<ord>\d+)$")
 # A cite naming ANOTHER RFC ("(RFC 2328 §A.3.1)" on an RFC 1071 requirement) must NOT be
 # anchored: A.3.1 is RFC 2328's section, and hanging an RFC1071 id off it would name the
 # wrong document. _CROSS_RFC_SEC_RE finds those so they can be excluded.
-_SECTION_RE = re.compile(
-    r"(?:§\s*|\bSection\s+|\bS(?=\d))(?P<sec>[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)"
-)
-_CROSS_RFC_SEC_RE = re.compile(
-    r"RFC\s*\d+\s*(?:§\s*|\bSection\s+|\bS(?=\d))[0-9A-Za-z.]+"
-)
+_SECTION_RE = re.compile(r"(?:§\s*|\bSection\s+|\bS(?=\d))(?P<sec>[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)")
+_CROSS_RFC_SEC_RE = re.compile(r"RFC\s*\d+\s*(?:§\s*|\bSection\s+|\bS(?=\d))[0-9A-Za-z.]+")
 
 # The last parenthetical on the line: by convention that is where the section is cited.
 _TRAILING_PAREN_RE = re.compile(r"\((?P<body>[^()]*)\)[^()]*$")
@@ -208,6 +258,53 @@ _TRAILING_PAREN_RE = re.compile(r"\((?P<body>[^()]*)\)[^()]*$")
 # the normative text), not a resting state.
 NO_SECTION = "x"
 _ANNOTATION_RE = re.compile(r"\{(?P<body>[^{}]*)\}\s*$")
+
+# The forward Meta row, and the RFC references inside its value.
+#
+# The row was prose nobody read: forty-six summaries carry it, seven name a real
+# successor, and the gate treated all seven as current documents. Parsing it is what lets
+# `check_superseded` know which summaries owe a forward pointer at all.
+#
+# The label is matched loosely on purpose, because the corpus writes it four ways and the
+# reader that only knew one of them FAILED OPEN. `| Obsoleted-by |` is the majority
+# spelling (28 rows against 18 for the space), and a case-sensitive `Obsoleted by` reader
+# saw none of them: rfc5575, rfc6810 and rfc1334 each named a real successor the gate
+# never asked about. The trailing `[^|]*` absorbs a qualifier, which rfc1334 writes as
+# `| Obsoleted-by (partial) |`, and the qualifier is prose for a reader -- the row's
+# meaning is the same whether or not it is there.
+_OBSOLETED_ROW_RE = re.compile(
+    r"^\|\s*Obsoleted[ -]by[^|]*\|(?P<value>[^|]*)\|", re.MULTILINE | re.IGNORECASE
+)
+# Every Meta-table field NAME, so a fifth spelling of OBSOLESCENCE is REFUSED rather than
+# skipped. Widening the label above fixes the four spellings that exist today; this refuses
+# the one somebody writes tomorrow. A reader that silently skips what it does not recognise
+# cannot be trusted to have found anything, and that is the property the three missed
+# summaries cost.
+#
+# The population is exactly "field name containing `obsolet`", and that is narrower than the
+# idea. `| Superseded by |`, `| Replaced by |` and `| Successor |` are skipped in silence,
+# which is the same fail-open one word away. Widening the word is NOT free: _META_FIELD_RE
+# below reads the first cell of EVERY table row, not only a Meta row, and rfc/short/ already
+# holds a requirement row whose first cell opens "The Receiving Speaker MUST replace the
+# stale routes". A looser word collides with the requirement tables, so the survey of what
+# the corpus actually writes comes first. Today every obsolescence field contains `obsolet`
+# (119 Obsoletes, 27 Obsoleted-by, 15 Obsoleted by, 3 Obsoleted By, 2 Obsoletes / Updates,
+# 1 Obsoleted-by (partial)), so nothing is fail-open on real data.
+_META_FIELD_RE = re.compile(r"^\|(?P<field>[^|\n]*)\|", re.MULTILINE)
+_OBSOLESCENCE_WORD_RE = re.compile(r"obsolet", re.IGNORECASE)
+# The two field names this reader knows: `Obsoletes` (backward, and nothing here reads it)
+# and `Obsoleted by` / `Obsoleted-by` (forward, read above). A qualifier after either is
+# allowed, so `Obsoletes / Updates` and `Obsoleted-by (partial)` both pass.
+_KNOWN_OBSOLESCENCE_FIELD_RE = re.compile(r"^\s*Obsoletes\b|^\s*Obsoleted[ -]by\b", re.IGNORECASE)
+_RFC_REF_RE = re.compile(r"\bRFC\s*(?P<num>\d{3,5})\b", re.IGNORECASE)
+# "None", "-", "n/a", "(none)": the row exists and says nothing obsoletes this document.
+# Matched at the START of the value, because rfc2661's row opens with "-" and then explains
+# in prose that RFC 3931 is a distinct protocol rather than a successor. A parser that
+# scanned the whole value for an RFC number would read that explanation as a successor and
+# demand 18 forward pointers into a document which obsoletes nothing. The optional brackets
+# are rfc8654's `(none)`, which only became reachable once the label above stopped missing
+# the hyphenated rows.
+_NO_SUCCESSOR_RE = re.compile(r"^\s*$|^\s*\(?(?:none|n/?a|-+)\)?(?![\w/])", re.IGNORECASE)
 
 # A recorded, authorised change to a requirement row: `Correction <YYYY-MM-DD>: ...`, the
 # paragraph rfc/short/rfc7947.md and rfc/short/rfc7296.md already write beside a corrected
@@ -243,9 +340,7 @@ TAG_MARKER = "RFC requirement:"
 
 # Rows the status ledger uses to say "nothing missing here". A `{gap}` requirement whose
 # RFC row says this is a contradiction the gate refuses (AC-10).
-_NO_GAP_RE = re.compile(
-    r"no tracked gap|none claimed|no separate gap|explicitly unsupported", re.I
-)
+_NO_GAP_RE = re.compile(r"no tracked gap|none claimed|no separate gap|explicitly unsupported", re.I)
 
 
 class ParseError(Exception):
@@ -256,6 +351,19 @@ class ParseError(Exception):
 class Annotation(NamedTuple):
     kind: str
     polarity: Optional[str]
+    reason: str
+
+
+class Successor(NamedTuple):
+    """Where one requirement of a superseded document now lives.
+
+    `disposition` is a member of SUCCESSOR_DISPOSITIONS. `target` is the successor's
+    requirement id under `restated` and the successor's section under `unextracted`;
+    `dropped` and `unresolved` have nothing to name, which is what they exist to say.
+    """
+
+    disposition: str
+    target: Optional[str]
     reason: str
 
 
@@ -272,6 +380,10 @@ class Requirement(NamedTuple):
     # a tick is someone's claim, not evidence. Reported as a violation once the RFC is
     # enrolled -- the tick is exactly the declare-instead-of-prove habit this replaces.
     ticked: bool = False
+    # Where this obligation now lives, when the document stating it has been obsoleted.
+    # Its OWN field, never a member of `annotation`: see SUPERSEDED_KIND for why the two
+    # registers must not share a slot.
+    superseded: Optional[Successor] = None
 
     @property
     def gated(self) -> bool:
@@ -316,7 +428,7 @@ def _parse_annotation(body: str, where: str) -> Annotation:
     if kind not in ANNOTATION_KINDS:
         raise ParseError(
             f"{where}: unknown annotation kind {kind!r}; "
-            f"expected one of {sorted(ANNOTATION_KINDS)}"
+            f"expected one of {sorted(ANNOTATION_KINDS | {SUPERSEDED_KIND})}"
         )
     if not rest:
         raise ParseError(
@@ -339,6 +451,105 @@ def _parse_annotation(body: str, where: str) -> Annotation:
             )
         return Annotation(kind=kind, polarity=polarity, reason=why)
     return Annotation(kind=kind, polarity=None, reason=rest)
+
+
+# The two dispositions that name something. A closed set, like every other one here.
+_SUCCESSOR_TARGETED = frozenset({SUCCESSOR_RESTATED, SUCCESSOR_UNEXTRACTED})
+
+
+def _parse_successor(body: str, where: str) -> Successor:
+    """`{superseded: restated RFC9568-5.2.3-2; why}` and its three sibling forms.
+
+    The reason is mandatory on all four. `restated` and `unextracted` each name one
+    target, a requirement id and a section respectively; the other two name nothing.
+    """
+    _, _, rest = body.partition(":")
+    rest = rest.strip()
+    if not rest:
+        raise ParseError(
+            f"{where}: {{{SUPERSEDED_KIND}}} has an empty body. Say where the obligation "
+            f"went: {{{SUPERSEDED_KIND}: {SUCCESSOR_RESTATED} <ID>; why}}, "
+            f"{{{SUPERSEDED_KIND}: {SUCCESSOR_DROPPED}; why}}, "
+            f"{{{SUPERSEDED_KIND}: {SUCCESSOR_UNEXTRACTED} <§section>; why}} or "
+            f"{{{SUPERSEDED_KIND}: {SUCCESSOR_UNRESOLVED}; why}}"
+        )
+    head, sep, reason = rest.partition(";")
+    reason = reason.strip()
+    if not sep or not reason:
+        raise ParseError(
+            f"{where}: {{{SUPERSEDED_KIND}: {head.strip()}}} has no reason. A forward "
+            f"pointer nobody explained is a pointer nobody checked; say what the successor "
+            f"does with this obligation. Format: "
+            f"{{{SUPERSEDED_KIND}: <disposition> [<ID>]; why}}"
+        )
+    parts = head.split()
+    disposition = parts[0] if parts else ""
+    if disposition not in SUCCESSOR_DISPOSITIONS:
+        raise ParseError(
+            f"{where}: unknown {{{SUPERSEDED_KIND}}} disposition {disposition!r}; "
+            f"expected one of {sorted(SUCCESSOR_DISPOSITIONS)}"
+        )
+    if disposition in _SUCCESSOR_TARGETED:
+        names = (
+            "successor requirement id" if disposition == SUCCESSOR_RESTATED else "successor section"
+        )
+        example = (
+            f"{SUCCESSOR_RESTATED} RFC9568-5.2.3-2"
+            if disposition == SUCCESSOR_RESTATED
+            else f"{SUCCESSOR_UNEXTRACTED} §8.2.3"
+        )
+        if len(parts) != 2:
+            raise ParseError(
+                f"{where}: {{{SUPERSEDED_KIND}: {disposition}}} needs exactly one "
+                f"{names}, got {head.strip()!r}. Format: "
+                f"{{{SUPERSEDED_KIND}: {example}; why}}"
+            )
+        return Successor(disposition=disposition, target=parts[1], reason=reason)
+    if len(parts) != 1:
+        raise ParseError(
+            f"{where}: {{{SUPERSEDED_KIND}: {disposition}}} names nothing, got "
+            f"{head.strip()!r}. Only {SUCCESSOR_RESTATED} and {SUCCESSOR_UNEXTRACTED} "
+            f"name a target"
+        )
+    return Successor(disposition=disposition, target=None, reason=reason)
+
+
+def _strip_markers(rest: str, where: str) -> Tuple[Optional[Annotation], Optional[Successor], str]:
+    """Peel every trailing `{...}` group off a requirement line.
+
+    A line carries at most one coverage annotation AND at most one `{superseded}` marker,
+    in either order. The two COMPOSE: a requirement can be both un-testable here and
+    restated over there, and one fact must never cost the reader the other.
+
+    The loop is what makes that possible. `_ANNOTATION_RE` anchors at end of line and
+    matches ONE group, so a single search would leave the second group inside the
+    requirement TEXT: unparsed, unchecked, and dragged into `extract_section` as if it
+    were prose.
+    """
+    annotation: Optional[Annotation] = None
+    successor: Optional[Successor] = None
+    while True:
+        m = _ANNOTATION_RE.search(rest)
+        if not m:
+            return annotation, successor, rest
+        body = m.group("body").strip()
+        kind = body.partition(":")[0].strip()
+        if kind == SUPERSEDED_KIND:
+            if successor is not None:
+                raise ParseError(
+                    f"{where}: two {{{SUPERSEDED_KIND}}} markers on one line. An "
+                    f"obligation has one destination"
+                )
+            successor = _parse_successor(body, where)
+        else:
+            if annotation is not None:
+                raise ParseError(
+                    f"{where}: two coverage annotations on one line "
+                    f"({{{annotation.kind}}} and {{{kind}}}). A requirement has one "
+                    f"coverage disposition"
+                )
+            annotation = _parse_annotation(body, where)
+        rest = rest[: m.start()].strip()
 
 
 def extract_section(text: str) -> str:
@@ -448,11 +659,7 @@ def parse_checklist_line(
 
     rest = m.group("rest").strip()
 
-    annotation = None
-    am = _ANNOTATION_RE.search(rest)
-    if am:
-        annotation = _parse_annotation(am.group("body").strip(), where)
-        rest = rest[: am.start()].strip()
+    annotation, successor, rest = _strip_markers(rest, where)
 
     section = extract_section(rest)
     text = rest
@@ -470,6 +677,7 @@ def parse_checklist_line(
         source=source,
         line=lineno,
         ticked=ticked,
+        superseded=successor,
     )
 
 
@@ -491,12 +699,83 @@ def parse_summary_text(text: str, rfc_stem: str, source: str = "") -> List[Requi
     return out
 
 
+def parse_successor_stem(text: str, rfc_stem: str, source: str = "") -> Optional[str]:
+    """The stem of the document that obsoletes this one, read off the forward Meta row.
+    None when the summary carries no such row, or the row says nothing does. Raises when
+    a Meta field names obsolescence in a spelling this reader does not know.
+
+    The label has four spellings in the corpus, hyphenated and spaced, each in two
+    capitalisations, and `| Obsoleted-by |` is the majority. All four are read here.
+
+    The row is written as a CHAIN, oldest first, because that is how the corpus already
+    writes it: rfc3768's row reads "RFC 5798, which was in turn obsoleted by RFC 9568".
+    The LAST reference is therefore the document that states these obligations today, and
+    `ai/rules/rfc-compliance.md` is explicit that the lineage which matters runs forward.
+    Pointing rfc3768 at RFC 5798 would point it at a document that is itself superseded.
+    """
+    where = source or rfc_stem
+    # Refuse an obsolescence field this reader does not know, BEFORE looking for the row
+    # it does know. A spelling nobody parses is the failure mode this whole check exists
+    # to close: the label was read one way, the corpus wrote it four, and three summaries
+    # naming a real successor were silently treated as current documents. A fifth spelling
+    # must red the gate here rather than disappear the same way.
+    for field_match in _META_FIELD_RE.finditer(text):
+        field = field_match.group("field")
+        if not _OBSOLESCENCE_WORD_RE.search(field):
+            continue
+        if _KNOWN_OBSOLESCENCE_FIELD_RE.match(field):
+            continue
+        raise ParseError(
+            f"{where}: Meta field `{field.strip()}` names obsolescence in a spelling "
+            f"nothing reads, so the row would be skipped in silence. Write the forward "
+            f"row as `| Obsoleted by |` or `| Obsoleted-by |`, and the backward row as "
+            f"`| Obsoletes |`. A qualifier after either label is kept"
+        )
+    m = _OBSOLETED_ROW_RE.search(text)
+    if not m:
+        return None
+    value = m.group("value").strip()
+    if _NO_SUCCESSOR_RE.match(value):
+        return None
+    refs = _RFC_REF_RE.findall(value)
+    if not refs:
+        raise ParseError(
+            f"{where}: the forward Meta row says {value!r}, which names no RFC. Write "
+            f"the chain of obsoleting documents oldest first, or write `None`"
+        )
+    stem = "rfc" + refs[-1]
+    if stem == rfc_stem:
+        raise ParseError(
+            f"{where}: the forward Meta row ends at {stem}, which is this document. "
+            f"A summary cannot obsolete itself"
+        )
+    return stem
+
+
+def summary_successors(stems: Optional[Set[str]] = None) -> Dict[str, str]:
+    """{stem: the stem that obsoletes it}, over every summary that declares one.
+
+    Derived from the summaries on every run rather than kept in a list, for the reason
+    `rfc/extraction/README.md` gives about authored-versus-derived facts: a hand-kept list
+    of superseded RFCs rots the day the IETF publishes the next one, and nothing notices.
+    """
+    out: Dict[str, str] = {}
+    for stem in sorted(stems if stems is not None else summary_stems()):
+        path = os.path.join(SUMMARY_DIR, stem + ".md")
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+        successor = parse_successor_stem(text, stem, source=os.path.relpath(path, PROJECT_DIR))
+        if successor:
+            out[stem] = successor
+    return out
+
+
 def parse_summary_file(path: str) -> List[Requirement]:
     stem = os.path.basename(path)[: -len(".md")]
     with open(path, encoding="utf-8") as fh:
-        return parse_summary_text(
-            fh.read(), stem, source=os.path.relpath(path, PROJECT_DIR)
-        )
+        return parse_summary_text(fh.read(), stem, source=os.path.relpath(path, PROJECT_DIR))
 
 
 def parse_corrections(text: str) -> List[Correction]:
@@ -584,9 +863,7 @@ def high_water(ids: Set[str]) -> Dict[str, int]:
     return out
 
 
-def check_id_allocation(
-    requirements: Sequence[Requirement], baseline_ids: Set[str]
-) -> List[str]:
+def check_id_allocation(requirements: Sequence[Requirement], baseline_ids: Set[str]) -> List[str]:
     """IDs are allocated once and never reused.
 
     `baseline_ids` is the ID set from the committed (HEAD) version of the summaries.
@@ -772,69 +1049,127 @@ DRAFT_PREFIX = "test/draft/"
 
 # `ze-functional-test` names the suites it runs in ONE place, and a suite name is also the
 # test/<suite>/ directory the runner walks (internal/test/runner/draft_dir.go:40). Reading
-# that line is what keeps a `.ci`'s tier tied to whether anything executes it, instead of
+# that list is what keeps a `.ci`'s tier tied to whether anything executes it, instead of
 # to its extension (ai/rules/evidence.md).
-FUNCTIONAL_MK = os.path.join(PROJECT_DIR, "mk", "test-functional.mk")
-_ALL_SUITES_RE = re.compile(r'all_suites="(?P<names>[^"]*)"')
-# The dispatch half of the same recipe. `run_suite() {` (the shell function definition) has
-# no whitespace before its parenthesis and therefore never matches.
-_RUN_SUITE_RE = re.compile(r"^\s*run_suite\s+(?P<name>\S+)", re.M)
-EDITOR_SUITE = "editor"
+#
+# It moved out of mk/test-functional.mk: the suites, their budgets and the run logic are
+# `le` now (scripts/le/application/functional.py), and the makefile forwards to it. The
+# list is read from the module SOURCE rather than imported, because the same question has
+# to be answerable of an older revision -- _head_functional_suites asks HEAD's copy, and a
+# ratchet that can only read today's tree reports a downgrade as a wash.
+FUNCTIONAL_SUITES_PY = os.path.join(PROJECT_DIR, 'scripts', 'le', 'application', 'functional.py')
+_GATING_NAME = 'GATING'
+_SUITE_CLASS = 'Suite'
+EDITOR_SUITE = 'editor'
 
 
-def functional_suites(path: str = FUNCTIONAL_MK) -> Tuple[str, ...]:
-    """The suites `make ze-functional-test` runs, read from its own recipe.
+def _gating_values(tree: ast.AST) -> List[ast.expr]:
+    """Every `GATING = ...` value node the module holds, in the order they appear."""
+    found: List[ast.expr] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.AnnAssign):
+            target = node.target
+            if isinstance(target, ast.Name) and target.id == _GATING_NAME and node.value:
+                found.append(node.value)
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == _GATING_NAME:
+                    found.append(node.value)
+    return found
 
-    Fails closed. An unreadable or unrecognizable recipe means we do not know what runs,
+
+def _declared_suite_names(tree: ast.AST) -> Set[str]:
+    """Every `Suite(name="...")` the module constructs."""
+    names: Set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if not isinstance(node.func, ast.Name) or node.func.id != _SUITE_CLASS:
+            continue
+        for keyword in node.keywords:
+            if keyword.arg != 'name' or not isinstance(keyword.value, ast.Constant):
+                continue
+            if isinstance(keyword.value.value, str):
+                names.add(keyword.value.value)
+    return names
+
+
+def functional_suites(path: str = FUNCTIONAL_SUITES_PY) -> Tuple[str, ...]:
+    """The suites `make ze-functional-test` runs, read from the module that runs them.
+
+    Fails closed. An unreadable or unrecognizable module means we do not know what runs,
     and a gate that answers "everything runs" in that state is the exact zero-that-looks-
     like-an-answer this module refuses elsewhere (ai/rules/evidence.md).
     """
     try:
-        with open(path, encoding="utf-8") as fh:
+        with open(path, encoding='utf-8') as fh:
             src = fh.read()
     except OSError as exc:
         raise ParseError(
-            f"{path}: cannot read the functional-test recipe, so the set of suites that "
-            f"run inside ze-precommit-verify is unknown: {exc}"
+            f'{path}: cannot read the functional-test suite list, so the set of suites '
+            f'that run inside ze-precommit-verify is unknown: {exc}'
         ) from exc
-    found = _ALL_SUITES_RE.findall(src)
+    return functional_suites_from(src, path)
+
+
+def functional_suites_from(src: str, path: str) -> Tuple[str, ...]:
+    """The same derivation, over module source a caller already holds."""
+    try:
+        tree = ast.parse(src)
+    except SyntaxError as exc:
+        raise ParseError(
+            f'{path}: cannot parse the functional-test module, so which suites run inside '
+            f'ze-precommit-verify is unknown: {exc}'
+        ) from exc
+
+    found = _gating_values(tree)
     if not found:
         raise ParseError(
-            f'{path}: no `all_suites="..."` assignment found. That line is where '
-            f"ze-functional-test declares which suites it runs, and the .ci/.et evidence "
-            f"tier is derived from it; without it no tier can be justified"
+            f'{path}: no `{_GATING_NAME} = (...)` assignment found. That list is where the '
+            f'functional run declares which suites it runs, and the .ci/.et evidence tier '
+            f'is derived from it; without it no tier can be justified'
         )
     if len(found) > 1:
-        # Taking the first match is a fail-OPEN, and the quiet kind. A second recipe in
-        # this file (a `ze-functional-list`, a `-quick` subset) would decide the tier of
-        # every `.ci` in the repo without touching ze-functional-test, upgrading suites
-        # nothing runs to merge-gate evidence. Two answers is not an answer: refuse and
-        # make a human say which line is the definition (ai/rules/evidence.md).
+        # Taking the first match is a fail-OPEN, and the quiet kind. A second list in this
+        # module (a `-quick` subset, a legacy copy) would decide the tier of every `.ci` in
+        # the repo without touching the run, upgrading suites nothing runs to merge-gate
+        # evidence. Two answers is not an answer: refuse and make a human say which list is
+        # the definition (ai/rules/evidence.md).
         raise ParseError(
-            f'{path}: {len(found)} `all_suites="..."` assignments found, so which one '
-            f"ze-functional-test runs is ambiguous. The .ci/.et evidence tier is derived "
-            f"from that line, and picking one of several would grant merge-gate tier on a "
-            f"guess. Declare the suite list exactly once"
+            f'{path}: {len(found)} `{_GATING_NAME} = (...)` assignments found, so which one '
+            f'the functional run uses is ambiguous. The .ci/.et evidence tier is derived '
+            f'from that list, and picking one of several would grant merge-gate tier on a '
+            f'guess. Declare the suite list exactly once'
         )
-    names = tuple(n for n in found[0].split() if n)
+    try:
+        literal = ast.literal_eval(found[0])
+    except ValueError as exc:
+        raise ParseError(
+            f'{path}: `{_GATING_NAME}` is not a literal list of suite names, so it cannot '
+            f'be read without running the module: {exc}'
+        ) from exc
+    if not isinstance(literal, (tuple, list)):
+        raise ParseError(f'{path}: `{_GATING_NAME}` is not a sequence of suite names')
+    names = tuple(str(n) for n in literal if n)
     if not names:
         raise ParseError(
-            f'{path}: `all_suites=""` is empty; no suite runs in ze-precommit-verify'
+            f'{path}: `{_GATING_NAME}` is empty; no suite runs in ze-precommit-verify'
         )
-    # A name on that line is a DECLARATION, and the `run_suite` call is the execution. The
-    # two drifted apart once already: `ipsec` sat in all_suites with no run_suite line, so
-    # it counted toward the progress denominator, ran nothing, and still earned every
-    # test/ipsec/*.ci a verify tier here. Only a comment tied the two lists together, which
-    # is the same failure this module's compile check exists to close on the Go side: a
-    # tier credited from a claim nobody measured (ai/rules/evidence.md).
-    dispatched = set(_RUN_SUITE_RE.findall(src))
-    undispatched = [n for n in names if n not in dispatched]
+    # A name in that list is a DECLARATION, and a `Suite(...)` record is what makes it
+    # runnable. The two drifted apart once already, when the list and the dispatch were the
+    # two halves of one shell recipe: `ipsec` sat in `all_suites` with no `run_suite` line,
+    # so it counted toward the progress denominator, ran nothing, and still earned every
+    # test/ipsec/*.ci a verify tier here. Only a comment tied the two together, which is the
+    # same failure this module's compile check exists to close on the Go side: a tier
+    # credited from a claim nobody measured (ai/rules/evidence.md).
+    declared = _declared_suite_names(tree)
+    undispatched = [n for n in names if n not in declared]
     if undispatched:
         raise ParseError(
-            f"{path}: {', '.join(undispatched)} appear(s) in `all_suites` with no matching "
-            f"`run_suite <name>` line, so ze-functional-test counts the suite and never "
-            f"runs it. A .ci there would earn a verify tier from evidence nothing executes. "
-            f"Add the run_suite line, or drop the name from all_suites"
+            f"{path}: {', '.join(undispatched)} appear(s) in `{_GATING_NAME}` with no "
+            f'matching `{_SUITE_CLASS}(name=...)` record, so the run counts the suite and '
+            f'never runs it. A .ci there would earn a verify tier from evidence nothing '
+            f'executes. Add the record, or drop the name from `{_GATING_NAME}`'
         )
     return names
 
@@ -888,9 +1223,7 @@ def make_targets_in(src: str) -> Tuple[str, ...]:
             if fields and fields[0] == "run:":
                 fields = fields[1:]
             while fields and (
-                fields[0] in _CMD_WRAPPERS
-                or fields[0].startswith("-")
-                or "=" in fields[0]
+                fields[0] in _CMD_WRAPPERS or fields[0].startswith("-") or "=" in fields[0]
             ):
                 fields = fields[1:]
             if len(fields) < 2 or fields[0] != "make":
@@ -903,9 +1236,7 @@ def make_targets_in(src: str) -> Tuple[str, ...]:
                     i += 2  # the flag AND its separate argument
                     continue
                 if not a.startswith("-") and "=" not in a:
-                    out.append(
-                        a
-                    )  # EVERY bare word is a target: `make a b` invokes both
+                    out.append(a)  # EVERY bare word is a target: `make a b` invokes both
                 i += 1
     return tuple(out)
 
@@ -1153,8 +1484,7 @@ CARRIERS: Tuple[Carrier, ...] = (
         ".ci",
         "ci",
         "no ze-precommit-verify stage walks this directory",
-        "no automated caller; ze-functional-test runs "
-        + ", ".join(functional_suites()),
+        "no automated caller; ze-functional-test runs " + ", ".join(functional_suites()),
     ),
     Carrier(
         "editor-unrun",
@@ -1248,9 +1578,7 @@ def scan_tree(root: str = PROJECT_DIR) -> List[Tag]:
             # yields entries in directory order, which varies by machine. The render
             # re-sorts anyway, but a stable scan keeps `tags` order reproducible for
             # every other consumer too.
-            dirnames[:] = sorted(
-                d for d in dirnames if d not in (".git", "vendor", "testdata")
-            )
+            dirnames[:] = sorted(d for d in dirnames if d not in (".git", "vendor", "testdata"))
             for name in sorted(filenames):
                 path = os.path.join(dirpath, name)
                 rel = os.path.relpath(path, root).replace(os.sep, "/")
@@ -1505,9 +1833,7 @@ def _quote_compiler(messages: Sequence[str]) -> str:
     return f"{shown} (and {extra} more)" if extra > 0 else shown
 
 
-def check_tag_packages_compile(
-    tags: Sequence[Tag], root: str = PROJECT_DIR
-) -> List[str]:
+def check_tag_packages_compile(tags: Sequence[Tag], root: str = PROJECT_DIR) -> List[str]:
     """Every Go package holding a tag has to type-check, tests included.
 
     One `go vet` invocation over the whole set. It reports EVERY failing package rather
@@ -1518,9 +1844,7 @@ def check_tag_packages_compile(
         return []
     argv = ["go", "vet", "-" + TYPECHECK_ANALYZER, "-tags", build_tags()] + pkgs
     try:
-        res = subprocess.run(
-            argv, cwd=root, capture_output=True, text=True, timeout=VET_TIMEOUT
-        )
+        res = subprocess.run(argv, cwd=root, capture_output=True, text=True, timeout=VET_TIMEOUT)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise ParseError(
             f"cannot run `go vet` over the {len(pkgs)} package(s) that hold RFC "
@@ -1625,9 +1949,7 @@ def evaluate(
         if ann and ann.kind == "single-polarity":
             other = "positive" if ann.polarity == "negative" else "negative"
             if other in polarities:
-                locs = ", ".join(
-                    f"{t.file}:{t.line}" for t in found if t.polarity == other
-                )
+                locs = ", ".join(f"{t.file}:{t.line}" for t in found if t.polarity == other)
                 errs.append(
                     f"{where}: {req.rid} is annotated {{single-polarity: {ann.polarity}}} "
                     f"but a {other} test exists ({locs}); the annotation is stale -- "
@@ -1635,15 +1957,13 @@ def evaluate(
                 )
             if ann.polarity not in polarities:
                 errs.append(
-                    f"{where}: {req.rid} [{req.level}] has no {ann.polarity} test: "
-                    f"{req.text[:70]}"
+                    f"{where}: {req.rid} [{req.level}] has no {ann.polarity} test: {req.text[:70]}"
                 )
             continue
 
         if not found:
             errs.append(
-                f"{where}: {req.rid} [{req.level}] has no test and no annotation: "
-                f"{req.text[:70]}"
+                f"{where}: {req.rid} [{req.level}] has no test and no annotation: {req.text[:70]}"
             )
             continue
 
@@ -1653,6 +1973,111 @@ def evaluate(
                 f"(only {'/'.join(sorted(polarities))}). A {missing}-less test cannot "
                 f"distinguish correct behavior from blanket accept/reject. "
                 f"Add one, or annotate {{single-polarity: ...; why}}"
+            )
+    return errs
+
+
+def check_superseded(
+    requirements: Sequence[Requirement],
+    successors: Dict[str, str],
+    stems: Set[str],
+) -> List[str]:
+    """Every requirement of an obsoleted document must say where its obligation now lives.
+
+    This check says NOTHING about coverage, and it must never be read as saying anything.
+    A superseded requirement is still gated by `evaluate`, still counted in the ledger and
+    still judged by every ratchet: the marker records that the IETF moved the obligation,
+    not that Ze stopped owing it. `SUPERSEDED_KIND` records the mechanism that keeps the
+    two apart -- the marker lives on its own field, so it cannot evict a coverage
+    annotation and cannot remove a MUST from the gated population.
+
+    A summary whose Meta row names no successor gains no obligation here at all. That is
+    why `parse_successor_stem` is strict about `None` and `-`: the population this check
+    judges is exactly the summaries that declare themselves obsoleted.
+    """
+    errs: List[str] = []
+    ids_by_stem: Dict[str, Set[str]] = {}
+    for r in requirements:
+        ids_by_stem.setdefault(r.rfc, set()).add(r.rid)
+
+    for req in requirements:
+        where = f"{req.source}:{req.line}" if req.source else req.rid
+        successor = successors.get(req.rfc)
+        mark = req.superseded
+
+        if not successor:
+            if mark:
+                errs.append(
+                    f"{where}: {req.rid} carries {{{SUPERSEDED_KIND}}} but "
+                    f"{summary_rel(req.rfc)} names no successor in its forward Meta row. "
+                    f"Name the obsoleting RFC in the Meta table, or remove the marker"
+                )
+            continue
+
+        if not mark:
+            errs.append(
+                f"{where}: {req.rid} [{req.level}] states an obligation of a document "
+                f"{rfc_prefix(successor)} obsoletes, and does not say where that "
+                f"obligation now lives. Add {{{SUPERSEDED_KIND}: {SUCCESSOR_RESTATED} "
+                f"{rfc_prefix(successor)}-<section>-<n>; why}}, "
+                f"{{{SUPERSEDED_KIND}: {SUCCESSOR_DROPPED}; why}}, "
+                f"{{{SUPERSEDED_KIND}: {SUCCESSOR_UNEXTRACTED} <§section>; why}} or "
+                f"{{{SUPERSEDED_KIND}: {SUCCESSOR_UNRESOLVED}; why}}. The marker says the "
+                f"obligation MOVED; it never says Ze stops owing it"
+            )
+            continue
+
+        text_held = source_path(successor) is not None
+        if mark.disposition == SUCCESSOR_UNRESOLVED:
+            if text_held:
+                errs.append(
+                    f"{where}: {req.rid} is marked {{{SUPERSEDED_KIND}: "
+                    f"{SUCCESSOR_UNRESOLVED}}}, which says {rfc_prefix(successor)} is not "
+                    f"in this repository, but {source_path(successor)} is. Read it and "
+                    f"say what it does with the obligation"
+                )
+            continue
+
+        if not text_held:
+            errs.append(
+                f"{where}: {req.rid} is marked {{{SUPERSEDED_KIND}: {mark.disposition}}}, "
+                f"which claims somebody read {rfc_prefix(successor)}, but its text is not "
+                f"in this repository. Fetch it, or record the debt with "
+                f"{{{SUPERSEDED_KIND}: {SUCCESSOR_UNRESOLVED}; why}}"
+            )
+            continue
+
+        if mark.disposition != SUCCESSOR_RESTATED:
+            # `dropped` and `unextracted` are author claims over a text this repository
+            # holds, exactly as a {gap} reason is. The reason is the evidence; the
+            # precondition above is what a machine can check.
+            continue
+
+        if successor not in stems:
+            errs.append(
+                f"{where}: {req.rid} points at {mark.target}, but "
+                f"{summary_rel(successor)} is not in this repository, so no id in it can "
+                f"be checked. Record the debt with {{{SUPERSEDED_KIND}: "
+                f"{SUCCESSOR_UNEXTRACTED} <§section>; why}}"
+            )
+            continue
+        want_prefix = rfc_prefix(successor) + "-"
+        if not mark.target.startswith(want_prefix):
+            errs.append(
+                f"{where}: {req.rid} points at {mark.target}, which is not a "
+                f"{rfc_prefix(successor)} requirement. {summary_rel(req.rfc)} names "
+                f"{rfc_prefix(successor)} as its successor, and the lineage that matters "
+                f"runs forward (ai/rules/rfc-compliance.md)"
+            )
+            continue
+        if mark.target not in ids_by_stem.get(successor, set()):
+            errs.append(
+                f"{where}: {req.rid} points at {mark.target}, which "
+                f"{summary_rel(successor)} does not declare. Three answers are different "
+                f"and only one of them is this: the successor renumbered the obligation "
+                f"({SUCCESSOR_RESTATED} <the real id>), the successor dropped it "
+                f"({SUCCESSOR_DROPPED}), or the successor states it and nobody extracted "
+                f"it ({SUCCESSOR_UNEXTRACTED} <§section>)"
             )
     return errs
 
@@ -1903,11 +2328,7 @@ def _git_baseline_levels() -> Dict[str, str]:
         return {}
     if listing.returncode != 0:
         return {}
-    paths = [
-        path.strip()
-        for path in listing.stdout.split("\0")
-        if path.strip().endswith(".md")
-    ]
+    paths = [path.strip() for path in listing.stdout.split("\0") if path.strip().endswith(".md")]
     if not paths:
         return {}
 
@@ -1997,10 +2418,15 @@ def _head_carriers() -> Tuple[Carrier, ...]:
 
 
 def _head_functional_suites() -> Optional[Tuple[str, ...]]:
-    """HEAD's `all_suites=` list, or None when HEAD cannot be read."""
+    """HEAD's `GATING` list, or None when HEAD cannot be read.
+
+    Source text rather than an import: HEAD's copy of the module is not on the path, and
+    only today's would answer if it were.
+    """
+    rel = os.path.relpath(FUNCTIONAL_SUITES_PY, PROJECT_DIR)
     try:
         proc = subprocess.run(
-            ["git", "show", f"HEAD:{os.path.relpath(FUNCTIONAL_MK, PROJECT_DIR)}"],
+            ['git', 'show', f'HEAD:{rel}'],
             cwd=PROJECT_DIR,
             capture_output=True,
             text=True,
@@ -2010,10 +2436,10 @@ def _head_functional_suites() -> Optional[Tuple[str, ...]]:
         return None
     if proc.returncode != 0:
         return None
-    m = _ALL_SUITES_RE.search(proc.stdout)
-    if not m:
+    try:
+        head_suites = functional_suites_from(proc.stdout, f'HEAD:{rel}')
+    except ParseError:
         return None
-    head_suites = tuple(n for n in m.group("names").split() if n)
     return head_suites or None
 
 
@@ -2079,9 +2505,7 @@ def _build_head_carriers() -> Tuple[Carrier, ...]:
     # way, and that is stated rather than silent.
     suites = head_suites if head_suites is not None else suites_now
     scheduled = (
-        _scheduled_targets_from(head_workflows)
-        if head_workflows is not None
-        else scheduled_now
+        _scheduled_targets_from(head_workflows) if head_workflows is not None else scheduled_now
     )
     if suites == suites_now and scheduled == scheduled_now:
         return CARRIERS
@@ -2092,9 +2516,7 @@ def _build_head_carriers() -> Tuple[Carrier, ...]:
     # the one place a carrier shape is written down (TestCarrierTable enforces that).
     interop_suffix = next(c.suffix for c in CARRIERS if c.kind == "interop")
     head_interop = {c.name: c for c in _interop_carriers(interop_suffix, scheduled)}
-    out: List[Carrier] = [
-        head_interop.get(c.name, c) for c in CARRIERS if not c.derived
-    ]
+    out: List[Carrier] = [head_interop.get(c.name, c) for c in CARRIERS if not c.derived]
     if suites == suites_now:
         # Only the workflow half moved: today's derived suite rows are already correct.
         return tuple([c for c in CARRIERS if c.derived] + out)
@@ -2158,8 +2580,7 @@ def _read_git_baseline_tags() -> List[Tag]:
     """The uncached read. Split out so the memo above is one readable branch."""
     try:
         listing = subprocess.run(
-            ["git", "grep", "-l", "-z", "-F", TAG_MARKER, "HEAD", "--"]
-            + list(TEST_ROOTS),
+            ["git", "grep", "-l", "-z", "-F", TAG_MARKER, "HEAD", "--"] + list(TEST_ROOTS),
             cwd=PROJECT_DIR,
             capture_output=True,
             text=True,
@@ -2612,11 +3033,7 @@ def check_level_ratchet(
             corrections[req.rfc] = summary_corrections(req.rfc)
             sources[req.rfc] = source_text(req.rfc)
         where = f"{req.source}:{req.line}" if req.source else req.rid
-        section = (
-            "no section cited"
-            if req.section == NO_SECTION
-            else f"section {req.section}"
-        )
+        section = "no section cited" if req.section == NO_SECTION else f"section {req.section}"
         text = sources[req.rfc]
         if text is None:
             errs.append(
@@ -3148,11 +3565,7 @@ def check_unproven_support(
             continue
         status = rows[stem]["status"].strip() or "(blank)"
         art = signed.get(stem)
-        if (
-            art is not None
-            and art.register == REGISTER_MANUAL_WALK
-            and art.register_reason
-        ):
+        if art is not None and art.register == REGISTER_MANUAL_WALK and art.register_reason:
             # The escape is REACHED. Whether it is EARNED is the derived grade's answer, and a
             # refusal here gets its own message: telling an author who already wrote a
             # manual-walk sign-off to write one is a dead end
@@ -3160,11 +3573,7 @@ def check_unproven_support(
             grade = derived.get(stem)
             if grade is not None and grade != REGISTER_RFC2119:
                 continue
-            says = (
-                repr(grade)
-                if grade
-                else "no register at all (its text could not be read)"
-            )
+            says = repr(grade) if grade else "no register at all (its text could not be read)"
             errs.append(
                 f"{art.path} signs {stem} under {REGISTER_MANUAL_WALK!r} with a "
                 f"register-reason, but the source derives {says}"
@@ -3232,9 +3641,7 @@ _SPELLED_ALT = "|".join(sorted(SPELLED_NUMBERS, key=len, reverse=True))
 # not "Nine MUST", and `\b(?:MUST|SHALL)\b` matches neither: the boundary between `T` and `s`
 # is not a word boundary, so the whole check silently judged nothing. `s?` before the `\b` is
 # what makes the 60 rows reachable at all.
-_GAP_COUNT_RE = re.compile(
-    r"\b(?P<num>" + _SPELLED_ALT + r")\s+(?:MUST|SHALL)s?\b", re.IGNORECASE
-)
+_GAP_COUNT_RE = re.compile(r"\b(?P<num>" + _SPELLED_ALT + r")\s+(?:MUST|SHALL)s?\b", re.IGNORECASE)
 
 
 def spelled_gap_count(remaining: str) -> Optional[int]:
@@ -3408,9 +3815,7 @@ UNPROVEN_VERDICTS = frozenset(AUDIT_VERDICTS - {VERDICT_ENFORCED})
 # deleted is a finding that will be.
 FINDING_VERDICTS = frozenset({VERDICT_WEAK, VERDICT_WRONG})
 
-_AUDIT_FILE_KEYS = frozenset(
-    {"rfc", "audited", "requirements", "reaudit_note", "reaudit_history"}
-)
+_AUDIT_FILE_KEYS = frozenset({"rfc", "audited", "requirements", "reaudit_note", "reaudit_history"})
 _VERDICT_KEYS = frozenset(
     {
         "verdict",
@@ -3539,9 +3944,7 @@ def _sha_map(verdict: Dict, key: str, where: str) -> Dict[str, str]:
     if val is None:
         return {}
     if not isinstance(val, dict):
-        raise ParseError(
-            f"{where}: {key!r} must be an object, got {type(val).__name__}"
-        )
+        raise ParseError(f"{where}: {key!r} must be an object, got {type(val).__name__}")
     out: Dict[str, str] = {}
     for k, v in val.items():
         if not isinstance(k, str):
@@ -3561,9 +3964,7 @@ def _validate_verdict(rfc: str, rid: str, verdict: object, where: str) -> None:
     because a ParseError aborts the whole run while a violation lets the other 900 be seen.
     """
     if not isinstance(verdict, dict):
-        raise ParseError(
-            f"{where}: {rid} must be an object, got {type(verdict).__name__}"
-        )
+        raise ParseError(f"{where}: {rid} must be an object, got {type(verdict).__name__}")
     _reject_unknown_keys(verdict, _VERDICT_KEYS, f"{where}: {rid}")
     value = verdict.get("verdict")
     if value not in AUDIT_VERDICTS:
@@ -3721,9 +4122,7 @@ def check_audit_schema(
                     f"the id rules forbid) or the checklist line was deleted under it"
                 )
                 continue
-            errs.extend(
-                _verdict_claims(rel, rid, verdict, req, by_rid.get(rid, []), tags)
-            )
+            errs.extend(_verdict_claims(rel, rid, verdict, req, by_rid.get(rid, []), tags))
     return errs
 
 
@@ -3828,9 +4227,7 @@ def tagged_unit_shas(tags: Sequence[Tag], root: str = PROJECT_DIR) -> Dict[str, 
     def content_of(rel: str) -> str:
         if rel not in cache:
             try:
-                with open(
-                    os.path.join(root, rel), encoding="utf-8", errors="replace"
-                ) as fh:
+                with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
                     cache[rel] = fh.read()
             except OSError:
                 cache[rel] = None
@@ -3848,18 +4245,14 @@ def _read_source(rel: str, root: str, cache: Dict[str, str]) -> str:
     """One tracked file's text, read at most once per run."""
     if rel not in cache:
         try:
-            with open(
-                os.path.join(root, rel), encoding="utf-8", errors="replace"
-            ) as fh:
+            with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
                 cache[rel] = fh.read()
         except OSError:
             cache[rel] = ""
     return cache[rel]
 
 
-def unit_shas(
-    keys: Sequence[str], root: str = PROJECT_DIR, where: str = "audit"
-) -> Dict[str, str]:
+def unit_shas(keys: Sequence[str], root: str = PROJECT_DIR, where: str = "audit") -> Dict[str, str]:
     """Fingerprint the UNIT each key NAMES, keyed by that same string.
 
     The unit is one top-level Go function (its doc comment through its closing brace) or the
@@ -3900,9 +4293,7 @@ def unit_shas(
         else:
             text = rfc_tagged_scope.func_text(content, symbol)
             if text is None:
-                declared = [
-                    n for n, _ in rfc_tagged_scope.go_func_units(content) if n == symbol
-                ]
+                declared = [n for n, _ in rfc_tagged_scope.go_func_units(content) if n == symbol]
                 why = (
                     f"{len(declared)} top-level functions declare it"
                     if declared
@@ -3934,9 +4325,7 @@ def unit_scopes(keys: Sequence[str]) -> Dict[str, str]:
             _rel, symbol = _fingerprint_key(key, "audit")
         except ParseError:
             continue
-        out[key] = (
-            rfc_tagged_scope.SCOPE_FUNC if symbol else rfc_tagged_scope.SCOPE_FILE
-        )
+        out[key] = rfc_tagged_scope.SCOPE_FUNC if symbol else rfc_tagged_scope.SCOPE_FILE
     return out
 
 
@@ -3978,9 +4367,7 @@ def tag_keys(tags: Sequence[Tag], root: str = PROJECT_DIR) -> List[str]:
 # moved) into the same signal as a real judgement change, and the only remedy either offered
 # was a human re-read.
 FRESH = "fresh"
-SHIFTED = (
-    "shifted"  # units identical, the enclosing file moved: mechanically re-sealable
-)
+SHIFTED = "shifted"  # units identical, the enclosing file moved: mechanically re-sealable
 STALE_UNIT = "stale-unit"  # the tagged unit itself, or cited producer code, changed
 STALE_REQUIREMENT = "stale-requirement"  # the RFC obligation's own text changed
 
@@ -4210,9 +4597,7 @@ _RESEAL_NOTE = (
 )
 
 
-def reseal_audits(
-    prove=None, note: Optional[str] = None
-) -> Tuple[List[str], List[str]]:
+def reseal_audits(prove=None, note: Optional[str] = None) -> Tuple[List[str], List[str]]:
     """Re-stamp the verdicts whose tagged units did not change, and only those.
 
     The ONE definition of the mechanical re-stamp. `scripts/dev/rename_module_path.py` used to
@@ -4257,10 +4642,7 @@ def reseal_audits(
                 continue
             fresh = tagged_unit_shas(by_rid.get(req.rid, []))
             if prove is not None:
-                files = {
-                    _key_file(key)
-                    for key in list(verdict.get("tests") or {}) + list(fresh)
-                }
+                files = {_key_file(key) for key in list(verdict.get("tests") or {}) + list(fresh)}
                 for rel in sorted(files):
                     if rel not in proven:
                         proven[rel] = bool(prove(rel))
@@ -4821,9 +5203,7 @@ class RFCCoverage(NamedTuple):
         return self.one + self.missing
 
 
-def rfc_coverage(
-    requirements: Sequence[Requirement], tags: Sequence[Tag]
-) -> List[RFCCoverage]:
+def rfc_coverage(requirements: Sequence[Requirement], tags: Sequence[Tag]) -> List[RFCCoverage]:
     """Per-RFC coverage. This is the backlog, derived rather than maintained.
 
     A hand-kept TODO list of missing tests would rot the moment someone wrote one and
@@ -4911,6 +5291,32 @@ def _render_rollup(
         f"merge-gate stage proves, never a total to sum with the others."
     )
     out.append("")
+    # Which documents the IETF has replaced, derived from each summary's `| Obsoleted by |`
+    # Meta row rather than kept in a list. The two debt dispositions are named as debt: one
+    # says the successor's text is not here, the other says its summary declares no row, and
+    # neither is a checked pointer. None of this lowers what any of these requirements owes
+    # -- a superseded MUST is gated, counted and ratcheted exactly as a current one is
+    # (SUPERSEDED_KIND).
+    successors = summary_successors()
+    superseded = {c.rfc for c in cov} & set(successors)
+    if superseded:
+        debt = {SUCCESSOR_UNEXTRACTED: 0, SUCCESSOR_UNRESOLVED: 0}
+        for reqs in by_rfc.values():
+            for r in reqs:
+                if r.superseded and r.superseded.disposition in debt:
+                    debt[r.superseded.disposition] += 1
+        out.append(
+            f"**Superseded** ({len(superseded)} summaries): the document has been "
+            f"obsoleted, so every requirement it states carries a `{{superseded}}` marker "
+            f"naming where that obligation now lives. The marker is a fact about the "
+            f"DOCUMENT: these requirements stay gated, counted and ratcheted. "
+            + ", ".join(f"`{s}` -> {rfc_prefix(successors[s])}" for s in sorted(superseded))
+            + f". {debt[SUCCESSOR_UNEXTRACTED]} requirement(s) point at a section of a "
+            f"successor whose summary declares no row (`unextracted`), and "
+            f"{debt[SUCCESSOR_UNRESOLVED]} point at a document this repository does not "
+            f"hold (`unresolved`). Both are debt, not settled pointers."
+        )
+        out.append("")
     out.append(
         "| RFC | Gated | Both | One polarity | Annotated | No test | Outstanding | "
         "Nightly-only | State |"
@@ -4922,6 +5328,8 @@ def _render_rollup(
             if c.rfc in enrolled
             else ("enrollable" if c.outstanding == 0 else "backlog")
         )
+        if c.rfc in successors:
+            state += f", superseded by {rfc_prefix(successors[c.rfc])}"
         out.append(
             f"| `{c.rfc}` | {c.gated} | {c.both} | {c.one} | {c.annotated} | "
             f"{c.missing} | {c.outstanding} | {c.nightly_only} | {state} |"
@@ -5325,7 +5733,11 @@ def _render_status_backlog(
         for stem in sorted(dispositions):
             disp = dispositions[stem]
             debt = "no" if disp.kind == DISPOSITION_NON_NORMATIVE else "**DEBT**"
-            out.append(f"| `{stem}` | {disp.kind} | {debt} | {disp.reason} |")
+            # _table_cell for the same reason render_shards needs it: the reason is
+            # AUTHORED, and rfc/enrolled.txt already writes `FlagOptional|FlagTransitive`
+            # in this register. No disposition reason holds a pipe today, so this breaks
+            # nothing now and stops the row that would.
+            out.append(f"| `{stem}` | {disp.kind} | {debt} | {_table_cell(disp.reason)} |")
     else:
         out.append("None: every summary is enrolled.")
     out.append("")
@@ -5362,9 +5774,9 @@ def summary_rel(stem: str) -> str:
     one included. A summary path written with a brace placeholder in it is a dead citation
     to that sweep, even though every path it renders resolves.
     """
-    return os.path.relpath(
-        os.path.join(SUMMARY_DIR, stem + ".md"), PROJECT_DIR
-    ).replace(os.sep, "/")
+    return os.path.relpath(os.path.join(SUMMARY_DIR, stem + ".md"), PROJECT_DIR).replace(
+        os.sep, "/"
+    )
 
 
 def tag_site(t: Tag, root: str, cache: Dict[str, str]) -> str:
@@ -5396,9 +5808,7 @@ def tag_site(t: Tag, root: str, cache: Dict[str, str]) -> str:
     return f"`{t.file}` `{name}`" if name else f"`{t.file}`"
 
 
-def _tag_sites(
-    found: Sequence[Tag], polarity: str, root: str, cache: Dict[str, str]
-) -> str:
+def _tag_sites(found: Sequence[Tag], polarity: str, root: str, cache: Dict[str, str]) -> str:
     """The cited sites for one polarity, deduplicated and order-stable.
 
     Several tags in one function collapse to one citation, which is the point: the
@@ -5411,6 +5821,25 @@ def _tag_sites(
             continue
         seen.setdefault(f"{tag_site(t, root, cache)} ({evidence_label(t.file)})", None)
     return ", ".join(seen)
+
+
+def _table_cell(text: str) -> str:
+    """Make one AUTHORED string safe to put in a markdown table cell.
+
+    A bare `|` closes the cell, so a reason quoting a grep alternation splits its row
+    into extra columns and the published page renders a broken table. Seven rows of
+    `rfc/requirements/rfc7752.md` were in that state, all from one `{not-applicable}`
+    reason quoting `grep -rn "NewBGPLSNode|NewBGPLSLink|..."`.
+
+    Only cells built from authored prose need this. A requirement id, a level, a section
+    and a `file:line` link are all derived and can hold no pipe.
+    """
+    # The BACKSLASH first, then the pipe. A reason that already carries a literal
+    # `\\|` -- a grep BRE alternation, which two annotation reasons do -- would
+    # otherwise render as `\\\\|`, and GFM reads that as an escaped backslash
+    # followed by a LIVE pipe: the row gains a cell, the header does not, and the
+    # tail of the reason is dropped from the published page.
+    return text.replace("\\", "\\\\").replace("|", "\\|")
 
 
 def render_shards(
@@ -5446,16 +5875,17 @@ def render_shards(
         if not v:
             continue
         state = states.get(r.rid, (FRESH, []))[0]
-        verdicts_by_rid[r.rid] = (
-            v["verdict"] if state == FRESH else f"{v['verdict']}, {state}"
-        )
+        verdicts_by_rid[r.rid] = v["verdict"] if state == FRESH else f"{v['verdict']}, {state}"
 
     shards: Dict[str, str] = {}
     # One read per tagged file for the whole render, shared across every shard.
     source_cache: Dict[str, str] = {}
+    successors = summary_successors()
     for rfc in shard_stems(requirements):
         reqs = by_rfc[rfc]
         state = "enrolled (gated)" if rfc in enrolled else "not enrolled"
+        if rfc in successors:
+            state += f", superseded by {rfc_prefix(successors[rfc])}"
         out: List[str] = []
         out.append(f"# {rfc_prefix(rfc)} -- {state}")
         out.append("")
@@ -5494,10 +5924,18 @@ def render_shards(
                 marks.append(f"**audit: {audited}**")
             if r.annotation:
                 marks.append(f"{{{r.annotation.kind}}} {r.annotation.reason}")
-            note = " ".join(marks)
+            if r.superseded:
+                # Both marks render when both are present. They answer different questions
+                # -- what Ze still owes, and which document states it today -- and dropping
+                # either would leave a reader with half the row's facts (SUPERSEDED_KIND).
+                target = f" {r.superseded.target}" if r.superseded.target else ""
+                marks.append(
+                    f"{{{SUPERSEDED_KIND}: {r.superseded.disposition}{target}}} "
+                    f"{r.superseded.reason}"
+                )
+            note = _table_cell(" ".join(marks))
             out.append(
-                f"| `{r.rid}` | {r.level} | {r.section} | {pos or '--'} | "
-                f"{neg or '--'} | {note} |"
+                f"| `{r.rid}` | {r.level} | {r.section} | {pos or '--'} | {neg or '--'} | {note} |"
             )
         out.append("")
         shards[rfc] = "\n".join(out)
@@ -5622,8 +6060,7 @@ def render_index(
                 srctxt = "0"
             elif src == 0:
                 verdict = (
-                    "consistent: source declares none in either register (0 uppercase, "
-                    "0 lowercase)"
+                    "consistent: source declares none in either register (0 uppercase, 0 lowercase)"
                 )
                 srctxt = "0"
             else:
@@ -5708,9 +6145,7 @@ FRONT_SECTION = "front"
 # prose set is the same words case-insensitively: it is a strict superset, which is why an
 # RFC with capitalised keywords can never derive an EMPTY prose inventory.
 _SITE_KEYWORD_RE = re.compile(r"\b(?:MUST NOT|MUST|SHALL NOT|SHALL|REQUIRED)\b")
-_SITE_PROSE_RE = re.compile(
-    r"\b(?:must not|must|shall not|shall|required)\b", re.IGNORECASE
-)
+_SITE_PROSE_RE = re.compile(r"\b(?:must not|must|shall not|shall|required)\b", re.IGNORECASE)
 
 # The RFC 2119 / RFC 8174 key-words paragraph is not an obligation on a speaker; it is the
 # document saying how to read its other sentences. Counting it as a site would give every
@@ -5807,9 +6242,7 @@ def source_text(stem: str) -> Optional[str]:
     if rel is None:
         return None
     try:
-        with open(
-            os.path.join(PROJECT_DIR, rel), encoding="utf-8", errors="replace"
-        ) as fh:
+        with open(os.path.join(PROJECT_DIR, rel), encoding="utf-8", errors="replace") as fh:
             return fh.read()
     except OSError:
         return None
@@ -6064,8 +6497,7 @@ def derive_inventory(stem: str, gated: int) -> Optional[Inventory]:
     for s in sites:
         counts[s.section] = counts.get(s.section, 0) + 1
     sections = [
-        SectionEntry(id=sid, sites=counts.get(sid, 0))
-        for sid, _ in _section_bodies(stripped)
+        SectionEntry(id=sid, sites=counts.get(sid, 0)) for sid, _ in _section_bodies(stripped)
     ]
 
     # Asserted at the PRODUCER, not left for a downstream dict to swallow. A locator is the
@@ -6217,9 +6649,7 @@ _SITE_KEYS = frozenset(
         "reserved-id",
     }
 )
-_SECTION_KEYS = frozenset(
-    {"id", "sites", "disposition", "skip-kind", "reason", "unsourced-ids"}
-)
+_SECTION_KEYS = frozenset({"id", "sites", "disposition", "skip-kind", "reason", "unsourced-ids"})
 
 
 def _str_field(obj: Dict, key: str, where: str, required: bool = True) -> str:
@@ -6272,9 +6702,7 @@ def _reject_unknown_keys(obj: Dict, allowed: Set[str], where: str) -> None:
     authored: an absent authored field must never pass silently."""
     unknown = sorted(set(obj) - set(allowed))
     if unknown:
-        raise ParseError(
-            f"{where}: unknown key(s) {unknown}; expected one of {sorted(allowed)}"
-        )
+        raise ParseError(f"{where}: unknown key(s) {unknown}; expected one of {sorted(allowed)}")
 
 
 def parse_extraction_artifact(path: str) -> Extraction:
@@ -6365,9 +6793,7 @@ def parse_extraction_artifact(path: str) -> Extraction:
         if not isinstance(unsourced, list) or not all(
             isinstance(u, str) and u.strip() for u in unsourced
         ):
-            raise ParseError(
-                f"{where}: 'unsourced-ids' must be a list of requirement ids"
-            )
+            raise ParseError(f"{where}: 'unsourced-ids' must be a list of requirement ids")
         sections.append(
             ExtractionSection(
                 id=sid,
@@ -6429,8 +6855,7 @@ def parse_extraction_artifact(path: str) -> Extraction:
             elif excluded_kind == RELOCATED_TO_SPEC:
                 relocated_to, reserved_id = _relocation_fields(entry, where, stem)
         if excluded_kind != RELOCATED_TO_SPEC and (
-            entry.get("relocated-to") is not None
-            or entry.get("reserved-id") is not None
+            entry.get("relocated-to") is not None or entry.get("reserved-id") is not None
         ):
             # Authored where they mean nothing, both fields would be read by nobody and
             # reported by nobody: the same failure _reject_unknown_keys refuses one level
@@ -6472,18 +6897,14 @@ def parse_extraction_artifact(path: str) -> Extraction:
 def extraction_stems() -> Set[str]:
     if not os.path.isdir(EXTRACTION_DIR):
         return set()
-    return {
-        n[: -len(".json")] for n in os.listdir(EXTRACTION_DIR) if n.endswith(".json")
-    }
+    return {n[: -len(".json")] for n in os.listdir(EXTRACTION_DIR) if n.endswith(".json")}
 
 
 def load_extractions() -> Dict[str, Extraction]:
     """Every artifact under rfc/extraction/, parsed. Raises on the first malformed one."""
     out: Dict[str, Extraction] = {}
     for stem in sorted(extraction_stems()):
-        out[stem] = parse_extraction_artifact(
-            os.path.join(EXTRACTION_DIR, stem + ".json")
-        )
+        out[stem] = parse_extraction_artifact(os.path.join(EXTRACTION_DIR, stem + ".json"))
     return out
 
 
@@ -6495,9 +6916,7 @@ def gated_counts(requirements: Sequence[Requirement]) -> Dict[str, int]:
     return out
 
 
-def _artifact_document(
-    inv: Inventory, previous: Optional[Extraction]
-) -> Dict[str, object]:
+def _artifact_document(inv: Inventory, previous: Optional[Extraction]) -> Dict[str, object]:
     """The skeleton document: every derived field filled, every disposition UNCLASSIFIED
     unless a previous artifact classified the SAME locator carrying the SAME sentence.
 
@@ -6559,8 +6978,7 @@ def _artifact_document(
         "register": (
             previous.register
             if previous
-            and _REGISTER_STRENGTH.get(previous.register, 0)
-            <= _REGISTER_STRENGTH[inv.register]
+            and _REGISTER_STRENGTH.get(previous.register, 0) <= _REGISTER_STRENGTH[inv.register]
             else inv.register
         ),
         "source-path": inv.source_path,
@@ -6844,9 +7262,7 @@ def _reserved_id_re(rid: str) -> "re.Pattern[str]":
     return re.compile(rf"(?<![\w.-]){re.escape(rid)}(?![\w-])")
 
 
-def _evaluate_extraction(
-    art: Extraction, inv: Inventory, reqs: Sequence[Requirement]
-) -> List[str]:
+def _evaluate_extraction(art: Extraction, inv: Inventory, reqs: Sequence[Requirement]) -> List[str]:
     """Judge ONE sign-off against the freshly re-derived inventory.
 
     Forward (catches a MISSED obligation): every derived site is mapped or excluded, and
@@ -6863,9 +7279,7 @@ def _evaluate_extraction(
             f"date the walk was performed once every site and section is classified"
         )
     if not art.reviewer:
-        errs.append(
-            f"{where}: 'reviewer' is empty. A sign-off names who performed the walk"
-        )
+        errs.append(f"{where}: 'reviewer' is empty. A sign-off names who performed the walk")
     if art.register == "manual-walk" and not art.register_reason:
         errs.append(
             f"{where}: a manual-walk sign-off needs a 'register-reason' stating why no "
@@ -6916,9 +7330,7 @@ def _evaluate_extraction(
 
     by_id = {r.rid: r for r in reqs}
     known_ids = set(by_id)
-    mapped_targets = {
-        s.mapped_to for s in art.sites if s.disposition == "mapped" and s.mapped_to
-    }
+    mapped_targets = {s.mapped_to for s in art.sites if s.disposition == "mapped" and s.mapped_to}
     # One read per destination spec, however many sites point at it. D-1 relocated twelve
     # RFC 7296 sites into two specs.
     spec_cache: Dict[str, Optional[str]] = {}
@@ -6998,8 +7410,7 @@ def _evaluate_extraction(
     unsourced = {u for s in art.sections for u in s.unsourced_ids}
     for u in sorted(unsourced - known_ids):
         errs.append(
-            f"{where}: unsourced-ids names {u}, which does not exist in "
-            f"rfc/short/{art.stem}.md"
+            f"{where}: unsourced-ids names {u}, which does not exist in rfc/short/{art.stem}.md"
         )
     backed = mapped_targets | unsourced
     for req in reqs:
@@ -7113,9 +7524,7 @@ def _git_baseline_extractions() -> Optional[Dict[str, BaselineExtraction]]:
             data = json.loads(blob)
             sites = data.get("sites") or []
             excluded = sum(
-                1
-                for s in sites
-                if isinstance(s, dict) and s.get("disposition") == "excluded"
+                1 for s in sites if isinstance(s, dict) and s.get("disposition") == "excluded"
             )
             signed_off = data.get("signed-off") or ""
             resign_reason = data.get("resign-reason") or ""
@@ -7149,9 +7558,7 @@ def check_extraction_ratchet() -> List[str]:
     current: Dict[str, Extraction] = {}
     for stem in sorted(extraction_stems()):
         try:
-            current[stem] = parse_extraction_artifact(
-                os.path.join(EXTRACTION_DIR, stem + ".json")
-            )
+            current[stem] = parse_extraction_artifact(os.path.join(EXTRACTION_DIR, stem + ".json"))
         except ParseError:
             # Reported by check_extraction_signoff against the same file; the gate is red
             # either way, and one accurate message beats two.
@@ -7196,9 +7603,7 @@ def check_extraction_ratchet() -> List[str]:
     return errs
 
 
-def credited(
-    signed: Dict[str, Extraction], enrolled: Set[str]
-) -> Dict[str, Extraction]:
+def credited(signed: Dict[str, Extraction], enrolled: Set[str]) -> Dict[str, Extraction]:
     """The sign-offs that COUNT: the ones whose stem is enrolled.
 
     Every published figure and every comparison is derived from this, never from `signed`
@@ -7233,9 +7638,7 @@ def _register_phrase(counts: Dict[str, int]) -> str:
     return ", ".join(f"{name} {counts[name]}" for name in REGISTERS)
 
 
-def extraction_status(
-    requirements: Sequence[Requirement], enrolled: Set[str]
-) -> Dict[str, object]:
+def extraction_status(requirements: Sequence[Requirement], enrolled: Set[str]) -> Dict[str, object]:
     """The counts the umbrella's drain quota consumes (umbrella "Where the counter lives").
 
     Every figure is DERIVED from rfc/extraction/ plus the live summaries. There is no
@@ -7278,9 +7681,7 @@ def run_extraction_status() -> int:
     return 0
 
 
-def render_extraction_table(
-    requirements: Sequence[Requirement], enrolled: Set[str]
-) -> List[str]:
+def render_extraction_table(requirements: Sequence[Requirement], enrolled: Set[str]) -> List[str]:
     """The published backlog: how much of the standards claim is BOUNDED (AC-15, AC-21).
 
     Derived columns are shown only for a stem that HAS a sign-off. That is both honest and
@@ -7429,9 +7830,7 @@ def parse_drain_budget(path: str) -> DrainBudget:
         year, month, day = (int(p) for p in seen["start"].split("-"))
         start = datetime.date(year, month, day)
     except ValueError as exc:
-        raise ParseError(
-            f"{rel}: start {seen['start']!r} is not a YYYY-MM-DD date: {exc}"
-        ) from exc
+        raise ParseError(f"{rel}: start {seen['start']!r} is not a YYYY-MM-DD date: {exc}") from exc
     try:
         rate = float(seen["rate"])
     except ValueError as exc:
@@ -7605,9 +8004,7 @@ def check_ledger_fresh(
     for stem in shard_stems(requirements):
         path = shard_path(stem)
         if not os.path.exists(path):
-            errs.append(
-                f"{shard_rel(stem)} is missing -- run: make ze-rfc-index-update"
-            )
+            errs.append(f"{shard_rel(stem)} is missing -- run: make ze-rfc-index-update")
             continue
         with open(path, encoding="utf-8") as fh:
             if fh.read() != shards[stem] + "\n":
@@ -7666,9 +8063,7 @@ def run_check() -> int:
         # opposite polarity takes the None itself.
         baseline_enrolled = _git_baseline_enrolment()
         base_enrolled = baseline_enrolled if baseline_enrolled is not None else set()
-        baseline_ids = (
-            _git_baseline_ids()
-        )  # read once: it costs one git cat-file --batch
+        baseline_ids = _git_baseline_ids()  # read once: it costs one git cat-file --batch
 
         # Read once and shared by three consumers below. None means git could not answer.
         baseline_stems = _git_baseline_summary_stems()
@@ -7701,19 +8096,13 @@ def run_check() -> int:
         # where the first succeeds and the second fails (a shallow clone, a grafted
         # worktree, an rfc/enrolled.txt new in this commit) and every enrolled RFC is
         # accused of being newly enrolled without a sign-off.
-        newly_enrolled = (
-            None if baseline_enrolled is None else enrolled - baseline_enrolled
-        )
-        errs.extend(
-            check_enrolment(enrolled, base_enrolled, stems, newly_enrolled, set(signed))
-        )
+        newly_enrolled = None if baseline_enrolled is None else enrolled - baseline_enrolled
+        errs.extend(check_enrolment(enrolled, base_enrolled, stems, newly_enrolled, set(signed)))
 
         # Adding a summary must add checking, and evidence that existed must keep
         # existing. Both compare against HEAD: the working tree alone cannot tell a
         # backlog item from a regression (spec-rfc-gate-regression-ratchets.md).
-        errs.extend(
-            check_new_summaries(stems, baseline_stems, enrolled, reqs, parse_by_stem)
-        )
+        errs.extend(check_new_summaries(stems, baseline_stems, enrolled, reqs, parse_by_stem))
         if enrolled & base_enrolled:
             # Both ratchets are no-ops with nothing enrolled on both sides, and the tag
             # baseline costs a git grep plus a batch read of every tagged blob. Do not pay
@@ -7773,6 +8162,12 @@ def run_check() -> int:
 
         errs.extend(evaluate(reqs, tags, enrolled))
 
+        # Forward lineage, run over EVERY summary rather than the enrolled set: a reader
+        # who opens a requirement line of an obsoleted document needs to know it was
+        # obsoleted whether or not that document is gated. It judges the DOCUMENT's
+        # standing and never touches coverage -- see check_superseded's docstring.
+        errs.extend(check_superseded(reqs, summary_successors(stems), stems))
+
         # Admissibility, run after coverage and before every claim built on it: a tag in a
         # package the compiler rejects is not evidence, because no test in it can run.
         # `--check` only. `--write` renders and `--check-fresh` compares a rendering, and
@@ -7790,15 +8185,9 @@ def run_check() -> int:
         # cannot reach: a summary that is neither enrolled nor declared, an enrolled RFC with
         # no public row, a support claim over an empty checklist, and a hand-written gap
         # count that disagrees with the summary.
+        errs.extend(check_summary_disposition(stems, enrolled, dispositions, baseline_dispositions))
         errs.extend(
-            check_summary_disposition(
-                stems, enrolled, dispositions, baseline_dispositions
-            )
-        )
-        errs.extend(
-            check_status_completeness(
-                enrolled, rows, baseline_rows, newly_enrolled, base_enrolled
-            )
+            check_status_completeness(enrolled, rows, baseline_rows, newly_enrolled, base_enrolled)
         )
         # The derived grade of every signed stem, read off the SOURCE text. It is the one fact
         # behind OR-A's escape that the artifact cannot assert about itself, and the memoised
@@ -7828,9 +8217,7 @@ def run_check() -> int:
         errs.extend(check_audit_note(reqs, tags, enrolled, audits))
         errs.extend(check_audit_findings(reqs, enrolled, audits, baseline_audits))
         errs.extend(
-            check_audit_verdict_ratchet(
-                reqs, enrolled, audits, baseline_audits, base_enrolled
-            )
+            check_audit_verdict_ratchet(reqs, enrolled, audits, baseline_audits, base_enrolled)
         )
 
         # Extraction sign-off: bounds what the summary MISSED, which every check above is
@@ -8036,9 +8423,7 @@ def run_locate(rid: str) -> int:
     cache: Dict[str, str] = {}
     for t in sorted(tags, key=lambda t: (t.file, t.line)):
         content = _read_source(t.file, PROJECT_DIR, cache)
-        name = (
-            rfc_tagged_scope.func_name_at(t.file, content, t.line) if content else None
-        )
+        name = rfc_tagged_scope.func_name_at(t.file, content, t.line) if content else None
         where = f" {name}" if name else ""
         print(f"{t.file}:{t.line} {t.polarity}{where} ({evidence_label(t.file)})")
     return 0

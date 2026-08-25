@@ -300,6 +300,58 @@ code `file:line`, and ask which way he wants it fixed.
 An annotation you find already in place from an earlier session is VOID as authority —
 re-derive it from the RFC text, and ask again if it still reads as less than full.
 
+## Superseded Documents Carry Their Successor
+
+When the summary's forward Meta row names a successor, EVERY requirement line needs a
+second marker saying where that obligation now lives. `check_superseded` refuses the
+summary otherwise, naming the id and the obsoleting RFC.
+
+Write the Meta row as a chain, oldest first: the LAST RFC it names is the document
+that states these obligations today. `rfc/short/rfc3768.md` reads
+`RFC 5798, which was in turn obsoleted by RFC 9568 (both VRRPv3)`, and the successor
+is RFC 9568. A row that says `None`, `-`, `n/a` or `(none)` creates no obligation at
+all.
+
+Write the label as `| Obsoleted by |` or `| Obsoleted-by |`, in either capitalisation,
+with a qualifier after it if the document needs one: `rfc/short/rfc1334.md` writes
+`| Obsoleted-by (partial) |` because RFC 1994 replaced its CHAP half and left PAP here.
+`| Obsoletes |` is the backward direction and is allowed alongside it; 119 rows
+carry one. Any OTHER field name containing `obsolet` stops the run with exit 2 and
+names the field. That refusal exists because the reader used to know one spelling:
+the corpus wrote four, and 93 requirements of three enrolled summaries were gated as
+current documents until the label was widened.
+
+It refuses on that WORD alone. A field named `Superseded by`, `Replaced by` or
+`Successor` is skipped in silence, so do not reach for one: no summary writes such a
+spelling today, and widening the word waits on a survey of what the corpus writes,
+because the field-name pattern reads the first cell of every table row and a looser
+word would collide with the requirement tables.
+
+```
+- [ ] [RFC3768-5.2.3-1] [MUST] <text> (§5.2.3) {superseded: restated RFC9568-5.1.1.3-1; RFC 9568 §5.1.1.3 keeps the IPv4 TTL of 255}
+- [ ] [RFC3768-9.2-1] [MUST] <text> (§9.2) {superseded: dropped; RFC 9568 §1.2 change 6 removed the token ring appendix}
+- [ ] [RFC7752-6.1.2-1] [SHOULD] <text> (§6.1.2) {superseded: unextracted §8.1.2; rfc/short/rfc9552.md declares no row for it}
+- [ ] [RFC7627-5.2-1] [MUST] <text> (§5.2) {superseded: unresolved; rfc/full/rfc9846.txt is not in this repository}
+```
+
+| Disposition | Says | The gate checks |
+|-------------|------|-----------------|
+| `restated <ID>; why` | the successor states the same obligation, under that id | the successor's summary declares that id |
+| `dropped; why` | the successor states no equivalent obligation | the successor's text is under `rfc/full/` or `rfc/drafts/` |
+| `unextracted <§section>; why` | the successor states it there, and its summary has no row | the successor's text is under `rfc/full/` or `rfc/drafts/` |
+| `unresolved; why` | the successor's text is not in this repository | that text is ABSENT |
+
+**This marker is a fact about the DOCUMENT, never about coverage.** It composes with
+`{not-applicable}`, `{gap}` and `{single-polarity}` instead of replacing one. It lowers
+nothing. A marked requirement stays gated, stays counted and stays ratcheted.
+Writing one is therefore NOT the owner-reserved judgement the three annotations above
+are. It records where the IETF put the obligation, and it says nothing about what Ze
+owes.
+
+The last two dispositions are DEBT, and `ai/RFC-REQUIREMENTS.md` publishes them as
+debt. Draining one is separate work: fetch and summarise the successor, or extract the
+rows its summary is missing.
+
 ## Linking Requirements to Tests
 
 The link is two-way, but only ONE side is authored: the test tags itself.

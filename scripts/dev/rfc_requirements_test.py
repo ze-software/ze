@@ -7,6 +7,7 @@ Auto-discovered and run under `go test` by scripts/dev/python_tests_test.go
 Spec: plan/spec-rfc-requirement-coverage.md
 """
 
+import ast
 import contextlib
 import datetime
 import importlib.util
@@ -7425,12 +7426,13 @@ class TestCITierIsEarnedNotAssumed(unittest.TestCase):
     alone. Three evasions followed, each of them silent: move a tagged `.ci` out of a run
     suite (test/traffic/), into the gitignored incubator (test/draft/), or into a tree
     whose sibling check.py the SAME table refuses as unrun (test/interop-ipsec/). The tier
-    is now derived from mk/test-functional.mk's own suite list, so it tracks reality
+    is now derived from the functional run's own suite list (GATING, in
+    scripts/le/application/functional.py), so it tracks reality
     instead of restating it (ai/rules/evidence.md).
     """
 
     def test_a_run_suite_is_verify_tier(self):
-        # test/ipsec/ joined all_suites (mk/test-functional.mk) on 2026-07-30. Its 8 .ci
+        # test/ipsec/ joined the gating suite list on 2026-07-30. Its 8 .ci
         # files had a registered runner root and needed no privilege, and nothing ran them.
         # It is asserted here so the tier it now earns cannot be lost silently.
         for rel in (
@@ -7521,30 +7523,58 @@ class TestCITierIsEarnedNotAssumed(unittest.TestCase):
                 fh.write("# RFC requirement: RFC7606-1-1 positive -- note\n")
             self.assertEqual(R.scan_tree(root), [])
 
-    def test_functional_suites_are_read_from_the_makefile(self):
+    def test_functional_suites_are_read_from_the_module_that_runs_them(self):
         suites = R.functional_suites()
         self.assertIn("plugin", suites)
         self.assertIn("editor", suites)
         self.assertNotIn("traffic", suites)
-        raw = _read_repo("mk/test-functional.mk")
+        raw = _read_repo("scripts/le/application/functional.py")
         for s in suites:
             self.assertIn(s, raw, s)
 
+    def test_the_source_read_agrees_with_the_module_it_reads(self):
+        """The AST reader and the running module must answer the same question.
+
+        Two readers exist on purpose: this one reads SOURCE, because the ratchet in
+        _build_head_carriers asks HEAD's copy and no running program can answer for a
+        revision that is not checked out, while `le functional --list --json` publishes
+        the same fact to the Go guards. Reading one literal is what keeps them equal, and
+        this is the assertion that they are.
+        """
+        sys.path.insert(0, os.path.join(R.PROJECT_DIR, "scripts"))
+        try:
+            from le.application import functional
+        finally:
+            sys.path.pop(0)
+        self.assertEqual(tuple(functional.GATING), R.functional_suites())
+        published = [row["name"] for row in functional.catalogue() if row["gating"]]
+        self.assertEqual(list(R.functional_suites()), published)
+
     def test_an_unparseable_suite_list_fails_closed(self):
         with _scratch() as root:
-            os.makedirs(os.path.join(root, "mk"))
-            path = os.path.join(root, "mk", "test-functional.mk")
+            path = os.path.join(root, "functional.py")
             with open(path, "w", encoding="utf-8") as fh:
-                fh.write("ze-functional-test:\n\t@echo nope\n")
+                fh.write("SUITES = ()\n")
+            with self.assertRaises(R.ParseError):
+                R.functional_suites(path)
+
+    def test_a_module_that_does_not_parse_fails_closed(self):
+        """Source text, not an import: a module this cannot parse is a module whose suite
+        list is unknown, and unknown must never read as "everything runs"."""
+        with _scratch() as root:
+            path = os.path.join(root, "functional.py")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write("GATING = (\n")
             with self.assertRaises(R.ParseError):
                 R.functional_suites(path)
 
     def test_a_second_suite_assignment_fails_closed(self):
-        """The derivation took the FIRST `all_suites=` match, so a second assignment --
-        a plausible future `ze-functional-list` or `-quick` recipe -- silently decided the
-        tier of every `.ci` in the repo. That is the same fail-open the earned tier exists
-        to close, arriving through the derivation instead of the extension: whichever list
-        the regex reached first became the definition of "runs on the merge path".
+        """The derivation took the FIRST list, so a second assignment -- a plausible
+        future `-quick` subset, or a copy left behind by a refactor -- silently decided
+        the tier of every `.ci` in the repo. That is the same fail-open the earned tier
+        exists to close, arriving through the derivation instead of the extension:
+        whichever list the reader reached first became the definition of "runs on the
+        merge path".
 
         Deliberately name-agnostic. The suite names in both decoys below are nonsense, so
         this test cannot be satisfied by enumerating today's un-run directories the way
@@ -7554,17 +7584,12 @@ class TestCITierIsEarnedNotAssumed(unittest.TestCase):
         (ai/rules/evidence.md).
         """
         with _scratch() as root:
-            os.makedirs(os.path.join(root, "mk"))
-            path = os.path.join(root, "mk", "test-functional.mk")
+            path = os.path.join(root, "functional.py")
             with open(path, "w", encoding="utf-8") as fh:
                 fh.write(
-                    "ze-functional-list:\n"
-                    '\tall_suites="qqalpha qqbeta"; \\\n'
-                    "\tfor suite in $$all_suites; do echo $$suite; done\n"
-                    "\n"
-                    "ze-functional-test:\n"
-                    '\tall_suites="qqgamma qqdelta"; \\\n'
-                    "\tfor suite in $$all_suites; do echo $$suite; done\n"
+                    'GATING = ("qqalpha", "qqbeta")\n'
+                    'QUICK = 1\n'
+                    'GATING = ("qqgamma", "qqdelta")\n'
                 )
             with self.assertRaises(R.ParseError) as cm:
                 R.functional_suites(path)
@@ -7577,63 +7602,57 @@ class TestCITierIsEarnedNotAssumed(unittest.TestCase):
 
     def test_the_repo_declares_its_suite_list_exactly_once(self):
         """The other half of the pin: the refusal above is only reachable if the real
-        recipe is unambiguous today, so the count is asserted against the real file."""
-        raw = _read_repo("mk/test-functional.mk")
-        self.assertEqual(len(R._ALL_SUITES_RE.findall(raw)), 1)
+        module is unambiguous today, so the count is asserted against the real file."""
+        raw = _read_repo("scripts/le/application/functional.py")
+        self.assertEqual(len(R._gating_values(ast.parse(raw))), 1)
 
     def test_a_declared_suite_that_is_never_dispatched_fails_closed(self):
         """The .ci half of the same defect the Go compile check closes.
 
-        `ipsec` sat in all_suites with no `run_suite` line: the recipe counted it toward
-        the progress denominator, ran nothing, and every test/ipsec/*.ci still earned a
-        verify tier here. Only a comment tied the declaration to the dispatch, so the
-        tier came from a claim nobody measured.
+        `ipsec` sat in the makefile's `all_suites` with no `run_suite` line: the recipe
+        counted it toward the progress denominator, ran nothing, and every test/ipsec/*.ci
+        still earned a verify tier here. Only a comment tied the declaration to the
+        dispatch, so the tier came from a claim nobody measured. The list and the records
+        live in one module now, and a name with no record is the same defect in the same
+        shape: the run resolves the name to nothing.
         """
         with _scratch() as root:
-            os.makedirs(os.path.join(root, "mk"))
-            path = os.path.join(root, "mk", "test-functional.mk")
+            path = os.path.join(root, "functional.py")
             with open(path, "w", encoding="utf-8") as fh:
                 fh.write(
-                    "ze-functional-test:\n"
-                    '\tall_suites="qqalpha qqbeta"; \\\n'
-                    "\trun_suite() { \\\n"
-                    '\t\t"$$@"; \\\n'
-                    "\t}; \\\n"
-                    "\trun_suite qqalpha ze-test qqalpha --all; \\\n"
-                    "\techo done\n"
+                    'GATING = ("qqalpha", "qqbeta")\n'
+                    'SUITES = (Suite(name="qqalpha", args=("qqalpha", "--all")),)\n'
                 )
             with self.assertRaises(R.ParseError) as cm:
                 R.functional_suites(path)
         msg = str(cm.exception)
         self.assertIn("qqbeta", msg)
         self.assertNotIn("qqalpha", msg)
-        self.assertIn("run_suite", msg)
+        self.assertIn("Suite", msg)
 
     def test_a_fully_dispatched_suite_list_is_accepted(self):
-        """Discriminates from 'always raises', and pins that the shell function definition
-        `run_suite() {` is not read as a dispatch of a suite called `()`."""
+        """Discriminates from 'always raises', and pins that a `Suite(...)` written with
+        no `name=` keyword is not read as a record for some suite called nothing."""
         with _scratch() as root:
-            os.makedirs(os.path.join(root, "mk"))
-            path = os.path.join(root, "mk", "test-functional.mk")
+            path = os.path.join(root, "functional.py")
             with open(path, "w", encoding="utf-8") as fh:
                 fh.write(
-                    "ze-functional-test:\n"
-                    '\tall_suites="qqalpha qqbeta"; \\\n'
-                    "\trun_suite() { \\\n"
-                    '\t\t"$$@"; \\\n'
-                    "\t}; \\\n"
-                    "\trun_suite qqalpha ze-test qqalpha --all; \\\n"
-                    "\trun_suite qqbeta ze-test qqbeta --all\n"
+                    'GATING = ("qqalpha", "qqbeta")\n'
+                    'SUITES = (\n'
+                    '    Suite(name="qqalpha", args=("qqalpha", "--all")),\n'
+                    '    Suite(name="qqbeta", args=("qqbeta", "--all")),\n'
+                    ')\n'
                 )
             self.assertEqual(R.functional_suites(path), ("qqalpha", "qqbeta"))
 
     def test_the_repo_dispatches_every_suite_it_declares(self):
         """The other half of the pin: the refusal above is only reachable if the real
-        recipe dispatches everything today, so that is asserted against the real file."""
-        raw = _read_repo("mk/test-functional.mk")
-        declared = R._ALL_SUITES_RE.findall(raw)[0].split()
-        dispatched = set(R._RUN_SUITE_RE.findall(raw))
-        self.assertEqual([s for s in declared if s not in dispatched], [])
+        module holds a record for everything today, so that is asserted against the real
+        file."""
+        tree = ast.parse(_read_repo("scripts/le/application/functional.py"))
+        declared = ast.literal_eval(R._gating_values(tree)[0])
+        records = R._declared_suite_names(tree)
+        self.assertEqual([s for s in declared if s not in records], [])
 
     def test_refusal_message_is_grammatical(self):
         """The catch-all's message used to read '... -- no declared runner has no
@@ -7853,12 +7872,11 @@ class TestTierMatchesPipelineReality(unittest.TestCase):
                 f"stage runs {target}; stages are {sorted(stages)}",
             )
 
-    def test_every_derived_suite_is_a_token_in_the_makefile_suite_list(self):
-        """The text pin. Token-exact, not substring: `ospf` is a prefix of `ospfv3` and
+    def test_every_derived_suite_is_a_member_of_the_gating_suite_list(self):
+        """The source pin. Token-exact, not substring: `ospf` is a prefix of `ospfv3` and
         `l2tp` of `l2tp-wire`, so a substring test would pass a suite that is not run."""
-        raw = _read_repo("mk/test-functional.mk")
-        line = next(ln for ln in raw.splitlines() if "all_suites=" in ln)
-        tokens = set(line.split('"')[1].split())
+        raw = _read_repo("scripts/le/application/functional.py")
+        tokens = set(ast.literal_eval(R._gating_values(ast.parse(raw))[0]))
         self.assertGreater(len(tokens), 5)
         derived = [c for c in R.CARRIERS if c.derived]
         self.assertGreater(
@@ -7870,7 +7888,7 @@ class TestTierMatchesPipelineReality(unittest.TestCase):
                 suite,
                 tokens,
                 f"carrier {c.name} claims a ze-precommit-verify functional suite that "
-                f"mk/test-functional.mk does not run",
+                f"scripts/le/application/functional.py does not run",
             )
 
     def test_the_nightly_carrier_names_a_job_the_nightly_workflow_runs(self):
@@ -13111,6 +13129,45 @@ class TestObsoletedByMetaRow(unittest.TestCase):
         with self.assertRaises(R.ParseError):
             R.parse_successor_stem(self._meta("RFC 3768"), "rfc3768")
 
+    def test_the_hyphenated_label_is_read(self):
+        """`| Obsoleted-by |` is the MAJORITY spelling: 28 rows against 18 for the space.
+        A reader that knew only the spaced form failed OPEN over all of them, and three
+        summaries naming a real successor were gated as current documents."""
+        text = "| Obsoleted-by | RFC 8955 |\n"
+        self.assertEqual(R.parse_successor_stem(text, "rfc5575"), "rfc8955")
+
+    def test_a_qualifier_after_the_label_is_read(self):
+        """rfc1334's real row. The qualifier is prose for a reader; the row means the same
+        with or without it, so it must not decide whether anything parses the row."""
+        text = (
+            "| Obsoleted-by (partial) | RFC 1994 for CHAP only -- PAP remains "
+            "defined here |\n"
+        )
+        self.assertEqual(R.parse_successor_stem(text, "rfc1334"), "rfc1994")
+
+    def test_a_bracketed_none_yields_no_successor(self):
+        """rfc8654's real row, which only became reachable once the hyphenated label was
+        read. Without this the row would start demanding forward pointers into nothing."""
+        text = "| Obsoleted-by | (none) |\n"
+        self.assertIsNone(R.parse_successor_stem(text, "rfc8654"))
+
+    def test_an_unknown_obsolescence_field_is_refused(self):
+        """The fifth spelling reds the gate instead of vanishing. Widening the label fixes
+        the four spellings that exist; this refuses the one somebody writes tomorrow, and
+        it is the part that stops this failing open again."""
+        for field in ("Obsoleted in", "Obsoletion", "Now obsoleted by"):
+            with self.assertRaises(R.ParseError, msg=field) as caught:
+                R.parse_successor_stem(f"| {field} | RFC 8955 |\n", "rfc5575")
+            self.assertIn(field, str(caught.exception))
+
+    def test_the_backward_row_is_not_refused(self):
+        """`Obsoletes` says what THIS document replaced, and nothing here reads it. It is
+        recognised so the refusal above cannot fire on 119 innocent rows."""
+        for field in ("Obsoletes", "Obsoletes / Updates"):
+            self.assertIsNone(
+                R.parse_successor_stem(f"| {field} | RFC 1771 |\n", "rfc4271"), field
+            )
+
     def test_summary_successors_reads_the_real_corpus(self):
         """The map is DERIVED on every run, never a maintained list."""
         found = R.summary_successors()
@@ -13118,8 +13175,15 @@ class TestObsoletedByMetaRow(unittest.TestCase):
         self.assertEqual(found.get("rfc7752"), "rfc9552")
         self.assertEqual(found.get("rfc7627"), "rfc9846")
         self.assertEqual(found.get("rfc5549"), "rfc8950")
+        # The three the hyphenated label hid. Each names a real successor the repository
+        # holds, and each was gated as a current document until the label was widened.
+        self.assertEqual(found.get("rfc5575"), "rfc8955")
+        self.assertEqual(found.get("rfc6810"), "rfc8210")
+        self.assertEqual(found.get("rfc1334"), "rfc1994")
         self.assertNotIn("rfc4271", found)
         self.assertNotIn("rfc2661", found)
+        # rfc8654 writes its row as `(none)`, which the hyphenated label made reachable.
+        self.assertNotIn("rfc8654", found)
 
 
 class TestSupersededCheck(unittest.TestCase):
@@ -13181,7 +13245,7 @@ class TestSupersededCheck(unittest.TestCase):
             {"rfc7606"},
         )
         self.assertEqual(len(errs), 1, errs)
-        self.assertIn("declares no `| Obsoleted by |` successor", errs[0])
+        self.assertIn("names no successor in its forward Meta row", errs[0])
 
     def test_pointer_into_a_held_summary_must_resolve(self):
         errs = self._check(
@@ -13420,15 +13484,48 @@ class TestSupersededLedger(unittest.TestCase):
             ),
             superseded=_superseded(target="RFC9568-6.1-3", reason="a|b"),
         )
+        # A reason that ALREADY carries a literal backslash-pipe, which a grep BRE
+        # alternation does and two annotation reasons in the corpus do. Escaping the
+        # pipe alone turns it into `\\|`, which GFM reads as an escaped backslash
+        # followed by a live pipe: the row gains a cell and the page drops the tail
+        # of the reason. The bare-pipe case above cannot see it, because the
+        # assertion below counts `\\|` as already escaped.
+        req_bre = _req(
+            "RFC3768-5.2.3-3",
+            rfc="rfc3768",
+            annotation=R.Annotation(
+                kind="not-applicable",
+                polarity=None,
+                reason=r'grep -rn "A\|B\|C" found nothing',
+            ),
+            superseded=_superseded(target="RFC9568-6.1-4", reason="dropped; why"),
+        )
         tmp = self._summaries()
         try:
             with _patched(SUMMARY_DIR=tmp, load_audits=lambda *a, **k: {}):
-                shard = R.render_shards([req], [], {"rfc3768"})["rfc3768"]
+                shard = R.render_shards([req, req_bre], [], {"rfc3768"})["rfc3768"]
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
-        row = [l for l in shard.split("\n") if l.startswith("| `RFC3768")][0]
+        rows = [l for l in shard.split("\n") if l.startswith("| `RFC3768")]
+        self.assertEqual(len(rows), 2, shard)
+        row = rows[0]
         self.assertEqual(row.count("|") - row.count("\\|"), 7, row)
         self.assertIn("\\|B\\|", row)
+
+        # The BRE row. Counting escaped pipes is not enough here: `\\|` reads as
+        # escaped-backslash-then-live-pipe, so count the cells the way a GFM parser
+        # boundaries them. A backslash-escaped pipe is one preceded by an ODD run of
+        # backslashes; anything else opens a cell.
+        bre = rows[1]
+        cells, run = 1, 0
+        for ch in bre.strip().strip("|"):
+            if ch == "\\":
+                run += 1
+                continue
+            if ch == "|" and run % 2 == 0:
+                cells += 1
+            run = 0
+        self.assertEqual(cells, 6, bre)
 
     def test_rollup_states_the_successor_and_counts_unresolved_as_debt(self):
         reqs = [
@@ -13545,6 +13642,25 @@ class TestSupersededWiring(unittest.TestCase):
         code, out = self._drive(self._MARKED)
         self.assertEqual(code, 0, out)
         self.assertIn("rfc-requirements OK", out)
+
+    def test_a_hyphenated_unmarked_superseded_summary_fails_the_gate(self):
+        """The discriminating twin of the row above, in the corpus's majority spelling.
+        The gate said nothing about 93 requirements of three enrolled summaries because
+        this row read `Obsoleted-by` rather than `Obsoleted by`."""
+        code, out = self._drive(self._UNMARKED.replace("Obsoleted by", "Obsoleted-by"))
+        self.assertEqual(code, 2, out)
+        self.assertIn("RFC3768-5.2.3-2", out)
+        self.assertIn("does not say where that obligation now lives", out)
+
+    def test_an_unrecognised_obsolescence_field_reds_the_gate(self):
+        """A spelling nothing reads must stop the run, not be skipped. Exit 2 is the
+        cannot-run answer: the gate does not know what this summary declares, and a clean
+        report over an unread row is the fail-open this whole check exists to close."""
+        code, out = self._drive(
+            self._MARKED.replace("| Obsoleted by |", "| Obsoleted-in |")
+        )
+        self.assertEqual(code, 2, out)
+        self.assertIn("Obsoleted-in", out)
 
 
 if __name__ == "__main__":
