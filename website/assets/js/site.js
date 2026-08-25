@@ -1812,25 +1812,65 @@ document.addEventListener("DOMContentLoaded", function () {
     // terminalFontFamily is passed here rather than set in CSS because the
     // player MEASURES the font to size a character cell, and a stack it renders
     // with but did not measure gives the wrong cell.
+    // castVersion appends the recording's own digest to its URL, so a browser
+    // that cached a previous render fetches the new bytes. The digest is read
+    // at RUNTIME from the demo manifest rather than written into data-cast-src,
+    // the same reason data-ze-stat reads site-facts.json: a hash baked into the
+    // markup rewrites every page carrying a demo at every release, and the
+    // recordings change far more often than the pages around them do.
+    function castVersion(manifest, src) {
+        if (!manifest || !manifest.demos) {
+            return src;
+        }
+        var name = src.split("/").pop();
+        var id = name.replace(/\.cast$/, "");
+        var entry = manifest.demos[id];
+        var cast = entry && entry.assets && entry.assets.cast;
+        if (!cast || !cast.sha256) {
+            return src;
+        }
+        return src + (src.indexOf("?") === -1 ? "?" : "&") + "v=" + cast.sha256.slice(0, 12);
+    }
+
     function initTerminalDemoPlayers() {
         var mounts = slice(document.querySelectorAll("[data-terminal-demo-player]"));
         if (!mounts.length || typeof AsciinemaPlayer === "undefined") {
             return;
         }
-        mounts.forEach(function (mount) {
-            var src = mount.getAttribute("data-cast-src");
-            if (!src) {
-                return;
-            }
-            AsciinemaPlayer.create(src, mount, {
-                fit: "both",
-                controls: true,
-                theme: "ze",
-                terminalLineHeight: 1.32,
-                terminalFontFamily:
-                    '"JetBrains Mono", "SFMono-Regular", Consolas, monospace',
+
+        function mountAll(manifest) {
+            mounts.forEach(function (mount) {
+                var src = mount.getAttribute("data-cast-src");
+                if (!src) {
+                    return;
+                }
+                AsciinemaPlayer.create(castVersion(manifest, src), mount, {
+                    fit: "both",
+                    controls: true,
+                    theme: "ze",
+                    terminalLineHeight: 1.32,
+                    terminalFontFamily:
+                        '"JetBrains Mono", "SFMono-Regular", Consolas, monospace',
+                });
             });
-        });
+        }
+
+        // The manifest is the one file that must never come from the cache:
+        // it is what says which bytes are current. It is a few KB, and a
+        // failed or unsupported fetch falls back to the unversioned URL, so a
+        // demo still plays when this lookup does not answer.
+        if (!window.fetch) {
+            mountAll(null);
+            return;
+        }
+        fetch(siteRootFromScript() + "assets/demos/manifest.json", { cache: "no-store" })
+            .then(function (response) {
+                return response.ok ? response.json() : null;
+            })
+            .catch(function () {
+                return null;
+            })
+            .then(mountAll);
     }
 
     initTaglineCarousel();
