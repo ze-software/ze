@@ -1324,13 +1324,22 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	awaitReloadWorker(reloadDone, reloadShutdownGrace)
 	fmt.Println("\nShutting down (Ctrl+C again to force)...")
 
-	// A second signal forces immediate exit. Shutdown below stops plugins,
+	// A second INTERRUPT forces immediate exit. Shutdown below stops plugins,
 	// gNMI, the API servers and the reactor, each with its own grace period,
 	// so a wedged component can hold the process past the point an operator
 	// is willing to wait. The web-only path has had this since it was
 	// written; the daemon is the path an operator actually runs.
+	//
+	// It gets its OWN channel rather than reusing sigCh, because sigCh also
+	// carries SIGHUP and apiServer.SetShutdownFunc injects a SIGTERM on every
+	// `request shutdown`. forceExitOnSignal reads the next VALUE and never asks
+	// which signal it is, so sharing the channel made a config-reload SIGHUP
+	// arriving mid-shutdown kill the daemon with exit 1. Notify only what an
+	// operator means as "stop waiting".
 	// Lifecycle goroutine, not a hot path.
-	go forceExitOnSignal(sigCh)
+	forceCh := make(chan os.Signal, 1)
+	signal.Notify(forceCh, syscall.SIGINT, syscall.SIGTERM)
+	go forceExitOnSignal(forceCh)
 
 	// MCP shuts down through the construction registry's builtServices defer
 	// (like web/lg), so it is not stopped explicitly here.
