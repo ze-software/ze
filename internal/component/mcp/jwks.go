@@ -9,7 +9,9 @@
 //
 // All decoding is stdlib: JSON for the document, encoding/base64 RawURL for
 // RSA modulus/exponent and EC coordinates, math/big for the big-integer
-// conversions that rsa.PublicKey / ecdsa.PublicKey want.
+// conversions that rsa.PublicKey wants. The EC coordinates are reassembled
+// into a SEC 1 uncompressed point and parsed by crypto/ecdsa, which validates
+// the point is on the curve.
 
 package mcp
 
@@ -272,17 +274,29 @@ func decodeECJWK(k *jwk) (*ecdsa.PublicKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ec jwk: decode y: %w", err)
 	}
-	pub := &ecdsa.PublicKey{
-		Curve: curve,
-		X:     new(big.Int).SetBytes(xBytes),
-		Y:     new(big.Int).SetBytes(yBytes),
+	// SEC 1 uncompressed point: 0x04 || X || Y, each coordinate left-padded to
+	// the curve's field size. RFC 7518 Section 6.2.1.2 asks for full-width
+	// coordinates. A coordinate shorter than that is padded here rather than
+	// refused, because a leading zero byte is ordinary and encoders that strip
+	// it are common.
+	size := (curve.Params().BitSize + 7) / 8
+	if len(xBytes) > size || len(yBytes) > size {
+		return nil, fmt.Errorf("ec jwk: coordinate longer than %d bytes for curve %q", size, k.Crv)
 	}
-	// On-curve validation is handled implicitly by ecdsa.Verify at
-	// signature-check time: a key off the curve yields a verification
-	// failure rather than a silent accept. We do not use curve.IsOnCurve
-	// here because Go 1.21+ deprecated it in favor of crypto/ecdh's
-	// NewPublicKey -- but that API returns an ecdh.PublicKey, not the
-	// ecdsa.PublicKey that ecdsa.Verify needs. JWK input comes from a
-	// trusted AS over TLS, so the extra defense is not load-bearing.
+
+	point := make([]byte, 1+2*size)
+	point[0] = 4
+	copy(point[1+size-len(xBytes):1+size], xBytes)
+	copy(point[1+2*size-len(yBytes):], yBytes)
+
+	// ParseUncompressedPublicKey refuses a point that is off the curve or is the
+	// point at infinity, so a malformed key fails at decode. The raw-coordinate
+	// form this replaced left that check to ecdsa.Verify, which reported an
+	// invalid key as a signature mismatch.
+	pub, err := ecdsa.ParseUncompressedPublicKey(curve, point)
+	if err != nil {
+		return nil, fmt.Errorf("ec jwk: invalid public key: %w", err)
+	}
+
 	return pub, nil
 }

@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -360,5 +361,42 @@ func TestDecodeRSAJWK_ImplausibleExponent(t *testing.T) {
 func TestDecodeJWK_UnknownKty(t *testing.T) {
 	if _, err := decodeJWK(&jwk{Kty: "OKP", Kid: "x"}); err == nil {
 		t.Fatal("expected error for OKP kty")
+	}
+}
+
+// VALIDATES: an EC JWK whose (x, y) is not a point on the named curve is
+// refused when the document is PARSED.
+//
+// PREVENTS: the decode accepting any pair of integers. It used to build
+// &ecdsa.PublicKey{Curve, X, Y} straight from the JWK, which validates nothing,
+// and its own comment deferred the check to ecdsa.Verify. That is fail-open in
+// the shape that matters: an off-curve key becomes a SIGNATURE MISMATCH rather
+// than a rejected key, so an operator reading the logs sees "bad token" and
+// looks at the client instead of at the JWKS the server fetched. Some curves
+// also admit small-subgroup attacks against a point nobody checked.
+// ecdsa.ParseUncompressedPublicKey refuses an off-curve point and the point at
+// infinity, so the failure happens where the evidence still exists.
+func TestParseJWKSDocumentRejectsOffCurveEC(t *testing.T) {
+	t.Parallel()
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("ecdsa: %v", err)
+	}
+	jwk := ecJWK(t, priv, "bad")
+	// Flip one coordinate. x and the real y no longer satisfy the curve
+	// equation, and nothing about the encoding changes.
+	bad := new(big.Int).Add(priv.X, big.NewInt(1)) //nolint:staticcheck // JWK export of public coordinates
+	jwk["x"] = base64.RawURLEncoding.EncodeToString(bad.Bytes())
+
+	body, err := json.Marshal(map[string]any{"keys": []map[string]any{jwk}})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	keys, err := parseJWKSDocument(body)
+	if err == nil && len(keys) > 0 {
+		t.Fatalf("an off-curve EC key was accepted: %#v", keys)
+	}
+	if _, ok := keys["bad"]; ok {
+		t.Error("an off-curve EC key reached the key set; it must be refused at parse")
 	}
 }
