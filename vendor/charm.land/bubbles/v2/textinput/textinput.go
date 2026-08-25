@@ -921,7 +921,12 @@ func (m Model) Cursor() *tea.Cursor {
 	w := lipgloss.Width
 
 	promptWidth := w(m.promptView())
-	xOffset := m.Position() +
+	// ze patch (charmbracelet/bubbles#1001, not upstream yet): the hardware
+	// cursor must use the SCROLL-ADJUSTED position, the same one View() draws
+	// with. m.Position() is absolute, so once the text is longer than the
+	// input width the cursor is placed past the viewport and every column
+	// after it is reported one place out. See scripts/dev/patches/.
+	xOffset := max(0, m.pos-m.offset) +
 		promptWidth
 	if m.width > 0 {
 		xOffset = min(xOffset, m.width+promptWidth)
