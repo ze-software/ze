@@ -484,11 +484,17 @@ func (ps *PeerSession) startTLSClient() error {
 	// against the trust anchor in VerifyPeerCertificate, which the guard above
 	// guarantees is present.
 	tlsCfg := &tls.Config{
-		Certificates:          []tls.Certificate{cert},
-		InsecureSkipVerify:    true, //nolint:gosec // EAP has no server hostname; the chain is always verified in VerifyPeerCertificate
-		MinVersion:            tls.VersionTLS12,
-		RootCAs:               rootCAs,
-		VerifyPeerCertificate: verifyServerChain(rootCAs),
+		Certificates:       []tls.Certificate{cert},
+		InsecureSkipVerify: true, //nolint:gosec // EAP has no server hostname; the chain is always verified in VerifyPeerCertificate
+		MinVersion:         tls.VersionTLS12,
+		RootCAs:            rootCAs,
+		// Go does not call VerifyPeerCertificate for a resumed session, and
+		// that callback is the only certificate check this config has. A
+		// client with no ClientSessionCache resumes nothing already; refusing
+		// tickets here states the requirement instead of leaving it to that
+		// default, so adding a cache later cannot skip the chain check.
+		SessionTicketsDisabled: true,
+		VerifyPeerCertificate:  verifyServerChain(rootCAs),
 	}
 
 	ps.tlsTransport = newEAPTLSTransport()
