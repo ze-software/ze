@@ -5,7 +5,7 @@
 .PHONY: ze-lint-changed ze-unit-test-changed ze-scratch-clean ze-session-clean ze-session-reap ze-unit-hook-test
 .PHONY: ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-yang-leaf-mentions-report ze-platform-vet ze-ci-dispatch-check
 .PHONY: ze-test-sensitivity-check ze-test-health-update ze-test-health-check ze-test-health-record ze-test-weakened-check
-.PHONY: ze-staticcheck-feature-matrix-check ze-repository-tracked-build-check ze-verify-scope-selector ze-verify-debt-clear
+.PHONY: ze-staticcheck-feature-matrix-check ze-repository-tracked-build-check ze-le-tracked-import-check ze-verify-scope-selector ze-verify-debt-clear
 .PHONY: ze-iso-build-full ze-iso-initialize ze-iso-build ze-iso-check ze-pxe-build
 .PHONY: ze-vendor-web-sync ze-vendor-web-check ze-vendor-web-update-report ze-htmx-upgrade-check ze-htmx-upgrade-report ze-ai-skills-sync ze-ai-instructions-generate ze-ai-sync-check
 .PHONY: ze-proto-generate ze-plugin-snapshot-update ze-plugin-imports-check ze-yang-glue-check ze-feature-tags-check ze-web-assets-check ze-templ-orphan-check ze-templ-output-check ze-generated-files-update ze-generated-files-reconcile ze-generated-files-check ze-arch-map-update ze-arch-map-check
@@ -1109,6 +1109,14 @@ ze-verify-scope-selector:
 # The extracted tree is removed at the end; add ARGS=--keep to inspect it.
 ze-repository-tracked-build-check:
 	@$(CURDIR)/le repository ze-repository-tracked-build-selftest ze-repository-tracked-build-check
+
+# The Python counterpart of the check above, and it exists because the two
+# trees diverged and nothing said so: a clean archive of HEAD failed to load
+# 21 of 21 `le` areas while the working tree ran perfectly. Run it after any
+# commit touching scripts/le, the way the Go one is run after a commit
+# carrying Go.
+ze-le-tracked-import-check:
+	@$(CURDIR)/le tracked
 
 # Regenerate the testing-state page (docs/features/test-health.md), its structured
 # sibling test/health/latest.json, and the ratchet baseline. Output is a pure

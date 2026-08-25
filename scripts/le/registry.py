@@ -100,6 +100,11 @@ REGISTRY: tuple[Entry, ...] = (
         help='lint and type-check the Python half of the tree',
     ),
     Entry(
+        name='tracked',
+        module='le.application.tracked',
+        help='does le still work from what git holds, rather than the working tree',
+    ),
+    Entry(
         name='gates',
         module='le.application.gates',
         help='every gate le knows, across every area, as data',

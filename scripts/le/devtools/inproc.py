@@ -41,6 +41,7 @@ from __future__ import annotations
 import importlib.util
 import inspect
 import os
+import re
 import sys
 import traceback
 from collections.abc import Callable, Mapping, Sequence
@@ -81,6 +82,7 @@ def call(script: str, args: Sequence[str] = (), env: Mapping[str, str] | None = 
 
     module = importlib.util.module_from_spec(spec)
     directory = str(path.parent)
+    source = path.read_text(encoding='utf-8', errors='replace')
 
     saved_argv = sys.argv
     saved_environ = dict(os.environ)
@@ -115,7 +117,7 @@ def call(script: str, args: Sequence[str] = (), env: Mapping[str, str] | None = 
             raise CannotImport(f'{script}: declares no main()') from None
 
         try:
-            result = main(*_call_args(main, args))
+            result = main(*_call_args(main, args, whole_argv=_passes_whole_argv(source)))
         except SystemExit as stop:
             return _code(stop)
     finally:
@@ -136,7 +138,9 @@ def call(script: str, args: Sequence[str] = (), env: Mapping[str, str] | None = 
     return 0 if result is None else int(result)
 
 
-def _call_args(main: Callable[..., object], args: Sequence[str]) -> tuple[list[str], ...]:
+def _call_args(
+    main: Callable[..., object], args: Sequence[str], *, whole_argv: bool
+) -> tuple[list[str], ...]:
     """What to pass `main`, which comes in three shapes across these scripts.
 
         def main()           reads sys.argv itself; pass nothing
@@ -147,16 +151,18 @@ def _call_args(main: Callable[..., object], args: Sequence[str]) -> tuple[list[s
     the third is the same error the other way. `sys.argv` is set for all three,
     so the first two behave identically either way and only the third needs it.
 
-    **The third gets a FULL argv, program name included, because that is what
-    the shape means.** A script declaring `main(argv)` is written to be called
-    as `main(sys.argv)` from its own `__main__` guard, and its first act is
-    `argv[1:]` to drop the program name. Handing it a bare option list makes it
-    discard the first OPTION instead.
+    **What the third shape receives is decided by the script, not by us.** Two
+    conventions live in this tree and they are opposites:
 
-    That was live and silent. `rfc_requirements.main` does exactly this, so
-    `le rfc ze-rfc-check` ran with no flags at all. Both spellings exit 2 on
-    this tree, so the exit code could not tell them apart -- the failure was
-    invisible from the outside, which is what makes it worth naming here.
+        sys.exit(main(sys.argv))      then argv[1:] inside
+        sys.exit(main(sys.argv[1:]))  no such trim
+
+    Both failures are silent in the same way: the script gets a list one
+    element off and quietly acts on the wrong arguments. Guessing the whole
+    argv for everything made `le rfc ze-rfc-check` correct and
+    `ze-spec-citation-check` exit 2 while exiting 0 run directly. Guessing the
+    tail does the reverse. `_passes_whole_argv` asks the script's own guard,
+    which is the one place that states the answer.
     """
     try:
         parameters = list(inspect.signature(main).parameters.values())
@@ -168,10 +174,41 @@ def _call_args(main: Callable[..., object], args: Sequence[str]) -> tuple[list[s
         if p.default is inspect.Parameter.empty
         and p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
     ]
-    # sys.argv, not the bare option list. `sys.argv[0]` is already the script,
-    # set by `call` before this runs, so this hands over exactly what the
-    # script's own `__main__` guard would have handed it.
-    return (list(sys.argv),) if required else ()
+    if not required:
+        return ()
+    return (list(sys.argv) if whole_argv else list(sys.argv[1:]),)
+
+
+# What a script's own `__main__` guard hands its `main`. Both spellings are in
+# the tree and they mean opposite things about the first element.
+_WHOLE_ARGV = re.compile(r'main\(\s*sys\.argv\s*\)')
+_TAIL_ARGV = re.compile(r'main\(\s*sys\.argv\[1:\]\s*\)')
+
+
+def _passes_whole_argv(source: str) -> bool:
+    """Whether this script's `__main__` guard passes the program name too.
+
+    Two conventions live in this tree and they are opposites:
+
+        sys.exit(main(sys.argv))     rfc_requirements.py, which then does argv[1:]
+        sys.exit(main(sys.argv[1:])) spec-citation-check.py, which does not
+
+    Guessing one of them globally breaks the other, and both failures are
+    silent in the same way: the script receives a list one element off and
+    quietly acts on the wrong arguments. Picking `sys.argv` for everything is
+    what made `ze-spec-citation-check` exit 2 through `le` while exiting 0 run
+    directly.
+
+    So the script is ASKED rather than assumed. Its guard is the one place that
+    states the answer, and it is the answer `le` has to reproduce.
+
+    The tail form is the default when neither appears, because a `main(argv)`
+    with no guard at all is being called by us alone, and the options are what
+    it wants.
+    """
+    if _TAIL_ARGV.search(source):
+        return False
+    return bool(_WHOLE_ARGV.search(source))
 
 
 def _code(stop: SystemExit) -> int:

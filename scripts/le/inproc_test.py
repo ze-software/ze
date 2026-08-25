@@ -91,24 +91,49 @@ class TestMainSignature(unittest.TestCase):
         body = 'def main(argv=None):\n    return 0 if argv is None else 9\n'
         assert call(_script(body)) == 0
 
-    def test_main_with_a_required_argv_gets_a_full_argv(self) -> None:
-        """Program name included, because that is what the shape means.
+    def test_main_with_a_required_argv_and_no_guard_gets_the_options(self) -> None:
+        """With no `__main__` guard, nothing states a convention.
 
-        A script declaring `main(argv)` is called as `main(sys.argv)` from its
-        own `__main__` guard, and its first act is `argv[1:]` to drop the
-        program name. Handing it a bare option list makes it discard the first
-        OPTION instead.
-
-        This was live and silent: `rfc_requirements.main` does exactly this, so
-        `le rfc ze-rfc-check` ran with no flags. Both spellings exit 2 on this
-        tree, so no exit code could have told them apart.
+        Such a `main` is called by us alone, so the options are what it wants.
+        Handing it a program name it never asked for would make it read that as
+        an argument.
         """
-        body = 'def main(argv):\n    return len(argv[1:])\n'
+        body = 'def main(argv):\n    return len(argv)\n'
         assert call(_script(body), ['a', 'b', 'c']) == 3
 
     def test_the_program_name_is_argv_zero_for_that_shape(self) -> None:
-        body = "def main(argv):\n    return 0 if argv[0].endswith('probe.py') else 9\n"
+        body = (
+            'import sys\n'
+            "def main(argv):\n    return 0 if argv[0].endswith('probe.py') else 9\n"
+            "if __name__ == '__main__':\n    sys.exit(main(sys.argv))\n"
+        )
         assert call(_script(body), ['--flag']) == 0
+
+    def test_a_tail_convention_script_gets_no_program_name(self) -> None:
+        """The opposite convention, and the one that broke when I guessed.
+
+        `spec-citation-check.py` ends `sys.exit(main(sys.argv[1:]))`, so its
+        `main` never trims. Handing it a full argv makes it read the program
+        name as an option: it exited 0 run directly and 2 through `le`.
+        """
+        body = (
+            'import sys\n'
+            'def main(argv):\n    return len(argv)\n'
+            "if __name__ == '__main__':\n    sys.exit(main(sys.argv[1:]))\n"
+        )
+        assert call(_script(body), ['--a', '--b']) == 2
+
+    def test_the_script_decides_not_the_caller(self) -> None:
+        """One body, two guards, two answers. The guard is the whole signal."""
+        core = 'def main(argv):\n    return len(argv)\n'
+        whole = _script(
+            'import sys\n' + core + "if __name__ == '__main__':\n    sys.exit(main(sys.argv))\n"
+        )
+        tail = _script(
+            'import sys\n' + core + "if __name__ == '__main__':\n    sys.exit(main(sys.argv[1:]))\n"
+        )
+        assert call(whole, ['--x']) == 2
+        assert call(tail, ['--x']) == 1
 
 
 class TestModuleRegistration(unittest.TestCase):
