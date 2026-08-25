@@ -1,26 +1,33 @@
-"""Website terminal demonstrations: verify what is published, or render it again.
+"""Website terminal demonstrations: the binaries they record, and the recordings.
 
-Ported from mk/build-terminal-demo.mk. The four RENDER-DRIVER targets moved;
-that file's header lists what stayed and why.
+Ported from mk/build-terminal-demo.mk. Six targets moved; that file's header
+lists what stayed and why.
 
     ./le build-terminal-demo                            every check
     ./le build-terminal-demo --list                     what each one is for
-    ./le build-terminal-demo --write                    re-render every demo
+    ./le build-terminal-demo --write                    the binaries, then a re-render
     ./le build-terminal-demo ze-terminal-demo-check-all one of them
 
-Every gate here is one call into demos/terminal/render.py over the whole
-manifest. The renders themselves happen inside a pinned container built on
-Docker's native Linux architecture, so a render is reproducible and needs no
-emulation on Apple Silicon. That container has no external network and takes
-only the capabilities the Linux network-namespace traceroute lab needs.
+Two kinds of gate live here. The first pair cross-builds the two binaries a
+demo drives, and the rest call demos/terminal/render.py over the whole
+manifest.
 
-The host needs docker and python3. ffmpeg is read by the ONE browser demo,
-whose video render.py rescales and whose poster it resizes; a terminal demo
-records an asciicast and needs none of it. It is the operator's to install:
-the recorder opens its own PTY since 2026-08-24, so the install target that
-used to place it beside VHS and ttyd was deleted with them.
+The binaries are TARGET binaries: the renders happen inside a pinned container
+on Docker's native Linux architecture, so a recording is reproducible and needs
+no emulation on Apple Silicon. GOOS is therefore linux whatever the host is,
+and GOARCH follows the host so the container runs them natively. `ze` carries
+the shipped feature set plus ze_distro; `ze-test` carries ze_test alone and no
+version, because a demo never shows the test runner's version.
 
-Two values the Makefile spelled as overridable variables are read from the
+The container has no external network and takes only the capabilities the Linux
+network-namespace traceroute lab needs. The host needs docker and python3.
+ffmpeg is read by the ONE browser demo, whose video render.py rescales and
+whose poster it resizes; a terminal demo records an asciicast and needs none of
+it. It is the operator's to install: the recorder opens its own PTY since
+2026-08-24, so the install target that used to place it beside VHS and ttyd was
+deleted with them.
+
+Three values the Makefile spelled as overridable variables are read from the
 environment here, with the same defaults. A `make <target> VAR=value` reaches
 this program, because GNU make puts a command-line variable into the recipe
 environment.
@@ -30,29 +37,34 @@ from __future__ import annotations
 
 import argparse
 import os
+import subprocess
 import sys
 from collections.abc import Sequence
-from datetime import datetime
+from pathlib import Path
 
 from le import gateapp
 from le.console import echo
 from le.devtools.gate import Gate, GateSet, run_gate
+from le.devtools.toolchain import toolchain
 from le.paths import REPO_ROOT
 
-__all__ = ['GATES', 'Options', 'action', 'add_arguments', 'main', 'options', 'render_env']
+__all__ = ['GATES', 'Options', 'action', 'add_arguments', 'main', 'options']
 
 # The renderer, and the manifest it reads to know what a demo is.
 RENDER = 'demos/terminal/render.py'
+
+# Where the binaries a demo drives are staged for the container to mount.
+BIN_DIR = f'{REPO_ROOT}/tmp/terminal-demos/bin'
 
 
 def _release() -> str:
     """The release identity recorded in artifact metadata.
 
-    `TERMINAL_DEMO_RELEASE` when the caller set one, otherwise the same
-    YY.MM.DD the Makefile derives for ZE_VERSION. Derived from the clock rather
-    than copied from anywhere, so the two agree by construction.
+    `TERMINAL_DEMO_RELEASE` when the caller set one, otherwise this run's
+    version. Both come from the clock, so the recording and the binary it
+    recorded agree by construction.
     """
-    return os.environ.get('TERMINAL_DEMO_RELEASE') or datetime.now().strftime('%y.%m.%d')
+    return os.environ.get('TERMINAL_DEMO_RELEASE') or toolchain().version
 
 
 def _output() -> str:
@@ -60,15 +72,27 @@ def _output() -> str:
     return os.environ.get('TERMINAL_DEMO_OUTPUT') or f'{REPO_ROOT}/../gh-pages/assets/demos'
 
 
-def render_env() -> dict[str, str]:
-    """The environment render.py runs under.
+def _goarch() -> str:
+    """The architecture the renderer container runs natively.
 
-    One variable, and it is the only thing separating a check of the published
-    assets from a check of somebody's scratch copy.
+    The host's, asked of the toolchain rather than assumed, so the container
+    executes the binaries instead of emulating them.
     """
-    env = dict(os.environ)
-    env['ZE_TERMINAL_DEMO_OUTPUT'] = _output()
-    return env
+    override = os.environ.get('TERMINAL_DEMO_GOARCH')
+    if override:
+        return override
+    found = subprocess.run(['go', 'env', 'GOARCH'], capture_output=True, text=True, check=False)
+    return found.stdout.strip()
+
+
+def _demo_tags() -> str:
+    """`ze_core ze_distro` plus every feature gate, which is what a demo shows.
+
+    ze_distro rather than ze_appliance: a demo shows the distribution build,
+    the one an operator installs on a machine they already have.
+    """
+    tc = toolchain()
+    return ' '.join(('ze_core', 'ze_distro', *tc.features, *tc.extra_tags))
 
 
 GATES = GateSet(
@@ -90,6 +114,28 @@ GATES = GateSet(
             why='the published artifacts carry this release identity, which is what a tag ships',
         ),
         Gate(
+            name='ze-terminal-demo-binaries-build-ze',
+            argv=(
+                'go',
+                'build',
+                '-tags',
+                _demo_tags(),
+                '-ldflags',
+                toolchain().ldflags,
+                '-o',
+                f'{BIN_DIR}/ze',
+                './cmd/ze',
+            ),
+            why='the ze a demo drives, cross-built for the renderer container',
+            writes=True,
+        ),
+        Gate(
+            name='ze-terminal-demo-binaries-build-ze-test',
+            argv=('go', 'build', '-tags', 'ze_test', '-o', f'{BIN_DIR}/ze-test', './cmd/ze'),
+            why='the ze-test a demo drives, which carries ze_test alone and no version',
+            writes=True,
+        ),
+        Gate(
             name='ze-terminal-demo-render-all',
             argv=('python3', RENDER, '--all', '--release', _release()),
             why='re-record every website demo from its checked-in tape',
@@ -97,6 +143,21 @@ GATES = GateSet(
         ),
     ),
 )
+
+
+def _environment(gate: Gate) -> dict[str, str]:
+    """The environment one gate runs under, read off the command it runs.
+
+    A build cross-compiles for the container. A render reads
+    ZE_TERMINAL_DEMO_OUTPUT to decide which asset tree it is working on;
+    without it a check would read the renderer's own default and report on
+    assets nobody publishes.
+    """
+    if gate.argv[0] == 'go':
+        return toolchain().environment(goos='linux', goarch=_goarch())
+    env = dict(os.environ)
+    env['ZE_TERMINAL_DEMO_OUTPUT'] = _output()
+    return env
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
@@ -108,38 +169,29 @@ def options(namespace: argparse.Namespace) -> gateapp.Options:
 
 
 def action(opts: gateapp.Options) -> int:
-    """Run what the options select, with the renderer's output directory set.
+    """Run what the options select, each gate under its own environment.
 
     The shared helper cannot run these: `gateapp.action` calls `run_all` with
-    no environment, and render.py reads ZE_TERMINAL_DEMO_OUTPUT to decide which
-    tree it is checking. Without it a check would read the renderer's own
-    default and report on assets nobody publishes.
+    no environment, and a cross build and a render want different ones. It also
+    never creates the staging directory, and `go build -o` does not either.
     """
     if opts.listing:
         echo(f'{GATES.area}:')
         GATES.render_list()
         return 0
 
-    chosen: tuple[Gate, ...]
-    if opts.names:
-        selected: list[Gate] = []
-        for name in opts.names:
-            gate = GATES.find(name)
-            if gate is None:
-                echo(f'no such gate in {GATES.area}: {name}')
-                echo(f'try one of: {", ".join(GATES.names())}')
-                return 2
-            selected.append(gate)
-        chosen = tuple(selected)
-    else:
-        chosen = GATES.writers() if opts.write else GATES.checks()
+    chosen = _chosen(opts)
+    if isinstance(chosen, int):
+        return chosen
 
     if opts.as_json:
         echo(f'{GATES.area} has no machine-readable report')
         return 2
 
-    env = render_env()
-    failed = [gate.name for gate in chosen if run_gate(gate, env=env) != 0]
+    if any(gate.argv[0] == 'go' for gate in chosen):
+        Path(BIN_DIR).mkdir(parents=True, exist_ok=True)
+
+    failed = [gate.name for gate in chosen if run_gate(gate, env=_environment(gate)) != 0]
     echo()
     if failed:
         echo(f'Failed: {", ".join(failed)}')
@@ -148,17 +200,23 @@ def action(opts: gateapp.Options) -> int:
     return 0
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    """Standalone entry: parse, then call THIS module's action.
+def _chosen(opts: gateapp.Options) -> tuple[Gate, ...] | int:
+    """The gates the options select, or the exit code to return instead."""
+    if not opts.names:
+        return GATES.writers() if opts.write else GATES.checks()
+    selected: list[Gate] = []
+    for name in opts.names:
+        gate = GATES.find(name)
+        if gate is None:
+            echo(f'no such gate in {GATES.area}: {name}')
+            echo(f'try one of: {", ".join(GATES.names())}')
+            return 2
+        selected.append(gate)
+    return tuple(selected)
 
-    Not `gateapp.main`, which would call the shared action and drop the
-    environment above. The two routes into a subprogram are required to agree
-    (le/registry.py), so the standalone route has to reach the same code the
-    dispatcher reaches.
-    """
-    parser = argparse.ArgumentParser(prog=f'le {GATES.area}', description=__doc__)
-    add_arguments(parser)
-    return action(options(parser.parse_args(argv)))
+
+def main(argv: Sequence[str] | None = None) -> int:
+    return gateapp.main(argv, GATES, __doc__, run=action)
 
 
 Options = gateapp.Options

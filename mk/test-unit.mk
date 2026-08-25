@@ -1,4 +1,24 @@
-# Unit tests: Go test targets with race instrumentation
+# Unit tests: Go test targets with race instrumentation.
+#
+# THE FIVE COMPONENT-GROUP TARGETS MOVED to `le`. They now live in
+# scripts/le/application/unit.py, which carries the reasons this file had
+# nowhere to put but a comment. Each one below is a shim: it hands the work to
+# the admission wrapper exactly as before, and the wrapper runs `le`.
+#
+#   ./le test-unit                     every group
+#   ./le test-unit --list              what each group covers
+#   ./le test-unit ze-unit-core-test   one of them
+#
+# WHAT STAYED, AND WHY. A Gate is one argv run without a shell, and the rest of
+# this file is not that:
+#
+#   ze-unit-test, -test-coverage, -test-cached, -rest-test
+#                            $(ZE_PACKAGES) and $(ZE_GROUP_REST) are
+#                            `go list | grep -v` subshell pipelines
+#   ze-unit-installer-test   a make `ifeq ($(shell go env GOOS),linux)` picking
+#                            `go test` on Linux and `go vet` everywhere else
+#   ze-unit-test-race-changed  a shell if/else over changed-groups.sh output
+#   ze-unit-pkg-test         PKG, RUN and RACE select the command and its flags
 #
 # Quick reference:
 #   make ze-unit-test          All packages with -race on Linux and Darwin (~5 min)
@@ -15,13 +35,11 @@
 
 ze-unit-test ze-unit-test-coverage ze-unit-test-cached ze-unit-test-race-changed ze-unit-rest-test ze-unit-pkg-test: ze-scratch-links-ensure
 
-# Component groups for scoped testing (ze-test-<group>).
-# "rest" = everything in ZE_PACKAGES not covered by a named group.
-ZE_GROUP_BGP     = ./internal/component/bgp/...
-ZE_GROUP_CORE    = ./internal/core/...
-ZE_GROUP_PLUGINS = ./internal/plugins/...
-ZE_GROUP_CONFIG  = ./internal/component/config/...
-ZE_GROUP_CLI     = ./internal/component/cli/...
+# "rest" = everything in ZE_PACKAGES not covered by a named group. The five
+# named groups themselves are gates now (scripts/le/application/unit.py), and
+# the prefixes excluded below are what makes this one their complement. The two
+# lists MUST stay in step: a group added there and not excluded here is tested
+# twice, and one removed there and still excluded here is tested nowhere.
 ZE_GROUP_REST    = $$(go list ./... | grep -v /cmd/ze-chaos \
 	| grep -v '^github.com/ze-software/ze/internal/component/bgp' \
 	| grep -v '^github.com/ze-software/ze/internal/core' \
@@ -113,43 +131,24 @@ _ze-unit-test-race-changed-impl:
 	fi
 
 # ─── Component-group unit tests ─────────────────────────────────────────────
-# Each group covers one logical area. Use during development to test only
-# what you're working on. All groups together = ze-unit-test.
+# Shims. The gates are scripts/le/application/unit.py; the admission wrapper
+# stays here because job admission is a make-level concern and the label it
+# takes is the target name.
 
 ze-unit-bgp-test:
-	@scripts/dev/ze-run.sh ze-unit-bgp-test $(MAKE) --no-print-directory _ze-unit-bgp-test-impl
-
-_ze-unit-bgp-test-impl:
-	@echo "Unit tests: bgp group ($(GO_TEST_RACE_LABEL))..."
-	$(GO_TEST_RACE) $(ZE_GROUP_BGP)
+	@scripts/dev/ze-run.sh ze-unit-bgp-test $(CURDIR)/le test-unit ze-unit-bgp-test
 
 ze-unit-core-test:
-	@scripts/dev/ze-run.sh ze-unit-core-test $(MAKE) --no-print-directory _ze-unit-core-test-impl
-
-_ze-unit-core-test-impl:
-	@echo "Unit tests: core group ($(GO_TEST_RACE_LABEL))..."
-	$(GO_TEST_RACE) $(ZE_GROUP_CORE)
+	@scripts/dev/ze-run.sh ze-unit-core-test $(CURDIR)/le test-unit ze-unit-core-test
 
 ze-unit-plugins-test:
-	@scripts/dev/ze-run.sh ze-unit-plugins-test $(MAKE) --no-print-directory _ze-unit-plugins-test-impl
-
-_ze-unit-plugins-test-impl:
-	@echo "Unit tests: plugins group ($(GO_TEST_RACE_LABEL))..."
-	$(GO_TEST_RACE) $(ZE_GROUP_PLUGINS)
+	@scripts/dev/ze-run.sh ze-unit-plugins-test $(CURDIR)/le test-unit ze-unit-plugins-test
 
 ze-unit-config-test:
-	@scripts/dev/ze-run.sh ze-unit-config-test $(MAKE) --no-print-directory _ze-unit-config-test-impl
-
-_ze-unit-config-test-impl:
-	@echo "Unit tests: config group ($(GO_TEST_RACE_LABEL))..."
-	$(GO_TEST_RACE) $(ZE_GROUP_CONFIG)
+	@scripts/dev/ze-run.sh ze-unit-config-test $(CURDIR)/le test-unit ze-unit-config-test
 
 ze-unit-cli-test:
-	@scripts/dev/ze-run.sh ze-unit-cli-test $(MAKE) --no-print-directory _ze-unit-cli-test-impl
-
-_ze-unit-cli-test-impl:
-	@echo "Unit tests: cli group ($(GO_TEST_RACE_LABEL))..."
-	$(GO_TEST_RACE) $(ZE_GROUP_CLI)
+	@scripts/dev/ze-run.sh ze-unit-cli-test $(CURDIR)/le test-unit ze-unit-cli-test
 
 ze-unit-rest-test:
 	@scripts/dev/ze-run.sh ze-unit-rest-test $(MAKE) --no-print-directory _ze-unit-rest-test-impl
@@ -200,4 +199,4 @@ _ze-unit-pkg-test-impl:
 # The `_<target>-impl` half of every admitted pair defined in this file.
 # The public half calls the admission wrapper and this half holds the work;
 # see the job-admission block above ZE_RUN_SLOTS in the Makefile.
-.PHONY: _ze-unit-test-impl _ze-unit-installer-test-impl _ze-unit-test-coverage-impl _ze-unit-test-cached-impl _ze-unit-test-race-changed-impl _ze-unit-bgp-test-impl _ze-unit-core-test-impl _ze-unit-plugins-test-impl _ze-unit-config-test-impl _ze-unit-cli-test-impl _ze-unit-rest-test-impl _ze-unit-pkg-test-impl
+.PHONY: _ze-unit-test-impl _ze-unit-installer-test-impl _ze-unit-test-coverage-impl _ze-unit-test-cached-impl _ze-unit-test-race-changed-impl _ze-unit-rest-test-impl _ze-unit-pkg-test-impl

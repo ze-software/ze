@@ -31,7 +31,9 @@ Four of them are load-bearing in ways their names do not say:
 from __future__ import annotations
 
 import os
+import subprocess
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
 
@@ -85,6 +87,60 @@ def _test_procs() -> int:
     return max(1, (os.cpu_count() or 4) // 4)
 
 
+def _version() -> str:
+    """The release identity, YY.MM.DD from today's local date.
+
+    Read from the clock, which is the same source the Makefile reads for
+    ZE_VERSION. Computed once per process, as `:=` computes it once per make
+    run, so every binary one invocation builds carries one version.
+    """
+    return datetime.now().strftime('%y.%m.%d')
+
+
+def _build_date() -> str:
+    """When this invocation started, in UTC, to the second."""
+    return datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+def _total_memory_gib() -> int:
+    """This machine's RAM in whole GiB, or 0 when neither source answers.
+
+    /proc/meminfo on Linux, `sysctl hw.memsize` on Darwin. Truncating division
+    both times, which is what the Makefile's `printf "%d"` and `$(( ))` do.
+    """
+    try:
+        for line in (Path('/proc') / 'meminfo').read_text().splitlines():
+            if line.startswith('MemTotal'):
+                return int(line.split()[1]) // 1048576
+    except (OSError, ValueError, IndexError):
+        pass
+    try:
+        found = subprocess.run(
+            ['sysctl', '-n', 'hw.memsize'], capture_output=True, text=True, check=False
+        )
+        return int(found.stdout.strip() or 0) // 1073741824
+    except (OSError, ValueError):
+        return 0
+
+
+def _lint_memlimit() -> str:
+    """The soft heap ceiling golangci-lint runs under: an eighth of RAM, floor 4GiB.
+
+    DERIVED from the machine, because Ze is developed on boxes of different
+    sizes and a hardcoded number is an eighth of one and a half of another.
+    ZE_RUN_SLOTS-many jobs run at once, so the worst case is a slots-many
+    multiple of this.
+
+    `ZE_LINT_MEMLIMIT` in the environment wins, which is how `make ze-lint
+    ZE_LINT_MEMLIMIT=16GiB` reaches here: GNU make puts a command-line variable
+    into the recipe environment.
+    """
+    override = os.environ.get('ZE_LINT_MEMLIMIT')
+    if override:
+        return override
+    return f'{max(4, _total_memory_gib() // 8)}GiB'
+
+
 @dataclass(frozen=True)
 class Toolchain:
     """The environment and the command prefixes derived from this checkout."""
@@ -94,7 +150,21 @@ class Toolchain:
     go_toolchain: str
     procs: int
     timeout: str
+    version: str
+    build_date: str
+    lint_memlimit: str
     extra_tags: tuple[str, ...] = field(default=())
+
+    @property
+    def ldflags(self) -> str:
+        """The linker flags every released binary carries.
+
+        One string, because that is how `go build -ldflags` takes it and how
+        the Makefile's ZE_LDFLAGS spells it. A binary built without these
+        reports an empty version, which is indistinguishable from a binary
+        somebody built by hand.
+        """
+        return f'-X main.version={self.version} -X main.buildDate={self.build_date}'
 
     @property
     def test_tags(self) -> str:
@@ -110,12 +180,22 @@ class Toolchain:
         """
         return ' '.join(('ze_core', *self.extra_tags))
 
-    def environment(self, *, cgo: bool = False, procs: bool = False) -> dict[str, str]:
+    def environment(
+        self,
+        *,
+        cgo: bool = False,
+        procs: bool = False,
+        memlimit: bool = False,
+        goos: str = '',
+        goarch: str = '',
+    ) -> dict[str, str]:
         """The environment a Go command runs under.
 
         `cgo` is for the race detector, which cannot run without it. `procs`
         adds the GOMAXPROCS cap, which belongs on a test run rather than on a
-        build.
+        build. `memlimit` adds the linter's soft heap ceiling, which belongs on
+        a golangci-lint run and nowhere else. `goos` and `goarch` are for a
+        cross build; a host build passes neither and inherits the machine's.
         """
         env = dict(os.environ)
         env['GOCACHE'] = str(self.root / 'cache' / 'go-cache')
@@ -125,6 +205,12 @@ class Toolchain:
             env['GOTOOLCHAIN'] = self.go_toolchain
         if procs:
             env['GOMAXPROCS'] = str(self.procs)
+        if memlimit:
+            env['GOMEMLIMIT'] = self.lint_memlimit
+        if goos:
+            env['GOOS'] = goos
+        if goarch:
+            env['GOARCH'] = goarch
         return env
 
     def go_run(self, script: str, *args: str) -> list[str]:
@@ -161,5 +247,8 @@ def toolchain(root: Path = REPO_ROOT) -> Toolchain:
         go_toolchain=_go_toolchain(root),
         procs=_test_procs(),
         timeout=os.environ.get('GO_TEST_TIMEOUT', DEFAULT_TEST_TIMEOUT),
+        version=_version(),
+        build_date=_build_date(),
+        lint_memlimit=_lint_memlimit(),
         extra_tags=extra,
     )

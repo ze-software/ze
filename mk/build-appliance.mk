@@ -1,4 +1,18 @@
-# Appliance installer: ISO and PXE boot
+# Appliance installer: ISO and PXE boot.
+#
+# ONE target moved to `le`: ze-installer-build, below. Everything else STAYS
+# here, and it stays for reasons a Gate cannot express -- a Gate is one argv
+# run without a shell:
+#
+#   ze-iso-build-full, ze-iso-build, ze-pxe-build
+#                        `ls -1t ... | head -1` captured into an `if`, an
+#                        `rm -rf`, a `git clone`, a sub-`make -C`, and a
+#                        printf-built iPXE script
+#   ze-iso-initialize, ze-iso-check
+#                        they run $(ZEBIN_SETUP), a session-scoped path
+#                        resolved by the glob-then-create rule that
+#                        mk/helper-session.mk keeps to three implementations
+#                        (make, Go, shell). `le` must not become a fourth
 #
 # Full build from a JSON config file:
 #   make ze-iso-build-full CONFIG=prod.json SSH_PASSWORD='...'
@@ -98,10 +112,15 @@ ze-iso-build: $(ZEBIN_SETUP)
 		echo "ISO ready: $$iso"; \
 	fi
 
+# The one target in this file that is two plain cross builds. It MOVED to `le`
+# (scripts/le/application/build_appliance.py), where the two architectures are
+# separate gates and can be built one at a time:
+#
+#   ./le build-appliance --list
+#   ./le build-appliance --write
+#   ./le build-appliance ze-installer-build-arm64
 ze-installer-build:
-	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -tags ze_installer -ldflags "$(ZE_LDFLAGS)" -o bin/ze-installer-amd64 ./cmd/ze-installer
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(GO) build -tags ze_installer -ldflags "$(ZE_LDFLAGS)" -o bin/ze-installer-arm64 ./cmd/ze-installer
+	@$(CURDIR)/le build-appliance ze-installer-build-amd64 ze-installer-build-arm64
 
 ze-pxe-build: $(ZEBIN_SETUP)
 	@test -d "$(APPLIANCE_DIR)" || { echo "error: appliance $(NAME) not found; run ze-iso-build-full or ze-iso-build first"; exit 1; }

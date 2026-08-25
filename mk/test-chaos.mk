@@ -1,4 +1,28 @@
-# Chaos tests: fault-injection simulation via ze-chaos
+# Chaos tests: fault-injection simulation via ze-chaos.
+#
+# THE LINT AND UNIT GATES MOVED to `le`. They now live in
+# scripts/le/application/chaos.py, which carries the reasons this file had
+# nowhere to put but a comment. Each one below is a shim: it hands the work to
+# the admission wrapper exactly as before, and the wrapper runs `le`.
+#
+#   ./le test-chaos                  every check
+#   ./le test-chaos --list           what each one is for
+#   ./le test-chaos ze-chaos-lint    one of them
+#
+# ze-chaos-unit-test forwards to TWO gates, because its recipe was two runs:
+# the simulator's own packages, then the orchestrator CLI that only a ze_chaos
+# build compiles. The second is named ze-chaos-cli-unit-test and it can now be
+# run on its own, which it could not be as half a recipe.
+#
+# WHAT STAYED, AND WHY:
+#
+#   ze-chaos-functional-test, -integration-test, -web-test
+#                        they run $(ZEBIN_CHAOS) / $(ZEBIN_TEST), session-scoped
+#                        paths resolved by the glob-then-create rule that
+#                        mk/helper-session.mk keeps to three implementations
+#                        (make, Go, shell). `le` must not become a fourth
+#   ze-chaos-test        prerequisite aggregation; the edges ARE the target
+#   ze-chaos-verify      the same, under scripts/dev/verify-lock.sh
 #
 # Quick reference:
 #   make ze-chaos-test              All chaos tests (unit + functional + integration + web)
@@ -10,8 +34,6 @@
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-integration-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: _ze-chaos-verify-impl
 
-CHAOS_PACKAGES = ./internal/chaos/...
-
 # Chaos simulation parameters. Seed is random by default (printed for reproduction).
 # Override: make ze-chaos-functional-test CHAOS_SEED=12345 CHAOS_DURATION=60s CHAOS_PEERS=8
 CHAOS_SEED     ?= 0
@@ -20,33 +42,10 @@ CHAOS_PEERS    ?= 4
 CHAOS_ROUTES   ?= 10
 
 ze-chaos-lint:
-	@scripts/dev/ze-run.sh ze-chaos-lint $(MAKE) --no-print-directory _ze-chaos-lint-impl
-
-_ze-chaos-lint-impl:
-	@echo "Running chaos linter..."
-	@$(ZE_LINT_RUN) $(CHAOS_PACKAGES)
+	@scripts/dev/ze-run.sh ze-chaos-lint $(CURDIR)/le test-chaos ze-chaos-lint
 
 ze-chaos-unit-test:
-	@scripts/dev/ze-run.sh ze-chaos-unit-test $(MAKE) --no-print-directory _ze-chaos-unit-test-impl
-
-# The orchestrator's CLI surface sits in cmd/ze behind //go:build ze_chaos, and
-# GO_TEST_TAGS carries no ze_chaos, so CHAOS_PACKAGES above reaches none of it:
-# `go test` compiles cmd/ze with ze_chaos_main_test.go excluded and says nothing.
-# Eleven tests sat in that state, and the file had stopped COMPILING -- chaosRun
-# called orchestrator.CLIRun, which is unexported now
-# (plan/journal/gate-excludes-part-of-its-population.md). It goes through
-# registry.LookupRoot("chaos") instead, which is a runtime dependency on the
-# registration ze_chaos_run.go performs, and this line is what judges it.
-#
-# ze_bgp because the orchestrator drives an in-process BGP reactor; ze-chaos-build
-# in the Makefile forces the same tag for the same reason.
-CHAOS_CLI_TAGS = ze_core ze_bgp ze_chaos
-
-_ze-chaos-unit-test-impl:
-	@echo "Running chaos unit tests ($(GO_TEST_RACE_LABEL))..."
-	$(GO_TEST_RACE) $(CHAOS_PACKAGES)
-	@echo "Chaos unit tests: orchestrator CLI (ze_chaos tag)..."
-	GOMAXPROCS=$(GO_TEST_PROCS) go test -timeout $(GO_TEST_TIMEOUT) -tags '$(CHAOS_CLI_TAGS)' ./cmd/ze
+	@scripts/dev/ze-run.sh ze-chaos-unit-test $(CURDIR)/le test-chaos ze-chaos-unit-test ze-chaos-cli-unit-test
 
 ze-chaos-functional-test: $(ZEBIN_CHAOS)
 	@$(ZEBIN_CHAOS) --in-process --duration $(CHAOS_DURATION) \
@@ -79,4 +78,4 @@ _ze-chaos-verify-impl: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test
 # The `_<target>-impl` half of every admitted pair defined in this file.
 # The public half calls the admission wrapper and this half holds the work;
 # see the job-admission block above ZE_RUN_SLOTS in the Makefile.
-.PHONY: _ze-chaos-lint-impl _ze-chaos-unit-test-impl _ze-chaos-integration-test-impl _ze-chaos-web-test-impl
+.PHONY: _ze-chaos-integration-test-impl _ze-chaos-web-test-impl

@@ -134,6 +134,21 @@ REGISTRY: tuple[Entry, ...] = (
         module='le.application.build_terminal_demo',
         help='website terminal demonstrations: check the published assets, or render them again',
     ),
+    Entry(
+        name='test-unit',
+        module='le.application.unit',
+        help='component-group unit suites, race-instrumented',
+    ),
+    Entry(
+        name='test-chaos',
+        module='le.application.chaos',
+        help='chaos testing: the simulator, its CLI surface, its linter',
+    ),
+    Entry(
+        name='build-appliance',
+        module='le.application.build_appliance',
+        help="the installer initrd's PID 1, cross-built for both appliance architectures",
+    ),
 )
 
 
