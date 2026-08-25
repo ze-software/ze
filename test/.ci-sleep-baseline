@@ -119,3 +119,87 @@
 # 3x 0/3, so the barriers are not vacuous on this file either.
 -3
 -1
+
+# test/plugin/{bfd-auth-mismatch,bfd-config-load,bfd-echo-multi-hop-reject,
+# bfd-ipv6-dual-bind,bfd-transport-stage2,bgp-bfd-opt-in,
+# fib-vpp-coexist-with-fib-kernel,fib-vpp-plugin-load}.ci: 8 -> 0. All eight
+# carried a byte-identical hand-rolled poll over ze's stderr -- readline, echo,
+# accumulate, match, sleep 0.05 on EOF -- and it is now one call to
+# ze_api.wait_for_stderr_lines, which blocks in select on the pipe and keeps no
+# poll interval at all. No expect, reject, config or assertion line changed:
+# each driver still computes its own `missing` list from the returned text.
+#
+# The delta is -2 rather than -8 because 6 of the 8 PAY FOR a rise nobody had
+# paid for. At the commit this landed on, test/**/*.ci held 81 time.sleep( calls
+# against a ceiling of 75, so the ratchet was already failing for whoever ran it
+# next. 73 is the count this change leaves, and the ceiling now says so.
+#
+# Non-vacuity, measured on two throwaway draft copies of fib-vpp-plugin-load.ci:
+# making one REQUIRED needle unmatchable fails the test in 10.1s with "FAIL:
+# missing required patterns", and passing echo=False fails it on "expect=stderr
+# pattern not found" while the driver still exits 0 -- the echo is what the
+# runner's expect=stderr rules read.
+-2
+
+# test/flow-export/{sampling-config,conntrack-config,collector-reload}.ci,
+# test/reload/{background-ze-readiness,signal-quit}.ci,
+# test/traffic/traffic-reload-apply.ci, test/encode/watchdog-encode.ci,
+# test/plugin/bgp-redistribute-{withdraw,metrics}.ci: 16 -> 2.
+#
+# Nine files, three barriers, and one false comment that had kept the first six
+# sleeps alive. Four of them said a backgrounded ze receives no ZE_READY_FILE
+# marker. It does: zeReadyFileEnabled (internal/test/runner/runner_exec_util.go)
+# returns true for modeBackground as well as modeForeground, and runner_exec.go
+# waits for daemon.ready before it publishes daemon.pid on that path.
+#   daemon readiness: the two flow-export blind holds and three hand-rolled
+#     pid/ready polls became ze_api.wait_for_daemon_ready. daemon.ready appears
+#     only after apiServer.WaitForStartupComplete returns (cmd/ze/hub/main.go),
+#     so every plugin's Stage-2 configure has run -- which for flow-export is
+#     startFlowSubsystems -> samplingWorker.Start / conntrackWorker.Start, each
+#     logging the asserted line synchronously before returning. The two 0.3s
+#     "let the initial apply finish" settles were deleted outright for the same
+#     reason: nothing was left to settle.
+#   End-of-RIB: signal-quit's 1.0s and watchdog-encode's 1.0s became
+#     wait_peer_eor_sent, the per-peer eor-sent counter IncrEORSent bumps only
+#     after the EOR write reached the socket.
+#   updates-sent: the redistribute pacing sleeps became wait_peer_counter
+#     baselined before each emit, and watchdog-encode's two 0.2s pacing sleeps
+#     became wait_for_ack (`request quiesce`). Its loop, formerly unbounded on
+#     os.getppid(), is now three cycles -- the exact six frames the peer binds,
+#     since `withdraw true` sets initiallyAnnounced false (watchdog/config.go)
+#     so peer-up sends nothing and each cycle emits one add and one del.
+#
+# The two sleeps left are the post-SIGHUP holds in the two reload drivers. Both
+# carry sleep(no-signal): handleSIGHUPReload writes no file and answers no
+# query, and neither driver holds an API connection.
+#
+# Two mutations prove the new waits are not vacuous. Restricting
+# zeReadyFileEnabled to modeForeground times sampling-config out at 10s, while
+# the same mutation left the pre-conversion file GREEN at 2.6s -- it never
+# depended on the marker it claimed did not exist. Dropping every entry in the
+# redistribute egress fan-out (redistribute_egress/redistribute.go) fails both
+# plugin tests with "its UPDATE was never counted as sent".
+-14
+
+# test/install/{image-resolve-failure,dhcp-zero-listener,tftp-zero-listener}.ci
+# and test/traffic/traffic-vpp-reject-dscp-filter.ci: 4 -> 0. Each held a blind
+# `wait.py` hold, and each became one declarative `await=stderr:contains=` fence
+# on a needle the test already asserted, so the whole tmpfs block went with the
+# sleep. `expect=exit:code=0` went with it too, unreachable behind the fence arm
+# in runner_exec.go, which is the shape test/plugin/as112-external-refuses.ci
+# already carries. No expect= or reject= assertion was touched.
+#
+# One needle was NOT what an audit predicted, and the header that predicted it
+# is corrected in the same change: the dscp rejection does not come from the vpp
+# Verifier at all. It comes from dscp.Parse (internal/core/dscp/dscp.go) by way
+# of parseFilterValue (internal/component/traffic/config.go), which is why the
+# message reads `filter dscp: dscp value 64 out of range (0-63)`.
+#
+# Non-vacuity: pointing two of the four fences at a needle no producer emits
+# fails each at its own timeout with `await=stderr: daemon stderr never
+# contained ...`, rather than passing on a wait that never had to end.
+#
+# The ceiling this closes on is 55, which is the count. It began this series at
+# 81 against a ceiling of 75 -- already failing, and failing for every session
+# that carried a .ci path, since ze-doc-wiring-check is a structural gate.
+-4

@@ -13,13 +13,6 @@
 # so this test needs no platform gating. INFO logging is enabled so a regressed
 # "started" line would appear (and trip the reject).
 
-tmpfs=wait.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-import time
-# blind hold: the backgrounded ze exposes no readiness marker to poll; hold while it fails to resolve the listen interface and logs "resolve interface failed", left un-converted (no readiness signal for a background daemon)
-time.sleep(2.0)
-EOF_PY
-
 stdin=ze-image:terminator=EOF_CONF
 service {
     image-server {
@@ -35,7 +28,13 @@ EOF_CONF
 option=env:var=ze.log.imageserver:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-image
-cmd=foreground:seq=2:exec=python3 wait.py:timeout=10s
-expect=exit:code=0
+# The await fence holds the daemon until its relayed stderr carries the needle,
+# replacing the blind hold that guessed how long that took. The needle carries no
+# ':' because parseAwait kv-splits the value, so it starts after any log prefix;
+# the expect below still asserts the full phrase. The exit-code expectation is
+# gone because awaitDaemonStderr owns the wait arm in runner_exec.go, so it could
+# never fire. Every stderr assertion is unchanged.
+# Producer: imageserver/register.go, "imageserver: resolve interface failed".
+await=stderr:contains=resolve interface failed
 expect=stderr:contains=imageserver: resolve interface failed
 reject=stderr:pattern=imageserver: started

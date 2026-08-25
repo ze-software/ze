@@ -12,18 +12,12 @@
 # accepted; the acceptance is pinned by traffic-vpp-accept-dscp-filter.ci and the
 # fakeOps unit tests, and this file now pins the value bound instead.
 #
-# Scope note: the Verifier runs at daemon config-verify time; this boots ze with
-# the bad config and asserts the rejection log line in stderr.
-
-tmpfs=wait.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Sleep long enough for ze to read config, attempt verify, and log the
-rejection, then exit."""
-import time
-
-# blind hold: a backgrounded ze gets no ZE_READY_FILE marker to poll; hold until OnConfigure emits the asserted log line, left un-converted (no readiness signal for a background daemon)
-time.sleep(2.5)
-EOF_PY
+# Scope note: the daemon boot path this test drives does NOT reach the vpp
+# Verifier. OnConfigure (internal/component/traffic/register.go) parses and
+# applies; only OnConfigVerify calls RunVerifier, and that fires on a reload.
+# The 64 bound is rejected earlier, by the shared config parser, which is what
+# the assertion below observes. The vpp Verifier keeps its own bound check
+# (verifyFilter), covered by the fakeOps unit tests.
 
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
@@ -88,6 +82,15 @@ EOF_CONF
 option=env:var=ze.log.traffic:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 wait.py:timeout=10s
-expect=exit:code=0
+# The await fence holds the daemon until its relayed stderr carries the needle,
+# replacing the blind hold that guessed how long that took. The needle carries no
+# ':' because parseAwait kv-splits the value, so it starts after any log prefix;
+# the expect below still asserts the full phrase. The exit-code expectation is
+# gone because awaitDaemonStderr owns the wait arm in runner_exec.go, so it could
+# never fire. Every stderr assertion is unchanged.
+# Producer, measured: internal/core/dscp/dscp.go Parse, "dscp value %d out of
+# range (0-%d)", wrapped by parseFilterValue (internal/component/traffic/
+# config.go) and surfaced by the traffic plugin OnConfigure as
+# "traffic-control config: ... filter dscp: dscp value 64 out of range (0-63)".
+await=stderr:contains=out of range
 expect=stderr:contains=out of range

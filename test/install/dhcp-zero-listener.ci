@@ -17,13 +17,6 @@
 # TestStartListenersGuardsZeroBind covers the guard on every platform.
 option=needs-linux
 
-tmpfs=wait.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-import time
-# blind hold: the backgrounded ze exposes no readiness marker to poll; hold while it attempts the failing bind and logs "no interfaces bound", left un-converted (no readiness signal for a background daemon)
-time.sleep(2.0)
-EOF_PY
-
 stdin=ze-dhcp:terminator=EOF_CONF
 service {
     dhcp-server {
@@ -45,7 +38,14 @@ EOF_CONF
 option=env:var=ze.log.dhcpserver:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-dhcp
-cmd=foreground:seq=2:exec=python3 wait.py:timeout=10s
-expect=exit:code=0
+# The await fence holds the daemon until its relayed stderr carries the needle,
+# replacing the blind hold that guessed how long that took. The needle carries no
+# ':' because parseAwait kv-splits the value, so it starts after any log prefix;
+# the expect below still asserts the full phrase. The exit-code expectation is
+# gone because awaitDaemonStderr owns the wait arm in runner_exec.go, so it could
+# never fire. Every stderr assertion is unchanged.
+# Producer: dhcpserver/register.go startListeners, "dhcpserver: no interfaces
+# bound; server not serving".
+await=stderr:contains=no interfaces bound
 expect=stderr:contains=no interfaces bound
 reject=stderr:pattern=dhcpserver: started
