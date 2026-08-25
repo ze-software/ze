@@ -3,9 +3,9 @@
     "bfd-failover": {
       "assets": {
         "cast": {
-          "bytes": 13443,
+          "bytes": 13623,
           "path": "bfd-failover.cast",
-          "sha256": "eb9d95abd78cb5acffd736e4a81ac27d9da3d208e476ee48f4803e817192618c"
+          "sha256": "fc05c4fe4a3e81bb3c638ac18b151f0681b250772c66a3eddf43b63a96b8d1f5"
         },
         "transcript": {
           "bytes": 1004,
@@ -14,16 +14,16 @@
         }
       },
       "binary_sha256": "8d9c94de1fb93c28e85b09a11d35cf5d6d92508d6596f41ded0e6b25e618846d",
-      "definition_sha256": "db62c5de78e0c0d4c8c36e4671a16ec849e5a01615ea34c88b6e5ec9fa32aefc",
+      "definition_sha256": "e8ee80fffb5c6f4ffadbb1a7f2d68adb39c7401bf4bff3cfa3cd32b83b1d59cf",
       "release": "26.08.25",
-      "source_sha256": "59ec16ed09005d0027b401fca307ca2c115cb73646a2ffe1d5b7eda134b62ada"
+      "source_sha256": "e5378f8ef916b50d9c013253d18da30937dd6d35f9999717dac3c210dc90a521"
     },
     "cli-dashboard": {
       "assets": {
         "cast": {
-          "bytes": 12545,
+          "bytes": 14756,
           "path": "cli-dashboard.cast",
-          "sha256": "483ed2e75224f8bdc0541a3ce5204e44f5fee063e98b1b51b93d23371bbd672a"
+          "sha256": "9b77d105c38e2ff36bec3fcbbe9f76c59984b5e1485dc7333831ab320da28c98"
         },
         "transcript": {
           "bytes": 258,
@@ -32,9 +32,9 @@
         }
       },
       "binary_sha256": "8d9c94de1fb93c28e85b09a11d35cf5d6d92508d6596f41ded0e6b25e618846d",
-      "definition_sha256": "26c397d1df66b9967b91fbb94d9361bd4e62a5d1a979ab2cc621f132b265d3fb",
+      "definition_sha256": "25865db788f51e454468b88329fc4693a75a78f5fcfb10354dd6c7d9e491abd6",
       "release": "26.08.25",
-      "source_sha256": "fb72a0c4a0de59861cd8ebdd5b8c6fe18c667b55485b907b14ec3e01d5e8b182"
+      "source_sha256": "1833909e3a65471e1671227553e5eecb893352acd4c1989253b2a7171d305a27"
     },
     "commit-confirmed": {
       "assets": {
@@ -319,9 +319,9 @@
     "zefs-config": {
       "assets": {
         "cast": {
-          "bytes": 55208,
+          "bytes": 55358,
           "path": "zefs-config.cast",
-          "sha256": "b2ff33a1ceb5f83270d2ffdbe04cb23f589776426c3bd0615e3d9966f439a82e"
+          "sha256": "b62d833819a18d5f8c7a2df8eb150d788d2e7bb54d076317f449226fee493895"
         },
         "transcript": {
           "bytes": 2395,
@@ -330,9 +330,9 @@
         }
       },
       "binary_sha256": "8d9c94de1fb93c28e85b09a11d35cf5d6d92508d6596f41ded0e6b25e618846d",
-      "definition_sha256": "5fe2b244983f8f1a4af71c8940d7f4acbb18fe55857aa4af30dd0d15049a962f",
+      "definition_sha256": "da51551c978ddb2fac474a46f6bcb86bcfd61a9394d4c545d4bce0aff60ff285",
       "release": "26.08.25",
-      "source_sha256": "22cdf5b65f9cbdbdadad906f3c0b3c6c6d1f87f83bc30175bd87ab00f7c90289"
+      "source_sha256": "917a37331fb92cb336a52207e269884f0d996c89b1e33f01d9be94bbdd7a25f1"
     }
   },
   "renderer": {

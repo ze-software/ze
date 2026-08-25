@@ -32,9 +32,9 @@ Press Escape to move back through the menu and return to the shell.
 
 Connect to Ze over SSH, open the live BGP dashboard, sort peers, and inspect one session.
 
-[Download the asciicast recording](../../assets/demos/cli-dashboard.cast?v=483ed2e752) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
+[Download the asciicast recording](../../assets/demos/cli-dashboard.cast?v=9b77d105c3) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 55 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 44 seconds.
 
 ```console
 $ ssh ze-demo
@@ -51,9 +51,9 @@ The dashboard polls three local BGP sessions. Press "s" to sort by the next colu
 
 Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
 
-[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=b2ff33a1ce) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=f6537d09e3)
+[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=b62d833819) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=f6537d09e3)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 3 minutes 28 seconds.
+Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 2 minutes 57 seconds.
 
 ```console
 $ cat $ZE_INIT_INPUT
@@ -298,9 +298,9 @@ Hierarchical and set syntax are alternate presentations of the same parsed confi
 
 Establish BFD and BGP with a local FRR peer, cut the peer link, and verify BFD drives BGP down before protocol timers expire.
 
-[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=eb9d95abd7) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=5e444cee6f)
+[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=fc05c4fe4a) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=5e444cee6f)
 
-Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 1 minute 57 seconds.
+Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 1 minute 47 seconds.
 
 ```console
 An operator needs to verify that BFD, not the 300-second BGP hold timer, protects an edge session.
