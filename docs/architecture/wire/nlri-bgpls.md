@@ -334,9 +334,32 @@ var bgplsRegistry = map[uint16]BGPLSUnpacker{
 }
 ```
 
+### Receive-Path Fault Management (RFC 9552 Section 8.2.2)
+
+A received BGP-LS Attribute (code 29) is validated on the session path, before any
+plugin sees the UPDATE. `validateBGPLSAttr`
+(`internal/component/bgp/message/rfc7606_bgpls.go`) is registered in the RFC 7606
+`attrValidators` table and walks the attribute's TLVs. It checks two things, which are
+the syntactic validation RFC 9552 Section 8.2.2 requires: each TLV length stays inside
+the attribute, and the TLV lengths sum to the attribute length.
+
+A failure returns `RFC7606ActionAttributeDiscard`, the action Section 8.2.2 prescribes
+for an error that lets the router skip the attribute and process the rest of the UPDATE.
+`enforceRFC7606` (`internal/component/bgp/reactor/session_validation.go`) then replaces
+the whole attribute with an ATTR_TOMBSTONE that names code 29. The Link-State NLRI stays
+in the UPDATE, which is what Section 8.2.2 asks a Propagator to preserve.
+
+No TLV type and no TLV value is read. Section 8.2.2 states that a BGP-LS Attribute MUST
+NOT be malformed on the strength of which TLVs it holds or what they contain, and it
+lists TLV length correctness and value ranges among the semantic validations a
+BGP-LS Propagator does not perform. `decodeAllAttrTLVs`
+(`internal/component/bgp/plugins/nlri/ls/attr.go`) is that semantic decode, and it has no
+session-path caller by design. `register.go` marks the point where such a call would have
+been wired in.
+
 <!-- source: internal/component/bgp/plugins/nlri/ls/types_nlri.go -- BGPLSNode, BGPLSLink, BGPLSPrefix -->
 <!-- source: internal/component/bgp/plugins/nlri/ls/types_srv6.go -- BGPLSSRv6SID -->
 
 ---
 
-**Last Updated:** 2025-12-19
+**Last Updated:** 2026-08-25

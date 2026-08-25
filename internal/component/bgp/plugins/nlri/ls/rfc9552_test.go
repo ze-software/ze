@@ -269,3 +269,66 @@ func TestRFC9552IGPMetricWidthGrowsInsteadOfTruncating(t *testing.T) {
 		assert.Equal(t, tc.metric, got, "no value bits are lost to the small-metric mask")
 	}
 }
+
+// isisTestMTID is the topology the R-bit test carries. Any value inside the
+// low 12 bits works; 14 is one an IS-IS deployment would plausibly use.
+const isisTestMTID uint16 = 0x00E
+
+// isisMTIDDescriptorNLRI builds a Link-State NLRI of nlriType carrying a
+// Multi-Topology Identifier TLV (263) followed by trailer. The MT-ID is written
+// with its four leading R bits taken from rBits, so the same topology value can
+// be sent with the reserved bits clear and with all four set.
+func isisMTIDDescriptorNLRI(nlriType BGPLSNLRIType, rBits uint16, trailer []byte) []byte {
+	value := make([]byte, 2)
+	binary.BigEndian.PutUint16(value, rBits<<12|isisTestMTID)
+
+	var descs []byte
+	descs = buildAttrTLV(descs, TLVMultiTopologyID, value)
+	descs = append(descs, trailer...)
+
+	body := make([]byte, 9, 9+len(descs))
+	body[0] = byte(ProtoISISL2) // an IS-IS Protocol-ID: the polarity this clause governs
+	body = append(body, descs...)
+
+	nlri := make([]byte, 4, 4+len(body))
+	binary.BigEndian.PutUint16(nlri[0:], uint16(nlriType))
+	binary.BigEndian.PutUint16(nlri[2:], uint16(len(body)))
+	return append(nlri, body...)
+}
+
+// TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt proves the R bits of an IS-IS
+// MT-ID carry no meaning for a receiver. Both descriptor walks mask the MT-ID
+// field to its low 12 bits (plugin.go:405 for a Prefix Descriptor, plugin.go:519
+// for a Link Descriptor), so a peer that leaves the reserved bits set yields the
+// same topology as one that clears them.
+//
+// "Ignored" is the load-bearing word: the walk does not stop either. The TLV
+// after the MT-ID still decodes, which is what separates ignoring the bits from
+// refusing the NLRI over them.
+//
+// VALIDATES: R bits set and R bits clear give one MT-ID, and the descriptor
+// after the MT-ID TLV survives both.
+// PREVENTS: a range check on the MT-ID field being added to the receive path and
+// dropping an IS-IS topology a conforming peer sent.
+func TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt(t *testing.T) {
+	// RFC requirement: RFC9552-5.2.2.1-1 positive -- the reserved Bits R of an IS-IS Link or Prefix Descriptor MT-ID are ignored on receipt: all four set decodes to the same MT-ID as all four clear (§5.2.2.1)
+	var linkTrailer []byte
+	linkTrailer = buildAttrTLV(linkTrailer, TLVIPv4InterfaceAddr, []byte{192, 0, 2, 1})
+
+	_, _, linkClear := parseBGPLSLinkTLVs(isisMTIDDescriptorNLRI(BGPLSLinkNLRI, 0x0, linkTrailer))
+	_, _, linkSet := parseBGPLSLinkTLVs(isisMTIDDescriptorNLRI(BGPLSLinkNLRI, 0xF, linkTrailer))
+
+	require.Equal(t, []any{int(isisTestMTID)}, linkClear.mtIDs, "reserved bits clear: the MT-ID is the value sent")
+	assert.Equal(t, linkClear.mtIDs, linkSet.mtIDs, "reserved bits set: the four R bits carry no topology meaning")
+	assert.Equal(t, []any{"192.0.2.1"}, linkSet.ifAddrs, "the descriptor after the MT-ID TLV still decodes")
+
+	var prefixTrailer []byte
+	prefixTrailer = buildAttrTLV(prefixTrailer, TLVIPReachabilityInfo, []byte{24, 192, 0, 2})
+
+	_, prefixClear := parseBGPLSPrefixTLVs(isisMTIDDescriptorNLRI(BGPLSPrefixV4NLRI, 0x0, prefixTrailer), BGPLSPrefixV4NLRI)
+	_, prefixSet := parseBGPLSPrefixTLVs(isisMTIDDescriptorNLRI(BGPLSPrefixV4NLRI, 0xF, prefixTrailer), BGPLSPrefixV4NLRI)
+
+	require.Equal(t, []any{int(isisTestMTID)}, prefixClear.mtIDs, "reserved bits clear: the MT-ID is the value sent")
+	assert.Equal(t, prefixClear.mtIDs, prefixSet.mtIDs, "reserved bits set: the four R bits carry no topology meaning")
+	assert.Equal(t, "192.0.2.0/24", prefixSet.prefix, "the descriptor after the MT-ID TLV still decodes")
+}

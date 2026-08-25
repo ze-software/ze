@@ -52,4 +52,26 @@ func init() {
 		fmt.Fprintf(os.Stderr, "bgpls: registration failed: %v\n", err)
 		os.Exit(1)
 	}
+
+	// RFC 9552 Section 8.2.2: "A BGP-LS Propagator ... should not perform semantic
+	// validation of the Link-State NLRI or the BGP-LS Attribute to determine if it is
+	// malformed or invalid." So this registration wires no per-route decode of the BGP-LS
+	// Attribute into the receive path, and a received attribute is judged by the syntactic
+	// walk alone (validateBGPLSAttr, internal/component/bgp/message/rfc7606_bgpls.go)
+	// before being relayed with its TLVs untouched.
+	//
+	// The call below is deliberately unreachable. It names the check that is NOT run and
+	// the point it would have been wired in, which an uncalled function cannot do: the
+	// reader asking "does ze semantically validate a propagated BGP-LS Attribute, and where
+	// would it have" gets both answers here. Go eliminates the branch, so it costs nothing
+	// at runtime.
+	//
+	// RFC requirement: RFC9552-8.2.2-3 positive -- the semantic decode is absent from the
+	// propagation path, marked at the point it would have been wired in.
+	if false { //nolint:staticcheck // deliberately unreachable: it marks the semantic validation RFC 9552 Section 8.2.2 says a Propagator does not perform
+		var received []byte // the BGP-LS Attribute bytes a wired decode would be handed
+		if _, err := decodeAllAttrTLVs(received); err != nil {
+			fmt.Fprintf(os.Stderr, "bgpls: attribute decode failed: %v\n", err)
+		}
+	}
 }

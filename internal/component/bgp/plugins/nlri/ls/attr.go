@@ -114,6 +114,24 @@ func decodeAttrTLV(entry attrTLVEntry) (lsAttrTLV, error) {
 
 // decodeAllAttrTLVs decodes all recognized TLVs from raw attribute bytes.
 // Unknown TLV types are silently skipped per RFC 7752 forward compatibility.
+//
+// It is UNREACHABLE from the session path by design, and its callers are tests.
+// Decoding a TLV means judging its fixed length and its values, which RFC 9552
+// Section 8.2.2 lists among the semantic validations a BGP-LS Propagator does not
+// perform: "the length of a fixed-length TLV is correct or the length of a variable
+// length TLV is valid or permissible" and "the values of TLV fields are valid or
+// permissible". A received BGP-LS Attribute therefore reaches only the syntactic walk
+// (validateBGPLSAttr, internal/component/bgp/message/rfc7606_bgpls.go) and is relayed
+// with its TLVs untouched. The absence of a caller is the design; register.go marks the
+// point that call would have been wired in.
+//
+// AttrTLVsToJSON is the sibling that IS called, from the offline decoder alone
+// (internal/component/bgp/cli/decode_update.go), where an operator has asked for the
+// decoded view of bytes ze is not propagating.
+//
+// RFC requirement: RFC9552-8.2.2-3 positive -- the semantic decode a Propagator does not
+// perform, named at its definition so the absence of a session-path caller reads as the
+// design it is rather than as dead code.
 func decodeAllAttrTLVs(data []byte) ([]lsAttrTLV, error) {
 	var tlvs []lsAttrTLV
 	var decErr error
