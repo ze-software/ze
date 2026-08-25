@@ -19,6 +19,8 @@ import re
 import shutil
 import sys
 
+import sitepaths
+
 import markdown
 
 import sitelib
@@ -128,11 +130,11 @@ def page_destination(value):
         raise ValueError(
             "front matter `destination` must end in index.html or a directory"
         )
-    return pathlib.Path(__file__).resolve().parent.parent / pathlib.Path(*rel.parts)
+    return sitepaths.SOURCE_ROOT / pathlib.Path(*rel.parts)
 
 
 def page_root(dest):
-    site_root = pathlib.Path(__file__).resolve().parent.parent
+    site_root = sitepaths.SOURCE_ROOT
     try:
         rel = dest.resolve().relative_to(site_root.resolve())
     except ValueError as exc:

@@ -3,9 +3,34 @@
 import os
 import pathlib
 
+def _repo_root() -> pathlib.Path:
+    """The checkout, found by walking up rather than by counting directories.
+
+    `SOURCE_ROOT` used to be this file's own parent's parent, which is true
+    only while this file sits in `website/tools`. Every one of the 45 tools
+    here derives its paths from it, so a move would have pointed the whole
+    site build at the wrong tree, silently: nothing raises when a path is
+    merely wrong.
+
+    `ZE_REPO_ROOT` wins when set, which is how a container or a worktree names
+    a tree it mounted elsewhere. Both markers are required because `go.mod`
+    alone is not a checkout: a vendored module has one.
+    """
+    named = os.environ.get("ZE_REPO_ROOT")
+    if named:
+        return pathlib.Path(named).resolve()
+    here = pathlib.Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "go.mod").is_file() and (parent / "feature-gates.txt").is_file():
+            return parent
+    raise RuntimeError("cannot locate the Ze checkout from %s" % here)
+
+
 HERE = pathlib.Path(__file__).resolve().parent
-SOURCE_ROOT = HERE.parent.resolve()
-MAIN_REPO = pathlib.Path(os.environ.get("ZE_MAIN_REPO", SOURCE_ROOT.parent)).resolve()
+MAIN_REPO = pathlib.Path(os.environ.get("ZE_MAIN_REPO", _repo_root())).resolve()
+# The site SOURCE tree, named from the checkout rather than from this file's
+# position, so the tooling can move and still build the same website.
+SOURCE_ROOT = (MAIN_REPO / "website").resolve()
 OUTPUT_ROOT = pathlib.Path(
     os.environ.get("ZE_SITE_OUTPUT", MAIN_REPO.parent / "gh-pages")
 ).resolve()

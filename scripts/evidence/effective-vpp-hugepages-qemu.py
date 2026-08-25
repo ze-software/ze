@@ -98,7 +98,24 @@ def skip(reason: str) -> int:
 
 
 def repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    """The checkout, found by walking up rather than by counting directories.
+
+    `parents[2]` is right at exactly one depth and silently wrong at every
+    other, so a file that moves takes a broken answer with it and nothing
+    raises. Every sibling in this directory already walks up for `go.mod`
+    (`docker-run.py`, `qemu-run.py`); this one did not.
+
+    `ZE_REPO_ROOT` wins when set, which is how the container run finds the
+    tree it mounted at a different path (`qemu-all-tests.sh` exports
+    /workspace).
+    """
+    named = os.environ.get('ZE_REPO_ROOT')
+    if named:
+        return Path(named).resolve()
+    for parent in Path(__file__).resolve().parents:
+        if (parent / 'go.mod').is_file():
+            return parent
+    raise SystemExit('cannot locate repository root')
 
 
 def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess[str]:

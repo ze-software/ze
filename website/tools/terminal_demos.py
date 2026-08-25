@@ -11,7 +11,10 @@ from typing import NamedTuple
 import sitepaths
 
 
-GH_PAGES = pathlib.Path(__file__).resolve().parent.parent
+# The site source tree, named once in sitepaths rather than recomputed from
+# this file's position. A file that moves takes a positional answer with it
+# and the answer stops being true.
+GH_PAGES = sitepaths.SOURCE_ROOT
 MAIN_REPO = sitepaths.MAIN_REPO
 DEMO_ROOT = MAIN_REPO / "demos" / "terminal"
 SOURCE_MANIFEST = DEMO_ROOT / "manifest.json"

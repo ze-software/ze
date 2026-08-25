@@ -13,13 +13,29 @@ import re
 import subprocess
 import sys
 import unittest
+import os
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from feature_tags import daemon_build_tags, feature_tags  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[2]
+def _repo_root() -> Path:
+    """Walk up for the marker rather than counting directories.
+
+    `parents[2]` is true only while this file sits two levels down. It is the
+    pattern that breaks silently when a file moves.
+    """
+    named = os.environ.get('ZE_REPO_ROOT')
+    if named:
+        return Path(named).resolve()
+    for parent in Path(__file__).resolve().parents:
+        if (parent / 'go.mod').is_file():
+            return parent
+    raise SystemExit('cannot locate repository root')
+
+
+ROOT = _repo_root()
 EVIDENCE = ROOT / "scripts" / "evidence"
 
 # A daemon build: these run ./cmd/ze as the product and test a feature, so each
