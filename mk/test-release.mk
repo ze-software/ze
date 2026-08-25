@@ -11,6 +11,26 @@
 #
 # Skip categories:
 #   ZE_RELEASE_SKIP=interop,perf make ze-evidence-release-verify
+#
+# NOTHING IN THIS FILE MOVED TO `le`, and that is the finding rather than an
+# omission. A Gate is one argv run without a shell, and all four targets are
+# shell PROGRAMS whose control flow IS what they do:
+#
+#   ze-evidence-release-verify   five shell functions (run_category,
+#                                run_if_docker, run_if_qemu, run_advisory,
+#                                skip_category) over twelve `$(MAKE)` re-entries,
+#                                a docker/qemu probe, a ZE_RELEASE_SKIP grep, an
+#                                accumulated failure list and a `case` that
+#                                prints the re-run command for each failure
+#   ze-evidence-functional-test  the same shape over four suites, and it declares
+#                                $(ZEBIN_TEST), a session-scoped path
+#   ze-evidence-perf-record      two `$(MAKE)` re-entries, a `>>` append outside
+#                                the recipe's own output, and $(ZEBIN_PERF)
+#   ze-evidence-release-preflight two probes over one accumulated exit code
+#
+# The file also opens with an `ifeq ($(GOKRAZY_ARCH),arm64)` selecting the QEMU
+# binary name. Re-deriving all of this in Python would be a rewrite, not a port,
+# and the rewrite is not what a caller of these targets asked for.
 
 .PHONY: ze-evidence-release-verify ze-evidence-release-preflight ze-evidence-functional-test ze-evidence-perf-record
 

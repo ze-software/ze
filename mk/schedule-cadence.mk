@@ -20,6 +20,22 @@
 # Mixing the two under one exit code is what makes an aggregate meaningless:
 # either the censuses drag it red every day until it is ignored, or the gates
 # are swallowed. The summary table is the product; the exit code covers gates.
+#
+# NOTHING IN THIS FILE MOVED TO `le`, and that is the finding rather than an
+# omission. A Gate is one argv run without a shell. All three targets are one
+# `$(call ZE_CADENCE_RUN,...)` each, and that define is a shell PROGRAM: a
+# `run_check` function, two accumulated name lists, a gate-versus-note branch on
+# the exit code, and a summary printed at the end. Every member it runs is a
+# `$(MAKE)` re-entry, which is how a cadence run reaches a target's own
+# prerequisites and its admission wrapper.
+#
+# The kind/name/command triple would sit in a table cleanly. The exit-code
+# policy that reads it -- a gate fails the run, a note never does -- is the
+# whole point of the file and has no equivalent in `GateSet`, whose gates all
+# count the same way. Porting the table alone would move the data and leave the
+# decision behind, which is the split this repository keeps a journal class for.
+# ze-cadence-daily-run also runs `go clean -cache` twice, the second under
+# `env -u GOCACHE`, before any member starts.
 
 .PHONY: ze-cadence-daily-run ze-cadence-weekly-run ze-cadence-monthly-run
 

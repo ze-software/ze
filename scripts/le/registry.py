@@ -165,9 +165,19 @@ REGISTRY: tuple[Entry, ...] = (
         help='component-group unit suites, race-instrumented',
     ),
     Entry(
+        name='functional',
+        module='le.application.functional',
+        help='functional .ci suites: the gating run, its per-suite budgets, its isolated binaries',
+    ),
+    Entry(
         name='test-chaos',
         module='le.application.chaos',
         help='chaos testing: the simulator, its CLI surface, its linter',
+    ),
+    Entry(
+        name='integration',
+        module='le.application.integration',
+        help='integration, interop, stress, live and deployment tests: Docker, netns, root, QEMU',
     ),
     Entry(
         name='fuzz',
@@ -178,6 +188,11 @@ REGISTRY: tuple[Entry, ...] = (
         name='build-appliance',
         module='le.application.build_appliance',
         help="the installer initrd's PID 1, cross-built for both appliance architectures",
+    ),
+    Entry(
+        name='gokrazy',
+        module='le.application.gokrazy',
+        help='the appliance build: the packed go.sum check, and the host build driver',
     ),
 )
 

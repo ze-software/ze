@@ -34,6 +34,32 @@
 # Builds run from a COPY of gokrazy/ze under tmp/, prepared by ze-gok
 # (internal/appliance/instance). No build step writes to a tracked path, so a
 # custom-kernel build needs nothing reverted afterwards.
+#
+# TWO TARGETS MOVED to `le`: ze-gokrazy-gosum-check and ze-host-build. They now
+# live in scripts/le/application/gokrazy.py, and each one here is a shim.
+#
+#   ./le gokrazy --list                     what each one is for
+#   ./le gokrazy ze-gokrazy-gosum-check     the check
+#   ./le gokrazy --write                    build ze-host
+#
+# SEVEN STAYED, AND EVERY ONE OF THEM IS A SHELL PROGRAM. A Gate is one argv run
+# without a shell:
+#
+#   ze-gokrazy-build          a credential branch over USER / PASS / ZEFS /
+#                             CERTNAME, then mkfs.ext4, dd, two debugfs writes
+#                             and a read-back `cmp` that exists because debugfs
+#                             EXITS 0 WHEN IT FAILS
+#   ze-gokrazy-run            two `case` blocks over GOKRAZY_ARCH
+#   ze-gokrazy-deps-download  a `for` over `find ... -exec dirname`
+#   ze-kernel-vmlinuz-stage   a cache HIT/MISS branch with a staged `mktemp -d`
+#                             rename, a dry-run guard, and `$(MAKE) -C
+#                             gokrazy/kernel`
+#   ze-kernel-build           six `test` guards, a `for` over lib/modules, and a
+#                             conditional overlays copy
+#   ze-kernel-clean           `$(MAKE) -C`, a `grep`-guarded `go mod edit`, and a
+#                             one-time modcache migration
+#   bin/gok                   an mkdir before the build, and it is a file target
+#                             other targets declare as a prerequisite
 
 .PHONY: ze-gokrazy-build ze-gokrazy-deps-download ze-gokrazy-run ze-gokrazy-gosum-check ze-kernel-build ze-kernel-vmlinuz-stage ze-kernel-clean ze-host-build bin/gok
 
@@ -119,7 +145,7 @@ GOKRAZY_TEMPLATE ?= gokrazy/ze/ze.conf
 # about what a given version contains. The tracked gokrazy/ze/builddir/**/go.sum
 # files are read by no other build, so a drift there surfaces nowhere else.
 ze-gokrazy-gosum-check:
-	@python3 scripts/dev/gokrazy_gosum_check.py
+	@$(CURDIR)/le gokrazy ze-gokrazy-gosum-check
 
 ze-gokrazy-build: ze-build bin/gok ze-gokrazy-gosum-check
 	@miss=""; for t in mkfs.ext4 debugfs; do { [ -n "$(E2FS)" ] && [ -x "$(E2FS)/$$t" ]; } || miss="$$miss $$t"; done; \
@@ -278,8 +304,7 @@ KERNEL_PINNED_BACKUP  := $(GOKRAZY_DIR)/modcache/.ze-pinned-kernel
 # convention"). Go stays the single source of truth for the key (kernelCacheVariantFor),
 # so the make path can never drift from `ze appliance kernel`.
 ze-host-build:
-	@echo "--- Building host ze binary (ze-host: -tags ze_core,ze_setup, NO GOARCH override) ---"
-	@CGO_ENABLED=0 $(GO) build -tags 'ze_core ze_setup' -o "$(CURDIR)/ze-host" ./cmd/ze
+	@$(CURDIR)/le gokrazy ze-host-build
 
 # ze-kernel-vmlinuz-stage routes the runtime kernel through the durable cache (~/.cache/ze,
 # Option C):
