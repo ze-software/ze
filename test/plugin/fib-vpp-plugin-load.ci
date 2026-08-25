@@ -12,9 +12,9 @@
 #            this test catches it.
 #
 # Method: spawn ze with a minimal bgp + fib.vpp config; assert the
-# plugin's lifecycle log lines appear on stderr within the deadline.
+# plugin's lifecycle log lines appear on stderr within the timeout.
 # Follows the bfd-config-load.ci orchestration pattern (subprocess,
-# readline loop, SIGTERM on completion).
+# ze_api.wait_for_stderr_lines, SIGTERM on completion).
 #
 # The vpp subsystem loads (its config block is present) but stays inert
 # because vpp.enabled is false; GetActiveConnector() therefore returns
@@ -29,7 +29,8 @@ import os
 import signal
 import subprocess
 import sys
-import time
+
+from ze_api import wait_for_stderr_lines
 
 REQUIRED = [
     "VPP connector not available, using noop backend",
@@ -73,27 +74,7 @@ def main() -> int:
     proc.stdin.write(CONFIG)
     proc.stdin.close()
 
-    deadline = time.time() + 10.0
-    captured = ""
-    matched: set[str] = set()
-    while time.time() < deadline:
-        if proc.stderr is None:
-            break
-        line = proc.stderr.readline()
-        if not line:
-            if proc.poll() is not None:
-                break
-            # poll interval; the loop above breaks when the observed subprocess exits, bounded wait not a blind sleep
-            time.sleep(0.05)
-            continue
-        captured += line
-        sys.stderr.write(line)
-        sys.stderr.flush()
-        for needle in REQUIRED:
-            if needle in line:
-                matched.add(needle)
-        if len(matched) == len(REQUIRED):
-            break
+    captured = wait_for_stderr_lines(proc, REQUIRED, timeout=10.0)
 
     if proc.poll() is None:
         proc.send_signal(signal.SIGTERM)

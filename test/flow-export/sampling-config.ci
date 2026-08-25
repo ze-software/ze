@@ -21,13 +21,20 @@
 
 tmpfs=wait.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
-"""Hold the test open long enough for ze (in background) to reach OnConfigure
-and run the sampling worker. Background processes do not receive the
-ZE_READY_FILE marker, so the wait is a plain sleep."""
-import time
+"""Block on the daemon-ready barrier for the background ze, then exit.
 
-# blind hold: a backgrounded ze gets no ZE_READY_FILE marker to poll; hold until OnConfigure emits the asserted log line, left un-converted (no readiness signal for a background daemon)
-time.sleep(2.5)
+The runner arms ZE_READY_FILE for a BACKGROUND ze daemon exactly as it does for
+a foreground one (zeReadyFileEnabled, internal/test/runner/runner_exec_util.go),
+so daemon.ready IS available here. ze creates it only after
+apiServer.WaitForStartupComplete returns (cmd/ze/hub/main.go), that is after
+every plugin startup phase settled -- and the flow-export plugin's Stage-2
+configure calls startFlowSubsystems -> samplingWorker.Start
+(internal/plugins/flowexport/register.go, sampling_worker.go), which logs the
+asserted line synchronously before it returns. daemon.ready is therefore a real
+barrier for the assertion below, not a proxy for one."""
+from ze_api import wait_for_daemon_ready
+
+wait_for_daemon_ready()
 EOF_PY
 
 stdin=ze-conf:terminator=EOF_CONF

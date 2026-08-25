@@ -14,24 +14,25 @@
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
 """Assert the runner produced daemon.pid + daemon.ready for the background ze,
-then read the pid and SIGTERM the daemon so the test exits promptly."""
+then read the pid and SIGTERM the daemon so the test exits promptly.
+
+wait_for_daemon_ready (test/scripts/ze_api.py) IS the assertion: it holds for the
+same two files this test exists to guard, parses the pid inside its predicate so
+an empty daemon.pid cannot read as ready, and raises TimeoutError naming which
+file was missing. The message below stays because the failure it reports is this
+test's whole subject."""
 import os
 import signal
 import sys
-import time
 
-for _ in range(200):
-    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
-        break
-    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
-    time.sleep(0.05)
-else:
-    print("ERROR: daemon.pid/daemon.ready never appeared for background ze",
+from ze_api import wait_for_daemon_ready
+
+try:
+    pid = wait_for_daemon_ready()
+except TimeoutError as exc:
+    print("ERROR: daemon.pid/daemon.ready never appeared for background ze: %s" % exc,
           file=sys.stderr)
     sys.exit(1)
-
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
 
 # daemon.pid must hold the ze daemon's pid, never this driver's own pid. If the
 # runner clobbered it with a helper-script pid, killing it would signal ourselves

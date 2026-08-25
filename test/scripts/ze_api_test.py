@@ -32,6 +32,7 @@ import io
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -967,6 +968,116 @@ class TestObserverBudgetReachesTheWaits(unittest.TestCase):
         seen = self._observe(eor_timeout=1.5, shutdown_timeout=0.5)
         self.assertAlmostEqual(seen["eor"], 1.5)
         self.assertAlmostEqual(seen["shutdown"], 0.5)
+
+
+class TestWaitForStderrLines(unittest.TestCase):
+    """The stderr-needle wait the eight plugin drivers use.
+
+    The hand-rolled loop this replaced tested its deadline only between lines,
+    so a child that went quiet without emitting a needle blocked in readline()
+    past the deadline and hung the driver until the runner killed the test.
+    ``test_a_needle_that_never_arrives_ends_at_the_timeout`` is the assertion
+    that keeps it fixed.
+    """
+
+    def _reap(self, proc):
+        if proc.poll() is None:
+            proc.kill()
+        proc.wait(timeout=5)
+        if proc.stderr is not None:
+            proc.stderr.close()
+
+    def _spawn(self, body):
+        proc = subprocess.Popen(
+            [sys.executable, "-c", body],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        self.addCleanup(self._reap, proc)
+        return proc
+
+    def test_returns_as_soon_as_every_needle_arrived(self):
+        proc = self._spawn(
+            "import sys, time\n"
+            "sys.stderr.write('one\\n'); sys.stderr.flush()\n"
+            "sys.stderr.write('two\\n'); sys.stderr.flush()\n"
+            "time.sleep(30)\n"
+        )
+        started = time.monotonic()
+        captured = ze_api.wait_for_stderr_lines(
+            proc, ["one", "two"], timeout=20.0, echo=False
+        )
+        elapsed = time.monotonic() - started
+        self.assertIn("one", captured)
+        self.assertIn("two", captured)
+        self.assertLess(elapsed, 10.0, "did not return on the needles")
+
+    def test_a_needle_that_never_arrives_ends_at_the_timeout(self):
+        proc = self._spawn(
+            "import sys, time\n"
+            "sys.stderr.write('only\\n'); sys.stderr.flush()\n"
+            "time.sleep(30)\n"
+        )
+        started = time.monotonic()
+        captured = ze_api.wait_for_stderr_lines(
+            proc, ["only", "never"], timeout=0.75, echo=False
+        )
+        elapsed = time.monotonic() - started
+        self.assertIn("only", captured)
+        self.assertNotIn("never", captured)
+        self.assertGreaterEqual(elapsed, 0.7)
+        self.assertLess(elapsed, 10.0, "the timeout was not honoured while waiting")
+
+    def test_a_child_that_exits_ends_the_wait_early(self):
+        proc = self._spawn("import sys\nsys.stderr.write('done\\n')\n")
+        started = time.monotonic()
+        captured = ze_api.wait_for_stderr_lines(
+            proc, ["done", "never"], timeout=20.0, echo=False
+        )
+        elapsed = time.monotonic() - started
+        self.assertIn("done", captured)
+        self.assertLess(elapsed, 10.0, "stderr EOF did not end the wait")
+
+    def test_a_needle_split_across_two_writes_still_matches(self):
+        proc = self._spawn(
+            "import sys, time\n"
+            "sys.stderr.write('bfd plugin '); sys.stderr.flush()\n"
+            "time.sleep(0.2)\n"
+            "sys.stderr.write('running\\n'); sys.stderr.flush()\n"
+            "time.sleep(30)\n"
+        )
+        captured = ze_api.wait_for_stderr_lines(
+            proc, ["bfd plugin running"], timeout=20.0, echo=False
+        )
+        self.assertIn("bfd plugin running", captured)
+
+    def test_the_echo_is_what_the_runner_reads(self):
+        proc = self._spawn("import sys\nsys.stderr.write('echoed line\\n')\n")
+        buf = io.StringIO()
+        with unittest.mock.patch.object(sys, "stderr", buf):
+            captured = ze_api.wait_for_stderr_lines(
+                proc, ["echoed line"], timeout=20.0
+            )
+        self.assertIn("echoed line", buf.getvalue())
+        self.assertIn("echoed line", captured)
+
+    def test_echo_false_writes_nothing(self):
+        proc = self._spawn("import sys\nsys.stderr.write('quiet line\\n')\n")
+        buf = io.StringIO()
+        with unittest.mock.patch.object(sys, "stderr", buf):
+            captured = ze_api.wait_for_stderr_lines(
+                proc, ["quiet line"], timeout=20.0, echo=False
+            )
+        self.assertEqual(buf.getvalue(), "")
+        self.assertIn("quiet line", captured)
+
+    def test_a_child_with_no_stderr_pipe_returns_nothing(self):
+        proc = subprocess.Popen([sys.executable, "-c", "pass"])
+        self.addCleanup(self._reap, proc)
+        self.assertEqual(
+            ze_api.wait_for_stderr_lines(proc, ["anything"], timeout=0.1), ""
+        )
 
 
 if __name__ == "__main__":

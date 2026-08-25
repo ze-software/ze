@@ -28,7 +28,6 @@ EOF_PEER
 
 tmpfs=metrics-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-import time
 from ze_api import API, runtime_fail
 
 
@@ -50,21 +49,42 @@ def main():
         runtime_fail('initial-sync EOR never reached the wire')
         return
 
+    # (command, does it produce an UPDATE). The four accepted emits each become
+    # one UPDATE, and waiting for the per-peer updates-sent counter to move is
+    # what keeps them separate events rather than a batch -- the emit's own
+    # effect, not a duration. writeRawUpdateBody
+    # (internal/component/bgp/reactor/session_write.go) increments the counter
+    # through onMessageReceived once the body reached the session, so baseline
+    # before each dispatch: the counter is a per-peer lifetime total that
+    # already counts the initial-sync EOR.
+    #
+    # The ipv6/unicast emit produces NOTHING to wait for, and that is the point
+    # of the test. `import fakeredist { family [ ipv4/unicast ]; }` makes
+    # ev.Accept(route, consumer) false for the ipv6 family, so the egress
+    # redistribute loop (internal/component/bgp/plugins/redistribute_egress/
+    # redistribute.go) counts it into filteredRuleTotal and never calls
+    # dispatchEntryToConsumer. No UPDATE, no counter move, so waiting for one
+    # would simply burn the whole attempt budget and then fail.
     sequence = [
-        'request fakeredist emit add ipv4/unicast 10.0.0.1/32',     # accepted add
-        'request fakeredist emit add ipv4/unicast 10.0.0.2/32',     # accepted add
-        'request fakeredist emit add ipv4/unicast 10.0.0.3/32',     # accepted add
-        'request fakeredist emit remove ipv4/unicast 10.0.0.1/32',  # accepted remove
-        'request fakeredist emit add ipv6/unicast 2001:db8::1/128', # rule-rejected (family)
+        ('request fakeredist emit add ipv4/unicast 10.0.0.1/32', True),      # accepted add
+        ('request fakeredist emit add ipv4/unicast 10.0.0.2/32', True),      # accepted add
+        ('request fakeredist emit add ipv4/unicast 10.0.0.3/32', True),      # accepted add
+        ('request fakeredist emit remove ipv4/unicast 10.0.0.1/32', True),   # accepted remove
+        ('request fakeredist emit add ipv6/unicast 2001:db8::1/128', False), # rule-rejected (family)
     ]
-    for cmd in sequence:
+    for cmd, sends in sequence:
+        base = api.peer_counter('updates-sent')
         resp = dispatch(api, cmd)
         result = resp.get('result', {})
         if result.get('status') != 'done':
             runtime_fail(f'{cmd}: status={result.get("status")} data={result.get("data")}')
             return
-        # deliberate pacing: space each emit so the consumer handles them as separate events, not batched
-        time.sleep(0.2)
+        # 16 attempts x 0.25s = 4s each, so all four waits together stay inside
+        # the 20s budget and a break reports THIS message rather than an opaque
+        # per-test timeout. The measured wait is about 1s.
+        if sends and not api.wait_peer_counter('updates-sent', base + 1, attempts=16):
+            runtime_fail(f'{cmd}: its UPDATE was never counted as sent')
+            return
 
     # Assert the four ACCEPTED operations reached the wire and the rejected one
     # did not, instead of holding a blind 2s and asserting nothing. Exactly 4 is

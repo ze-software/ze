@@ -60,7 +60,10 @@ import socket
 import ssl
 import sys
 import traceback
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Iterable
+
+if TYPE_CHECKING:  # annotation only; `from __future__ import annotations` keeps it lazy
+    import subprocess
 
 
 def _ze_env(key: str, default: str = "") -> str:
@@ -2917,6 +2920,89 @@ def wait_for_output(
             return out
         time.sleep(delay)
     return out
+
+
+def wait_for_stderr_lines(
+    proc: subprocess.Popen[str],
+    needles: Iterable[str],
+    timeout: float = 10.0,
+    echo: bool = True,
+) -> str:
+    """Read ``proc``'s stderr until every needle in ``needles`` has appeared.
+
+    The subprocess-observer counterpart to :func:`wait_for_output`, for a driver
+    that spawns ze itself (``subprocess.Popen(["ze", "-"],
+    stderr=subprocess.PIPE, text=True)``) and asserts on the log lines a plugin
+    emits while it starts. Eight `.ci` drivers carried a byte-identical
+    hand-rolled version of this wait -- readline, echo, accumulate, match, sleep
+    0.05 on EOF -- and every copy counted one ``time.sleep(`` against the
+    ci-sleep ratchet (`test/.ci-sleep-baseline`) for a wait that was never a
+    duration.
+
+    Returns everything it read, so the caller keeps its own assertion::
+
+        captured = wait_for_stderr_lines(proc, REQUIRED, timeout=8.0)
+        missing = [needle for needle in REQUIRED if needle not in captured]
+
+    Matching runs against the whole accumulated text rather than one line at a
+    time, so the early exit applies the SAME test the caller's final check
+    applies, and a needle split across two reads still matches.
+
+    Every read is echoed to this process's stderr (``echo=False`` suppresses
+    it). The echo is not tracing: the runner's own ``expect=stderr:pattern=``
+    rules read the driver's stderr, so dropping it disarms them silently.
+
+    The wait ends when every needle is present, when ``proc`` closes its stderr
+    (which is what its exit looks like from here), or when ``timeout`` seconds
+    pass. The timeout is honoured while WAITING, which the hand-rolled loops did
+    not do: they blocked in ``readline()`` and tested their deadline only
+    between lines, so a daemon that went quiet without emitting a needle hung
+    the driver until the runner killed the whole test.
+
+    The block is ``select`` on the pipe, which is why this helper needs no
+    poll-interval sleep at all. Had it kept one, that sleep would be exempt from
+    the ci-sleep ratchet anyway (the gate counts sleeps in test/**/*.ci, not in
+    this module), the same exemption :func:`wait_until` documents.
+
+    POSIX only: it selects on, and reads from, the pipe's file descriptor. A
+    caller's own ``proc.stderr.read()`` tail drain still works afterwards,
+    because nothing was ever read through the text wrapper, so that wrapper
+    holds no buffered bytes.
+    """
+    import codecs
+    import time
+
+    stream = proc.stderr
+    if stream is None:
+        return ""
+    fd = stream.fileno()
+    decoder = codecs.getincrementaldecoder("utf-8")("replace")
+    pending = set(needles)
+    captured = ""
+    deadline = time.monotonic() + timeout
+    while pending:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        try:
+            ready, _, _ = select.select([fd], [], [], remaining)
+        except (OSError, ValueError):
+            break
+        if not ready:
+            break
+        try:
+            chunk = os.read(fd, 65536)
+        except OSError:
+            break
+        if not chunk:
+            break
+        text = decoder.decode(chunk)
+        captured += text
+        if echo:
+            sys.stderr.write(text)
+            sys.stderr.flush()
+        pending = {needle for needle in pending if needle not in captured}
+    return captured
 
 
 def dispatch_until(

@@ -6,8 +6,8 @@ rationale: plan/journal/false-synchronization-claim.md
 ---
 **A `time.sleep(` MUST NOT be written until a synchronisation primitive has been
 tried and found not to fit.** The primitives are in `test/scripts/ze_api.py`:
-`wait_until`, `wait_for_output`, `wait_for_event`, `wait_for_events`,
-`dispatch_until`, `dispatch_until_done`, `wait_for_daemon_ready`,
+`wait_until`, `wait_for_output`, `wait_for_stderr_lines`, `wait_for_event`,
+`wait_for_events`, `dispatch_until`, `dispatch_until_done`, `wait_for_daemon_ready`,
 `wait_for_shutdown`, `wait_peer_counter`, `wait_peer_eor_sent`,
 `wait_peers_established`, `wait_rs_replayed`, `wait_for_config`,
 `wait_for_registry`, `quiesce`. A duration is what a test writes when it cannot

@@ -24,7 +24,6 @@ EOF_PEER
 
 tmpfs=withdraw-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-import time
 from ze_api import API, runtime_fail
 
 
@@ -46,17 +45,31 @@ def main():
         runtime_fail('initial-sync EOR never reached the wire')
         return
 
+    # The add and the remove must reach the wire as SEPARATE UPDATEs: the peer
+    # binds them to seq=1 and seq=2, and a batched pair would satisfy neither.
+    # Waiting for the per-peer updates-sent counter to move is what separates
+    # them, and it is the emit's own effect rather than a duration: the forward
+    # pool's raw write (writeRawUpdateBody,
+    # internal/component/bgp/reactor/session_write.go) increments it through
+    # onMessageReceived once the body reached the session. Baseline before each
+    # dispatch, because the counter is a per-peer lifetime total that already
+    # counts the initial-sync EOR.
     for cmd in (
         'request fakeredist emit add ipv4/unicast 10.0.0.1/32',
         'request fakeredist emit remove ipv4/unicast 10.0.0.1/32',
     ):
+        base = api.peer_counter('updates-sent')
         resp = dispatch(api, cmd)
         result = resp.get('result', {})
         if result.get('status') != 'done':
             runtime_fail(f'{cmd}: {result}')
             return
-        # deliberate pacing: space the add and remove so each is sent as a separate UPDATE, not batched
-        time.sleep(0.5)
+        # 24 attempts x 0.25s = 6s each, so both waits together stay inside the
+        # 15s budget and a break reports THIS message rather than an opaque
+        # per-test timeout. The measured wait is about 1s.
+        if not api.wait_peer_counter('updates-sent', base + 1, attempts=24):
+            runtime_fail(f'{cmd}: its UPDATE was never counted as sent')
+            return
 
     # There IS a queryable signal: `request quiesce` returns once the BGP
     # forward pool and every peer's initial-sync opQueue have settled, which is

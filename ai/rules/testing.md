@@ -1158,8 +1158,8 @@ The comment must state which of these the sleep is:
 
 **A `time.sleep(` MUST NOT be written until a synchronisation primitive has been
 tried and found not to fit.** The primitives are in `test/scripts/ze_api.py`:
-`wait_until`, `wait_for_output`, `wait_for_event`, `wait_for_events`,
-`dispatch_until`, `dispatch_until_done`, `wait_for_daemon_ready`,
+`wait_until`, `wait_for_output`, `wait_for_stderr_lines`, `wait_for_event`,
+`wait_for_events`, `dispatch_until`, `dispatch_until_done`, `wait_for_daemon_ready`,
 `wait_for_shutdown`, `wait_peer_counter`, `wait_peer_eor_sent`,
 `wait_peers_established`, `wait_rs_replayed`, `wait_for_config`,
 `wait_for_registry`, `quiesce`. A duration is what a test writes when it cannot
@@ -1219,6 +1219,7 @@ the 5-stage plugin protocol and runtime assertions. Key functions:
 | `wait_for_shutdown()` | Block until engine shuts down |
 | `wait_for_event(timeout, predicate=None)` | Wait for the next event, or (with `predicate`) the first event whose decoded form satisfies it |
 | `wait_until(predicate, attempts=20, delay=0.25)` | Poll an arbitrary `predicate()` (e.g. kernel FIB state) until true; returns bool |
+| `wait_for_stderr_lines(proc, needles, timeout=10.0, echo=True)` | Read a spawned ze's stderr until every needle appears, it exits, or the timeout passes; echoes each read so the runner's `expect=stderr:pattern=` rules still see it, and returns the captured text for the caller's own `missing` check |
 | `dispatch_until(api, cmd, predicate, ...)` | Re-dispatch `cmd` until `predicate(result)` is true; returns the winning result dict (also `api.dispatch_until(cmd, predicate, ...)`) |
 | `dispatch_until_done(cmd, ...)` | `dispatch_until` with the fixed `status=="done"` predicate |
 | `run_rs_observer(expected_peers, forward_prefix=None)` | The standard route-server observer, one line: handshake, wait (event-driven) until every peer's EOR (and `forward_prefix`'s route, when given) is on the wire, then fire-and-forget shutdown. Load-robust successor to the `show bgp` `eor-sent` poll |

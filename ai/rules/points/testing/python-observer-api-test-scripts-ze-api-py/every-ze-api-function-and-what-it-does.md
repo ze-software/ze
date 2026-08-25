@@ -12,6 +12,7 @@ stage:
 | `wait_for_shutdown()` | Block until engine shuts down |
 | `wait_for_event(timeout, predicate=None)` | Wait for the next event, or (with `predicate`) the first event whose decoded form satisfies it |
 | `wait_until(predicate, attempts=20, delay=0.25)` | Poll an arbitrary `predicate()` (e.g. kernel FIB state) until true; returns bool |
+| `wait_for_stderr_lines(proc, needles, timeout=10.0, echo=True)` | Read a spawned ze's stderr until every needle appears, it exits, or the timeout passes; echoes each read so the runner's `expect=stderr:pattern=` rules still see it, and returns the captured text for the caller's own `missing` check |
 | `dispatch_until(api, cmd, predicate, ...)` | Re-dispatch `cmd` until `predicate(result)` is true; returns the winning result dict (also `api.dispatch_until(cmd, predicate, ...)`) |
 | `dispatch_until_done(cmd, ...)` | `dispatch_until` with the fixed `status=="done"` predicate |
 | `run_rs_observer(expected_peers, forward_prefix=None)` | The standard route-server observer, one line: handshake, wait (event-driven) until every peer's EOR (and `forward_prefix`'s route, when given) is on the wire, then fire-and-forget shutdown. Load-robust successor to the `show bgp` `eor-sent` poll |

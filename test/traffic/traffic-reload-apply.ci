@@ -16,32 +16,29 @@
 
 tmpfs=reload.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
-"""Wait for ze to be ready, rewrite the config to remove traffic-control,
-send SIGHUP, then SIGTERM for a clean exit."""
+"""Block on daemon readiness, rewrite the config to remove traffic-control,
+send SIGHUP, then SIGTERM for a clean exit.
+
+wait_for_daemon_ready is the shared barrier (test/scripts/ze_api.py): it returns
+the daemon pid once daemon.ready exists, which ze creates after
+apiServer.WaitForStartupComplete returns (cmd/ze/hub/main.go). Every plugin
+startup phase has settled by then, the traffic reactor's boot-time apply among
+them, so the former 0.3s "let the initial apply finish" hold had nothing left to
+wait for and is gone.
+"""
 import os
 import shutil
 import signal
-import sys
 import time
 
-for _ in range(200):
-    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
-        break
-    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
-    time.sleep(0.05)
-else:
-    print("ERROR: daemon.pid or daemon.ready never appeared", file=sys.stderr)
-    sys.exit(1)
+from ze_api import wait_for_daemon_ready
 
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
+pid = wait_for_daemon_ready()
 
-# blind settle: let the initial apply finish before the reload; this standalone driver has no post-apply signal to poll
-time.sleep(0.3)
 shutil.copy("config2.conf", "ze-bgp.conf")
 os.kill(pid, signal.SIGHUP)
 
-# blind hold: SIGHUP reload exposes no completion signal to this standalone driver; hold for the reactor to re-apply and emit the asserted log, then SIGTERM
+# sleep(no-signal): handleSIGHUPReload (cmd/ze/hub/main_reload.go) writes no file and answers no query, and this driver holds no API connection, so the reload's only evidence is the "traffic-control config reloaded" line on ze's stderr, which the runner reads and this process cannot
 time.sleep(2.0)
 os.kill(pid, signal.SIGTERM)
 EOF_PY
