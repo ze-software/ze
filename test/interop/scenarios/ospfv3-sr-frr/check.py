@@ -74,6 +74,7 @@ def check():
     deadline = time.time() + 60
     mpls = ""
     while time.time() < deadline:
+        # fail-open-ok: poll loop, "" never matches 16100 and the check below raises
         mpls = docker_exec_quiet(ZE_CONTAINER, ["mpls", "-ls"])
         if "16100" in mpls:
             break
@@ -92,9 +93,11 @@ def check():
         # what a reader needs. Measured on 2026-08-23: `mpls` is not in
         # test/interop/Dockerfile.ze at all, and the Docker Desktop kernel exposes no
         # /proc/sys/net/mpls, so on that host neither the tool nor the table exists.
+        # fail-open-ok: diagnostic read, the AssertionError below is unconditional
         instrument = docker_exec_quiet(
             ZE_CONTAINER, ["sh", "-c", "command -v mpls || echo ABSENT"]
         ).strip()
+        # fail-open-ok: diagnostic read, the AssertionError below is unconditional
         kernel = docker_exec_quiet(
             ZE_CONTAINER, ["sh", "-c", "ls -d /proc/sys/net/mpls 2>/dev/null || echo ABSENT"]
         ).strip()
