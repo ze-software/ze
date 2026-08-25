@@ -1820,7 +1820,7 @@ var doctorDependencyCovered = map[string]string{
 	"module/l2tp":             "doctor-l2tp-module",
 	"module/pppoe":            "doctor-pppoe-module",
 	"module/ipsec":            "doctor-module-missing",
-	"module/mpls":             "doctor-mpls-unavailable",
+	"procfs/mpls":             "doctor-mpls-unavailable",
 	"module/nftables":         "doctor-firewall-nftables",
 	"module/vfio":             "doctor-vpp-dpdk",
 	"socket/vpp":              "doctor-vpp-unreachable",

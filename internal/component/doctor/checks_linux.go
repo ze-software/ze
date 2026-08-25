@@ -7,6 +7,7 @@ package doctor
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"net"
 	"os"
 	"os/exec"
@@ -477,8 +478,10 @@ func checkVPPVersion(tree *config.Tree) []diagnostic.Diagnostic {
 }
 
 // loadedModulesPath is the file the module list is read from: the test stub when
-// ze.test.doctor.modules-file names one, else procfs. Shared with the diagnostic
-// so an "unreadable" message names the path the reader actually tried.
+// ze.test.doctor.modules-file names one, else procfs. Its only reader is
+// readLoadedModules, which feeds checkKernelModules. No diagnostic message names
+// this path: checkMPLSSupport used to, and it now probes the AF_MPLS sysctl
+// instead, because a module list cannot see a built-in capability.
 func loadedModulesPath() string {
 	if path := env.Get(doctorModulesEnv); path != "" {
 		return path
@@ -531,41 +534,70 @@ func checkMPLSSupport(tree *config.Tree) []diagnostic.Diagnostic {
 		return nil
 	}
 
-	// A nil map means the module list could not be READ, which is not the same
-	// as "the modules are absent" -- and staying silent about it made this check
-	// invisible rather than reassuring. checkMPLSSupport was the only reader
-	// that bailed on nil (checkKernelModules just indexes the nil map and
-	// reports every module missing), so an unreadable /proc/modules produced no
-	// output at all and there was no way to tell a passing check from one that
-	// never ran. Say so instead (ai/rules/evidence.md: a guard that
-	// cannot be evaluated must speak).
-	loaded := loadedKernelModules()
-	if loaded == nil {
+	// Ask whether the CAPABILITY exists, never how the kernel was PACKAGED.
+	//
+	// readLoadedModules parses /proc/modules, which lists LOADED MODULES ONLY. A
+	// kernel with CONFIG_MPLS_ROUTING=y has no mpls_router.ko to list, so the
+	// module rows reported MPLS absent on the very kernel that forwards it.
+	// ze's own runtime kernel became such a kernel when CONFIG_MPLS_ROUTING and
+	// CONFIG_MPLS_IPTUNNEL were built in (gokrazy/kernel/runtime.config), so
+	// every appliance with MPLS configured would have warned about a kernel that
+	// supports it. Same defect, and the same fix, as the XFRM rows above.
+	//
+	// af_mpls creates net.mpls.platform_labels when MPLS routing is available,
+	// built in or loaded as a module, so one probe answers for both packagings.
+	//
+	// The VALUE is read, never only the path. The sysctl is the size of the label
+	// space and it defaults to 0, which disables MPLS entirely
+	// (docs/guide/mpls.md). Building MPLS into ze's runtime kernel therefore
+	// creates this file on every appliance, at 0, so a check that stopped at the
+	// stat would go silent on exactly the machines the built-in kernel was meant
+	// to serve: the table exists, the label space does not, and ze programs
+	// labels the kernel refuses. Present-but-zero is its own answer with its own
+	// remedy, so it gets its own code rather than being folded into either
+	// neighbor.
+	path := mplsPlatformLabelsPath()
+	raw, err := readFilePath(path)
+	if err == nil {
+		if strings.TrimSpace(string(raw)) != "0" {
+			return nil
+		}
+		var tb textbuf.Buffer
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-mpls-disabled",
+			Severity: diagnostic.SeverityWarning,
+			Message: tb.Str("MPLS forwarding disabled: ").Str(path).
+				Str(" is 0, so the kernel holds no label space and labeled routes cannot be installed; set net.mpls.platform_labels in the sysctl {} block").String(),
+		}}
+	}
+	// The probe could not be READ, which is not the same as "MPLS is absent". A
+	// guard that cannot reach its evidence says so rather than reporting the
+	// answer it did not get (ai/rules/evidence.md).
+	if !errors.Is(err, fs.ErrNotExist) {
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-mpls-unknown",
 			Severity: diagnostic.SeverityWarning,
-			Message: tb.Str("cannot determine MPLS kernel module state: ").Str(loadedModulesPath()).
-				Str(" is unreadable; labeled routes may or may not be programmable").String(),
+			Message: tb.Str("cannot determine MPLS kernel support, the capability probe is unreadable: ").
+				Err(err).String(),
 		}}
 	}
-	if loaded["mpls_router"] && loaded["mpls_iptunnel"] {
-		return nil
-	}
 
-	var missing []string
-	if !loaded["mpls_router"] {
-		missing = append(missing, "mpls_router")
-	}
-	if !loaded["mpls_iptunnel"] {
-		missing = append(missing, "mpls_iptunnel")
-	}
 	var tb textbuf.Buffer
 	return []diagnostic.Diagnostic{{
 		Code:     "doctor-mpls-unavailable",
 		Severity: diagnostic.SeverityWarning,
-		Message:  tb.Str("MPLS kernel modules not loaded: ").Join(missing, ", ").String(),
+		Message: tb.Str("MPLS forwarding unavailable: ").Str(path).
+			Str(" does not exist, so the kernel holds no AF_MPLS table and labeled routes cannot be installed").String(),
 	}}
+}
+
+// mplsPlatformLabelsPath names the sysctl af_mpls creates when the kernel holds
+// an AF_MPLS forwarding table. Shared with the doctor-mpls-unavailable message
+// so it names the path the check actually tried; the doctor-mpls-unknown message
+// gets that path from os.Stat's own *PathError.
+func mplsPlatformLabelsPath() string {
+	return procPath("sys", "net", "mpls", "platform_labels")
 }
 
 // mplsInUse reports whether the config actually uses MPLS forwarding: a BGP

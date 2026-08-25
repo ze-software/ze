@@ -363,8 +363,8 @@ var builtinCodes = []CodeMeta{
 	},
 	{
 		Code:         "doctor-mpls-unknown",
-		Title:        "MPLS kernel module state unknown",
-		Description:  "The loaded-module list (/proc/modules, or the file named by ze.test.doctor.modules-file) could not be read, so ze cannot tell whether mpls_router and mpls_iptunnel are present. This is reported rather than passed over in silence: a check that cannot be evaluated is not a check that succeeded. Remedy: confirm /proc is mounted and readable by the ze user.",
+		Title:        "MPLS kernel support unknown",
+		Description:  "The MPLS capability probe (/proc/sys/net/mpls/platform_labels, under the root named by ze.test.doctor.procfs-root) could not be read, so ze cannot tell whether the kernel holds an AF_MPLS forwarding table. This is reported rather than passed over in silence: a check that cannot be evaluated is not a check that succeeded. Remedy: check the permissions on /proc/sys/net/mpls and the path above it. An ABSENT probe is not this code -- it means the kernel holds no AF_MPLS table and reports doctor-mpls-unavailable. Only a stat that fails for another reason, such as a permission denial or a path component that is not a directory, reaches here.",
 		Examples:     []string{"ze doctor --json", "ze explain doctor-mpls-unknown"},
 		RelatedCodes: []string{"doctor-mpls-unavailable"},
 	},
@@ -376,10 +376,18 @@ var builtinCodes = []CodeMeta{
 		RelatedCodes: []string{"doctor-write-destination"},
 	},
 	{
-		Code:        "doctor-mpls-unavailable",
-		Title:       "MPLS kernel support unavailable",
-		Description: "MPLS kernel modules (mpls_router, mpls_iptunnel) are not loaded. BGP labeled routes cannot be installed in the kernel FIB.",
-		Examples:    []string{"ze doctor --json"},
+		Code:         "doctor-mpls-unavailable",
+		Title:        "MPLS kernel support unavailable",
+		Description:  "The kernel holds no AF_MPLS forwarding table: /proc/sys/net/mpls/platform_labels does not exist. BGP labeled routes cannot be installed in the kernel FIB, and neither LDP nor RSVP-TE can program a label. Remedy: load mpls_router and mpls_iptunnel, or run a kernel built with CONFIG_MPLS_ROUTING and CONFIG_MPLS_IPTUNNEL. ze's own appliance kernel builds both in, so it needs no module. A probe that EXISTS and reads 0 is a different state and reports doctor-mpls-disabled.",
+		Examples:     []string{"ze doctor --json"},
+		RelatedCodes: []string{"doctor-mpls-disabled", "doctor-mpls-unknown"},
+	},
+	{
+		Code:         "doctor-mpls-disabled",
+		Title:        "MPLS label table sized zero",
+		Description:  "The kernel holds an AF_MPLS forwarding table but its label space is zero: /proc/sys/net/mpls/platform_labels reads 0, which is the kernel default and disables MPLS entirely. A labeled BGP family, LDP or RSVP-TE is configured, so ze will try to program labels the kernel refuses. This is a separate code from doctor-mpls-unavailable because the remedy is different: the kernel needs no module and no rebuild, only a size. Remedy: set net.mpls.platform_labels to the highest label ze may use, through the sysctl {} block. This is the state an appliance boots in, because ze's own runtime kernel builds MPLS in and the sysctl still defaults to 0.",
+		Examples:     []string{"ze doctor --json", "ze explain doctor-mpls-disabled"},
+		RelatedCodes: []string{"doctor-mpls-unavailable", "doctor-mpls-unknown"},
 	},
 	{
 		Code:        "doctor-ldp-port-unavailable",
