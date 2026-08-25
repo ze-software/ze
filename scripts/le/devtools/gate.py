@@ -18,13 +18,13 @@ callers parse what came back.
 
 from __future__ import annotations
 
-import subprocess
-import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from le.console import echo
+from le.devtools.inproc import CannotImport, call
 from le.paths import REPO_ROOT
+from le.process import stream
 
 __all__ = ['Gate', 'GateSet', 'run_gate']
 
@@ -47,6 +47,22 @@ class Gate:
     why: str
     json_flag: str | None = None
     writes: bool = False
+
+    @property
+    def python_script(self) -> str | None:
+        """The repo-relative script this gate runs, when it runs one directly.
+
+        `('python3', 'scripts/dev/x.py', ...)` is the shape almost every gate
+        has, and it is the shape that can run in THIS process rather than a
+        forked one (`le/devtools/inproc.py`). Anything else -- `go`, a shell,
+        a script invoked some other way -- is None and forks.
+
+        Derived from the argv rather than declared beside it, so a gate cannot
+        say it is a Python gate while running something else.
+        """
+        if len(self.argv) >= 2 and self.argv[0] == 'python3' and self.argv[1].endswith('.py'):
+            return self.argv[1]
+        return None
 
     def command(self, *, as_json: bool = False) -> list[str]:
         """The argv to run, with the JSON flag appended when asked for."""
@@ -105,17 +121,23 @@ def run_gate(gate: Gate, *, as_json: bool = False, env: dict[str, str] | None = 
     argv = gate.command(as_json=as_json)
     if not as_json:
         echo(f'==> {gate.name}')
-        # Flush before the child starts. Our stdout is buffered and the child
-        # writes to the same fd directly, so without this the header appears
-        # AFTER the output it introduces, and a sweep of ten gates reads as
-        # ten results followed by ten headings.
-        sys.stdout.flush()
-    try:
-        completed = subprocess.run(argv, cwd=str(REPO_ROOT), env=env, check=False)
-    except OSError as err:
-        echo(f'  FAIL {gate.name}: {err}')
-        return 127
-    return completed.returncode
+
+    script = gate.python_script
+    if script is not None and env is None:
+        # In-process: `le` is a Python program and so is the gate, so an
+        # import and a call reach it without an interpreter start. Only when
+        # `env` is None -- a gate needing a changed environment needs a real
+        # process to hold it, and mutating os.environ for the rest of the run
+        # is not a trade worth 18ms.
+        try:
+            return call(script, argv[2:])
+        except CannotImport as why:
+            # Never silently a different answer: say the import failed and
+            # fall back, so a gate that stops importing is visible rather
+            # than quietly forking forever.
+            echo(f'  (in-process import failed, forking) {why}')
+
+    return stream(argv, cwd=REPO_ROOT, env=env)
 
 
 def run_all(gates: Sequence[Gate], *, env: dict[str, str] | None = None) -> list[str]:
