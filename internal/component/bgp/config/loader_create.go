@@ -78,13 +78,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 				routerID = ipToUint32(ip)
 			}
 		}
-		if localContainer := bgpContainer.GetContainer("local"); localContainer != nil {
-			if v, ok := localContainer.Get("as"); ok {
-				if n, parseErr := strconv.ParseUint(v, 10, 32); parseErr == nil {
-					localAS = uint32(n)
-				}
-			}
-		}
+		localAS = globalLocalAS(bgpContainer)
 		// bgp/session/allow-shared-router-id (YANG boolean, default false): opt out
 		// of AS-wide BGP-Identifier uniqueness enforcement. Tree booleans arrive as
 		// the string "true"/"false" (config.md), same idiom as
@@ -349,4 +343,36 @@ func createReloadFunc(store storage.Storage, r *reactor.Reactor) reactor.ReloadF
 
 		return peers, nil
 	}
+}
+
+// globalLocalAS returns the AS the `bgp` container declares for this speaker,
+// or 0 when it declares none.
+//
+// The schema puts it at bgp/session/asn/local, and makes it mandatory
+// (internal/component/bgp/yang/ze-bgp-conf.yang).
+//
+// This used to read bgp/local/as. The schema declares no leaf named `as`, and
+// its only `local` container sits under `connection` and holds an IP endpoint.
+// The lookup therefore matched no valid config and the answer stayed 0.
+//
+// Stats carried that 0 into `show bgp` as local-as, so every deployment
+// reported AS 0. RFC 7607 reserves AS 0, and no speaker originates it.
+func globalLocalAS(bgpContainer *config.Tree) uint32 {
+	sessionContainer := bgpContainer.GetContainer("session")
+	if sessionContainer == nil {
+		return 0
+	}
+	asnContainer := sessionContainer.GetContainer("asn")
+	if asnContainer == nil {
+		return 0
+	}
+	v, ok := asnContainer.Get("local")
+	if !ok {
+		return 0
+	}
+	n, err := strconv.ParseUint(v, 10, 32)
+	if err != nil {
+		return 0
+	}
+	return uint32(n)
 }
