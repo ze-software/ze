@@ -864,7 +864,7 @@ class TestFilterAgreement(unittest.TestCase):
 # --------------------------------------------------------------------------
 # Coverage evaluation (AC-4, AC-5, AC-6, AC-9)
 # --------------------------------------------------------------------------
-def _req(rid, level="MUST", annotation=None, rfc="rfc7606"):
+def _req(rid, level="MUST", annotation=None, rfc="rfc7606", superseded=None):
     return R.Requirement(
         rfc=rfc,
         rid=rid,
@@ -874,6 +874,7 @@ def _req(rid, level="MUST", annotation=None, rfc="rfc7606"):
         annotation=annotation,
         source="rfc/short/%s.md" % rfc,
         line=1,
+        superseded=superseded,
     )
 
 
@@ -10372,7 +10373,14 @@ class TestIndexNeverWritesAudit(_AuditFixture):
             if line.startswith("ze-rfc-reseal:")
         ]
         self.assertEqual(len(hits), 1, "ze-rfc-reseal must be exactly one make target")
-        self.assertIn("--reseal", _read_repo("Makefile"))
+        # The recipe moved to `le` (scripts/le/application/rfc.py). The Make target
+        # forwards to the gate of the same name, and that gate is the only place the
+        # flag is spelled, so the write stays greppable from one file.
+        self.assertIn("le rfc ze-rfc-reseal", _read_repo("Makefile"))
+        gates = _read_repo("scripts/le/application/rfc.py")
+        self.assertEqual(
+            gates.count("'--reseal'"), 1, "exactly one le gate may wire --reseal"
+        )
 
 
 class TestResealOnlyTouchesShifted(_AuditFixture):
@@ -12922,6 +12930,619 @@ class TestRealTreeIsGreen(unittest.TestCase):
 
     def test_run_check_exits_zero_on_the_real_tree(self):
         code, out = _run_capturing(R.run_check)
+        self.assertEqual(code, 0, out)
+        self.assertIn("rfc-requirements OK", out)
+
+
+# --------------------------------------------------------------------------
+# Superseded documents carry their successor
+# (plan/spec-rfc-superseded-requirements-carry-their-successor.md)
+# --------------------------------------------------------------------------
+def _superseded(disposition="restated", target="RFC9568-5.2.3-2", reason="why"):
+    return R.Successor(disposition=disposition, target=target, reason=reason)
+
+
+class TestSupersededMarkerParsing(unittest.TestCase):
+    """AC-2: the marker parses, and it COMPOSES with a coverage annotation rather than
+    replacing one."""
+
+    def test_parse_checklist_line_reads_superseded(self):
+        req = R.parse_checklist_line(
+            "- [ ] [RFC3768-5.2.3-2] [MUST] Advertisements go to 224.0.0.18 (§5.2.3) "
+            "{superseded: restated RFC9568-5.1.1.2-1; VRRPv3 restates the address}",
+            "rfc3768",
+        )
+        self.assertIsNone(req.annotation)
+        self.assertEqual(req.superseded.disposition, "restated")
+        self.assertEqual(req.superseded.target, "RFC9568-5.1.1.2-1")
+        self.assertIn("restates", req.superseded.reason)
+        # The marker is stripped from the text exactly as an annotation is, so the section
+        # anchor still resolves off the requirement's own prose.
+        self.assertEqual(req.section, "5.2.3")
+
+    def test_parse_checklist_line_reads_a_marker_with_no_id(self):
+        for disposition in ("dropped", "unresolved"):
+            req = R.parse_checklist_line(
+                f"- [ ] [RFC3768-5.2.3-2] [MUST] x (§5.2.3) "
+                f"{{superseded: {disposition}; the successor says nothing}}",
+                "rfc3768",
+            )
+            self.assertEqual(req.superseded.disposition, disposition, disposition)
+            self.assertIsNone(req.superseded.target, disposition)
+
+    def test_superseded_composes_with_a_coverage_annotation(self):
+        """A-3 and R-1: the two facts are different registers, and one must never cost the
+        reader the other. Both orders on the line, because both read naturally."""
+        lines = (
+            "- [ ] [RFC3768-5.2.3-2] [MUST] x (§5.2.3) "
+            "{gap: no accept-mode in VRRPv2} "
+            "{superseded: restated RFC9568-6.1-3; VRRPv3 states it too}",
+            "- [ ] [RFC3768-5.2.3-2] [MUST] x (§5.2.3) "
+            "{superseded: restated RFC9568-6.1-3; VRRPv3 states it too} "
+            "{gap: no accept-mode in VRRPv2}",
+        )
+        for line in lines:
+            req = R.parse_checklist_line(line, "rfc3768")
+            self.assertEqual(req.annotation.kind, "gap", line)
+            self.assertEqual(req.superseded.target, "RFC9568-6.1-3", line)
+            self.assertEqual(req.section, "5.2.3", line)
+
+    def test_superseded_composes_with_single_polarity(self):
+        req = R.parse_checklist_line(
+            "- [ ] [RFC3768-5.2.3-2] [MUST] x (§5.2.3) "
+            "{single-polarity: positive; no malformed input reaches it} "
+            "{superseded: dropped; VRRPv3 removed the field}",
+            "rfc3768",
+        )
+        self.assertEqual(req.annotation.polarity, "positive")
+        self.assertEqual(req.superseded.disposition, "dropped")
+
+    def test_superseded_without_a_reason_fails(self):
+        for bad in (
+            "{superseded: restated RFC9568-6.1-3}",
+            "{superseded: dropped}",
+            "{superseded: dropped;}",
+            "{superseded:}",
+        ):
+            with self.assertRaises(R.ParseError, msg=bad):
+                R.parse_checklist_line(
+                    f"- [ ] [RFC3768-5.2.3-2] [MUST] x (§5.2.3) {bad}", "rfc3768"
+                )
+
+    def test_superseded_unknown_disposition_fails(self):
+        with self.assertRaises(R.ParseError):
+            R.parse_checklist_line(
+                "- [ ] [RFC3768-5.2.3-2] [MUST] x (§5.2.3) "
+                "{superseded: exempt; not owed any more}",
+                "rfc3768",
+            )
+
+    def test_restated_needs_exactly_one_id(self):
+        for bad in (
+            "{superseded: restated; why}",
+            "{superseded: restated RFC9568-6.1-3 RFC9568-6.1-4; why}",
+        ):
+            with self.assertRaises(R.ParseError, msg=bad):
+                R.parse_checklist_line(
+                    f"- [ ] [RFC3768-5.2.3-2] [MUST] x (§5.2.3) {bad}", "rfc3768"
+                )
+
+    def test_dropped_and_unresolved_take_no_id(self):
+        for bad in (
+            "{superseded: dropped RFC9568-6.1-3; why}",
+            "{superseded: unresolved RFC9846-4-1; why}",
+        ):
+            with self.assertRaises(R.ParseError, msg=bad):
+                R.parse_checklist_line(
+                    f"- [ ] [RFC3768-5.2.3-2] [MUST] x (§5.2.3) {bad}", "rfc3768"
+                )
+
+    def test_two_markers_of_the_same_register_fail(self):
+        for bad in (
+            "{superseded: dropped; a} {superseded: dropped; b}",
+            "{gap: a} {not-applicable: b}",
+        ):
+            with self.assertRaises(R.ParseError, msg=bad):
+                R.parse_checklist_line(
+                    f"- [ ] [RFC3768-5.2.3-2] [MUST] x (§5.2.3) {bad}", "rfc3768"
+                )
+
+    def test_unknown_kind_message_names_superseded(self):
+        """A reader who typed the marker into the wrong slot must be told it exists."""
+        with self.assertRaises(R.ParseError) as caught:
+            R.parse_checklist_line(
+                "- [ ] [RFC3768-5.2.3-2] [MUST] x (§5.2.3) {obsolete: hi}", "rfc3768"
+            )
+        self.assertIn("superseded", str(caught.exception))
+
+
+class TestObsoletedByMetaRow(unittest.TestCase):
+    """AC-1: the Meta row becomes a fact the checker holds."""
+
+    def _meta(self, value):
+        return (
+            f"# RFC 3768\n\n## Meta\n\n| Field | Value |\n| Obsoleted by | {value} |\n"
+        )
+
+    def test_row_naming_a_chain_yields_its_last_document(self):
+        """rfc3768's real row. The chain runs oldest first, so RFC 9568 is what states
+        these obligations today; RFC 5798 is itself superseded."""
+        text = self._meta(
+            "RFC 5798, which was in turn obsoleted by RFC 9568 (both VRRPv3)"
+        )
+        self.assertEqual(R.parse_successor_stem(text, "rfc3768"), "rfc9568")
+
+    def test_row_with_one_document_yields_it(self):
+        self.assertEqual(
+            R.parse_successor_stem(self._meta("RFC 9552"), "rfc7752"), "rfc9552"
+        )
+
+    def test_capitalisation_of_the_label_does_not_matter(self):
+        """rfc5549 writes `| Obsoleted By |`. A case-sensitive reader missed it, and the
+        nine requirements it states looked current."""
+        text = "| Obsoleted By | RFC 8950 |\n"
+        self.assertEqual(R.parse_successor_stem(text, "rfc5549"), "rfc8950")
+
+    def test_none_and_dash_yield_no_successor(self):
+        for value in ("None", "-", "n/a", "--", ""):
+            self.assertIsNone(
+                R.parse_successor_stem(self._meta(value), "rfc4271"), value
+            )
+
+    def test_dash_followed_by_prose_naming_an_rfc_yields_no_successor(self):
+        """rfc2661's real row. The prose names RFC 3931 in order to say it is NOT a
+        successor, and a reader that scanned the whole value for an RFC number would
+        demand eighteen forward pointers into a document that obsoletes nothing."""
+        text = self._meta(
+            "- (L2TPv3 in RFC 3931 is a distinct protocol; it does not obsolete L2TPv2)"
+        )
+        self.assertIsNone(R.parse_successor_stem(text, "rfc2661"))
+
+    def test_absent_row_yields_no_successor(self):
+        self.assertIsNone(R.parse_successor_stem("# RFC 4271\n\nno meta\n", "rfc4271"))
+
+    def test_row_naming_no_rfc_fails(self):
+        with self.assertRaises(R.ParseError):
+            R.parse_successor_stem(
+                self._meta("superseded, see the working group"), "rfc1"
+            )
+
+    def test_row_naming_this_document_fails(self):
+        with self.assertRaises(R.ParseError):
+            R.parse_successor_stem(self._meta("RFC 3768"), "rfc3768")
+
+    def test_summary_successors_reads_the_real_corpus(self):
+        """The map is DERIVED on every run, never a maintained list."""
+        found = R.summary_successors()
+        self.assertEqual(found.get("rfc3768"), "rfc9568")
+        self.assertEqual(found.get("rfc7752"), "rfc9552")
+        self.assertEqual(found.get("rfc7627"), "rfc9846")
+        self.assertEqual(found.get("rfc5549"), "rfc8950")
+        self.assertNotIn("rfc4271", found)
+        self.assertNotIn("rfc2661", found)
+
+
+class TestSupersededCheck(unittest.TestCase):
+    """AC-3 and AC-5: the check over one superseded summary."""
+
+    SUCCESSORS = {"rfc3768": "rfc9568"}
+    STEMS = {"rfc3768", "rfc9568"}
+    SUCCESSOR_REQS = [_req("RFC9568-6.1-3", rfc="rfc9568")]
+
+    def _check(self, reqs, successors=None, stems=None, text_held=True):
+        """`text_held` is whether the successor's own text is in the repository. It is
+        patched rather than read off the tree, because the real rfc/full/rfc9568.txt IS
+        present and the text-absent cases could not otherwise be driven."""
+        with _patched(
+            source_path=lambda stem: f"rfc/full/{stem}.txt" if text_held else None
+        ):
+            return R.check_superseded(
+                list(reqs) + self.SUCCESSOR_REQS,
+                self.SUCCESSORS if successors is None else successors,
+                self.STEMS if stems is None else stems,
+            )
+
+    def test_superseded_requires_a_successor_pointer(self):
+        errs = self._check([_req("RFC3768-5.2.3-2", rfc="rfc3768")])
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("RFC3768-5.2.3-2", errs[0])
+        self.assertIn("RFC9568", errs[0])
+        # R-1: the message must read as "look here", never as "not owed".
+        self.assertIn("never says Ze stops owing it", errs[0])
+
+    def test_a_marked_requirement_passes(self):
+        """The discriminating twin: without it, a check that failed on every input would
+        satisfy the test above."""
+        self.assertEqual(
+            self._check(
+                [
+                    _req(
+                        "RFC3768-5.2.3-2",
+                        rfc="rfc3768",
+                        superseded=_superseded(target="RFC9568-6.1-3"),
+                    )
+                ]
+            ),
+            [],
+        )
+
+    def test_current_summary_gains_no_obligation(self):
+        """The Blast Radius claim, driven: a summary whose Meta names no successor is
+        untouched by the whole mechanism."""
+        self.assertEqual(
+            R.check_superseded([_req("RFC7606-2-1", rfc="rfc7606")], {}, {"rfc7606"}),
+            [],
+        )
+
+    def test_marker_on_a_current_summary_reds(self):
+        errs = R.check_superseded(
+            [_req("RFC7606-2-1", rfc="rfc7606", superseded=_superseded())],
+            {},
+            {"rfc7606"},
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("declares no `| Obsoleted by |` successor", errs[0])
+
+    def test_pointer_into_a_held_summary_must_resolve(self):
+        errs = self._check(
+            [
+                _req(
+                    "RFC3768-5.2.3-2",
+                    rfc="rfc3768",
+                    superseded=_superseded(target="RFC9568-99.9-1"),
+                )
+            ]
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("RFC9568-99.9-1", errs[0])
+        self.assertIn("does not declare", errs[0])
+
+    def test_pointer_at_a_document_other_than_the_successor_reds(self):
+        errs = self._check(
+            [
+                _req(
+                    "RFC3768-5.2.3-2",
+                    rfc="rfc3768",
+                    superseded=_superseded(target="RFC5798-6.1-3"),
+                )
+            ]
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("not a RFC9568 requirement", errs[0])
+
+    def test_dropped_is_accepted_when_the_successor_is_held(self):
+        self.assertEqual(
+            self._check(
+                [
+                    _req(
+                        "RFC3768-5.2.3-2",
+                        rfc="rfc3768",
+                        superseded=_superseded(disposition="dropped", target=None),
+                    )
+                ]
+            ),
+            [],
+        )
+
+    def test_dropped_over_an_unheld_text_reds(self):
+        """`dropped` claims somebody read the successor. Nobody can have read a document
+        whose text the repository does not hold."""
+        errs = self._check(
+            [
+                _req(
+                    "RFC3768-5.2.3-2",
+                    rfc="rfc3768",
+                    superseded=_superseded(disposition="dropped", target=None),
+                )
+            ],
+            text_held=False,
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("its text is not in this repository", errs[0])
+        self.assertIn("unresolved", errs[0])
+
+    def test_unextracted_is_accepted_when_the_text_is_held(self):
+        """The third answer the spec's Failure Routing section names: the successor STATES
+        the obligation and its summary declares no row for it. Debt, and neither a dropped
+        obligation nor a checked pointer."""
+        self.assertEqual(
+            self._check(
+                [
+                    _req(
+                        "RFC3768-5.2.3-2",
+                        rfc="rfc3768",
+                        superseded=_superseded(
+                            disposition="unextracted", target="§6.4"
+                        ),
+                    )
+                ]
+            ),
+            [],
+        )
+
+    def test_unextracted_over_an_unheld_text_reds(self):
+        errs = self._check(
+            [
+                _req(
+                    "RFC3768-5.2.3-2",
+                    rfc="rfc3768",
+                    superseded=_superseded(disposition="unextracted", target="§6.4"),
+                )
+            ],
+            text_held=False,
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("its text is not in this repository", errs[0])
+
+    def test_unresolved_is_accepted_when_the_text_is_absent(self):
+        """AC-5: a pointer at a document nobody holds is ACCEPTED with its reason, and the
+        ledger publishes it as debt (TestSupersededLedger)."""
+        self.assertEqual(
+            self._check(
+                [
+                    _req(
+                        "RFC3768-5.2.3-2",
+                        rfc="rfc3768",
+                        superseded=_superseded(disposition="unresolved", target=None),
+                    )
+                ],
+                text_held=False,
+            ),
+            [],
+        )
+
+    def test_unresolved_over_a_held_text_reds(self):
+        """The cheapest route from red to green would be to mark every line `unresolved`.
+        The precondition is what blocks it."""
+        errs = self._check(
+            [
+                _req(
+                    "RFC3768-5.2.3-2",
+                    rfc="rfc3768",
+                    superseded=_superseded(disposition="unresolved", target=None),
+                )
+            ]
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("rfc/full/rfc9568.txt is", errs[0])
+
+    def test_restated_into_a_summary_the_repository_lacks_reds(self):
+        errs = self._check(
+            [
+                _req(
+                    "RFC3768-5.2.3-2",
+                    rfc="rfc3768",
+                    superseded=_superseded(target="RFC9568-6.1-3"),
+                )
+            ],
+            stems={"rfc3768"},
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("no id in it can be checked", errs[0])
+
+
+class TestSupersededDoesNotLowerCoverage(unittest.TestCase):
+    """AC-4 and the Security Review Checklist: the marker cannot remove a MUST from the
+    gated population. Driven against every consumer that could have been fooled."""
+
+    MARKED = _req(
+        "RFC3768-5.2.3-2",
+        rfc="rfc3768",
+        superseded=_superseded(target="RFC9568-6.1-3"),
+    )
+
+    def test_a_marked_requirement_is_still_gated_by_evaluate(self):
+        errs = R.evaluate([self.MARKED], [], {"rfc3768"})
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("has no test and no annotation", errs[0])
+
+    def test_a_marked_requirement_still_needs_both_polarities(self):
+        errs = R.evaluate(
+            [self.MARKED], [_tag("RFC3768-5.2.3-2", "positive")], {"rfc3768"}
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("has no negative test", errs[0])
+
+    def test_a_marked_requirement_is_still_counted(self):
+        cov = R.rfc_coverage([self.MARKED], [])
+        self.assertEqual([c.gated for c in cov], [1])
+        self.assertEqual([c.missing for c in cov], [1])
+
+    def test_a_marked_requirement_is_still_ratcheted(self):
+        """check_coverage_ratchet reads polarities, and the marker must not hide a
+        requirement that stopped being proven."""
+        errs = R.check_coverage_ratchet(
+            [self.MARKED],
+            [],
+            {"rfc3768"},
+            {"RFC3768-5.2.3-2": {"positive", "negative"}},
+            {"rfc3768"},
+        )
+        self.assertTrue(errs)
+        self.assertIn("RFC3768-5.2.3-2", " ".join(errs))
+
+    def test_the_marker_does_not_evict_a_coverage_annotation(self):
+        """The composition property, at the level that matters: a `{gap}` beside a marker
+        is still the `{gap}` `evaluate` reads."""
+        req = R.parse_checklist_line(
+            "- [ ] [RFC3768-5.2.3-2] [MUST] x (§5.2.3) {gap: no producer} "
+            "{superseded: restated RFC9568-6.1-3; restated}",
+            "rfc3768",
+        )
+        self.assertEqual(R.evaluate([req], [], {"rfc3768"}), [])
+        self.assertEqual(
+            R.evaluate([req], [_tag("RFC3768-5.2.3-2", "positive")], {"rfc3768"}),
+            [
+                "RFC3768-5.2.3-2: RFC3768-5.2.3-2 is annotated {gap} but IS "
+                "tested (a_test.go:1); the annotation is stale -- remove it"
+            ],
+        )
+
+
+class TestSupersededLedger(unittest.TestCase):
+    """AC-7: the published ledger shows it, derived rather than hand-written."""
+
+    def _summaries(self, obsoleted_by="RFC 9568"):
+        tmp = _mkdtemp("ze-superseded-")
+        with open(os.path.join(tmp, "rfc3768.md"), "w", encoding="utf-8") as fh:
+            fh.write(f"# RFC 3768\n\n| Obsoleted by | {obsoleted_by} |\n")
+        return tmp
+
+    def test_shard_banner_and_note_name_the_successor(self):
+        marked = _req(
+            "RFC3768-5.2.3-2",
+            rfc="rfc3768",
+            superseded=_superseded(target="RFC9568-6.1-3", reason="VRRPv3 restates it"),
+        )
+        tmp = self._summaries()
+        try:
+            with _patched(SUMMARY_DIR=tmp, load_audits=lambda *a, **k: {}):
+                shard = R.render_shards([marked], [], {"rfc3768"})["rfc3768"]
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        self.assertIn("# RFC3768 -- enrolled (gated), superseded by RFC9568", shard)
+        self.assertIn("{superseded: restated RFC9568-6.1-3} VRRPv3 restates it", shard)
+
+    def test_a_pipe_in_a_reason_does_not_split_the_shard_row(self):
+        """A bare `|` closes a markdown cell, so an authored reason quoting a grep
+        alternation splits its row into extra columns.
+
+        PREVENTS: the seven broken rows of `rfc/requirements/rfc7752.md`, all from one
+        `{not-applicable}` reason quoting `grep -rn "NewBGPLSNode|NewBGPLSLink|..."`.
+        """
+        req = _req(
+            "RFC3768-5.2.3-2",
+            rfc="rfc3768",
+            annotation=R.Annotation(
+                kind="not-applicable",
+                polarity=None,
+                reason='grep "A|B|C" found nothing',
+            ),
+            superseded=_superseded(target="RFC9568-6.1-3", reason="a|b"),
+        )
+        tmp = self._summaries()
+        try:
+            with _patched(SUMMARY_DIR=tmp, load_audits=lambda *a, **k: {}):
+                shard = R.render_shards([req], [], {"rfc3768"})["rfc3768"]
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        row = [l for l in shard.split("\n") if l.startswith("| `RFC3768")][0]
+        self.assertEqual(row.count("|") - row.count("\\|"), 7, row)
+        self.assertIn("\\|B\\|", row)
+
+    def test_rollup_states_the_successor_and_counts_unresolved_as_debt(self):
+        reqs = [
+            _req(
+                "RFC3768-5.2.3-2",
+                rfc="rfc3768",
+                superseded=_superseded(disposition="unresolved", target=None),
+            )
+        ]
+        tmp = self._summaries()
+        try:
+            with _patched(SUMMARY_DIR=tmp):
+                body = "\n".join(R._render_rollup({"rfc3768": reqs}, {}, {"rfc3768"}))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        self.assertIn("`rfc3768` -> RFC9568", body)
+        self.assertIn(
+            "1 point at a document this repository does not hold (`unresolved`)", body
+        )
+        self.assertIn("Both are debt, not settled pointers", body)
+        self.assertIn("| `rfc3768` |", body)
+        self.assertIn("**enrolled**, superseded by RFC9568", body)
+
+    def test_a_current_summary_gains_no_ledger_prose(self):
+        tmp = _mkdtemp("ze-current-")
+        try:
+            with open(os.path.join(tmp, "rfc7606.md"), "w", encoding="utf-8") as fh:
+                fh.write("# RFC 7606\n\n| Obsoleted by | None |\n")
+            with _patched(SUMMARY_DIR=tmp):
+                body = "\n".join(
+                    R._render_rollup(
+                        {"rfc7606": [_req("RFC7606-2-1")]}, {}, {"rfc7606"}
+                    )
+                )
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        self.assertNotIn("Superseded", body)
+        self.assertIn("| `rfc7606` | 1 |", body)
+
+
+class TestSupersededWiring(unittest.TestCase):
+    """The Wiring Test rows: `make ze-rfc-check` reaches the new check, and a current
+    summary reaches it too and gains nothing."""
+
+    _MARKED = (
+        "# RFC 3768\n\n| Obsoleted by | RFC 9568 |\n\n## Compliance Checklist\n\n"
+        "- [ ] [RFC3768-5.2.3-2] [MUST] Send advertisements (§5.2.3) "
+        "{superseded: restated RFC9568-6.1-3; VRRPv3 restates it}\n"
+    )
+    _UNMARKED = (
+        "# RFC 3768\n\n| Obsoleted by | RFC 9568 |\n\n## Compliance Checklist\n\n"
+        "- [ ] [RFC3768-5.2.3-2] [MUST] Send advertisements (§5.2.3)\n"
+    )
+    _SUCCESSOR = (
+        "# RFC 9568\n\n| Obsoleted by | None |\n\n## Compliance Checklist\n\n"
+        "- [ ] [RFC9568-6.1-3] [MUST] Send advertisements (§6.1)\n"
+    )
+
+    # Both requirements are proven, so the ONLY thing that can red this driver is the
+    # superseded check. A gate that refuses to report clean while enforcing nothing
+    # (check_enrolment) means the fixture has to enrol its summaries and cover them.
+    _TAGS = (
+        _tag("RFC3768-5.2.3-2", "positive"),
+        _tag("RFC3768-5.2.3-2", "negative", line=2),
+        _tag("RFC9568-6.1-3", "positive", line=3),
+        _tag("RFC9568-6.1-3", "negative", line=4),
+    )
+
+    def _drive(self, body, tags=_TAGS):
+        tmp = _mkdtemp("ze-superseded-wiring-")
+        try:
+            with open(os.path.join(tmp, "rfc3768.md"), "w", encoding="utf-8") as fh:
+                fh.write(body)
+            with open(os.path.join(tmp, "rfc9568.md"), "w", encoding="utf-8") as fh:
+                fh.write(self._SUCCESSOR)
+            with _patched(
+                SUMMARY_DIR=tmp,
+                load_enrolled=lambda: {"rfc3768", "rfc9568"},
+                _git_baseline_enrolment=lambda: {"rfc3768", "rfc9568"},
+                _git_baseline_ids=lambda: set(),
+                _git_baseline_summary_stems=lambda: {"rfc3768", "rfc9568"},
+                _git_baseline_tag_polarities=lambda: {},
+                _git_baseline_evidence=lambda: {},
+                scan_tree=lambda *a, **k: list(tags),
+                check_status_agreement=lambda *a, **k: [],
+                check_audit_files=lambda *a, **k: [],
+                check_audit_schema=lambda *a, **k: [],
+                check_audit_freshness=lambda *a, **k: [],
+                check_audit_disclosure=lambda *a, **k: [],
+                check_audit_note=lambda *a, **k: [],
+                check_audit_findings=lambda *a, **k: [],
+                check_audit_verdict_ratchet=lambda *a, **k: [],
+                check_summary_disposition=lambda *a, **k: [],
+                check_status_completeness=lambda *a, **k: [],
+                check_unproven_support=lambda *a, **k: [],
+                check_gap_count_agreement=lambda *a, **k: [],
+                check_new_summaries=lambda *a, **k: [],
+                check_extraction_signoff=lambda *a, **k: [],
+                check_extraction_ratchet=lambda *a, **k: [],
+                check_drain_floor=lambda *a, **k: [],
+                check_ledger_fresh=lambda *a, **k: [],
+            ):
+                return _run_capturing(R.run_check)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_an_unmarked_superseded_summary_fails_the_gate(self):
+        code, out = self._drive(self._UNMARKED)
+        self.assertEqual(code, 2, out)
+        self.assertIn("RFC3768-5.2.3-2", out)
+        self.assertIn("does not say where that obligation now lives", out)
+
+    def test_a_marked_superseded_summary_passes(self):
+        code, out = self._drive(self._MARKED)
         self.assertEqual(code, 0, out)
         self.assertIn("rfc-requirements OK", out)
 

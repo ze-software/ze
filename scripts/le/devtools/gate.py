@@ -48,6 +48,26 @@ class Gate:
     json_flag: str | None = None
     writes: bool = False
 
+    def short(self, area: str) -> str:
+        """The name to TYPE, with the area's own prefix removed.
+
+        `le rfc ze-rfc-check` says rfc twice. The area is already chosen by
+        then, so repeating it in the gate name is noise the reader supplies
+        and the program ignores. `le rfc check` is the same gate.
+
+        `name` stays the Make target, because that is what every shim, doc,
+        rule and journal row spells, and what a reader greps for. This is a
+        rendering of it, not a replacement.
+
+        A gate whose target does not begin with the area's prefix keeps its
+        full name: `ze-discovery-index-check` sitting in `rules` has no
+        redundancy to remove, and inventing one would hide where it lives.
+        """
+        for prefix in (f'ze-{area}-', f'ze-{area.replace("-", "")}-'):
+            if self.name.startswith(prefix):
+                return self.name[len(prefix) :]
+        return self.name
+
     @property
     def python_script(self) -> str | None:
         """The repo-relative script this gate runs, when it runs one directly.
@@ -87,13 +107,21 @@ class GateSet:
     gates: tuple[Gate, ...] = field(default=())
 
     def find(self, name: str) -> Gate | None:
+        """The gate called `name`, by either spelling.
+
+        Both are accepted on purpose. The short name is what a person types
+        now; the full target name is what every existing doc, rule, shim and
+        muscle memory in the repository still says. Refusing one of them would
+        break callers to make a point about naming.
+        """
         for gate in self.gates:
-            if gate.name == name:
+            if gate.name == name or gate.short(self.area) == name:
                 return gate
         return None
 
     def names(self) -> tuple[str, ...]:
-        return tuple(gate.name for gate in self.gates)
+        """The names to offer a reader who mistyped: the short ones."""
+        return tuple(gate.short(self.area) for gate in self.gates)
 
     def checks(self) -> tuple[Gate, ...]:
         """The gates that only report. Safe to run over a tree you care about."""
@@ -104,11 +132,12 @@ class GateSet:
         return tuple(gate for gate in self.gates if gate.writes)
 
     def render_list(self) -> None:
-        """Print every gate with what it is for."""
-        width = max((len(gate.name) for gate in self.gates), default=0)
-        for gate in self.gates:
+        """Print every gate, by the name a reader types, with what it is for."""
+        shorts = [gate.short(self.area) for gate in self.gates]
+        width = max((len(s) for s in shorts), default=0)
+        for gate, short in zip(self.gates, shorts, strict=True):
             mark = 'writes' if gate.writes else 'checks'
-            echo(f'  {gate.name:<{width}}  {mark}  {gate.why}')
+            echo(f'  {short:<{width}}  {mark}  {gate.why}')
 
 
 def run_gate(gate: Gate, *, as_json: bool = False, env: dict[str, str] | None = None) -> int:
@@ -123,14 +152,19 @@ def run_gate(gate: Gate, *, as_json: bool = False, env: dict[str, str] | None = 
         echo(f'==> {gate.name}')
 
     script = gate.python_script
-    if script is not None and env is None:
+    if script is not None:
         # In-process: `le` is a Python program and so is the gate, so an
-        # import and a call reach it without an interpreter start. Only when
-        # `env` is None -- a gate needing a changed environment needs a real
-        # process to hold it, and mutating os.environ for the rest of the run
-        # is not a trade worth 18ms.
+        # import and a call reach it without an interpreter start. The gate's
+        # environment goes with it -- `call` applies it to os.environ and
+        # restores it -- because a forked gate gets its environment from its
+        # process and an imported one must be given the same view.
+        #
+        # An earlier version skipped the in-process route whenever an
+        # environment was supplied. Every gate an area dispatches carries the
+        # toolchain environment, so that made the route unreachable and the
+        # whole mechanism inert.
         try:
-            return call(script, argv[2:])
+            return call(script, argv[2:], env=env)
         except CannotImport as why:
             # Never silently a different answer: say the import failed and
             # fall back, so a gate that stops importing is visible rather

@@ -100,6 +100,11 @@ REGISTRY: tuple[Entry, ...] = (
         help='lint and type-check the Python half of the tree',
     ),
     Entry(
+        name='gates',
+        module='le.application.gates',
+        help='every gate le knows, across every area, as data',
+    ),
+    Entry(
         name='check-cli',
         module='le.application.check_cli',
         help='CLI contract gates: command/handler, ownership, grammar, config claims',
@@ -108,6 +113,26 @@ REGISTRY: tuple[Entry, ...] = (
         name='check-rules',
         module='le.application.check_rules',
         help='rules-system gates: the point corpus, its renders, the discovery indexes',
+    ),
+    Entry(
+        name='rfc',
+        module='le.application.rfc',
+        help='RFC conformance gates: the coverage ratchets, the ledger, the audit seals',
+    ),
+    Entry(
+        name='scratch',
+        module='le.application.scratch',
+        help='scratch-tree gates: the tmp/ and cache/ symlinks a run writes through',
+    ),
+    Entry(
+        name='generate',
+        module='le.application.generate',
+        help='code generators and the freshness gates that hold their outputs current',
+    ),
+    Entry(
+        name='repository',
+        module='le.application.repository',
+        help='structural gates: where code may live, what it may call, and what git holds',
     ),
     Entry(
         name='check-docs',
@@ -143,6 +168,11 @@ REGISTRY: tuple[Entry, ...] = (
         name='test-chaos',
         module='le.application.chaos',
         help='chaos testing: the simulator, its CLI surface, its linter',
+    ),
+    Entry(
+        name='fuzz',
+        module='le.application.fuzz',
+        help='Go fuzzing: every `func Fuzz` under internal/, discovered at run time',
     ),
     Entry(
         name='build-appliance',

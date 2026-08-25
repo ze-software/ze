@@ -157,11 +157,31 @@ def action(
             return 2
         return run_gate(chosen[0], as_json=True, env=env(chosen[0]))
 
-    failed = [g.name for g in chosen if run_gate(g, env=env(g)) != 0]
+    # The gate's OWN exit code is carried out, not collapsed to 1.
+    #
+    # `mk/check-rules.mk` warned about exactly this and the port walked into
+    # it: the discovery-index check exits 0 for fresh, 3 for STALE and 1 when
+    # the generator itself failed, and `scripts/dev/commit_helper.py` BLOCKS on
+    # 3 while staying warn-only on 1. Its comment said "do not simplify a
+    # caller into one that cannot tell them apart". A caller that answers 1 for
+    # every failure is that caller.
+    #
+    # The FIRST non-zero code wins, because it is the one whose meaning a
+    # reader can act on: a later gate's 1 says nothing about the first gate's
+    # 3. A sweep still reports every failure by name.
+    failed: list[str] = []
+    code = 0
+    for gate in chosen:
+        result = run_gate(gate, env=env(gate))
+        if result != 0:
+            failed.append(gate.name)
+            if code == 0:
+                code = result
+
     echo()
     if failed:
         echo(f'Failed: {", ".join(failed)}')
-        return 1
+        return code
     echo(f'{gates.area}: {len(chosen)} gate(s) passed.')
     return 0
 

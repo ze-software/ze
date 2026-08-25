@@ -1249,7 +1249,6 @@ var regenCheckPrereqs = map[string]string{
 	"ze-yang-glue-check":       "yang_glue.go -> yang/*/register.go, embed.go",
 	"ze-feature-tags-check":    "feature_tags.go -> .golangci.yml, gokrazy/ze/config.json, docs/guide/quickstart.md",
 	"ze-templ-output-check":    "templ generate -> internal/**/*_templ.go",
-	"ze-fuzz-targets-check":    "fuzz-targets.py -> mk/test-fuzz-targets.mk",
 	"ze-vendor-web-check":      "sync_web.go -> the vendored asset copy in each internal/**/assets/",
 	"ze-web-assets-check":      "web_assets.go -> the per-page asset set in each internal/**/page_assets.go",
 	"ze-doc-index-check":       "code_to_docs.py -> ai/CODE-TO-DOCS.md",
@@ -1276,7 +1275,6 @@ var generatorChecks = map[string]string{
 	"scripts/codegen/plugin_imports.go": "ze-plugin-imports-check",
 	"scripts/codegen/feature_tags.go":   "ze-feature-tags-check",
 	"github.com/a-h/templ/cmd/templ":    "ze-templ-output-check",
-	"scripts/dev/fuzz-targets.py":       "ze-fuzz-targets-check",
 	"scripts/vendor/sync_web.go":        "ze-vendor-web-check",
 	"scripts/codegen/web_assets.go":     "ze-web-assets-check",
 	// `ze-generated-files-update:` prerequisite targets
@@ -1466,6 +1464,58 @@ func optionalRecipeBody(corpus, target string) []string {
 //     recipeBody's rule head, which was still live down here;
 //   - a `$(VAR)`/`${VAR}` interpreter prefix is accepted, since the operand is
 //     what we care about.
+//
+// leDelegationRE matches a recipe line that forwards to the `le` build tool,
+// capturing the area and the gate name: `@$(CURDIR)/le check-rules ze-rules-render-check`.
+//
+// This exists because delegation BLINDED the guard below. producerScripts
+// reads recipe text for a `.py` or `.go` operand, and a delegating recipe names
+// neither, so every generator that moved into `le` silently left the derived
+// population and the loop that demands a read-only check for each one stopped
+// seeing it. Nothing went red; the coverage was simply gone.
+//
+// Recipe text was always a proxy. `le gates --json` is the answer itself: the
+// gate table, with each gate's argv, which is where the script name now lives.
+// leGateScriptLookup is filled by TestRegenCheckReadonlyCoversGenerators before
+// it walks any recipe. Package-level because producerScripts is called from
+// several places and threading it through each would touch callers this change
+// has no other reason to edit.
+var leGateScriptLookup = map[string]string{}
+
+var leDelegationRE = regexp.MustCompile(`(?m)^\t@?\$\(CURDIR\)/le\s+(\S+)\s+(\S+)`)
+
+// leGate is one row of `le gates --json`.
+type leGate struct {
+	Area   string `json:"area"`
+	Name   string `json:"name"`
+	Script string `json:"script"`
+}
+
+// leGateScripts maps "<area> <gate>" to the script that gate runs, by asking
+// `le` rather than by parsing anything.
+func leGateScripts(t *testing.T, repoRoot string) map[string]string {
+	t.Helper()
+	out, err := exec.Command(filepath.Join(repoRoot, "le"), "gates", "--json").Output()
+	if err != nil {
+		t.Fatalf("`le gates --json` failed, so a delegating recipe cannot be resolved "+
+			"and this guard would pass vacuously: %v", err)
+	}
+	var rows []leGate
+	if err := json.Unmarshal(out, &rows); err != nil {
+		t.Fatalf("`le gates --json` did not parse: %v", err)
+	}
+	if len(rows) == 0 {
+		t.Fatal("`le gates --json` listed no gate; this guard must not pass vacuously")
+	}
+	byName := map[string]string{}
+	for _, row := range rows {
+		if row.Script != "" {
+			byName[row.Area+" "+row.Name] = row.Script
+		}
+	}
+	return byName
+}
+
 func producerScripts(recipe string) []string {
 	// Fold continuations, then strip comments. Order matters: a `#` on a
 	// continued line comments out the whole logical line.
@@ -1478,6 +1528,13 @@ func producerScripts(recipe string) []string {
 
 	var out []string
 	seen := map[string]bool{}
+	// A delegating line names its gate, and the gate table names the script.
+	for _, m := range leDelegationRE.FindAllStringSubmatch(joined, -1) {
+		if script, ok := leGateScriptLookup[m[1]+" "+m[2]]; ok && !seen[script] {
+			seen[script] = true
+			out = append(out, script)
+		}
+	}
 	for _, re := range producerREs {
 		for _, m := range re.FindAllStringSubmatch(joined, -1) {
 			p := strings.TrimSpace(m[len(m)-1])
@@ -1552,7 +1609,7 @@ var producerREs = []*regexp.Regexp{
 // PREVENTS: two distinct drifts. (a) A new generator added to `generate` or
 // `ze-generated-files-update` with no read-only check, leaving its output's staleness unguarded
 // everywhere -- the drift class this spec exists to kill, one level up from the
-// stage list; two of the four codegen scripts (feature_tags, fuzz-targets) were
+// stage list; one of the codegen scripts (feature_tags) was
 // previously guarded ONLY by the mutating ze-generated-files-reconcile's `git diff`, which
 // runs nowhere. (b) A prerequisite being quietly dropped from the target, which
 // matters most for ze-arch-map-check: unlike the other doc checks it is NOT
@@ -1583,11 +1640,17 @@ func TestRegenCheckReadonlyCoversGenerators(t *testing.T) {
 	// and ze-ai-instructions-generate run generator scripts of their own, so stopping at
 	// the name would let a fourth script added inside ze-discovery-index-update's recipe
 	// go completely unguarded -- proven by a reviewer.
+	// Fill the delegation lookup FIRST: a recipe that forwards to `le` names
+	// its gate, and only the gate table names the script. Without this the
+	// walk below sees no producer for a delegated generator and this guard
+	// passes over it in silence.
+	leGateScriptLookup = leGateScripts(t, repoRootFromScriptsStatus())
+
 	var producers []string
 	_, genBody := recipeBody(t, corpus, "generate")
 	producers = append(producers, producerScripts(strings.Join(genBody, "\n"))...)
-	if len(producers) != 7 {
-		t.Fatalf("parsed %d generators from the `generate:` recipe (%v), expected 7; the recipe changed. Update generatorChecks to match. This test must not pass vacuously.", len(producers), producers)
+	if len(producers) != 6 {
+		t.Fatalf("parsed %d generators from the `generate:` recipe (%v), expected 6; the recipe changed. Update generatorChecks to match. This test must not pass vacuously.", len(producers), producers)
 	}
 
 	regenHead, _ := recipeBody(t, corpus, "ze-generated-files-update")

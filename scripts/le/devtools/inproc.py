@@ -40,9 +40,10 @@ from __future__ import annotations
 
 import importlib.util
 import inspect
+import os
 import sys
 import traceback
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 
 from le.paths import REPO_ROOT
 
@@ -58,10 +59,17 @@ class CannotImport(Exception):
     """
 
 
-def call(script: str, args: Sequence[str] = ()) -> int:
+def call(script: str, args: Sequence[str] = (), env: Mapping[str, str] | None = None) -> int:
     """Import `script` and run its `main()`. Returns the exit code it meant.
 
     `script` is repo-relative, the way the Make recipe spelled it.
+
+    `env` is applied to `os.environ` for the duration and restored after. A
+    forked gate gets its environment from the process it runs in; an imported
+    one has to be given the same view, or the two routes are not the same run.
+    Refusing the in-process route whenever an environment was supplied was the
+    other option, and it made the route unreachable: every gate an area
+    dispatches carries the toolchain environment, so nothing ever took it.
     """
     path = REPO_ROOT / script
     if not path.is_file():
@@ -75,9 +83,13 @@ def call(script: str, args: Sequence[str] = ()) -> int:
     directory = str(path.parent)
 
     saved_argv = sys.argv
+    saved_environ = dict(os.environ)
     displaced = sys.modules.get(spec.name)
     added_path = directory not in sys.path
 
+    if env is not None:
+        os.environ.clear()
+        os.environ.update(env)
     sys.argv = [str(path), *args]
     sys.modules[spec.name] = module
     if added_path:
@@ -108,6 +120,9 @@ def call(script: str, args: Sequence[str] = ()) -> int:
             return _code(stop)
     finally:
         sys.argv = saved_argv
+        if env is not None:
+            os.environ.clear()
+            os.environ.update(saved_environ)
         if added_path and directory in sys.path:
             sys.path.remove(directory)
         if displaced is None:
@@ -126,11 +141,22 @@ def _call_args(main: Callable[..., object], args: Sequence[str]) -> tuple[list[s
 
         def main()           reads sys.argv itself; pass nothing
         def main(argv=None)  None makes argparse read sys.argv; pass nothing
-        def main(argv)       required, so it must be given the list
+        def main(argv)       required, so it must be given a list
 
     Passing the list to the first shape is a TypeError, and withholding it from
     the third is the same error the other way. `sys.argv` is set for all three,
     so the first two behave identically either way and only the third needs it.
+
+    **The third gets a FULL argv, program name included, because that is what
+    the shape means.** A script declaring `main(argv)` is written to be called
+    as `main(sys.argv)` from its own `__main__` guard, and its first act is
+    `argv[1:]` to drop the program name. Handing it a bare option list makes it
+    discard the first OPTION instead.
+
+    That was live and silent. `rfc_requirements.main` does exactly this, so
+    `le rfc ze-rfc-check` ran with no flags at all. Both spellings exit 2 on
+    this tree, so the exit code could not tell them apart -- the failure was
+    invisible from the outside, which is what makes it worth naming here.
     """
     try:
         parameters = list(inspect.signature(main).parameters.values())
@@ -142,7 +168,10 @@ def _call_args(main: Callable[..., object], args: Sequence[str]) -> tuple[list[s
         if p.default is inspect.Parameter.empty
         and p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
     ]
-    return (list(args),) if required else ()
+    # sys.argv, not the bare option list. `sys.argv[0]` is already the script,
+    # set by `call` before this runs, so this hands over exactly what the
+    # script's own `__main__` guard would have handed it.
+    return (list(sys.argv),) if required else ()
 
 
 def _code(stop: SystemExit) -> int:

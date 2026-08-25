@@ -90,10 +90,24 @@ class TestMainSignature(unittest.TestCase):
         body = 'def main(argv=None):\n    return 0 if argv is None else 9\n'
         assert call(_script(body)) == 0
 
-    def test_main_with_a_required_argv(self) -> None:
-        """Withholding the list here is a TypeError, so it must be passed."""
-        body = 'def main(argv):\n    return len(argv)\n'
+    def test_main_with_a_required_argv_gets_a_full_argv(self) -> None:
+        """Program name included, because that is what the shape means.
+
+        A script declaring `main(argv)` is called as `main(sys.argv)` from its
+        own `__main__` guard, and its first act is `argv[1:]` to drop the
+        program name. Handing it a bare option list makes it discard the first
+        OPTION instead.
+
+        This was live and silent: `rfc_requirements.main` does exactly this, so
+        `le rfc ze-rfc-check` ran with no flags. Both spellings exit 2 on this
+        tree, so no exit code could have told them apart.
+        """
+        body = 'def main(argv):\n    return len(argv[1:])\n'
         assert call(_script(body), ['a', 'b', 'c']) == 3
+
+    def test_the_program_name_is_argv_zero_for_that_shape(self) -> None:
+        body = "def main(argv):\n    return 0 if argv[0].endswith('probe.py') else 9\n"
+        assert call(_script(body), ['--flag']) == 0
 
 
 class TestModuleRegistration(unittest.TestCase):

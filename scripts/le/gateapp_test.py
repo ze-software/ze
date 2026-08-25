@@ -98,6 +98,103 @@ class TestSelection(unittest.TestCase):
         assert 'ze-beta-check' in buffer.getvalue()
 
 
+class TestExitCodeSurvives(unittest.TestCase):
+    """A gate's own exit code reaches the caller, not a flattened 1.
+
+    `mk/check-rules.mk` warned about this and the port walked into it. The
+    discovery-index check exits 0 for fresh, 3 for STALE and 1 when the
+    generator itself failed, and `commit_helper.py` BLOCKS on 3 while staying
+    warn-only on 1. Its comment: "do not simplify a caller into one that
+    cannot tell them apart".
+    """
+
+    def test_a_single_gate_carries_its_own_code(self) -> None:
+        for expected in (1, 2, 3, 42):
+            with (
+                mock.patch.object(gateapp, 'run_gate', return_value=expected),
+                redirect_stdout(io.StringIO()),
+            ):
+                got = gateapp.action(_options(['ze-alpha-check']), SET)
+            assert got == expected, f'exit {expected} came back as {got}'
+
+    def test_the_first_failing_gate_decides_the_code(self) -> None:
+        """A later gate's 1 says nothing about the first gate's 3."""
+        with (
+            mock.patch.object(gateapp, 'run_gate', side_effect=[3, 1, 0]),
+            redirect_stdout(io.StringIO()),
+        ):
+            assert gateapp.action(_options([]), SET) == 3
+
+    def test_every_failure_is_still_named(self) -> None:
+        buffer = io.StringIO()
+        with (
+            mock.patch.object(gateapp, 'run_gate', side_effect=[3, 1, 0]),
+            redirect_stdout(buffer),
+        ):
+            gateapp.action(_options([]), SET)
+        said = buffer.getvalue()
+        assert 'ze-alpha-check' in said
+        assert 'ze-beta-check' in said
+
+    def test_all_passing_is_zero(self) -> None:
+        with (
+            mock.patch.object(gateapp, 'run_gate', return_value=0),
+            redirect_stdout(io.StringIO()),
+        ):
+            assert gateapp.action(_options([]), SET) == 0
+
+
+class TestGatesRunInProcess(unittest.TestCase):
+    """The in-process route must be REACHABLE, not merely present.
+
+    It was written, tested directly, committed, and never taken: `run_gate`
+    skipped it whenever an environment was supplied, and every gate an area
+    dispatches carries the toolchain environment. The mechanism was inert and
+    nothing said so.
+    """
+
+    def test_a_python_gate_does_not_fork_even_with_an_environment(self) -> None:
+        from le.devtools import gate as gate_module
+
+        real = Gate(name='ze-probe', argv=('python3', 'scripts/dev/rules_lint.py'), why='probe')
+        forked: list[bool] = []
+
+        def note_fork(*_args: object, **_kwargs: object) -> int:
+            forked.append(True)
+            return 0
+
+        with (
+            mock.patch.object(gate_module, 'stream', side_effect=note_fork),
+            mock.patch.object(gate_module, 'call', return_value=0) as imported,
+            redirect_stdout(io.StringIO()),
+        ):
+            gate_module.run_gate(real, env={'PATH': '/usr/bin'})
+        assert imported.called, 'a python gate must be taken in process'
+        assert not forked, 'a python gate must not fork when an env is supplied'
+
+    def test_the_environment_reaches_the_imported_gate(self) -> None:
+        from le.devtools import gate as gate_module
+
+        real = Gate(name='ze-probe', argv=('python3', 'scripts/dev/rules_lint.py'), why='probe')
+        with (
+            mock.patch.object(gate_module, 'call', return_value=0) as imported,
+            redirect_stdout(io.StringIO()),
+        ):
+            gate_module.run_gate(real, env={'MARKER': 'yes'})
+        assert imported.call_args.kwargs['env'] == {'MARKER': 'yes'}
+
+    def test_a_go_gate_still_forks(self) -> None:
+        from le.devtools import gate as gate_module
+
+        go = Gate(name='ze-go', argv=('go', 'run', 'x.go'), why='probe')
+        with (
+            mock.patch.object(gate_module, 'stream', return_value=0) as forked,
+            redirect_stdout(io.StringIO()),
+        ):
+            gate_module.run_gate(go, env=None)
+        assert forked.called
+
+
 class TestJson(unittest.TestCase):
     def test_json_over_several_gates_is_refused(self) -> None:
         """Two JSON documents interleaved on one stream parse as neither."""

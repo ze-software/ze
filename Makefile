@@ -8,7 +8,7 @@
 .PHONY: ze-staticcheck-feature-matrix-check ze-repository-tracked-build-check ze-verify-scope-selector ze-verify-debt-clear
 .PHONY: ze-iso-build-full ze-iso-initialize ze-iso-build ze-iso-check ze-pxe-build
 .PHONY: ze-vendor-web-sync ze-vendor-web-check ze-vendor-web-update-report ze-htmx-upgrade-check ze-htmx-upgrade-report ze-ai-skills-sync ze-ai-instructions-generate ze-ai-sync-check
-.PHONY: ze-proto-generate ze-plugin-snapshot-update ze-plugin-imports-check ze-fuzz-targets-check ze-yang-glue-check ze-feature-tags-check ze-web-assets-check ze-templ-orphan-check ze-templ-output-check ze-generated-files-update ze-generated-files-reconcile ze-generated-files-check ze-arch-map-update ze-arch-map-check
+.PHONY: ze-proto-generate ze-plugin-snapshot-update ze-plugin-imports-check ze-yang-glue-check ze-feature-tags-check ze-web-assets-check ze-templ-orphan-check ze-templ-output-check ze-generated-files-update ze-generated-files-reconcile ze-generated-files-check ze-arch-map-update ze-arch-map-check
 .PHONY: ze-web-golden-check ze-web-golden-update ze-templ-port-check ze-chaos-golden-update ze-doc-links-check ze-site-generate
 .PHONY: check
 .PHONY: help-test help-deploy help-dev
@@ -48,10 +48,10 @@ endif
 # See scripts/dev/ensure-links.py and plan/spec-relocate-scratch-and-cache.md.
 .PHONY: ze-scratch-links-ensure ze-scratch-migrate
 ze-scratch-links-ensure:
-	@python3 scripts/dev/ensure-links.py --quiet
+	@$(CURDIR)/le scratch ze-scratch-links-ensure
 
 ze-scratch-migrate:
-	@python3 scripts/dev/ensure-links.py --migrate
+	@$(CURDIR)/le scratch ze-scratch-migrate
 
 # Where Homebrew is, asked of the machine rather than written down. It is under
 # /opt/homebrew on Apple Silicon and /usr/local on Intel, and `brew` itself sits
@@ -286,13 +286,20 @@ all: ze-lint ze-unit-test build
 # package, so one library is vendored once per consumer, and a copy that
 # nothing regenerates diverges from third_party/web/ without a sound.
 # ze-vendor-web-check is its read-only twin, below.
+#
+# THIS RECIPE DID NOT MOVE TO `le`, and it must not. Two Go tests DERIVE facts
+# from its literal text: TestRegenCheckReadonlyCoversGenerators reads the six
+# generator scripts out of it and fails when one gains no read-only check, and
+# TestTemplCheckIsReadOnlyAndReportsOrphans reads the templ call sites out of it
+# and fails when a -check call loses -keep-orphaned-files (both in
+# scripts/status/verify_run_test.go). A delegating one-liner leaves both with an
+# empty population.
 generate:
 	@go run scripts/codegen/yang_glue.go
 	@go run scripts/codegen/plugin_imports.go
 	@go run scripts/codegen/feature_tags.go
 	@go run scripts/codegen/web_assets.go
 	@go run github.com/a-h/templ/cmd/templ generate -path internal
-	@python3 scripts/dev/fuzz-targets.py
 	@go run scripts/vendor/sync_web.go
 
 # Regenerate api/proto/*.pb.go from api/proto/ze.proto. Deliberately NOT part of
@@ -319,16 +326,13 @@ ze-proto-generate:
 	@echo "Regenerated api/proto/ze.pb.go api/proto/ze_grpc.pb.go"
 
 ze-plugin-imports-check:
-	@go run scripts/codegen/plugin_imports.go --check
-
-ze-fuzz-targets-check:
-	@python3 scripts/dev/fuzz-targets.py --check
+	@$(CURDIR)/le generate ze-plugin-imports-check
 
 ze-yang-glue-check:
-	@go run scripts/codegen/yang_glue.go --check
+	@$(CURDIR)/le generate ze-yang-glue-check
 
 ze-feature-tags-check:
-	@go run scripts/codegen/feature_tags.go --check
+	@$(CURDIR)/le generate ze-feature-tags-check
 
 # Refuse a page_assets.go that disagrees with the markup its package renders.
 #
@@ -339,7 +343,7 @@ ze-feature-tags-check:
 # second is invisible everywhere but the browser: the page renders and does
 # nothing.
 ze-web-assets-check:
-	@go run scripts/codegen/web_assets.go --check
+	@$(CURDIR)/le generate ze-web-assets-check
 
 # Report a *_templ.go whose .templ source is gone, and a .templ outside the
 # walk. It writes nothing and it deletes nothing.
@@ -350,6 +354,8 @@ ze-web-assets-check:
 # never sees the file. A generated file whose source was deleted is real
 # staleness, and this target is what finds it. The tests live in
 # scripts/dev/templ_orphan_check_test.py.
+# Not moved to `le`: TestTemplCheckIsReadOnlyAndReportsOrphans reads this recipe
+# and fails when it stops naming templ_orphan_check.py.
 ze-templ-orphan-check:
 	@python3 scripts/dev/templ_orphan_check.py
 
@@ -381,6 +387,9 @@ ze-templ-orphan-check:
 # vendor/ is out of the population, and it is not empty: go mod vendor copies
 # two .templ files that templ's own CLI carries. templ skips a vendor directory
 # on its walk, so those files belong to the dependency and never to ze.
+# Not moved to `le`: TestTemplCheckIsReadOnlyAndReportsOrphans derives the templ
+# call sites from the literal recipe text, and -keep-orphaned-files is what it
+# checks for.
 ze-templ-output-check: ze-templ-orphan-check
 	@go run github.com/a-h/templ/cmd/templ generate -check -keep-orphaned-files -path internal
 
@@ -921,9 +930,7 @@ ze-precommit-verify-changed:
 # --selftest runs the gate's own isolated fixtures (engine placement + the B-1
 # wired-vs-core classification) before checking the live tree.
 ze-tier-check:
-	@python3 scripts/dev/dep_audit.py --selftest
-	@python3 scripts/dev/dep_audit.py --check
-	@python3 scripts/dev/protocol_skeleton_report.py
+	@$(CURDIR)/le repository ze-tier-selftest ze-tier-check ze-protocol-skeleton-report
 
 # RFC requirement coverage gate (plan/spec-rfc-requirement-coverage.md): every MUST-level
 # requirement of an ENROLLED RFC (rfc/enrolled.txt) must be bound to a positive AND a
@@ -936,14 +943,14 @@ ze-tier-check:
 # branches) -- that function is the only live stage list; nothing in this Makefile
 # enumerates verify stages any more.
 ze-rfc-check:
-	@python3 scripts/dev/rfc_requirements.py --selftest
-	@python3 scripts/dev/rfc_requirements.py --check
+	@$(CURDIR)/le rfc ze-rfc-selftest
+	@$(CURDIR)/le rfc ze-rfc-check
 
 # Regenerate the RFC requirement ledger (requirement -> enforcing tests): the index
 # ai/RFC-REQUIREMENTS.md, and one file per RFC stem under rfc/requirements/ holding that
 # RFC's rows. It also deletes a shard whose stem no longer renders.
 ze-rfc-index-update:
-	@python3 scripts/dev/rfc_requirements.py --write
+	@$(CURDIR)/le rfc ze-rfc-index-update
 
 # Re-stamp the audit verdicts a mechanical edit staled (plan/spec-rfcgate-3-audit-teeth.md).
 # `make ze-rfc-check` reports a verdict as SHIFTED when the tagged unit -- the enclosing
@@ -959,7 +966,7 @@ ze-rfc-index-update:
 # A verdict whose unit, cited producer code, or requirement text moved is REFUSED and stays
 # stale: that one needs /ze-rfc-audit <rfc>. Run `make ze-rfc-index-update` afterwards.
 ze-rfc-reseal:
-	@python3 scripts/dev/rfc_requirements.py --reseal
+	@$(CURDIR)/le rfc ze-rfc-reseal
 
 # Write an UNCLASSIFIED extraction skeleton for one RFC
 # (plan/spec-rfcgate-1-extraction.md): every normative site and every section of
@@ -977,14 +984,14 @@ ze-rfc-extraction-create:
 # counts, the per-register split, and the unsigned backlog. Always JSON -- that envelope
 # is the mode's only consumer.
 ze-rfc-extraction-status:
-	@python3 scripts/dev/rfc_requirements.py --extraction-status --json
+	@$(CURDIR)/le rfc ze-rfc-extraction-status --json
 
 # No-direct-resolution gate (plan/spec-iface-resolve-0-umbrella.md AC-U1,
 # sub-spec 7): interface consumers must resolve logical names via the shared
 # iface resolver, not the kernel directly. scripts/checks/iface_resolution.go
 # owns the allowlist of legitimate direct-resolution sites.
 ze-iface-resolution-check:
-	@$(GO) run scripts/checks/iface_resolution.go
+	@$(CURDIR)/le repository ze-iface-resolution-check
 
 # Plugin process-boundary gate (ai/rules/plugins.md): a
 # plugin calling another in-process package's same-process-effect function
@@ -993,8 +1000,7 @@ ze-iface-resolution-check:
 # external subprocess. scripts/checks/plugin_process_boundary.go owns the
 # dangerous-pattern list and allowlist.
 ze-plugin-boundary-check:
-	@$(GO) run scripts/checks/plugin_process_boundary.go --selftest
-	@$(GO) run scripts/checks/plugin_process_boundary.go
+	@$(CURDIR)/le repository ze-plugin-boundary-selftest ze-plugin-boundary-check
 
 # Config value-coercion gate: the framework delivers YANG leaf values as JSON
 # strings, so a config.go coercing them with a native-type assertion (v.(bool),
@@ -1002,36 +1008,31 @@ ze-plugin-boundary-check:
 # value and reverts to the default (a bool `enabled` gate disables the feature --
 # how ddos-detect never fired). scripts/checks/config_string_coercion.go owns it.
 ze-config-coercion-check:
-	@$(GO) run scripts/checks/config_string_coercion.go --selftest
-	@$(GO) run scripts/checks/config_string_coercion.go
+	@$(CURDIR)/le repository ze-config-coercion-selftest ze-config-coercion-check
 
 # Dispatch-command call-site gate: every command string the repo SENDS must
 # still resolve. GO_RUN (not GO run): this enumerates the live command registry,
 # so it needs the same feature tags the shipped binary has or gated plugins'
 # commands are absent and every use of them reports as dead.
 ze-ci-dispatch-check:
-	@$(GO_RUN) scripts/checks/ci_dispatch_commands.go --selftest
-	@$(GO_RUN) scripts/checks/ci_dispatch_commands.go
+	@$(CURDIR)/le repository ze-ci-dispatch-selftest ze-ci-dispatch-check
 
 ze-fs-persistence-check:
-	@$(GO) run scripts/checks/direct_fs_persistence.go --selftest
-	@$(GO) run scripts/checks/direct_fs_persistence.go
+	@$(CURDIR)/le repository ze-fs-persistence-selftest ze-fs-persistence-check
 
 # CLI "-" = stdin/stdout gate: a filename-accepting command must read/write a
 # user-supplied path through internal/core/cliio (so "-" works), never a raw os
 # call. --selftest first proves the AST taint detector fires on the pre-migration
 # shapes; then the live scan asserts the tree is clean.
 ze-dash-stdio-check:
-	@$(GO) run scripts/checks/cli_dash_stdio.go --selftest
-	@$(GO) run scripts/checks/cli_dash_stdio.go
+	@$(CURDIR)/le repository ze-dash-stdio-selftest ze-dash-stdio-check
 
 # Listener port-default gate (spec-followup-subsystem AC-11): the hand-maintained
 # Go table (internal/component/config/listener_defaults.go) must match each
 # service's YANG `refine port { default N }`, since the YANG compiler does not
 # propagate refine defaults. scripts/checks/port_defaults.go owns the mapping.
 ze-port-defaults-check:
-	@$(GO) run scripts/checks/port_defaults.go --selftest
-	@$(GO) run scripts/checks/port_defaults.go
+	@$(CURDIR)/le repository ze-port-defaults-selftest ze-port-defaults-check
 
 # YANG leaf mention report (spec-improve-7 AC-8). ADVISORY, and deliberately in
 # NO verify stage: the signal is a heuristic (a leaf name that appears in no
@@ -1041,8 +1042,7 @@ ze-port-defaults-check:
 # ze-unit-test. --selftest first proves the scan fires on a fixture whose
 # answer is known; TestYANGLeafMentionReport (scripts/checks) runs the same.
 ze-yang-leaf-mentions-report:
-	@$(GO) run scripts/checks/yang_leaf_mentions.go --selftest
-	@$(GO) run scripts/checks/yang_leaf_mentions.go
+	@$(CURDIR)/le repository ze-yang-leaf-mentions-selftest ze-yang-leaf-mentions-report
 
 # Test-sensitivity ratchet (spec-test-health-dashboard AC-10/AC-11): a test that
 # cannot fail, and a test file no build tag reaches, both read as coverage while
@@ -1052,8 +1052,7 @@ ze-yang-leaf-mentions-report:
 # change that improves the number (the test/.ci-sleep-baseline convention).
 # --selftest first proves both AST detectors fire on known-bad fixtures.
 ze-test-sensitivity-check:
-	@$(GO) run scripts/checks/inert_tests.go --selftest
-	@$(GO) run scripts/checks/inert_tests.go --check
+	@$(CURDIR)/le repository ze-test-sensitivity-selftest ze-test-sensitivity-check
 
 # Weakened-test record (plan/spec-weakened-per-commit.md): a commit that weakens a
 # test carries the reason in test/weakened.md, and scripts/dev/commit_helper.py
@@ -1066,8 +1065,7 @@ ze-test-sensitivity-check:
 # accepts the same weakening once a row names it, on a fixture repository whose
 # answer is known.
 ze-test-weakened-check:
-	@python3 scripts/dev/check_weakened_tests.py --selftest
-	@python3 scripts/dev/check_weakened_tests.py
+	@$(CURDIR)/le repository ze-test-weakened-selftest ze-test-weakened-check
 
 # Entry point for the Staticcheck feature-tag matrix gate.
 #
@@ -1079,8 +1077,10 @@ ze-test-weakened-check:
 # (scripts/status/verify_run.go), and scopes the rows to the ones that change
 # set can move. Unset -- a developer running this target on its own -- judges
 # every row the manifest implies.
+# ARGS moved with the target, from `$(if ...)` to the environment. A variable set
+# on the make command line reaches the recipe's environment, so this still works.
 ze-staticcheck-feature-matrix-check:
-	@$(GO) run scripts/checks/staticcheck_feature_matrix.go $(ARGS)
+	@$(CURDIR)/le repository ze-staticcheck-feature-matrix-check
 
 # The change-set selector (plan/spec-verify-scope-2-change-set-selector.md): one
 # answer for "what must this change retest, and which features can it reach".
@@ -1108,24 +1108,23 @@ ze-verify-scope-selector:
 # REV=<commit-ish> judges another commit (`make ze-repository-tracked-build-check REV=7abe8a07e`).
 # The extracted tree is removed at the end; add ARGS=--keep to inspect it.
 ze-repository-tracked-build-check:
-	@$(GO) run scripts/checks/tracked_build.go --selftest
-	@$(GO) run scripts/checks/tracked_build.go $(if $(REV),--rev=$(REV)) $(ARGS)
+	@$(CURDIR)/le repository ze-repository-tracked-build-selftest ze-repository-tracked-build-check
 
 # Regenerate the testing-state page (docs/features/test-health.md), its structured
 # sibling test/health/latest.json, and the ratchet baseline. Output is a pure
 # function of committed state -- no wall-clock value -- so ze-test-health-check can
 # gate it for staleness the way every other generated file here is gated.
 ze-test-health-update:
-	@python3 scripts/dev/testing_health.py --write
+	@$(CURDIR)/le repository ze-test-health-update
 
 # Staleness gate for the above; a prerequisite of ze-generated-files-check.
 ze-test-health-check:
-	@python3 scripts/dev/testing_health.py --check
+	@$(CURDIR)/le repository ze-test-health-check
 
 # Append one KPI row to test/health/history.ndjson. Run after a mutation or verify
 # run; the page renders trends from the committed history, never from live output.
 ze-test-health-record:
-	@python3 scripts/dev/testing_health.py --record
+	@$(CURDIR)/le repository ze-test-health-record
 
 # Cross-platform vet gate (spec-followup-subsystem AC-7): the interface plugins
 # ship non-Linux stubs (default_other.go, backend_other.go, host/platform_other.go)
@@ -1134,13 +1133,10 @@ ze-test-health-record:
 # non-Linux platform (e.g. an int64-vs-uint64 syscall.Rlimit drift) rots
 # silently. This gate vets the iface + host trees under both non-Linux targets.
 ze-platform-vet:
-	@echo "Vetting iface/host trees (GOOS=darwin)..."
-	@GOOS=darwin go vet ./internal/component/host/... ./internal/component/iface/... ./internal/plugins/iface/...
-	@echo "Vetting iface/host trees (GOOS=freebsd)..."
-	@GOOS=freebsd go vet ./internal/component/host/... ./internal/component/iface/... ./internal/plugins/iface/...
+	@$(CURDIR)/le repository ze-platform-vet-darwin ze-platform-vet-freebsd
 
 ze-repository-check:
-	@python3 scripts/dev/validate.py --root .
+	@$(CURDIR)/le repository ze-repository-check
 
 # The half of ze-repository-check that `make ze-precommit-verify` runs (stagesForMode,
 # scripts/status/verify_run.go). Three of the five checks read the tree:
@@ -1165,7 +1161,7 @@ ze-repository-check:
 # three take --root and are untouched. Run `make ze-repository-check` to get all five
 # over your own tree.
 ze-repository-tree-check:
-	@python3 scripts/dev/validate.py --root . --changed-file ''
+	@$(CURDIR)/le repository ze-repository-tree-check
 
 ze-verify-all: ze-precommit-verify ze-chaos-verify
 	@echo "All verification passed (ze + chaos)"
@@ -1203,17 +1199,17 @@ tidy:
 	go mod tidy
 
 ze-vendor-web-sync:
-	@go run scripts/vendor/sync_web.go
+	@$(CURDIR)/le generate ze-vendor-web-sync
 
 # The staleness gate for the vendor sync in `generate`, and a `ze-precommit-verify` stage.
 # It reads two directory trees and no network, so it runs in an offline CI and
 # in an offline checkout. `ze-vendor-web-update-report` is where the npm
 # registry query lives.
 ze-vendor-web-check:
-	@go run scripts/vendor/check_web.go
+	@$(CURDIR)/le generate ze-vendor-web-check
 
 ze-vendor-web-update-report:
-	@go run scripts/vendor/check_web.go --updates
+	@$(CURDIR)/le generate ze-vendor-web-update-report
 
 # htmx 2 -> htmx 4 upgrade gate (plan/spec-web-htmx4-cutover, AC-13). It runs
 # htmx's OWN scanner, vendored at third_party/web/htmx-upgrade-check.py, over
@@ -1225,13 +1221,13 @@ ze-vendor-web-update-report:
 # suffix in htmx 4, and only a parser knows whether a DESCENDANT issues a
 # request. --report prints every issue, explained or not, and exits 0.
 ze-htmx-upgrade-check:
-	@python3 scripts/dev/htmx_upgrade_check.py --check
+	@$(CURDIR)/le generate ze-htmx-upgrade-check
 
 ze-htmx-upgrade-report:
-	@python3 scripts/dev/htmx_upgrade_check.py --report
+	@$(CURDIR)/le generate ze-htmx-upgrade-report
 
 ze-arch-map-update:
-	@python3 scripts/dev/arch_map.py
+	@$(CURDIR)/le generate ze-arch-map-update
 
 ze-ai-instructions-generate: ze-arch-map-update
 	@sed 's/{{TOOL}}/Claude/' ai/INSTRUCTIONS.md > CLAUDE.md
@@ -1259,7 +1255,7 @@ ze-generated-files-update: generate ze-rules-render-update ze-rules-condensed-up
 # memory and diffs.
 #
 # Composed of PREREQUISITE TARGETS, never re-typed recipes. Three of these
-# (ze-yang-glue-check, ze-feature-tags-check, ze-fuzz-targets-check) had zero
+# (ze-yang-glue-check, ze-feature-tags-check) had zero
 # callers before this target existed. Spelling their commands out here would
 # have made a fifth copy of "how to check yang glue" -- the same duplication
 # this spec deleted from the stage list. TestRegenCheckReadonlyCoversGenerators
@@ -1272,7 +1268,6 @@ ze-generated-files-update: generate ze-rules-render-update ze-rules-condensed-up
 #   feature_tags.go   -> .golangci.yml, gokrazy/ze/config.json,
 #                        docs/guide/quickstart.md            -> ze-feature-tags-check
 #   templ generate    -> internal/**/*_templ.go              -> ze-templ-output-check
-#   fuzz-targets.py   -> mk/test-fuzz-targets.mk             -> ze-fuzz-targets-check
 #   sync_web.go       -> internal/**/assets/<vendored file>  -> ze-vendor-web-check
 #   web_assets.go     -> internal/**/page_assets.go           -> ze-web-assets-check
 #   code_to_docs.py   -> docs/ `<!-- source: -->` anchors    -> ze-doc-index-check
@@ -1316,15 +1311,15 @@ ze-generated-files-update: generate ze-rules-render-update ze-rules-condensed-up
 #   anchor under docs/ points at a real path and names a symbol that file
 #   declares. Do not "fix" this by wiring the freshness half back in.
 ze-arch-map-check:
-	@python3 scripts/dev/arch_map.py --check
+	@$(CURDIR)/le generate ze-arch-map-check
 
-ze-generated-files-check: ze-plugin-imports-check ze-yang-glue-check ze-feature-tags-check ze-templ-output-check ze-fuzz-targets-check ze-vendor-web-check ze-web-assets-check ze-doc-index-check ze-rules-render-check ze-rules-index-check ze-rules-condensed-check ze-rules-lint ze-arch-map-check ze-discovery-index-check ze-test-health-check
+ze-generated-files-check: ze-plugin-imports-check ze-yang-glue-check ze-feature-tags-check ze-templ-output-check ze-vendor-web-check ze-web-assets-check ze-doc-index-check ze-rules-render-check ze-rules-index-check ze-rules-condensed-check ze-rules-lint ze-arch-map-check ze-discovery-index-check ze-test-health-check
 	@echo "All generated files are up to date"
 
 ze-generated-files-reconcile: ze-generated-files-update
-	@if ! git diff --quiet -- ai/CODE-TO-DOCS.md ':(glob)ai/rules/*.md' ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk ':(glob)internal/**/*_templ.go' 2>/dev/null; then \
+	@if ! git diff --quiet -- ai/CODE-TO-DOCS.md ':(glob)ai/rules/*.md' ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md ':(glob)internal/**/*_templ.go' 2>/dev/null; then \
 		echo "ERROR: Generated files are stale. Run 'make ze-generated-files-update' and commit the result." >&2; \
-		git diff --stat -- ai/CODE-TO-DOCS.md ':(glob)ai/rules/*.md' ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md mk/test-fuzz-targets.mk ':(glob)internal/**/*_templ.go'; \
+		git diff --stat -- ai/CODE-TO-DOCS.md ':(glob)ai/rules/*.md' ai/PACKAGE-MAP.md ai/DOCS-TO-CODE.md internal/component/plugin/all/all.go .golangci.yml gokrazy/ze/config.json docs/guide/quickstart.md ':(glob)internal/**/*_templ.go'; \
 		exit 1; \
 	fi
 	@python3 scripts/dev/code_to_docs.py --check
