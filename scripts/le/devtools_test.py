@@ -165,9 +165,19 @@ class TestApplianceChecks(unittest.TestCase):
         check = next(c for c in tools.APPLIANCE_CHECKS if c.name == 'appliance-e2fsprogs')
         assert set(check.probe) == {'mkfs.ext4', 'debugfs'}
 
-    def test_grub_takes_the_host_architecture_package(self) -> None:
+    def test_both_grub_surfaces_name_the_same_package(self) -> None:
+        """The Tool row AND the appliance check, held together.
+
+        Two tables carry grub's apt package: `REQUIRED_TOOLS` installs it and
+        `APPLIANCE_CHECKS` reports on it. Pinning only one lets the other
+        drift, which is a machine where setup installs one GRUB module set and
+        the doctor asks about another. An earlier version of this asserted the
+        appliance half alone.
+        """
         check = next(c for c in tools.APPLIANCE_CHECKS if c.name == 'appliance-grub')
+        tool = next(t for t in tools.REQUIRED_TOOLS if t.name == 'grub')
         assert check.apt == tools.GRUB_APT_PACKAGE
+        assert tool.apt == tools.GRUB_APT_PACKAGE
 
 
 class TestGoplsAnswers(unittest.TestCase):

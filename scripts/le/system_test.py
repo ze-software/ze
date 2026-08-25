@@ -156,6 +156,61 @@ class TestLoopbackAddresses(unittest.TestCase):
         assert 'sudo ifconfig lo0 inet6 fd00::2/128 alias' in buffer.getvalue()
 
 
+class TestCheckModeTouchesNothing(unittest.TestCase):
+    """`--check` probes. It must not change the machine, ever.
+
+    The old suite proved this for the loopback path by patching
+    `run_privileged` and asserting zero calls. The port lost it: the only
+    remaining check greps stdout for install strings, which proves what was
+    PRINTED and not what was RUN. A probe that silently added an address or
+    edited a sysctl would pass that.
+
+    `run_privileged` is the one door to root for all three system fixes
+    (`le/devtools/system.py`), so asserting it is never called covers every
+    one of them at once.
+    """
+
+    def _visit_under_check(self, visit: str) -> None:
+        from le.application import setup
+
+        opts = setup.Options(check=True)
+        with (
+            mock.patch.object(system, 'run_privileged') as privileged,
+            mock.patch.object(system, 'missing_loopback', return_value=['fd00::2']),
+            mock.patch.object(system, 'userns_state', return_value=system.Userns.RESTRICTED),
+            mock.patch.object(system, 'kvm_state', return_value=system.Kvm.NO_GROUP),
+            redirect_stdout(io.StringIO()),
+        ):
+            getattr(setup, visit)(opts)
+        privileged.assert_not_called()
+
+    def test_check_mode_adds_no_loopback_address(self) -> None:
+        self._visit_under_check('_visit_loopback')
+
+    def test_check_mode_writes_no_sysctl(self) -> None:
+        self._visit_under_check('_visit_userns')
+
+    def test_check_mode_changes_no_group(self) -> None:
+        self._visit_under_check('_visit_kvm')
+
+    def test_each_one_still_reports_the_problem_it_found(self) -> None:
+        """Touching nothing must not become saying nothing."""
+        from le.application import setup
+        from le.console import State
+
+        opts = setup.Options(check=True)
+        with (
+            mock.patch.object(system, 'missing_loopback', return_value=['fd00::2']),
+            mock.patch.object(system, 'userns_state', return_value=system.Userns.RESTRICTED),
+            mock.patch.object(system, 'kvm_state', return_value=system.Kvm.NO_GROUP),
+            redirect_stdout(io.StringIO()),
+        ):
+            for visit in ('_visit_loopback', '_visit_userns', '_visit_kvm'):
+                outcome = getattr(setup, visit)(opts)
+                assert outcome.state is State.MISSING, visit
+                assert outcome.state.blocking, visit
+
+
 class TestUserns(unittest.TestCase):
     """Ubuntu 23.10+ blocks the user-namespace sandbox Chrome relies on.
 

@@ -8,6 +8,7 @@ shares it: a test that installed anything left the flag set for the next one.
 from __future__ import annotations
 
 import os
+import platform
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -22,13 +23,22 @@ __all__ = ['Installer', 'detect_package_manager', 'vendor_go_deps']
 def detect_package_manager() -> PackageManager | None:
     """The package manager this host installs system packages with.
 
-    None means neither route exists, which is not a failure of this program: it
-    is a platform it cannot install for, and the caller prints the manual list.
+    Gated on the PLATFORM, not on what happens to be on PATH. macOS takes
+    Homebrew and Linux takes apt, which is what `detect_os` did before the
+    port. An earlier version of this asked PATH alone and returned BREW first
+    on any platform, so a Linux box carrying Linuxbrew would have installed
+    system packages through it instead of apt -- a silent change of which
+    package manager owns the machine.
+
+    None means neither route exists, which is not a failure of this program:
+    it is a platform it cannot install for, and the caller prints the manual
+    list.
     """
-    if which('brew'):
-        return PackageManager.BREW
-    if which('apt-get'):
-        return PackageManager.APT
+    system = platform.system()
+    if system == 'Darwin':
+        return PackageManager.BREW if which('brew') else None
+    if system == 'Linux':
+        return PackageManager.APT if which('apt-get') else None
     return None
 
 

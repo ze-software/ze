@@ -30,7 +30,8 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from le.console import echo
-from le.devtools.gate import GateSet, run_all, run_gate
+from le.devtools.gate import Gate, GateSet, run_gate
+from le.devtools.toolchain import toolchain
 
 __all__ = ['Options', 'action', 'add_arguments', 'main', 'options']
 
@@ -87,8 +88,37 @@ def options(namespace: argparse.Namespace) -> Options:
     )
 
 
-def action(opts: Options, gates: GateSet) -> int:
-    """Run what the options select. Returns the process exit code."""
+def default_environment(gate: Gate) -> dict[str, str]:
+    """The environment every gate runs under unless its area says otherwise.
+
+    The Makefile exported GOCACHE, GOLANGCI_LINT_CACHE, CGO_ENABLED and
+    GOTOOLCHAIN at the top of every run, so each recipe inherited them. `le`
+    has no equivalent ambient step, and a gate run with none of them is not the
+    gate Make ran: GOCACHE lands outside the checkout, which breaks the
+    Unix-socket tests on path length, and an unpinned GOTOOLCHAIN makes
+    golangci-lint print "0 issues" and exit non-zero on a cold cache
+    (`le/devtools/toolchain.py`).
+
+    This is a DEFAULT rather than a per-area decision because the failure is
+    silent and the areas that need something different know it: a race build
+    needs CGO_ENABLED=1, a test run needs GOMAXPROCS. Those pass their own
+    resolver. An area that passes nothing used to get the ambient environment,
+    which is how three `go run` areas ended up running with no pin at all.
+    """
+    return toolchain().environment()
+
+
+def action(
+    opts: Options,
+    gates: GateSet,
+    env: Callable[[Gate], dict[str, str] | None] = default_environment,
+) -> int:
+    """Run what the options select. Returns the process exit code.
+
+    `env` resolves the environment per gate, because one area can hold gates
+    with different needs: a race build and a plain build sit side by side in
+    `test-unit`.
+    """
     if opts.listing:
         echo(f'{gates.area}:')
         gates.render_list()
@@ -118,9 +148,16 @@ def action(opts: Options, gates: GateSet) -> int:
         if len(chosen) != 1:
             echo('--json takes exactly one gate name')
             return 2
-        return run_gate(chosen[0], as_json=True)
+        # Refuse rather than run the plain command. A caller that asked for
+        # JSON is going to parse what comes back, and prose on stdout with a
+        # zero exit is the worst of the three possible answers: it reads as
+        # success and decodes as nothing.
+        if not chosen[0].has_json:
+            echo(f'{chosen[0].name} has no machine-readable report')
+            return 2
+        return run_gate(chosen[0], as_json=True, env=env(chosen[0]))
 
-    failed = run_all(chosen)
+    failed = [g.name for g in chosen if run_gate(g, env=env(g)) != 0]
     echo()
     if failed:
         echo(f'Failed: {", ".join(failed)}')
@@ -134,6 +171,7 @@ def main(
     gates: GateSet,
     doc: str | None = None,
     run: Callable[[Options], int] | None = None,
+    env: Callable[[Gate], dict[str, str] | None] = default_environment,
 ) -> int:
     """Standalone entry for a gate area. Parses, then calls the area's `action`.
 
@@ -158,4 +196,4 @@ def main(
     opts = options(parser.parse_args(argv))
     if run is not None:
         return run(opts)
-    return action(opts, gates)
+    return action(opts, gates, env)

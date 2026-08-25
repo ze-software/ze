@@ -43,8 +43,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from le import gateapp
-from le.console import echo
-from le.devtools.gate import Gate, GateSet, run_gate
+from le.devtools.gate import Gate, GateSet
 from le.devtools.toolchain import toolchain
 from le.paths import REPO_ROOT
 
@@ -169,50 +168,20 @@ def options(namespace: argparse.Namespace) -> gateapp.Options:
 
 
 def action(opts: gateapp.Options) -> int:
-    """Run what the options select, each gate under its own environment.
+    """Run what the options select, each gate under its own Go environment.
 
-    The shared helper cannot run these: `gateapp.action` calls `run_all` with
-    no environment, and a cross build and a render want different ones. It also
-    never creates the staging directory, and `go build -o` does not either.
+    `_environment` is what this area adds: the shared helper's default
+    carries the toolchain pins, and these gates need more than that
+    (CGO_ENABLED for a race build, GOMAXPROCS for a test run).
     """
-    if opts.listing:
-        echo(f'{GATES.area}:')
-        GATES.render_list()
-        return 0
-
-    chosen = _chosen(opts)
-    if isinstance(chosen, int):
-        return chosen
-
-    if opts.as_json:
-        echo(f'{GATES.area} has no machine-readable report')
-        return 2
-
-    if any(gate.argv[0] == 'go' for gate in chosen):
+    if not opts.listing:
+        # `mkdir -p $(TERMINAL_DEMO_BIN_DIR)` was the first line of the
+        # pre-port binaries-build recipe, and it is not decoration: BIN_DIR
+        # lives under gitignored tmp/, so it is absent on a fresh checkout and
+        # after every scratch wipe, and `go build -o` into a missing directory
+        # fails. A Gate is a command, so it has nowhere to carry this.
         Path(BIN_DIR).mkdir(parents=True, exist_ok=True)
-
-    failed = [gate.name for gate in chosen if run_gate(gate, env=_environment(gate)) != 0]
-    echo()
-    if failed:
-        echo(f'Failed: {", ".join(failed)}')
-        return 1
-    echo(f'{GATES.area}: {len(chosen)} gate(s) passed.')
-    return 0
-
-
-def _chosen(opts: gateapp.Options) -> tuple[Gate, ...] | int:
-    """The gates the options select, or the exit code to return instead."""
-    if not opts.names:
-        return GATES.writers() if opts.write else GATES.checks()
-    selected: list[Gate] = []
-    for name in opts.names:
-        gate = GATES.find(name)
-        if gate is None:
-            echo(f'no such gate in {GATES.area}: {name}')
-            echo(f'try one of: {", ".join(GATES.names())}')
-            return 2
-        selected.append(gate)
-    return tuple(selected)
+    return gateapp.action(opts, GATES, env=_environment)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

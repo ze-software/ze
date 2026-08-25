@@ -46,20 +46,36 @@ class TestDetectPackageManager(unittest.TestCase):
         ):
             return detect_package_manager()
 
-    def test_brew_is_taken_when_present(self) -> None:
-        assert self._detect('brew') is PackageManager.BREW
+    def test_brew_is_taken_on_macos(self) -> None:
+        with mock.patch('le.devtools.install.platform.system', return_value='Darwin'):
+            assert self._detect('brew') is PackageManager.BREW
 
-    def test_apt_is_taken_when_present(self) -> None:
-        assert self._detect('apt-get') is PackageManager.APT
+    def test_apt_is_taken_on_linux(self) -> None:
+        with mock.patch('le.devtools.install.platform.system', return_value='Linux'):
+            assert self._detect('apt-get') is PackageManager.APT
 
     def test_neither_is_no_manager(self) -> None:
         """Not a failure of this program: a platform it cannot install for."""
-        assert self._detect(None) is None
+        for system in ('Darwin', 'Linux'):
+            with mock.patch('le.devtools.install.platform.system', return_value=system):
+                assert self._detect(None) is None
 
-    def test_brew_wins_when_both_are_present(self) -> None:
-        """A Linuxbrew box has both; brew is the one that owns what it installed."""
-        with mock.patch.object(install, 'which', return_value=Path('/anywhere')):
-            assert detect_package_manager() is PackageManager.BREW
+    def test_an_unsupported_platform_has_no_manager(self) -> None:
+        with mock.patch('le.devtools.install.platform.system', return_value='Windows'):
+            assert self._detect('brew') is None
+
+    def test_linuxbrew_does_not_displace_apt(self) -> None:
+        """The discriminating case, and why detection is gated on the PLATFORM.
+
+        A Linux box carrying Linuxbrew has both binaries. Asking PATH alone
+        would answer BREW and hand that machine's system packages to Homebrew;
+        `detect_os` answered apt on Linux whatever else was installed.
+        """
+        with (
+            mock.patch('le.devtools.install.platform.system', return_value='Linux'),
+            mock.patch.object(install, 'which', return_value=Path('/anywhere')),
+        ):
+            assert detect_package_manager() is PackageManager.APT
 
 
 class TestAptInstalls(unittest.TestCase):

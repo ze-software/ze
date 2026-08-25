@@ -264,6 +264,41 @@ artifact type. Check them whenever your work touches the described concern.
 | `./le setup` | `scripts/le/application/setup.py` | Unified dev setup: installs all build deps, linters, and appliance/evidence tools (qemu, e2fsprogs, xorriso, grub, uv; optional Linux L2TP-evidence deps xl2tpd, ppp). Also two Linux system-state prerequisites that are not packages: `userns-unrestricted` (Chrome sandbox) and `kvm-access` (the `kvm` group, without which QEMU evidence cannot start). OS autodetect (brew/apt). `--check` probes only and changes nothing. Without it the run installs. It also reports a missing Claude Code language-server plugin as a pending step. Drift-guarded against `applianceDoctorChecks()`. Runs standalone as `PYTHONPATH=scripts python3 -m le.application.setup --check`. |
 | `./le lint` | `scripts/le/application/lint.py` | Lints and type-checks the Python half of the tree: ruff over the whole tree, and mypy `--strict` over `scripts/le`. The legacy Python tree is held to a finding ceiling recorded in `pyproject.toml`, so a new finding there fails the run. `--fix` applies the fixes ruff can make and formats, `--strict-only` checks `scripts/le` alone, and `--lint-only` and `--types-only` each run one half. No Makefile target does this. |
 
+## `le` -- the build and test entry point
+
+`le` is replacing the Makefile one area at a time. Where an area has moved, the
+`mk/*.mk` file is a forwarding shim: every `make ze-...` target still works, and
+the Python module is the source of truth. **Read and edit the module, never the
+shim.** Run `./le --help` for the live list, and `./le <area> --list` for what
+each gate in an area is for and why it exists.
+
+| Area | Module | Was |
+|------|--------|-----|
+| `./le setup` | `scripts/le/application/setup.py` | `make ze-dev-setup` (removed) |
+| `./le lint` | `scripts/le/application/lint.py` | new; no Makefile equivalent existed |
+| `./le check-cli` | `scripts/le/application/check_cli.py` | `mk/check-cli.mk` |
+| `./le check-rules` | `scripts/le/application/check_rules.py` | `mk/check-rules.mk` |
+| `./le check-docs` | `scripts/le/application/check_docs.py` | `mk/check-docs.mk` |
+| `./le report-inventory` | `scripts/le/application/report_inventory.py` | `mk/report-inventory.mk` |
+| `./le perf-bench` | `scripts/le/application/perf_bench.py` | `mk/perf-bench.mk` |
+| `./le helper-verify` | `scripts/le/application/helper_verify.py` | `mk/helper-verify.mk` |
+| `./le test-unit` | `scripts/le/application/unit.py` | `mk/test-unit.mk` |
+| `./le test-chaos` | `scripts/le/application/chaos.py` | `mk/test-chaos.mk` |
+| `./le fuzz` | `scripts/le/application/fuzz.py` | `mk/test-fuzz.mk` + a generated fragment, both retired |
+| `./le build-appliance` | `scripts/le/application/build_appliance.py` | `mk/build-appliance.mk` |
+| `./le build-terminal-demo` | `scripts/le/application/build_terminal_demo.py` | `mk/build-terminal-demo.mk` |
+
+Every area also runs standalone, which is how a script reaches one without the
+dispatcher: `PYTHONPATH=scripts python3 -m le.application.<module> --help`.
+
+**Not every target moved, and the ones that stayed are not oversights.** A gate
+is a name, a command and a reason. A recipe that is a shell PROGRAM -- a
+`pipefail` pipeline into `tee` that branches on a file, `ls -1t | head -1`
+captured into an `if`, a `for` loop over a glob, a make `ifeq` on `go env GOOS`
+-- is not one, and a table cannot hold it without changing what it does. Those
+stay in Make. `mk/helper-session.mk` stays entirely: it is 21 variable
+definitions the Makefile needs at parse time, not commands.
+
 ## Pattern Cookbooks
 
 Mechanical recipes for creating common artifacts. Read before coding.
