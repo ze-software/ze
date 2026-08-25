@@ -152,7 +152,7 @@ def action(opts: gateapp.Options) -> int:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    return gateapp.main(argv, GATES, __doc__)
+    return gateapp.main(argv, GATES, __doc__, run=action)
 
 
 Options = gateapp.Options

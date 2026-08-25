@@ -8,7 +8,12 @@ module calls them with its own `GateSet`:
     def add_arguments(parser): gateapp.add_arguments(parser, GATES)
     def options(namespace):    return gateapp.options(namespace)
     def action(opts):          return gateapp.action(opts, GATES)
-    def main(argv=None):       return gateapp.main(argv, GATES, __doc__)
+    def main(argv=None):       return gateapp.main(argv, GATES, __doc__, run=action)
+
+A module whose `action` is the one-liner above may omit `run=action`. A module
+that writes its OWN action MUST pass it, or the standalone route silently runs
+the shared one instead. `run=action` is correct in both cases, so write it
+always and the question never arises.
 
 Explicit calls rather than generated attributes: a reader of an area module
 sees the four names the registry requires, and `le/registry.py` still finds
@@ -21,7 +26,7 @@ did when the area had an aggregate target, and it is the common case.
 from __future__ import annotations
 
 import argparse
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from le.console import echo
@@ -124,8 +129,33 @@ def action(opts: Options, gates: GateSet) -> int:
     return 0
 
 
-def main(argv: Sequence[str] | None, gates: GateSet, doc: str | None = None) -> int:
-    """Standalone entry for a gate area. Parses, then calls `action`."""
+def main(
+    argv: Sequence[str] | None,
+    gates: GateSet,
+    doc: str | None = None,
+    run: Callable[[Options], int] | None = None,
+) -> int:
+    """Standalone entry for a gate area. Parses, then calls the area's `action`.
+
+    `run` is the MODULE's action, and passing it is not optional for a module
+    that defines one. Without it this called `gateapp.action` directly, so a
+    module with a custom action had two routes that did different things: the
+    dispatcher reached the custom one and `python3 -m le.application.<area>`
+    reached the shared one.
+
+    That is the exact divergence `le/registry.py` claims the layout prevents,
+    and it was live rather than theoretical. `check_rules` orders its
+    generators by WRITE_ORDER because two of them parse what a third writes;
+    the standalone route ran them in declaration order instead, which put
+    `ze-rules-index-update` before `ze-rules-condensed-update`. The render
+    still happened first by accident of declaration order, so nothing broke
+    yet, which is what makes it worth naming rather than quietly correcting.
+
+    Defaulting to the shared action keeps the pure-table modules to one line.
+    """
     parser = argparse.ArgumentParser(prog=f'le {gates.area}', description=doc)
     add_arguments(parser, gates)
-    return action(options(parser.parse_args(argv)), gates)
+    opts = options(parser.parse_args(argv))
+    if run is not None:
+        return run(opts)
+    return action(opts, gates)
