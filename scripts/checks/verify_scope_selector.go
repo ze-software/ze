@@ -224,8 +224,8 @@ var nonGoPathRules = []pathRule{
 	// ci_fixture_test.go and TestCIPeerBlockCorpusParses (internal/test/runner)
 	// parse every one of them, walkFirstPartyFiles (scripts/checks) reads their
 	// content, and doc_drift.go (scripts/docvalid) is run against the real tree
-	// by scripts_test.go. functional_suite_test.py in scripts/dev enumerates the
-	// suites they belong to.
+	// by scripts_test.go. functional_test.py in scripts/le enumerates the suites
+	// they belong to, and python_tests_test.go in scripts/dev runs it.
 	{prefix: "test/", suffix: ".ci", dirs: []string{ciRunnerPackage, pythonTestPackage, docValidationPackage, checksPackage}},
 
 	// A .et under test/editor is walked by runner_test.go, which requires the
@@ -245,9 +245,9 @@ var nonGoPathRules = []pathRule{
 	// docs/ has two readers: docs_to_code.py in scripts/dev, and doc_drift.go.
 	{prefix: "docs/", suffix: ".md", dirs: []string{pythonTestPackage, docValidationPackage}},
 
-	// The Makefile and its includes are parsed by functional_suite_test.py, by
-	// readMakefileLines in doc_drift.go, and by the verify runner whose stage
-	// list they define.
+	// The Makefile and its includes are parsed by functional_test.py in
+	// scripts/le, by readMakefileLines in doc_drift.go, and by the verify runner
+	// whose stage list they define.
 	{prefix: "Makefile", dirs: toolingPackages},
 	{prefix: "mk/", suffix: ".mk", dirs: toolingPackages},
 

@@ -233,24 +233,53 @@ func TestClassifyFunctionalSuiteFallbackNamesTheSuiteTarget(t *testing.T) {
 	}
 }
 
-// allSuitesRE captures the one all_suites assignment in the functional recipe.
-var allSuitesRE = regexp.MustCompile(`(?m)^\s*all_suites="([^"]+)"`)
+// leFunctionalSuite is one row of `le functional --list --json`: a suite, and
+// whether the gating run runs it.
+type leFunctionalSuite struct {
+	Name   string `json:"name"`
+	Gating bool   `json:"gating"`
+	Rerun  string `json:"rerun"`
+	Target string `json:"target"`
+}
 
-// gatingFunctionalSuites returns the suites `make ze-functional-test` runs, read
-// from the all_suites line that is their single source of truth.
+// gatingFunctionalSuites returns the suites `make ze-functional-test` runs, by
+// ASKING `le` rather than by parsing anything.
+//
+// It read the `all_suites="..."` line of mk/test-functional.mk until the suites,
+// their budgets and the run logic moved to scripts/le/application/functional.py.
+// A recipe that delegates names nothing. So a population derived from recipe
+// text silently becomes empty, and an empty population is a guard that passes
+// over no rows at all. That is the same blinding `le gates --json` was written
+// for.
+//
+// Every failure below is a t.Fatal for that reason: this guard must go red when
+// it cannot see the suites, never quietly green.
 func gatingFunctionalSuites(t *testing.T) []string {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join(repoRootFromScriptsStatus(), "mk", "test-functional.mk"))
+	repoRoot := repoRootFromScriptsStatus()
+	// CommandContext, not Command: the linter refuses a child with no context,
+	// and t.Context() ends this one with the test rather than leaving it behind.
+	out, err := exec.CommandContext(t.Context(),
+		filepath.Join(repoRoot, "le"), "functional", "--list", "--json").Output()
 	if err != nil {
-		t.Fatalf("read mk/test-functional.mk: %v", err)
+		t.Fatalf("`le functional --list --json` failed, so the gating suites are unknown "+
+			"and this guard would pass vacuously: %v", err)
 	}
-	m := allSuitesRE.FindAllStringSubmatch(string(b), -1)
-	if len(m) != 1 {
-		t.Fatalf("mk/test-functional.mk must hold exactly one all_suites= line, found %d", len(m))
+	var rows []leFunctionalSuite
+	if err := json.Unmarshal(out, &rows); err != nil {
+		t.Fatalf("`le functional --list --json` did not parse: %v", err)
 	}
-	suites := strings.Fields(m[0][1])
+	if len(rows) == 0 {
+		t.Fatal("`le functional --list --json` listed no suite; this guard must not pass vacuously")
+	}
+	var suites []string
+	for _, row := range rows {
+		if row.Gating {
+			suites = append(suites, row.Name)
+		}
+	}
 	if len(suites) < 20 {
-		t.Fatalf("parsed only %d gating suites; the all_suites regex has rotted. This test must not pass vacuously.", len(suites))
+		t.Fatalf("parsed only %d gating suites; the listing has rotted. This test must not pass vacuously.", len(suites))
 	}
 	return suites
 }

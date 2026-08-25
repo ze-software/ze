@@ -1345,8 +1345,8 @@ func classifyFunctional(detailLog, text string) []failureGroup {
 }
 
 // functionalSuiteRerun returns the command that re-runs one functional suite.
-// Every suite in the all_suites list (mk/test-functional.mk) has a target of this
-// name, and TestFunctionalSuiteRerunNamesARealMakeTarget holds that true: a
+// Every gating suite (GATING, scripts/le/application/functional.py) has a target
+// of this name, and TestFunctionalSuiteRerunNamesARealMakeTarget holds that true: a
 // failure report earns its place by naming a command the reader can type, and a
 // name make answers with `No rule to make target` costs the reader twice, once
 // for the failure and once for finding out the advice was wrong.

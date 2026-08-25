@@ -18,10 +18,13 @@ package main
 
 import (
 	"bufio"
+	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/fs"
 	"os"
+	osexec "os/exec"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"path/filepath"
@@ -185,149 +188,44 @@ func checkForbiddenDocClaims(root string) []issue {
 	return issues
 }
 
-// makeRecipe returns the recipe lines of one make target, plus the recipe of
-// every target it invokes through $(MAKE).
-//
-// Delegation is followed because a target split into a thin wrapper plus an
-// `-impl` body keeps none of its commands on the wrapper. A reader that stops
-// at the wrapper derives nothing and reports that as drift in the DOCUMENT,
-// which sends a reader to edit prose that was never wrong.
-//
-// `seen` stops a cycle and keeps each recipe to one copy.
-func makeRecipe(lines []string, target string, seen map[string]bool) []string {
-	if seen[target] {
-		return nil
-	}
-	seen[target] = true
-
-	var body []string
-	inTarget := false
-	for _, line := range lines {
-		if rest, ok := strings.CutPrefix(line, target); ok && strings.HasPrefix(rest, ":") {
-			inTarget = true
-			continue
-		}
-		if !inTarget {
-			continue
-		}
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		if !strings.HasPrefix(line, "\t") {
-			break
-		}
-		body = append(body, line)
-	}
-
-	out := append([]string(nil), body...)
-	for _, line := range body {
-		_, rest, ok := strings.Cut(line, "$(MAKE)")
-		if !ok {
-			continue
-		}
-		for tok := range strings.FieldsSeq(rest) {
-			if strings.HasPrefix(tok, "-") || strings.Contains(tok, "=") {
-				continue
-			}
-			out = append(out, makeRecipe(lines, tok, seen)...)
-		}
-	}
-	return out
+// leFunctionalSuite is one row of `le functional --list --json`: a suite, and
+// whether the gating run runs it.
+type leFunctionalSuite struct {
+	Name   string `json:"name"`
+	Gating bool   `json:"gating"`
 }
 
+// functionalGateSuites returns the suites `make ze-functional-test` runs, by
+// ASKING `le` for its own table.
+//
+// This walked the Makefile until the suites, their budgets and the run logic
+// moved to scripts/le/application/functional.py. It followed $(MAKE)
+// delegation and read `$(ZE_TEST_RUN) <suite>` out of the recipe, and neither
+// survives a recipe that delegates to a program: the derivation goes empty,
+// and an empty derivation here is reported as drift in the DOCUMENT, which
+// sends a reader to edit prose that was never wrong.
+//
+// An empty answer is still returned on any failure, and the callers turn it
+// into a loud "could not derive" finding rather than a silent pass.
 func functionalGateSuites(root string) []string {
-	lines, err := readMakefileLines(root, "Makefile", make(map[string]bool))
+	cmd := osexec.CommandContext(context.Background(), filepath.Join(root, "le"),
+		"functional", "--list", "--json")
+	cmd.Dir = root
+	out, err := cmd.Output()
 	if err != nil {
 		return nil
 	}
-
+	var rows []leFunctionalSuite
+	if err := json.Unmarshal(out, &rows); err != nil {
+		return nil
+	}
 	var suites []string
-	seen := make(map[string]bool)
-	for _, line := range makeRecipe(lines, "ze-functional-test", make(map[string]bool)) {
-		suite, ok := zeTestSuiteFromMakeLine(line)
-		if !ok || seen[suite] {
-			continue
+	for _, row := range rows {
+		if row.Gating {
+			suites = append(suites, row.Name)
 		}
-		seen[suite] = true
-		suites = append(suites, suite)
 	}
 	return suites
-}
-
-func readMakefileLines(root, rel string, seen map[string]bool) ([]string, error) {
-	rel = filepath.Clean(rel)
-	if seen[rel] {
-		return nil, nil
-	}
-	seen[rel] = true
-
-	lines, err := readLines(filepath.Join(root, rel))
-	if err != nil {
-		return nil, err
-	}
-
-	var out []string
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		fields := strings.Fields(trimmed)
-		if strings.HasPrefix(line, "\t") || len(fields) < 2 || (fields[0] != "include" && fields[0] != "-include" && fields[0] != "sinclude") {
-			out = append(out, line)
-			continue
-		}
-
-		for _, inc := range fields[1:] {
-			if strings.ContainsAny(inc, "$*?[{(") {
-				out = append(out, line)
-				continue
-			}
-			// GNU make resolves include paths relative to the directory make
-			// was invoked from (repo root here), NOT relative to the including
-			// makefile. A nested `include mk/test-fuzz-targets.mk` inside
-			// mk/test-fuzz.mk therefore means <root>/mk/test-fuzz-targets.mk,
-			// not <root>/mk/mk/test-fuzz-targets.mk. Joining with the including
-			// file's dir mis-resolved it, made the hard include fail to read,
-			// and aborted the whole Makefile parse -- which silently emptied
-			// the derived ze-functional-test suite list ("could not derive
-			// ze-functional-test suites from Makefile"). Resolve relative to
-			// root, matching make.
-			incRel := filepath.Clean(inc)
-			incLines, err := readMakefileLines(root, incRel, seen)
-			if err != nil {
-				if fields[0] == "-include" || fields[0] == "sinclude" {
-					continue
-				}
-				return nil, err
-			}
-			out = append(out, incLines...)
-		}
-	}
-	return out, nil
-}
-
-func zeTestSuiteFromMakeLine(line string) (string, bool) {
-	fields := strings.Fields(line)
-	for i, field := range fields {
-		// The run-suite lines invoke the test binary either literally
-		// (bin/ze-test) or through the ZE_SUFFIX indirection variable
-		// ($(ZE_TEST_RUN), which expands to bin/ze-test or the suffixed
-		// path). Both name the same suite in the next field, so accept
-		// either token. See mk/test-functional.mk ZE_SUFFIX block.
-		if field != "bin/ze-test" && field != "$(ZE_TEST_RUN)" {
-			continue
-		}
-		if i+1 >= len(fields) {
-			return "", false
-		}
-		if fields[i+1] == "bgp" {
-			if i+2 >= len(fields) {
-				return "", false
-			}
-			return strings.TrimRight(fields[i+2], ";"), true
-		}
-		return strings.TrimRight(fields[i+1], ";"), true
-	}
-	return "", false
 }
 
 func registryPluginNames() []string {
@@ -774,7 +672,7 @@ func checkFunctionalTestsMD(root string, gateSuites []string) []issue {
 		return []issue{{
 			File:    "docs/functional-tests.md",
 			Line:    0,
-			Message: "could not derive ze-functional-test suites from Makefile",
+			Message: "could not derive ze-functional-test suites from `le functional --list --json`",
 		}}
 	}
 

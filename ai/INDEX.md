@@ -283,6 +283,7 @@ each gate in an area is for and why it exists.
 | `./le perf-bench` | `scripts/le/application/perf_bench.py` | `mk/perf-bench.mk` |
 | `./le helper-verify` | `scripts/le/application/helper_verify.py` | `mk/helper-verify.mk` |
 | `./le test-unit` | `scripts/le/application/unit.py` | `mk/test-unit.mk` |
+| `./le functional` | `scripts/le/application/functional.py` | `mk/test-functional.mk` |
 | `./le test-chaos` | `scripts/le/application/chaos.py` | `mk/test-chaos.mk` |
 | `./le integration` | `scripts/le/application/integration.py` | `mk/test-integration.mk` |
 | `./le fuzz` | `scripts/le/application/fuzz.py` | `mk/test-fuzz.mk` + a generated fragment, both retired |
