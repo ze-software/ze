@@ -1322,7 +1322,15 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	waitLoop(sigCh, reloadCh, doneCh)
 	close(reloadCh)
 	awaitReloadWorker(reloadDone, reloadShutdownGrace)
-	fmt.Println("\nShutting down...")
+	fmt.Println("\nShutting down (Ctrl+C again to force)...")
+
+	// A second signal forces immediate exit. Shutdown below stops plugins,
+	// gNMI, the API servers and the reactor, each with its own grace period,
+	// so a wedged component can hold the process past the point an operator
+	// is willing to wait. The web-only path has had this since it was
+	// written; the daemon is the path an operator actually runs.
+	// Lifecycle goroutine, not a hot path.
+	go forceExitOnSignal(sigCh)
 
 	// MCP shuts down through the construction registry's builtServices defer
 	// (like web/lg), so it is not stopped explicitly here.
