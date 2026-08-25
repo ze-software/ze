@@ -22,27 +22,28 @@
   "interop": {
     "scenario_dirs_raw": 130,
     "scenarios": 130,
+    "scenarios_display": "130",
     "target_display": "9",
     "targets": 9
   },
-  "published_at": "2026-08-25T15:04:29+00:00",
+  "published_at": "2026-08-25T21:20:42+00:00",
   "repo": {
-    "design_comments": 3673,
-    "design_comments_display": "3,673",
-    "detail_comments": 3199,
-    "detail_comments_display": "3,199",
+    "design_comments": 3674,
+    "design_comments_display": "3,600+",
+    "detail_comments": 3203,
+    "detail_comments_display": "3,200+",
     "go_packages": 648,
-    "go_packages_display": "648"
+    "go_packages_display": "640+"
   },
   "rfc": {
     "enrolled": 171,
     "enrolled_display": "171",
-    "gated_must": 2966,
-    "gated_must_display": "2,966",
-    "must": 3061,
-    "must_display": "3,061",
-    "requirements": 4730,
-    "requirements_display": "4,730",
+    "gated_must": 2972,
+    "gated_must_display": "2,972",
+    "must": 3067,
+    "must_display": "3,067",
+    "requirements": 4744,
+    "requirements_display": "4,744",
     "summaries": 178,
     "summaries_display": "178"
   },
