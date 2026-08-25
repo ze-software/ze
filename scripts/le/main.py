@@ -17,6 +17,7 @@ import sys
 from collections.abc import Sequence
 
 from le import __version__
+from le.paths import repo_root
 from le.registry import REGISTRY, Entry
 
 __all__ = ['build_parser', 'main']
@@ -56,7 +57,16 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Route argv to a subprogram's `action`. Returns the process exit code."""
+    """Route argv to a subprogram's `action`. Returns the process exit code.
+
+    `ZE_REPO_ROOT` is settled and exported FIRST, before any subprogram loads.
+    Every gate then inherits one root rather than each rediscovering it, and a
+    gate that shells out passes it on. A tool run without `le` discovers the
+    same answer for itself (`le/paths.py`), so the variable makes the root
+    explicit rather than mandatory.
+    """
+    repo_root(export=True)
+
     parser = build_parser()
     args = parser.parse_args(argv)
 
