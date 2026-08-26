@@ -82,6 +82,71 @@
       .flow-config { fill: none; stroke: #5b17bd; stroke-width: 2.5; stroke-dasharray: 8 7; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-automate); }
       .label-bg { fill: #fffefe; stroke: #e7dce9; stroke-width: 1; }
       .flow-label { font-size: 12px; font-weight: 800; fill: #5e426f; }
+      @media (prefers-color-scheme: dark) {
+        #panelWash stop[offset="0"] { stop-color: #101219; }
+        #panelWash stop[offset="0.58"] { stop-color: #15121d; }
+        #panelWash stop[offset="1"] { stop-color: #101a1b; }
+        #surfaceWash stop[offset="0"] { stop-color: #1d2028; }
+        #surfaceWash stop[offset="1"] { stop-color: #171921; }
+        #grid path { stroke: #c08bd0; stroke-opacity: 0.11; }
+
+        #panelShadow feDropShadow:first-child { flood-color: #000000; flood-opacity: 0.32; }
+        #panelShadow feDropShadow:last-child { flood-color: #000000; flood-opacity: 0.48; }
+        #nodeShadow feDropShadow:first-child { flood-color: #000000; flood-opacity: 0.4; }
+        #nodeShadow feDropShadow:last-child { flood-color: #000000; flood-opacity: 0.52; }
+
+        text { fill: #f4eef7; }
+        .subhead,
+        .group-label,
+        .node-copy,
+        .surface-copy,
+        .external-copy { fill: #cbbdd1; }
+        [fill="#f8f2ff"] { fill: #f8f2ff; }
+        .flow-label { fill: #d0bdd7; }
+
+        [fill="#fffefe"] { fill: #161922; }
+        [fill="#e0cdfc"] { fill: #332448; }
+        [stroke="#ffffff"] { stroke: #596171; }
+        [stroke="#d9c8e1"] { stroke: #464b58; }
+        [stroke="#e7dce9"] { stroke: #4b505d; }
+        [fill="#9878a4"] { fill: #cbb8d2; }
+        [fill="#6a4478"] { fill: #cbbdd1; }
+        [stroke="#9878a4"] { stroke: #a993b1; }
+        .label-bg { fill: #1d2029; stroke: #4b505d; }
+
+        [fill="#e9f5ff"] { fill: #102c3d; }
+        [stroke="#009fe3"] { stroke: #43b8e8; }
+        [fill="#0071b2"] { fill: #8dd7f7; }
+        [stroke="#0071b2"] { stroke: #55bde9; }
+
+        [fill="#fff1eb"] { fill: #3d1d17; }
+        [stroke="#ff5a1f"] { stroke: #ff8a5c; }
+        [fill="#c2410c"] { fill: #ff9a70; }
+        [stroke="#c2410c"] { stroke: #ff8a5c; }
+
+        [fill="#fff9d7"] { fill: #392e12; }
+        [stroke="#ffd43b"] { stroke: #f2c94c; }
+        [fill="#b76a00"] { fill: #f2c36e; }
+        [stroke="#b76a00"] { stroke: #e7b75d; }
+
+        [fill="#f3edfe"] { fill: #2c2042; }
+        [stroke="#9d64f5"] { stroke: #b78cff; }
+        [fill="#5b17bd"] { fill: #c4a3ff; }
+        [stroke="#5b17bd"] { stroke: #b78cff; }
+
+        [fill="#effbfc"] { fill: #142f35; }
+        [stroke="#68bec9"] { stroke: #71c7d3; }
+        [fill="#2f8ca0"] { fill: #85d4df; }
+        [stroke="#2f8ca0"] { stroke: #71c7d3; }
+
+        [fill="#e2faf8"] { fill: #12342f; }
+        [stroke="#1abc9c"] { stroke: #53d3b9; }
+        [fill="#0a6b58"] { fill: #75dcc6; }
+        [stroke="#0a6b58"] { stroke: #53d3b9; }
+
+        [fill="#5e426f"] { fill: #d0bdd7; }
+        [stroke="#5e426f"] { stroke: #bfa7c8; }
+      }
     </style>
   </defs>
 

@@ -20,3 +20,4 @@ is open.
 | 2026-08-24 | 8cb04dea | fix(zeledon): correct recovered post date | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-24 | 8cb04dea | docs(zeledon): add 17 August weekly update | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-24 | 8cb04dea | docs(site): reconcile weekly feature and benchmark data | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-26 | 8cb04dea | website: add dark architecture diagram palette | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
