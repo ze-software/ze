@@ -80,16 +80,28 @@ and augments the configuration tree where it belongs.</p>
 
 <h2 id="component-map">Component Map</h2>
 <figure class="doc-diagram">
-  <a href="https://ze-software.net/assets/ze-components.svg">
-    <img
-      src="/assets/ze-components.svg"
-      alt="Ze component architecture. Operator surfaces share one command and configuration contract. The protocol-agnostic Engine composes a ConfigProvider, Plugin Server and EventBus, and PluginManager. Registry-loaded routing and system plugins feed route selection and the FIB. An internal Dataplane group contains Netfilter, VPP, ARP, ND, and DHCP; Netfilter and VPP point to external Linux and VPP targets."
-      width="1440"
-      height="1000"
-      loading="lazy"
-      decoding="async"
-    />
-  </a>
+  <div class="blog-theme-image has-dark">
+    <a class="blog-theme-image-light" href="https://ze-software.net/assets/ze-components.svg">
+      <img
+        src="/assets/ze-components.svg"
+        alt="Ze component architecture. Operator surfaces share one command and configuration contract. The protocol-agnostic Engine composes a ConfigProvider, Plugin Server and EventBus, and PluginManager. Registry-loaded routing and system plugins feed route selection and the FIB. An internal Dataplane group contains Netfilter, VPP, ARP, ND, and DHCP; Netfilter and VPP point to external Linux and VPP targets."
+        width="1440"
+        height="1000"
+        loading="lazy"
+        decoding="async"
+      />
+    </a>
+    <a class="blog-theme-image-dark" href="https://ze-software.net/assets/ze-components-dark.svg">
+      <img
+        src="/assets/ze-components-dark.svg"
+        alt="Ze component architecture. Operator surfaces share one command and configuration contract. The protocol-agnostic Engine composes a ConfigProvider, Plugin Server and EventBus, and PluginManager. Registry-loaded routing and system plugins feed route selection and the FIB. An internal Dataplane group contains Netfilter, VPP, ARP, ND, and DHCP; Netfilter and VPP point to external Linux and VPP targets."
+        width="1440"
+        height="1000"
+        loading="lazy"
+        decoding="async"
+      />
+    </a>
+  </div>
   <figcaption>Ze components and their runtime relationships. Dashed outlines mark configured, build-dependent, or optional paths. Open the diagram for a full-size view; the text map below preserves the same structure for text readers.</figcaption>
 </figure>
 
@@ -421,7 +433,7 @@ forwarding decisions, state trackers update best-path state.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 26 August 2026 14:29 UTC</span>
                 </div>
             </div>
         </footer>
