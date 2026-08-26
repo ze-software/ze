@@ -5,6 +5,7 @@ package golden
 import (
 	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"errors"
 	"flag"
@@ -208,12 +209,73 @@ func comparePortUnit(name string, kind PortKind, old, now []byte) []string {
 
 	findings := portDifference(name, "status and headers", oldHead, nowHead, false)
 
+	// A compressed body is decompressed on both sides first. The bytes of a
+	// DEFLATE stream are one of several encodings of the same content, and which
+	// one a writer emits is the compressor's choice: go1.27's compress/flate
+	// stores a short input that go1.26 Huffman-coded, so the same CSV compressed
+	// by the same code differs at byte 10 across a toolchain bump. That is not
+	// the port changing a unit, which is what this comparison is for.
+	if isGzipResponse(oldHead) && isGzipResponse(nowHead) {
+		return append(findings, gzipBodyDifference(name, oldBody, nowBody)...)
+	}
+
 	// A body no engine rendered is compared byte for byte. JSON and an event
 	// stream both reach this, and normalizing either one would erase a
 	// difference rather than an encoding.
 	markup := isHTMLResponse(nowHead) && isHTMLResponse(oldHead)
 
 	return append(findings, portDifference(name, "body", oldBody, nowBody, markup)...)
+}
+
+// gzipBodyDifference compares two gzip bodies by what they hold. A side that
+// does not decompress is itself the finding: a capture that is not a gzip stream
+// under a header saying it is has a defect the compressed bytes would hide.
+func gzipBodyDifference(name, old, now string) []string {
+	var tb textbuf.Buffer
+
+	oldPlain, err := gunzip(old)
+	if err != nil {
+		return []string{tb.Str(name).Str(" body does not decompress at the pre-port ref: ").Err(err).String()}
+	}
+
+	nowPlain, err := gunzip(now)
+	if err != nil {
+		return []string{tb.Str(name).Str(" body does not decompress today: ").Err(err).String()}
+	}
+
+	return portDifference(name, "decompressed body", oldPlain, nowPlain, false)
+}
+
+// gunzip reads one gzip stream whole.
+func gunzip(s string) (string, error) {
+	reader, err := gzip.NewReader(strings.NewReader(s))
+	if err != nil {
+		return "", err
+	}
+
+	plain, err := io.ReadAll(reader)
+	if err != nil {
+		return "", err
+	}
+
+	// Close reports a truncated stream and a bad CRC, which is the half of a
+	// corrupt capture ReadAll cannot see.
+	if err := reader.Close(); err != nil {
+		return "", err
+	}
+
+	return string(plain), nil
+}
+
+// isGzipResponse reports whether a captured head declares a gzip body.
+func isGzipResponse(head string) bool {
+	for line := range strings.SplitSeq(head, "\n") {
+		if strings.HasPrefix(strings.ToLower(line), "header: content-type: application/gzip") {
+			return true
+		}
+	}
+
+	return false
 }
 
 // portDifference reports one difference, or nothing. The markup argument says

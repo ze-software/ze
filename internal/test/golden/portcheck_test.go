@@ -1,6 +1,8 @@
 package golden
 
 import (
+	"bytes"
+	"compress/gzip"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -242,6 +244,79 @@ func TestPortFidelityComparesAResponseHeadExactly(t *testing.T) {
 	if !strings.Contains(joined, "json.txt body") {
 		t.Errorf("the reformatted JSON body is not reported: %s", joined)
 	}
+}
+
+// TestPortFidelityComparesAGzipBodyByItsContent pins the compressed case.
+//
+// VALIDATES: two gzip bodies holding the same bytes agree however each stream
+// was coded, two holding different bytes are still reported, and a body that
+// does not decompress under a gzip header is itself a finding.
+// PREVENTS: a toolchain bump reading as a broken port. go1.27's compress/flate
+// STORES a short input that go1.26 Huffman-coded, so `internal/component/lg`'s
+// ui-peer-download.txt differed at byte 10 from a capture nothing in ze had
+// touched. Comparing the compressed bytes asks whether the compressor changed,
+// and the port is what this file is here to judge.
+func TestPortFidelityComparesAGzipBodyByItsContent(t *testing.T) {
+	root := filepath.Join("testdata", "handler")
+
+	const head = "status: 200\nheader: Content-Type: application/gzip\n\n"
+
+	const csv = "prefix,next-hop\n10.0.0.0/24,192.0.2.1\n"
+
+	dir, ref := newPortRepo(t, root,
+		portFixtures{
+			"same.txt":    head + gzipWith(t, csv, gzip.BestCompression),
+			"changed.txt": head + gzipWith(t, csv, gzip.BestSpeed),
+			"broken.txt":  head + "not a gzip stream at all",
+		},
+		portFixtures{
+			"same.txt":    head + gzipWith(t, csv, gzip.NoCompression),
+			"changed.txt": head + gzipWith(t, "prefix,next-hop\n10.0.0.0/24,198.51.100.1\n", gzip.BestSpeed),
+			"broken.txt":  head + gzipWith(t, csv, gzip.BestSpeed),
+		})
+
+	findings := findingsFor(t, dir, ref, root, PortResponse, nil)
+
+	if len(findings) != 2 {
+		t.Fatalf("want two findings, got %d: %v", len(findings), findings)
+	}
+
+	joined := strings.Join(findings, "\n")
+
+	if strings.Contains(joined, "same.txt") {
+		t.Errorf("the same CSV coded two ways is reported as a difference: %s", joined)
+	}
+
+	if !strings.Contains(joined, "changed.txt decompressed body") {
+		t.Errorf("the changed next hop is not reported: %s", joined)
+	}
+
+	if !strings.Contains(joined, "broken.txt body does not decompress at the pre-port ref") {
+		t.Errorf("a body that is not a gzip stream is not reported: %s", joined)
+	}
+}
+
+// gzipWith compresses s at one level, so a test can hold the same content in two
+// different streams.
+func gzipWith(t *testing.T, s string, level int) string {
+	t.Helper()
+
+	var buf bytes.Buffer
+
+	writer, err := gzip.NewWriterLevel(&buf, level)
+	if err != nil {
+		t.Fatalf("gzip writer at level %d: %v", level, err)
+	}
+
+	if _, err := writer.Write([]byte(s)); err != nil {
+		t.Fatalf("compress: %v", err)
+	}
+
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close the gzip writer: %v", err)
+	}
+
+	return buf.String()
 }
 
 // TestPortFidelityRefusesAnEmptyPrePortSide pins the fail-closed direction.
