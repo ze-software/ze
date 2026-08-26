@@ -1,0 +1,223 @@
+# Test: the BUILT le binary runs the two commands ported out of
+#       scripts/evidence, end to end, and renders their answers through the
+#       shared pipe operators.
+#
+# VALIDATES: spec-le-is-a-ze-binary AC-1, AC-7 and AC-8 for `le evidence` and
+#            `le deployment`, against the artifact a developer runs.
+# PREVENTS: a green package suite over a binary that does not compose, and a
+#           command whose answer only renders because a test called the function
+#           rather than the binary.
+#
+# Neither command needs Docker here. Both reach the outside world through PATH,
+# so this file puts a recording docker, git and go in front of it: the same seam
+# the parity tests beside the Python scripts use, driven one layer further out.
+# What that buys is the whole path -- argv, the registry, the action table, the
+# payload and the renderer -- over a fixture checkout that no container ever
+# sees.
+#
+# The timeout is DECLARED because a cold build cache makes the first compile of
+# cmd/le far slower than the steady state.
+
+option=timeout:value=240s
+
+tmpfs=run.py:terminator=EOF_PY
+"""Compile le, then drive the two evidence commands the way a developer does."""
+import json
+import os
+import stat
+import subprocess
+import sys
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(f'FAIL: {message}')
+
+
+root = os.environ['ZE_REPO_ROOT']
+work = os.getcwd()
+binary = os.path.join(work, 'le')
+
+compiled = subprocess.run(
+    ['go', 'build', '-o', binary, './cmd/le'],
+    cwd=root, capture_output=True, text=True, check=False,
+)
+require(compiled.returncode == 0, f'compiling ./cmd/le failed: {compiled.stderr}')
+
+# A fixture checkout: the two markers lepath.Root looks for, and the manifest
+# the daemon build tags derive from.
+fixture = os.path.join(work, 'fixture')
+os.makedirs(fixture, exist_ok=True)
+with open(os.path.join(fixture, 'go.mod'), 'w', encoding='utf-8') as fh:
+    fh.write('module example.test/m\n\ngo 1.26\n')
+with open(os.path.join(fixture, 'feature-gates.txt'), 'w', encoding='utf-8') as fh:
+    fh.write('ze_bgp internal/component/bgp\nze_l2tp internal/component/l2tp\n')
+
+# The recording programs. docker also plays the two processes the L2TP proof
+# waits on, with the session line delayed so the peer is started first.
+stubs = os.path.join(work, 'stubs')
+os.makedirs(stubs, exist_ok=True)
+programs = {
+    'docker': r'''#!/bin/sh
+sep=$(printf '\037')
+line=""
+for a in "$@"; do
+  if [ -z "$line" ]; then line="$a"; else line="$line$sep$a"; fi
+done
+printf '%s\036' "$line" >> "$ZE_RECORD_DOCKER"
+case "$1" in
+  image) exit 0 ;;
+  pull)  exit 0 ;;
+  run)   echo deadbeef ; exit ${ZE_DOCKER_EXIT:-0} ;;
+  rm)    exit 0 ;;
+  exec)
+    case "$*" in
+      *"apk add"*) exit 0 ;;
+      *xl2tpd*) sleep 3 ; exit 0 ;;
+      *) cat >/dev/null
+         echo "l2tp: L2TP listener bound on 127.0.0.1:1701" >&2
+         sleep 1
+         echo "l2tp: tunnel 1 session established" >&2
+         sleep 3 ; exit 0 ;;
+    esac ;;
+esac
+exit 0
+''',
+    'git': r'''#!/bin/sh
+case "$*" in
+  *status*) printf '%s' "${ZE_GIT_STATUS:-}" ;;
+esac
+exit 0
+''',
+    'go': r'''#!/bin/sh
+prev=""
+for a in "$@"; do
+  if [ "$prev" = "-o" ]; then mkdir -p "$(dirname "$a")"; : > "$a"; chmod +x "$a"; fi
+  prev="$a"
+done
+exit 0
+''',
+}
+for name, body in programs.items():
+    path = os.path.join(stubs, name)
+    with open(path, 'w', encoding='utf-8') as fh:
+        fh.write(body)
+    os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+
+
+def le(*args, status='', exit_code='0', record=None):
+    env = dict(os.environ)
+    env['PATH'] = stubs + os.pathsep + env['PATH']
+    env['ZE_REPO_ROOT'] = fixture
+    env['ZE_GIT_STATUS'] = status
+    env['ZE_DOCKER_EXIT'] = exit_code
+    env['ZE_RECORD_DOCKER'] = record or os.path.join(work, 'docker-argv')
+    return subprocess.run([binary, *args], capture_output=True, text=True,
+                          check=False, env=env)
+
+
+def recorded(path):
+    """Every docker call, its words rejoined with a space.
+
+    The record separator terminates a CALL and the unit separator its words, so
+    an argument carrying newlines -- the container program is one -- survives
+    the round trip as a single entry.
+    """
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding='utf-8') as fh:
+        return [call.replace('\x1f', ' ') for call in fh.read().split('\x1e') if call]
+
+
+# Both commands appear in the composition root, which is what the usage page
+# reads back.
+usage = le('--help')
+page = usage.stdout + usage.stderr
+for name in ('evidence', 'deployment'):
+    require(name in page, f'le --help does not list the {name} command')
+
+# A bare area lists its actions, and the listing says which of them write.
+for name, verb in (('evidence', 'release-candidate-check'), ('deployment', 'l2tp-test')):
+    listing = le(name)
+    require(listing.returncode == 0, f'le {name} exited {listing.returncode}')
+    require(verb in listing.stdout, f'le {name} does not list {verb}: {listing.stdout!r}')
+    require('checks' in listing.stdout, f'le {name} does not mark {verb} read-only')
+
+# The release-candidate check over a clean tree: it starts one container, and
+# the answer is data three operators render.
+record = os.path.join(work, 'rc-argv')
+answer = le('evidence', 'release-candidate-check', record=record)
+require(answer.returncode == 0,
+        f'the release-candidate check exited {answer.returncode}: {answer.stderr[-800:]}')
+calls = recorded(record)
+require(len(calls) == 1, f'the check started {len(calls)} containers, want 1: {calls}')
+require(f'-v {fixture}:/host:ro' in calls[0], f'the tree is not mounted read-only: {calls[0]}')
+require('git clone --no-local /host /work/src' in calls[0],
+        'the container program does not clone the mount')
+
+rendered = le('evidence', 'release-candidate-check', '|', 'json',
+              record=os.path.join(work, 'rc-json'))
+report = json.loads(rendered.stdout)
+for key in ('image', 'platform', 'tree', 'dirty', 'passed', 'code'):
+    require(key in report, f'the report answered no {key!r} key: {sorted(report)}')
+require(report['passed'] is True, f'a container that exited 0 reports {report["passed"]}')
+require(report['tree'] == fixture, f'the report names {report["tree"]!r}, want the fixture')
+
+# The container's own exit status is the command's, never a flattened 1 (AC-8).
+for code in ('2', '3', '125'):
+    failed = le('evidence', 'release-candidate-check', exit_code=code,
+                record=os.path.join(work, f'rc-{code}'))
+    require(failed.returncode == int(code),
+            f'a container that exited {code} made the command exit {failed.returncode}')
+
+# A dirty tree refuses before anything is started, and names the paths.
+dirty = le('evidence', 'release-candidate-check', status=' M internal/a.go\n',
+           record=os.path.join(work, 'rc-dirty'))
+require(dirty.returncode == 1, f'a dirty tree exited {dirty.returncode}, want 1')
+require(recorded(os.path.join(work, 'rc-dirty')) == [],
+        'a container was started over a dirty tree')
+require('internal/a.go' in dirty.stdout, f'the refusal does not name the path: {dirty.stdout!r}')
+
+# The L2TP proof, end to end: it builds a daemon, starts the peer, and reads
+# the session out of the daemon's own output.
+record = os.path.join(work, 'l2tp-argv')
+proof = le('deployment', 'l2tp-test', '|', 'json', record=record)
+require(proof.returncode == 0,
+        f'the L2TP proof exited {proof.returncode}: {proof.stderr[-800:]}')
+verdict = json.loads(proof.stdout)
+for key in ('peer', 'image', 'container', 'established', 'log-tail'):
+    require(key in verdict, f'the proof answered no {key!r} key: {sorted(verdict)}')
+require(verdict['established'] is True, 'the proof did not read the session')
+require(verdict['peer'] == 'xl2tpd', f'the proof names the peer {verdict["peer"]!r}')
+
+calls = recorded(record)
+require(len(calls) == 6, f'the proof made {len(calls)} docker calls, want 6:\n' + '\n'.join(calls))
+require(any('xl2tpd -D' in call for call in calls),
+        'the proof never started the peer:\n' + '\n'.join(calls))
+require(any('--privileged' in call for call in calls),
+        'the container is not privileged:\n' + '\n'.join(calls))
+
+# One payload, three renderings, none of them written by either tool.
+for name, verb, operator, needle in (
+    ('evidence', 'release-candidate-check', 'yaml', 'passed:'),
+    ('deployment', 'l2tp-test', 'yaml', 'peer:'),
+):
+    out = le(name, verb, '|', operator, record=os.path.join(work, f'{name}-{operator}'))
+    require(needle in out.stdout,
+            f'`le {name} {verb} | {operator}` did not render the payload: {out.stdout[:200]!r}')
+
+# An action nobody declared is refused with its own code, told apart from a gate
+# that ran and failed.
+missing = le('evidence', 'no-such-action')
+require(missing.returncode == 2, f'an unknown action exited {missing.returncode}, want 2')
+extra = le('deployment', 'l2tp-test', 'somewhere')
+require(extra.returncode == 1, f'a value after an action exited {extra.returncode}, want 1')
+require(recorded(os.path.join(work, 'docker-argv')) == [],
+        'a refused invocation still started something')
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

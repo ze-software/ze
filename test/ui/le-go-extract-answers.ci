@@ -1,0 +1,175 @@
+# Test: the BUILT le binary splits a Go file and answers what it moved as data.
+#
+# VALIDATES: spec-le-is-a-ze-binary AC-7 and AC-11 for the go-extract tool,
+#            against the artifact a developer runs -- one payload rendered by
+#            `| json` and `| count`, and the same bytes on disk as the script it
+#            replaces.
+# PREVENTS: a file-rewriting tool whose port prints the same line and writes
+#           different files, and a grammar that reads a bare path as a keyword.
+#
+# The fixture is a throwaway Go file in the test's own directory, never the
+# checkout: this tool REWRITES what it is pointed at, so a run against real
+# source would edit the tree the suite is testing.
+#
+# le and the script are both compiled here rather than by the runner, which
+# builds only ze and ze-test (internal/test/runner/runner.go, setupBinShims).
+# Both binaries are written into the test's own directory, so nothing is written
+# back into the checkout.
+#
+# The timeout is DECLARED because a cold build of cmd/le precedes the run.
+
+option=timeout:value=300s
+
+tmpfs=run.py:terminator=EOF_PY
+"""Drive `le go-extract` over a fixture Go file and check its answer."""
+import json
+import os
+import shutil
+import subprocess
+import sys
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(f'FAIL: {message}')
+
+
+checkout = os.environ['ZE_REPO_ROOT']
+here = os.getcwd()
+binary = os.path.join(here, 'le')
+script = os.path.join(here, 'go_extract')
+
+built = subprocess.run(['go', 'build', '-o', binary, './cmd/le'],
+                       cwd=checkout, capture_output=True, text=True, check=False)
+require(built.returncode == 0, f'building cmd/le failed: {built.stderr}')
+
+built = subprocess.run(['go', 'build', '-o', script, 'scripts/dev/go_extract.go'],
+                       cwd=checkout, capture_output=True, text=True, check=False)
+require(built.returncode == 0, f'building the script failed: {built.stderr}')
+
+require(shutil.which('goimports') is not None,
+        'goimports is not installed; both halves run it, so neither can be checked')
+
+SOURCE = '''package sample
+
+import "strings"
+
+// Alpha says alpha.
+func Alpha() string {
+\treturn strings.ToUpper("alpha")
+}
+
+// Beta says beta.
+func Beta() string {
+\treturn "beta"
+}
+'''
+
+
+def tree(name):
+    """A fresh directory holding the fixture, and its path."""
+    path = os.path.join(here, name)
+    shutil.rmtree(path, ignore_errors=True)
+    os.makedirs(path)
+    with open(os.path.join(path, 'sample.go'), 'w', encoding='utf-8') as fh:
+        fh.write(SOURCE)
+    return path
+
+
+def files(path):
+    """Every file under path, keyed by name."""
+    out = {}
+    for name in sorted(os.listdir(path)):
+        with open(os.path.join(path, name), encoding='utf-8') as fh:
+            out[name] = fh.read()
+    return out
+
+
+# The two halves, over two copies of one fixture. What is compared is the
+# summary line, the exit code, and the bytes each left behind.
+script_dir = tree('by-script')
+command_dir = tree('by-command')
+
+from_script = subprocess.run([script, 'sample.go', 'beta.go', 'Beta'],
+                             cwd=script_dir, capture_output=True, text=True, check=False)
+from_command = subprocess.run([binary, 'go-extract', 'source', 'sample.go',
+                               'dest', 'beta.go', 'symbol', 'Beta'],
+                              cwd=command_dir, capture_output=True, text=True, check=False)
+
+require(from_script.returncode == from_command.returncode,
+        f'the script exited {from_script.returncode} and the command {from_command.returncode}: '
+        f'{from_script.stderr}{from_command.stderr}')
+require(from_script.stdout == from_command.stdout,
+        f'the two halves said different things:\n{from_script.stdout!r}\n{from_command.stdout!r}')
+
+by_script, by_command = files(script_dir), files(command_dir)
+require(by_script == by_command,
+        f'the two halves wrote different files:\n{by_script}\n{by_command}')
+require('func Beta' in by_command['beta.go'], f'the declaration did not move: {by_command}')
+require('func Beta' not in by_command['sample.go'], f'the source still holds it: {by_command}')
+
+# One payload, every rendering. Nothing in the tool writes a line of JSON.
+json_dir = tree('by-json')
+answer = subprocess.run([binary, 'go-extract', 'source', 'sample.go', 'dest', 'beta.go',
+                         'symbol', 'Beta', '|', 'json'],
+                        cwd=json_dir, capture_output=True, text=True, check=False)
+require(answer.returncode == 0, f'`le go-extract | json` exited {answer.returncode}: {answer.stderr}')
+try:
+    report = json.loads(answer.stdout)
+except json.JSONDecodeError as exc:
+    raise SystemExit(f'FAIL: `le go-extract | json` did not answer JSON: {exc}\n'
+                     f'{answer.stdout[:400]}') from exc
+
+require(report['source'] == 'sample.go', f"source = {report['source']!r}")
+require(report['dest'] == 'beta.go', f"dest = {report['dest']!r}")
+require(len(report['symbols']) == 1, f"the answer names {len(report['symbols'])} symbol(s), want 1")
+row = report['symbols'][0]
+for key in ('symbol', 'first-line', 'last-line'):
+    require(key in row, f'a symbol row carries no {key!r}: {sorted(row)}')
+require(row['symbol'] == 'Beta', f"the row names {row['symbol']!r}")
+require(row['first-line'] < row['last-line'],
+        f"the row spans {row['first-line']}..{row['last-line']}")
+
+# A row operator acts on the declarations, which is what declaring the answer's
+# shape buys. `| count` answers a number, never the report.
+count_dir = tree('by-count')
+counted = subprocess.run([binary, 'go-extract', 'source', 'sample.go', 'dest', 'both.go',
+                          'symbol', 'Alpha', 'symbol', 'Beta', '|', 'count'],
+                         cwd=count_dir, capture_output=True, text=True, check=False)
+require(counted.returncode == 0, f'`le go-extract | count` exited {counted.returncode}: {counted.stderr}')
+require('2' in counted.stdout, f'`le go-extract | count` answered {counted.stdout!r}, want 2')
+
+# yaml is the third rendering of the same payload, and it costs the tool nothing.
+yaml_dir = tree('by-yaml')
+as_yaml = subprocess.run([binary, 'go-extract', 'source', 'sample.go', 'dest', 'beta.go',
+                          'symbol', 'Beta', '|', 'yaml'],
+                         cwd=yaml_dir, capture_output=True, text=True, check=False)
+require(as_yaml.returncode == 0, f'`le go-extract | yaml` exited {as_yaml.returncode}')
+require('Beta' in as_yaml.stdout, f'`le go-extract | yaml` answered nothing usable:\n{as_yaml.stdout}')
+
+# The grammar keeps a keyword in front of every value. The script's three bare
+# positionals are refused by name rather than being read in some order.
+bare_dir = tree('by-bare')
+refused = subprocess.run([binary, 'go-extract', 'sample.go', 'beta.go', 'Beta'],
+                         cwd=bare_dir, capture_output=True, text=True, check=False)
+require(refused.returncode == 1, f'a bare positional exited {refused.returncode}, want 1')
+require('unknown keyword' in refused.stderr, f'the refusal does not name the problem:\n{refused.stderr}')
+require(files(bare_dir)['sample.go'] == SOURCE, 'a refused command edited the fixture')
+
+# A symbol nobody declared refuses the whole move, and the source keeps every
+# declaration. The script moved what it found and called that success.
+typo_dir = tree('by-typo')
+typo = subprocess.run([binary, 'go-extract', 'source', 'sample.go', 'dest', 'beta.go',
+                       'symbol', 'Beta', 'symbol', 'Zeta'],
+                      cwd=typo_dir, capture_output=True, text=True, check=False)
+require(typo.returncode == 1, f'a symbol that is not there exited {typo.returncode}, want 1')
+require('Zeta' in typo.stderr, f'the refusal does not name the symbol:\n{typo.stderr}')
+require(files(typo_dir) == {'sample.go': SOURCE},
+        f'a refused move wrote something: {sorted(files(typo_dir))}')
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

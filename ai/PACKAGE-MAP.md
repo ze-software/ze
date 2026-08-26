@@ -757,6 +757,24 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `internal/thirdparty/fat` | implements writing FAT16B file system images, which is useful when generating images for embedded devices such as the Raspberry Pi |  |
 
+## `letools/archmap/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/archmap` | owns the component and plugin inventories inside ai/INSTRUCTIONS.md |  |
+
+## `letools/cidispatch/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/cidispatch` | enforces the invariant the verb-first CLI migration broke without anything noticing: EVERY command string a test, script, or Go call site sends to the daemon must still resolve to a registered command |  |
+
+## `letools/cligrammar/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/cligrammar` | walks the compile-time YANG command tree (every built-in command, including plugin -cmd modules) and checks each command against the reverse-engineered grammar rules R1-R8... |  |
+
 ## `letools/commandlist/`
 
 | Package | Responsibility | Registered |
@@ -787,17 +805,53 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `letools/consistency` | is the `ze-consistency-check` gate: it reads the tree and reports where the code and the documentation disagree with each other |  |
 
+## `letools/dashstdio/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/dashstdio` | enforces the invariant that a command must NOT read or write a USER-SUPPLIED path with a raw os call: it must route through internal/core/cliio so the "-" token resolves to stdin/stdout |  |
+
+## `letools/deployment/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/deployment` | proves ze against software somebody else wrote |  |
+
 ## `letools/docvalid/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `letools/docvalid` | the documentation gates: the YANG command contract, the doc drift check, and the generated operator table |  |
 
+## `letools/evidence/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/evidence` | runs the verify gate the way a release candidate must be judged: over a CLONE of the committed tree, inside a container, on a machine that carries none of the developer's own state |  |
+
 ## `letools/featuretags/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `letools/featuretags` | regenerates the build-tag lists that DERIVE from feature-gates.txt but live inside files a program cannot read at run time: |  |
+
+## `letools/fspersistence/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/fspersistence` | enforces the invariant that daemon runtime STATE is persisted through ze's managed zefs store (internal/core/statestore -> database.zefs), NOT as loose files written with raw os calls |  |
+
+## `letools/goextract/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/goextract` | moves named top-level declarations from one Go file to another |  |
+
+## `letools/gokrazygosum/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/gokrazygosum` | compares the tracked `gokrazy/ze/builddir/**/go.sum` files with the root module's go.sum |  |
 
 ## `letools/ianaasn/`
 
@@ -841,6 +895,12 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `letools/parity` | measures how much of the Python le has become Go, and it is the reason the migration may run two implementations at once |  |
 
+## `letools/pluginboundary/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/pluginboundary` | enforces an invariant discovered during the AS112/cos advisory-doctor-check review: a plugin calling another in-process package's plain exported function directly -- bypassing... |  |
+
 ## `letools/pluginimports/`
 
 | Package | Responsibility | Registered |
@@ -853,11 +913,35 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `letools/portdefaults` | pins the hand-maintained Go listener-default table (internal/component/config/listener_defaults.go, RegisterBuiltinListenerDefaults) |  |
 
+## `letools/protocolskeleton/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/protocolskeleton` | classifies each protocol's subpackages against the standard skeleton: a canonical module, per-peer state named by the protocol's own RFC term, a wire-version directory, a domain module, or a... |  |
+
 ## `letools/specstatus/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `letools/specstatus` | reads the metadata table at the top of every plan/spec-*.md and answers the inventory `make ze-spec-status` prints: one record per spec, carrying its status, its bucket, and whether a skeleton is... |  |
+
+## `letools/staticcheckmatrix/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/staticcheckmatrix` | type-checks the working tree once per feature-tag combination Ze can be built in |  |
+
+## `letools/testsensitivity/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/testsensitivity` | finds tests that cannot do their job, which no count of tests can reveal: 1 |  |
+
+## `letools/trackedbuild/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/trackedbuild` | COMPILES the repository as git holds it, which is the one population no other check in this repository compiles |  |
 
 ## `letools/vendorweb/`
 
@@ -877,11 +961,23 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `letools/weekly` | turns an approved weekly post into the messages Discord takes |  |
 
+## `letools/workingtree/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/workingtree` | reports the uncommitted paths of a checkout, grouped by the area a reader thinks in |  |
+
 ## `letools/yangglue/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `letools/yangglue` | generates the embed.go and register.go beside every .yang file in the tree |  |
+
+## `letools/yangleafmentions/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/yangleafmentions` | reports YANG config leaves that the owning plugin package never names |  |
 
 ## `pkg/fleet/`
 

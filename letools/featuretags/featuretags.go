@@ -1,4 +1,5 @@
 // Design: ai/rules/plugins.md -- static consumers are GENERATED, not hand-maintained
+// Related: daemontags.go -- the second consumer of the same manifest
 //
 // Package featuretags regenerates the build-tag lists that DERIVE from
 // feature-gates.txt but live inside files a program cannot read at run time:

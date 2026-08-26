@@ -93,6 +93,17 @@ const (
 	yangDir   = "yang"
 )
 
+// PluginSearchRoots answers every directory a plugin register.go can sit under,
+// relative to the tree.
+//
+// It is exported because a second tool needs the same answer: the
+// process-boundary gate (letools/pluginboundary) scans exactly the packages
+// that are subject to the internal/external placement choice, which is this
+// list. The script it replaces derived the list by REGEX over this generator's
+// source text, so that the two could not disagree; a Go call is the same
+// guarantee without the parse, and it survives the deletion of the script.
+func PluginSearchRoots() []string { return pluginSearchRoots() }
+
 // pluginSearchRoots answers every directory a plugin register.go can sit under.
 func pluginSearchRoots() []string {
 	roots := make([]string, 0, len(pluginDirs)+len(nestedPluginDomains))
