@@ -404,8 +404,8 @@ func TestRunReloadWithoutAPIBlockPreservesAcceptedAPIToken(t *testing.T) {
 	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(nil, nil, resolveCandidate, "accepted-token"))
 	lm := newListenerMigrator()
 	rest := &recordingAuthServer{
-		recordingReconfigurable: recordingReconfigurable{addrs: []string{"192.0.2.10:8081"}},
-		authenticated:           true,
+		addrs:         []string{"192.0.2.10:8081"},
+		authenticated: true,
 	}
 	lm.setREST(rest)
 	lm.markAuthenticated(svcREST)
@@ -458,8 +458,8 @@ func TestRunReloadFailurePreservesAcceptedIdentity(t *testing.T) {
 	lm := newListenerMigrator()
 	lm.setWebTLS(&fakeTLSUpdatable{err: assert.AnError})
 	lm.setREST(&recordingAuthServer{
-		recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}},
-		authenticated:           true,
+		addrs:         []string{"127.0.0.1:8081"},
+		authenticated: true,
 	})
 	lm.markAuthenticated(svcREST)
 	lm.setAuthReloader(svcREST, staticAuth(true, "candidate"))
@@ -504,8 +504,8 @@ func TestRunReloadCertificateFailurePreservesAcceptedAPIToken(t *testing.T) {
 	lm := newListenerMigrator()
 	lm.setWebTLS(&fakeTLSUpdatable{err: assert.AnError})
 	lm.setREST(&recordingAuthServer{
-		recordingReconfigurable: recordingReconfigurable{addrs: []string{"0.0.0.0:8081"}},
-		authenticated:           true,
+		addrs:         []string{"0.0.0.0:8081"},
+		authenticated: true,
 	})
 	lm.markAuthenticated(svcREST)
 	lm.setAuthReloader(svcREST, staticAuth(true, "candidate-token"))
@@ -602,10 +602,8 @@ func TestRunReloadInternalAndRetryListenerRollbackFailureStaysFailClosed(t *test
 
 	rest := &retryRollbackFailReconfigurable{addrs: []string{"127.0.0.1:8081"}}
 	grpc := &recordingAuthServer{
-		recordingReconfigurable: recordingReconfigurable{
-			addrs: []string{"127.0.0.1:50051"},
-			fail:  assert.AnError,
-		},
+		addrs:         []string{"127.0.0.1:50051"},
+		fail:          assert.AnError,
 		authenticated: true,
 	}
 	lm := newListenerMigrator()

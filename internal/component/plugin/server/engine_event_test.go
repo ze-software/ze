@@ -298,8 +298,7 @@ func TestServerEmitEngineEventRejectsUnknown(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unknown namespace/event, got nil")
 	}
-	var rpcErr *rpc.RPCCallError
-	if !errors.As(err, &rpcErr) {
+	if _, ok := errors.AsType[*rpc.RPCCallError](err); !ok {
 		t.Errorf("expected *rpc.RPCCallError, got %T", err)
 	}
 	if calls != 0 {
@@ -526,7 +525,7 @@ func TestEngineSubscribersConcurrentRegisterDispatch(t *testing.T) {
 	const goroutines = 8
 	const iters = 200
 	var wg sync.WaitGroup
-	var dispatched int64
+	var dispatched atomic.Int64
 
 	for range goroutines {
 		wg.Add(2)
@@ -534,7 +533,7 @@ func TestEngineSubscribersConcurrentRegisterDispatch(t *testing.T) {
 			defer wg.Done()
 			for range iters {
 				id := subs.register(nsID("config"), etID("verify-ok"), func(_ any) {
-					atomic.AddInt64(&dispatched, 1)
+					dispatched.Add(1)
 				})
 				subs.unregister(nsID("config"), etID("verify-ok"), id)
 			}

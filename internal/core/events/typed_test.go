@@ -154,15 +154,15 @@ func TestAsStringLogsOncePerWrongType(t *testing.T) {
 	SetLogger(captureLogger(&buf))
 	t.Cleanup(func() { SetLogger(slog.Default) })
 
-	var stringCalls int32
-	wrap := AsString(func(_ string) { atomic.AddInt32(&stringCalls, 1) })
+	var stringCalls atomic.Int32
+	wrap := AsString(func(_ string) { stringCalls.Add(1) })
 
 	wrap("ok")                   // string path; no log
 	wrap(&asStringPayload{N: 1}) // first wrong type; logs
 	wrap(&asStringPayload{N: 2}) // same type; suppressed
 	wrap(&asStringOther{S: "x"}) // different type; logs again
 
-	if got := atomic.LoadInt32(&stringCalls); got != 1 {
+	if got := stringCalls.Load(); got != 1 {
 		t.Errorf("stringCalls = %d, want 1", got)
 	}
 	logs := buf.String()

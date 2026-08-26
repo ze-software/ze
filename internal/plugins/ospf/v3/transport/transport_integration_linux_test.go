@@ -234,7 +234,7 @@ func withVethPeerNamespace(t *testing.T, fn func(ospfv3VethLab)) {
 		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort cleanup
 		unlock()
 	})
-	veth := &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: nameA}, PeerName: nameB}
+	veth := &netlink.Veth{Name: nameA, PeerName: nameB}
 	if err := netlink.LinkAdd(veth); err != nil {
 		t.Skipf("add veth (needs CAP_NET_ADMIN): %v", err)
 	}

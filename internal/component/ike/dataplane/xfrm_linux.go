@@ -305,8 +305,7 @@ func (b *xfrmBackend) RemovePolicyParams(p SPParams) error {
 	// policy is gone. InstallPolicy above compensates for the mirror case with `if
 	// created`; this side needs no compensation because it never gets ahead of the kernel.
 	if err := b.policies.deleteThenRelease(p, func() error { return xfrmPolicyDel(pol) }); err != nil {
-		var owned *PolicyOwnedError
-		if errors.As(err, &owned) {
+		if _, ok := errors.AsType[*PolicyOwnedError](err); ok {
 			return err
 		}
 		return fmt.Errorf("xfrm: policy del: %w", err)

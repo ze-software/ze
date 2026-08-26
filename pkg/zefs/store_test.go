@@ -3606,8 +3606,7 @@ func TestStoreDirReadReturnsPathError(t *testing.T) {
 		t.Fatal("Read on directory should fail")
 		return
 	}
-	var pathErr *fs.PathError
-	if !errors.As(readErr, &pathErr) {
+	if _, ok := errors.AsType[*fs.PathError](readErr); !ok {
 		t.Errorf("Read on directory: got %T, want *fs.PathError", readErr)
 	}
 
@@ -3968,8 +3967,7 @@ func TestStoreOpenPathThroughFile(t *testing.T) {
 	if err == nil {
 		t.Error("Open path through file should fail")
 	}
-	var pathErr *fs.PathError
-	if !errors.As(err, &pathErr) {
+	if _, ok := errors.AsType[*fs.PathError](err); !ok {
 		t.Errorf("expected *fs.PathError, got %T", err)
 	}
 
@@ -4141,8 +4139,7 @@ func TestStoreOpenDotReadError(t *testing.T) {
 		t.Fatal("Read on root dir should fail")
 		return
 	}
-	var pathErr *fs.PathError
-	if !errors.As(readErr, &pathErr) {
+	if _, ok := errors.AsType[*fs.PathError](readErr); !ok {
 		t.Errorf("expected *fs.PathError, got %T", readErr)
 	}
 
@@ -4286,8 +4283,7 @@ func TestStoreReadDirNonexistent(t *testing.T) {
 	if err == nil {
 		t.Error("ReadDir on nonexistent dir should fail")
 	}
-	var pathErr *fs.PathError
-	if !errors.As(err, &pathErr) {
+	if _, ok := errors.AsType[*fs.PathError](err); !ok {
 		t.Errorf("expected *fs.PathError, got %T", err)
 	}
 

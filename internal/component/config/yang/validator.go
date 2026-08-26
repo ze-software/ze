@@ -715,8 +715,7 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 			checkCardinality(childPath, child, uint64(len(items)), errs)
 			for _, item := range items {
 				if leafErr := v.validateEntry(childPath, child, item); leafErr != nil {
-					var valErr *ValidationError
-					if errors.As(leafErr, &valErr) {
+					if valErr, ok := errors.AsType[*ValidationError](leafErr); ok {
 						*errs = append(*errs, *valErr)
 					} else {
 						*errs = append(*errs, ValidationError{
@@ -737,8 +736,7 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 
 		// Non-map values are leaves — validate against YANG type.
 		if leafErr := v.validateEntry(childPath, child, value); leafErr != nil {
-			var valErr *ValidationError
-			if errors.As(leafErr, &valErr) {
+			if valErr, ok := errors.AsType[*ValidationError](leafErr); ok {
 				*errs = append(*errs, *valErr)
 			} else {
 				*errs = append(*errs, ValidationError{
@@ -774,8 +772,7 @@ func (v *Validator) validateListKey(path string, list *yang.Entry, keyVal string
 		return
 	}
 	if leafErr := v.validateEntry(path, keyLeaf, keyVal); leafErr != nil {
-		var valErr *ValidationError
-		if errors.As(leafErr, &valErr) {
+		if valErr, ok := errors.AsType[*ValidationError](leafErr); ok {
 			*errs = append(*errs, *valErr)
 		} else {
 			*errs = append(*errs, ValidationError{

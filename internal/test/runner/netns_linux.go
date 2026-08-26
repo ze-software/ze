@@ -144,9 +144,9 @@ func provisionNetnsLinks(links []NetnsLinkSpec) error {
 func addNetnsLink(l NetnsLinkSpec) error {
 	var link netlink.Link
 	if l.Peer == "" {
-		link = &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: l.Name}}
+		link = &netlink.Dummy{Name: l.Name}
 	} else {
-		link = &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: l.Name}, PeerName: l.Peer}
+		link = &netlink.Veth{Name: l.Name, PeerName: l.Peer}
 	}
 	if err := netlink.LinkAdd(link); err != nil {
 		return fmt.Errorf("create netns link %q: %w", l.Name, err)
@@ -165,7 +165,8 @@ func addNetnsVLAN(parent string, tag uint16) error {
 	var nb textbuf.Buffer
 	name := nb.Str(parent).Byte('.').Int(int64(tag)).String()
 	vlan := &netlink.Vlan{
-		LinkAttrs:    netlink.LinkAttrs{Name: name, ParentIndex: parentLink.Attrs().Index},
+		Name:         name,
+		ParentIndex:  parentLink.Attrs().Index,
 		VlanId:       int(tag),
 		VlanProtocol: netlink.VLAN_PROTOCOL_8021Q,
 	}

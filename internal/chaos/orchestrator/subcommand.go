@@ -134,8 +134,7 @@ func checkPortFree(addr string) error {
 		return fmt.Errorf("port %s is already in use — stop the existing process first", addr)
 	}
 
-	var opErr *net.OpError
-	if errors.As(err, &opErr) {
+	if opErr, ok := errors.AsType[*net.OpError](err); ok {
 		if errors.Is(opErr.Err, syscall.ECONNREFUSED) {
 			return nil
 		}

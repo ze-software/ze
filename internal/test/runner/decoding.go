@@ -106,7 +106,8 @@ func (dt *DecodingTests) Discover(dir string) error {
 			base := filepath.Base(testFile)
 			name := strings.TrimSuffix(base, filepath.Ext(base))
 			test = &decodingTest{
-				BaseTest:   BaseTest{Name: name, Nick: GenerateNick(name)},
+				Name:       name,
+				Nick:       GenerateNick(name),
 				File:       testFile,
 				ParseError: fmt.Errorf("parse %s: %w", testFile, err),
 			}
@@ -152,10 +153,8 @@ func (dt *DecodingTests) parseTestFile(filePath string) (*decodingTest, error) {
 	nick := GenerateNick(name)
 
 	return &decodingTest{
-		BaseTest: BaseTest{
-			Name: name,
-			Nick: nick,
-		},
+		Name:         name,
+		Nick:         nick,
 		File:         filePath,
 		Type:         msgType,
 		Family:       fam,
@@ -278,10 +277,8 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*decodingTest, error) {
 	nick := GenerateNick(name)
 
 	return &decodingTest{
-		BaseTest: BaseTest{
-			Name: name,
-			Nick: nick,
-		},
+		Name:         name,
+		Nick:         nick,
 		File:         filePath,
 		Type:         msgType,
 		Family:       family,

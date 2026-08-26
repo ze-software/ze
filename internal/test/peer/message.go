@@ -464,8 +464,7 @@ func truncateUTF8(b []byte, maxLen int) []byte {
 }
 
 func isTimeout(err error) bool {
-	var netErr net.Error
-	if errors.As(err, &netErr) {
+	if netErr, ok := errors.AsType[net.Error](err); ok {
 		return netErr.Timeout()
 	}
 	return false

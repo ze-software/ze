@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -318,8 +319,8 @@ func (j *failingJournal) Record(apply, undo func() error) error {
 	if j.count >= j.failAt {
 		// Roll back previous entries before returning error.
 		j.rolledBack = true
-		for i := len(j.entries) - 1; i >= 0; i-- {
-			_ = j.entries[i]()
+		for _, v := range slices.Backward(j.entries) {
+			_ = v()
 		}
 		j.entries = nil
 		return fmt.Errorf("injected failure at record %d", j.count)
@@ -334,8 +335,8 @@ func (j *failingJournal) Record(apply, undo func() error) error {
 func (j *failingJournal) Rollback() []error {
 	j.rolledBack = true
 	var errs []error
-	for i := len(j.entries) - 1; i >= 0; i-- {
-		if err := j.entries[i](); err != nil {
+	for _, v := range slices.Backward(j.entries) {
+		if err := v(); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -370,8 +371,8 @@ func (j *testJournal) Rollback() []error {
 
 func (j *testJournal) rollback() []error {
 	var errs []error
-	for i := len(j.entries) - 1; i >= 0; i-- {
-		if err := j.entries[i](); err != nil {
+	for _, v := range slices.Backward(j.entries) {
+		if err := v(); err != nil {
 			errs = append(errs, err)
 		}
 	}

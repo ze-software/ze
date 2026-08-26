@@ -232,7 +232,7 @@ func fillDistinctValue(field reflect.Value, seed int) error {
 				return err
 			}
 		}
-	case reflect.Ptr:
+	case reflect.Pointer:
 		field.Set(reflect.New(field.Type().Elem()))
 		return fillDistinctValue(field.Elem(), seed)
 	case reflect.Map:

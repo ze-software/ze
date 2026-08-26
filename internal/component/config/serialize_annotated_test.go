@@ -1,6 +1,7 @@
 package config
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -232,9 +233,9 @@ func TestAnnotatedContainerInheritance(t *testing.T) {
 
 	// Find the closing "}" line for bgp -- last line containing "}" but NOT "{"
 	var bgpCloseLine string
-	for i := len(lines) - 1; i >= 0; i-- {
-		if strings.Contains(lines[i], "}") && !strings.Contains(lines[i], "{") {
-			bgpCloseLine = lines[i]
+	for _, line := range slices.Backward(lines) {
+		if strings.Contains(line, "}") && !strings.Contains(line, "{") {
+			bgpCloseLine = line
 			break
 		}
 	}

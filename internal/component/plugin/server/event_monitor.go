@@ -39,7 +39,7 @@ type EventMonitorOpts struct {
 	Direction    string
 }
 
-var nextEventMonitorID uint64
+var nextEventMonitorID atomic.Uint64
 
 // StreamEventMonitor is the streaming handler for the "event monitor" command.
 // It parses arguments, creates subscriptions, registers a MonitorClient,
@@ -53,7 +53,7 @@ func StreamEventMonitor(ctx context.Context, s *Server, w io.Writer, _ string, a
 	}
 
 	subs := BuildEventMonitorSubscriptions(opts)
-	id := textbuf.StrUint("event-monitor-", atomic.AddUint64(&nextEventMonitorID, 1))
+	id := textbuf.StrUint("event-monitor-", nextEventMonitorID.Add(1))
 
 	clientCtx, cancel := context.WithCancel(ctx)
 	defer cancel()

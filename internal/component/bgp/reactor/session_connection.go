@@ -171,8 +171,7 @@ func (s *Session) processOpen(open *message.Open) error {
 		conn := s.conn
 		s.mu.RUnlock()
 
-		var notif *message.Notification
-		if errors.As(err, &notif) {
+		if notif, ok := errors.AsType[*message.Notification](err); ok {
 			s.logNotifyErr(conn, notif.ErrorCode, notif.ErrorSubcode, notif.Data)
 		}
 		s.logFSMEvent(fsm.EventBGPOpenMsgErr)

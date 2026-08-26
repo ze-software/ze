@@ -1018,8 +1018,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// exit= per command to assert the earlier ones at all.
 			if cmd.ExitCode != nil {
 				actual := 0
-				var exitErr *exec.ExitError
-				if errors.As(lastQuickZeErr, &exitErr) {
+				if exitErr, ok := errors.AsType[*exec.ExitError](lastQuickZeErr); ok {
 					actual = exitErr.ExitCode()
 				}
 				if actual != *cmd.ExitCode {

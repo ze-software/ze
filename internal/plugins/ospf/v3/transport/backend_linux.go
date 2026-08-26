@@ -327,8 +327,7 @@ func (li *linuxInterface) readLoop() {
 		}
 		n, cm, src, err := li.pc.ReadFrom(buf)
 		if err != nil {
-			var ne net.Error
-			if errors.As(err, &ne) {
+			if _, ok := errors.AsType[net.Error](err); ok {
 				continue
 			}
 			if li.stopped() {

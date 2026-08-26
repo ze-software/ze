@@ -239,8 +239,7 @@ func TestPolicyOwnerRefusesAForeignDeleteBeforeTheKernel(t *testing.T) {
 	calls := 0
 	err := owners.deleteThenRelease(foreign, func() error { calls++; return nil })
 
-	var owned *PolicyOwnedError
-	if !errors.As(err, &owned) {
+	if _, ok := errors.AsType[*PolicyOwnedError](err); !ok {
 		t.Fatalf("a foreign delete returned %v, want *PolicyOwnedError", err)
 	}
 	if calls != 0 {

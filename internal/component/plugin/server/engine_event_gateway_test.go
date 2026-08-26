@@ -123,8 +123,7 @@ func TestConfigEventGatewayRejectsUnknownEvent(t *testing.T) {
 	if err == nil {
 		t.Fatal("EmitConfigEvent with unknown event type returned nil error")
 	}
-	var rpcErr *rpc.RPCCallError
-	if !errors.As(err, &rpcErr) {
+	if _, ok := errors.AsType[*rpc.RPCCallError](err); !ok {
 		t.Errorf("expected *rpc.RPCCallError, got %T: %v", err, err)
 	}
 }

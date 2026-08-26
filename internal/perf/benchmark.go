@@ -913,8 +913,7 @@ func readMessageSlab(
 
 // isNetTimeout reports whether err is a network timeout error.
 func isNetTimeout(err error) bool {
-	var ne net.Error
-	if errors.As(err, &ne) {
+	if ne, ok := errors.AsType[net.Error](err); ok {
 		return ne.Timeout()
 	}
 

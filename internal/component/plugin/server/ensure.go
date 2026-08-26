@@ -6,6 +6,7 @@ package server
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -104,8 +105,8 @@ func wasCreated(resp *plugin.Response) (bool, error) {
 }
 
 func runRollbacks(fns []func()) {
-	for i := len(fns) - 1; i >= 0; i-- {
-		fns[i]()
+	for _, fn := range slices.Backward(fns) {
+		fn()
 	}
 }
 

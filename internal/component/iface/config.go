@@ -511,11 +511,11 @@ func parseTunnelEntry(name string, m map[string]any) (tunnelEntry, error) {
 	if err != nil {
 		return tunnelEntry{}, err
 	}
-	entry := tunnelEntry{ifaceEntry: iface}
 	// MAC address for tunnels comes from inside the encapsulation case
 	// container (gretap/ip6gretap only), not from the list level. Clear
 	// any list-level mac/address that parseIfaceEntry may have read.
-	entry.MACAddress = ""
+	iface.MACAddress = ""
+	entry := tunnelEntry{ifaceEntry: iface}
 	entry.Spec.Name = name
 
 	encMap, ok := m["encapsulation"].(map[string]any)
@@ -576,8 +576,8 @@ func parseXFRMEntry(name string, m map[string]any) (xfrmEntry, error) {
 	if err != nil {
 		return xfrmEntry{}, err
 	}
+	iface.MACAddress = ""
 	entry := xfrmEntry{ifaceEntry: iface}
-	entry.MACAddress = ""
 	entry.Spec.Name = name
 
 	if m == nil {
@@ -715,11 +715,11 @@ func parseWireguardEntry(name string, m map[string]any) (wireguardEntry, error) 
 	if err != nil {
 		return wireguardEntry{}, err
 	}
-	entry := wireguardEntry{ifaceEntry: iface}
 	// Wireguard uses interface-common (no mac/address leaf). Clear any
 	// list-level mac/address that parseIfaceEntry may have read from a
 	// hand-edited config. Same defense-in-depth as parseTunnelEntry.
-	entry.MACAddress = ""
+	iface.MACAddress = ""
+	entry := wireguardEntry{ifaceEntry: iface}
 	entry.Spec.Name = name
 
 	if m == nil {

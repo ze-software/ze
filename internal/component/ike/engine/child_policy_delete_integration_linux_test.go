@@ -109,7 +109,7 @@ func delNetns(t *testing.T) {
 		t.Fatalf("lo up: %v", err)
 	}
 
-	egress := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: delEgressDev}}
+	egress := &netlink.Dummy{Name: delEgressDev}
 	if err := netlink.LinkAdd(egress); err != nil {
 		t.Fatalf("add dummy %s: %v; without a non-loopback egress the outbound XFRM hook is never reached and every reading below is blind", delEgressDev, err)
 	}

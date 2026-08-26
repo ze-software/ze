@@ -608,10 +608,8 @@ func tunnelTestConfigOfKind(kind TunnelKind, remote string) *ifaceConfig {
 		Backend: "fake",
 		Tunnel: []tunnelEntry{
 			{
-				ifaceEntry: ifaceEntry{
-					Name:  "tgre0",
-					Units: []unitEntry{{Label: "default", Addresses: []string{"10.0.0.1/30"}}},
-				},
+				Name:  "tgre0",
+				Units: []unitEntry{{Label: "default", Addresses: []string{"10.0.0.1/30"}}},
 				Spec: TunnelSpec{
 					Kind:          kind,
 					Name:          "tgre0",

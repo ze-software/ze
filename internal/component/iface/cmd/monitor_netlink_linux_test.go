@@ -17,7 +17,7 @@ func TestParseNetlinkRouteMsg(t *testing.T) {
 	_, dst, _ := net.ParseCIDR("10.0.0.0/24")
 	gw := net.ParseIP("192.168.1.1")
 
-	u := netlink.RouteUpdate{
+	u := netlink.RouteUpdate{ //nolint:modernize // netlink.Route has a Type field of its own that RouteUpdate.Type shadows; keep the two levels visible.
 		Type: unix.RTM_NEWROUTE,
 		Route: netlink.Route{
 			Dst:       dst,
@@ -59,7 +59,7 @@ func TestParseNetlinkRouteMsg(t *testing.T) {
 func TestParseNetlinkRouteMsgDelete(t *testing.T) {
 	_, dst, _ := net.ParseCIDR("10.0.0.0/24")
 
-	u := netlink.RouteUpdate{
+	u := netlink.RouteUpdate{ //nolint:modernize // netlink.Route has a Type field of its own that RouteUpdate.Type shadows; keep the two levels visible.
 		Type: unix.RTM_DELROUTE,
 		Route: netlink.Route{
 			Dst: dst,
@@ -89,13 +89,11 @@ func TestParseNetlinkRouteMsgDefault(t *testing.T) {
 func TestParseNetlinkLinkMsg(t *testing.T) {
 	u := netlink.LinkUpdate{
 		Link: &netlink.Dummy{
-			LinkAttrs: netlink.LinkAttrs{
-				Name:         "eth0",
-				Index:        2,
-				MTU:          1500,
-				Flags:        net.FlagUp,
-				HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
-			},
+			Name:         "eth0",
+			Index:        2,
+			MTU:          1500,
+			Flags:        net.FlagUp,
+			HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
 		},
 	}
 	u.Header.Type = unix.RTM_NEWLINK
@@ -121,9 +119,7 @@ func TestParseNetlinkLinkMsg(t *testing.T) {
 
 func TestParseNetlinkLinkMsgDelete(t *testing.T) {
 	u := netlink.LinkUpdate{
-		Link: &netlink.Dummy{
-			LinkAttrs: netlink.LinkAttrs{Name: "veth0", Index: 5},
-		},
+		Link: &netlink.Dummy{Name: "veth0", Index: 5},
 	}
 	u.Header.Type = unix.RTM_DELLINK
 
@@ -191,9 +187,7 @@ func TestLinkMsgOwnsTheNameCache(t *testing.T) {
 	t.Cleanup(func() { ifNameCache.Delete(idx) })
 
 	u := netlink.LinkUpdate{
-		Link: &netlink.Dummy{
-			LinkAttrs: netlink.LinkAttrs{Name: "zetest0", Index: idx},
-		},
+		Link: &netlink.Dummy{Name: "zetest0", Index: idx},
 	}
 	u.Header.Type = unix.RTM_NEWLINK
 	linkUpdateToEvent(u)
@@ -246,11 +240,12 @@ func TestRouteEventDoesNotRepopulateTheCache(t *testing.T) {
 	ifNameCache.Delete(idx)
 	t.Cleanup(func() { ifNameCache.Delete(idx) })
 
-	u := netlink.RouteUpdate{}
-	u.Type = unix.RTM_NEWROUTE
-	u.Route = netlink.Route{
-		Dst:       &net.IPNet{IP: net.IPv4(10, 9, 8, 0), Mask: net.CIDRMask(24, 32)},
-		LinkIndex: idx,
+	u := netlink.RouteUpdate{ //nolint:modernize // netlink.Route has a Type field of its own that RouteUpdate.Type shadows; keep the two levels visible.
+		Type: unix.RTM_NEWROUTE,
+		Route: netlink.Route{
+			Dst:       &net.IPNet{IP: net.IPv4(10, 9, 8, 0), Mask: net.CIDRMask(24, 32)},
+			LinkIndex: idx,
+		},
 	}
 
 	ev := routeUpdateToEvent(&u)

@@ -130,7 +130,7 @@ func sendFromPort(t *testing.T, port int) int {
 
 func setupBypassTestLink(t *testing.T) {
 	t.Helper()
-	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: bypassTestLink}}
+	link := &netlink.Dummy{Name: bypassTestLink}
 	if err := netlink.LinkAdd(link); err != nil {
 		if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
 			t.Skipf("creating a dummy link needs CAP_NET_ADMIN: %v", err)

@@ -107,7 +107,7 @@ func reqidNetns(t *testing.T) {
 	encapNetns(t)
 	encapNetnsUsable(t)
 
-	egress := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: reqidEgressDev}}
+	egress := &netlink.Dummy{Name: reqidEgressDev}
 	if err := netlink.LinkAdd(egress); err != nil {
 		t.Fatalf("add dummy %s: %v", reqidEgressDev, err)
 	}

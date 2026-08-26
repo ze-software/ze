@@ -180,8 +180,8 @@ func TestRunReloadEnvEnabledGRPCKeepsDormantAPISettings(t *testing.T) {
 	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(nil, nil, resolveCandidate, "api-s3cret"))
 
 	grpc := &recordingAuthServer{
-		recordingReconfigurable: recordingReconfigurable{addrs: []string{"192.0.2.10:50052"}},
-		authenticated:           true,
+		addrs:         []string{"192.0.2.10:50052"},
+		authenticated: true,
 	}
 	lm := newListenerMigrator()
 	lm.setGRPC(grpc)
@@ -233,8 +233,8 @@ func TestRunReloadRejectsAbsentAPIBlockAndLastUserRemovalOnRemoteGRPC(t *testing
 	))
 
 	grpc := &recordingAuthServer{
-		recordingReconfigurable: recordingReconfigurable{addrs: []string{"192.0.2.10:50052"}},
-		authenticated:           true,
+		addrs:         []string{"192.0.2.10:50052"},
+		authenticated: true,
 	}
 	lm := newListenerMigrator()
 	lm.setGRPC(grpc)
@@ -308,8 +308,8 @@ func TestMarkMgmtAuthClassifiesBeforeAnyHandleExists(t *testing.T) {
 // reload over a server that does not exist.
 func TestUnbuiltSurfaceResolvesNoAuthIntent(t *testing.T) {
 	rest := &recordingAuthServer{
-		recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}},
-		authenticated:           true,
+		addrs:         []string{"127.0.0.1:8081"},
+		authenticated: true,
 	}
 	migrator := newListenerMigrator()
 	markMgmtAuth(migrator, map[string]bool{svcREST: true, svcGRPC: true})

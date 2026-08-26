@@ -262,8 +262,7 @@ func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginCo
 func (s *Server) serveEngineOpDirect(proc *process.Process, op *engineOp, params json.RawMessage) (json.RawMessage, error) {
 	result, err := op.handle(s, proc, params)
 	if err != nil {
-		var callErr *rpc.RPCCallError
-		if errors.As(err, &callErr) {
+		if callErr, ok := errors.AsType[*rpc.RPCCallError](err); ok {
 			return nil, callErr
 		}
 		return nil, &rpc.RPCCallError{Message: err.Error()}

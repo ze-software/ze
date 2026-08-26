@@ -636,9 +636,9 @@ func TestDispatchResumeOnDrain(t *testing.T) {
 	rs := newTestRouteServer(t)
 	rs.workers.Stop()
 	block := make(chan struct{})
-	var processed int32
+	var processed atomic.Int32
 	rs.workers = newWorkerPool(func(_ workerKey, _ workItem) {
-		if atomic.AddInt32(&processed, 1) == 1 {
+		if processed.Add(1) == 1 {
 			<-block // First item blocks; rest process immediately.
 		}
 	}, poolConfig{chanSize: 8, idleTimeout: 5 * time.Second})

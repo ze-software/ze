@@ -991,7 +991,7 @@ func TestApplyTunnelsTwoGREDistinctKeys(t *testing.T) {
 		Backend: "fake",
 		Tunnel: []tunnelEntry{
 			{
-				ifaceEntry: ifaceEntry{Name: "gre-a"},
+				Name: "gre-a",
 				Spec: TunnelSpec{
 					Kind:          TunnelKindGRE,
 					Name:          "gre-a",
@@ -1002,7 +1002,7 @@ func TestApplyTunnelsTwoGREDistinctKeys(t *testing.T) {
 				},
 			},
 			{
-				ifaceEntry: ifaceEntry{Name: "gre-b"},
+				Name: "gre-b",
 				Spec: TunnelSpec{
 					Kind:          TunnelKindGRE,
 					Name:          "gre-b",
@@ -1041,7 +1041,7 @@ func TestApplyTunnelsUnchangedSkipsRecreate(t *testing.T) {
 	}
 	cfg := &ifaceConfig{
 		Backend: "fake",
-		Tunnel:  []tunnelEntry{{ifaceEntry: ifaceEntry{Name: "gre0"}, Spec: spec}},
+		Tunnel:  []tunnelEntry{{Name: "gre0", Spec: spec}},
 	}
 	// First apply: tunnel created.
 	require.Empty(t, applyConfig(cfg, nil, b))
@@ -1064,7 +1064,7 @@ func TestApplyTunnelsChangedTriggersRecreate(t *testing.T) {
 	prev := &ifaceConfig{
 		Backend: "fake",
 		Tunnel: []tunnelEntry{{
-			ifaceEntry: ifaceEntry{Name: "gre0"},
+			Name: "gre0",
 			Spec: TunnelSpec{
 				Kind: TunnelKindGRE, Name: "gre0",
 				LocalAddress: "192.0.2.1", RemoteAddress: "198.51.100.1",
@@ -1078,7 +1078,7 @@ func TestApplyTunnelsChangedTriggersRecreate(t *testing.T) {
 	updated := &ifaceConfig{
 		Backend: "fake",
 		Tunnel: []tunnelEntry{{
-			ifaceEntry: ifaceEntry{Name: "gre0"},
+			Name: "gre0",
 			Spec: TunnelSpec{
 				Kind: TunnelKindGRE, Name: "gre0",
 				LocalAddress: "192.0.2.1", RemoteAddress: "198.51.100.1",
@@ -1119,7 +1119,7 @@ func TestApplyWireguardsCreate(t *testing.T) {
 	b := &fakeBackend{ifaces: map[string]fakeIface{}}
 	cfg := &ifaceConfig{
 		Wireguard: []wireguardEntry{{
-			ifaceEntry: ifaceEntry{Name: "wg0"},
+			Name: "wg0",
 			Spec: WireguardSpec{
 				Name:          "wg0",
 				PrivateKey:    wireguardTestKey(1),
@@ -1161,10 +1161,10 @@ func TestApplyWireguardsUnchangedSkipsConfigure(t *testing.T) {
 		}},
 	}
 	previous := &ifaceConfig{
-		Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: spec}},
+		Wireguard: []wireguardEntry{{Name: "wg0", Spec: spec}},
 	}
 	cfg := &ifaceConfig{
-		Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: spec}},
+		Wireguard: []wireguardEntry{{Name: "wg0", Spec: spec}},
 	}
 
 	// The previous config already had wg0, so the kernel already has the
@@ -1200,8 +1200,8 @@ func TestApplyWireguardsAddPeer(t *testing.T) {
 		AllowedIPs: []string{"10.0.0.2/32"},
 	})
 
-	previous := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: base}}}
-	cfg := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: withNew}}}
+	previous := &ifaceConfig{Wireguard: []wireguardEntry{{Name: "wg0", Spec: base}}}
+	cfg := &ifaceConfig{Wireguard: []wireguardEntry{{Name: "wg0", Spec: withNew}}}
 
 	// The previous config already had wg0, so the kernel already has the
 	// device: applyConfig skips the create, and every later phase addresses a
@@ -1233,8 +1233,8 @@ func TestApplyWireguardsRemovePeer(t *testing.T) {
 	onePeer := twoPeer
 	onePeer.Peers = []WireguardPeerSpec{twoPeer.Peers[0]}
 
-	previous := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: twoPeer}}}
-	cfg := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: onePeer}}}
+	previous := &ifaceConfig{Wireguard: []wireguardEntry{{Name: "wg0", Spec: twoPeer}}}
+	cfg := &ifaceConfig{Wireguard: []wireguardEntry{{Name: "wg0", Spec: onePeer}}}
 
 	// The previous config already had wg0, so the kernel already has the
 	// device: applyConfig skips the create, and every later phase addresses a
@@ -1269,8 +1269,8 @@ func TestApplyWireguardsAllowedIPsChange(t *testing.T) {
 		AllowedIPs: []string{"10.0.0.1/32", "192.168.10.0/24"},
 	}}
 
-	previous := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: beforeSpec}}}
-	cfg := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: afterSpec}}}
+	previous := &ifaceConfig{Wireguard: []wireguardEntry{{Name: "wg0", Spec: beforeSpec}}}
+	cfg := &ifaceConfig{Wireguard: []wireguardEntry{{Name: "wg0", Spec: afterSpec}}}
 
 	// The previous config already had wg0, so the kernel already has the
 	// device: applyConfig skips the create, and every later phase addresses a
@@ -1310,8 +1310,8 @@ func TestApplyWireguardsEndpointChange(t *testing.T) {
 		AllowedIPs:   []string{"10.0.0.1/32"},
 	}}
 
-	previous := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: beforeSpec}}}
-	cfg := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: afterSpec}}}
+	previous := &ifaceConfig{Wireguard: []wireguardEntry{{Name: "wg0", Spec: beforeSpec}}}
+	cfg := &ifaceConfig{Wireguard: []wireguardEntry{{Name: "wg0", Spec: afterSpec}}}
 
 	// The previous config already had wg0, so the kernel already has the
 	// device: applyConfig skips the create, and every later phase addresses a
@@ -1331,8 +1331,8 @@ func TestApplyWireguardsEndpointChange(t *testing.T) {
 func TestApplyWireguardsDisableIfaceSkips(t *testing.T) {
 	cfg := &ifaceConfig{
 		Wireguard: []wireguardEntry{{
-			ifaceEntry: ifaceEntry{Name: "wg0", Disable: true},
-			Spec:       WireguardSpec{Name: "wg0", PrivateKey: wireguardTestKey(1)},
+			Name: "wg0", Disable: true,
+			Spec: WireguardSpec{Name: "wg0", PrivateKey: wireguardTestKey(1)},
 		}},
 	}
 
@@ -1401,10 +1401,8 @@ func TestApplyTunnelsCreate(t *testing.T) {
 		Backend: "fake",
 		Tunnel: []tunnelEntry{
 			{
-				ifaceEntry: ifaceEntry{
-					Name:  "gre0",
-					Units: []unitEntry{{Label: "default", Addresses: []string{"10.0.0.1/30"}}},
-				},
+				Name:  "gre0",
+				Units: []unitEntry{{Label: "default", Addresses: []string{"10.0.0.1/30"}}},
 				Spec: TunnelSpec{
 					Kind:          TunnelKindGRE,
 					Name:          "gre0",
@@ -2118,7 +2116,7 @@ func TestIfaceVerifyEstimate(t *testing.T) {
 			{Name: "dummy2"},
 		},
 		Veth: []vethEntry{
-			{ifaceEntry: ifaceEntry{Name: "veth0"}, Peer: "veth0-peer"},
+			{Name: "veth0", Peer: "veth0-peer"},
 		},
 	}
 
@@ -3977,6 +3975,45 @@ func TestApplyRPFCheck_Sysctl(t *testing.T) {
 	}
 }
 
+// TestParseXFRMEntryIgnoresListLevelMAC verifies that a mac/address written at
+// the xfrm list level does not reach the parsed entry.
+//
+// VALIDATES: parseXFRMEntry clears MACAddress that parseIfaceEntry may have read.
+//
+// PREVENTS: an XFRM interface carrying a MAC it cannot have. XFRM is an L3
+// tunnel with no link layer of its own. A mac/address at the list level is a
+// hand-edited config, or a leftover from a kind that does carry one. Letting it
+// through hands the backend an address to program on an interface with no place
+// to put it.
+//
+// The clear is easy to lose. `parseXFRMEntry` seeds `xfrmEntry` from the shared
+// `ifaceEntry`, so the field arrives populated, and the clear is one line that
+// nothing else depends on. Its two siblings each have a test for the same line,
+// `TestParseTunnelGREIgnoresListLevelMAC` and the wireguard one. This one had
+// none, which is how a modernize sweep came to rewrite all three with two
+// covered.
+func TestParseXFRMEntryIgnoresListLevelMAC(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"xfrm": {
+				"xfrm0": {
+					"if-id": "42",
+					"dev": "eth0",
+					"mac": {"address": "02:00:00:00:00:01"},
+					"unit": {
+						"default": {
+							"ipv4": {"address": ["10.0.0.1/30"]}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.XFRM, 1)
+	assert.Empty(t, cfg.XFRM[0].MACAddress,
+		"xfrm is an L3 tunnel: a list-level mac/address must be ignored")
+}
+
 func TestParseXFRMEntry(t *testing.T) {
 	cfg := mustParseIfaceJSON(t, `{
 		"interface": {
@@ -4058,8 +4095,8 @@ func TestXFRMSpecEqual(t *testing.T) {
 func TestApplyXFRMCreate(t *testing.T) {
 	cfg := &ifaceConfig{
 		XFRM: []xfrmEntry{{
-			ifaceEntry: ifaceEntry{Name: "xfrm0"},
-			Spec:       XFRMSpec{Name: "xfrm0", IfID: 42},
+			Name: "xfrm0",
+			Spec: XFRMSpec{Name: "xfrm0", IfID: 42},
 		}},
 	}
 	b := &fakeBackend{ifaces: map[string]fakeIface{}}
@@ -4072,14 +4109,14 @@ func TestApplyXFRMUnchangedSkipsRecreate(t *testing.T) {
 	spec := XFRMSpec{Name: "xfrm0", IfID: 42}
 	prev := &ifaceConfig{
 		XFRM: []xfrmEntry{{
-			ifaceEntry: ifaceEntry{Name: "xfrm0"},
-			Spec:       spec,
+			Name: "xfrm0",
+			Spec: spec,
 		}},
 	}
 	cfg := &ifaceConfig{
 		XFRM: []xfrmEntry{{
-			ifaceEntry: ifaceEntry{Name: "xfrm0"},
-			Spec:       spec,
+			Name: "xfrm0",
+			Spec: spec,
 		}},
 	}
 	// Unchanged spec means the device survived the reload, so it is present.
@@ -4093,14 +4130,14 @@ func TestApplyXFRMUnchangedSkipsRecreate(t *testing.T) {
 func TestApplyXFRMChangedTriggersRecreate(t *testing.T) {
 	prev := &ifaceConfig{
 		XFRM: []xfrmEntry{{
-			ifaceEntry: ifaceEntry{Name: "xfrm0"},
-			Spec:       XFRMSpec{Name: "xfrm0", IfID: 42},
+			Name: "xfrm0",
+			Spec: XFRMSpec{Name: "xfrm0", IfID: 42},
 		}},
 	}
 	cfg := &ifaceConfig{
 		XFRM: []xfrmEntry{{
-			ifaceEntry: ifaceEntry{Name: "xfrm0"},
-			Spec:       XFRMSpec{Name: "xfrm0", IfID: 99},
+			Name: "xfrm0",
+			Spec: XFRMSpec{Name: "xfrm0", IfID: 99},
 		}},
 	}
 	b := &fakeBackend{ifaces: map[string]fakeIface{"xfrm0": {name: "xfrm0"}}}

@@ -121,8 +121,7 @@ func (s *Session) handleOpen(body []byte) error {
 		s.mu.RUnlock()
 
 		// Send NOTIFICATION with the error (already a *Notification).
-		var notif *message.Notification
-		if errors.As(err, &notif) {
+		if notif, ok := errors.AsType[*message.Notification](err); ok {
 			s.logNotifyErr(conn, notif.ErrorCode, notif.ErrorSubcode, notif.Data)
 		}
 		s.logFSMEvent(fsm.EventBGPOpenMsgErr)

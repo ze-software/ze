@@ -99,8 +99,7 @@ func (d *RPCDispatcher) Dispatch(req *rpc.Request) any {
 	if err != nil {
 		// If the handler returned a CodedError, use its explicit code.
 		// Otherwise fall back to a generic "handler-error" code.
-		var coded *rpc.CodedError
-		if errors.As(err, &coded) {
+		if coded, ok := errors.AsType[*rpc.CodedError](err); ok {
 			return newDispatchError(req.ID, coded.Code, coded.Error())
 		}
 		return newDispatchError(req.ID, "handler-error", err.Error())

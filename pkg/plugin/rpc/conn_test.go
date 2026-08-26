@@ -411,8 +411,8 @@ func TestConn_CallBatchRPC_OversizedSplit(t *testing.T) {
 	}
 
 	// Engine side: read all batch requests, respond OK to each.
-	var batchCount int32
-	var eventTotal int32
+	var batchCount atomic.Int32
+	var eventTotal atomic.Int32
 	engineDone := make(chan struct{})
 	go func() {
 		defer close(engineDone)
@@ -422,10 +422,10 @@ func TestConn_CallBatchRPC_OversizedSplit(t *testing.T) {
 			if readErr != nil {
 				return
 			}
-			atomic.AddInt32(&batchCount, 1)
+			batchCount.Add(1)
 			if req.Params != nil {
 				if evts, parseErr := ParseBatchEvents(req.Params); parseErr == nil {
-					atomic.AddInt32(&eventTotal, int32(len(evts)))
+					eventTotal.Add(int32(len(evts)))
 				}
 			}
 			if sendErr := engineConn.SendOK(ctx, req.ID); sendErr != nil {
@@ -444,9 +444,9 @@ func TestConn_CallBatchRPC_OversizedSplit(t *testing.T) {
 	<-engineDone
 
 	// Verify splitting happened.
-	assert.Greater(t, atomic.LoadInt32(&batchCount), int32(1),
+	assert.Greater(t, batchCount.Load(), int32(1),
 		"batch should have been split into multiple frames")
-	assert.Equal(t, int32(len(events)), atomic.LoadInt32(&eventTotal),
+	assert.Equal(t, int32(len(events)), eventTotal.Load(),
 		"all events should have been delivered across sub-batches")
 }
 

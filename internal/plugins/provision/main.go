@@ -490,8 +490,7 @@ func forkAndServe(config string) int {
 	}()
 
 	if waitErr := cmd.Wait(); waitErr != nil {
-		var exitErr *exec.ExitError
-		if errors.As(waitErr, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](waitErr); ok {
 			return exitErr.ExitCode()
 		}
 		fmt.Fprintf(os.Stderr, "error: ze exited: %v\n", waitErr)

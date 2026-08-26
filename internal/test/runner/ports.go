@@ -227,8 +227,9 @@ func reservePortLocks(start, count int) (*PortReservation, bool, error) {
 	}
 
 	reservation := &PortReservation{
-		PortRange: PortRange{Start: start, Count: count},
-		files:     make([]*os.File, 0, count),
+		Start: start,
+		Count: count,
+		files: make([]*os.File, 0, count),
 	}
 	for port := start; port < start+count; port++ {
 		path := filepath.Join(lockDir, textbuf.IntStr(int64(port), ".lock"))

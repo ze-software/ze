@@ -23,8 +23,8 @@ func bridgeMemberConfig(units ...unitEntry) *ifaceConfig {
 	return &ifaceConfig{
 		Ethernet: []ifaceEntry{{Name: "wan", MatchMAC: selectedPermMAC, Units: units}},
 		Bridge: []bridgeEntry{{
-			ifaceEntry: ifaceEntry{Name: "br0"},
-			Members:    []string{"wan"},
+			Name:    "br0",
+			Members: []string{"wan"},
 		}},
 	}
 }

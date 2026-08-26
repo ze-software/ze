@@ -30,10 +30,8 @@ func NewEditorTests() *EditorTests {
 // Add creates and registers a new editor test.
 func (et *EditorTests) Add(name, nick, path string) *EditorTest {
 	test := &EditorTest{
-		BaseTest: BaseTest{
-			Name: name,
-			Nick: nick,
-		},
+		Name: name,
+		Nick: nick,
 		Path: path,
 	}
 	et.TestSet.Add(test)

@@ -113,7 +113,7 @@ func ownerNetns(t *testing.T) {
 	encapNetns(t)
 	encapNetnsUsable(t)
 
-	egress := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: ownerEgressDev}}
+	egress := &netlink.Dummy{Name: ownerEgressDev}
 	if err := netlink.LinkAdd(egress); err != nil {
 		t.Fatalf("add dummy %s: %v; without a non-loopback egress device the outbound XFRM hook is never reached and every reading below would be blind", ownerEgressDev, err)
 	}

@@ -383,11 +383,11 @@ func TestIndexMirrorSpecsCoversEveryInterfaceFamily(t *testing.T) {
 	cfg := &ifaceConfig{
 		Ethernet:  []ifaceEntry{{Name: "eth0", Units: []unitEntry{{MirrorIngress: "cap0"}}}},
 		Dummy:     []ifaceEntry{{Name: "dum0", Units: []unitEntry{{MirrorIngress: "cap0"}}}},
-		Veth:      []vethEntry{{ifaceEntry: ifaceEntry{Name: "veth0", Units: []unitEntry{{MirrorIngress: "cap0"}}}}},
-		Bridge:    []bridgeEntry{{ifaceEntry: ifaceEntry{Name: "br0", Units: []unitEntry{{MirrorIngress: "cap0"}}}}},
-		Tunnel:    []tunnelEntry{{ifaceEntry: ifaceEntry{Name: "tun0", Units: []unitEntry{{MirrorIngress: "cap0"}}}}},
-		Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0", Units: []unitEntry{{MirrorIngress: "cap0"}}}}},
-		XFRM:      []xfrmEntry{{ifaceEntry: ifaceEntry{Name: "xfrm0", Units: []unitEntry{{MirrorIngress: "cap0"}}}}},
+		Veth:      []vethEntry{{Name: "veth0", Units: []unitEntry{{MirrorIngress: "cap0"}}}},
+		Bridge:    []bridgeEntry{{Name: "br0", Units: []unitEntry{{MirrorIngress: "cap0"}}}},
+		Tunnel:    []tunnelEntry{{Name: "tun0", Units: []unitEntry{{MirrorIngress: "cap0"}}}},
+		Wireguard: []wireguardEntry{{Name: "wg0", Units: []unitEntry{{MirrorIngress: "cap0"}}}},
+		XFRM:      []xfrmEntry{{Name: "xfrm0", Units: []unitEntry{{MirrorIngress: "cap0"}}}},
 	}
 	specs := indexMirrorSpecs(cfg, nil)
 	for _, name := range []string{"eth0", "dum0", "veth0", "br0", "tun0", "wg0", "xfrm0"} {

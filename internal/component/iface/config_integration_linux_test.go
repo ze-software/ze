@@ -83,8 +83,8 @@ func TestIntegrationApplyConfigFailureRollsBackCreatedLinks(t *testing.T) {
 			Backend: "netlink",
 			Dummy:   []ifaceEntry{{Name: "made0"}},
 			Bridge: []bridgeEntry{{
-				ifaceEntry: ifaceEntry{Name: "br0"},
-				Members:    []string{"missing0"},
+				Name:    "br0",
+				Members: []string{"missing0"},
 			}},
 		}
 		t.Cleanup(func() { _ = DeleteInterface("made0") })

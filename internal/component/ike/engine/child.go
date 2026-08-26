@@ -36,8 +36,7 @@ func isXFRMUnsupported(err error) bool {
 	if errors.Is(err, dataplane.ErrNotSupported) {
 		return true
 	}
-	var errno syscall.Errno
-	if errors.As(err, &errno) {
+	if errno, ok := errors.AsType[syscall.Errno](err); ok {
 		return errno == syscall.ENOPROTOOPT ||
 			errno == syscall.EPROTONOSUPPORT ||
 			errno == syscall.EAFNOSUPPORT ||
@@ -740,8 +739,7 @@ func removeChildSAIncoming(child *ChildSA, dp dataplane.Dataplane, log *slog.Log
 // let two peers negotiate one selector. A netlink failure on teardown is ordinary (the
 // policy is often already gone), so it stays at Debug.
 func logPolicyRemoveFailure(log *slog.Logger, dir string, child *ChildSA, err error) {
-	var owned *dataplane.PolicyOwnedError
-	if errors.As(err, &owned) {
+	if owned, ok := errors.AsType[*dataplane.PolicyOwnedError](err); ok {
 		log.Warn("child-sa: refused to remove a policy another peer owns",
 			"direction", dir, "peer", child.Owner, "owner", owned.HeldBy, "error", err)
 		return

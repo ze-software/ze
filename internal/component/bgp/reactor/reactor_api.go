@@ -804,8 +804,8 @@ func (j *internalJournal) Record(apply, undo func() error) error {
 
 func (j *internalJournal) Rollback() []error {
 	var errs []error
-	for i := len(j.entries) - 1; i >= 0; i-- {
-		if err := j.entries[i](); err != nil {
+	for _, v := range slices.Backward(j.entries) {
+		if err := v(); err != nil {
 			errs = append(errs, err)
 		}
 	}

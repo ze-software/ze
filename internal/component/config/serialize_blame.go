@@ -8,6 +8,7 @@ package config
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -132,11 +133,11 @@ func lastSubtreeEntry(meta *MetaTree) (MetaEntry, bool) {
 		}
 	}
 	keys := sortedEntryKeys(meta.entries)
-	for i := len(keys) - 1; i >= 0; i-- {
-		entries := meta.entries[keys[i]]
-		for j := len(entries) - 1; j >= 0; j-- {
-			if entries[j].User != "" {
-				return entries[j], true
+	for _, key := range slices.Backward(keys) {
+		entries := meta.entries[key]
+		for _, entry := range slices.Backward(entries) {
+			if entry.User != "" {
+				return entry, true
 			}
 		}
 	}

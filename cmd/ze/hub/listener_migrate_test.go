@@ -159,7 +159,7 @@ func staticAuth(authenticated bool, _ string) authReloader {
 // guard reading the boot-time record would classify this server as
 // authenticated, because that is what it was when it started.
 func TestReloadListenersRefusesRebuiltUnauthenticatedNonLoopback(t *testing.T) {
-	web := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:3443"}}, authenticated: true}
+	web := &recordingAuthServer{addrs: []string{"127.0.0.1:3443"}, authenticated: true}
 	migrator := newListenerMigrator()
 	migrator.setWeb(web)
 	migrator.markAuthenticated("web")
@@ -251,7 +251,7 @@ func TestReloadListenersNeverConsultsUnclassifiedService(t *testing.T) {
 // PREVENTS: an unresolvable auth mode reading as "no authentication", which is
 // the permissive no-op ai/rules/evidence.md names as the way a guard hides.
 func TestReloadListenersFailsClosedWhenAuthCannotBeResolved(t *testing.T) {
-	rest := &recordingAuthServer{recordingReconfigurable: recordingReconfigurable{addrs: []string{"127.0.0.1:8081"}}, authenticated: true}
+	rest := &recordingAuthServer{addrs: []string{"127.0.0.1:8081"}, authenticated: true}
 	web := &recordingReconfigurable{addrs: []string{"127.0.0.1:3443"}}
 	migrator := newListenerMigrator()
 	migrator.setREST(rest)

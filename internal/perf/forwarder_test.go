@@ -531,9 +531,7 @@ func (f *testGarbageForwarder) Run(ctx context.Context) {
 
 // isTimeout reports whether err is a network timeout error.
 func isTimeout(err error) bool {
-	var ne net.Error
-	//nolint:errorlint // errors.As is used correctly here.
-	if errors.As(err, &ne) {
+	if ne, ok := errors.AsType[net.Error](err); ok {
 		return ne.Timeout()
 	}
 

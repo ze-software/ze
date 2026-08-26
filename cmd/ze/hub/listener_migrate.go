@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sort"
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
@@ -549,8 +550,7 @@ func (m *listenerMigrator) migrateListeners(ctx context.Context, changes []servi
 
 func (m *listenerMigrator) rollbackAppliedListeners(ctx context.Context, applied []serviceChange) error {
 	var rollbackErrs []error
-	for i := len(applied) - 1; i >= 0; i-- {
-		change := applied[i]
+	for _, change := range slices.Backward(applied) {
 		m.logger.Warn("rolling back listener migration", "service", change.name, "addr", change.oldAddr)
 		if err := change.server.Reconfigure(ctx, change.oldAddr); err != nil {
 			rollbackErrs = append(rollbackErrs, fmt.Errorf("rollback %s: %w", change.name, err))

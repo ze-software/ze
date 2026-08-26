@@ -208,9 +208,7 @@ func (fw *Writer) dir(path string) (*directory, error) {
 		}
 		if _, ok := cur.byName[component]; !ok {
 			dir := &directory{
-				common: common{
-					name: component,
-				},
+				name:   component,
 				parent: cur,
 				byName: make(map[string]entry),
 			}
@@ -291,11 +289,11 @@ func (fw *Writer) File(path string, modTime time.Time) (io.Writer, error) {
 	filename := filepath.Base(path)
 	parts := strings.Split(filename+".", ".")
 	f := &file{
-		common: common{
-			name:         parts[0],
-			ext:          parts[1],
-			modTime:      modTime.UTC(),
-			firstCluster: fw.currentCluster()}}
+		name:         parts[0],
+		ext:          parts[1],
+		modTime:      modTime.UTC(),
+		firstCluster: fw.currentCluster(),
+	}
 	dir.entries = append(dir.entries, f)
 	dir.byName[filename] = f
 	fw.pending = &fatUpdatingWriter{
@@ -457,18 +455,14 @@ func (fw *Writer) writeDirEntries(w io.Writer, d *directory) error {
 	if d.parent != nil {
 		allEntries = append([]entry{
 			&directory{
-				common: common{
-					name:         ".",
-					firstCluster: d.firstCluster,
-				},
-				parent: d,
+				name:         ".",
+				firstCluster: d.firstCluster,
+				parent:       d,
 			},
 			&directory{
-				common: common{
-					name:         "..",
-					firstCluster: d.parent.firstCluster,
-				},
-				parent: d.parent,
+				name:         "..",
+				firstCluster: d.parent.firstCluster,
+				parent:       d.parent,
 			},
 		}, allEntries...)
 	}

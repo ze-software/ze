@@ -75,15 +75,13 @@ func addForeignFilter(t *testing.T, srcName string) {
 		t.Fatalf("LinkByName(%q): %v", dstName, err)
 	}
 	filter := &netlink.MatchAll{
-		FilterAttrs: netlink.FilterAttrs{
-			LinkIndex: src.Attrs().Index,
-			Parent:    parent,
-			Priority:  testForeignPriority,
-			Protocol:  unix.ETH_P_ALL,
-		},
+		LinkIndex: src.Attrs().Index,
+		Parent:    parent,
+		Priority:  testForeignPriority,
+		Protocol:  unix.ETH_P_ALL,
 		Actions: []netlink.Action{
 			&netlink.MirredAction{
-				ActionAttrs:  netlink.ActionAttrs{Action: netlink.TC_ACT_PIPE},
+				Action:       netlink.TC_ACT_PIPE,
 				MirredAction: netlink.TCA_EGRESS_MIRROR,
 				Ifindex:      dst.Attrs().Index,
 			},
@@ -103,11 +101,9 @@ func addClsactQdisc(t *testing.T, linkName string) {
 		t.Fatalf("LinkByName(%q): %v", linkName, err)
 	}
 	qdisc := &netlink.Clsact{
-		QdiscAttrs: netlink.QdiscAttrs{
-			LinkIndex: link.Attrs().Index,
-			Handle:    netlink.MakeHandle(0xffff, 0),
-			Parent:    netlink.HANDLE_CLSACT,
-		},
+		LinkIndex: link.Attrs().Index,
+		Handle:    netlink.MakeHandle(0xffff, 0),
+		Parent:    netlink.HANDLE_CLSACT,
 	}
 	if err := netlink.QdiscAdd(qdisc); err != nil {
 		t.Fatalf("add clsact qdisc on %q: %v", linkName, err)

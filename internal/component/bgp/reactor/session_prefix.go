@@ -9,6 +9,7 @@
 package reactor
 
 import (
+	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -603,8 +604,7 @@ func (s *Session) applyInstalledPrefixSection(sec prefixSection, hasLimits bool)
 // prefix and announces it again journals a delete and then an insert over the
 // same identity, and only replaying backwards puts that prefix back.
 func (s *Session) rollbackPrefixSets() {
-	for i := len(s.prefixSetJournal) - 1; i >= 0; i-- {
-		c := s.prefixSetJournal[i]
+	for _, c := range slices.Backward(s.prefixSetJournal) {
 		set := s.prefixCounts.sets[c.fk]
 		if c.added {
 			delete(set, string(c.entry))

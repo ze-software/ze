@@ -134,8 +134,9 @@ func (pt *ParsingTests) Discover(dir string) error {
 				// build a placeholder to keep the file visible in the suite.
 				name := strings.TrimSuffix(filepath.Base(ciFile), ".ci")
 				test = &parsingTest{
-					BaseTest: BaseTest{Name: name, Nick: GenerateNick(name)},
-					File:     ciFile,
+					Name: name,
+					Nick: GenerateNick(name),
+					File: ciFile,
 				}
 			}
 			test.ParseError = fmt.Errorf("parse %s: %w", ciFile, err)
@@ -167,10 +168,8 @@ func (pt *ParsingTests) Discover(dir string) error {
 			nick := GenerateNick(name)
 
 			test := &parsingTest{
-				BaseTest: BaseTest{
-					Name: tb.Reset().Str("valid/").Str(name).String(),
-					Nick: nick,
-				},
+				Name: tb.Reset().Str("valid/").Str(name).String(),
+				Nick: nick,
 				File: confFile,
 			}
 			pt.Add(test)
@@ -223,10 +222,8 @@ func parseLegacyInvalidTest(confFile string) (*parsingTest, error) {
 
 	var tb textbuf.Buffer
 	test := &parsingTest{
-		BaseTest: BaseTest{
-			Name: tb.Str("invalid/").Str(name).String(),
-			Nick: GenerateNick(name),
-		},
+		Name: tb.Str("invalid/").Str(name).String(),
+		Nick: GenerateNick(name),
 		File: confFile,
 	}
 
@@ -276,10 +273,8 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*parsingTest, error) {
 	nick := GenerateNick(name)
 
 	test := &parsingTest{
-		BaseTest: BaseTest{
-			Name: name,
-			Nick: nick,
-		},
+		Name: name,
+		Nick: nick,
 		File: filePath,
 	}
 
@@ -625,8 +620,7 @@ func (r *parsingRunner) runOneCommand(ctx context.Context, test *parsingTest, ci
 
 	exitCode := 0
 	if runErr != nil {
-		var exitErr *exec.ExitError
-		if errors.As(runErr, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](runErr); ok {
 			exitCode = exitErr.ExitCode()
 		} else {
 			test.Error = fmt.Errorf("seq %d: command failed: %w", ci.Seq, runErr)
@@ -748,8 +742,7 @@ func (r *parsingRunner) runLegacyTest(ctx context.Context, test *parsingTest) bo
 	}
 
 	if runErr != nil {
-		var exitErr *exec.ExitError
-		if errors.As(runErr, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](runErr); ok {
 			test.Error = fmt.Errorf("validation failed with exit code %d", exitErr.ExitCode())
 		} else {
 			test.Error = fmt.Errorf("command failed: %w", runErr)

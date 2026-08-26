@@ -61,8 +61,7 @@ func execCLI(command string) (string, error) {
 		sb.WriteByte('\n')
 	}
 	if err := scanner.Err(); err != nil {
-		var netErr net.Error
-		if errors.As(err, &netErr) {
+		if _, ok := errors.AsType[net.Error](err); ok {
 			if sb.Len() > 0 {
 				return sb.String(), nil
 			}

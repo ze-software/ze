@@ -608,8 +608,7 @@ func TestReadLockReadFileMissing(t *testing.T) {
 		t.Fatal("expected error for missing key")
 		return
 	}
-	var pathErr *fs.PathError
-	if !errors.As(err, &pathErr) {
+	if _, ok := errors.AsType[*fs.PathError](err); !ok {
 		t.Errorf("expected *fs.PathError, got %T", err)
 	}
 	if err := s.Close(); err != nil {
@@ -656,8 +655,7 @@ func TestWriteLockReadFileMissing(t *testing.T) {
 		t.Fatal("expected error for missing key")
 		return
 	}
-	var pathErr *fs.PathError
-	if !errors.As(err, &pathErr) {
+	if _, ok := errors.AsType[*fs.PathError](err); !ok {
 		t.Errorf("expected *fs.PathError, got %T", err)
 	}
 	if err := wl.Release(); err != nil {
