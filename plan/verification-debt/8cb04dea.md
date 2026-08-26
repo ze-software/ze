@@ -26,3 +26,7 @@ is open.
 | 2026-08-26 | 8cb04dea | feat(le): port the repository tooling to Go under letools/ | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-26 | 8cb04dea | feat(le): port the repository tooling to Go under letools/ | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
 | 2026-08-26 | 8cb04dea | feat(le): port the repository tooling to Go under letools/ | independent critical review | Independent reviewer requested a commit baseline before review; review will run against this commit. | open |
+| 2026-08-26 | 8cb04dea | fix(le): keep registrations within committed source | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-26 | 8cb04dea | fix(le): keep registrations within committed source | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
+| 2026-08-26 | 8cb04dea | fix(le): keep registrations within committed source | independent critical review | Independent reviewer requested a commit baseline before review; review will cover this repair commit. | open |
+| 2026-08-26 | 8cb04dea | fix(le): keep registrations within committed source | ze-repository-tracked-build-check (HEAD does not compile) | This commit removes composition-root imports for packages absent from HEAD. | open |
