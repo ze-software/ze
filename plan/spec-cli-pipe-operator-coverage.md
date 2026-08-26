@@ -702,6 +702,43 @@ have either. What found it was not a better reader, it was EXECUTION.
   recorded in `plan/audit-command-pipe-vs-subcommand.md` rather than fixed
   here.
 
+### Independent review, round 1 (2026-08-26)
+
+Three independent contexts reviewed the 12 implementation and fix commits
+through logic, security, and public-contract lenses. The scoped patch contains
+61 files and 5,450 changed lines. The main session verified each finding
+against the current producer source.
+
+Artifact:
+`tmp/review/cli-pipe-operator-coverage-55d210d4-6348-48ab-9fd4-30966ec229f4.md`.
+The recorder could not determine the running model, so the review-model
+boundary is unchecked.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR-1 | BLOCKER | `recordsLast` retains one copied record per result up to an unbounded user value. An SSH user can make daemon memory grow with the full RIB (`internal/component/command/pipe_records.go` `recordsLast`; `pkg/plugin/rpc/types.go` `HeldRecords`) | OUTSTANDING |
+| IR-2 | ISSUE | `parsePipeOps` discards surplus arguments for no-argument and single-argument operators, so malformed chains execute instead of failing (`internal/component/command/pipe.go` `parsePipeOps`) | OUTSTANDING |
+| IR-3 | ISSUE | `log` is accepted as a no-op on one-shot commands, although its contract says that it applies only to streams (`internal/component/command/pipe.go` `ApplyPipes`) | OUTSTANDING |
+| IR-4 | ISSUE | Pipe metadata overwrites a legitimate answer field named `pipe` (`internal/component/command/pipe.go` `injectPipeMeta`) | OUTSTANDING |
+| IR-5 | ISSUE | An unknown `display` field returns the complete record. A typo fails open and can expose fields that the operator meant to remove (`internal/component/command/pipe_columns.go` `selectRecord`) | OUTSTANDING |
+| IR-6 | ISSUE | The YANG local-data handlers bypass the existing argument parser. `dataTree` loses conflict and unknown-option errors, and `dataCompletion` ignores `--min-prefix` (`internal/component/config/yang/cli/yang_data.go` `dataTree`, `dataCompletion`) | OUTSTANDING |
+| IR-7 | BLOCKER | `TestShowPipelineOrdersTheSameWithAndWithoutATerminal` cannot detect the removed global sort. Its fixture is already ordered by the same keys (`internal/component/bgp/plugins/rib/rib_pipeline_show_stream_test.go` `TestShowPipelineOrdersTheSameWithAndWithoutATerminal`) | OUTSTANDING |
+| IR-8 | ISSUE | An empty keyed row set such as `{"peers":{}}` becomes one outer row, so a zero-peer answer counts as one (`internal/component/command/answer_shape.go` `rowSet`, `rowsInKeyed`; `internal/component/bgp/plugins/cmd/peer/peer.go` `handleBgpPeerList`) | OUTSTANDING |
+| IR-9 | BLOCKER | `operatorsFor` suppresses operators for a plain local handler even when the CLI reaches a daemon data handler. `show version` is published with no operators although its daemon path pipes (`cmd/ze/help_command.go` `operatorsFor`; `internal/component/cmd/show/show.go` `handleShowVersion`) | OUTSTANDING |
+| IR-10 | BLOCKER | The documentation drift gate compares only the global generated operator table. It does not verify per-command wiki or website output against `operatorsFor`, so AC-15 is not enforced (`scripts/docvalid/doc_drift.go` `checkPipeOperatorReference`) | OUTSTANDING |
+| IR-11 | ISSUE | `ClassStream` is dropped or mislabeled by `pipeUsage`, the wiki generator, the command-equivalents generator, and the CLI rule. The LLM catalog removes its qualifier (`cmd/ze/ze_core_pipe.go` `pipeUsage`; `scripts/dev/gen_wiki_commands.py` `render_detail`; `website/tools/render-command-equivalents.py` `split_operators`; `website/tools/render-llms-txt.py` `command_meta`) | OUTSTANDING |
+| IR-12 | ISSUE | `ze cli --help` keeps a second six-operator list, omits catalog entries, and still describes row operators as line operations (`internal/component/cli/client/main.go` `usage`) | OUTSTANDING |
+| IR-13 | BLOCKER | Address declarations neither gate undeclared commands nor constrain enrichment to declared fields. `show version \| origin` is accepted, while declared `show bgp \| resolve` also enriches `router-id` (`internal/component/command/pipe.go` `validateDeclaredShape`; `internal/component/command/pipe_resolve.go` `resolveJSON`; `internal/component/command/pipe_origin.go` `originJSON`) | OUTSTANDING |
+| IR-14 | ISSUE | Pipe metadata is injected before the first format operator. A later row operator treats the metadata slice as a second row set and refuses or truncates the wrong set (`internal/component/command/pipe.go` `ApplyPipes`; `internal/component/command/answer_shape.go` `rowsInKeyed`) | OUTSTANDING |
+| IR-15 | ISSUE | `outboundSource.Next` ranges nested family and route maps directly. Advertised RIB output and `first 1` are nondeterministic (`internal/component/bgp/plugins/rib/rib_pipeline.go` `outboundSource.Next`) | OUTSTANDING |
+| IR-16 | ISSUE | Streaming `save` writes each event before the default renderer and atomically overwrites the same path. A multi-event monitor leaves only the last raw event (`internal/component/cli/client/main.go` `cliClient.StreamMonitor`; `internal/component/command/pipe_save.go` `applySaves`) | OUTSTANDING |
+| IR-17 | ISSUE | `operatorsFor` publishes `save` as `always`, but remote daemon-expanded chains intentionally refuse it. The machine contract omits this surface restriction (`cmd/ze/help_command.go` `operatorsFor`; `internal/component/command/pipe_save.go` `validateSaveOps`) | OUTSTANDING |
+| IR-18 | BLOCKER | No functional test drives allowed interactive `save` or refused SSH/web `save`. The security guard is tested only below those entry points (`internal/component/command/pipe_save.go` `validateSaveOps`, `saveAnswer`) | OUTSTANDING |
+| IR-19 | BLOCKER | The tree has 15 `MustRegisterLocalData` commands, but functional pipe coverage drives only four. Eleven converted handlers have no entry-to-pipe proof, so AC-10 is not covered (`internal/component/command/local_data.go` `ServeLocal`; `test/ui/pipe-local-command.ci`) | OUTSTANDING |
+
+**Independent round 1: 7 BLOCKER, 12 ISSUE, 19 outstanding.** The review
+artifact records verdict `findings`. The spec remains in verification.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and
