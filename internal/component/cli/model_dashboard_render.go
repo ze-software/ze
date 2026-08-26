@@ -19,8 +19,6 @@ var (
 	dashHeaderStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")) // white
 	dashFooterStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))           // dim gray
 	dashSelectedStyle = lipgloss.NewStyle().Bold(true)                                  // selection, no color of its own
-	dashErrorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))             // red for errors
-	dashConnStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))             // green for connected
 )
 
 // Peer-state colors. These are colors rather than styles because the peer table

@@ -136,7 +136,7 @@ func TestDashboardSelectedRowKeepsStateColor(t *testing.T) {
 // or "" when it sets none. 40-47 and 100-107 are the background introducers.
 func backgroundCodes(s string) string {
 	for _, m := range regexp.MustCompile(`\x1b\[([0-9;]*)m`).FindAllStringSubmatch(s, -1) {
-		for _, p := range strings.Split(m[1], ";") {
+		for p := range strings.SplitSeq(m[1], ";") {
 			n, err := strconv.Atoi(p)
 			if err != nil {
 				continue
