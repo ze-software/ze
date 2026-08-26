@@ -757,11 +757,23 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `internal/thirdparty/fat` | implements writing FAT16B file system images, which is useful when generating images for embedded devices such as the Raspberry Pi |  |
 
+## `letools/commandlist/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/commandlist` | is the `ze-command-list` gate: every command ze registers, classified by verb, read from the live handlers and the YANG command tree rather than parsed out of source |  |
+
 ## `letools/consistency/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `letools/consistency` | is the `ze-consistency-check` gate: it reads the tree and reports where the code and the documentation disagree with each other |  |
+
+## `letools/inventory/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/inventory` | is the `ze-inventory` gate: what ze is made of, counted |  |
 
 ## `letools/lepath/`
 
@@ -780,6 +792,18 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `letools/parity` | measures how much of the Python le has become Go, and it is the reason the migration may run two implementations at once |  |
+
+## `letools/vendorweb/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/vendorweb` | is the two halves of one contract |  |
+
+## `letools/weekly/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/weekly` | turns an approved weekly post into the messages Discord takes |  |
 
 ## `pkg/fleet/`
 

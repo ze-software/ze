@@ -14,6 +14,10 @@
 package main
 
 import (
+	_ "github.com/ze-software/ze/letools/commandlist"
 	_ "github.com/ze-software/ze/letools/consistency"
+	_ "github.com/ze-software/ze/letools/inventory"
 	_ "github.com/ze-software/ze/letools/parity"
+	_ "github.com/ze-software/ze/letools/vendorweb"
+	_ "github.com/ze-software/ze/letools/weekly"
 )

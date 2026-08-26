@@ -46,9 +46,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/letools/lepath"
+	"github.com/ze-software/ze/letools/leroot"
 )
 
 // gatesTimeout bounds the Python side's answer. `./le gates --json` builds its
@@ -170,21 +170,37 @@ func Answer(args []string) (any, int) {
 		return nil, 1
 	}
 
-	census := Take(gates, scripts, claimSnapshot(), registry.HasRootHandler, rootNames())
+	census := takeHere(gates, scripts)
 	if census.Complete() {
 		return census, 0
 	}
 	return census, 1
 }
 
-// rootNames answers every root command registered in this process, which for
-// the le binary is every tool its composition root imported.
+// takeHere is the census of THIS process: the gates the Python le declares, the
+// code files under scripts/, the claims tools made from their init(), and the
+// commands le owns.
+//
+// It exists so there is ONE statement of which registry answers "is this
+// command wired". The answer is leroot.Owns rather than
+// registry.HasRootHandler, because le LINKS the product: a tool that
+// introspects ze loads ze's registry to read it, so ze's root commands are in
+// this process too, and a claim must not count as ported because ZE owns the
+// name.
+func takeHere(gates []Gate, scripts ScriptCount) Census {
+	return Take(gates, scripts, claimSnapshot(), leroot.Owns, rootNames())
+}
+
+// rootNames answers every root command LE OWNS, which is every tool its
+// composition root imported.
+//
+// It reads le's own list rather than the registry's, because le LINKS the
+// product: a tool that introspects ze loads ze's registry to read it, so this
+// process's registry carries ze's root commands too (five, measured
+// 2026-08-26). Counting those would say the migration had ported commands
+// nobody wrote, and would let a claim pass because ZE registered the name.
 func rootNames() []string {
-	roots := registry.ListRoot()
-	names := make([]string, 0, len(roots))
-	for _, rc := range roots {
-		names = append(names, rc.Name)
-	}
+	names := leroot.Owned()
 	sort.Strings(names)
 	return names
 }

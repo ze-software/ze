@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/letools/leroot"
 )
 
 // leTree is the import-path prefix of every package that belongs to le and to
@@ -125,9 +126,14 @@ func TestZeLinksNoLePlugin(t *testing.T) {
 //
 // What le must not do is OWN a product command. Two things would make it: an
 // import in the composition root that names a product command package, and a
-// root handler in this process whose code lives outside le's own trees. Both
-// are checked, because the second catches what the first cannot -- a product
-// package reached transitively, whose init() registers a root of its own.
+// root handler le registered whose code lives outside le's own trees.
+//
+// The second half is asked of leRoots rather than of the whole registry,
+// because the transitive product packages DO register roots of their own --
+// env, interface, plugin, schema and sysctl arrive with
+// internal/component/plugin/all, measured 2026-08-26. Owning a name and
+// sharing a process with one are different facts, and the one that matters is
+// whether le RUNS it: TestLeDispatchesNoProductCommand asks that.
 func TestLeRegistersNoProductCommand(t *testing.T) {
 	root := repoRoot(t)
 
@@ -152,6 +158,51 @@ func TestLeRegistersNoProductCommand(t *testing.T) {
 		if !ownedByLe(rel) {
 			t.Errorf("le carries the root command %q, registered from %s: that command belongs to another program", rc.Name, rel)
 		}
+	}
+}
+
+// TestLeDispatchesNoProductCommand is the half of AC-3 that the import list
+// cannot cover. le links the product so its tools can read ze's registry, and
+// linking it means ze's root commands register in this process: `le interface`
+// would otherwise reach ze's interface editor, from a binary that has no
+// business editing an interface.
+//
+// The refusal is dispatch's, so this drives dispatch. A product handler that
+// ran would answer its own exit code, and every one of them exits 0 or 1 on a
+// bare invocation, so the refusal is read from the usage page as well as the
+// status.
+func TestLeDispatchesNoProductCommand(t *testing.T) {
+	product := 0
+	for _, rc := range registry.ListRoot() {
+		if leroot.Owns(rc.Name) {
+			continue
+		}
+		product++
+		t.Run(rc.Name, func(t *testing.T) {
+			if code := dispatch([]string{rc.Name}); code != 1 {
+				t.Errorf("`le %s` answered %d: le ran a command that belongs to ze", rc.Name, code)
+			}
+		})
+	}
+
+	if product == 0 {
+		t.Fatal("no product command is registered in this process, so this test proves nothing: " +
+			"le is meant to link ze so its tools can introspect it")
+	}
+}
+
+// TestLeOwnsWhatItRegisters pins the ownership list itself against the
+// registry: every name le claims resolves to a handler, and le claims no name
+// the registry does not hold.
+func TestLeOwnsWhatItRegisters(t *testing.T) {
+	for _, name := range leroot.Owned() {
+		if !registry.HasRootHandler(name) {
+			t.Errorf("le claims %q and the registry holds no handler for it", name)
+		}
+	}
+	if len(leroot.Owned()) < len(rootsAtStart) {
+		t.Errorf("le owns %d names and %d root commands were listed as le's",
+			len(leroot.Owned()), len(rootsAtStart))
 	}
 }
 

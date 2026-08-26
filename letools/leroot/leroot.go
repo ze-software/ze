@@ -16,7 +16,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
+	"sync"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
@@ -54,6 +56,42 @@ type Prose interface {
 	Text() string
 }
 
+// owned names every root command le itself registered, in registration order.
+//
+// It exists because le LINKS the product. A command inventory and a CLI-grammar
+// check cannot be computed without loading the registry they judge, so cmd/le
+// blank-imports internal/component/plugin/all through the tools that need it,
+// and every product command that registers a root at init lands in this
+// process's registry beside le's own. Five do today: env, interface, plugin,
+// schema and sysctl.
+//
+// The registry is still the one owner of a name, which is what makes a
+// collision, which AC-13 pins. What this list adds is the answer to a different
+// question: which of those names is LE's. `le interface` must be an unknown
+// command rather than ze's interface editor, so dispatch asks here before it
+// looks a name up (cmd/le/dispatch.go, AC-3).
+var (
+	ownedMu sync.Mutex
+	owned   []string
+)
+
+// Owned answers every root command name le registered, in registration order.
+// The caller receives a copy, so a tool cannot edit le's command set by
+// editing what it was handed.
+func Owned() []string {
+	ownedMu.Lock()
+	defer ownedMu.Unlock()
+	return slices.Clone(owned)
+}
+
+// Owns reports whether le registered name. A name in the shared registry that
+// le did not register belongs to another program, and le does not run it.
+func Owns(name string) bool {
+	ownedMu.Lock()
+	defer ownedMu.Unlock()
+	return slices.Contains(owned, name)
+}
+
 // Register wires one tool into the shared registry as a root command, the way
 // internal/perf/cli does for ze-perf. The tool is then reachable by name, it
 // appears in help and in completion, and nothing else has to be edited.
@@ -82,6 +120,12 @@ func Register(name string, answer Answer, meta registry.Meta) {
 	registry.MustRegisterRootHandler(name, func(_ *registry.RuntimeContext, args []string) int {
 		return Run(name, answer, args, os.Stdout, os.Stderr)
 	}, meta)
+
+	// After the registry has accepted the name, never before: a duplicate
+	// panics above, and a name le failed to register is not a name le owns.
+	ownedMu.Lock()
+	owned = append(owned, name)
+	ownedMu.Unlock()
 }
 
 // Run is the whole of an le command's behavior: split the operator's pipe

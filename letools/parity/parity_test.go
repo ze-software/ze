@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/letools/lepath"
+	"github.com/ze-software/ze/letools/leroot"
 )
 
 // realGates reads the Python le's gate list, which is the denominator for as
@@ -65,7 +66,7 @@ func registeredAll(string) bool { return true }
 func TestParityNamesEveryUnportedGate(t *testing.T) {
 	gates := realGates(t)
 	scripts := realScripts(t)
-	census := Take(gates, scripts, claimSnapshot(), registry.HasRootHandler, rootNames())
+	census := takeHere(gates, scripts)
 
 	if census.Gates != len(gates) {
 		t.Errorf("census counted %d gates, `le gates --json` declared %d", census.Gates, len(gates))
@@ -238,6 +239,70 @@ func TestParityRegistersItsCommand(t *testing.T) {
 	if !registry.HasRootHandler("parity") {
 		t.Fatal("importing letools/parity registered no `parity` root handler")
 	}
+}
+
+// TestParityCountsOnlyLeCommands is what le linking the product costs the
+// census. A tool that introspects ze must load ze's registry to read it, so
+// this process's registry carries ze's root commands beside le's. Counting one
+// of those as a Go le command would report a migration further along than it
+// is, and a claim on it would pass because ZE registered the name.
+//
+// The probe registers straight on the shared registry, which is exactly what a
+// product package's init() does.
+func TestParityCountsOnlyLeCommands(t *testing.T) {
+	const name = "parity-foreign-root-probe"
+	registry.MustRegisterRootHandler(name, func(*registry.RuntimeContext, []string) int { return 0 },
+		registry.Meta{Description: "a test probe", Mode: "offline", Section: registry.SectionTest})
+
+	if slices.Contains(rootNames(), name) {
+		t.Errorf("the census counts %q, which le did not register", name)
+	}
+	if !slices.Contains(rootNames(), "parity") {
+		t.Error("the census does not count `parity`, which le did register")
+	}
+
+	// The two predicates differ on a product root, which is what makes the
+	// choice between them observable at all.
+	if !registry.HasRootHandler(name) {
+		t.Fatal("the probe did not register, so the two predicates cannot be told apart here")
+	}
+	if leroot.Owns(name) {
+		t.Fatal("le claims a name it never registered")
+	}
+
+	// Now drive the census THIS PROCESS takes, which is the wiring `le parity`
+	// runs. A gate claimed by a command only ze registered must land in
+	// UnwiredClaims and must not lower the unported count.
+	gates := realGates(t)
+	unclaimed := firstUnclaimedGate(t, gates)
+	Claim(name, unclaimed)
+
+	census := takeHere(gates, noScripts)
+	if !slices.Contains(census.UnwiredClaims, claimLine(name, unclaimed)) {
+		t.Errorf("a claim from a command le never registered was not reported unwired: %v", census.UnwiredClaims)
+	}
+	if !slices.Contains(census.UnportedGates, unclaimed) {
+		t.Errorf("%q was counted as ported on a claim from a command le never registered", unclaimed)
+	}
+}
+
+// firstUnclaimedGate answers a declared gate that no tool claims, so a test can
+// claim it without changing what any other case sees.
+func firstUnclaimedGate(t *testing.T, gates []Gate) string {
+	t.Helper()
+	claimed := map[string]bool{}
+	for _, names := range claimSnapshot() {
+		for _, name := range names {
+			claimed[name] = true
+		}
+	}
+	for _, gate := range gates {
+		if !claimed[gate.Name] {
+			return gate.Name
+		}
+	}
+	t.Fatal("every declared gate is claimed, so this test has no gate left to claim")
+	return ""
 }
 
 // TestParityRefusesArguments holds the CLI contract: the rendering is chosen

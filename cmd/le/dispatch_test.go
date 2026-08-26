@@ -45,7 +45,7 @@ func captureStdout(t *testing.T, fn func()) string {
 // dispatch REACHED the handler is the handler's own exit code, which no
 // unknown-command path can produce.
 func TestLeDispatchesEveryRegisteredTool(t *testing.T) {
-	roots := registry.ListRoot()
+	roots := rootsAtStart
 	if len(roots) == 0 {
 		t.Fatal("le registered no root command: its composition root imported nothing")
 	}

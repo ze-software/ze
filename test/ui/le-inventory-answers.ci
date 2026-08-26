@@ -1,0 +1,155 @@
+# Test: the BUILT le binary runs the two inventory gates over the real
+#       checkout, reports what the scripts report, and answers the same data.
+#
+# VALIDATES: spec-le-is-a-ze-binary AC-11 over the REAL TREE and the REAL
+#            REGISTRY, and AC-7 for both ported tools, against the artifact a
+#            developer runs.
+# PREVENTS: a port that agrees with the scripts on fixtures and disagrees on the
+#           checkout. The inventory walks ~20000 files and reads the live plugin
+#           registry; a count that stopped being taken, or a plugin that stopped
+#           being listed, would pass every unit test and change what the gate
+#           says.
+#
+# All three binaries are compiled here rather than by the runner, which builds
+# only ze and ze-test (internal/test/runner/runner.go, setupBinShims), and all
+# three are compiled with THE SAME tag set: the full feature set, derived from
+# feature-gates.txt the way scripts/le/devtools/toolchain.py derives it. That
+# matters more here than anywhere else in this migration. Both sides read the
+# live registry, so a reduced set compiles modules out and the two sides then
+# disagree about the PRODUCT rather than about the port.
+#
+# Everything is written into the test's own directory, so nothing is written
+# back into the checkout.
+#
+# The timeout is DECLARED because three links of the product precede two full
+# walks of the checkout.
+
+option=timeout:value=900s
+
+tmpfs=run.py:terminator=EOF_PY
+"""Compile both sides of the migration and check that they agree."""
+import json
+import os
+import re
+import subprocess
+import sys
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(f'FAIL: {message}')
+
+
+root = os.environ['ZE_REPO_ROOT']
+here = os.getcwd()
+
+
+def feature_tags():
+    """ze_core plus every ze_* tag feature-gates.txt declares, sorted."""
+    found = set()
+    with open(os.path.join(root, 'feature-gates.txt'), encoding='utf-8') as handle:
+        for line in handle:
+            words = line.split()
+            if words and words[0].startswith('ze_'):
+                found.add(words[0])
+    return ','.join(['ze_core'] + sorted(found))
+
+
+TAGS = feature_tags()
+
+binary = os.path.join(here, 'le')
+script_inventory = os.path.join(here, 'inventory')
+script_commands = os.path.join(here, 'commands')
+
+for args in (['go', 'build', '-tags', TAGS, '-o', binary, './cmd/le'],
+             ['go', 'build', '-tags', TAGS, '-o', script_inventory, 'scripts/inventory/inventory.go'],
+             ['go', 'build', '-tags', TAGS, '-o', script_commands, 'scripts/inventory/commands.go']):
+    built = subprocess.run(args, cwd=root, capture_output=True, text=True, check=False)
+    require(built.returncode == 0, f'{" ".join(args)} failed: {built.stderr}')
+
+GENERATED = re.compile(r'(?m)^Generated: .*$')
+
+
+def run(argv, cwd):
+    done = subprocess.run(argv, cwd=cwd, capture_output=True, text=True, check=False)
+    require(done.stderr == '', f'{argv} wrote to stderr: {done.stderr}')
+    return done
+
+
+# ---- ze-inventory -----------------------------------------------------------
+# The script, invoked the way the gate invokes it: from inside the tree, with no
+# --root, so it finds the module root the way it always has.
+old = run([script_inventory], root)
+# The command, invoked the way a developer does. It takes no path: the tree is
+# the checkout, so the answer does not change with the working directory.
+new = run([binary, 'inventory'], here)
+
+require(old.returncode == new.returncode,
+        f'the inventory script exited {old.returncode} and the command exited {new.returncode}')
+
+old_page = GENERATED.sub('Generated: <when>', old.stdout)
+new_page = GENERATED.sub('Generated: <when>', new.stdout)
+if old_page != new_page:
+    left = old_page.split('\n')
+    right = new_page.split('\n')
+    for index in range(max(len(left), len(right))):
+        a = left[index] if index < len(left) else '<end>'
+        b = right[index] if index < len(right) else '<end>'
+        if a != b:
+            raise SystemExit(f'FAIL: the inventory pages differ at line {index + 1}:\n'
+                             f'  script:  {a}\n  command: {b}')
+require(len(old_page.split('\n')) > 100,
+        f'the comparison ran over {len(old_page.split(chr(10)))} lines, which is too few to mean anything')
+
+# ---- ze-command-list --------------------------------------------------------
+old_commands = run([script_commands], root)
+new_commands = run([binary, 'command-list'], here)
+require(old_commands.stdout == new_commands.stdout,
+        'the command-list pages differ over the checkout')
+require(old_commands.returncode == new_commands.returncode,
+        f'the command-list script exited {old_commands.returncode} '
+        f'and the command exited {new_commands.returncode}')
+
+# ---- one payload, every rendering -------------------------------------------
+answer = run([binary, 'inventory', '|', 'json'], here)
+try:
+    inventory = json.loads(answer.stdout)
+except json.JSONDecodeError as exc:
+    raise SystemExit(f'FAIL: `le inventory | json` did not answer JSON: {exc}\n'
+                     f'{answer.stdout[:400]}') from exc
+for key in ('plugins', 'families', 'yang-modules', 'rpc-list', 'total-rpcs',
+            'test-counts', 'package-stats', 'generated'):
+    require(key in inventory, f'the inventory answered no {key!r} key: {sorted(inventory)}')
+require(len(inventory['plugins']) > 10,
+        f"the inventory answered {len(inventory['plugins'])} plugins, which is too few to be the product")
+
+listing = run([binary, 'command-list', '|', 'json'], here)
+try:
+    commands = json.loads(listing.stdout)
+except json.JSONDecodeError as exc:
+    raise SystemExit(f'FAIL: `le command-list | json` did not answer JSON: {exc}\n'
+                     f'{listing.stdout[:400]}') from exc
+require(isinstance(commands, list), f'the command list answered {type(commands)}, want an array')
+for key in ('verb', 'path', 'source'):
+    require(key in commands[0], f'a command carries no {key!r}: {commands[0]}')
+
+# A row operator acts on the rows, which is what declaring the answer's shape
+# buys. `| count` answers a number, never the page.
+counted = run([binary, 'command-list', '|', 'count'], here)
+require(str(len(commands)) in counted.stdout,
+        f'`le command-list | count` answered {counted.stdout!r}, want {len(commands)}')
+
+# The inventory is ONE document holding several row sets, so a row operator has
+# no single set to act on and the engine refuses it by name rather than counting
+# whichever one it guessed at.
+refused = subprocess.run([binary, 'inventory', '|', 'count'], cwd=here,
+                         capture_output=True, text=True, check=False)
+require(refused.returncode != 0, '`le inventory | count` was accepted')
+require(refused.stdout == '', f'a refused chain wrote to stdout: {refused.stdout!r}')
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK
