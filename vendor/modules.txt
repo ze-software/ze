@@ -1,11 +1,11 @@
-# charm.land/bubbles/v2 v2.1.1
+# charm.land/bubbles/v2 v2.2.0
 ## explicit; go 1.25.0
 charm.land/bubbles/v2/cursor
 charm.land/bubbles/v2/internal/runeutil
 charm.land/bubbles/v2/key
 charm.land/bubbles/v2/textinput
 charm.land/bubbles/v2/viewport
-# charm.land/bubbletea/v2 v2.0.8
+# charm.land/bubbletea/v2 v2.0.9
 ## explicit; go 1.25.0
 charm.land/bubbletea/v2
 # charm.land/lipgloss/v2 v2.0.6
@@ -267,8 +267,8 @@ github.com/mattn/go-colorable
 # github.com/mattn/go-isatty v0.0.22
 ## explicit; go 1.21
 github.com/mattn/go-isatty
-# github.com/mattn/go-runewidth v0.0.24
-## explicit; go 1.20
+# github.com/mattn/go-runewidth v0.0.27
+## explicit; go 1.23
 github.com/mattn/go-runewidth
 # github.com/mdlayher/genetlink v1.4.0
 ## explicit; go 1.25.0
@@ -284,8 +284,8 @@ github.com/mdlayher/packet
 # github.com/mdlayher/socket v0.6.0
 ## explicit; go 1.25.0
 github.com/mdlayher/socket
-# github.com/miekg/dns v1.1.72
-## explicit; go 1.24.0
+# github.com/miekg/dns v1.1.73
+## explicit; go 1.25.0
 github.com/miekg/dns
 # github.com/muesli/cancelreader v0.2.2
 ## explicit; go 1.17
@@ -344,7 +344,7 @@ github.com/prometheus/procfs/internal/util
 # github.com/rivo/uniseg v0.4.7
 ## explicit; go 1.18
 github.com/rivo/uniseg
-# github.com/sirupsen/logrus v1.10.0
+# github.com/sirupsen/logrus v1.10.1
 ## explicit; go 1.23
 github.com/sirupsen/logrus
 # github.com/sivchari/gomu v0.2.1
@@ -550,7 +550,7 @@ golang.zx2c4.com/wireguard/wgctrl/wgtypes
 # google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa
 ## explicit; go 1.25.0
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.83.0
+# google.golang.org/grpc v1.83.1
 ## explicit; go 1.25.0
 google.golang.org/grpc
 google.golang.org/grpc/attributes

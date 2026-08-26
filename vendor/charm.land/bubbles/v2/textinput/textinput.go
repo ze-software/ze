@@ -71,8 +71,8 @@ func DefaultKeyMap() KeyMap {
 		CharacterBackward:       key.NewBinding(key.WithKeys("left", "ctrl+b")),
 		WordForward:             key.NewBinding(key.WithKeys("alt+right", "ctrl+right", "alt+f")),
 		WordBackward:            key.NewBinding(key.WithKeys("alt+left", "ctrl+left", "alt+b")),
-		DeleteWordBackward:      key.NewBinding(key.WithKeys("alt+backspace", "ctrl+w")),
-		DeleteWordForward:       key.NewBinding(key.WithKeys("alt+delete", "alt+d")),
+		DeleteWordBackward:      key.NewBinding(key.WithKeys("alt+backspace", "ctrl+w", "ctrl+backspace")),
+		DeleteWordForward:       key.NewBinding(key.WithKeys("alt+delete", "alt+d", "ctrl+delete")),
 		DeleteAfterCursor:       key.NewBinding(key.WithKeys("ctrl+k")),
 		DeleteBeforeCursor:      key.NewBinding(key.WithKeys("ctrl+u")),
 		DeleteCharacterBackward: key.NewBinding(key.WithKeys("backspace", "ctrl+h")),
@@ -921,12 +921,7 @@ func (m Model) Cursor() *tea.Cursor {
 	w := lipgloss.Width
 
 	promptWidth := w(m.promptView())
-	// ze patch (charmbracelet/bubbles#1001, not upstream yet): the hardware
-	// cursor must use the SCROLL-ADJUSTED position, the same one View() draws
-	// with. m.Position() is absolute, so once the text is longer than the
-	// input width the cursor is placed past the viewport and every column
-	// after it is reported one place out. See scripts/dev/patches/.
-	xOffset := max(0, m.pos-m.offset) +
+	xOffset := m.Position() +
 		promptWidth
 	if m.width > 0 {
 		xOffset = min(xOffset, m.width+promptWidth)
