@@ -210,6 +210,21 @@ MIGRATABLE_SCRATCH = (
 )
 
 
+def device_of(path: Path) -> int:
+    """The device id `path` lives on, walking up to the nearest existing ancestor.
+
+    A target directory is normally absent before the first migration, and the
+    device it would be created on is the one its parent already sits on.
+    """
+    probe = path
+    while not probe.exists():
+        parent = probe.parent
+        if parent == probe:
+            break
+        probe = parent
+    return probe.stat().st_dev
+
+
 def migrate_scratch_dirs(link: Path, target: Path) -> str:
     """Move the artifact subdirectories of a REAL tmp/ out, one symlink each.
 
@@ -231,11 +246,59 @@ def migrate_scratch_dirs(link: Path, target: Path) -> str:
     if not link.is_dir():
         return f'REFUSE   {link.name}: exists and is not a directory; resolve manually'
 
+    # A migration onto the SAME device frees nothing, and it reports success
+    # while doing it. TMPDIR defaults to the system scratch directory, which on
+    # a machine with one big partition is the very drive these artifacts are
+    # being moved off, so this is the ordinary way to get a no-op that looks
+    # like a win: shutil.move becomes a rename, every symlink resolves, and `df`
+    # does not move. Measured on 2026-08-26, four directories reported as
+    # migrated with 79G used before and 79G used after.
+    if device_of(link) == device_of(target):
+        return (
+            f'REFUSE   {link.name}: {target} is on the same device, so moving '
+            f'there frees nothing. Point TMPDIR at a directory on another drive '
+            f'and retry'
+        )
+
     target.mkdir(parents=True, exist_ok=True)
-    moved, skipped, refused = [], [], []
+    moved, repointed, skipped, refused = [], [], [], []
     for name in MIGRATABLE_SCRATCH:
         entry = link / name
-        if not entry.exists() or entry.is_symlink():
+        if entry.is_symlink():
+            # Already migrated, possibly to a destination that frees nothing.
+            # Move the DATA to the new target and repoint, rather than skipping:
+            # a skip is how a wrong destination becomes permanent.
+            current = entry.resolve()
+            dest = target / name
+            if current == dest:
+                continue
+            if not current.exists():
+                skipped.append(f'{name} (dangling symlink)')
+                continue
+            if dest.exists():
+                # The symlink still points AWAY from dest, so the move that
+                # created dest never finished: a completed move unlinks and
+                # repoints as its last two acts. dest is therefore a partial
+                # copy from an interrupted run, and skipping it is the worst of
+                # the three options -- it strands the artifact on the wrong
+                # drive forever and leaves the partial beside it. Measured on
+                # 2026-08-26: a 2-minute timeout stopped a 3.5G copy at 191M.
+                # The authoritative data is under `current`, untouched, because
+                # shutil.move copies before it deletes.
+                shutil.rmtree(dest, ignore_errors=True)
+                if dest.exists():
+                    refused.append(f'{name} (partial copy at the target, cannot remove)')
+                    continue
+            undeletable = first_undeletable_dir(current)
+            if undeletable is not None:
+                refused.append(f'{name}/{undeletable}')
+                continue
+            shutil.move(str(current), str(dest))
+            entry.unlink()
+            entry.symlink_to(dest)
+            repointed.append(name)
+            continue
+        if not entry.exists():
             continue
         if not entry.is_dir():
             skipped.append(f'{name} (not a directory)')
@@ -255,6 +318,8 @@ def migrate_scratch_dirs(link: Path, target: Path) -> str:
     parts = [f'moved {len(moved)}']
     if moved:
         parts.append(' '.join(moved))
+    if repointed:
+        parts.append('repointed: ' + ' '.join(repointed))
     if skipped:
         parts.append('skipped: ' + ', '.join(skipped))
     if refused:

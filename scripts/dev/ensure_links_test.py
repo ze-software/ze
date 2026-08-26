@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -188,6 +189,18 @@ class EnsureSymlinkTest(unittest.TestCase):
 class MigrateScratchDirsTest(unittest.TestCase):
     """Only artifact directories travel. Session data stays where sessions look."""
 
+    def setUp(self):
+        # A tempdir source and a tempdir target share a device, and the real
+        # migrator refuses that outright because moving there frees nothing.
+        # These cases are about WHICH directories travel, so they borrow a
+        # two-device world; test_same_device_is_refused covers the guard itself.
+        real = ensure_links.device_of
+        seen: dict[str, int] = {}
+        def two_devices(path: Path) -> int:
+            return seen.setdefault(path.name, 1 if path.name == 'target' else 2)
+        ensure_links.device_of = two_devices
+        self.addCleanup(lambda: setattr(ensure_links, 'device_of', real))
+
     def _tree(self, root: Path) -> Path:
         link = root / "tmp"
         (link / "qemu" / "pkg").mkdir(parents=True)
@@ -252,6 +265,31 @@ class MigrateScratchDirsTest(unittest.TestCase):
             finally:
                 locked.chmod(0o755)
 
+    def test_a_partial_copy_from_an_interrupted_run_is_redone(self):
+        # A completed move unlinks and repoints as its last two acts, so a
+        # symlink still pointing AWAY from a destination that exists is proof
+        # the move was interrupted. The destination is a partial copy and the
+        # source is intact, because shutil.move copies before it deletes.
+        # Skipping it would strand the artifact on the wrong drive forever.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            link = self._tree(root)
+            old_home = root / "old"
+            old_home.mkdir()
+            shutil.move(str(link / "kernel"), str(old_home / "kernel"))
+            (link / "kernel").symlink_to(old_home / "kernel")
+            target = root / "target"
+            partial = target / "kernel"
+            partial.mkdir(parents=True)
+            (partial / "half").write_text("truncated")
+
+            result = ensure_links.migrate_scratch_dirs(link, target)
+
+            self.assertIn("repointed: kernel", result)
+            self.assertEqual((link / "kernel").resolve(), partial.resolve())
+            self.assertEqual((partial / "vmlinuz").read_text(), "artifact")
+            self.assertFalse((partial / "half").exists(), "the partial survived")
+
     def test_a_second_run_is_a_no_op(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -263,6 +301,32 @@ class MigrateScratchDirsTest(unittest.TestCase):
 
             self.assertIn("moved 0", result)
             self.assertTrue((link / "qemu").is_symlink())
+
+
+class MigrateScratchSameDeviceTest(unittest.TestCase):
+    """A migration that frees nothing must say so rather than report success."""
+
+    def test_same_device_is_refused(self):
+        # The measured failure, 2026-08-26: TMPDIR was unset, so the target fell
+        # back to the system scratch directory, which on that machine sits on the
+        # very partition the artifacts were being moved off. Four directories
+        # reported as migrated; `df` read 79G used before and after. shutil.move
+        # is a rename within one device, so every symlink resolved and nothing
+        # announced that the operation could not have helped.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            link = root / "tmp"
+            (link / "kernel").mkdir(parents=True)
+            (link / "kernel" / "vmlinuz").write_text("artifact")
+            target = root / "target"
+
+            result = ensure_links.migrate_scratch_dirs(link, target)
+
+            self.assertTrue(result.startswith("REFUSE"), result)
+            self.assertIn("same device", result)
+            self.assertIn("TMPDIR", result)
+            self.assertFalse((link / "kernel").is_symlink())
+            self.assertFalse(target.exists())
 
 
 if __name__ == "__main__":
