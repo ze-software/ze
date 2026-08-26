@@ -1,0 +1,100 @@
+# Test: the BUILT le binary dispatches a registered command and renders its
+#       answer through the shared pipe operators.
+#
+# VALIDATES: spec-le-is-a-ze-binary AC-1 and AC-7, against the artifact a
+#            developer runs rather than against a package.
+# PREVENTS: a green package suite over a binary that does not compose. Every Go
+#           test in cmd/le exercises a PACKAGE; between them and this file sit
+#           the build, the composition root and argv handling, which is exactly
+#           where a stale or mis-composed binary fails (R-4).
+#
+# The binary is compiled here rather than by the runner, which builds only ze
+# and ze-test (internal/test/runner/runner.go, setupBinShims). It is written
+# into the test's own directory, so nothing is written back into the checkout.
+#
+# The timeout is DECLARED because a cold build cache makes the first compile of
+# cmd/le far slower than the steady state.
+
+option=timeout:value=180s
+
+tmpfs=run.py:terminator=EOF_PY
+"""Compile le, then drive it the way a developer does."""
+import json
+import os
+import subprocess
+import sys
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(f'FAIL: {message}')
+
+
+root = os.environ['ZE_REPO_ROOT']
+binary = os.path.join(os.getcwd(), 'le')
+
+compiled = subprocess.run(
+    ['go', 'build', '-o', binary, './cmd/le'],
+    cwd=root, capture_output=True, text=True, check=False,
+)
+require(compiled.returncode == 0, f'compiling ./cmd/le failed: {compiled.stderr}')
+
+
+def le(*args):
+    return subprocess.run([binary, *args], capture_output=True, text=True, check=False)
+
+
+# The usage page is the composition root read back: a tool that failed to
+# register is a tool missing from this list.
+usage = le('--help')
+require(usage.returncode == 0, f'le --help exited {usage.returncode}')
+require('parity' in usage.stderr + usage.stdout, 'le --help does not list the parity command')
+
+# The census answers structured data, and `| json` renders it with no
+# per-tool JSON code anywhere in the tool.
+answer = le('parity', '|', 'json')
+try:
+    census = json.loads(answer.stdout)
+except json.JSONDecodeError as exc:
+    raise SystemExit(f'FAIL: `le parity | json` did not answer JSON: {exc}\n{answer.stdout}') from exc
+
+for key in ('gates', 'ported', 'unported', 'unported-gates', 'command-names',
+            'script-files', 'script-files-by-language', 'script-dirs'):
+    require(key in census, f'the census answered no {key!r} key: {sorted(census)}')
+require(census['gates'] > 0, 'the census found no gate on the Python side')
+require(census['ported'] + census['unported'] == census['gates'],
+        f"ported {census['ported']} + unported {census['unported']} != {census['gates']} gates")
+require(len(census['unported-gates']) == census['unported'],
+        'the census counted unported gates it did not name')
+
+# The second population: the code still sitting under scripts/, derived from
+# the filesystem rather than claimed by anybody.
+require(sum(census['script-files-by-language'].values()) == census['script-files'],
+        'the per-language counts do not sum to the file total')
+require(sum(census['script-dirs'].values()) == census['script-files'],
+        'the per-directory counts do not sum to the file total')
+
+# Red until BOTH reach zero: the exit status is the census's verdict, never a
+# constant.
+want = 0 if census['unported'] == 0 and census['script-files'] == 0 else 1
+require(answer.returncode == want,
+        f"`le parity` exited {answer.returncode} with {census['unported']} unported "
+        f"and {census['script-files']} script files, want {want}")
+
+# One payload, three renderings. Neither of these two passes through a line of
+# tool-owned formatting code.
+for operator, needle in (('yaml', 'gates:'), ('table', 'gates')):
+    rendered = le('parity', '|', operator)
+    require(needle in rendered.stdout,
+            f'`le parity | {operator}` did not render the payload: {rendered.stdout[:200]!r}')
+
+# An unknown command is the caller's error and is refused, never guessed at.
+unknown = le('no-such-tool')
+require(unknown.returncode != 0, 'le accepted a command nobody registered')
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

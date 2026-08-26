@@ -23,13 +23,14 @@ Three goals, each standing on its own:
 
 1. **One ENGINE, two plugin sets, two binaries (owner directive, 2026-08-26).**
    `ze` and `le` share the registry, the command grammar and the pipe
-   machinery. They share NO plugins. `ze` is never compiled with `le` code and
-   `le` is never compiled with `ze` plugins. The architecture must not PRECLUDE
-   a crossing, since that is the test of whether the engine is genuinely shared
-   rather than merely similar, but no build ever performs one. Two registries
-   kept in agreement by hand is the failure this exists to prevent; a single
-   binary carrying both plugin sets is the failure the never-linked rule
-   prevents.
+   machinery. They register no plugin in common, and **`ze` is never compiled
+   with `le` code.** The architecture must not PRECLUDE a crossing, since that
+   is the test of whether the engine is genuinely shared rather than merely
+   similar, but no `ze` build ever performs one. Two registries kept in
+   agreement by hand is the failure this exists to prevent; a shipped product
+   carrying dev tooling is the failure the never-linked rule prevents. The rule
+   is DIRECTIONAL rather than symmetric, for a measured reason set out below:
+   several `le` tools MUST link the product in order to introspect it.
 2. **The dev tooling stops being scripts.** 50 Go files carrying
    `//go:build ignore` become real packages: compiled by `go build ./...`, seen
    by `go vet` and the linter, callable as functions by their tests.
@@ -39,12 +40,29 @@ Three goals, each standing on its own:
 
 **What "shared engine" means mechanically.** Both binaries import the same
 `internal/component/command/registry` and register through the same
-`MustRegisterRootHandler`. Neither imports the other's plugins, and that is
-provable rather than asserted: `go list -deps` over each binary must not name a
-package belonging to the other's plugin tree. Measured 2026-08-26, the mechanism
-already works this way for the existing programs -- `internal/perf/cli` is
-absent from `ze`'s 630-package dependency list with `ze_perf` off and present
-with it on.
+`MustRegisterRootHandler`. `ze` never links a `le/` package, and that is provable
+rather than asserted: `go list -deps` over each `ze` flavour must not name one.
+Measured 2026-08-26, the mechanism already works this way for the existing
+programs -- `internal/perf/cli` is absent from `ze`'s 630-package dependency list
+with `ze_perf` off and present with it on.
+
+**The rule is DIRECTIONAL, and the reason is measured rather than chosen
+(2026-08-26).** Twelve tool files under `scripts/` blank-import
+`internal/component/plugin/all`, the product composition root:
+`inventory/commands.go`, `inventory/inventory.go`, `docvalid/commands.go`,
+`docvalid/doc_drift.go`, `codegen/plugin_imports.go`, `checks/cli_grammar.go`,
+`checks/ci_dispatch_commands.go`, `checks/config_claims.go`,
+`checks/yang_leaf_mentions.go` and three test files. They must: their job is to
+enumerate what `ze` REGISTERS, and a command inventory, a CLI-grammar check or a
+YANG-leaf check cannot be computed without loading the registry it judges. So
+`le` linking the product is inherent to what `le` is for, and forbidding it would
+forbid the tools.
+
+The owner's directive is preserved in the direction that carries the risk. `ze`
+is what ships, so `ze` must never carry dev tooling. `le` is a build-host binary
+that nobody deploys, so `le` linking the product costs nothing and enables the
+introspection. What `le` must not do is REGISTER a product command as its own,
+which is a different property and the one AC-3 now pins.
 
 **Strategy: port everything, then swap (owner directive, 2026-08-26).** The Go
 `le` is built to completion ALONGSIDE the Python one. Nothing is deleted as it
@@ -64,13 +82,25 @@ Target layout:
 | `internal/`, `internal/plugins/` (product trees) | `ze`'s plugins | `ze` only |
 | `cmd/le/main.go` | entry point | `le` |
 | `cmd/le/register.go` | composition root: blank imports say what `le` carries | `le` |
-| `le/<tool>/` | `le`'s plugins, one package per tool | `le` only |
-| `le/parity/` | the census measuring how much is ported | `le` only |
+| `letools/<tool>/` | `le`'s plugins, one package per tool | `le` only |
+| `letools/parity/` | the census measuring how much is ported | `le` only |
 
-→ Decision: `le`'s plugins sit in a top-level `le/` tree, NOT under `internal/`
+→ Decision: `le`'s plugins sit in a top-level tree, NOT under `internal/`
 alongside the product's. The directory is the statement that these are a
 different program's plugins over the same engine, and it makes the never-linked
 rule readable rather than merely enforced.
+
+→ Constraint (measured 2026-08-26, step 1): the tree CANNOT be named `le/`. The
+repository root already holds an executable FILE named `le`, the Python shim
+every `make` target and every developer invokes as `./le`, and a directory
+cannot share that name on any filesystem. The name is not freed by the swap
+either: after it, `./le` is still a file, now the Go binary or a shim that execs
+it. Step 1 therefore built the tree as **`letools/`**, and every path in this
+spec says `letools/`. The owner chose `le/` on 2026-08-26 for a reason a
+different name serves equally -- a top-level sibling of `internal/` and `cmd/`
+that reads as another program's tree -- so this is a rename, not a reversal, and
+it is his to ratify. Renaming it again is a `git mv` plus an import rewrite: it
+costs nothing now and grows with every step.
 
 ## Required Reading
 
@@ -88,7 +118,8 @@ rule readable rather than merely enforced.
   → Constraint: use it per tool; do not invent a per-tool shape
 
 - [ ] `ai/rules/architecture.md` - tier rules
-  → Decision: `le/` sits OUTSIDE `internal/`, so step 1 must decide whether `make ze-tier-check` extends to it. What matters is that `le/` may import the engine and must not import product plugins
+  → Decision: `letools/` sits OUTSIDE `internal/`, so step 1 must decide whether `make ze-tier-check` extends to it. What matters is not tiers within `letools/`: it is that no `ze` build links a `letools/` package. `letools/` may import the engine, and may import the product composition root where a tool must introspect the registry it judges
+  → Decision (step 1, 2026-08-26): **`make ze-tier-check` does NOT extend to `letools/`, and MUST NOT.** Its subject is where a package belongs among `internal/core`, `internal/component` and `internal/plugins`: `scripts/dev/dep_audit.py` declares `AREAS = ["internal/component", "internal/plugins", "internal/component/bgp/plugins"]` and `classify()` judges engine-versus-plugin placement inside those. `letools/` has no such distinction to judge -- it is one flat tree of tool packages -- so the check would have nothing to say. The invariant that does matter is a property of each BINARY rather than of each package, and it is checked where a binary can be seen: `TestZeLinksNoLePlugin` reads `go list -deps` over all eight `ze` flavors, and `TestLeRegistersNoProductCommand` reads the composition root's imports and every registered handler's defining file. `make ze-tier-check` passes unchanged with `letools/` present (run 2026-08-26)
 
 - [ ] `ai/rules/no-layering.md` - "delete X first, then implement Y"
   → Decision: the owner has chosen duplicate-then-swap instead. The rule's concern, silent drift between two implementations, is answered by the parity gate (AC-9), not waived
@@ -163,7 +194,7 @@ is roughly 180 seconds of linker time per full run, buying nothing.
 
 1. Today: a `mk/*.mk` shim forwards to `./le`; the Python shim puts `scripts` on `sys.path`; `registry.py` resolves the area; `gateapp.action` selects gates; `devtools/gate.run_gate` imports a Python script in-process or forks `go run` or a shell command.
 2. During the port: unchanged. Every target and every `./le` invocation still reaches Python, so a half-finished Go side cannot break a developer.
-3. After the swap: `cmd/le/main.go` dispatches through `internal/component/command/registry`; the handler registered by `le/<tool>/register.go` runs in-process; the result is a structured payload the pipe operators render.
+3. After the swap: `cmd/le/main.go` dispatches through `internal/component/command/registry`; the handler registered by `letools/<tool>/register.go` runs in-process; the result is a structured payload the pipe operators render.
 
 ### Boundaries Crossed
 
@@ -196,7 +227,7 @@ is roughly 180 seconds of linker time per full run, buying nothing.
 
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The 50 tool files compile once `//go:build ignore` is dropped | They type-check today under `go run` | A burst of latent errors on first port | Drop the tag on ONE file and build, in step 1 | unvalidated |
+| A-1 | The 50 tool files compile once `//go:build ignore` is dropped | They type-check today under `go run` | A burst of latent errors on first port | Drop the tag on ONE file and build, in step 1 | **confirmed for the compiler, broken for the linter, 2026-08-26.** `scripts/lint/consistency.go` with the tag removed: `go vet ./scripts/lint/` exits 0. The same file under `golangci-lint run --build-tags ze_core` reports SIX findings in 400 lines (errcheck 2, gosec 2, gocritic 1, nilerr 1), one of them a real defect: `:353` returns nil on a non-nil error. The tag was hiding the linter, not the compiler, so the port's cost is lint remediation rather than type errors. The tag was restored |
 | A-2 | No tool's imports pull anything the module would rather not have | Inspected `scripts/lint` and `scripts/docvalid` only; the rest is assumption | Module dependency growth | `go list -deps` per tool package before porting it | unvalidated |
 | A-3 | Behaviour is preserved by moving `main()` to `Run(args) int` | The signature is the only forced change | Silent behaviour drift | Per tool: run old and new over the real tree, diff exit code and output | unvalidated |
 | A-4 | Most Python test CONTENT transfers as intent, not as code | Cases and reasoning are language-independent; the harness is not | Rewrite cost higher than planned | Port one area's tests first and measure | unvalidated |
@@ -236,9 +267,9 @@ changeover commit.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le <name>` typed by a developer | → | the root handler registered by `le/<tool>/register.go` | `TestLeDispatchesEveryRegisteredTool` |
+| `./le <name>` typed by a developer | → | the root handler registered by `letools/<tool>/register.go` | `TestLeDispatchesEveryRegisteredTool` |
 | a `ze` build of any flavour | → | its dependency list, which must name no `le/` package | `TestZeLinksNoLePlugin` |
-| a `cmd/le` build | → | its dependency list, which must name no product plugin package | `TestLeLinksNoProductPlugin` |
+| a `cmd/le` build | → | its composition root, which registers only `le/` packages. Linking the product for introspection is allowed and required | `TestLeRegistersNoProductCommand` |
 | either binary's dispatch | → | the one `internal/component/command/registry`, with no second registry declared | `TestBothBinariesShareOneRegistry` |
 | `./le <name> \| json` | → | the tool's structured payload through `internal/component/command` pipe filters | `TestLeCommandAnswersStructuredData` |
 | tab after `./le ` | → | the command tree built from the registry | `TestLeToolsAppearInCompletion` |
@@ -253,7 +284,7 @@ changeover commit.
 |---|-----------|------|
 | AC-1 | `cmd/le/` produces a binary dispatching every ported tool through `internal/component/command/registry` | `TestLeDispatchesEveryRegisteredTool` |
 | AC-2 | `ze` links NO `le` plugin: `go list -deps` over every `ze` build flavour names no `le/` package | `TestZeLinksNoLePlugin` |
-| AC-3 | `le` links NO product plugin: `go list -deps` over `cmd/le` names no package from the product plugin trees | `TestLeLinksNoProductPlugin` |
+| AC-3 | **The never-linked rule is DIRECTIONAL.** `le` MAY link the product composition root, because introspecting `ze`'s registry is what several dev tools exist to do. What `le` may not do is REGISTER a product command as its own: `cmd/le/register.go` names no product command package, and `le`'s root handlers are all `le/` packages | `TestLeRegistersNoProductCommand` |
 | AC-3b | Both binaries dispatch through the SAME engine: each links `internal/component/command/registry`, and neither declares a registry of its own | `TestBothBinariesShareOneRegistry` |
 | AC-4 | No ported tool file carries `//go:build ignore`; all are built by `go build ./...` and seen by `go vet` | `TestNoPortedToolIsBuildIgnored` |
 | AC-5 | Every ported tool's test calls it as a function; no test invokes it via `go run` | `TestNoTestShellsOutToGoRun` |
@@ -281,10 +312,10 @@ changeover commit.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRunReturnsToolExitCode` | `le/<tool>/<tool>_test.go` | each ported tool's logic, called as a function | |
+| `TestRunReturnsToolExitCode` | `letools/<tool>/<tool>_test.go` | each ported tool's logic, called as a function | |
 | `TestEveryPackageRegistersOneRootHandler` | `cmd/le/register_test.go` | one handler per package, Meta carries Description, Mode and Section | |
 | `TestNoLeNameCollidesWithZe` | `cmd/le/register_test.go` | a duplicate root name panics at init rather than shadowing | |
-| `TestParityNamesEveryUnportedGate` | `le/parity/parity_test.go` | the census names each unported gate, and is red while any remain | |
+| `TestParityNamesEveryUnportedGate` | `letools/parity/parity_test.go` | the census names each unported gate, and is red while any remain | |
 | `TestFirstFailingGateExitCodeWins` | `cmd/le/dispatch_test.go` | the failing gate's own code propagates, never a flattened 1 | |
 | `TestNoPortedToolIsBuildIgnored` | `cmd/le/contract_test.go` | no ported file carries `//go:build ignore` | |
 | `TestNoTestShellsOutToGoRun` | `cmd/le/contract_test.go` | no test invokes a tool via `go run` | |
@@ -303,7 +334,7 @@ changeover commit.
 |------|----------|-------------------|--------|
 | `TestLeDispatchesEveryRegisteredTool` | `cmd/le/dispatch_test.go` | a developer runs `./le <name>` for every registered tool and reaches it | |
 | `TestZeLinksNoLePlugin` | `cmd/le/separation_test.go` | `go list -deps` over every `ze` flavour names no `le/` package | |
-| `TestLeLinksNoProductPlugin` | `cmd/le/separation_test.go` | `go list -deps` over `cmd/le` names no product plugin package | |
+| `TestLeRegistersNoProductCommand` | `cmd/le/separation_test.go` | `cmd/le/register.go` names no product command package; every `le` root handler comes from a `le/` package | |
 | `TestBothBinariesShareOneRegistry` | `cmd/le/separation_test.go` | both link `internal/component/command/registry`, and neither declares a second one | |
 | `TestLeCommandAnswersStructuredData` | `cmd/le/pipe_test.go` | `./le <name> \| json` renders without per-tool JSON code | |
 | `TestLeToolsAppearInCompletion` | `cmd/le/completion_test.go` | tab completion offers the tool | |
@@ -344,9 +375,9 @@ specific trap of a duplicate-then-swap migration.
 
 - `cmd/le/main.go` - entry point
 - `cmd/le/register.go` - composition root: blank imports
-- `le/<tool>/<tool>.go` - one package per tool, exposing `Run(args []string) int`
-- `le/<tool>/register.go` - `init()` calling `registry.MustRegisterRootHandler`
-- `le/parity/` - the census measuring how much is ported
+- `letools/<tool>/<tool>.go` - one package per tool, exposing `Answer(args []string) (any, int)`
+- `letools/<tool>/register.go` - `init()` calling `leroot.Register`, which calls `registry.MustRegisterRootHandler`
+- `letools/parity/` - the census measuring how much is ported
 - `plan/deferrals/le-is-a-ze-binary.md` - deferral shard
 
 ## Implementation Steps
@@ -420,8 +451,10 @@ hand can drift, and Python cannot join Ze's. Speed is a consequence.
 - The 8007 lines of Python and 4011 lines of Python tests are sunk. Test CONTENT transfers as intent; the code does not.
 - `le` gains a build step, so a stale binary can run an old gate. Python could not fail this way. R-4 mitigates it; it does not remove it.
 - Build-tag gating of `le` features is deliberately not built. If a slim `le` is ever wanted, `dev-gates.txt` is the shape to add.
-- Between step 1 and step 10 the repository carries two implementations of the same tooling. That is the accepted cost of the chosen strategy.
-- **`internal/` conflates the engine with `ze`'s product code, and this spec does not fix it.** Measured 2026-08-26: the engine `le` needs is 12 packages (`component/command`, `component/command/registry`, `component/config/storage`, `component/plugin/registry`, and `core/env`, `core/envcatalog`, `core/helpfmt`, `core/metrics`, `core/selector`, `core/slogutil`, `core/stringsx`, `core/textbuf`). The rest is one program's product: 43 directories under `internal/component/` and 64 under `internal/plugins/`. So `internal/` is not "shared", it is "`ze`, plus a small engine nobody has named". Putting `le` at top level rather than at `internal/le/` was chosen partly for this reason: `internal/le/` would sit `le`'s plugins inside the tree they must never be linked with, while a top-level `le/` makes the never-linked rule readable at a glance. The symmetric alternative -- `internal/ze/` beside `internal/le/`, engine left in `internal/` -- was measured at **32,419 references** (24,037 for `internal/component/` and 8,382 for `internal/plugins/`), larger than this entire migration and touching every product file rather than the tooling. It is a real improvement and it needs its own spec, sequenced as: name and separate the 12-package engine first, then `internal/ze/`, then `le` could move symmetrically. The first of those three is useful on its own, because it would let `go list -deps` prove the ENGINE boundary the way AC-2 and AC-3 prove the plugin boundary (owner decision, 2026-08-26: option A, top-level `le/`).
+- Between step 1 and the swap the repository carries two implementations of the same tooling. That is the accepted cost of the chosen strategy.
+- **The tree is `letools/`, not `le/`, and the reason is a filename.** The repository root holds an executable file named `le` -- the Python shim `./le` -- and a directory cannot share that name. The swap does not free it: `./le` stays a file afterwards. See the Constraint under Target layout; the owner's rationale for a top-level tree is unaffected and only the spelling changed.
+- **`le`'s engine footprint is 15 Ze packages, measured 2026-08-26 by `go list -deps ./cmd/le`.** All 12 `internal/` packages this section names, and three more the section did not: `pkg/zefs`, `pkg/plugin/rpc`, `pkg/ze`, all reached through `internal/component/config/storage` and `internal/component/plugin/registry`. The binary links 281 packages in total against `ze`'s 630, and none of the 281 is a product plugin -- today, and by choice rather than by rule, since AC-3 now permits the link where a tool must introspect the registry it judges.
+- **`internal/` conflates the engine with `ze`'s product code, and this spec does not fix it.** Measured 2026-08-26: the engine `le` needs is 12 packages (`component/command`, `component/command/registry`, `component/config/storage`, `component/plugin/registry`, and `core/env`, `core/envcatalog`, `core/helpfmt`, `core/metrics`, `core/selector`, `core/slogutil`, `core/stringsx`, `core/textbuf`). The rest is one program's product: 43 directories under `internal/component/` and 64 under `internal/plugins/`. So `internal/` is not "shared", it is "`ze`, plus a small engine nobody has named". Putting `le` at top level rather than at `internal/le/` was chosen partly for this reason: `internal/le/` would sit `le`'s plugins inside the tree they must never be linked with, while a top-level tree makes the rule readable at a glance. The symmetric alternative -- `internal/ze/` beside `internal/le/`, engine left in `internal/` -- was measured at **32,419 references** (24,037 for `internal/component/` and 8,382 for `internal/plugins/`), larger than this entire migration and touching every product file rather than the tooling. It is a real improvement and it needs its own spec, sequenced as: name and separate the 12-package engine first, then `internal/ze/`, then `le` could move symmetrically. The first of those three is useful on its own, because it would let `go list -deps` prove the ENGINE boundary the way AC-2 proves that `ze` links no dev tool (owner decision, 2026-08-26: option A, a top-level tree; step 1 spelled it `letools/` for the filename reason above).
 
 ## RFC Documentation (Scope: protocol)
 
