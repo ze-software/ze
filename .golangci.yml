@@ -98,8 +98,19 @@ linters:
       # IANA service names copied verbatim from the registry: "commonspace",
       # "composit-server", "extensis", "fyre-messanger". They are the strings the
       # lookup must return, so "correcting" one breaks the table.
+      #
+      # goconst for the same reason. The file is the IANA registry transcribed
+      # as a Go table, and it indexes every name three ways -- {port, 6} for TCP,
+      # {port, 17} for UDP, and port alone for the proto=0 fallback -- so 4815
+      # of its literals occur three or more times. Those are index entries, not
+      # duplicated logic: "3com-tsmux" written as svc3comTsmux carries exactly
+      # the meaning of the literal it hides, and 4815 such names would make a
+      # table that is read by eye unreadable. The file carries no
+      # "Code generated" marker and no generator is wired for it, so it is
+      # hand-maintained data; that does not change the argument.
       - path: "internal/core/portname/services_table\\.go"
         linters:
+          - goconst
           - misspell
 
   enable:
