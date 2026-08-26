@@ -33,5 +33,5 @@ func init() {
 	// The census counts all three gates as ported from here, in the same init()
 	// that registers the command. A claim whose command never registered is
 	// red, so the count cannot fall for a tool nothing can reach.
-	parity.Claim(area, "ze-vendor-web-check", "ze-vendor-web-sync", "ze-vendor-web-update-report")
+	parity.Claim(area, actions.Gates()...)
 }

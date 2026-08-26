@@ -1,0 +1,177 @@
+# Test: the BUILT le binary runs the ported scripts/checks gates over the real
+#       checkout, reports what each script reports, and answers each verdict as
+#       data.
+#
+# VALIDATES: spec-le-is-a-ze-binary AC-1, AC-7 and AC-11 over the REAL TREE, for
+#            the gates ported out of scripts/checks, against the artifact a
+#            developer runs.
+# PREVENTS: a port that agrees with its script on fixtures and disagrees on the
+#           checkout. Each of these gates is a GATE: a check that stopped firing
+#           on a shape no fixture holds would pass every unit test and change
+#           what the gate says about this repository.
+#
+# Both sides are compiled here rather than by the runner, which builds only ze
+# and ze-test (internal/test/runner/runner.go, setupBinShims). Every binary is
+# written into the test's own directory, so nothing is written back into the
+# checkout.
+#
+# The FULL feature tag set is used, derived from feature-gates.txt the way
+# scripts/le/devtools/toolchain.py derives it. config-claims and
+# command-ownership read the linked registry, and a reduced tag set compiles
+# modules out: the two sides would then disagree about the PRODUCT rather than
+# about the port.
+#
+# The timeout is DECLARED because five cold links of the product precede the
+# comparisons.
+
+option=timeout:value=600s
+
+tmpfs=run.py:terminator=EOF_PY
+"""Compile both sides of the migration and check that each pair agrees."""
+import json
+import os
+import subprocess
+import sys
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(f'FAIL: {message}')
+
+
+root = os.environ['ZE_REPO_ROOT']
+here = os.getcwd()
+
+# The tag set every gate that reads the registry must be built with.
+tags = ['ze_core']
+with open(os.path.join(root, 'feature-gates.txt'), encoding='utf-8') as handle:
+    for line in handle:
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        tag = line.split()[0]
+        if tag not in tags:
+            tags.append(tag)
+tagset = ' '.join(tags)
+
+binary = os.path.join(here, 'le')
+build = subprocess.run(['go', 'build', '-tags', tagset, '-o', binary, './cmd/le'],
+                       cwd=root, capture_output=True, text=True, check=False)
+require(build.returncode == 0, f'building cmd/le failed: {build.stderr}')
+
+# One compiled script per gate, named by the command that replaces it.
+scripts = {
+    'config-claims': 'scripts/checks/config_claims.go',
+    'iface-resolution': 'scripts/checks/iface_resolution.go',
+    'command-ownership': 'scripts/checks/command_ownership.go',
+    'config-coercion': 'scripts/checks/config_string_coercion.go',
+    'port-defaults': 'scripts/checks/port_defaults.go',
+}
+paths = {}
+for command, source in scripts.items():
+    out = os.path.join(here, command)
+    built = subprocess.run(['go', 'build', '-tags', tagset, '-o', out, source],
+                           cwd=root, capture_output=True, text=True, check=False)
+    require(built.returncode == 0, f'building {source} failed: {built.stderr}')
+    paths[command] = out
+
+
+def run(argv, cwd):
+    return subprocess.run(argv, cwd=cwd, capture_output=True, text=True, check=False)
+
+
+# Each pair: the script invoked the way its gate invokes it, and the command
+# invoked the way a developer does. The command takes no path -- the tree is the
+# checkout -- so it is run from the test directory to prove that.
+pairs = [
+    ('config-claims', [paths['config-claims']], [binary, 'config-claims']),
+    ('iface-resolution', [paths['iface-resolution']], [binary, 'iface-resolution']),
+    ('command-ownership', [paths['command-ownership']], [binary, 'command-ownership']),
+    ('config-coercion', [paths['config-coercion']], [binary, 'config-coercion', 'check']),
+    ('config-coercion selftest', [paths['config-coercion'], '--selftest'],
+     [binary, 'config-coercion', 'selftest']),
+    ('port-defaults', [paths['port-defaults']], [binary, 'port-defaults', 'check']),
+    ('port-defaults selftest', [paths['port-defaults'], '--selftest'],
+     [binary, 'port-defaults', 'selftest']),
+]
+
+for name, script_argv, command_argv in pairs:
+    old = run(script_argv, root)
+    new = run(command_argv, here)
+    require(old.returncode == 0,
+            f'{name}: this checkout does not pass the gate: {old.stdout}{old.stderr}')
+    require(old.returncode == new.returncode,
+            f'{name}: the script exited {old.returncode} and the command exited {new.returncode}')
+    require(old.stdout == new.stdout,
+            f'{name}: the pages differ.\nscript:\n{old.stdout}\ncommand:\n{new.stdout}')
+    require(new.stderr == '', f'{name}: the command wrote to stderr: {new.stderr}')
+
+# One payload, every rendering. Nothing in any tool writes a line of JSON.
+report = run([binary, 'config-claims', '|', 'json'], here)
+try:
+    claims = json.loads(report.stdout)
+except json.JSONDecodeError as exc:
+    raise SystemExit(f'FAIL: `le config-claims | json` did not answer JSON: {exc}\n'
+                     f'{report.stdout[:400]}') from exc
+for key in ('roots', 'claims', 'allowlisted', 'findings'):
+    require(key in claims, f'the claim report answered no {key!r} key: {sorted(claims)}')
+require(claims['roots'] >= 25, f"the gate enumerated {claims['roots']} config roots")
+require(claims['claims'] >= 50, f"the gate enumerated {claims['claims']} claims")
+require(claims['findings'] == [] or claims['findings'] is None,
+        f"the gate reported findings: {claims['findings']}")
+
+# A document with two row sets refuses the row operators BY NAME, and still
+# renders through every any-shape operator.
+counted = run([binary, 'config-claims', '|', 'count'], here)
+require(counted.returncode == 1,
+        f'`le config-claims | count` exited {counted.returncode}, want a refusal')
+require('count' in counted.stderr,
+        f'the refusal does not name the operator: {counted.stderr!r}')
+require(run([binary, 'config-claims', '|', 'yaml'], here).returncode == 0,
+        '`le config-claims | yaml` was refused')
+
+# A tool whose answer IS the rows takes the row operators.
+for command in ('iface-resolution', 'command-ownership'):
+    rows = run([binary, command, '|', 'json'], here)
+    require(rows.returncode == 0, f'`le {command} | json` exited {rows.returncode}')
+    require(json.loads(rows.stdout) in (None, []),
+            f'`le {command} | json` answered {rows.stdout!r} over a clean checkout')
+    counted = run([binary, command, '|', 'count'], here)
+    require(counted.returncode == 0 and counted.stdout.strip() == '0',
+            f'`le {command} | count` answered {counted.stdout!r}, want 0')
+
+# A selftest answers its cases as rows, so `| count` acts on them.
+cases = run([binary, 'port-defaults', 'selftest', '|', 'json'], here)
+require(cases.returncode == 0, f'`le port-defaults selftest | json` exited {cases.returncode}')
+rows = json.loads(cases.stdout)
+require(isinstance(rows, list) and len(rows) == 8,
+        f'the selftest answered {rows!r}, want eight case rows')
+require(all(row['passed'] for row in rows), f'a selftest case failed: {rows}')
+counted = run([binary, 'port-defaults', 'selftest', '|', 'count'], here)
+require(counted.stdout.strip() == '8',
+        f'`le port-defaults selftest | count` answered {counted.stdout!r}, want 8')
+
+# The area lists its gates, and every action says whether it writes.
+listing = run([binary, 'config-coercion'], here)
+require(listing.returncode == 0, f'`le config-coercion` exited {listing.returncode}')
+for word in ('check', 'selftest', 'checks'):
+    require(word in listing.stdout, f'the listing does not carry {word!r}:\n{listing.stdout}')
+
+# An action this area does not hold answers 2, which a caller reads apart from a
+# gate that ran and failed.
+require(run([binary, 'config-coercion', 'nonesuch'], here).returncode == 2,
+        'an unknown action did not answer 2')
+
+# Every ported command appears in the binary's own help.
+helped = run([binary], here)
+for command in ('config-claims', 'iface-resolution', 'command-ownership',
+                'config-coercion', 'port-defaults'):
+    require(command in helped.stdout + helped.stderr,
+            f'`le` does not list {command!r} in its help')
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

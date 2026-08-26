@@ -218,3 +218,22 @@ func splitChain(args []string) (toolArgs []string, pipeStr string) {
 	}
 	return args, ""
 }
+
+// RefuseArgument reports a value typed after a command that takes none, and
+// answers the code it exits with.
+//
+// Every le tool judges the checkout it is run in, and the rendering is a pipe
+// operator, so a tool that is one gate rather than an area has no argument to
+// take at all (the CLI rule: keyword before value). The refusal is stated here
+// because fourteen such tools owe it, and fourteen hand-written copies is where
+// they begin to disagree about what a developer may type.
+//
+// leaction.refuseValue is the same refusal for an action of an area, where the
+// message must also name the action.
+func RefuseArgument(name, got string) int {
+	var tb textbuf.Buffer
+	fmt.Fprintln(os.Stderr, tb.Str("error: ").Str(name).Str(" takes no arguments, got ").Quoted(got).String()) //nolint:errcheck // CLI output
+	tb.Reset()
+	fmt.Fprintln(os.Stderr, tb.Str("usage: le ").Str(name).Str(" [| json | yaml | table]").String()) //nolint:errcheck // CLI output
+	return 1
+}

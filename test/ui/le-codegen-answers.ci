@@ -1,0 +1,183 @@
+# Test: the BUILT le binary runs the four code-generation gates over the real
+#       checkout, reports what the scripts report, and answers as data.
+#
+# Each generator is one command with two actions: a check that regenerates in
+# memory and compares, and a write that rewrites the tree. `le <name>` with no
+# action lists them with the writes marker each carries, which is what
+# `le <area> --list` printed.
+#
+# VALIDATES: spec-le-is-a-ze-binary AC-11 over the REAL TREE, and AC-7 for the
+#            four commands, against the artifact a developer runs.
+# PREVENTS: a port that agrees with the scripts on fixtures and disagrees on the
+#           checkout. The fixture trees in scripts/codegen/parity_test.go hold a
+#           handful of files each; this one holds 151 schema packages, 36 gated
+#           import groups and three web surfaces.
+#
+# THE WRITE MODES ARE PROVEN HERE WITHOUT WRITING, and the derivation is the
+# point rather than a shortcut. A check regenerates the file in memory and
+# compares it against the bytes committed. So a green check says: this half
+# would emit exactly what is committed. Both halves are green over this
+# checkout, so both would emit exactly what is committed, so they would emit the
+# same bytes. Copying internal/ twice to demonstrate that directly would cost
+# tens of megabytes and prove the same thing.
+#
+# scripts/codegen/parity_test.go carries the direct write comparison over
+# fixture trees, including the resulting trees byte for byte, and it is the only
+# place the network generator can be compared at all.
+#
+# Both sides are compiled here rather than by the runner, which builds only ze
+# and ze-test (internal/test/runner/runner.go, setupBinShims).
+#
+# The timeout is DECLARED because five cold builds precede the comparison.
+
+option=timeout:value=300s
+
+tmpfs=run.py:terminator=EOF_PY
+"""Compile both sides of the migration and check that they agree."""
+import json
+import os
+import subprocess
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(f'FAIL: {message}')
+
+
+root = os.environ['ZE_REPO_ROOT']
+here = os.getcwd()
+binary = os.path.join(here, 'le')
+
+# name -> (command action, script source). The four gates this step ports.
+GENERATORS = {
+    'yang-glue': 'yang_glue.go',
+    'plugin-imports': 'plugin_imports.go',
+    'feature-tags': 'feature_tags.go',
+    'web-assets': 'web_assets.go',
+}
+
+builds = [['go', 'build', '-o', binary, './cmd/le']]
+for source in GENERATORS.values():
+    builds.append(['go', 'build', '-o', os.path.join(here, source[:-3]),
+                   os.path.join('scripts', 'codegen', source)])
+
+for args in builds:
+    built = subprocess.run(args, cwd=root, capture_output=True, text=True, check=False,
+                           env=dict(os.environ, CGO_ENABLED='0'))
+    require(built.returncode == 0, f'{" ".join(args)} failed: {built.stderr}')
+
+
+def normalize(text):
+    """Two halves are comparable once the tree path and the program name are out.
+
+    Three differences are DELIBERATE and are documented in
+    scripts/codegen/parity_test.go: the failure prefix, the path form, and the
+    stream a verdict lands on. This removes the first two, and the caller
+    compares the streams together to allow for the third.
+    """
+    text = text.replace(root + '/', '').replace(root, '')
+    text = text.replace('internal/component/plugin/all/', '')
+    for prefix in ('yang_glue: ', 'plugin_imports: ', 'feature_tags: ', 'web_assets: ', 'error: '):
+        text = text.replace(prefix, '')
+    return text
+
+
+for name, source in GENERATORS.items():
+    old = subprocess.run([os.path.join(here, source[:-3]), '--check'], cwd=root,
+                         capture_output=True, text=True, check=False)
+    new = subprocess.run([binary, name, 'check'], cwd=here, capture_output=True, text=True,
+                         check=False, env=dict(os.environ, ZE_REPO_ROOT=root))
+
+    require(old.returncode == new.returncode,
+            f'{name}: the script exited {old.returncode} and the command exited {new.returncode}\n'
+            f'script: {old.stdout}{old.stderr}\ncommand: {new.stdout}{new.stderr}')
+    require(normalize(old.stdout + old.stderr) == normalize(new.stdout + new.stderr),
+            f'{name}: the output differs\nscript:\n{old.stdout}{old.stderr}\n'
+            f'command:\n{new.stdout}{new.stderr}')
+    require(new.returncode == 0,
+            f'{name} check is RED on this checkout, so the write proof below says nothing:\n'
+            f'{new.stdout}{new.stderr}')
+
+# A green check over this tree says each half would emit exactly the bytes that
+# are committed, so the two write modes would emit the same bytes. That is the
+# derivation this file relies on, and it holds only because every check above
+# exited 0.
+
+# --- one payload, every rendering. Nothing in the tools writes a line of JSON ---
+
+answer = subprocess.run([binary, 'plugin-imports', 'check', '|', 'json'], cwd=here,
+                        capture_output=True, text=True, check=False,
+                        env=dict(os.environ, ZE_REPO_ROOT=root))
+try:
+    report = json.loads(answer.stdout)
+except json.JSONDecodeError as exc:
+    raise SystemExit(f'FAIL: `le plugin-imports check | json` did not answer JSON: {exc}\n'
+                     f'{answer.stdout[:400]}') from exc
+
+for key in ('plugins', 'schemas', 'rpcs', 'namespaces', 'gated-groups', 'files'):
+    require(key in report, f'the report answered no {key!r} key: {sorted(report)}')
+require(report['plugins'] > 0 and report['schemas'] > 0,
+        f'the report read {report["plugins"]} plugins and {report["schemas"]} schemas, so it proved nothing')
+# The composition root, plus at least one file per gated group. A tag whose
+# packages take different //go:build constraints is split into more than one, so
+# the count is a floor rather than an equality.
+require(len(report['files']) >= 1 + report['gated-groups'],
+        f'the report compared {len(report["files"])} files against {report["gated-groups"]} gated groups')
+
+counted = subprocess.run([binary, 'plugin-imports', 'check', '|', 'count'], cwd=here,
+                         capture_output=True, text=True, check=False,
+                         env=dict(os.environ, ZE_REPO_ROOT=root))
+require(str(len(report['files'])) in counted.stdout,
+        f'`le plugin-imports check | count` answered {counted.stdout!r}, want {len(report["files"])}')
+
+# web-assets answers a DOCUMENT rather than one table, so it declares ShapeDoc:
+# `| json` renders it and `| count` is refused BY NAME rather than answering
+# something plausible.
+pages = subprocess.run([binary, 'web-assets', 'pages', '|', 'json'], cwd=here,
+                       capture_output=True, text=True, check=False,
+                       env=dict(os.environ, ZE_REPO_ROOT=root))
+try:
+    sets = json.loads(pages.stdout)
+except json.JSONDecodeError as exc:
+    raise SystemExit(f'FAIL: `le web-assets pages | json` did not answer JSON: {exc}\n'
+                     f'{pages.stdout[:400]}') from exc
+require(len(sets) >= 8, f'the derived sets name {len(sets)} pages, want at least eight')
+require(any(assets for assets in sets.values()), 'no page loads an asset, so the walk read nothing')
+require(any(not assets for assets in sets.values()),
+        'every page loads an asset, so the per-page derivation is doing nothing')
+
+# The `pages` action must leave the working tree alone: a test asks for these
+# sets while it runs.
+status = subprocess.run(['git', 'status', '--porcelain', '--', 'internal/component/web/page_assets.go',
+                         'internal/component/lg/page_assets.go', 'internal/chaos/web/page_assets.go'],
+                        cwd=root, capture_output=True, text=True, check=False)
+require(status.stdout.strip() == '',
+        f'a read-only action changed a generated file: {status.stdout!r}')
+
+# --- the listing says which action WRITES, where a developer chooses one ---
+
+for name in GENERATORS:
+    listing = subprocess.run([binary, name], cwd=here, capture_output=True, text=True, check=False,
+                             env=dict(os.environ, ZE_REPO_ROOT=root))
+    require(listing.returncode == 0, f'`le {name}` exited {listing.returncode}: {listing.stderr}')
+    for wanted in ('check', 'write', 'writes', 'checks'):
+        require(wanted in listing.stdout, f'{name}: the listing does not name {wanted!r}:\n{listing.stdout}')
+    for line in listing.stdout.splitlines():
+        if line.strip().startswith('write '):
+            require('writes' in line, f'{name}: the write action is not marked as writing: {line!r}')
+        if line.strip().startswith('check '):
+            require('checks' in line, f'{name}: the check action is marked as writing: {line!r}')
+
+# --- an unknown action is refused apart from a gate that ran and failed ---
+
+typo = subprocess.run([binary, 'yang-glue', 'chekc'], cwd=here, capture_output=True, text=True,
+                      check=False, env=dict(os.environ, ZE_REPO_ROOT=root))
+require(typo.returncode == 2,
+        f'a mistyped action exited {typo.returncode}, want 2 so a caller can tell it from a failed gate')
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

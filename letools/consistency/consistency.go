@@ -35,6 +35,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/letools/lepath"
+	"github.com/ze-software/ze/letools/leroot"
 )
 
 // fileSizeMax is the ONLY size threshold (ai/rules/go-standards.md, Thomas
@@ -76,9 +77,7 @@ func Check(root string) Report {
 // operator (ai/rules/cli.md).
 func Answer(args []string) (any, int) {
 	if len(args) > 0 {
-		fmt.Fprintf(os.Stderr, "error: consistency takes no arguments, got %q\n", args[0]) //nolint:errcheck // CLI output
-		fmt.Fprintln(os.Stderr, "usage: le consistency [| json | yaml | table]")           //nolint:errcheck // CLI output
-		return nil, 1
+		return nil, leroot.RefuseArgument("consistency", args[0])
 	}
 
 	root, err := lepath.Root()

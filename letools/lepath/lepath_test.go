@@ -78,6 +78,53 @@ func TestAncestorWithMarkersRefusesADirectoryThatIsNotACheckout(t *testing.T) {
 	}
 }
 
+// VALIDATES: Module answers the path go.mod declares, and answers an ERROR
+// rather than an empty string when it declares none.
+// PREVENTS: a generator writing blank imports rooted at "/internal/...", which
+// compiles nowhere and says nothing about why. An empty string would be a
+// plausible-looking answer to a caller that only checks the error it never
+// received.
+func TestModuleReadsGoModAndRefusesOneWithoutIt(t *testing.T) {
+	cases := map[string]struct {
+		gomod string
+		want  string
+	}{
+		"a plain declaration":    {"module example.test/m\n\ngo 1.26\n", "example.test/m"},
+		"leading blank lines":    {"\n\nmodule example.test/m\n", "example.test/m"},
+		"extra spacing":          {"module    example.test/m   \ngo 1.26\n", "example.test/m"},
+		"no module directive":    {"go 1.26\n\nrequire ()\n", ""},
+		"a comment naming it":    {"// module example.test/m\ngo 1.26\n", ""},
+		"an empty file entirely": {"", ""},
+	}
+
+	for name, one := range cases {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(one.gomod), 0o600); err != nil {
+				t.Fatalf("write go.mod: %v", err)
+			}
+
+			got, err := Module(dir)
+			if one.want == "" {
+				if err == nil {
+					t.Fatalf("Module answered %q for a go.mod declaring no module", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Module: %v", err)
+			}
+			if got != one.want {
+				t.Errorf("Module answered %q, want %q", got, one.want)
+			}
+		})
+	}
+
+	if _, err := Module(t.TempDir()); err == nil {
+		t.Error("Module answered no error for a directory holding no go.mod")
+	}
+}
+
 func mustGetwd(t *testing.T) string {
 	t.Helper()
 	wd, err := os.Getwd()

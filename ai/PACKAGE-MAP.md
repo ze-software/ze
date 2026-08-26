@@ -763,17 +763,65 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `letools/commandlist` | is the `ze-command-list` gate: every command ze registers, classified by verb, read from the live handlers and the YANG command tree rather than parsed out of source |  |
 
+## `letools/commandownership/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/commandownership` | enforces the command-surface-ownership invariants: 1 |  |
+
+## `letools/configclaims/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/configclaims` | fails when a config subtree an operator can write is delivered to nobody, and when a declared config root names no schema node |  |
+
+## `letools/configcoercion/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/configcoercion` | enforces an invariant discovered while debugging why ddos-detect never fired (session 6503): the plugin config framework delivers every YANG leaf value to a plugin's ParseConfig as a JSON STRING... |  |
+
 ## `letools/consistency/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `letools/consistency` | is the `ze-consistency-check` gate: it reads the tree and reports where the code and the documentation disagree with each other |  |
 
+## `letools/docvalid/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/docvalid` | the documentation gates: the YANG command contract, the doc drift check, and the generated operator table |  |
+
+## `letools/featuretags/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/featuretags` | regenerates the build-tag lists that DERIVE from feature-gates.txt but live inside files a program cannot read at run time: |  |
+
+## `letools/ianaasn/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/ianaasn` | fetches the five RIR delegation files and generates rir_table.go in the irr package: the ASN-to-RIR mapping with each registry's |  |
+
+## `letools/ifaceresolution/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/ifaceresolution` | enforces the interface-resolution invariant from the iface-resolve umbrella (sub-spec 7): no Ze code may resolve a configured interface name straight against the kernel |  |
+
 ## `letools/inventory/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `letools/inventory` | is the `ze-inventory` gate: what ze is made of, counted |  |
+
+## `letools/leaction/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/leaction` | is the Python `le` AREA, ported once |  |
 
 ## `letools/lepath/`
 
@@ -793,17 +841,47 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `letools/parity` | measures how much of the Python le has become Go, and it is the reason the migration may run two implementations at once |  |
 
+## `letools/pluginimports/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/pluginimports` | generates internal/component/plugin/all, the product's composition root, from what the tree REGISTERS |  |
+
+## `letools/portdefaults/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/portdefaults` | pins the hand-maintained Go listener-default table (internal/component/config/listener_defaults.go, RegisterBuiltinListenerDefaults) |  |
+
+## `letools/specstatus/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/specstatus` | reads the metadata table at the top of every plan/spec-*.md and answers the inventory `make ze-spec-status` prints: one record per spec, carrying its status, its bucket, and whether a skeleton is... |  |
+
 ## `letools/vendorweb/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `letools/vendorweb` | is the two halves of one contract |  |
 
+## `letools/webassets/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/webassets` | derives, for each page ze serves, the set of vendored web assets that page must load, so a head block renders the imports that page needs instead of the union every page needs |  |
+
 ## `letools/weekly/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `letools/weekly` | turns an approved weekly post into the messages Discord takes |  |
+
+## `letools/yangglue/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/yangglue` | generates the embed.go and register.go beside every .yang file in the tree |  |
 
 ## `pkg/fleet/`
 

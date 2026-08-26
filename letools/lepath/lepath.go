@@ -12,9 +12,12 @@
 package lepath
 
 import (
+	"bufio"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/env"
 )
@@ -99,4 +102,39 @@ func hasMarkers(dir string) bool {
 		}
 	}
 	return true
+}
+
+// Module answers the module path go.mod declares at root.
+//
+// A generator that writes an import path needs it. The tree says where a
+// package sits; only go.mod says what that package is CALLED, and a generated
+// blank import carries the name rather than the path. Two of le's generators
+// ask, so the question is answered once here.
+//
+// A go.mod with no module directive is an error rather than an empty string. A
+// generator handed "" would write imports rooted at "/internal/...", which
+// compiles nowhere and says nothing about why.
+func Module(root string) (string, error) {
+	path := filepath.Join(root, "go.mod")
+
+	f, err := os.Open(path) //nolint:gosec // a build tool reads the checkout it was pointed at
+	if err != nil {
+		return "", err
+	}
+	defer f.Close() //nolint:errcheck // read-only
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "module ") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "module")), nil
+		}
+	}
+	// A scan that stopped early leaves the directive unseen. Reporting the scan
+	// error rather than "not found" is what tells the caller the file was
+	// unreadable rather than merely silent about its module.
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+	return "", fmt.Errorf("module directive not found in %s", path)
 }
