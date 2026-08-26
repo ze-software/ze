@@ -129,7 +129,7 @@ Two, one per phase.
   IS-IS and OSPF plugins.
 
 ### Transformation Path
-1. Phase 1: `_strip_markers` finds `{scheduled: plan/spec-x.md; why}` at end of
+1. Phase 1: `_strip_markers` finds `{scheduled: plan/spec-<name>.md; why}` at end of
    line and hands the body to `_parse_annotation`.
 2. Phase 1: `_parse_annotation` accepts the new kind, splits the reason on the
    first `;`, and records the spec path.
@@ -196,7 +196,7 @@ Two, one per phase.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| a `{scheduled: plan/spec-x.md; why}` on a gated requirement line | → | `_parse_annotation` | `test_scheduled_marker_parses_and_names_its_spec` |
+| a `{scheduled: plan/spec-<name>.md; why}` on a gated requirement line | → | `_parse_annotation` | `test_scheduled_marker_parses_and_names_its_spec` |
 | `make ze-rfc-check` over a summary carrying a valid marker | → | the per-requirement loop | `test_scheduled_marker_clears_the_unproven_error` |
 | `make ze-rfc-check` over a marker whose spec file is absent | → | the precondition check | `test_scheduled_marker_refuses_an_absent_spec` |
 | `make ze-rfc-index-update` | → | `render_shards` | `test_scheduled_row_publishes_as_debt_naming_its_spec` |
@@ -208,8 +208,8 @@ Two, one per phase.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | a gated requirement carries `{scheduled: plan/spec-x.md; why}` and `plan/spec-x.md` exists | `make ze-rfc-check` reports no violation for that row |
-| AC-2 | the same marker, and `plan/spec-x.md` does NOT exist | the check errors, naming the row and the missing spec |
+| AC-1 | a gated requirement carries `{scheduled: plan/spec-<name>.md; why}` and `plan/spec-<name>.md` exists | `make ze-rfc-check` reports no violation for that row |
+| AC-2 | the same marker, and `plan/spec-<name>.md` does NOT exist | the check errors, naming the row and the missing spec |
 | AC-3 | a `{scheduled}` marker with no reason after the `;` | the check errors, as `_parse_annotation` already does for every bare annotation |
 | AC-4 | a row carrying `{scheduled}` AND a tagged test | the check errors that the marker is stale, as it does for `{gap}` |
 | AC-5 | `make ze-rfc-index-update` over a scheduled row | `ai/RFC-REQUIREMENTS.md` shows it as DEBT with the owning spec named, never as covered |
