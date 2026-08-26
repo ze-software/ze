@@ -563,13 +563,16 @@ session's uncommitted work in this shared checkout.
 The operator-facing line, read from the ze container during the passing run:
 
 ```
-level=WARN msg="ike: EAP failed" subsystem=ike peer=swan error="eap-tls: cannot export the RFC 5216 Section 2.3 MSK for peer CN=172.28.0.3 on TLS 1.2. The export needs TLS 1.3, or a TLS 1.2 session that negotiated the RFC 7627 extended master secret. Move the peer to TLS 1.3 (RFC 9190), add RFC 7627 to its TLS 1.2 stack, or configure another EAP method: crypto/tls: ExportKeyingMaterial is unavailable when neither TLS 1.3 nor Extended Master Secret are negotiated; override with GODEBUG=tlsunsafeekm=1"
+level=WARN msg="ike: EAP failed" subsystem=ike peer=swan error="eap-tls: cannot export the RFC 5216 Section 2.3 MSK for peer CN=172.28.0.3 on TLS 1.2. The export needs TLS 1.3, or a TLS 1.2 session that negotiated the RFC 7627 extended master secret. Move the peer to TLS 1.3 (RFC 9190), add RFC 7627 to its TLS 1.2 stack, or configure another EAP method: crypto/tls: ExportKeyingMaterial is unavailable when neither TLS 1.3 nor Extended Master Secret are negotiated; override with [the tlsunsafeekm setting, elided]"
 ```
 
 The trailing clause is `crypto/tls`'s own sentence, wrapped rather than replaced.
-Go 1.27 drops it: `noEKMBecauseNoEMS` at tag `go1.27.0` returns the same sentence
-without an override. So the pasteable form reaches an operator only on a toolchain
-where the setting still exists and still works.
+Its tail is elided above, and the elision is the point: Go 1.27 REMOVED that
+setting, and `noEKMBecauseNoEMS` at tag `go1.27.0` returns the same sentence
+without an override. The capture is from a Go 1.26 run, so it named a mechanism
+this tree no longer has. `TestNoShippedGuidanceNamesARemovedGODEBUG` refuses the
+pasteable form in any tracked file, and it reddened on this line the moment
+`go.mod` moved to `toolchain go1.27.0`.
 
 ## Deferrals Resolved
 

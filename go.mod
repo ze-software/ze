@@ -17,8 +17,8 @@ go 1.27
 // of that fact in a file nothing compares against the first, which is how the
 // version this comment used to name went stale.
 //
-// 1.27.0 also carries a behavior ze depends on: it REMOVES the tlsunsafeekm
-// GODEBUG, so an operator who sets it now stops the daemon before main()
+// 1.27.0 also carries a behavior ze depends on: the tlsunsafeekm GODEBUG is
+// REMOVED there, so an operator who sets it now stops the daemon before main()
 // instead of silently getting an RFC 7627-less key export. cmd/ze/main.go and
 // docs/features/rfc-status.md both state that, and both were false until this
 // line moved.
