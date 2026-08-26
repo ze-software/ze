@@ -14,5 +14,6 @@
 package main
 
 import (
+	_ "github.com/ze-software/ze/letools/consistency"
 	_ "github.com/ze-software/ze/letools/parity"
 )

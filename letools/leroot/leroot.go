@@ -31,6 +31,29 @@ import (
 // unchanged. A gate that fails with 3 exits 3.
 type Answer func(args []string) (payload any, code int)
 
+// Prose is a payload that has a rendering of its own for a person to read.
+//
+// A tool whose answer is a REPORT has one: a severity list grouped by check,
+// colored, with a summary line, is what its reader expects and what the gate
+// printed before it was a command. The engine renders rows as a table, which is
+// the right answer for an inventory and the wrong one for a report, so a
+// payload that knows better says so by implementing this.
+//
+// It is the DEFAULT rendering and nothing more. `| json`, `| yaml`, `| table`
+// and every data operator go to the engine exactly as they do for a payload
+// that implements nothing, because the operator who typed one has chosen the
+// rendering. The payload stays structured either way: Text is a second reading
+// of the same data, never a substitute for it, and a tool that answers finished
+// text instead of a payload has broken ai/rules/cli.md rather than satisfied it.
+//
+// The precedent is pluginserver.RegisterMonitorEventFormatter, which gives ze's
+// monitor commands a compact default in place of the table.
+type Prose interface {
+	// Text renders the whole answer, ending in a newline. It is called only
+	// when the operator typed no pipe chain.
+	Text() string
+}
+
 // Register wires one tool into the shared registry as a root command, the way
 // internal/perf/cli does for ze-perf. The tool is then reachable by name, it
 // appears in help and in completion, and nothing else has to be edited.
@@ -99,11 +122,24 @@ func Run(name string, answer Answer, args []string, out, errOut io.Writer) int {
 		return code
 	}
 
+	// A payload that renders itself is rendered by itself when the operator
+	// asked for nothing else. See Prose: this is the DEFAULT rendering, and
+	// typing any operator hands the answer back to the engine.
+	if prose, ok := payload.(Prose); ok && pipeStr == "" {
+		text := prose.Text()
+		io.WriteString(out, text) //nolint:errcheck // CLI output
+		if text != "" && !strings.HasSuffix(text, "\n") {
+			io.WriteString(out, "\n") //nolint:errcheck // CLI output
+		}
+		return code
+	}
+
 	raw, err := json.Marshal(payload)
 	if err != nil {
 		var tb textbuf.Buffer
-		fmt.Fprintln(errOut, tb.Str("error: ").Str(name).
-			Str(" answered a payload that does not encode: ").Err(err).String()) //nolint:errcheck // CLI output
+		message := tb.Str("error: ").Str(name).
+			Str(" answered a payload that does not encode: ").Err(err).String()
+		fmt.Fprintln(errOut, message) //nolint:errcheck // CLI output
 		return 1
 	}
 

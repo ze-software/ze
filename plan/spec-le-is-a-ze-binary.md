@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 2/14 |
 | Deferral shard | `plan/deferrals/le-is-a-ze-binary.md` |
 | Handoff | - |
 | Updated | 2026-08-26 |
@@ -228,11 +228,11 @@ is roughly 180 seconds of linker time per full run, buying nothing.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The 50 tool files compile once `//go:build ignore` is dropped | They type-check today under `go run` | A burst of latent errors on first port | Drop the tag on ONE file and build, in step 1 | **confirmed for the compiler, broken for the linter, 2026-08-26.** `scripts/lint/consistency.go` with the tag removed: `go vet ./scripts/lint/` exits 0. The same file under `golangci-lint run --build-tags ze_core` reports SIX findings in 400 lines (errcheck 2, gosec 2, gocritic 1, nilerr 1), one of them a real defect: `:353` returns nil on a non-nil error. The tag was hiding the linter, not the compiler, so the port's cost is lint remediation rather than type errors. The tag was restored |
-| A-2 | No tool's imports pull anything the module would rather not have | Inspected `scripts/lint` and `scripts/docvalid` only; the rest is assumption | Module dependency growth | `go list -deps` per tool package before porting it | unvalidated |
-| A-3 | Behaviour is preserved by moving `main()` to `Run(args) int` | The signature is the only forced change | Silent behaviour drift | Per tool: run old and new over the real tree, diff exit code and output | unvalidated |
+| A-2 | No tool's imports pull anything the module would rather not have | Inspected `scripts/lint` and `scripts/docvalid` only; the rest is assumption | Module dependency growth | `go list -deps` per tool package before porting it | **confirmed for `scripts/lint`, 2026-08-26.** `go list -deps ./letools/consistency` names 281 packages and no third-party module. The tool's own imports are `bufio`, `fmt`, `os`, `path/filepath`, `regexp`, `sort`, `strings`, plus `internal/core/textbuf` and `letools/lepath`; every other package arrives through `register.go`, which is the engine `cmd/le` already links |
+| A-3 | Behaviour is preserved by moving `main()` to `Run(args) int` | The signature is the only forced change | Silent behaviour drift | Per tool: run old and new over the real tree, diff exit code and output | **confirmed for `scripts/lint`, 2026-08-26.** Over this checkout the script and the command report the same 1250 lines and both exit 1. The SEQUENCE differs and the script is what varies: two runs of the script disagree with each other, because `checkCrossRefs` iterates a map. `test/ui/le-consistency-answers.ci` re-runs both over the checkout in every ui suite |
 | A-4 | Most Python test CONTENT transfers as intent, not as code | Cases and reasoning are language-independent; the harness is not | Rewrite cost higher than planned | Port one area's tests first and measure | unvalidated |
 | A-5 | A `le` command name that a `ze` root also uses is HARMLESS, because the two are never linked into one binary | `rootHandlers` (`internal/component/command/registry/registry.go`) is package-level per-process state, so two packages owning one name meet only when both are linked. The owner ruled on 2026-08-26 that they never are | If a build ever did link both, `MustRegisterRootHandler` panics at init -- loud, never a silent shadow | AC-2 and AC-3 prove the never-linked premise by `go list -deps`; the collision needs no separate guard | **confirmed by design, 2026-08-26.** Measured: today's 22 `le` area names collide with none of `ze`'s 34; the verb-first split collides on exactly one, `perf`, and under the never-linked rule that costs nothing |
-| A-6 | A ported tool can answer structured data without redesigning it | `ai/rules/cli.md` requires it; unmeasured for tools that print prose reports | The port becomes a rewrite for those tools | Port `scripts/lint` first and see what its output costs | unvalidated |
+| A-6 | A ported tool can answer structured data without redesigning it | `ai/rules/cli.md` requires it; unmeasured for tools that print prose reports | The port becomes a rewrite for those tools | Port `scripts/lint` first and see what its output costs | **confirmed, 2026-08-26, and the cost is 12 lines of shared code plus a payload declaration.** `scripts/lint/consistency.go` is the hardest case the step table holds: a colored severity report with its own grouping. The port cost is set out under "What A-6 Measured" below. The engine renders rows as a table, which is right for an inventory and wrong for a report, so `leroot.Prose` lets a payload carry its own DEFAULT rendering; every pipe operator still goes to the engine. Nothing about the checks was redesigned, and no JSON, YAML or table code exists in the tool |
 
 ### Risks
 
@@ -244,7 +244,7 @@ is roughly 180 seconds of linker time per full run, buying nothing.
 | R-4 | Stale binary: `le` is built, so an old binary silently runs an old gate. Python could not fail this way | A gate passes on code that should fail it | `make` prerequisite on the binary; the 270 ms no-op build bounds the check |
 | R-5 | The port stalls half-done and two `le`s live indefinitely | The parity count stops falling across a week | The count is published by `le parity`, and it is the one number that says how far along this is |
 | R-6 | The swap lands with a feature missing that nobody noticed | Parity green while a Make target fails to resolve | The swap's precondition is parity AND every Make target resolving, both mechanical |
-| R-7 | A tool's output is prose, and making it structured changes what operators read | A ported tool's output diff is large in step 2 | Treat output shape as behaviour: the parity test diffs it, and a deliberate change needs its own row here |
+| R-7 | A tool's output is prose, and making it structured changes what operators read | A ported tool's output diff is large in step 2 | Treat output shape as behaviour: the parity test diffs it, and a deliberate change needs its own row here. **Step 2 measured the diff at THREE deliberate changes and nothing else** (2026-08-26): the palette, the walk error, and the ordering, each set out under "What A-6 Measured" |
 | R-8 | **The never-linked rule erodes and something quietly imports across the line.** It is the premise the shared engine rests on, and nothing about Go stops a developer adding one blank import. The day it happens, `ze` grows a dev-tool dependency, or `le` grows a product one, and the two plugin sets start sharing a binary | AC-2 or AC-3 goes red: a `le/` package appears in `ze`'s dependency list, or a product plugin in `le`'s | The invariant is CHECKED, not documented. `go list -deps` over each build flavour, in `ze-precommit-verify` from step 1. It discriminates: measured 2026-08-26, `internal/perf/cli` is absent from `ze`'s 630-package list with `ze_perf` off and present with it on, so the check can see the difference it exists to see |
 | R-9 | The shared engine is shared in NAME only: `le` accretes its own grammar, its own pipe handling, its own help, and the two drift into similar-looking programs with nothing in common | A `le` package under `le/` starts declaring what `internal/component/command` already provides | AC-3b pins that both binaries link the one registry and neither declares its own. The engine is the thing this spec exists to share, so a second implementation of any part of it is the failure, not a convenience |
 
@@ -426,6 +426,47 @@ and leaves the count unchanged has not wired it.
 
 → Constraint: the swap is ONE changeover, not a trickle. A shim repointed early
 puts a developer on a half-ported path, which is what this strategy avoids.
+
+## What A-6 Measured (step 2, 2026-08-26)
+
+A-6 asked whether a tool that prints a prose report can answer structured data
+without the port becoming a rewrite. `scripts/lint/consistency.go` was chosen
+because it is the worst case in the step table: 452 lines that print a colored
+severity report grouped by check, with a summary line.
+
+**It is not a rewrite. The measured cost is below, and steps 6, 7 and 8 can be
+scheduled as ports.**
+
+| Cost | Size | Paid once or per tool |
+|------|------|----------------------|
+| The `leroot.Prose` seam: a payload may render itself, and does so only when the operator typed no pipe chain | 12 lines in `letools/leroot/leroot.go` plus its doc comment | ONCE, for every tool after this one |
+| The payload declaration: `Finding` and `Report` in `letools/consistency/report.go` | 35 lines | per tool |
+| `Report.Text`, which is the script's printing block with `fmt.Printf` replaced by a `textbuf` chain | 40 lines, against the script's 40 | per tool, and it is a transcription rather than a design |
+| `command.RegisterShape` in `register.go` | 1 line | per tool |
+| Lint remediation, which is what A-1 predicted | 4 findings, all mechanical | per tool |
+
+**What made it cheap is that the report already HAD a record type.** The script
+appended `finding{severity, category, file, line, message}` to a package-level
+slice and rendered it at the end, so the payload was already written; it was
+being thrown away at the last step. A tool that builds its text as it goes will
+cost more, and `scripts/status` is where to expect that.
+
+**Three behaviour changes are deliberate, and each is asserted rather than
+compared** (`test/ui/le-consistency-answers.ci`, `scripts/lint/parity_test.go`):
+
+| Change | Why it is not optional |
+|--------|------------------------|
+| The palette. The script writes `\033[31m`; the command writes the semantic roles (`docs/architecture/cli/color-system.md`) | `c_raw_ansi` (`.claude/hooks/pretool-writeedit.py`) refuses a raw escape in any Go file that is not `textbuf.go`, `helpfmt.go` or a test. A compiled Ze package cannot spell the script's colors, so BYTE-identical output was never reachable. The findings are identical; both sides are stripped before comparison |
+| A tree the tool cannot read is now REPORTED. The script's `walkGoFiles` returns nil on the walk error, so `consistency.go /nonexistent` prints "All consistency checks passed" and exits 0 | A gate that passes over a tree it never read is the failure this gate exists to prevent, applied to itself. `TestPortReportsWhatTheScriptFailsOpenOn` pins the difference in the direction of the fix |
+| The cross-reference findings are SORTED. The script iterates a map, so two runs over one tree answer 1250 lines in different orders | An output that shuffles cannot be diffed, reviewed or ratcheted. `TestCheckIsDeterministic` pins it, and the parity comparison is over the SET of lines because the script's own order is not stable |
+
+**One vacuity worth carrying forward.** A mutation of the `snake_case JSON tag`
+message survived the `.ci` comparison over the real checkout, because this tree
+draws zero `json-kebab-case` findings: the real tree exercises only the checks
+that currently fire on it. The fixture table in `scripts/lint/parity_test.go`
+kills that mutation, and a mutation of a message the tree DOES produce
+(`hardcoded Status:`) kills the `.ci`. Both are needed, and a port that keeps
+only the real-tree comparison is testing less than it looks.
 
 ## Design Insights
 

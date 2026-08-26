@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md -- le, the repository and development binary
+// Detail: dispatch.go -- the dispatch loop
 //
 // le and ze are two binaries over one engine. They share the command registry,
 // the command grammar and the pipe operators; they share no plugins. ze is the

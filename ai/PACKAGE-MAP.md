@@ -757,6 +757,12 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `internal/thirdparty/fat` | implements writing FAT16B file system images, which is useful when generating images for embedded devices such as the Raspberry Pi |  |
 
+## `letools/consistency/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/consistency` | is the `ze-consistency-check` gate: it reads the tree and reports where the code and the documentation disagree with each other |  |
+
 ## `letools/lepath/`
 
 | Package | Responsibility | Registered |

@@ -35,7 +35,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"io"
 	"io/fs"
 	"os"
@@ -48,6 +47,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/letools/lepath"
 )
 
