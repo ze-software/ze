@@ -30,3 +30,7 @@ is open.
 | 2026-08-26 | 8cb04dea | fix(le): keep registrations within committed source | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
 | 2026-08-26 | 8cb04dea | fix(le): keep registrations within committed source | independent critical review | Independent reviewer requested a commit baseline before review; review will cover this repair commit. | open |
 | 2026-08-26 | 8cb04dea | fix(le): keep registrations within committed source | ze-repository-tracked-build-check (HEAD does not compile) | This commit removes composition-root imports for packages absent from HEAD. | open |
+| 2026-08-26 | 8cb04dea | fix(le): keep ze-le registrations committed | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-26 | 8cb04dea | fix(le): keep ze-le registrations committed | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
+| 2026-08-26 | 8cb04dea | fix(le): keep ze-le registrations committed | independent critical review | Independent reviewer requested a commit baseline before review; review will cover this repair commit. | open |
+| 2026-08-26 | 8cb04dea | fix(le): keep ze-le registrations committed | ze-repository-tracked-build-check (HEAD does not compile) | This commit removes ze_le composition-root imports for packages absent from HEAD. | open |
