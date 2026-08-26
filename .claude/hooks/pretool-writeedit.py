@@ -2367,6 +2367,21 @@ _FATAL_PAT = r'(?:t\.(?:Fatal|Fatalf|FailNow)|require\.)'
 _SKIP_PAT = r'\b[A-Za-z_]\w*\.Skip(?:Now|f)?[ \t]*\('
 _IGNORE_TAG = r'//(?:go:build ignore\b|[ \t]*\+build ignore\b)'
 
+# One case of a table-driven test: an open brace, then the case's name field.
+#
+# The whitespace between them crosses LINES, which is the whole point. The
+# pattern used `[ \t]*`, so it saw a case only when the brace and the name shared
+# a line -- and gofmt puts them on separate lines in every table a `for _, tc :=
+# range []struct{...}{...}` writes. The counter was therefore blind to the
+# canonical form and counted only the one-line one.
+#
+# That blindness had a second edge, which is what found it. `modernize`'s
+# `embedlit` rewrites `{ifaceEntry: ifaceEntry{Name: "gre-a"}, ...}` to
+# `{\n\tName: "gre-a", ...}`: the inner brace-and-name matched, the outer one
+# does not, so nine untouched iface cases read as deleted and the commit gate
+# asked `test/weakened.md` for nine rows about coverage nothing had lost.
+_TABLE_CASE_PAT = r'\{\s*(?:name|Name)\s*:'
+
 # What a `.ci` / `.et` run can actually FAIL on, or stop exercising. The rest of
 # those files is `option=`/`stdin=`/`tmpfs=` setup, embedded ze config, and observer
 # plumbing, none of which decides a verdict.
@@ -2642,8 +2657,8 @@ def _test_weakening_errs(old, new, fp):
         errs.append('deleting Test/Fuzz/Benchmark function')
     if old_s.count('t.Run(') > new_s.count('t.Run('):
         soft.append(f'removing t.Run cases ({old_s.count("t.Run(")} -> {new_s.count("t.Run(")})')
-    old_tbl = len(re.findall(r'\{[ \t]*(?:name|Name)[ \t]*:', old_s))
-    new_tbl = len(re.findall(r'\{[ \t]*(?:name|Name)[ \t]*:', new_s))
+    old_tbl = len(re.findall(_TABLE_CASE_PAT, old_s))
+    new_tbl = len(re.findall(_TABLE_CASE_PAT, new_s))
     if old_tbl > new_tbl:
         soft.append(f'removing table-driven cases ({old_tbl} -> {new_tbl})')
     old_as = len(re.findall(_ASSERT_PAT, old_s))

@@ -3928,6 +3928,51 @@ def _weakened_hatch_cases(results: Results, mod, work: str) -> None:
         repr(r),
     )
 
+    # A table case written the way gofmt writes one: the open brace on its own
+    # line, the name field on the next. The counter read `[ \t]*` between them, so
+    # it saw NEITHER side of this edit as a case and reported nothing at all when
+    # one of the two was deleted.
+    table = os.path.join(pkg, 'table_test.go')
+
+    def case(name: str) -> str:
+        return '\t\t{\n\t\t\tname: "' + name + '",\n\t\t\twant: 1,\n\t\t},\n'
+
+    def table_source(*names: str) -> str:
+        return (
+            'package rib\n'
+            '\n'
+            'func TestTable(t *testing.T) {\n'
+            '\tfor _, tc := range []struct {\n'
+            '\t\tname string\n'
+            '\t\twant int\n'
+            '\t}{\n' + ''.join(case(n) for n in names) + '\t} {\n'
+            '\t\t_ = tc\n'
+            '\t}\n'
+            '}\n'
+        )
+
+    with open(table, 'w', encoding='utf-8') as fh:
+        fh.write(table_source('holds', 'drops'))
+
+    contract()
+    r = edit(case('holds') + case('drops'), case('holds'), table)
+    results.check(
+        'weakened-sees-a-gofmt-table-case-leave',
+        r is not None and r[0] == 0 and 'removing table-driven cases (2 -> 1)' in r[1],
+        repr(r),
+    )
+
+    # ...and the counter must not read `modernize`'s embedlit rewrite as a case
+    # leaving. It moves the name field OUT of a nested literal and onto the outer
+    # one, so the same case is written a second way and the count is unchanged.
+    embedded = '\t\t{\n\t\t\tbase: base{Name: "holds"},\n\t\t\twant: 1,\n\t\t},\n'
+    flattened = '\t\t{\n\t\t\tName: "holds",\n\t\t\twant: 1,\n\t\t},\n'
+    with open(table, 'w', encoding='utf-8') as fh:
+        fh.write('package rib\n\nfunc TestFlat(t *testing.T) {\n' + embedded + '}\n')
+
+    r = edit(embedded, flattened, table)
+    results.check('weakened-embedlit-rewrite-is-not-a-case-leaving', r is None, repr(r))
+
 
 # --------------------------------------------------------------------------- #
 # The RFC approval ledger: test/rfc-changed.md
@@ -6262,7 +6307,9 @@ def run_phase_gates(results: Results) -> None:
     )
 
     # Naming the guide is the whole point, so it must silence the reminder.
-    r = spawn('Fix the port 0 handling in translate.go. Read docs/contributing/ze-go-style.md first.')
+    r = spawn(
+        'Fix the port 0 handling in translate.go. Read docs/contributing/ze-go-style.md first.'
+    )
     results.check('agent-style-guide-named-passes', r.returncode == 0, repr(r.stderr))
 
     # The three shapes that must NOT warn, each one a real brief from this repo.
