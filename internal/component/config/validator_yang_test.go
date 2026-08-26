@@ -734,8 +734,7 @@ func TestValidator_ValidateUint32_WrongType(t *testing.T) {
 			err := v.Validate("bgp/session/asn/local", tt.value)
 			if tt.wantErr {
 				require.Error(t, err, "expected error for %T(%v)", tt.value, tt.value)
-				var valErr *yang.ValidationError
-				if errors.As(err, &valErr) {
+				if valErr, ok := errors.AsType[*yang.ValidationError](err); ok {
 					assert.Equal(t, tt.errType, valErr.Type)
 				}
 			} else {
@@ -916,8 +915,7 @@ func TestValidator_MandatoryField(t *testing.T) {
 			err := v.ValidateContainer(tt.path, tt.data)
 			if tt.wantErr {
 				require.Error(t, err, "expected error for missing mandatory field")
-				var valErr *yang.ValidationError
-				if errors.As(err, &valErr) {
+				if valErr, ok := errors.AsType[*yang.ValidationError](err); ok {
 					assert.Equal(t, tt.errType, valErr.Type)
 				}
 			} else {
