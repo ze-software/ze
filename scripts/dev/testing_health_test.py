@@ -261,6 +261,34 @@ class TestRfcLedgerParse(unittest.TestCase):
                 th.collect_rfc(root)
             self.assertIn("**enrolled**", str(ctx.exception))
 
+    def test_a_superseded_enrolled_row_stays_in_the_population(self):
+        """An obsoleted RFC's State cell reads `**enrolled**, superseded by RFCNNNN`.
+
+        PREVENTS: the row silently leaving the enrolled population. Exact equality on
+        the marker dropped four rows and 71 gated requirements off the page, and the
+        partition check could not see it because the remainder and the annotation
+        split were narrowed by the same filter and still balanced.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write(
+                root,
+                th.RFC_LEDGER,
+                LEDGER_HEAD
+                + "| `rfc1` | 2 | 1 | 0 | 1 | 0 | 0 | 0 | "
+                + "**enrolled**, superseded by RFC9999 |\n",
+            )
+            write(
+                root,
+                "rfc/short/rfc1.md",
+                "- [ ] [RFC1-1-1] [MUST] proven\n"
+                "- [ ] [RFC1-1-2] [MUST] r {gap: x} {superseded: dropped; why}\n",
+            )
+            git_init(root)
+            headline, _ = th.collect_rfc(root)
+            self.assertEqual(headline.value, "1 / 2")
+            self.assertIn("1 known gap", headline.detail)
+
     def test_split_that_is_not_a_partition_fails_closed(self):
         """A split that does not sum to the remainder must not be published.
 
@@ -405,7 +433,11 @@ class TestKnownFailures(unittest.TestCase):
                     "ze-unit-test-pkg-a.md": "### `pkg/a` -- flaky under load\n\nbody\n",  # <!-- doc-links: ignore (fixture package name, not a tree path) -->
                     "reload-pkg-d.md": "### `pkg/d` -- deterministic panic\n\nbody\n",  # <!-- doc-links: ignore (fixture package name, not a tree path) -->
                 },
-                ["`pkg/b` -- fixed", "`pkg/c` -- long gone", "`pkg/e` -- resolved"],  # <!-- doc-links: ignore (fixture package name, not a tree path) -->
+                [
+                    "`pkg/b` -- fixed",
+                    "`pkg/c` -- long gone",
+                    "`pkg/e` -- resolved",
+                ],  # <!-- doc-links: ignore (fixture package name, not a tree path) -->
             )
             m = th.collect_known_failures(root)
             self.assertEqual(m.data["live"], 2)
@@ -417,7 +449,9 @@ class TestKnownFailures(unittest.TestCase):
         """A directory with no live shard is zero live debt, and OK, not UNKNOWN."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            self._write_dir(root, {}, ["`pkg/x` -- gone"])  # <!-- doc-links: ignore (fixture package name, not a tree path) -->
+            self._write_dir(
+                root, {}, ["`pkg/x` -- gone"]
+            )  # <!-- doc-links: ignore (fixture package name, not a tree path) -->
             m = th.collect_known_failures(root)
             self.assertEqual(m.data["live"], 0)
             self.assertEqual(m.data["resolved"], 1)
@@ -444,7 +478,9 @@ class TestKnownFailures(unittest.TestCase):
                     "live-one.md": "### `pkg/a` -- flaky under load\n\nbody\n",  # <!-- doc-links: ignore (fixture package name, not a tree path) -->
                     "stray-struck.md": "### ~~`pkg/z` -- fixed in place~~ -- FIXED\n\nbody\n",  # <!-- doc-links: ignore (fixture package name, not a tree path) -->
                 },
-                ["`pkg/c` -- long gone"],  # <!-- doc-links: ignore (fixture package name, not a tree path) -->
+                [
+                    "`pkg/c` -- long gone"
+                ],  # <!-- doc-links: ignore (fixture package name, not a tree path) -->
             )
             m = th.collect_known_failures(root)
             self.assertEqual(m.data["live"], 1, "a struck shard must not count as live")

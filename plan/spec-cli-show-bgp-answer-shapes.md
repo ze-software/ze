@@ -87,7 +87,7 @@ adj-rib-in` and `show bgp healthcheck`, cannot declare anything until
   → Constraint: a command DECLARES its shape so the refusal can happen before it
     runs and the published page can state what it supports.
 
-- [ ] `docs/contributing/ze-style.md` - the working standard for every line of Go
+- [ ] `docs/contributing/ze-go-style.md` - the working standard for every line of Go
   → Constraint: `panic("BUG:")` marks a state only a Ze defect can reach, and a
     peer never reaches one. All in-tree command registration happens in
     `init()`, so a conflicting registration is exactly that state.
@@ -549,7 +549,7 @@ capability changes, no route changes. The scope is the operator surface.
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | An empty declaration is a floor that a non-empty declaration replaces, in either order | Split `cmdBgpChildren` so the peer plugin stops declaring paths another package owns | The split is correct today and fragile tomorrow: the next declaration added in the rib plugin recreates the defect and nothing reports it. The floor rule removes the conflict rather than routing around it, and it is also what lets the sibling spec's plugin declaration land on a path the peer plugin has already blanked |
-| A conflicting non-empty declaration panics | Record the conflict and let a test assert the record is empty | All in-tree registration runs in `init()`, so a conflict is a state only a Ze defect can reach and it is detected before the daemon serves anything. `docs/contributing/ze-style.md` names `panic("BUG:")` for exactly that. Recording it needs a second mechanism to hold the record and a test to read it, which is machinery for a case the panic already reports |
+| A conflicting non-empty declaration panics | Record the conflict and let a test assert the record is empty | All in-tree registration runs in `init()`, so a conflict is a state only a Ze defect can reach and it is detected before the daemon serves anything. `docs/contributing/ze-go-style.md` names `panic("BUG:")` for exactly that. Recording it needs a second mechanism to hold the record and a test to read it, which is machinery for a case the panic already reports |
 | Each registry states its own emptiness at construction | Constrain `T` to a slice so the registry can test `len` itself | `aliasSet` and `pipeFilterSet` are structs, so the constraint does not fit two of the five users. One predicate per registry is smaller than reshaping two value types to satisfy a constraint |
 | The two cardinality-varying handlers answer rows for one peer | Declare `doc` and give up the row operators; or keep both spellings and derive the shape at apply time | Declaring `doc` loses `\| count` and `\| display` on a multi-peer router, which is the case the command exists for. Deriving at apply time is what happens today, and it is the defect: one command publishes two contracts |
 | Scope is drawn at the REGISTRATION site, not the process boundary | Put every plugin-served command in the sibling spec | `show bgp rib *` and `show bgp irr *` are served by a plugin process and registered by an in-core shim, so they can declare today with no SDK change. Deferring them would hold twelve working declarations behind a wire-contract change they do not need |

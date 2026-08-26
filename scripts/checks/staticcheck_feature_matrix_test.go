@@ -48,8 +48,7 @@ func runStaticcheckFeatureMatrixBinary(t *testing.T, binary string, manifest *st
 	if err == nil {
 		return string(out), 0
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		return string(out), exitErr.ExitCode()
 	}
 	t.Fatalf("run checker: %v", err)
@@ -72,8 +71,7 @@ func runStaticcheckFeatureMatrixInDir(
 	if err == nil {
 		return string(out), 0
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		return string(out), exitErr.ExitCode()
 	}
 	t.Fatalf("run checker: %v", err)

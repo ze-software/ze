@@ -206,10 +206,14 @@ FLAVORS = [
             "ze_perf",
             "ze_analyze",
             "ze_chaos",
+            "ze_le",
             "integration",
         ],
         "why": "every capability tag that is not a personality. They coexist in one build: "
-        "each names an added file rather than a different program",
+        "each names an added file rather than a different program. ze_le is the odd one "
+        "and belongs here for the same reason: it adds cmd/ze/ze_le_register.go, whose "
+        "one blank import carries le's development commands into ze under a single root "
+        "(letools/zele). No shipped build sets it, so no other pass loads that file",
     },
     {
         "name": "distro",

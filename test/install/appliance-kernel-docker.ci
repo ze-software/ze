@@ -30,6 +30,11 @@ cat > "$work/fakebin/docker" <<'EOF_DOCKER'
 set -eu
 printf '%s\n' "$*" >> "$ZE_DOCKER_LOG"
 if [ "$1" = run ]; then
+	# Only a run carrying build.py is a BUILD. run.py issues a second
+	# `docker run ... chown -R <uid>:<gid> /out` to hand the build's output back
+	# to the invoking user, and that run mounts :/out as well. Synthesizing build
+	# output for it rewrites what the build produced.
+	case " $* " in *" /builder/build.py "*) ;; *) exit 0 ;; esac
 	prev=
 	for arg in "$@"; do
 		if [ "$prev" = -v ]; then

@@ -52,6 +52,9 @@ func realScripts(t *testing.T) ScriptCount {
 	return scripts
 }
 
+// noForks stands in for an area whose every action does the work in Go.
+var noForks = map[string][]string{}
+
 // registeredNone stands in for a process where no le tool registered a root
 // handler.
 func registeredNone(string) bool { return false }
@@ -71,16 +74,20 @@ func TestParityNamesEveryUnportedGate(t *testing.T) {
 	if census.Gates != len(gates) {
 		t.Errorf("census counted %d gates, `le gates --json` declared %d", census.Gates, len(gates))
 	}
-	if census.Ported+census.Unported != census.Gates {
-		t.Errorf("ported %d + unported %d does not account for %d gates", census.Ported, census.Unported, census.Gates)
+	if census.Converted+census.Forked+census.Unported != census.Gates {
+		t.Errorf("converted %d + forked %d + unported %d does not account for %d gates",
+			census.Converted, census.Forked, census.Unported, census.Gates)
 	}
 	if len(census.UnportedGates) != census.Unported {
 		t.Errorf("census says %d unported but names %d", census.Unported, len(census.UnportedGates))
 	}
 	served := map[string]bool{}
-	for _, gates := range claimSnapshot() {
-		for _, name := range gates {
-			served[name] = true
+	claimed, forkedClaims := claimSnapshot()
+	for _, table := range []map[string][]string{claimed, forkedClaims} {
+		for _, gates := range table {
+			for _, name := range gates {
+				served[name] = true
+			}
 		}
 	}
 	for _, gate := range gates {
@@ -137,7 +144,7 @@ func TestParityIsRedWhileScriptsHoldsCode(t *testing.T) {
 	claimed := map[string][]string{"repository": {"ze-tier-check"}}
 	left := ScriptCount{Total: 1, ByLanguage: map[string]int{".py": 1}, ByDir: map[string]int{"scripts/le": 1}}
 
-	census := Take(gates, left, claimed, registeredAll, []string{"repository"})
+	census := Take(gates, left, claimed, noForks, registeredAll, []string{"repository"})
 	if census.Unported != 0 {
 		t.Fatalf("the gate half is not green: %d unported", census.Unported)
 	}
@@ -155,14 +162,14 @@ func TestParityCountsAClaimedGateAsPorted(t *testing.T) {
 		{Area: "repository", Name: "ze-repository-check", Why: "structure"},
 	}
 
-	before := Take(gates, noScripts, map[string][]string{}, registeredNone, []string{"parity"})
-	if before.Unported != 2 || before.Ported != 0 {
-		t.Fatalf("with no claim: ported %d unported %d, want 0 and 2", before.Ported, before.Unported)
+	before := Take(gates, noScripts, map[string][]string{}, noForks, registeredNone, []string{"parity"})
+	if before.Unported != 2 || before.Converted != 0 {
+		t.Fatalf("with no claim: converted %d unported %d, want 0 and 2", before.Converted, before.Unported)
 	}
 
-	after := Take(gates, noScripts, map[string][]string{"repository": {"ze-tier-check"}}, registeredAll, []string{"parity", "repository"})
-	if after.Ported != 1 || after.Unported != 1 {
-		t.Fatalf("with one claim: ported %d unported %d, want 1 and 1", after.Ported, after.Unported)
+	after := Take(gates, noScripts, map[string][]string{"repository": {"ze-tier-check"}}, noForks, registeredAll, []string{"parity", "repository"})
+	if after.Converted != 1 || after.Unported != 1 {
+		t.Fatalf("with one claim: converted %d unported %d, want 1 and 1", after.Converted, after.Unported)
 	}
 	if slices.Contains(after.UnportedGates, "ze-tier-check") {
 		t.Error("a claimed, wired gate is still named as unported")
@@ -181,12 +188,12 @@ func TestParityCountsAClaimedGateAsPorted(t *testing.T) {
 func TestParityRefusesAClaimOnAnUndeclaredGate(t *testing.T) {
 	gates := []Gate{{Area: "repository", Name: "ze-tier-check"}}
 
-	census := Take(gates, noScripts, map[string][]string{"repository": {"ze-tier-check-renamed"}}, registeredAll, []string{"repository"})
+	census := Take(gates, noScripts, map[string][]string{"repository": {"ze-tier-check-renamed"}}, noForks, registeredAll, []string{"repository"})
 	if len(census.UnknownClaims) != 1 {
 		t.Fatalf("claims naming an undeclared gate: %v, want exactly one", census.UnknownClaims)
 	}
-	if census.Ported != 0 {
-		t.Errorf("an undeclared gate counted as ported: %d", census.Ported)
+	if census.Converted != 0 {
+		t.Errorf("an undeclared gate counted as converted: %d", census.Converted)
 	}
 	if census.Complete() {
 		t.Error("a claim on a gate nobody declares and the census calls itself complete")
@@ -200,12 +207,12 @@ func TestParityRefusesAClaimOnAnUndeclaredGate(t *testing.T) {
 func TestParityRefusesAClaimWhoseCommandRegisteredNothing(t *testing.T) {
 	gates := []Gate{{Area: "repository", Name: "ze-tier-check"}}
 
-	census := Take(gates, noScripts, map[string][]string{"repository": {"ze-tier-check"}}, registeredNone, []string{})
+	census := Take(gates, noScripts, map[string][]string{"repository": {"ze-tier-check"}}, noForks, registeredNone, []string{})
 	if len(census.UnwiredClaims) != 1 {
 		t.Fatalf("claims whose command is unregistered: %v, want exactly one", census.UnwiredClaims)
 	}
-	if census.Ported != 0 {
-		t.Errorf("an unreachable command's claim counted as ported: %d", census.Ported)
+	if census.Converted != 0 {
+		t.Errorf("an unreachable command's claim counted as converted: %d", census.Converted)
 	}
 	if !slices.Contains(census.UnportedGates, "ze-tier-check") {
 		t.Error("an unreachable command's gate stopped being named as unported")
@@ -224,12 +231,12 @@ func TestParityIsCompleteOnlyWhenEveryGateIsServed(t *testing.T) {
 	}
 	claimed := map[string][]string{"repository": {"ze-tier-check", "ze-repository-check"}}
 
-	census := Take(gates, noScripts, claimed, registeredAll, []string{"repository"})
+	census := Take(gates, noScripts, claimed, noForks, registeredAll, []string{"repository"})
 	if !census.Complete() {
 		t.Fatalf("every gate served and the census is still red: %+v", census)
 	}
-	if census.Unported != 0 || census.Ported != 2 {
-		t.Errorf("ported %d unported %d, want 2 and 0", census.Ported, census.Unported)
+	if census.Unported != 0 || census.Converted != 2 {
+		t.Errorf("converted %d unported %d, want 2 and 0", census.Converted, census.Unported)
 	}
 }
 
@@ -291,9 +298,12 @@ func TestParityCountsOnlyLeCommands(t *testing.T) {
 func firstUnclaimedGate(t *testing.T, gates []Gate) string {
 	t.Helper()
 	claimed := map[string]bool{}
-	for _, names := range claimSnapshot() {
-		for _, name := range names {
-			claimed[name] = true
+	tables, forkedTables := claimSnapshot()
+	for _, table := range []map[string][]string{tables, forkedTables} {
+		for _, names := range table {
+			for _, name := range names {
+				claimed[name] = true
+			}
 		}
 	}
 	for _, gate := range gates {
@@ -315,5 +325,107 @@ func TestParityRefusesArguments(t *testing.T) {
 	}
 	if payload != nil {
 		t.Errorf("a refused invocation answered a payload: %v", payload)
+	}
+}
+
+// TestParityCountsAForkedDriverApartFromConvertedWork verifies the census distinction.
+//
+// The first Take implementation counted a gate as ported when any registered command claimed it.
+// It did not inspect whether that command performed the work.
+// Five deployment proofs, two docker-exec scans, and three lab runners still started Python scripts.
+// The ported count nevertheless included all ten.
+// This case requires separate counts for Go work and a claimed gate whose driver remains a script.
+func TestParityCountsAForkedDriverApartFromConvertedWork(t *testing.T) {
+	gates := []Gate{
+		{Area: "repository", Name: "ze-tier-check", Why: "where code may live"},
+		{Area: "deployment", Name: "ze-deployment-vpp-test", Why: "a real VPP daemon"},
+	}
+	claimed := map[string][]string{
+		"repository": {"ze-tier-check"},
+		"deployment": {"ze-deployment-vpp-test"},
+	}
+	forkedClaims := map[string][]string{"deployment": {"ze-deployment-vpp-test"}}
+
+	census := Take(gates, noScripts, claimed, forkedClaims, registeredAll, []string{"repository", "deployment"})
+
+	if census.Converted != 1 {
+		t.Errorf("converted %d, want 1: only ze-tier-check does its work in Go", census.Converted)
+	}
+	if census.Forked != 1 {
+		t.Errorf("forked %d, want 1: ze-deployment-vpp-test starts a script", census.Forked)
+	}
+	if census.Unported != 0 {
+		t.Errorf("unported %d, want 0: both gates are claimed", census.Unported)
+	}
+	if !slices.Contains(census.ForkedGates, "ze-deployment-vpp-test") {
+		t.Errorf("the forked gate is counted and not named: %v", census.ForkedGates)
+	}
+	if slices.Contains(census.UnportedGates, "ze-deployment-vpp-test") {
+		t.Error("a claimed gate whose driver is a script was reported as unported, which loses the claim")
+	}
+	if census.Complete() {
+		t.Error("one driver is still a script and the census calls itself complete")
+	}
+	if len(census.UnknownClaims) != 0 || len(census.UnwiredClaims) != 0 {
+		t.Errorf("a gate claimed twice was reported as a fault: unknown %v unwired %v",
+			census.UnknownClaims, census.UnwiredClaims)
+	}
+}
+
+// TestParityTurnsAForkedGateIntoAConvertedOneWhenItsDriverMoves is the same
+// fact read forwards: porting a driver is what moves a gate between the two
+// claimed states, and nothing else is.
+func TestParityTurnsAForkedGateIntoAConvertedOneWhenItsDriverMoves(t *testing.T) {
+	gates := []Gate{{Area: "deployment", Name: "ze-deployment-vpp-test", Why: "a real VPP daemon"}}
+	claimed := map[string][]string{"deployment": {"ze-deployment-vpp-test"}}
+
+	before := Take(gates, noScripts, claimed, map[string][]string{"deployment": {"ze-deployment-vpp-test"}},
+		registeredAll, []string{"deployment"})
+	after := Take(gates, noScripts, claimed, noForks, registeredAll, []string{"deployment"})
+
+	if before.Converted != 0 || before.Forked != 1 {
+		t.Errorf("with the driver forked: converted %d forked %d, want 0 and 1", before.Converted, before.Forked)
+	}
+	if after.Converted != 1 || after.Forked != 0 {
+		t.Errorf("with the driver in Go: converted %d forked %d, want 1 and 0", after.Converted, after.Forked)
+	}
+	if before.Complete() {
+		t.Error("a forked driver and the census calls itself complete")
+	}
+	if !after.Complete() {
+		t.Errorf("every gate converted, scripts/ empty, and the census is still red: %+v", after)
+	}
+}
+
+// TestParityReportsOneMistakeOnceWhenBothClaimsNameIt verifies that merged claims are unique.
+// An area passes the same gate to Claim and ClaimForked.
+// If Python no longer declares that gate, unknown-claims must name the mistake once.
+func TestParityReportsOneMistakeOnceWhenBothClaimsNameIt(t *testing.T) {
+	gates := []Gate{{Area: "deployment", Name: "ze-deployment-vpp-test"}}
+	claimed := map[string][]string{"deployment": {"ze-deployment-renamed"}}
+	forkedClaims := map[string][]string{"deployment": {"ze-deployment-renamed"}}
+
+	census := Take(gates, noScripts, claimed, forkedClaims, registeredAll, []string{"deployment"})
+	if len(census.UnknownClaims) != 1 {
+		t.Errorf("one renamed gate claimed by both tables was reported as %v, want one row", census.UnknownClaims)
+	}
+}
+
+// TestParityCountsAForkedClaimNobodyRegistered preserves the unwired error in the third state.
+// A driver that the migration has not reached remains a claim.
+// Marking it forked must not hide an unwired tool.
+func TestParityCountsAForkedClaimNobodyRegistered(t *testing.T) {
+	gates := []Gate{{Area: "deployment", Name: "ze-deployment-vpp-test"}}
+	forkedClaims := map[string][]string{"deployment": {"ze-deployment-vpp-test"}}
+
+	census := Take(gates, noScripts, map[string][]string{}, forkedClaims, registeredNone, []string{})
+	if len(census.UnwiredClaims) != 1 {
+		t.Errorf("a forked claim from an unregistered command: %v, want one unwired row", census.UnwiredClaims)
+	}
+	if census.Forked != 0 {
+		t.Errorf("forked %d, want 0: nothing can reach the command that claimed it", census.Forked)
+	}
+	if !slices.Contains(census.UnportedGates, "ze-deployment-vpp-test") {
+		t.Error("an unreachable command's forked claim stopped being named as unported")
 	}
 }

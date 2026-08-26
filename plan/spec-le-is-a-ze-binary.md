@@ -73,6 +73,105 @@ Makefile-to-`le` migration used.
 **Non-goal:** redesigning what the tools DO. Behaviour is preserved and proven
 preserved. This spec moves and rewires; it does not rewrite checks.
 
+**THE END STATE IS LARGER THAN THIS SPEC FIRST SAID (owner directives,
+2026-08-26).** The swap is not the finish line. Three things follow it, each a
+step of its own, each measured:
+
+| # | End state | Surface |
+|---|-----------|---------|
+| A | **`scripts/` is EMPTY and DELETED.** Not "holds no gate": holds nothing | 281 code files plus fixtures, 11 directories |
+| B | **The Makefile and `mk/` are REMOVED** | 132 root targets, 279 across 19 `mk/` files, 1638 recipe lines. 157 lines already delegate to `le` |
+| C | **Every document names what replaced them** | ~4500 path references, plus `CLAUDE.md`, `ai/rules/`, `ai/INDEX.md`, the hooks, and every source anchor |
+
+→ Constraint: **job admission is the hardest dependency in the migration, and B
+cannot happen before it moves.** `scripts/dev/ze-run.sh` is invoked by 79 recipe
+lines, and its own header states what it is for: several sessions and their
+subagents share one checkout on one machine, every heavy target is sized for the
+WHOLE box, and on 2026-08-17 three concurrent sessions could freeze it. It is
+"the ONE place that answers may this job run now"; it FAILS CLOSED, counting an
+unreadable registry entry as occupied, because reading "cannot parse" as
+"nothing is running" would admit every session at once; and it handles NESTING
+by exporting `ZE_RUN_JOB`, so a wrapped job running wrapped stages does not
+queue behind a slot its own parent holds. `mk/test-fuzz.mk` records why it did
+not move to `le` before: "a Make-level concern about Make's own concurrency".
+Removing Make removes that premise, so `le` must own admission, the fail-closed
+registry and the nesting rule together.
+
+→ Constraint: the Makefile is not only targets. It exports `GOCACHE`,
+`GOLANGCI_LINT_CACHE` and `CGO_ENABLED`. `letools/gotoolchain` already states
+why each is load-bearing: a cache under TMPDIR breaks the Unix-socket tests
+because the socket paths exceed the kernel's length limit; `GOTOOLCHAIN` comes
+from `go.mod` because golangci-lint decodes export data written by the ambient
+Go and, when that is newer, every package fails to typecheck while the linter
+prints "0 issues" and exits non-zero, which a warm `GOCACHE` hides. Whatever
+replaces the Makefile owes all of it.
+
+→ Decision: a file-structure reorganisation sits between A and C. `letools/` is
+named for a constraint that disappears once `./le` stops being a Python shim,
+and Known Limitations records the measured alternative.
+
+→ Decision (owner, 2026-08-26): **`./le` becomes a launcher script that uses
+`bin/le` when it exists and builds it when it does not, and `./ze` gains the
+same shape at the repository root.** It lands at the SWAP, not before: `./le` is
+the Python entry point until then, and repointing it early would route every
+session to a half-ported binary, which is the one thing this strategy exists to
+prevent.
+
+The launcher is what finally answers R-4, and it answers it only halfway by
+design. "Exists" is cheaper than "is current", so a `bin/le` built from older
+sources is used as-is and a developer runs yesterday's gate without being told.
+The measured alternative is to let the toolchain decide every time: a no-op
+`go build` of an unchanged package costs 270 ms (2026-08-26), which is
+authoritative rather than a heuristic, against roughly 5 ms to exec an existing
+binary. The owner has chosen existence. Whoever implements it should say in the
+script itself which of the two it does, so the next reader knows a stale binary
+is possible rather than discovering it.
+
+→ Decision (owner, 2026-08-26): **the launcher also carries job admission, and
+the build it may trigger is itself an admitted job.** The two halves are one
+mechanism rather than two features bolted together. Building `ze` compiles 630
+packages and building `le` compiles the tool tree, so two sessions that both
+find `bin/ze` missing and both start a build are exactly the oversubscription
+`scripts/dev/ze-run.sh` was written for after the 2026-08-17 freeze. A launcher
+that ensured the binary existed WITHOUT admission would reintroduce the fault at
+the one moment several sessions are most likely to collide: a fresh checkout, or
+the first command after a `clean`.
+
+So `./ze` and `./le` each: take a slot, build their binary if it is absent,
+release, then exec. The registry, the fail-closed parse, the attach-on-identical
+-work path and the `ZE_RUN_JOB` nesting rule all apply to that build the way
+they apply to any other heavy job -- and attach is worth having here, because two
+sessions racing on the same absent binary is precisely the case where one run
+should answer both.
+
+→ Constraint: this makes admission a PRECONDITION of the launcher, not merely of
+the Makefile's removal. `le` must own admission before `./le` can be repointed,
+which places it earlier in the order than the surface count suggests.
+
+→ Decision (owner, 2026-08-26): **`le` MUST NOT exec its own code. Where a Go
+package in this tree holds the answer, the caller makes a FUNCTION CALL.**
+`ReadGates` (`letools/parity/parity.go`) is the live instance: it builds an
+`exec.CommandContext` against `filepath.Join(root, "le")`, pipes stdout and
+decodes JSON, and its own comment says the Python "stays the denominator until
+the swap moves the declaration into Go". That is a TRANSITIONAL ARTIFACT, not a
+design choice. The catalogue is already Go data for every ported area, in
+`letools/leaction` and the `leroot` registry, so when `gates` lands the
+subprocess, its timeout, its pipe and its decoder all lose their job together.
+
+That dissolves the dark-versus-red hazard rather than managing it: a census
+asking an in-process registry has no child that can fail to start. One honest
+obligation survives -- while both implementations exist the census must still
+report the PYTHON gate list as the denominator, so whoever converts the
+numerator owes a statement of how that is still obtained.
+
+The general form is the rule, and it reaches further than `le` calling `le`.
+`mk/check-docs.mk` runs seven `python3 scripts/dev/*.py` lines in sequence
+(`rules_points.py` three times, `rules_index.py`, `rules_lint.py`,
+`rules_condensed.py`, `code_to_docs.py`), every one of which a `letools`
+package now implements or soon will. Each is a process start, a Python
+interpreter and a re-parse of the same corpus. In one binary they are calls
+sharing one parse.
+
 Target layout:
 
 | Path | Holds | Linked into |
@@ -229,8 +328,8 @@ is roughly 180 seconds of linker time per full run, buying nothing.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The 50 tool files compile once `//go:build ignore` is dropped | They type-check today under `go run` | A burst of latent errors on first port | Drop the tag on ONE file and build, in step 1 | **confirmed for the compiler, broken for the linter, 2026-08-26.** `scripts/lint/consistency.go` with the tag removed: `go vet ./scripts/lint/` exits 0. The same file under `golangci-lint run --build-tags ze_core` reports SIX findings in 400 lines (errcheck 2, gosec 2, gocritic 1, nilerr 1), one of them a real defect: `:353` returns nil on a non-nil error. The tag was hiding the linter, not the compiler, so the port's cost is lint remediation rather than type errors. The tag was restored |
 | A-2 | No tool's imports pull anything the module would rather not have | Inspected `scripts/lint` and `scripts/docvalid` only; the rest is assumption | Module dependency growth | `go list -deps` per tool package before porting it | **confirmed for `scripts/lint`, 2026-08-26.** `go list -deps ./letools/consistency` names 281 packages and no third-party module. The tool's own imports are `bufio`, `fmt`, `os`, `path/filepath`, `regexp`, `sort`, `strings`, plus `internal/core/textbuf` and `letools/lepath`; every other package arrives through `register.go`, which is the engine `cmd/le` already links |
-| A-3 | Behaviour is preserved by moving `main()` to `Run(args) int` | The signature is the only forced change | Silent behaviour drift | Per tool: run old and new over the real tree, diff exit code and output | **confirmed for `scripts/lint`, 2026-08-26.** Over this checkout the script and the command report the same 1250 lines and both exit 1. The SEQUENCE differs and the script is what varies: two runs of the script disagree with each other, because `checkCrossRefs` iterates a map. `test/ui/le-consistency-answers.ci` re-runs both over the checkout in every ui suite |
-| A-4 | Most Python test CONTENT transfers as intent, not as code | Cases and reasoning are language-independent; the harness is not | Rewrite cost higher than planned | Port one area's tests first and measure | unvalidated |
+| A-3 | Behaviour is preserved by moving `main()` to `Run(args) int` | The signature is the only forced change | Silent behaviour drift | Per tool: run old and new over the real tree, diff exit code and output | **confirmed for `scripts/lint`, 2026-08-26.** Over this checkout the script and the command report the same 1250 lines and both exit 1. The SEQUENCE differs and the script is what varies: two runs of the script disagree with each other, because `checkCrossRefs` iterates a map. `test/ui/le-consistency-answers.ci` re-runs both over the checkout in every ui suite. **Confirmed again for `scripts/vendor`, 2026-08-26, including a WRITING tool.** Over 7 fixture trees each half of the pair answers the same exit code, the same stdout and the same stderr, and the sync leaves a byte-identical TREE behind -- which an output comparison alone would not prove. `test/ui/le-vendor-web-answers.ci` re-runs all three gates over the checkout, the sync over two copies of the real 3.6 MB asset trees. **Confirmed again for `scripts/inventory`, 2026-08-26, including a REGISTRY-derived answer.** Both gates agree byte for byte over the checkout and over two fixture trees, in the page AND in the `--json` rendering, once the generation timestamp is normalized: both sides stamp the minute they ran in, and that is the only difference either way. `test/ui/le-inventory-answers.ci` builds all three binaries under the FULL feature tag set, which is what makes a registry-derived comparison mean anything -- a reduced set compiles modules out, and the two sides then disagree about the PRODUCT rather than about the port. **Confirmed again for `scripts/codegen`, 2026-08-26, and a GENERATOR needs one thing more: the bytes it WRITES.** Output parity alone would pass a pair that agrees about "current" and emits different files, which silently invalidates `ze-generated-files-check` for everyone. `scripts/codegen/parity_test.go` therefore compares the resulting TREE after each write, over 11 fixture trees across the five generators, and `test/ui/le-codegen-answers.ci` derives the same fact over the real checkout without writing: a check regenerates in memory and compares against what is committed, so a green check on both halves says both would emit exactly the committed bytes. The network generator has no check twin and is compared through a CONNECT proxy that terminates TLS itself, which is the only seam a script naming five fixed https URLs in a package variable leaves a test |
+| A-4 | Most Python test CONTENT transfers as intent, not as code | Cases and reasoning are language-independent; the harness is not | Rewrite cost higher than planned | Port one area's tests first and measure | **confirmed, 2026-08-26, on the first Python port.** `scripts/zeledon/post_weekly_test.py` declares 11 cases in 276 lines. TEN transfer as INTENT and none as code: each `mock.patch.object` becomes a field the caller fills, so `subprocess.run` becomes `Poster.Send`, `time.sleep` becomes `Poster.Sleep`, `datetime.date.today()` becomes `Poster.Today` and `WEEKLY_DIR` becomes `Poster.ArchiveDir`. That substitution is the whole of the rewrite, and it is what lets the Go tests run with no channel, no clock and no home directory. The ELEVENTH does not transfer at all: `test_help_uses_canonical_weekly_post_paths` asserts that argparse's help names `python3 scripts/zeledon/post_weekly.py`, and the port has no argparse and no such invocation -- its help is the registry Description. The 11 cases became 53 Go tests, plus 9 side-by-side ones in `scripts/zeledon/parity_test.go`; the growth is boundary cases the Python never had, not a harder port |
 | A-5 | A `le` command name that a `ze` root also uses is HARMLESS, because the two are never linked into one binary | `rootHandlers` (`internal/component/command/registry/registry.go`) is package-level per-process state, so two packages owning one name meet only when both are linked. The owner ruled on 2026-08-26 that they never are | If a build ever did link both, `MustRegisterRootHandler` panics at init -- loud, never a silent shadow | AC-2 and AC-3 prove the never-linked premise by `go list -deps`; the collision needs no separate guard | **confirmed by design, 2026-08-26.** Measured: today's 22 `le` area names collide with none of `ze`'s 34; the verb-first split collides on exactly one, `perf`, and under the never-linked rule that costs nothing |
 | A-6 | A ported tool can answer structured data without redesigning it | `ai/rules/cli.md` requires it; unmeasured for tools that print prose reports | The port becomes a rewrite for those tools | Port `scripts/lint` first and see what its output costs | **confirmed, 2026-08-26, and the cost is 12 lines of shared code plus a payload declaration.** `scripts/lint/consistency.go` is the hardest case the step table holds: a colored severity report with its own grouping. The port cost is set out under "What A-6 Measured" below. The engine renders rows as a table, which is right for an inventory and wrong for a report, so `leroot.Prose` lets a payload carry its own DEFAULT rendering; every pipe operator still goes to the engine. Nothing about the checks was redesigned, and no JSON, YAML or table code exists in the tool |
 
@@ -244,7 +343,7 @@ is roughly 180 seconds of linker time per full run, buying nothing.
 | R-4 | Stale binary: `le` is built, so an old binary silently runs an old gate. Python could not fail this way | A gate passes on code that should fail it | `make` prerequisite on the binary; the 270 ms no-op build bounds the check |
 | R-5 | The port stalls half-done and two `le`s live indefinitely | The parity count stops falling across a week | The count is published by `le parity`, and it is the one number that says how far along this is |
 | R-6 | The swap lands with a feature missing that nobody noticed | Parity green while a Make target fails to resolve | The swap's precondition is parity AND every Make target resolving, both mechanical |
-| R-7 | A tool's output is prose, and making it structured changes what operators read | A ported tool's output diff is large in step 2 | Treat output shape as behaviour: the parity test diffs it, and a deliberate change needs its own row here. **Step 2 measured the diff at THREE deliberate changes and nothing else** (2026-08-26): the palette, the walk error, and the ordering, each set out under "What A-6 Measured" |
+| R-7 | A tool's output is prose, and making it structured changes what operators read | A ported tool's output diff is large in step 2 | Treat output shape as behaviour: the parity test diffs it, and a deliberate change needs its own row here. **Step 2 measured the diff at THREE deliberate changes and nothing else** (2026-08-26): the palette, the walk error, and the ordering, each set out under "What A-6 Measured". **Step 4 measured `scripts/vendor` at TWO, and stdout is byte-identical on both halves** (2026-08-26): the failure PREFIX on stderr (`check_web: ` and `sync_web: ` name files the swap deletes, so the port writes `error: ` like every other ported tool), and the sync's fail-open, which is the defect row in `plan/journal/guard-added-to-one-half-of-a-pair.md` and is fixed in the direction of the fix. `scripts/vendor/parity_test.go` normalizes the first and pins the second. **Step 7 measured `scripts/codegen` at THREE, all of them normalized rather than argued** (2026-08-26): the failure prefix (four script names become `error: `), the PATH FORM (the scripts print an absolute path for one file and a bare base name for another; the commands name every file relative to the tree, because one payload cannot answer two path forms without leaving `\| json` and the default rendering disagreeing about what the value is), and the STREAM a verdict lands on (three of the four scripts print staleness to stderr because each models it as an error; a verdict is the payload in a command, so it reaches stdout where `\| json` can carry it, and only a genuine failure reaches stderr). **Step 10 measured `scripts/evidence` at ONE, and it is not about text at all** (2026-08-26): a proof that drives a real peer prints a progress LOG rather than a report, so what the port had to decide is which stream the log goes to. It goes to stderr, and the report is the payload on stdout, which is what lets `le deployment l2tp-test \| json` answer one document while the two daemons are still talking. Both ported scripts already wrote their progress to stderr, so the only visible change is the one line each printed on stdout at the end. **Step 13a measured `scripts/dev/ze-run.sh` at TWO, and neither touches what a wrapped job prints** (2026-08-26): the banners carry ANSI sequences only when stderr is a terminal, because a follower REPLAYS a holder's log and the script's unconditional escapes would land inside it; and the command's payload renders as nothing by default, so a wrapped recipe's stdout stays the child's output alone while `\| json` still answers the report. The second is a `leroot.Prose` implementation returning the empty string, which is the one shape that keeps a structured payload and adds no line. **Step 10b measured the two VPP evidence gates at SIX, four of them fail-closed repairs and two of them cosmetic** (2026-08-26): a FAILED vppctl no longer answers "the plugin is absent" and no longer contributes evidence to a probe, both journal rows; a wanted kernel argument must be a whole argument of the command line rather than a substring of a longer one, also a journal row; a size that is not a whole number of bytes is refused, where the Python's `int()` answered a negative page count for `-1gb` and ended the run in a traceback for `1.5gb`; the LCP scenario's Linux link listing moves from stderr into the payload's evidence, because it is the half of that proof VPP's own command line cannot show and an operator could not pipe it where it was; and the hugepage run narrates its three long steps on stderr, where the Python was silent for up to an hour |
 | R-8 | **The never-linked rule erodes and something quietly imports across the line.** It is the premise the shared engine rests on, and nothing about Go stops a developer adding one blank import. The day it happens, `ze` grows a dev-tool dependency, or `le` grows a product one, and the two plugin sets start sharing a binary | AC-2 or AC-3 goes red: a `le/` package appears in `ze`'s dependency list, or a product plugin in `le`'s | The invariant is CHECKED, not documented. `go list -deps` over each build flavour, in `ze-precommit-verify` from step 1. It discriminates: measured 2026-08-26, `internal/perf/cli` is absent from `ze`'s 630-package list with `ze_perf` off and present with it on, so the check can see the difference it exists to see |
 | R-9 | The shared engine is shared in NAME only: `le` accretes its own grammar, its own pipe handling, its own help, and the two drift into similar-looking programs with nothing in common | A `le` package under `le/` starts declaring what `internal/component/command` already provides | AC-3b pins that both binaries link the one registry and neither declares its own. The engine is the thing this spec exists to share, so a second implementation of any part of it is the failure, not a convenience |
 
@@ -406,6 +505,33 @@ Counted 2026-08-26.
 | 12 | `scripts/dev`, Python and Go halves | 107 | 16 | - | 2757 |
 | 13 | The 12 shell scripts in `scripts/dev`, last of the ports and the highest risk. `ze-run.sh` is the job-admission wrapper every heavy command routes through; `session-scratch.sh`, `spec-session.sh`, `verify-status.sh` and `verify-lock.sh` are named by `CLAUDE.md`, by the hooks, and by every session's habits. Converting these changes an interface every agent uses, not merely an implementation | - | - | 12 | - |
 | 14 | THE SWAP. Precondition: `le parity` reports zero unported AND every Make target resolves. Repoint every shim, delete `scripts/le/` and every ported script, update the hooks, `CLAUDE.md`, `ai/rules/`, `ai/INDEX.md` and every source anchor. One changeover | - | - | - | - |
+| 15 | `ze le <command>`: the crossing, under a `ze_le` build tag. One root, sub-dispatched into le's own commands. Independent of the swap and of every port, so it can land at any point | - | - | - | - |
+
+→ Decision (2026-08-26): step 15 makes goal 1's claim COMPILED. `ze` and `le`
+share one engine, and the test of that is whether a crossing is POSSIBLE, so a
+crossing nobody ever builds is a claim nobody has checked.
+`cmd/ze/ze_le_register.go` (`//go:build ze_le`) blank-imports `letools/zele`,
+which registers ONE root, `le`, and dispatches under it through
+`leroot.Dispatch` -- the same function the `le` binary runs, moved out of
+`cmd/le/dispatch.go` so that one loop serves both programs. No default build
+sets the tag. `TestZeLinksNoLePlugin` still proves ze links no `letools/`
+package without it, and `TestZeWithTheLeTagLinksLesTools` proves that check can
+see the difference it exists to see. `TestZeWithTheLeTagRunsLesCommands`
+compiles the tagged ze and runs `ze le --help`, `ze le working-tree` and
+`ze le working-tree | json` against the artifact.
+
+→ Constraint: linking a tool package is what runs its `init()`, so in a `ze_le`
+build each tool ALSO claims its own root name: `ze lint` resolves beside
+`ze le lint`. Only a second dispatch table under `letools/` could prevent that,
+and a second table is the failure AC-3b exists to refuse. A name later shared by
+a `ze` root and an `le` tool therefore panics that build at init, loudly, which
+is what A-5 already says such a build owes.
+
+→ Constraint: `ze_le` is not in `feature-gates.txt` and MUST NOT be added. That
+manifest declares compile-out-able product features and every consumer derives
+default-on tag sets from it, so a row there would carry the crossing into
+shipped builds. It does need a lint flavor, because a tag no pass compiles
+leaves its file unlinted (`scripts/dev/lint_flavors.py`, the capability row).
 
 → Constraint: a shell script is not automatically a `le` command. `mk/test-fuzz.mk`
 records the shape of the exception: the admission wrapper "STAYS HERE, and it
@@ -426,6 +552,29 @@ and leaves the count unchanged has not wired it.
 
 → Constraint: the swap is ONE changeover, not a trickle. A shim repointed early
 puts a developer on a half-ported path, which is what this strategy avoids.
+
+## What step 13a decided (`scripts/dev/ze-run.sh`)
+
+The constraint above asks step 13 to say, per script, what becomes of it. For
+the admission wrapper the answer is both a library and a command, and the
+library is the half the rest of the migration depends on.
+
+| Question | Answer |
+|----------|--------|
+| What it becomes | `letools/lejob`, plus `le job run label <label> command <argv...>` |
+| What a GATE uses | `Admission.Run`, which is the whole wrapper: admission, the child, its log, the release |
+| What a LAUNCHER uses | the same `Run`, for the build alone. It holds a slot only while the build runs, so the binary it then execs is outside the slot. `Admit` and `Ticket.Release` are the lower level, for a caller that does the work in-process |
+| What the registry becomes | unchanged. Same directory, same file names, same fields, same work key, same tree hash. Both halves therefore admit each other's jobs while the migration runs, which is also what makes AC-11 provable at all |
+| What `mk/test-fuzz.mk` records | superseded, and left alone. Its header says the wrapper "cannot move ... a Make-level concern about Make's own concurrency". Removing make removes that premise, and the comment goes with the recipe it heads, at step 14 |
+
+→ Constraint (open, for step 14): the launcher's own bootstrap. `./ze` can be
+admitted through `bin/le`, and `./le` cannot use `bin/le` to admit the build of
+`bin/le`. The route with no hole in it is
+`go run ./cmd/le job run label build-le command go build -o bin/le ./cmd/le`:
+the `go run` compiles the tool tree into the build cache unadmitted, at the
+2411 ms this spec's census measured, and the admitted `go build` then writes the
+binary from that warm cache. The 630-package `ze` build, which is the one this
+exists for, is admitted either way.
 
 ## What A-6 Measured (step 2, 2026-08-26)
 
@@ -450,6 +599,37 @@ appended `finding{severity, category, file, line, message}` to a package-level
 slice and rendered it at the end, so the payload was already written; it was
 being thrown away at the last step. A tool that builds its text as it goes will
 cost more, and `scripts/status` is where to expect that.
+
+**That last sentence is wrong, and step 6 measured why (2026-08-26).** Both
+tools in `scripts/status` were read, and neither cost what it predicted.
+
+`spec_status.go` builds its text as it goes in the literal sense: `printTable`
+and `printBucketSection` write to stdout with a format verb, and no record type
+for the PAGE exists anywhere. The port was still cheap. Its `Text()` is 60 lines
+against the script's 55, because the page derives entirely from the same
+`[]spec` the `--json` mode already carried. `verify_run.go` is the opposite
+shape and also not what was predicted: it already declares `verifyIndex`,
+`stageResult` and `failureGroup`, and `writeFailureArtifacts` already marshals
+them, so its payload is written too.
+
+**The predictor is not "does it build text as it goes". It is "does the tool
+already have to answer a machine".** A tool with a `--json` mode has a record
+type by construction, whatever its printing code looks like, and the port then
+costs a transcription. `scripts/lint`, `scripts/inventory`, `scripts/vendor` and
+both halves of `scripts/status` all have one, which is five for five. The cost
+to expect for the rest of the migration is therefore SIZE and lint remediation,
+not payload design. For `verify_run.go` it is size alone: at 1849 lines it is
+already an ERROR of `ze-consistency-check`'s 1000-line rule, so the port cannot
+be one file.
+
+**One more cost that appears only when a package is FOLDED.** `spec_status.go`
+kept `specbucket` and `specmeta` as separate packages for one stated reason: a
+`//go:build ignore` front end cannot be imported by a test. A compiled package
+has no such problem, so the three became one, and `goconst` then saw three
+copies of four status literals that had been one copy per file. Four findings,
+mechanical, and the repair (naming the statuses) turns a typo in any of the
+three enumerations into a compile error. Expect this wherever a tool kept a leaf
+package to work around its own build tag.
 
 **Three behaviour changes are deliberate, and each is asserted rather than
 compared** (`test/ui/le-consistency-answers.ci`, `scripts/lint/parity_test.go`):
@@ -495,7 +675,39 @@ hand can drift, and Python cannot join Ze's. Speed is a consequence.
 - Between step 1 and the swap the repository carries two implementations of the same tooling. That is the accepted cost of the chosen strategy.
 - **The tree is `letools/`, not `le/`, and the reason is a filename.** The repository root holds an executable file named `le` -- the Python shim `./le` -- and a directory cannot share that name. The swap does not free it: `./le` stays a file afterwards. See the Constraint under Target layout; the owner's rationale for a top-level tree is unaffected and only the spelling changed.
 - **`le`'s engine footprint is 15 Ze packages, measured 2026-08-26 by `go list -deps ./cmd/le`.** All 12 `internal/` packages this section names, and three more the section did not: `pkg/zefs`, `pkg/plugin/rpc`, `pkg/ze`, all reached through `internal/component/config/storage` and `internal/component/plugin/registry`. The binary links 281 packages in total against `ze`'s 630, and none of the 281 is a product plugin -- today, and by choice rather than by rule, since AC-3 now permits the link where a tool must introspect the registry it judges.
+- **A tool directory holding SEVERAL gates becomes ONE command with several actions, not several commands (step 4, 2026-08-26).** `scripts/vendor` is the first of those: two programs, three gates. Three root commands was the first shape tried and `TestEveryPackageRegistersOneRootHandler` refused it, which is the contract working -- one package, one import, one root. The answer is the shape the Python `le` already had: an AREA holding GATES. `letools/vendorweb` registers `vendor-web` and its three actions are `check`, `sync` and `update-report`, each verb derived from its Make target the way `Gate.short` derived it (`scripts/le/devtools/gate.py`). `Gate.writes` travels with them: the bare `le vendor-web` prints the listing `le <area> --list` printed, marker included, and `Meta.SubsFunc` derives help's one-line hint from the same table so the two cannot disagree.
+- **The `--root DIR` flag is NOT ported, and `ZE_REPO_ROOT` is what replaces it (step 4, 2026-08-26).** Nothing but the two scripts' own tests ever passed it: `scripts/le/application/generate.py` invokes all three gates with no argument. `lepath.Root()` already honours `ZE_REPO_ROOT`, which covers the one operator case a flag covered, and a path positional would break the keyword-before-value grammar. The exported `Check(root, updates)` and `Sync(root)` still take the tree, so a test names a fixture by calling the function rather than by typing a flag.
+- **`le` OWNS a command; it does not merely hold one in its registry, and dispatch reads ownership rather than the registry (step 3, 2026-08-26).** The first tool that had to link `internal/component/plugin/all` made AC-3's second half unreadable as written. Linking the product runs the product's `init()`s, and five of them register root commands of their own: `env`, `interface`, `plugin`, `schema` and `sysctl`, measured 2026-08-26 with and without the full feature tag set (the count is the same either way, because `plugin/all` imports the plugin packages and not the `cli` dispatch companions). So "every root handler in this process is an `letools/` package" stopped being true the moment a tool did what AC-3 explicitly permits. The fix is one list: `leroot.Register` records the names it registered, `leroot.Owns` answers them, and `cmd/le/dispatch.go` asks it before it looks a name up, so `le interface` is an unknown command rather than `ze`'s interface editor. The registry stays the ONE owner of a name, so AC-13's duplicate panic is untouched. Three tests read the new line: `TestLeDispatchesNoProductCommand` drives every unowned root through dispatch, `TestLeOwnsWhatItRegisters` pins the list against the registry, and `TestParityCountsOnlyLeCommands` pins the census, which counted the five product roots as ported Go commands until it read the same list.
 - **`internal/` conflates the engine with `ze`'s product code, and this spec does not fix it.** Measured 2026-08-26: the engine `le` needs is 12 packages (`component/command`, `component/command/registry`, `component/config/storage`, `component/plugin/registry`, and `core/env`, `core/envcatalog`, `core/helpfmt`, `core/metrics`, `core/selector`, `core/slogutil`, `core/stringsx`, `core/textbuf`). The rest is one program's product: 43 directories under `internal/component/` and 64 under `internal/plugins/`. So `internal/` is not "shared", it is "`ze`, plus a small engine nobody has named". Putting `le` at top level rather than at `internal/le/` was chosen partly for this reason: `internal/le/` would sit `le`'s plugins inside the tree they must never be linked with, while a top-level tree makes the rule readable at a glance. The symmetric alternative -- `internal/ze/` beside `internal/le/`, engine left in `internal/` -- was measured at **32,419 references** (24,037 for `internal/component/` and 8,382 for `internal/plugins/`), larger than this entire migration and touching every product file rather than the tooling. It is a real improvement and it needs its own spec, sequenced as: name and separate the 12-package engine first, then `internal/ze/`, then `le` could move symmetrically. The first of those three is useful on its own, because it would let `go list -deps` prove the ENGINE boundary the way AC-2 proves that `ze` links no dev tool (owner decision, 2026-08-26: option A, a top-level tree; step 1 spelled it `letools/` for the filename reason above).
+- **A Python tool's seams are the process boundary, and that is what AC-11 is proven over (step 9, 2026-08-26).** A Go port and a Python script share no process, so no test can call both. They do share four things: the processes the tool execs, the files it writes, its stdout, and its exit code. `scripts/zeledon/parity_test.go` points BOTH implementations at one recording stand-in for `discord.sh` and at a temporary archive, so what is compared is the argv that would have reached a public channel rather than two reports written in each tool's own words. That is stronger than the stdout diff step 2 used: over the 37 real posts in `website/changes/posts/` the two send byte-identical messages in the same order, and a `charLen`-counts-bytes mutation is caught by that comparison alone, at `2026-07-20.md`, 9 messages against 10. The report text is deliberately NOT compared, because the command's plan names its own grammar and telling an `le` operator to pass `--yes` would be a defect rather than parity.
+- **Four numbers cannot be seen from either tool's output, so they are compared directly (step 9, 2026-08-26).** The message limit, the stale window, the gap between posts, and the retry schedule. A limit one character lower splits every post in this corpus exactly the same way, so an output comparison is blind to it: that mutation SURVIVED the whole suite until `TestScriptAndCommandShareTheSameNumbers` read `LIMIT`, `STALE_AFTER_DAYS`, `SEND_DELAY` and `RATE_LIMIT_BACKOFF` out of the script's own module and set them against the package's. A later port whose behaviour is governed by a constant owes the same test.
+- **A Python `--yes`-style confirmation becomes a KEYWORD, never a subcommand (step 9, 2026-08-26).** `le weekly` plans and `le weekly confirm` publishes, so the tool keeps ONE action and `switch args[0]` never appears, which is what `c_switch_dispatch` and `ai/rules/plugins.md` require. The alternative shape, `plan` and `post` as two subcommands, needs a dispatch table, and `internal/core/subdispatch` cannot serve one here: its handlers answer `int` and render themselves, which is what AC-7 forbids, and its help page spells `ze`. Step 4 met the same wall for a tool that genuinely has three actions, and answered it with a package-local action table (`letools/vendorweb`, `actions`). Two tools, two shapes, and neither is shared yet: the THIRD tool that needs sub-actions should lift that table into `letools/leroot` rather than write a third.
+- **`scripts/zeledon` moves NO number in the census, and that is a property of the directory rather than of the port (step 9, 2026-08-26).** `./le gates --json` declares 156 gates and none of them is this tool: it is an operator tool the `ze-weekly-update` skill runs by name, reached by no Make target. So `letools/weekly` calls no `parity.Claim`, `unported` stays where it was, and `script-files` falls only when step 14 deletes the two `.py` files, which is true of every step because every ported script stays until the swap. The step table's monotonic-count constraint is about GATES, and it cannot bind a directory that declares none.
+- **The published-week archive stays at `scripts/zeledon/weekly/`, and step 14 owes it a new home (step 9, 2026-08-26).** That directory's contents are what mark a week as already published, so moving it while both implementations can run is what would publish a week twice. `letools/weekly.ArchiveDirRel` names it and says so. Step 14 also owes `pythonTestRoots` (`scripts/dev/python_tests_test.go`) the removal of its `scripts/zeledon` entry: each root asserts that it contributes at least one test file, so deleting the script without it turns that assertion red.
+- **`le` MUST be compiled with the full feature tag set, and step 14 owes that to whatever builds it (step 5, 2026-08-26).** Three tools now read the live registry, and a tag set short of the manifest compiles the address families and the BGP command handlers out. Measured: an untagged `le docvalid doc-drift-check` reports 11 findings against documentation that is correct, one per family the build no longer carries, because `registryFamilyNames` (`letools/docvalid/drift.go`) answers 6 rather than 23. This is the trap `doc_drift_warnings` (`scripts/dev/commit_helper.py`) already documents for the script, met again on the binary. `test/ui/le-docvalid-answers.ci` derives the set from `feature-gates.txt` for all three binaries it builds.
+- **Three gates over two scripts became ONE command with three actions, named after the DIRECTORY (step 5, 2026-08-26).** The three gates share no prefix -- `ze-command-contract-check`, `ze-doc-drift-check`, `ze-docs-pipe-operators-update` -- and they came from two different Python areas, so the vendor-web derivation (gate minus `ze-<area>-`) has nothing to strip. `le docvalid`'s verbs are the gate names minus `ze-`, which is as much as can be derived and still types nothing beside a gate name. `letools/docvalid/actions.go` is the SECOND table of the vendor-web shape; the trigger to lift it into `letools/leroot` stays where step 9 put it, at the third.
+- **A command whose answers are not all one row set declares `ShapeDoc` for the whole root (step 5, 2026-08-26).** The contract answer carries seven lists, so `rowsInKeyed` refuses to choose between them. The shape is per ROOT because `leroot.Run` hands the engine the command NAME and never the action, so a per-action `RegisterShape` would never be looked up. The cost is that `| count` is refused for the drift action too, by name and before the tree is walked; `| json`, `| yaml` and `| table` render all three answers, and `| json` over the drift answer unwraps its single row set to the findings array.
+- **Step 10 is PART DONE: 2 of the 7 `scripts/evidence` gates are ported, and the five that remain are the five biggest scripts (2026-08-26).** `letools/evidence` carries `ze-evidence-release-candidate-check`, and `letools/deployment` carries `ze-deployment-l2tp-test`; the shared build-tag derivation every other evidence script needs is `featuretags.DaemonBuildTags`. Unported: `ze-deployment-vpp-test` (`effective-vpp.py`, 1516L), `ze-deployment-gokrazy-l2tp-ppp-test` (1144L), `ze-deployment-l2tp-ppp-test` (741L), `ze-deployment-vpp-iface-test` (499L) and `ze-qemu-vpp-hugepages-test` (416L), the first four of which are rows in the existing `letools/deployment` action table. Nine non-gate scripts remain beside them, `effective-vrrp-keepalived.py` (1734L) and `qemu-run.py` (870L) the largest. The directory is 11,724 lines, which is larger than any earlier step by a factor of four.
+
+- **Step 10b ported 2 of those 5, and 3 remain (2026-08-26).** `letools/deployment/vppiface.go` carries `ze-deployment-vpp-iface-test` and the new `letools/qemu` carries `ze-qemu-vpp-hugepages-test`. Unported: `ze-deployment-vpp-test` (1516L), `ze-deployment-gokrazy-l2tp-ppp-test` (1144L) and `ze-deployment-l2tp-ppp-test` (741L), each still a `forked` row in `letools/deployment/actions.go`. The nine non-gate scripts are untouched.
+
+- **A `forked` row makes the census say PORTED while the driver is still Python, so the parity COUNT cannot see step 10b at all (2026-08-26).** `letools/integration` and `letools/deployment` claimed all seven evidence gates when their AREAS were ported (steps 10 and 11d), and each unported driver became a row that starts the same process the Make target started. `parity.Take` reads a claim whose command is reachable as served, so `unported` was already at its final value for these gates before any of them had a Go driver. Step 10b therefore leaves `unported` unchanged at 47 and `ported` unchanged, which does NOT mean the tools were not wired: `le deployment vpp-iface-test` and `le qemu vpp-hugepages-test` now run Go rather than `python3`. The number that will move is `script-files`, at step 14. Whether the census should distinguish "the area is ported" from "the driver is ported" is an owner question rather than something to fix by editing `parity.Take`.
+
+- **A gate whose driver becomes Go LEAVES the area that forked it, because a verb is derived and not typed (step 10b, 2026-08-26).** `ze-qemu-vpp-hugepages-test` was a row of `letools/integration`, where `leaction.Area.verbOf` strips `ze-integration-` and nothing else, so it was typed as its whole gate name. It is now `le qemu vpp-hugepages-test`, and `letools/integration/gates.go` records that eight of the Python area's gates live in the areas that own their gate-name families rather than seven. Thirteen more `ze-qemu-` Make targets exist and none of them is an `le` gate today; each is a row in `letools/qemu/actions.go` when it becomes one. Step 14 owes the move one repoint: the `ze-qemu-vpp-hugepages-test` recipe in `mk/test-integration.mk` runs `$(CURDIR)/le integration ze-qemu-vpp-hugepages-test`, and `./le` is the Python shim whose `integration` area still declares that gate, so the target is unaffected today and must become `le qemu vpp-hugepages-test` in the commit that repoints `./le`.
+
+- **The daemon cross-compile is now stated ONCE, in `letools/deployment/daemonbuild.go` (step 10b, 2026-08-26).** `daemonRel`, `daemonBuildArgs` and `buildDaemon` were lifted out of `l2tp.go` when the second proof needed them, rather than copied. Both proofs build the same argv from the same manifest, which is what `TestBothHalvesBuildTheVPPDaemonWithEveryGate` and `TestTheDaemonIsBuiltWithEveryFeatureGate` each pin from their own side.
+
+- **`qemu-run.py` BECOMES a command, and it is the precondition for every guest-side port (step 10b, 2026-08-26).** It is 870 lines and 16 recipe lines in `mk/test-integration.mk` invoke it. Every one of its decisions is a HOST decision: which Alpine ISO to cache and boot, which packages to install in the guest, which 9p mount to share the checkout over, which accelerator to ask for, and how long to wait. That is the half `effective-verify.sh` gave to `le`, met a second time, so it is `le qemu run`. What runs INSIDE the guest is the string it is given, and `qemu-all-tests.sh` is one such string, so step 10's ruling that the guest entry point does not move is untouched by this: the two are opposite halves of one boundary rather than one decision. Two costs travel with the port. It imports `alpine_iso.py` and `homebrew.py`, so the three move together. And `--run` carries a command, which is a flag with a value: the `--root` precedent (step 4) says a flag becomes an environment setting, and `ze-qemu-debug` already exports `ZE_QEMU_DEBUG_RUN`, so `ZE_QEMU_RUN` is the shape that keeps keyword-before-value.
+
+- **The four `effective-install-*-qemu.py` scripts BECOME commands, in `letools/qemu`, and they are ONE package rather than four (step 10b, 2026-08-26).** Together they are 2066 lines. Each is a host-side driver: it cross-compiles `cmd/ze-installer`, builds an image with `ze appliance`, serves it over HTTP from the host, starts QEMU, and asserts on the host's view of the serial console and an SSH login. Nothing of any of them runs inside the guest -- the guest runs the INSTALLER, which is already Go and is the artifact under test -- so none of them meets the `qemu-all-tests.sh` exception. Their four Make targets already begin `ze-qemu-`, so each is a row in `letools/qemu/actions.go` with a derived verb and no `Verb:` line. Three costs. They form an import CHAIN -- `-iso-` and `-scenarios-` load `effective-install-qemu.py` as a module, `-ventoy-` loads `-iso-`, and `-iso-` also loads `homebrew.py` -- so a half-port leaves a live script importing a deleted file, and all five move in one commit. `test/install/qemu-full.ci` and `test/install/qemu-iso.ci` exec two of them by path, so both `.ci` change in the same commit. And none of the four is an `le` gate today, so porting them moves no census number and adds four rows to a table the census reads.
+
+- **A REPEATED QUERY is not an effect, and step 10b is where that rule had to be applied to a call SEQUENCE (2026-08-26).** The script asks `show plugins` six times, once for the report and once per gated scenario; the port asks each plugin once and remembers the answer. `scripts/evidence/vpp_iface_parity_test.go` therefore compares the sequence with those calls removed, asserts the remaining count on BOTH sides at 14, and asserts separately that each half asked the query at least once. Removing calls from a comparison is how a comparison becomes vacuous, so the count is what stops it: this is the step-10 L2TP lesson applied to a filter rather than to a delay.
+- **A gate-name FAMILY became one area, and `ze-deployment-` is the first family whose members do not all live in `scripts/` (step 10, 2026-08-26).** Seven gates begin `ze-deployment-`, and two of them are `test/interop-l2tp/run.py` and `test/interop-pppoe/run.py`, which this spec's scope does not reach. `letools/deployment` is therefore an area that will still be growing after step 13, and each of those two is a row in the same table whenever `test/` is ported.
+- **`effective-verify.sh` BECOMES a command; `qemu-all-tests.sh` DOES NOT MOVE (step 10, 2026-08-26).** The rule `mk/test-fuzz.mk` records is that a script stays where the concern is. `effective-verify.sh` has two halves and only one of them is a container's: the host half decides (docker and git are present, the worktree is clean, this is the image and this is the mount) and that is `le`'s to own, so `letools/evidence` owns it and carries the container's own bash program as `ContainerScript`, a constant a test can read. It stays a program rather than becoming Go steps because the container is a `golang` image carrying no `le`, and driving it from the host would mean cross-compiling a second `le` for whatever `--platform` names, out of the tree that has not been judged yet. `qemu-all-tests.sh` is the opposite: it runs INSIDE the guest, after `qemu-run.py` has 9p-mounted the checkout and installed a toolchain, and the guest holds no `le`. Making it a command makes `le` a guest-side runtime dependency of every QEMU target, which is a decision about the harness rather than about this script -- so it moves with `qemu-run.py` or not at all, and step 14 owes it a home outside `scripts/` either way. `scripts/evidence/qemu_kernel_wiring_test.go` also READS it as text to derive three checks.
+- **Every `effective-*.py` that a QEMU target runs is executed INSIDE the VM, and step 14 owes those ports a guest-side binary (step 10, 2026-08-26).** `mk/test-integration.mk` launches them as `python3 scripts/evidence/qemu-run.py ... --run 'python3 scripts/evidence/effective-l2tp-ppp.py'`, and the same shape carries `effective-pppoe-accel.py` and `effective-vrrp-keepalived.py`. The guest has python3 and the 9p-mounted checkout; it has no `le`. The host already cross-compiles three binaries for the guest (`ze-qemu-crossbuild`), so a fourth is one line, but nothing in the port itself makes that true and the `--run` strings must change in the same commit.
+- **AC-11 for a tool that drives Docker is proven over the argv, and the stand-in must PLAY the peer, not merely record it (step 10, 2026-08-26).** Both halves are pointed at one recording `docker` and one recording `go` on PATH, over a fixture checkout, and what is compared is every call's argv plus the files left on disk. The trap is timing: the first stand-in answered both daemon lines at once, both halves reached their verdict and stopped before `xl2tpd` had recorded its own argv, and the one call that proves another implementation was involved went missing from BOTH recordings -- so the comparison passed at five calls instead of six. The stand-in now delays the session line by a second, and the count is asserted rather than only compared. A parity test that compares two empty recordings proves nothing, and this is the shape that produces one.
+- **A query is not an effect, so the two halves need not ask it the same way (step 10, 2026-08-26).** `effective-verify.sh` runs `git rev-parse --show-toplevel` and then two `git status` calls; the command runs one, because `lepath.Root()` already answers which checkout it is in and the porcelain listing already carries the dirty paths. The parity comparison is over the `docker run` argv, the exit status and the dirty verdict. This is the `--root` decision of step 4 reaching a second tool, and it is what makes the comparison about what the gate DOES rather than about how each half learned a fact.
+- **`--strict` is not ported, and the drift gate exits 1 on drift (step 5, 2026-08-26).** Nothing invoked it: `mk/check-docs.mk`, `scripts/le/application/check_docs.py` and `doc_drift_warnings` (`scripts/dev/commit_helper.py`) all run the script bare, and the last reads exit 1 as its advisory signal. This is the `--root` decision of step 4 applied to the other flag the script declared.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -616,3 +828,92 @@ N/A - this spec touches no protocol surface.
 | Run | Verdict | Rounds | Lenses | Artifact |
 |-----|---------|--------|--------|----------|
 | | | | | |
+
+## Pre-Commit Verification
+
+<!-- BLOCKING. Do NOT trust the audit above: re-verify independently and paste
+     the evidence. For each row run a command (ls, grep, go test -run) now.
+
+     EVERY sub-table needs at least one data row: pre_commit_verification_gaps
+     in scripts/dev/commit_helper.py checks them one by one and names the empty
+     ones. A row in Files Exist is not evidence for AC Verified.
+     Not acceptable: "already checked", "should work", a pointer to the audit. -->
+
+### Files Exist (ls)
+<!-- Every file in "Files to Create", and every .ci named in Wiring Test and
+     Functional Tests. Paste the ls output. -->
+| File | Exists | Evidence |
+|------|--------|----------|
+| `cmd/le/main.go` | Unresolved | Closure-time `ls` was not run. |
+| `cmd/le/register.go` | Unresolved | Closure-time `ls` was not run; phase handoffs name edits to this file only. |
+| `letools/<tool>/<tool>.go` | Unresolved | This is a planned file pattern; the migration is incomplete and no closure-time inventory was run. |
+| `letools/<tool>/register.go` | Unresolved | This is a planned file pattern; the migration is incomplete and no closure-time inventory was run. |
+| `letools/parity/` | Unresolved | Closure-time `ls` was not run; phase handoffs name this package only. |
+| `plan/deferrals/le-is-a-ze-binary.md` | Unresolved | Closure-time `ls` was not run. |
+| `test/ui/le-binary-dispatches.ci` | Unresolved | Closure-time `ls` was not run; earlier phase handoffs report this test, but that is not fresh file evidence. |
+
+### AC Verified (grep/test)
+<!-- Every AC-N, re-checked. Acceptable: test name + pass output, grep showing
+     the call, ls showing the file. -->
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | The built `le` binary dispatches every ported tool through the shared registry. | None. Phase handoffs report `TestLeDispatchesEveryRegisteredTool` and built-binary `.ci` coverage; closure-time verification was not run. |
+| AC-2 | Every `ze` build flavour links no `letools/` plugin. | None. An earlier handoff reports `TestZeLinksNoLePlugin` and eight `go list -deps` flavours; closure-time verification was not run. |
+| AC-3 | `le` registers no product command as its own. | None. Phase handoffs report `TestLeRegistersNoProductCommand`; closure-time verification was not run. |
+| AC-3b | Both binaries use one command registry and neither declares another. | None. A phase handoff reports `TestBothBinariesShareOneRegistry`; closure-time verification was not run. |
+| AC-4 | No ported tool remains build-ignored. | None. Phase handoffs report `TestNoPortedToolIsBuildIgnored`; the migration is incomplete and closure-time verification was not run. |
+| AC-5 | Ported tool tests call functions and do not invoke `go run`. | None. Phase handoffs report `TestNoTestShellsOutToGoRun`; the migration is incomplete and closure-time verification was not run. |
+| AC-6 | Every pre-swap Make target resolves to equivalent behaviour after the swap. | Unresolved. The current handover says the swap remains outstanding. |
+| AC-7 | Every ported tool returns structured data for the pipe operators. | None fresh. Phase handoffs name package and `.ci` checks for individual ports; closure-time verification was not run. |
+| AC-8 | A gate preserves its first failing exit code. | None fresh. Phase handoffs record individual exit-code cases; the complete migration was not re-checked. |
+| AC-9 | `le parity` names every unported gate and reaches zero before the swap. | Unresolved. The current handover records about 121 converted, 9 forked, and about 28 unported gates. |
+| AC-10 | The committed tree builds and loads every registered tool. | Unresolved. `TestCommittedTreeBuilds` was not run for closure and the current handover says nothing is committed. |
+| AC-11 | Every old and new tool pair agrees on exit code and output. | Unresolved. Phase handoffs record per-area parity results, but the current handover lists unported work. |
+| AC-12 | After the swap, no Python `le`, build-ignored tool, or reference remains. | Unresolved. The current handover lists the swap and the remaining Python tools as outstanding. |
+| AC-13 | Duplicate root names are rejected rather than shadowed. | None fresh. Phase handoffs report `TestNoLeNameCollidesWithZe`; closure-time verification was not run. |
+
+### Wiring Verified (end-to-end)
+<!-- Every Wiring Test row: does the .ci exist AND exercise the claimed path?
+     Read the file; do not infer it from its name. -->
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le <name>` typed by a developer | No `.ci` named for this row; plan names `TestLeDispatchesEveryRegisteredTool` | Unresolved; closure-time test was not run. |
+| A `ze` build of any flavour | No `.ci` named for this row; plan names `TestZeLinksNoLePlugin` | Unresolved; closure-time test was not run. |
+| A `cmd/le` build | No `.ci` named for this row; plan names `TestLeRegistersNoProductCommand` | Unresolved; closure-time test was not run. |
+| Either binary's dispatch | No `.ci` named for this row; plan names `TestBothBinariesShareOneRegistry` | Unresolved; closure-time test was not run. |
+| `./le <name> \| json` | No `.ci` named for this row; plan names `TestLeCommandAnswersStructuredData` | Unresolved; closure-time test was not run. |
+| Tab after `./le ` | No `.ci` named for this row; plan names `TestLeToolsAppearInCompletion` | Unresolved; closure-time test was not run. |
+| `make <target>` for every pre-existing target | No `.ci` named for this row; plan names `TestEveryMakeTargetResolves` | Unresolved; the current handover says the swap remains outstanding. |
+| `go build ./...` over a `git archive HEAD` export | No `.ci` named for this row; plan names `TestCommittedTreeBuilds` | Unresolved; the current handover says nothing is committed. |
+| Binary init importing both composition roots | No `.ci` named for this row; plan names `TestNoLeNameCollidesWithZe` | Unresolved; closure-time test was not run. |
+| `./le <name>` against the built binary | `test/ui/le-binary-dispatches.ci` | Unresolved. Earlier handoffs report the `.ci`, but it was not read or run for closure. |
+
+### Assumptions Resolved
+<!-- Every A-N. `unvalidated` is not a valid final status. A broken assumption
+     needs a Mistake Log row and a Deviations entry. -->
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | Broken for lint; compiler portion confirmed | The spec records that the first untagged tool passed `go vet` but produced six `golangci-lint` findings. This was not re-checked for closure. |
+| A-2 | Unresolved | The spec confirms the dependency claim only for `scripts/lint`; the migration-wide claim has no final evidence. |
+| A-3 | Unresolved | Phase handoffs record parity for ported areas, but the current handover lists unported work. |
+| A-4 | Confirmed in the spec; not closure-rechecked | The spec records that 10 of 11 first-port Python cases transferred as intent and none transferred as code. |
+| A-5 | Confirmed in the spec; not closure-rechecked | The spec records the never-linked design and a measured current-name collision count. |
+| A-6 | Confirmed in the spec; not closure-rechecked | The spec records the first structured-report port and its shared payload mechanism. |
+
+### Documentation Verified
+<!-- Every Yes in the Documentation checklist: verify the edited claim against
+     source. Every No: paste the grep that proves no update was needed. -->
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `ai/INDEX.md` keyword and task rows | No closure-time source check was run; the checklist requires one row per command area. | No; unresolved. |
+| `CLAUDE.md` script paths | No closure-time source check was run; the checklist schedules this update at the swap, which remains outstanding. | No; unresolved. |
+| `ai/rules/commands.md` gate invocation | No closure-time source check was run; the checklist schedules this update at the swap, which remains outstanding. | No; unresolved. |
+| `docs/architecture/core-design.md` shared registry and composition roots | No closure-time source check was run. | No; unresolved. |
+| `docs/contributing/` instructions for adding a check | No closure-time source check was run. | No; unresolved. |
+| `docs/guide/command-reference.md` | The checklist marks this N/A because `le` is not an operator surface; no independent closure check was run. | No; N/A claim not re-verified. |
+| Source anchors naming moved files | No closure-time anchor check was run. | No; unresolved. |
+| `docs/features.md` | The checklist marks this N/A because the migration is not a product feature; no independent closure check was run. | No; N/A claim not re-verified. |
+| Plugin documentation | The checklist marks this N/A because no plugin surface changes; no independent closure check was run. | No; N/A claim not re-verified. |
+| API, RPC, and event documentation | The checklist marks this N/A because no API surface changes; no independent closure check was run. | No; N/A claim not re-verified. |
+| Telemetry documentation | The checklist marks this N/A because no metric changes; no independent closure check was run. | No; N/A claim not re-verified. |
+| Runtime inventory documentation | The checklist marks this N/A because no registry inventory changes; no independent closure check was run. | No; N/A claim not re-verified. |

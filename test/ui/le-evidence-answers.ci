@@ -89,6 +89,18 @@ case "$*" in
 esac
 exit 0
 ''',
+    'ip': r'''#!/bin/sh
+sep=$(printf '\037')
+line=""
+for a in "$@"; do
+  if [ -z "$line" ]; then line="$a"; else line="$line$sep$a"; fi
+done
+printf '%s\036' "$line" >> "$ZE_RECORD_IP"
+exit 0
+''',
+    'ping': "#!/bin/sh\nexit 0\n",
+    'xl2tpd': "#!/bin/sh\nexit 0\n",
+    'pppd': "#!/bin/sh\nexit 0\n",
     'go': r'''#!/bin/sh
 prev=""
 for a in "$@"; do
@@ -105,13 +117,15 @@ for name, body in programs.items():
     os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
 
 
-def le(*args, status='', exit_code='0', record=None):
+def le(*args, status='', exit_code='0', record=None, extra=None):
     env = dict(os.environ)
     env['PATH'] = stubs + os.pathsep + env['PATH']
     env['ZE_REPO_ROOT'] = fixture
     env['ZE_GIT_STATUS'] = status
     env['ZE_DOCKER_EXIT'] = exit_code
     env['ZE_RECORD_DOCKER'] = record or os.path.join(work, 'docker-argv')
+    env['ZE_RECORD_IP'] = os.path.join(work, 'ip-argv')
+    env.update(extra or {})
     return subprocess.run([binary, *args], capture_output=True, text=True,
                           check=False, env=env)
 
@@ -137,7 +151,9 @@ for name in ('evidence', 'deployment'):
     require(name in page, f'le --help does not list the {name} command')
 
 # A bare area lists its actions, and the listing says which of them write.
-for name, verb in (('evidence', 'release-candidate-check'), ('deployment', 'l2tp-test')):
+for name, verb in (('evidence', 'release-candidate-check'),
+                   ('deployment', 'l2tp-test'), ('deployment', 'l2tp-ppp-test'),
+                   ('deployment', 'gokrazy-l2tp-ppp-test')):
     listing = le(name)
     require(listing.returncode == 0, f'le {name} exited {listing.returncode}')
     require(verb in listing.stdout, f'le {name} does not list {verb}: {listing.stdout!r}')
@@ -196,6 +212,40 @@ require(any('xl2tpd -D' in call for call in calls),
         'the proof never started the peer:\n' + '\n'.join(calls))
 require(any('--privileged' in call for call in calls),
         'the container is not privileged:\n' + '\n'.join(calls))
+
+# The on-host L2TP PPP proof refuses a run that carries ze's kernel-probe
+# escape, and it refuses it BEFORE it touches the machine.
+#
+# The escape is what this assertion is driven by rather than the privilege the
+# proof also needs, because a privilege assertion answers one way for a
+# developer and the other way on a root runner, and this file has to say the
+# same thing on both.
+escaped = le('deployment', 'l2tp-ppp-test', '|', 'json',
+             extra={'ZE_L2TP_SKIP_KERNEL_PROBE': 'true'})
+require(escaped.returncode == 1,
+        f'a run carrying the kernel-probe escape exited {escaped.returncode}, want 1')
+require('ZE_L2TP_SKIP_KERNEL_PROBE' in escaped.stdout + escaped.stderr,
+        f'the refusal does not name the variable: {(escaped.stdout + escaped.stderr)[:400]!r}')
+require(recorded(os.path.join(work, 'ip-argv')) == [],
+        'the refused run still made a namespace')
+refused = json.loads(escaped.stdout)
+for key in ('peer', 'ze-namespace', 'lac-namespace', 'proven', 'local-address'):
+    require(key in refused, f'the refusal answered no {key!r} key: {sorted(refused)}')
+require(refused['proven'] is False, 'a refused run reports itself proven')
+
+# The appliance proof refuses the same escape, and refuses it before it builds
+# an image. Its payload names the appliance rather than a namespace pair, which
+# is how a reader tells the two proofs' answers apart.
+appliance = le('deployment', 'gokrazy-l2tp-ppp-test', '|', 'json',
+               extra={'ZE_L2TP_SKIP_KERNEL_PROBE': 'true'})
+require(appliance.returncode == 1,
+        f'the appliance proof exited {appliance.returncode} on the escape, want 1')
+require(recorded(os.path.join(work, 'ip-argv')) == [],
+        'the refused appliance run still made a lab')
+report = json.loads(appliance.stdout)
+for key in ('arch', 'accel', 'appliance-address', 'appliance-interface', 'proven'):
+    require(key in report, f'the appliance report answered no {key!r} key: {sorted(report)}')
+require(report['proven'] is False, 'a refused appliance run reports itself proven')
 
 # One payload, three renderings, none of them written by either tool.
 for name, verb, operator, needle in (

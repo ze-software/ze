@@ -1,0 +1,376 @@
+# Test: the BUILT le binary runs the eleven rules-corpus gates over the real
+#       checkout, reports what each script reports, and answers each verdict as
+#       data.
+#
+# VALIDATES: spec-le-is-a-ze-binary AC-1, AC-7 and AC-11 over the REAL TREE, for
+#            the gates ported out of rules_lint.py, rules_points.py,
+#            rules_index.py, rules_condensed.py and rules_router.py, against the
+#            artifact a developer runs.
+# PREVENTS: a port that agrees with its script on fixtures and disagrees on the
+#           checkout. These gates decide whether the rule corpus is coherent and
+#           they GENERATE the payload every session loads, so a check that
+#           quietly stopped firing would pass every unit test while the
+#           repository was told its instructions are all still enforced.
+#
+# The binary is compiled here rather than by the runner, which builds only ze
+# and ze-test (internal/test/runner/runner.go, setupBinShims). It is written
+# into the test's own directory, so nothing is written back into the checkout.
+#
+# No feature tag set is needed: neither tool reads the product registry. They
+# read the tree, git, and markdown.
+#
+# The WRITING gate is driven over a fixture rather than over the checkout, and
+# that is not a weaker test. `render-update` rewrites ai/rules/*.md, this
+# checkout is shared by several sessions at once, and a rule edited between the
+# two runs would make the halves disagree about a tree neither of them got
+# wrong. The fixture is a whole small checkout, both halves write into their own
+# copy of it, and the resulting TREES are compared.
+#
+# The timeout is DECLARED because a cold build cache makes the first compile of
+# cmd/le far slower than the steady state, and the round trip writes 2300 point
+# files into a scratch directory on each half.
+
+option=timeout:value=420s
+
+tmpfs=run.py:terminator=EOF_PY
+"""Compile le, then compare each rules-corpus gate with its command."""
+import json
+import os
+import shutil
+import subprocess
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(f'FAIL: {message}')
+
+
+root = os.environ['ZE_REPO_ROOT']
+here = os.getcwd()
+binary = os.path.join(here, 'le')
+
+build = subprocess.run(['go', 'build', '-o', binary, './cmd/le'],
+                       cwd=root, capture_output=True, text=True, check=False)
+require(build.returncode == 0, f'building cmd/le failed: {build.stderr}')
+
+
+def run(argv, cwd, env=None):
+    merged = dict(os.environ)
+    if env:
+        merged.update(env)
+    return subprocess.run(argv, cwd=cwd, capture_output=True, text=True,
+                          check=False, env=merged)
+
+
+def script(name, *args, tree=None):
+    # The scripts derive their checkout from their own __file__, never from
+    # ZE_REPO_ROOT, so a fixture run must invoke the fixture's own copy.
+    where = tree or root
+    return run(['python3', os.path.join(where, 'scripts', 'dev', name), *args], where)
+
+
+def le(*args, tree=None):
+    # Run from the test directory, never from the root: the tree a command
+    # judges comes from the checkout it discovers, not from where it was typed.
+    env = {'ZE_REPO_ROOT': tree} if tree else None
+    return run([binary, *args], here, env)
+
+
+def relative(tree, text):
+    # The scripts print an absolute path for the file they build from their own
+    # location; the commands name every file relative to the tree. That is the
+    # one deliberate difference and it is normalized here rather than argued
+    # away.
+    return text.replace(tree + os.sep, '')
+
+
+# Each read-only pair: the script invoked the way its gate invokes it, and the
+# command invoked the way a developer does.
+pairs = [
+    ('rules lint', script('rules_lint.py'), le('rules', 'lint')),
+    ('rules render-check', script('rules_points.py', 'render', '--check'),
+     le('rules', 'render-check')),
+    ('rules points-roundtrip-check', script('rules_points.py', 'roundtrip'),
+     le('rules', 'points-roundtrip-check')),
+    ('rules gate-map-report', script('rules_points.py', 'coverage'),
+     le('rules', 'gate-map-report')),
+]
+
+for name, old, new in pairs:
+    require(old.returncode == 0,
+            f'{name}: this checkout does not pass the gate: {old.stdout}{old.stderr}')
+    require(old.returncode == new.returncode,
+            f'{name}: the script exited {old.returncode} and the command exited {new.returncode}\n'
+            f'{new.stdout}{new.stderr}')
+    require(relative(root, old.stdout) == new.stdout,
+            f'{name}: the pages differ.\nscript:\n{old.stdout}\ncommand:\n{new.stdout}')
+    require(new.stderr == '', f'{name}: the command wrote to stderr: {new.stderr}')
+
+# The four read-only gates read the whole corpus, and each says how much of it
+# it read. A gate that read nothing would still exit 0 on the script side.
+require('rule point(s) state an RFC 2119 level' in pairs[0][2].stdout,
+        f'the lint read no point: {pairs[0][2].stdout}')
+require('rules are fresh' in pairs[1][2].stdout,
+        f'the render check compared nothing: {pairs[1][2].stdout}')
+require('round-trip byte-identical' in pairs[2][2].stdout,
+        f'the round trip split nothing: {pairs[2][2].stdout}')
+require('gate map: ' in pairs[3][2].stdout and 'PUBLISHED: ' in pairs[3][2].stdout,
+        f'the gate map joined nothing: {pairs[3][2].stdout}')
+
+
+# The WRITING gate, over one fixture checkout per half. Two halves that print
+# one line and write different rules have not been ported: the rendered rule is
+# what every agent reads.
+FIXTURE = {
+    'go.mod': 'module example.com/fixture\n',
+    'feature-gates.txt': 'ze_core\n',
+    'ai/rules/aaa.md':
+        '# A\n\n**When:** when it happens\n**Severity:** blocking\n\n## S\n\n'
+        '- **MUST do the OLD thing.**\n',
+    'ai/rules/points/aaa/manifest.md':
+        '---\ntitle: A\nwhen: when it happens\nseverity: blocking\n---\ns ## S\n  p\n',
+    'ai/rules/points/aaa/s/p.md':
+        '---\nkind: directive\nlevel: MUST\n---\n- **MUST do the NEW thing.**\n',
+}
+
+
+def fixture(name):
+    tree = os.path.join(here, name)
+    for rel, body in FIXTURE.items():
+        path = os.path.join(tree, *rel.split('/'))
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as handle:
+            handle.write(body)
+    os.makedirs(os.path.join(tree, 'scripts', 'dev'), exist_ok=True)
+    for name_py in ('rules_lint.py', 'rules_points.py'):
+        shutil.copy(os.path.join(root, 'scripts', 'dev', name_py),
+                    os.path.join(tree, 'scripts', 'dev', name_py))
+    return tree
+
+
+def rendered(tree):
+    with open(os.path.join(tree, 'ai', 'rules', 'aaa.md'), encoding='utf-8') as handle:
+        return handle.read()
+
+
+by_script = fixture('by-script')
+by_command = fixture('by-command')
+old = script('rules_points.py', 'render', tree=by_script)
+new = le('rules', 'render-update', tree=by_command)
+
+require(old.returncode == 0 and new.returncode == 0,
+        f'render-update: the script exited {old.returncode} and the command {new.returncode}\n'
+        f'{new.stdout}{new.stderr}')
+require(old.stdout == new.stdout,
+        f'render-update: the pages differ.\nscript:\n{old.stdout}\ncommand:\n{new.stdout}')
+require(rendered(by_script) == rendered(by_command),
+        f'render-update: the two halves wrote different rules.\n'
+        f'{rendered(by_script)}\n{rendered(by_command)}')
+require('MUST do the NEW thing' in rendered(by_command),
+        f'render-update rewrote nothing: {rendered(by_command)}')
+
+# The stale rule is what a check REPORTS and never rewrites, and the report is
+# a unified diff the two halves must produce identically.
+stale = fixture('stale')
+old = script('rules_points.py', 'render', '--check', tree=stale)
+new = le('rules', 'render-check', tree=stale)
+require(old.returncode == 1 and new.returncode == 1,
+        f'render-check: a stale rule answered {old.returncode} and {new.returncode}')
+require(relative(stale, old.stderr) == new.stdout,
+        f'render-check: the drift pages differ.\nscript:\n{old.stderr}\ncommand:\n{new.stdout}')
+require('@@ -' in new.stdout, f'the drift page carries no diff hunk: {new.stdout}')
+require('MUST do the OLD thing' in rendered(stale),
+        'check mode rewrote the rule it was asked to compare')
+
+
+# One payload, every rendering. Nothing in this tool writes a line of JSON.
+report = le('rules', 'lint', '|', 'json')
+try:
+    lint = json.loads(report.stdout)
+except json.JSONDecodeError as exc:
+    raise SystemExit(f'FAIL: `le rules lint | json` did not answer JSON: {exc}\n'
+                     f'{report.stdout[:400]}') from exc
+for key in ('rules', 'rule-violations', 'points', 'point-violations', 'empty'):
+    require(key in lint, f'the gate answered no {key!r} key: {sorted(lint)}')
+require(lint['rules'] >= 20, f"the lint read {lint['rules']} rule files")
+require(lint['points'] >= 1000, f"the lint read {lint['points']} points")
+require(not lint['empty'], f"the lint read an empty population: {lint['empty']}")
+require(le('rules', 'lint', '|', 'yaml').returncode == 0, '`le rules lint | yaml` was refused')
+require(le('rules', 'lint', '|', 'table').returncode == 0, '`le rules lint | table` was refused')
+
+# The gate map answers every set as data, so the counts a reader acts on are
+# readable without parsing the page.
+gate_map = json.loads(le('rules', 'gate-map-report', '|', 'json').stdout)
+for key in ('gated', 'dangling', 'ungated', 'missing-rationale', 'missing-exception',
+            'corpus-baseline', 'declared-none', 'retired-ledger', 'published'):
+    require(key in gate_map, f'the gate map answered no {key!r} key: {sorted(gate_map)}')
+require(not gate_map['dangling'], f"a binding names no point: {gate_map['dangling']}")
+require(gate_map['baseline'] and gate_map['corpus-baseline'],
+        'a ratchet did not run over this checkout, so its zero says nothing')
+require(len(gate_map['gated']) >= 10, f"only {len(gate_map['gated'])} points are gated")
+require(le('rules', 'gate-map-report', '|', 'yaml').returncode == 0,
+        '`le rules gate-map-report | yaml` was refused')
+require(le('rules', 'gate-map-report', '|', 'table').returncode == 0,
+        '`le rules gate-map-report | table` was refused')
+
+# `| count` needs ONE row set and this answer holds several, so the engine
+# refuses it and names them. That refusal is the engine's for every such
+# payload, and it reaches stderr with a non-zero status rather than answering a
+# number that would mean nothing.
+counted = le('rules', 'gate-map-report', '|', 'count')
+require(counted.returncode == 1, f'`| count` over several lists answered {counted.returncode}')
+require('count needs rows' in counted.stderr and 'gated' in counted.stderr,
+        f'the refusal does not name the lists: {counted.stderr!r}')
+
+# The area lists its actions, and each says whether it writes.
+listing = le('rules')
+require(listing.returncode == 0, f'`le rules` exited {listing.returncode}')
+for word in ('lint', 'render-check', 'render-update', 'points-roundtrip-check',
+             'gate-map-report', 'writes', 'checks'):
+    require(word in listing.stdout, f'the listing does not carry {word!r}:\n{listing.stdout}')
+
+# An action the area does not hold answers 2, which a caller reads apart from a
+# gate that ran and failed.
+require(le('rules', 'nonesuch').returncode == 2, 'an unknown action did not answer 2')
+
+# An action that judges the checkout takes no argument, and a value with no
+# keyword before it is refused (ai/rules/cli.md).
+refused = le('rules', 'lint', 'ai/rules')
+require(refused.returncode == 1, f'a path argument answered {refused.returncode}')
+require('takes no arguments' in refused.stderr, f'the refusal is silent: {refused.stderr!r}')
+
+# The command appears in the binary's own help.
+helped = le()
+require('rules' in helped.stdout + helped.stderr, '`le` does not list `rules` in its help')
+
+# ─── The six digest gates: rules_index.py, rules_condensed.py, rules_router.py ──
+
+digest_pairs = [
+    ('rules index-check', script('rules_index.py', '--check'), le('rules', 'index-check')),
+    ('rules condensed-check', script('rules_condensed.py', '--check'),
+     le('rules', 'condensed-check')),
+    ('rules payload-report', script('rules_condensed.py', '--payload'),
+     le('rules', 'payload-report')),
+    ('rules router-report', script('rules_router.py'), le('rules', 'router-report')),
+]
+
+for name, old, new in digest_pairs:
+    require(old.returncode == 0,
+            f'{name}: this checkout does not pass the gate: {old.stdout}{old.stderr}')
+    require(old.returncode == new.returncode,
+            f'{name}: the script exited {old.returncode} and the command exited {new.returncode}\n'
+            f'{new.stdout}{new.stderr}')
+    require(old.stdout == new.stdout,
+            f'{name}: the pages differ.\nscript:\n{old.stdout}\ncommand:\n{new.stdout}')
+    require(new.stderr == '', f'{name}: the command wrote to stderr: {new.stderr}')
+
+# Each of the four read the corpus. A gate that read nothing would agree with a
+# script that read nothing too, so the count is what makes the agreement mean
+# something.
+require('rules, ai/rules/INDEX.md up to date' in digest_pairs[0][2].stdout,
+        f'the index check names no count: {digest_pairs[0][2].stdout}')
+require('ai/rules/TRIGGERS.md up to date' in digest_pairs[1][2].stdout
+        and 'ai/rules/CORE.md up to date' in digest_pairs[1][2].stdout,
+        f'the digest check did not reach both artifacts: {digest_pairs[1][2].stdout}')
+require('ai/rules/CORE.md: 0 chars' not in digest_pairs[2][2].stdout,
+        f'the payload measured an empty core: {digest_pairs[2][2].stdout}')
+require('corpus: 0 past task descriptions' not in digest_pairs[3][2].stdout,
+        f'the router read no spec: {digest_pairs[3][2].stdout}')
+
+
+# The two WRITING gates, over one copy of the real corpus per half. Two halves
+# that print one line and write different artifacts have not been ported: every
+# session loads TRIGGERS.md and CORE.md before it reads anything else.
+def corpus_fixture(name, source=None):
+    tree = os.path.join(here, name)
+    if source is None:
+        # One snapshot, so the two halves cannot differ because a session edited
+        # a rule between the two copies.
+        os.makedirs(tree, exist_ok=True)
+        for sub in ('ai', 'plan'):
+            shutil.copytree(os.path.join(root, sub), os.path.join(tree, sub))
+        os.makedirs(os.path.join(tree, 'scripts', 'dev'), exist_ok=True)
+        for name_py in ('rules_index.py', 'rules_condensed.py', 'rules_router.py'):
+            shutil.copy(os.path.join(root, 'scripts', 'dev', name_py),
+                        os.path.join(tree, 'scripts', 'dev', name_py))
+    else:
+        shutil.copytree(source, tree)
+    return tree
+
+
+def artifact(tree, name):
+    with open(os.path.join(tree, 'ai', 'rules', name), encoding='utf-8') as handle:
+        return handle.read()
+
+
+digest_by_script = corpus_fixture('digest-by-script')
+digest_by_command = corpus_fixture('digest-by-command', source=digest_by_script)
+
+for verb, name_py, written in (
+        ('index-update', 'rules_index.py', ('INDEX.md',)),
+        ('condensed-update', 'rules_condensed.py', ('TRIGGERS.md', 'CORE.md'))):
+    old = script(name_py, tree=digest_by_script)
+    new = le('rules', verb, tree=digest_by_command)
+    require(old.returncode == 0 and new.returncode == 0,
+            f'{verb}: the script exited {old.returncode} and the command {new.returncode}\n'
+            f'{new.stdout}{new.stderr}')
+    require(relative(digest_by_script, old.stdout) == new.stdout,
+            f'{verb}: the pages differ.\nscript:\n{old.stdout}\ncommand:\n{new.stdout}')
+    for name_md in written:
+        require(artifact(digest_by_script, name_md) == artifact(digest_by_command, name_md),
+                f'{verb}: the two halves wrote different {name_md}')
+
+require(artifact(digest_by_command, 'INDEX.md').count('\n| ') > 20,
+        'the index was written with no rows in it')
+require('<!-- always-on: precedence rung 1/2 -->' in artifact(digest_by_command, 'CORE.md'),
+        'the core names no ladder member, so the derivation read nothing')
+
+
+# One payload, every rendering, for each of the four new answers.
+for verb, keys in (
+        ('index-check', ('file', 'rules', 'written', 'stale', 'missing', 'rows')),
+        ('condensed-check', ('written', 'empty-corpus', 'artifacts')),
+        ('payload-report', ('parts', 'chars', 'tokens', 'budget', 'met',
+                            'headroom-percent', 'missing')),
+        ('router-report', ('tasks', 'corpus-size', 'rules-total', 'core', 'routed',
+                           'blocking-routed', 'surfaced-any', 'missed-blocking',
+                           'unroutable-terms'))):
+    rendered_json = le('rules', verb, '|', 'json')
+    try:
+        answer = json.loads(rendered_json.stdout)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f'FAIL: `le rules {verb} | json` did not answer JSON: {exc}\n'
+                         f'{rendered_json.stdout[:400]}') from exc
+    for key in keys:
+        require(key in answer, f'{verb} answered no {key!r} key: {sorted(answer)}')
+    for operator in ('yaml', 'table'):
+        require(le('rules', verb, '|', operator).returncode == 0,
+                f'`le rules {verb} | {operator}` was refused')
+
+# The router's per-task listing is the payload, which is what the script's
+# --verbose flag became: a command has one answer and several renderings.
+router = json.loads(le('rules', 'router-report', '|', 'json').stdout)
+require(router['corpus-size'] == len(router['tasks']),
+        f"the router names {len(router['tasks'])} tasks for a corpus of {router['corpus-size']}")
+require(router['tasks'] and 'surfaced' in router['tasks'][0],
+        f'the per-task rows carry no surfaced set: {router["tasks"][:1]}')
+
+# The six new verbs are in the listing, and each says whether it writes.
+listing = le('rules')
+for word in ('index-check', 'index-update', 'condensed-check', 'condensed-update',
+             'payload-report', 'router-report'):
+    require(word in listing.stdout, f'the listing does not carry {word!r}:\n{listing.stdout}')
+
+# A value typed after one of them is refused: the tree is the checkout and the
+# rendering is a pipe operator (ai/rules/cli.md).
+refused = le('rules', 'router-report', 'plan')
+require(refused.returncode == 1, f'a path argument answered {refused.returncode}')
+require('takes no arguments' in refused.stderr, f'the refusal is silent: {refused.stderr!r}')
+
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

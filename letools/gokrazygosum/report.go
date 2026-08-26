@@ -1,4 +1,4 @@
-// Design: docs/architecture/appliance/gokrazy-image.md -- the gate's answer
+// Design: docs/architecture/appliance/gokrazy-build-pins.md -- the gate's answer
 // Overview: gokrazygosum.go -- the comparison that fills this in
 //
 // report.go holds what `le gokrazy-gosum` ANSWERS, apart from what produced it.

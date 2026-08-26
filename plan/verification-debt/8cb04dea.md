@@ -23,3 +23,6 @@ is open.
 | 2026-08-26 | 8cb04dea | website: add dark architecture diagram palette | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-26 | 8cb04dea | website: use paired architecture diagram assets | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-26 | 8cb04dea | docs(plan): record independent CLI pipe review findings | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-26 | 8cb04dea | feat(le): port the repository tooling to Go under letools/ | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-26 | 8cb04dea | feat(le): port the repository tooling to Go under letools/ | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
+| 2026-08-26 | 8cb04dea | feat(le): port the repository tooling to Go under letools/ | independent critical review | Independent reviewer requested a commit baseline before review; review will run against this commit. | open |

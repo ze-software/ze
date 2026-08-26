@@ -678,12 +678,15 @@ func runVerify(ctx context.Context, cfg verifyConfig) (int, error) {
 	}
 
 	generatedAt := started.UTC().Format(time.RFC3339)
-	out := io.MultiWriter(cfg.Out, combined)
-	writef(out, "Ze verify protocol run: %s\nMode: %s\nRun directory: %s\nCombined log: %s (published at %s)\n\n",
+	out := reportWriter{dst: io.MultiWriter(cfg.Out, combined)}
+	writef(&out, "Ze verify protocol run: %s\nMode: %s\nRun directory: %s\nCombined log: %s (published at %s)\n\n",
 		generatedAt, cfg.Mode, art.Dir, art.CombinedLog, combinedLogPath)
 
 	if warn := contendedWarning(); warn != "" {
-		writef(out, "WARNING: %s\n\n", warn)
+		writef(&out, "WARNING: %s\n\n", warn)
+	}
+	if out.err != nil {
+		return 2, fmt.Errorf("write verify log: %w", out.err)
 	}
 
 	// The change set, computed ONCE for the whole run. Every scoped stage reads
@@ -697,18 +700,18 @@ func runVerify(ctx context.Context, cfg verifyConfig) (int, error) {
 	if err != nil {
 		return 2, fmt.Errorf("place the feature-tag answer: %w", err)
 	}
-	answer, scopeErr := cfg.SelectScope(cfg.Root, out)
+	answer, scopeErr := cfg.SelectScope(cfg.Root, &out)
 	if scopeErr != nil {
 		// Widen. An unanswered selection must not reach a stage as an empty
 		// package list: `make ze-lint-changed` reads that as "nothing to lint"
 		// and reports success having linted nothing.
-		writef(out, "WARNING: the change set could not be selected (%v), so every scoped stage widens to %s\n", scopeErr, everyPackageWord)
+		writef(&out, "WARNING: the change set could not be selected (%v), so every scoped stage widens to %s\n", scopeErr, everyPackageWord)
 		answer = changeSetAnswer{Packages: []string{everyPackageWord}}
 	}
 	if err := writeScopeAnswer(scopeAnswer, answer.Packages); err != nil {
 		return 2, err
 	}
-	writef(out, "Change set: %d package pattern(s), in %s\n", len(answer.Packages), art.ScopePackages)
+	writef(&out, "Change set: %d package pattern(s), in %s\n", len(answer.Packages), art.ScopePackages)
 
 	var scopeEnvBuf textbuf.Buffer
 	scopeEnvBuf.Str(scopePackagesEnv).Byte('=').Str(scopeAnswer)
@@ -726,9 +729,12 @@ func runVerify(ctx context.Context, cfg verifyConfig) (int, error) {
 		var tagEnvBuf textbuf.Buffer
 		tagEnvBuf.Str(scopeTagsEnv).Byte('=').Str(tagAnswer)
 		scopeEnv = append(scopeEnv, tagEnvBuf.String())
-		writef(out, "Feature scope: %d feature tag(s), in %s\n\n", len(answer.Tags), art.ScopeTags)
+		writef(&out, "Feature scope: %d feature tag(s), in %s\n\n", len(answer.Tags), art.ScopeTags)
 	} else {
-		writef(out, "Feature scope: unanswered, so every matrix row is judged\n\n")
+		writef(&out, "Feature scope: unanswered, so every matrix row is judged\n\n")
+	}
+	if out.err != nil {
+		return 2, fmt.Errorf("write verify log: %w", out.err)
 	}
 
 	// The tree as it stands BEFORE any stage runs. The certificate must name
@@ -747,18 +753,28 @@ func runVerify(ctx context.Context, cfg verifyConfig) (int, error) {
 			return 2, fmt.Errorf("open stage log %s: %w", logRel, openErr)
 		}
 
-		writer := io.MultiWriter(cfg.Out, combined, stageLog)
-		writef(writer, "\n### Stage %02d/%02d: %s\n", i+1, len(cfg.Stages), st.Name)
-		writef(writer, "$ %s\n", strings.Join(quoteCommand(st.Command), " "))
+		writer := reportWriter{dst: io.MultiWriter(cfg.Out, combined, stageLog)}
+		writef(&writer, "\n### Stage %02d/%02d: %s\n", i+1, len(cfg.Stages), st.Name)
+		writef(&writer, "$ %s\n", strings.Join(quoteCommand(st.Command), " "))
+		if writer.err != nil {
+			stageLog.Close() //nolint:errcheck // preserving the write error
+			return 2, fmt.Errorf("write stage log %s: %w", logRel, writer.err)
+		}
 
 		// EXTEND the stage's own environment, never replace it: st is a copy of
 		// the element, so the caller's slice keeps its length, and every variable
 		// the stage list already carried survives.
 		st.Env = append(st.Env, scopeEnv...)
 
-		code := cfg.RunStage(ctx, cfg.Root, st, writer)
-		writef(writer, "\n### Stage result: %s exit=%d\n", st.Name, code)
-		stageLog.Close() //nolint:errcheck // subsequent read reports the real error if close failed
+		code := cfg.RunStage(ctx, cfg.Root, st, &writer)
+		writef(&writer, "\n### Stage result: %s exit=%d\n", st.Name, code)
+		if writer.err != nil {
+			stageLog.Close() //nolint:errcheck // preserving the write error
+			return 2, fmt.Errorf("write stage log %s: %w", logRel, writer.err)
+		}
+		if err := stageLog.Close(); err != nil {
+			return 2, fmt.Errorf("close stage log %s: %w", logRel, err)
+		}
 
 		res := stageResult{Stage: st.Name, ExitCode: code, DetailLog: logRel}
 		if code != 0 {
@@ -790,7 +806,9 @@ func runVerify(ctx context.Context, cfg verifyConfig) (int, error) {
 		return 2, fmt.Errorf("write verify status: %w", err)
 	}
 
-	printFinalSummary(io.MultiWriter(cfg.Out, combined), art, index)
+	if err := printFinalSummary(io.MultiWriter(cfg.Out, combined), art, index); err != nil {
+		return 2, fmt.Errorf("write final summary: %w", err)
+	}
 	return exitCode, nil
 }
 
@@ -818,22 +836,22 @@ func writeScopeAnswer(path string, entries []string) error {
 }
 
 func execStage(ctx context.Context, root string, st stage, w io.Writer) int {
+	output := reportWriter{dst: w}
 	if len(st.Command) == 0 {
-		writeln(w, "stage has no command")
+		writeln(&output, "stage has no command")
 		return 2
 	}
 	cmd := exec.CommandContext(ctx, st.Command[0], st.Command[1:]...) //nolint:gosec // command list is fixed by repository code
 	cmd.Dir = root
-	cmd.Stdout = w
-	cmd.Stderr = w
+	cmd.Stdout = &output
+	cmd.Stderr = &output
 	cmd.Env = append(os.Environ(), "ZE_VERIFY_MODE=1")
 	cmd.Env = append(cmd.Env, st.Env...)
 	if err := cmd.Run(); err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			return exitErr.ExitCode()
 		}
-		writef(w, "stage command failed: %v\n", err)
+		writef(&output, "stage command failed: %v\n", err)
 		return 1
 	}
 	return 0
@@ -841,11 +859,12 @@ func execStage(ctx context.Context, root string, st stage, w io.Writer) int {
 
 func writeFailureArtifacts(root string, art runArtifacts, index verifyIndex) error {
 	var text strings.Builder
-	writef(&text, "# Ze verify failure index\n")
-	writef(&text, "Generated: %s\n", index.GeneratedAt)
-	writef(&text, "Mode: %s\n", index.Mode)
-	writef(&text, "Run directory: %s\n", index.RunDir)
-	writef(&text, "Combined log: %s\n\n", index.CombinedLog)
+	output := reportWriter{dst: &text}
+	writef(&output, "# Ze verify failure index\n")
+	writef(&output, "Generated: %s\n", index.GeneratedAt)
+	writef(&output, "Mode: %s\n", index.Mode)
+	writef(&output, "Run directory: %s\n", index.RunDir)
+	writef(&output, "Combined log: %s\n\n", index.CombinedLog)
 
 	failedStages := 0
 	for i := range index.Stages {
@@ -854,33 +873,36 @@ func writeFailureArtifacts(root string, art runArtifacts, index verifyIndex) err
 			continue
 		}
 		failedStages++
-		writef(&text, "## Stage: %s\n", st.Stage)
-		writef(&text, "Exit: %d\n", st.ExitCode)
-		writef(&text, "Detail log: %s\n\n", st.DetailLog)
+		writef(&output, "## Stage: %s\n", st.Stage)
+		writef(&output, "Exit: %d\n", st.ExitCode)
+		writef(&output, "Detail log: %s\n\n", st.DetailLog)
 		for j := range st.Groups {
 			g := &st.Groups[j]
-			writef(&text, "### Group: %s\n", g.GroupID)
-			writef(&text, "Stage: %s\n", g.Stage)
-			writef(&text, "Kind: %s\n", g.Kind)
-			writef(&text, "Related: %s\n", formatInlineMembers(g.Related))
-			writef(&text, "Summary: %s\n", g.Summary)
-			writef(&text, "Rerun: %s\n", g.Rerun)
-			writef(&text, "Detail log: %s\n", g.DetailLog)
-			writef(&text, "Parallel: %s\n", g.Parallel)
+			writef(&output, "### Group: %s\n", g.GroupID)
+			writef(&output, "Stage: %s\n", g.Stage)
+			writef(&output, "Kind: %s\n", g.Kind)
+			writef(&output, "Related: %s\n", formatInlineMembers(g.Related))
+			writef(&output, "Summary: %s\n", g.Summary)
+			writef(&output, "Rerun: %s\n", g.Rerun)
+			writef(&output, "Detail log: %s\n", g.DetailLog)
+			writef(&output, "Parallel: %s\n", g.Parallel)
 			if len(g.Excerpt) > 0 {
-				writeln(&text, "Excerpt:")
+				writeln(&output, "Excerpt:")
 				for _, line := range cappedStrings(g.Excerpt, maxExcerptLines) {
-					writef(&text, "  %s\n", line)
+					writef(&output, "  %s\n", line)
 				}
 				if len(g.Excerpt) > maxExcerptLines {
-					writef(&text, "  ... %d more line(s); see detail log\n", len(g.Excerpt)-maxExcerptLines)
+					writef(&output, "  ... %d more line(s); see detail log\n", len(g.Excerpt)-maxExcerptLines)
 				}
 			}
-			writeln(&text)
+			writeln(&output)
 		}
 	}
 	if failedStages == 0 {
-		writeln(&text, "No failures.")
+		writeln(&output, "No failures.")
+	}
+	if output.err != nil {
+		return fmt.Errorf("build failure log: %w", output.err)
 	}
 	if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(art.FailuresLog)), []byte(text.String()), 0o600); err != nil {
 		return fmt.Errorf("write failure log: %w", err)
@@ -927,34 +949,36 @@ func writeFailureArtifacts(root string, art runArtifacts, index verifyIndex) err
 // A concurrent run republishes tmp/ze-verify-failures.log the moment it
 // finishes, so a summary that named only the documented path would send a
 // reader to another run's failures.
-func printFinalSummary(w io.Writer, art runArtifacts, index verifyIndex) {
+func printFinalSummary(w io.Writer, art runArtifacts, index verifyIndex) error {
+	output := reportWriter{dst: w}
 	failed := 0
 	for _, st := range index.Stages {
 		if st.ExitCode != 0 {
 			failed++
 		}
 	}
-	writeln(w)
-	writeln(w, "════════════════════════════════════════")
+	writeln(&output)
+	writeln(&output, "════════════════════════════════════════")
 	if failed == 0 {
-		writef(w, "PASS  all %d verify stage(s)\n", len(index.Stages))
-		writef(w, "Artifacts: %s, %s, %s\n", art.CombinedLog, art.FailuresLog, statusPath)
-		writef(w, "Published: %s, %s\n", combinedLogPath, failuresLogPath)
-		return
+		writef(&output, "PASS  all %d verify stage(s)\n", len(index.Stages))
+		writef(&output, "Artifacts: %s, %s, %s\n", art.CombinedLog, art.FailuresLog, statusPath)
+		writef(&output, "Published: %s, %s\n", combinedLogPath, failuresLogPath)
+		return output.err
 	}
-	writef(w, "FAIL  %d verify stage(s) failed\n", failed)
-	writef(w, "Read first: %s (published at %s)\n", art.FailuresLog, failuresLogPath)
+	writef(&output, "FAIL  %d verify stage(s) failed\n", failed)
+	writef(&output, "Read first: %s (published at %s)\n", art.FailuresLog, failuresLogPath)
 	for i := range index.Stages {
 		st := &index.Stages[i]
 		if st.ExitCode == 0 {
 			continue
 		}
-		writef(w, "  %s: %d group(s), detail %s\n", st.Stage, len(st.Groups), st.DetailLog)
+		writef(&output, "  %s: %d group(s), detail %s\n", st.Stage, len(st.Groups), st.DetailLog)
 		for j := range st.Groups {
 			g := &st.Groups[j]
-			writef(w, "    %s: %s\n", g.GroupID, g.Rerun)
+			writef(&output, "    %s: %s\n", g.GroupID, g.Rerun)
 		}
 	}
+	return output.err
 }
 
 func classifyStage(st stage, detailLog, text string) []failureGroup {
@@ -1070,6 +1094,14 @@ func normalizedGroups(st stage, detailLog string, groups []failureGroup) []failu
 // attributed.
 const wholeStage = "stage"
 
+// parallelGroup is how failureGroup.Parallel spells a failure whose members can
+// be rerun together, which is every group that is not the whole stage.
+const parallelGroup = "group"
+
+// kindSubcheck is how failureGroup.Kind spells a failure one sub-check inside a
+// stage produced, as opposed to a package, a lint rule or the stage itself.
+const kindSubcheck = "subcheck"
+
 // declaredGroupPrefix introduces one JSON failureGroup a producer declared for
 // itself. declaredCompletePrefix introduces that producer's count of them.
 const (
@@ -1117,7 +1149,7 @@ func parseDeclaredGroups(detailLog, text string) (groups []failureGroup, complet
 			g.DetailLog = detailLog
 		}
 		if g.Parallel == "" {
-			g.Parallel = "group"
+			g.Parallel = parallelGroup
 		}
 		groups = append(groups, g)
 	}
@@ -1146,7 +1178,7 @@ func unparsedGroup(index int, detailLog, line string, err error) failureGroup {
 		Related:   []string{"unparsed-group"},
 		Summary:   tb.Str("a declared failure group line did not parse: ").Err(err).String(),
 		DetailLog: detailLog,
-		Parallel:  "group",
+		Parallel:  parallelGroup,
 		Excerpt:   []string{line},
 	}
 }
@@ -1190,7 +1222,7 @@ func classifyGoTest(st stage, detailLog, text string) []failureGroup {
 		}
 		g, ok := groupsByPkg[pkg]
 		if !ok {
-			g = &failureGroup{Stage: st.Name, GroupID: "package:" + pkg, Kind: kind, Summary: strings.TrimSpace(line), DetailLog: detailLog, Parallel: "group"}
+			g = &failureGroup{Stage: st.Name, GroupID: groupID("package", pkg), Kind: kind, Summary: strings.TrimSpace(line), DetailLog: detailLog, Parallel: parallelGroup}
 			groupsByPkg[pkg] = g
 			order = append(order, pkg)
 		}
@@ -1253,7 +1285,7 @@ func classifyLint(st stage, detailLog, text string) []failureGroup {
 			}
 			var rerun textbuf.Buffer
 			rerun.Str("golangci-lint run ").Str(shellQuote(pkg))
-			g = &failureGroup{Stage: st.Name, GroupID: groupID("lint", key), Kind: kindLint, Summary: strings.TrimSpace(m[2]), Rerun: rerun.String(), DetailLog: detailLog, Parallel: "group"}
+			g = &failureGroup{Stage: st.Name, GroupID: groupID("lint", key), Kind: kindLint, Summary: strings.TrimSpace(m[2]), Rerun: rerun.String(), DetailLog: detailLog, Parallel: parallelGroup}
 			groups[key] = g
 			order = append(order, key)
 		}
@@ -1268,6 +1300,7 @@ func classifyVet(st stage, detailLog, text string) []failureGroup {
 	groups := map[string]*failureGroup{}
 	order := []string{}
 	current := "./scripts/evidence/..."
+	var rerun textbuf.Buffer
 	for _, line := range splitLines(text) {
 		if m := pkgRE.FindStringSubmatch(line); m != nil {
 			current = importPathToPattern(m[1])
@@ -1277,7 +1310,8 @@ func classifyVet(st stage, detailLog, text string) []failureGroup {
 		}
 		g, ok := groups[current]
 		if !ok {
-			g = &failureGroup{Stage: st.Name, GroupID: "vet:" + current, Kind: "package", Summary: strings.TrimSpace(line), Rerun: "GOOS=linux go vet " + shellQuote(current), DetailLog: detailLog, Parallel: "group"}
+			rerun.Reset().Str("GOOS=linux go vet ").Str(shellQuote(current))
+			g = &failureGroup{Stage: st.Name, GroupID: groupID("vet", current), Kind: "package", Summary: strings.TrimSpace(line), Rerun: rerun.String(), DetailLog: detailLog, Parallel: parallelGroup}
 			groups[current] = g
 			order = append(order, current)
 		}
@@ -1292,9 +1326,10 @@ func classifyWiringDocs(st stage, detailLog, text string) []failureGroup {
 	current := ""
 	runningRE := regexp.MustCompile(`^Running ([A-Za-z0-9_-]+)\.{3}`)
 	failedRE := regexp.MustCompile(`([A-Za-z0-9_-]+) failed`)
+	var rerun textbuf.Buffer
 	for _, line := range splitLines(text) {
 		if strings.Contains(line, "Wiring check FAILED") {
-			groups = append(groups, failureGroup{Stage: st.Name, GroupID: "subcheck:wiring", Kind: "subcheck", Related: []string{"wiring"}, Summary: strings.TrimSpace(line), Rerun: "python3 scripts/dev/verify_wiring_docs.py", DetailLog: detailLog, Parallel: "group", Excerpt: []string{line}})
+			groups = append(groups, failureGroup{Stage: st.Name, GroupID: "subcheck:wiring", Kind: kindSubcheck, Related: []string{"wiring"}, Summary: strings.TrimSpace(line), Rerun: "python3 scripts/dev/verify_wiring_docs.py", DetailLog: detailLog, Parallel: parallelGroup, Excerpt: []string{line}})
 			current = "wiring"
 			continue
 		}
@@ -1307,7 +1342,8 @@ func classifyWiringDocs(st stage, detailLog, text string) []failureGroup {
 			if current != "" && current != target {
 				target = current
 			}
-			groups = append(groups, failureGroup{Stage: st.Name, GroupID: "subcheck:" + target, Kind: "subcheck", Related: []string{target}, Summary: strings.TrimSpace(line), Rerun: "make " + shellQuote(target), DetailLog: detailLog, Parallel: "group", Excerpt: []string{line}})
+			rerun.Reset().Str("make ").Str(shellQuote(target))
+			groups = append(groups, failureGroup{Stage: st.Name, GroupID: groupID("subcheck", target), Kind: kindSubcheck, Related: []string{target}, Summary: strings.TrimSpace(line), Rerun: rerun.String(), DetailLog: detailLog, Parallel: parallelGroup, Excerpt: []string{line}})
 		}
 	}
 	return groups
@@ -1369,11 +1405,14 @@ func classifyExabgp(st stage, detailLog, text string) []failureGroup {
 		}
 	}
 	var groups []failureGroup
+	var summary textbuf.Buffer
 	if len(failed) > 0 {
-		groups = append(groups, failureGroup{Stage: st.Name, GroupID: "exabgp:failed", Kind: "mismatch", Related: failed, Summary: fmt.Sprintf("%d ExaBGP encoding test(s) failed", len(failed)), Rerun: exabgpRerun(failed), DetailLog: detailLog, Parallel: "group", Excerpt: excerptFromText(text)})
+		summary.Int(int64(len(failed))).Str(" ExaBGP encoding test(s) failed")
+		groups = append(groups, failureGroup{Stage: st.Name, GroupID: "exabgp:failed", Kind: "mismatch", Related: failed, Summary: summary.String(), Rerun: exabgpRerun(failed), DetailLog: detailLog, Parallel: parallelGroup, Excerpt: excerptFromText(text)})
 	}
 	if len(timedOut) > 0 {
-		groups = append(groups, failureGroup{Stage: st.Name, GroupID: "exabgp:timeout", Kind: "timeout", Related: timedOut, Summary: fmt.Sprintf("%d ExaBGP encoding test(s) timed out", len(timedOut)), Rerun: exabgpRerun(timedOut), DetailLog: detailLog, Parallel: "group", Excerpt: excerptFromText(text)})
+		summary.Reset().Int(int64(len(timedOut))).Str(" ExaBGP encoding test(s) timed out")
+		groups = append(groups, failureGroup{Stage: st.Name, GroupID: "exabgp:timeout", Kind: "timeout", Related: timedOut, Summary: summary.String(), Rerun: exabgpRerun(timedOut), DetailLog: detailLog, Parallel: parallelGroup, Excerpt: excerptFromText(text)})
 	}
 	return groups
 }
@@ -1617,12 +1656,39 @@ func quoteCommand(args []string) []string {
 	return quoted
 }
 
-func writef(w io.Writer, format string, args ...any) {
-	_, _ = fmt.Fprintf(w, format, args...) //nolint:errcheck // output
+// reportWriter keeps the first output error, so a run cannot publish successful
+// evidence after either its terminal output or an artifact stopped accepting bytes.
+type reportWriter struct {
+	dst io.Writer
+	err error
 }
 
-func writeln(w io.Writer, args ...any) {
-	_, _ = fmt.Fprintln(w, args...) //nolint:errcheck // output
+func (w *reportWriter) Write(data []byte) (int, error) {
+	if w.err != nil {
+		return 0, w.err
+	}
+	written, err := w.dst.Write(data)
+	if err == nil && written != len(data) {
+		err = io.ErrShortWrite
+	}
+	if err != nil {
+		w.err = err
+	}
+	return written, err
+}
+
+func writef(w *reportWriter, format string, args ...any) {
+	if w.err != nil {
+		return
+	}
+	_, w.err = w.Write(fmt.Appendf(nil, format, args...))
+}
+
+func writeln(w *reportWriter, args ...any) {
+	if w.err != nil {
+		return
+	}
+	_, w.err = fmt.Fprintln(w, args...)
 }
 
 // treeMovedSentinel is written as the tree_hash when the tree changed while the
@@ -1680,14 +1746,18 @@ func writeVerifyStatus(root string, exitCode int, mode, skipped string, start tr
 		sha = "unknown"
 	}
 	var content strings.Builder
-	writef(&content, "exit=%d\n", exitCode)
-	writef(&content, "timestamp=%s\n", now.UTC().Format(time.RFC3339))
+	output := reportWriter{dst: &content}
+	writef(&output, "exit=%d\n", exitCode)
+	writef(&output, "timestamp=%s\n", now.UTC().Format(time.RFC3339))
 	// mode distinguishes FRESH(ze-precommit-verify) from the weaker FRESH(ze-precommit-verify-changed);
 	// skipped records ZE_SKIP_SUITES so a partial pass cannot read as a full one.
-	writef(&content, "mode=%s\n", mode)
-	writef(&content, "skipped=%s\n", skipped)
-	writef(&content, "git_sha=%s\n", strings.TrimSpace(sha))
-	writef(&content, "tree_hash=%s\n", hash)
+	writef(&output, "mode=%s\n", mode)
+	writef(&output, "skipped=%s\n", skipped)
+	writef(&output, "git_sha=%s\n", strings.TrimSpace(sha))
+	writef(&output, "tree_hash=%s\n", hash)
+	if output.err != nil {
+		return fmt.Errorf("build verify status: %w", output.err)
+	}
 	return os.WriteFile(filepath.Join(root, statusPath), []byte(content.String()), 0o600)
 }
 
@@ -1731,12 +1801,16 @@ func writeVerifyManifest(root string, start, end map[string]string) error {
 	sort.Strings(paths)
 
 	var content strings.Builder
+	output := reportWriter{dst: &content}
 	for _, rel := range paths {
 		fingerprint := start[rel]
 		if end[rel] != fingerprint {
 			fingerprint = movedDuringRun
 		}
-		writef(&content, "%s %s\n", fingerprint, rel)
+		writef(&output, "%s %s\n", fingerprint, rel)
+	}
+	if output.err != nil {
+		return fmt.Errorf("build verify manifest: %w", output.err)
 	}
 	return os.WriteFile(filepath.Join(root, manifestPath), []byte(content.String()), 0o600)
 }

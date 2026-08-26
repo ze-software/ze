@@ -80,6 +80,49 @@ RENAME_PADDING = (
 )
 
 
+# The Python corpus. `scripts/dev/*_test.py` alone covers the hooks, the commit
+# helper, the rules pipeline and the verify runner, and none of it was audited
+# before 2026-08-23.
+PY_HEALTHY = (
+    "import unittest\n"
+    "class T(unittest.TestCase):\n"
+    "    def test_a(self):\n"
+    "        self.assertEqual(1, one())\n"
+    "        self.assertTrue(ok())\n"
+)
+PY_SKIPPED = (
+    "import unittest\n"
+    "class T(unittest.TestCase):\n"
+    "    def test_a(self):\n"
+    '        self.skipTest("flaky")\n'
+    "        self.assertEqual(1, one())\n"
+    "        self.assertTrue(ok())\n"
+)
+PY_GUTTED = "import unittest\nclass T(unittest.TestCase):\n    pass\n"
+# One assertion, so the case that deletes the function is not carried by the
+# advisory count arm alone.
+PY_GUTTED_HEALTHY = (
+    "import unittest\n"
+    "class T(unittest.TestCase):\n"
+    "    def test_a(self):\n"
+    "        self.assertEqual(1, one())\n"
+)
+PY_SKIP_FIXTURE_HEALTHY = (
+    "import unittest\n"
+    "class T(unittest.TestCase):\n"
+    "    def test_skip_detection(self):\n"
+    '        fixture = "pass\\n"\n'
+    "        self.assertEqual([], detect(fixture))\n"
+)
+PY_SKIP_FIXTURE = (
+    "import unittest\n"
+    "class T(unittest.TestCase):\n"
+    "    def test_skip_detection(self):\n"
+    '        fixture = \'self.skipTest("flaky")\\n\'\n'
+    "        self.assertEqual([], detect(fixture))\n"
+)
+
+
 def _weakened_table(*names):
     rows = "".join(f"| {name} | accepted for this fixture commit |\n" for name in names)
     return f"| Test | Reason |\n|------|--------|\n{rows}"
@@ -516,6 +559,102 @@ class TestRfcTaggedChangeSurfaced(unittest.TestCase):
             approved,
             "an in-file rfc-test-change-approved: token must suppress nothing",
         )
+
+
+
+class TestPythonTestsAreAudited(unittest.TestCase):
+    """A weakened Python test used to report CLEAN.
+
+    `is_test_path` matched `_test.go`, and `.ci`/`.et` under test/. Nothing else.
+    So the whole tooling suite -- the hooks, the commit helper, the rules
+    pipeline, this audit's own tests -- could be gutted and the relaxation gate
+    would print a clean bill of health. That is a guard that cannot see the tests
+    guarding it.
+
+    Driven through the real entry point, and through the DEFAULT invocation
+    (worktree against HEAD), because that is what a session runs before it
+    commits: the fixture's committed Go weakening is already at HEAD and so does
+    not appear, which keeps each assertion about the Python file alone.
+    """
+
+    def _fixture(self, tmp, path, before):
+        fx = AuditFixture(tmp)
+        target = Path(tmp, path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(before)
+        fx._commit("add the python test")  # noqa: SLF001
+        return fx, target
+
+    def _audit_after(self, tmp, path, before, after):
+        fx, target = self._fixture(tmp, path, before)
+        target.write_text(after)
+        return fx.audit()
+
+    def test_a_skip_inside_python_fixture_data_is_ignored(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out = self._audit_after(
+                tmp,
+                "scripts/dev/thing_test.py",
+                PY_SKIP_FIXTURE_HEALTHY,
+                PY_SKIP_FIXTURE,
+            )
+            self.assertEqual(code, 0, f"expected a clean verdict (exit 0):\n{out}")
+            self.assertNotIn("WEAKENED", out)
+
+    def test_a_skip_added_to_a_python_test_is_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out = self._audit_after(
+                tmp, "scripts/dev/thing_test.py", PY_HEALTHY, PY_SKIPPED
+            )
+            self.assertEqual(code, 1, f"expected a finding (exit 1):\n{out}")
+            self.assertIn("scripts/dev/thing_test.py", out)
+            self.assertIn("skip", out.lower())
+
+    def test_deleting_every_test_function_is_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out = self._audit_after(
+                tmp, "scripts/dev/thing_test.py", PY_GUTTED_HEALTHY, PY_GUTTED
+            )
+            self.assertEqual(code, 1, f"expected a finding (exit 1):\n{out}")
+            self.assertIn("scripts/dev/thing_test.py", out)
+            # The MESSAGE, not just the exit code. Deleting a test function also
+            # deletes its assertions, so the advisory count arm reports this file
+            # whether or not the function arm exists: measured on 2026-08-23, with
+            # the function arm removed this case still exited 1. Naming the arm is
+            # what makes it load bearing.
+            self.assertIn(
+                "def test_",
+                out,
+                "the finding must say a test FUNCTION went, not merely that a "
+                "count fell: a count cannot tell a deletion from a refactor",
+            )
+
+    def test_the_pytest_spelling_is_seen_too(self):
+        """test_<tool>.py is the other shape python_tests_test.go discovers.
+
+        Knowing one spelling and not the other would cover half the corpus
+        silently, which is the failure this whole file exists to refuse.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out = self._audit_after(
+                tmp, "test/interop/speaker/test_thing.py", PY_HEALTHY, PY_SKIPPED
+            )
+            self.assertEqual(code, 1, f"expected a finding (exit 1):\n{out}")
+            self.assertIn("test/interop/speaker/test_thing.py", out)
+
+    def test_a_python_file_that_is_not_a_test_is_left_alone(self):
+        """The bound. This audit judges TESTS, not every Python file.
+
+        Without this, `scripts/dev/thing.py` losing an `assert` would be reported
+        as a weakened test, and a gate that fires outside its population is how a
+        guard earns its reputation for over-blocking.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out = self._audit_after(
+                tmp, "scripts/dev/thing.py", PY_HEALTHY, PY_GUTTED
+            )
+            self.assertEqual(code, 0, f"expected a clean verdict (exit 0):\n{out}")
+            self.assertNotIn("scripts/dev/thing.py", out)
 
 
 if __name__ == "__main__":

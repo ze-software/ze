@@ -1,11 +1,14 @@
-# Test: ze doctor reports missing MPLS kernel modules
+# Test: ze doctor reports a kernel with no AF_MPLS forwarding table
 # Spec: plan/spec-mpls-1-kernel.md AC-6
-# VALIDATES: with a BGP + fib/kernel config and the mpls_router / mpls_iptunnel
-#            modules absent, `ze doctor` emits doctor-mpls-unavailable so the
-#            operator learns labeled routes cannot be programmed.
-# Linux-only: the MPLS module check lives in checks_linux.go (checks_other.go is
-# a no-op elsewhere). The loaded-module set is read from a stubbed /proc/modules
-# via ze.test.doctor.modules-file so the test is hermetic.
+# VALIDATES: with a BGP + fib/kernel config and no /proc/sys/net/mpls/platform_labels,
+#            `ze doctor` emits doctor-mpls-unavailable so the operator learns
+#            labeled routes cannot be programmed.
+# Linux-only: the MPLS check lives in checks_linux.go (checks_other.go is a no-op
+# elsewhere). checkMPLSSupport probes the CAPABILITY, not the module list: a
+# kernel built with CONFIG_MPLS_ROUTING=y lists no mpls_router.ko and forwards
+# labels anyway, which is what ze's own appliance kernel does. The probe root is
+# redirected to a path that does not exist via ze.test.doctor.procfs-root, so the
+# test is hermetic and does not read the host kernel it happens to run on.
 #
 # This config carried TWO defects that `ze doctor` accepted in silence, and
 # checkBGPPeerConfig found the second one the moment the first was fixed: the
@@ -23,10 +26,7 @@
 # resolution and emits doctor-config-bgp-peer.
 
 option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
-option=env:var=ze.test.doctor.modules-file:value=modules.empty
-
-tmpfs=modules.empty:terminator=EOF_MODULES
-EOF_MODULES
+option=env:var=ze.test.doctor.procfs-root:value=proc-missing
 
 tmpfs=mpls.conf:terminator=EOF_CONF
 bgp {

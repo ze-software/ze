@@ -72,7 +72,7 @@ fixes for its own two instances. `show bgp rpki aspa` is the other.
   → Constraint: no plugin spelling in a generic or central package. The engine
     reads a declaration; it never learns which plugin sent it.
 
-- [ ] `docs/contributing/ze-style.md` - the working standard for every line of Go
+- [ ] `docs/contributing/ze-go-style.md` - the working standard for every line of Go
   → Constraint: a limit on everything. A declaration arriving from another
     process is external input, so the list lengths and the name lengths are
     bounded before they are stored.
@@ -454,7 +454,7 @@ additively, and it is not a protocol Ze speaks to another implementation.
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | Three optional fields on `CommandDecl` | A fourth list on `DeclareRegistrationInput`, beside `Pipes` | A shape belongs to a command, one for one. A separate list would need to name the command again and would let a plugin declare a shape for a command it did not declare, which is a refusal the pairing makes impossible to write |
-| A bad declaration REFUSES the plugin; it never panics | Reuse the in-tree panic | A plugin message is external input. `docs/contributing/ze-style.md` reserves `panic("BUG:")` for a state only a Ze defect can reach, and a plugin taking the daemon down is the failure mode this avoids |
+| A bad declaration REFUSES the plugin; it never panics | Reuse the in-tree panic | A plugin message is external input. `docs/contributing/ze-go-style.md` reserves `panic("BUG:")` for a state only a Ze defect can reach, and a plugin taking the daemon down is the failure mode this avoids |
 | The eleven declarations live in each plugin's own registration | A table in the engine mapping command paths to shapes | A table in a central package is plugin spelling in a generic package, which `ai/rules/plugins.md` bans. Remove the plugin and its declaration MUST vanish with it |
 | `show bgp rpki status` and `show bgp adj-rib-in status` declare `doc` | Reshape both so they carry one row set | Both are genuinely documents: one holds two candidate row sets, the other maps an address to a scalar. Reshaping them to please an operator would change an answer this spec has no reason to change |
 

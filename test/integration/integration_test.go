@@ -76,14 +76,14 @@ func setupPeers(t *testing.T, ctx context.Context, cfg1, cfg2 peerConfig) (*reac
 	t.Helper()
 
 	r1 := reactor.New(&reactor.Config{
-		ListenAddr: "127.0.0.1:0",
+		ListenAddr: "127.0.0.1:0", //nolint:staticcheck // SA1019: ListenAddr is the only Config field that binds a listener before any peer exists. Port with per-peer LocalAddress builds listeners from r.peers (reactor.startMultiListeners), and this test must read the OS-assigned port before it can configure the peer that would create that listener.
 		RouterID:   cfg1.routerID,
 		LocalAS:    cfg1.localAS,
 		Standalone: true,
 	})
 
 	r2 := reactor.New(&reactor.Config{
-		ListenAddr: "127.0.0.1:0",
+		ListenAddr: "127.0.0.1:0", //nolint:staticcheck // SA1019: ListenAddr is the only Config field that binds a listener before any peer exists. Port with per-peer LocalAddress builds listeners from r.peers (reactor.startMultiListeners), and this test must read the OS-assigned port before it can configure the peer that would create that listener.
 		RouterID:   cfg2.routerID,
 		LocalAS:    cfg2.localAS,
 		Standalone: true,
@@ -244,14 +244,14 @@ func TestSessionReconnect(t *testing.T) {
 
 	// Start both reactors on port 0 (OS-assigned) to eliminate TOCTOU race.
 	r1 := reactor.New(&reactor.Config{
-		ListenAddr: "127.0.0.1:0",
+		ListenAddr: "127.0.0.1:0", //nolint:staticcheck // SA1019: ListenAddr is the only Config field that binds a listener before any peer exists. Port with per-peer LocalAddress builds listeners from r.peers (reactor.startMultiListeners), and this test must read the OS-assigned port before it can configure the peer that would create that listener.
 		RouterID:   0x01010101,
 		LocalAS:    65001,
 		Standalone: true,
 	})
 
 	r2 := reactor.New(&reactor.Config{
-		ListenAddr: "127.0.0.1:0",
+		ListenAddr: "127.0.0.1:0", //nolint:staticcheck // SA1019: ListenAddr is the only Config field that binds a listener before any peer exists. Port with per-peer LocalAddress builds listeners from r.peers (reactor.startMultiListeners), and this test must read the OS-assigned port before it can configure the peer that would create that listener.
 		RouterID:   0x02020202,
 		LocalAS:    65002,
 		Standalone: true,

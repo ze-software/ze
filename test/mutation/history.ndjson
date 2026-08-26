@@ -43,3 +43,10 @@
 {"ts":"2026-06-11T16:16:31Z","sha":"dab958fdf","package":"internal/core/rib/locrib","mutants":43,"killed":27,"score":62.8}
 {"ts":"2026-06-11T16:20:46Z","sha":"dab958fdf","package":"internal/core/rib/locrib","mutants":274,"killed":190,"score":69.3}
 {"ts":"2026-06-11T16:31:04Z","sha":"a0ef95793","package":"internal/core/slogutil","mutants":708,"killed":473,"score":66.8}
+{"ts":"2026-08-26T16:42:52Z","sha":"1ca43288c","package":"letools/aisync","mutants":202,"killed":100,"score":49.5}
+{"ts":"2026-08-26T16:42:52Z","sha":"1ca43288c","package":"letools/changed","mutants":179,"killed":101,"score":56.4}
+{"ts":"2026-08-26T16:42:52Z","sha":"1ca43288c","package":"letools/worktree","mutants":203,"killed":67,"score":33.0}
+{"ts":"2026-08-26T17:14:47Z","sha":"1ca43288c","package":"letools/changed","mutants":166,"killed":127,"score":76.5}
+{"ts":"2026-08-26T17:14:47Z","sha":"1ca43288c","package":"letools/worktree","mutants":201,"killed":131,"score":65.2}
+{"ts":"2026-08-26T17:16:13Z","sha":"1ca43288c","package":"letools/aisync","mutants":195,"killed":128,"score":65.6}
+{"ts":"2026-08-26T17:25:18Z","sha":"1ca43288c","package":"letools/qemu","mutants":740,"killed":403,"score":54.5}

@@ -757,11 +757,23 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `internal/thirdparty/fat` | implements writing FAT16B file system images, which is useful when generating images for embedded devices such as the Raspberry Pi |  |
 
+## `letools/aisync/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/aisync` | generates the tool-specific copies of Ze's agent instructions from their one canonical source |  |
+
 ## `letools/archmap/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `letools/archmap` | owns the component and plugin inventories inside ai/INSTRUCTIONS.md |  |
+
+## `letools/changed/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/changed` | answers "what did I edit" for two callers |  |
 
 ## `letools/cidispatch/`
 
@@ -817,11 +829,41 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `letools/deployment` | proves ze against software somebody else wrote |  |
 
+## `letools/devsetup/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/devsetup` | install and verify every tool a Ze dev or test workflow needs |  |
+
+## `letools/digest/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/digest` | validates the `file:line` anchors in ai/digests/*.md against the tree those digests describe |  |
+
+## `letools/discoveryindex/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/discoveryindex` | generates one ai/PACKAGE-MAP.md line for each Go package |  |
+
+## `letools/docstocode/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/docstocode` | generates ai/DOCS-TO-CODE.md, the reverse index from the `// Design:` headers that live in Go files |  |
+
 ## `letools/docvalid/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `letools/docvalid` | the documentation gates: the YANG command contract, the doc drift check, and the generated operator table |  |
+
+## `letools/docwiring/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/docwiring` | runs the changed-file-aware wiring, documentation, command and inventory gate |  |
 
 ## `letools/evidence/`
 
@@ -841,6 +883,24 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `letools/fspersistence` | enforces the invariant that daemon runtime STATE is persisted through ze's managed zefs store (internal/core/statestore -> database.zefs), NOT as loose files written with raw os calls |  |
 
+## `letools/functional/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/functional` | the .ci functional suites: what each one runs, and the wall-clock budget it runs under |  |
+
+## `letools/fuzz/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/fuzz` | is scripts/le/application/fuzz.py, ported |  |
+
+## `letools/gaterun/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/gaterun` | provides the environment and command execution that a ported gate area needs |  |
+
 ## `letools/goextract/`
 
 | Package | Responsibility | Registered |
@@ -852,6 +912,12 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `letools/gokrazygosum` | compares the tracked `gokrazy/ze/builddir/**/go.sum` files with the root module's go.sum |  |
+
+## `letools/gotoolchain/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/gotoolchain` | is the Go port of scripts/le/devtools/toolchain.py |  |
 
 ## `letools/ianaasn/`
 
@@ -865,6 +931,12 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `letools/ifaceresolution` | enforces the interface-resolution invariant from the iface-resolve umbrella (sub-spec 7): no Ze code may resolve a configured interface name straight against the kernel |  |
 
+## `letools/integration/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/integration` | integration, interop, stress, live and QEMU tests: the proofs that need Docker, root, a namespace or a VM |  |
+
 ## `letools/inventory/`
 
 | Package | Responsibility | Registered |
@@ -875,7 +947,13 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
-| `letools/leaction` | is the Python `le` AREA, ported once |  |
+| `letools/leaction` | ports the Python `le` AREA once |  |
+
+## `letools/lejob/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/lejob` | determines whether each heavy job runs now |  |
 
 ## `letools/lepath/`
 
@@ -889,11 +967,23 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `letools/leroot` | is how an le tool joins the shared command engine |  |
 
+## `letools/letracked/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/letracked` | contains ports of scripts/le/application/tracked.py and scripts/le/devtools/tracked.py |  |
+
 ## `letools/parity/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `letools/parity` | measures how much of the Python le has become Go, and it is the reason the migration may run two implementations at once |  |
+
+## `letools/perfbench/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/perfbench` | ports scripts/dev/perf-suggest.py |  |
 
 ## `letools/pluginboundary/`
 
@@ -919,6 +1009,36 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `letools/protocolskeleton` | classifies each protocol's subpackages against the standard skeleton: a canonical module, per-peer state named by the protocol's own RFC term, a wire-version directory, a domain module, or a... |  |
 
+## `letools/pyfmt/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/pyfmt` | renders a value the way Python's repr and str render it |  |
+
+## `letools/pylint/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/pylint` | is scripts/le/application/lint.py, ported |  |
+
+## `letools/qemu/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/qemu` | proofs that boot a real appliance image in a virtual machine and ask it what it did |  |
+
+## `letools/repository/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/repository` | is the post-verify validation gate: five checks, each derived from a documented defect pattern in plan/learned/RECURRING-PATTERNS.md |  |
+
+## `letools/rules/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/rules` | owns the checks for `ai/rules/` |  |
+
 ## `letools/specstatus/`
 
 | Package | Responsibility | Registered |
@@ -931,11 +1051,29 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `letools/staticcheckmatrix` | type-checks the working tree once per feature-tag combination Ze can be built in |  |
 
+## `letools/ste/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/ste` | ports scripts/dev/ste_check.py |  |
+
 ## `letools/testsensitivity/`
 
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `letools/testsensitivity` | finds tests that cannot do their job, which no count of tests can reveal: 1 |  |
+
+## `letools/tier/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/tier` | provides the reverse-dependency audit and module-tier placement gate |  |
+
+## `letools/tokeneconomy/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/tokeneconomy` | measures token use by this repository's Claude Code sessions |  |
 
 ## `letools/trackedbuild/`
 
@@ -967,6 +1105,12 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 |---------|----------------|------------|
 | `letools/workingtree` | reports the uncommitted paths of a checkout, grouped by the area a reader thinks in |  |
 
+## `letools/worktree/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/worktree` | updates a git worktree from main |  |
+
 ## `letools/yangglue/`
 
 | Package | Responsibility | Registered |
@@ -978,6 +1122,12 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `letools/yangleafmentions` | reports YANG config leaves that the owning plugin package never names |  |
+
+## `letools/zele/`
+
+| Package | Responsibility | Registered |
+|---------|----------------|------------|
+| `letools/zele` | is the ONE seam through which a ze build carries le's development commands |  |
 
 ## `pkg/fleet/`
 

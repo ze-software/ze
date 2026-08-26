@@ -1290,6 +1290,7 @@ var regenCheckPrereqs = map[string]string{
 	"ze-arch-map-check":        "arch_map.py -> the architecture lists in ai/INSTRUCTIONS.md (NOT covered by ze-doc-verify)",
 	"ze-discovery-index-check": "package_map.py, docs_to_code.py -> the ai/ discovery indexes",
 	"ze-test-health-check":     "testing_health.py -> docs/features/test-health.md, test/health/latest.json, the sensitivity baseline",
+	"ze-site-facts-check":      "le site-facts update -> website/data/repo-facts.json, the numbers the website publishes about this repository",
 }
 
 // generatorChecks maps every generator reachable from `make generate` or
@@ -1331,6 +1332,7 @@ var generatorChecks = map[string]string{
 	"scripts/dev/skill_sync.sh":      "", // gitignored outputs -- excluded on purpose
 	"scripts/dev/testing_health.py":  "ze-test-health-check",
 	"ze-test-health-update":          "ze-test-health-check",
+	"ze-site-facts-update":           "ze-site-facts-check",
 }
 
 // recipeBody returns the lines of `target`'s recipe: everything after the rule
@@ -1526,7 +1528,7 @@ type leGate struct {
 // `le` rather than by parsing anything.
 func leGateScripts(t *testing.T, repoRoot string) map[string]string {
 	t.Helper()
-	out, err := exec.Command(filepath.Join(repoRoot, "le"), "gates", "--json").Output()
+	out, err := exec.CommandContext(t.Context(), filepath.Join(repoRoot, "le"), "gates", "--json").Output()
 	if err != nil {
 		t.Fatalf("`le gates --json` failed, so a delegating recipe cannot be resolved "+
 			"and this guard would pass vacuously: %v", err)
@@ -1690,8 +1692,8 @@ func TestRegenCheckReadonlyCoversGenerators(t *testing.T) {
 	// ze-generated-files-update unnoticed, so `make ze-generated-files-update` would stop regenerating an output
 	// that ze-generated-files-check (an un-parkable structural gate) still checks
 	// -- a red whose documented remediation does not fix it.
-	if len(subTargets) != 9 {
-		t.Fatalf("`ze-generated-files-update` has %d prerequisites (%v), expected 9; if that is deliberate, update this count and generatorChecks together.", len(subTargets), subTargets)
+	if len(subTargets) != 10 {
+		t.Fatalf("`ze-generated-files-update` has %d prerequisites (%v), expected 10; if that is deliberate, update this count and generatorChecks together.", len(subTargets), subTargets)
 	}
 	producers = append(producers, subTargets...)
 	for _, sub := range subTargets {
@@ -2636,8 +2638,7 @@ func verifyStatusCheck(t *testing.T, root string, paths ...string) (int, string)
 	if err == nil {
 		return 0, string(out)
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		return exitErr.ExitCode(), string(out)
 	}
 	t.Fatalf("run verify-status.sh check %v: %v: %s", paths, err, out)

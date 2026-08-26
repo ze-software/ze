@@ -104,13 +104,70 @@ def docker_run(name, image, ip, volumes=None, caps=None, extra_args=None, cmd=No
         raise RuntimeError("docker run %s failed: %s" % (name, result.stderr.strip()))
 
 
-def docker_rm(name):
-    subprocess.run(
-        ["docker", "rm", "-f", name],
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
+def docker_rm(name, strict=False):
+    """Remove a container. Two contracts, selected by `strict`.
+
+    The same removal runs at two moments that owe opposite answers, so it
+    mirrors `docker_rm` in test/interop/interop.py, which carries the full
+    reasoning.
+
+    The default is the CLEANUP contract and raises nothing. `Scenario.teardown`
+    runs from the runner's `finally`, so an exception here escapes that
+    `finally` and the run ends with no summary, discarding every tally the suite
+    had accumulated.
+
+    `strict=True` is the PRE-CLEAN contract and must raise. `Scenario.setup`
+    removes leftovers BEFORE starting its own containers, and a removal that
+    failed silently there leaves this scenario running beside an earlier run's
+    daemon on the same address. Nothing downstream catches that: a container
+    THIS scenario starts collides by name and `docker_run` raises, but a stale
+    peer it never starts does not, and `docker network create` accepts a network
+    that already exists.
+
+    Three failure shapes, and all of them leave the container standing.
+
+      * the call never answers. `TimeoutExpired`.
+      * docker answers with an error. `docker rm -f` on a container that does
+        not exist exits 0 with no output, so a non-zero exit here is always a
+        real failure and never the ordinary nothing-to-remove case.
+      * the call cannot run at all. `subprocess.run` reports a missing or
+        unusable docker binary as an `OSError`.
+    """
+    try:
+        result = subprocess.run(
+            ["docker", "rm", "-f", name],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired:
+        if strict:
+            raise RuntimeError(
+                "docker rm -f %s timed out after 30s: a leftover container "
+                "would race this scenario" % name
+            )
+        print(
+            "--- docker rm %s timed out after 30s, container can be left behind ---"
+            % name
+        )
+        return
+    except OSError as exc:
+        if strict:
+            raise RuntimeError(
+                "docker rm -f %s could not run (%s): a leftover container "
+                "would race this scenario" % (name, exc)
+            )
+        print(
+            "--- docker rm %s could not run (%s), container can be left behind ---"
+            % (name, exc)
+        )
+        return
+    if strict and result.returncode != 0:
+        raise RuntimeError(
+            "docker rm -f %s failed (exit %d): %s -- a leftover container would "
+            "race this scenario"
+            % (name, result.returncode, (result.stderr or "").strip() or "no stderr")
+        )
 
 
 def docker_logs(container, lines=50):
@@ -637,7 +694,9 @@ class Scenario:
         self.role = read_role(scenario_dir)
 
     def setup(self):
-        self.teardown()
+        # PRE-CLEAN, not cleanup: a removal that failed here would leave this
+        # scenario running beside a leftover daemon, so it must deny.
+        self.teardown(strict=True)
 
         result = subprocess.run(
             ["docker", "network", "create", "--subnet=%s" % SUBNET, NETWORK],
@@ -752,10 +811,17 @@ class Scenario:
             cmd=["start", "/etc/ze/ze.conf"],
         )
 
-    def teardown(self):
-        docker_rm(ZE_CONTAINER)
-        docker_rm(ACCEL_CONTAINER)
-        docker_rm(CLIENT_CONTAINER)
+    def teardown(self, strict=False):
+        """Remove the containers and the network.
+
+        `strict` picks the same two contracts as `docker_rm`, and for the same
+        reason: `setup` calls this to PRE-CLEAN and must not proceed on a
+        removal that failed, while the runner's `finally` must not lose the
+        run's summary to one.
+        """
+        docker_rm(ZE_CONTAINER, strict=strict)
+        docker_rm(ACCEL_CONTAINER, strict=strict)
+        docker_rm(CLIENT_CONTAINER, strict=strict)
         subprocess.run(
             ["docker", "network", "rm", NETWORK],
             capture_output=True,

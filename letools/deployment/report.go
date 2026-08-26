@@ -1,5 +1,7 @@
 // Design: ai/rules/cli.md -- one payload, and the operator picks the rendering
 // Overview: l2tp.go -- the run that fills this in
+// Related: vppifacereport.go -- the VPP interface proof's own payload
+// Related: l2tppppreport.go -- the on-host L2TP PPP proof's own payload
 //
 // report.go is what a deployment proof answers. It is data, so `| json`,
 // `| yaml` and `| table` each render it with no code here, and Text is the

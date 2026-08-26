@@ -1,5 +1,9 @@
 // Design: docs/architecture/testing/interop.md -- ze against a real peer
 // Related: l2tp.go -- the first proof built on what this file holds
+// Related: vppiface.go -- the second
+// Related: daemonbuild.go -- the daemon both of them drive
+// Related: gokrazykernel.go -- the kernel gate an appliance proof goes through
+// Detail: netns.go -- the namespaces the on-host proofs keep their daemons apart in
 //
 // Package deployment proves ze against software somebody else wrote. Each
 // action here starts a real peer daemon in a container, points ze at it, and
@@ -27,6 +31,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -68,41 +73,52 @@ const (
 // nothing this tool does will change that.
 const killGrace = 2 * time.Second
 
-// collector watches one process's output for the lines that decide a verdict,
-// and keeps a bounded tail of everything it saw.
+// needleHits bounds how many lines one needle keeps.
 //
-// The needles are declared up front rather than searched for later, which is
-// what lets the tail be bounded: a line that decides the verdict is marked as
-// it arrives, so it does not have to survive in a buffer until somebody asks.
+// A caller reads the lines behind a needle to find one field in one of them. The
+// field is the address a session was given or the interface a session came up
+// on. A handful of lines is enough. The bound stops repeated daemon output from
+// making this tool hold a whole log.
+const needleHits = 32
+
+// collector watches one process's output for the lines that decide a verdict.
+// It keeps the lines that carried each needle and a bounded tail of everything
+// it saw.
+//
+// The needles are declared up front rather than searched for later. This lets
+// both stores remain bounded. The collector keeps a line that decides the
+// verdict when it arrives, so the line need not survive in a buffer until a
+// caller asks for it.
 //
 // Safe for concurrent use.
 type collector struct {
-	mu    sync.Mutex
-	tail  []string
-	marks map[string]bool
-	kept  int
-	wg    sync.WaitGroup
+	mu   sync.Mutex
+	tail []string
+	hits map[string][]string
+	kept int
+	wg   sync.WaitGroup
 }
 
 // newCollector answers a collector watching for each needle.
 func newCollector(needles ...string) *collector {
-	marks := make(map[string]bool, len(needles))
+	hits := make(map[string][]string, len(needles))
 	for _, needle := range needles {
-		marks[needle] = false
+		hits[needle] = nil
 	}
-	return &collector{marks: marks, tail: make([]string, LogTailLines)}
+	return &collector{hits: hits, tail: make([]string, LogTailLines)}
 }
 
-// add records one line: it marks every needle the line carries, and it joins
-// the bounded tail.
+// add records one line: it keeps the line under every needle the line carries,
+// and it joins the bounded tail.
 func (c *collector) add(line string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	for needle := range c.marks {
-		if !c.marks[needle] && strings.Contains(line, needle) {
-			c.marks[needle] = true
+	for needle := range c.hits {
+		if !strings.Contains(line, needle) || len(c.hits[needle]) >= needleHits {
+			continue
 		}
+		c.hits[needle] = append(c.hits[needle], line)
 	}
 
 	c.tail[c.kept%LogTailLines] = line
@@ -110,11 +126,46 @@ func (c *collector) add(line string) {
 }
 
 // saw reports whether any line carried needle. A needle the collector was not
-// built to watch is never seen, because nothing marked it.
+// built to watch is never seen, because nothing kept it.
 func (c *collector) saw(needle string) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.marks[needle]
+	return len(c.hits[needle]) > 0
+}
+
+// sawAll reports whether every needle has arrived.
+func (c *collector) sawAll(needles []string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, needle := range needles {
+		if len(c.hits[needle]) == 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// carrying answers the lines that carried needle, oldest first, with at most
+// needleHits lines. It answers no lines for a needle the collector was not built
+// to watch or for a needle that never arrived. In both cases, the collector has
+// no line to show for the needle.
+func (c *collector) carrying(needle string) []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return slices.Clone(c.hits[needle])
+}
+
+// firstSeen answers the first needle out of fatal that has arrived, or the
+// empty string when none has.
+func (c *collector) firstSeen(fatal []string) string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, needle := range fatal {
+		if len(c.hits[needle]) > 0 {
+			return needle
+		}
+	}
+	return ""
 }
 
 // tail answers the last lines, oldest first, at most LogTailLines of them.
@@ -274,6 +325,49 @@ func await(seen *collector, needle string, proc *running, timeout time.Duration)
 		}
 		if !time.Now().Before(deadline) {
 			return false
+		}
+		time.Sleep(pollInterval)
+	}
+}
+
+// errFatalLine is what a wait answers when the daemon reported a failure it
+// cannot come back from. The needle that arrived is in the message, because the
+// needle IS the diagnosis: each one names a step of the path that refused.
+type errFatalLine struct{ needle string }
+
+// Error answers the sentence the Python originals printed, word for word.
+func (e errFatalLine) Error() string {
+	var tb textbuf.Buffer
+	return tb.Str("ze reported fatal failure: ").Str(e.needle).String()
+}
+
+// awaitAll waits for every needle in wanted. It stops early when any needle in
+// fatal arrives or when the process under observation exits.
+//
+// On every pass, awaitAll reads the fatal set BEFORE the wanted set. A run whose
+// daemon reports both in one burst therefore reports failure rather than
+// success. The Python original uses this order. The order matters because the
+// line that ends a session and the line that reports one arrive within
+// milliseconds of each other.
+func awaitAll(seen *collector, wanted, fatal []string, proc *running, timeout time.Duration) (bool, error) {
+	deadline := time.Now().Add(timeout)
+	for {
+		if needle := seen.firstSeen(fatal); needle != "" {
+			return false, errFatalLine{needle: needle}
+		}
+		if seen.sawAll(wanted) {
+			return true, nil
+		}
+		if proc.exited() {
+			// One last read: the process can exit between the checks above,
+			// with the deciding line already delivered.
+			if needle := seen.firstSeen(fatal); needle != "" {
+				return false, errFatalLine{needle: needle}
+			}
+			return seen.sawAll(wanted), nil
+		}
+		if !time.Now().Before(deadline) {
+			return false, nil
 		}
 		time.Sleep(pollInterval)
 	}

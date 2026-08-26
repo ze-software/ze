@@ -48,7 +48,7 @@ func fixtureL2TP(t *testing.T) *L2TP {
 func TestTheDaemonIsBuiltWithEveryFeatureGate(t *testing.T) {
 	run := fixtureL2TP(t)
 
-	argv, err := run.buildArgs()
+	argv, err := daemonBuildArgs(run.Tree, run.Goarch)
 	if err != nil {
 		t.Fatalf("derive the build argv: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestAManifestWithNoGateStopsTheBuild(t *testing.T) {
 		t.Fatalf("empty the fixture manifest: %v", err)
 	}
 
-	if argv, err := run.buildArgs(); err == nil {
+	if argv, err := daemonBuildArgs(run.Tree, run.Goarch); err == nil {
 		t.Fatalf("a manifest with no gate answered the build argv %v, want an error", argv)
 	}
 }

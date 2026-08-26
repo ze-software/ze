@@ -1,4 +1,4 @@
-// Design: docs/architecture/appliance/gokrazy-image.md -- the packed go.sum gate
+// Design: docs/architecture/appliance/gokrazy-build-pins.md -- the packed go.sum gate
 //
 // Package gokrazygosum compares the tracked `gokrazy/ze/builddir/**/go.sum`
 // files with the root module's go.sum. A go.sum line is `module version hash`,

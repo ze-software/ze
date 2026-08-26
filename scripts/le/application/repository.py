@@ -290,6 +290,33 @@ GATES = GateSet(
                 ' value in it, so staleness is gateable the way every other generated file is'
             ),
         ),
+        # The two gates below are the first here whose implementation is the GO
+        # `le` rather than a script. The regeneration and the check share ONE
+        # derivation (letools/sitefacts, derive), so a Python re-implementation
+        # would be a second counter over one tree -- and two counters over one
+        # tree drift by construction: the site and the repository disagreed by
+        # 30 tests the moment both counted for themselves. When the Makefile
+        # routes to the Go `le` directly, these two rows go and the shims stay.
+        Gate(
+            name='ze-site-facts-update',
+            argv=_go('./cmd/le', 'site-facts', 'update'),
+            why=(
+                'derive the numbers the website publishes about this repository into'
+                ' website/data/repo-facts.json, so a site build reads a commit instead of'
+                ' walking a checkout several sessions share'
+            ),
+            writes=True,
+        ),
+        Gate(
+            name='ze-site-facts-check',
+            argv=_go('./cmd/le', 'site-facts', 'check'),
+            why=(
+                'website/data/repo-facts.json still publishes what the last COMMIT says.'
+                ' It judges a commit in a throwaway worktree rather than the working tree,'
+                ' because a check reading the tree answers differently in two sessions of'
+                ' one checkout, which is the defect it exists to catch'
+            ),
+        ),
         Gate(
             name='ze-platform-vet-darwin',
             argv=('go', 'vet', *PLATFORM_PACKAGES),

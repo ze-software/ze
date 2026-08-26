@@ -100,9 +100,16 @@ RFC_LEVEL = re.compile(r"^- \[[ x]\] \[[^\]]+\] \[([A-Z ]+)\]")
 # cover only these, so the page's split must too.
 GATED_LEVELS = frozenset({"MUST", "MUST NOT", "SHALL", "SHALL NOT", "REQUIRED"})
 # The State cell an enrolled RFC renders (scripts/dev/rfc_requirements.py
-# _render_rollup; the other two states are `enrollable` and `backlog`). Pinned to
-# the exact rendered marker so a renderer change empties the enrolled population
-# and trips the fail-closed guard in collect_rfc rather than silently reshaping it.
+# _render_rollup; the other two states are `enrollable` and `backlog`). Matched as a
+# PREFIX, because the cell also carries a suffix when the RFC has been obsoleted:
+# `**enrolled**, superseded by RFC9568`. Exact equality dropped those four rows from
+# the enrolled population and took 71 gated requirements off this page with them,
+# silently, because the remainder and the annotation split were both narrowed by the
+# same filter and still balanced.
+#
+# The prefix keeps the fail-closed property the exact match was pinned for: a renderer
+# that stops emitting this marker still empties the population and still trips the
+# guard in collect_rfc.
 RFC_STATE_ENROLLED = "**enrolled**"
 
 TEST_FUNC = re.compile(r"^func (Test[A-Z_][A-Za-z0-9_]*)\(", re.MULTILINE)
@@ -355,7 +362,7 @@ def collect_rfc(root: Path) -> tuple[Metric, Metric]:
     # Enrolment is read from the ledger ROW, never from rfc/enrolled.txt: the row
     # IS the population this assertion is about, and a second source is how the
     # two diverge again.
-    enrolled_rows = [r for r in rows if r["state"] == RFC_STATE_ENROLLED]
+    enrolled_rows = [r for r in rows if r["state"].startswith(RFC_STATE_ENROLLED)]
     if not enrolled_rows:
         raise CollectError(
             f"{RFC_LEDGER} parsed {len(rows)} coverage row(s), none marked "

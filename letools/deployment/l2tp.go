@@ -1,7 +1,8 @@
 // Design: docs/architecture/testing/interop.md -- ze against a real L2TP peer
 // Overview: actions.go -- the area table that reaches this run
 // Detail: report.go -- the payload this run answers
-// Related: deployment.go -- the container, the build and the collector
+// Related: deployment.go -- the container and the collector
+// Related: daemonbuild.go -- the daemon this proof builds
 //
 // l2tp.go proves that ze terminates an L2TP tunnel a peer somebody else wrote
 // dials. xl2tpd is that peer: it runs in a container beside a cross-compiled
@@ -26,7 +27,6 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/letools/featuretags"
 )
 
 // The dot-notation spellings of ZE_L2TP_DOCKER_IMAGE, ZE_L2TP_DOCKER_PLATFORM
@@ -89,8 +89,9 @@ const (
 // grammar rather than this proof's, so they are named where a reader can see
 // that every use is the same word.
 const (
-	dockerExec = "exec"
-	dockerEnv  = "--env"
+	dockerExec   = "exec"
+	dockerEnv    = "--env"
+	dockerDetach = "--detach"
 )
 
 // The daemon lines that decide the verdict. They are the collector's needles,
@@ -161,12 +162,12 @@ environment {
 }
 `
 
-// The three bounds on the steps that lead up to the proof. Each is generous
+// The two bounds on the steps that lead up to the proof. Each is generous
 // enough for a cold machine and short enough that a hung step is reported
-// rather than waited on: a cross-compile of the whole daemon, a container
-// start, and an Alpine package install over the network.
+// rather than waited on: a container start, and an Alpine package install over
+// the network. The cross-compile is bounded by daemonbuild.go, which every
+// proof shares.
 const (
-	buildTimeout   = 20 * time.Minute
 	dockerTimeout  = 2 * time.Minute
 	installTimeout = 5 * time.Minute
 )
@@ -228,29 +229,6 @@ func setting(key, fallback string) string {
 	return fallback
 }
 
-// daemonRel answers where the cross-compiled daemon lands, relative to the
-// tree. It is relative because the container sees the tree at /src and the
-// build sees it at Tree, so one path has to be turned into the other.
-func (l *L2TP) daemonRel() string {
-	var tb textbuf.Buffer
-	return filepath.Join("tmp", "evidence", "bin", tb.Str("ze-linux-").Str(l.Goarch).String())
-}
-
-// buildArgs answers the cross-compilation, with every feature gate the manifest
-// declares.
-//
-// The tags are DERIVED rather than written down. A literal list is a second
-// record of one fact, and the record nothing compares drifts: ze_l2tp became a
-// gate on 2026-07-24 and this proof went on building a daemon with no L2TP in
-// it for a month (letools/featuretags/daemontags.go).
-func (l *L2TP) buildArgs() ([]string, error) {
-	tags, err := featuretags.DaemonBuildTags(l.Tree, featuretags.DaemonBase)
-	if err != nil {
-		return nil, err
-	}
-	return []string{"build", "-tags", tags, "-o", filepath.Join(l.Tree, l.daemonRel()), "./cmd/ze"}, nil
-}
-
 // containerArgs answers the container the peer and the daemon both run in.
 //
 // It is privileged because xl2tpd opens a PPP device, and it holds the checkout
@@ -263,7 +241,7 @@ func (l *L2TP) containerArgs(name, work string) []string {
 	scratch := tb.Str(work).Str(":/run/l2tp").String()
 
 	return []string{
-		"run", "--rm", "--detach", "--privileged",
+		"run", "--rm", dockerDetach, "--privileged",
 		"--platform", l.Platform,
 		"--name", name,
 		"-v", src,
@@ -324,9 +302,9 @@ func (l *L2TP) writeScratch(work string) error {
 		return err
 	}
 	files := map[string]string{
-		"xl2tpd.conf":  PeerConfig,
-		"l2tp-secrets": PeerSecrets,
-		"ppp-options":  PeerPPPOptions,
+		PeerConfigFile:  PeerConfig,
+		PeerSecretsFile: PeerSecrets,
+		PeerOptionsFile: PeerPPPOptions,
 	}
 	for name, body := range files {
 		if err := os.WriteFile(filepath.Join(work, name), []byte(body), 0o644); err != nil { //nolint:gosec // a scratch file two daemons in a container read
@@ -351,7 +329,7 @@ func (l *L2TP) Run() (L2TPReport, error) {
 	if err := ensureImage(l.Image, l.Progress); err != nil {
 		return report, err
 	}
-	if err := l.build(); err != nil {
+	if err := buildDaemon(l.Tree, l.Goarch, l.Progress); err != nil {
 		return report, err
 	}
 
@@ -387,7 +365,7 @@ func (l *L2TP) observe(report L2TPReport) (L2TPReport, error) {
 	// Background rather than a deadline: this daemon is stopped by the run's
 	// own stop path once a verdict is reached, and the two waits below are
 	// where the run is bounded in time.
-	daemon := exec.CommandContext(context.Background(), "docker", l.daemonArgs(report.Container, l.daemonRel())...) //nolint:gosec // the argv is built above, never by an operator
+	daemon := exec.CommandContext(context.Background(), "docker", l.daemonArgs(report.Container, daemonRel(l.Goarch))...) //nolint:gosec // the argv is built above, never by an operator
 	daemon.Stdin = strings.NewReader(DaemonConfig)
 
 	ze, err := startWatched(daemon, "ze> ", seen, l.Progress)
@@ -420,51 +398,6 @@ func (l *L2TP) observe(report L2TPReport) (L2TPReport, error) {
 		report.LogTail = seen.tailLines()
 	}
 	return report, nil
-}
-
-// build cross-compiles the daemon into the tree's scratch directory.
-//
-// CGO is off and the output carries the architecture in its name, so a checkout
-// used from two machines does not hand one machine the other's binary.
-func (l *L2TP) build() error {
-	argv, err := l.buildArgs()
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Join(l.Tree, "tmp", "evidence", "bin"), 0o750); err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), buildTimeout)
-	defer cancel()
-
-	build := exec.CommandContext(ctx, "go", argv...) //nolint:gosec // the argv is derived from the manifest, never from an operator
-	build.Dir = l.Tree
-	build.Stdout = l.Progress
-	build.Stderr = l.Progress
-	build.Env = append(os.Environ(), "GOOS=linux", "CGO_ENABLED=0", l.goarchVar())
-	if os.Getenv("GOCACHE") == "" {
-		build.Env = append(build.Env, l.gocacheVar())
-	}
-
-	if err := build.Run(); err != nil {
-		return errors.New("go build ./cmd/ze failed")
-	}
-	return nil
-}
-
-// goarchVar answers the GOARCH assignment the build carries.
-func (l *L2TP) goarchVar() string {
-	var tb textbuf.Buffer
-	return tb.Str("GOARCH=").Str(l.Goarch).String()
-}
-
-// gocacheVar answers a build cache inside the checkout, used only when the
-// operator named none. It keeps a proof that cross-compiles the whole daemon
-// from paying for it twice.
-func (l *L2TP) gocacheVar() string {
-	var tb textbuf.Buffer
-	return tb.Str("GOCACHE=").Str(filepath.Join(l.Tree, "tmp", "go-cache")).String()
 }
 
 // startContainer starts the container the proof runs in.

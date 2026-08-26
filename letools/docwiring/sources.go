@@ -1,0 +1,486 @@
+// Design: docs/architecture/core-design.md -- which changed file needs which gate
+// Overview: docwiring.go -- the gate this selection feeds
+//
+// sources.go selects the checks that a diff needs. Each predicate asks whether
+// a changed path can alter one gate's answer. Their union uses a fixed order so
+// repeated runs over one diff agree.
+//
+// A content predicate reads both the working tree and HEAD. A change can add or
+// remove its marker.
+
+package docwiring
+
+import (
+	"bufio"
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"slices"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/letools/discoveryindex"
+)
+
+// wiringTarget is the one selected check this package runs itself. Every other
+// name in the order below is a Make target it delegates to.
+const wiringTarget = "wiring"
+
+// defaultMake is the make executable delegated targets run with when the caller
+// names none.
+const defaultMake = "make"
+
+// gitTimeout bounds one git query. Each one lists paths and forks nothing, so a
+// run past this bound is a hung index lock rather than a slow query.
+const gitTimeout = 2 * time.Minute
+
+// makefile is the shared path for several predicates. It contains generator and
+// documentation recipes, so a change can alter any related answer.
+const makefile = "Makefile"
+
+// targetOrder is the order selected checks run in. It is fixed so a diff
+// selecting the same set twice reads the same both times.
+var targetOrder = [...]string{
+	wiringTarget,
+	"ze-command-contract-check",
+	"ze-command-ownership-check",
+	"ze-doc-verify",
+	"ze-doc-index-check",
+	"ze-discovery-index-check",
+	"ze-digest-check",
+	"ze-inventory-json",
+	"ze-command-list-json",
+	"ze-plugin-imports-check",
+	"ze-templ-output-check",
+	"ze-functional-docker-exec-check",
+	"ze-spec-citation-check",
+}
+
+// makeTargets contains every name that this gate CAN pass to make. A selected
+// name outside this set is a table defect, not a tree property. The router
+// refuses it instead of running an unknown word.
+var makeTargets = func() map[string]bool {
+	targets := make(map[string]bool, len(targetOrder)-1)
+	for _, target := range targetOrder {
+		if target != wiringTarget {
+			targets[target] = true
+		}
+	}
+	return targets
+}()
+
+// SelectedTargets answers the checks this diff needs, in targetOrder.
+//
+// An unreadable changed file reaches the caller as an error, not an unselected
+// path. Otherwise, the router CAN select no gate for that file. The change
+// would then receive no judgment while the run still looks clean.
+func SelectedTargets(root string, changed []string) ([]string, error) {
+	selected := make(map[string]bool)
+	for _, path := range changed {
+		if IsWiringSource(path) {
+			selected[wiringTarget] = true
+		}
+		if isTemplSource(path) {
+			selected["ze-templ-output-check"] = true
+		}
+		if isDockerExecSource(path) {
+			selected["ze-functional-docker-exec-check"] = true
+		}
+		if isPlanSource(path) {
+			selected["ze-spec-citation-check"] = true
+		}
+		if isCommandOwnershipSource(path) {
+			selected["ze-command-ownership-check"] = true
+		}
+
+		for _, rule := range []struct {
+			match   func(string, string) (bool, error)
+			targets []string
+		}{
+			{isCommandSource, []string{"ze-command-contract-check"}},
+			{isDocSource, []string{"ze-doc-verify", "ze-doc-index-check"}},
+			{isDiscoverySource, []string{"ze-discovery-index-check"}},
+			{isDigestSource, []string{"ze-digest-check"}},
+			{isInventorySource, []string{"ze-inventory-json", "ze-command-list-json", "ze-plugin-imports-check"}},
+		} {
+			hit, err := rule.match(root, path)
+			if err != nil {
+				return nil, err
+			}
+			if !hit {
+				continue
+			}
+			for _, target := range rule.targets {
+				selected[target] = true
+			}
+		}
+	}
+
+	out := make([]string, 0, len(selected))
+	for _, target := range targetOrder {
+		if selected[target] {
+			out = append(out, target)
+		}
+	}
+	return out, nil
+}
+
+// IsWiringSource reports a non-test Go file under a tree the wiring check
+// judges.
+func IsWiringSource(path string) bool {
+	return strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go") &&
+		(strings.HasPrefix(path, "internal/") || strings.HasPrefix(path, "cmd/"))
+}
+
+// isTemplSource reports a change that must re-run the templ generated-output
+// freshness gate.
+//
+// A .templ file is a source, and a *_templ.go file is its output. A change to
+// either can make the pair stale. The Makefile is included because it defines
+// the shared scope of generation and checking. A scope edit CAN omit a whole
+// directory. The orphan checker is also included because templ keeps orphaned
+// files and only that script reports them.
+func isTemplSource(path string) bool {
+	return path == makefile || path == "scripts/dev/templ_orphan_check.py" ||
+		strings.HasSuffix(path, ".templ") || strings.HasSuffix(path, "_templ.go")
+}
+
+// isPlanSource reports a change that must run the spec citation freshness gate.
+// This includes specs, learned summaries, the checker, and the citation
+// baseline. Spec closure removes a spec file, so the gate detects a dangling
+// citation from a sibling spec.
+func isPlanSource(path string) bool {
+	if path == "scripts/dev/spec-citation-check.py" || path == "plan/.citation-baseline" {
+		return true
+	}
+	if !strings.HasSuffix(path, ".md") {
+		return false
+	}
+	return strings.HasPrefix(path, "plan/spec-") || strings.HasPrefix(path, "plan/learned/")
+}
+
+// isDockerExecSource reports a change that must run the fail-open call-site
+// ratchet. Sources include Python under test/, the checker, and the committed
+// floor.
+//
+// Each can change the count. A scenario adds a call site. A lab adds a WRAPPER,
+// which changes the derived fail-open set and can reclassify untouched files.
+// The checker excludes the gitignored draft incubator, so drafts do not fail an
+// unrelated session's ratchet.
+func isDockerExecSource(path string) bool {
+	if path == "scripts/dev/docker_exec_checked.py" || path == "test/health/docker-exec-baseline.json" {
+		return true
+	}
+	if !strings.HasPrefix(path, "test/") || !strings.HasSuffix(path, ".py") {
+		return false
+	}
+	return !strings.HasPrefix(path, "test/draft/")
+}
+
+// isCommandOwnershipSource reports a change that must run the command ownership
+// gate. Sources include the checker, registry, shim, owner register.go files,
+// and the ze dispatch and central-registration files.
+func isCommandOwnershipSource(path string) bool {
+	if path == "scripts/checks/command_ownership.go" || path == "cmd/ze/main.go" {
+		return true
+	}
+	if strings.HasPrefix(path, "internal/component/command/registry/") {
+		return true
+	}
+	if strings.HasPrefix(path, "cmd/ze/internal/cmdregistry/") {
+		return true
+	}
+	return strings.HasSuffix(path, "register.go") &&
+		(strings.Contains(path, "/cli/") || strings.Contains(path, "/client/") ||
+			strings.HasPrefix(path, "cmd/ze/"))
+}
+
+// commandMarkers are the spellings that make a Go file part of the command
+// surface.
+var commandMarkers = [...]string{
+	"cmdregistry.MustRegisterLocal",
+	"cmdregistry.MustRegisterLocalMeta",
+	"pluginserver.RegisterRPCs",
+	"ze:command",
+}
+
+// isCommandSource reports a change that must re-run the command contract gate.
+func isCommandSource(root, path string) (bool, error) {
+	switch path {
+	case "scripts/docvalid/commands.go", "scripts/inventory/commands.go",
+		"internal/component/config/yang/command.go",
+		"internal/component/plugin/server/command.go":
+		return true, nil
+	}
+	if strings.HasSuffix(path, "-cmd.yang") {
+		return true, nil
+	}
+	if strings.HasSuffix(path, ".yang") {
+		return fileOrHeadContains(root, path, "ze:command")
+	}
+	if !strings.HasSuffix(path, ".go") {
+		return false, nil
+	}
+	return fileOrHeadContainsAny(root, path, commandMarkers[:])
+}
+
+// isDocSource reports a change that must re-run the documentation gates.
+func isDocSource(root, path string) (bool, error) {
+	switch path {
+	case "scripts/docvalid/doc_drift.go", "scripts/docvalid/commands.go",
+		"scripts/dev/code_to_docs.py", "ai/CODE-TO-DOCS.md":
+		return true, nil
+	}
+	if path == makefile || strings.HasPrefix(path, "mk/") {
+		return true, nil
+	}
+	if (strings.HasPrefix(path, "docs/") || path == "README.md") && strings.HasSuffix(path, ".md") {
+		return fileOrHeadContains(root, path, "<!-- source:")
+	}
+	return false, nil
+}
+
+// isDiscoverySource reports a change that can drift a generated discovery
+// index.
+//
+// The path rules are the generator's own (letools/discoveryindex), so the
+// router and the index cannot disagree about what feeds it. Here the header
+// marker is matched against the working tree PLUS head, because a change either
+// adds such a header or removes one.
+func isDiscoverySource(root, path string) (bool, error) {
+	header := ""
+	if strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go") {
+		current, err := readCurrentOrEmpty(root, path)
+		if err != nil {
+			return false, err
+		}
+		var tb textbuf.Buffer
+		header = tb.Str(current).Byte('\n').Str(readHeadOrEmpty(root, path)).String()
+	}
+	return discoveryindex.IsSource(path, header), nil
+}
+
+var digestBaseRe = regexp.MustCompile(`<!--\s*digest-base:\s*(.+?)\s*-->`)
+
+// digestBases answers the subtrees the digests anchor into, read from their own
+// headers. A Go edit under one of these can shift the line numbers a digest
+// cites.
+func digestBases(root string) ([]string, error) {
+	bases := make(map[string]bool)
+	dir := filepath.Join(root, "ai", "digests")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// A tree with no digests anchors nothing, which is a fact about the
+			// tree rather than a read that fell short.
+			return nil, nil
+		}
+		return nil, fmt.Errorf("reading %s: %w", dir, err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(dir, entry.Name())) //nolint:gosec // a digest of the tree the caller named
+		if err != nil {
+			// A digest this scan cannot read anchors into subtrees nobody then
+			// routes, so a Go edit under one of them skips the anchor check.
+			return nil, fmt.Errorf("reading %s: %w", entry.Name(), err)
+		}
+		for _, m := range digestBaseRe.FindAllStringSubmatch(string(raw), -1) {
+			for _, token := range strings.FieldsFunc(strings.TrimSpace(m[1]), isBaseSeparator) {
+				if token != "" {
+					bases[token] = true
+				}
+			}
+		}
+	}
+
+	out := make([]string, 0, len(bases))
+	for base := range bases {
+		out = append(out, base)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// isBaseSeparator reports the characters a digest-base header separates its
+// subtrees with.
+func isBaseSeparator(r rune) bool {
+	return r == ',' || r == ' ' || r == '\t' || r == '\n' || r == '\r' || r == '\f' || r == '\v'
+}
+
+// isDigestSource reports a change that must validate digest anchors. Sources
+// include a digest, the checker, or non-test Go under an anchored subtree.
+func isDigestSource(root, path string) (bool, error) {
+	if strings.HasPrefix(path, "ai/digests/") && strings.HasSuffix(path, ".md") {
+		return true, nil
+	}
+	if path == "scripts/dev/digest_check.py" {
+		return true, nil
+	}
+	if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+		return false, nil
+	}
+	bases, err := digestBases(root)
+	if err != nil {
+		return false, err
+	}
+	var tb textbuf.Buffer
+	for _, base := range bases {
+		if path == base {
+			return true, nil
+		}
+		if strings.HasPrefix(path, tb.Reset().Str(base).Byte('/').String()) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// registryMarkers are the spellings that make a register.go part of the runtime
+// inventory.
+var registryMarkers = [...]string{
+	"registry.Register",
+	"MustRegister",
+	"RegisterNamespace",
+	"RegisterBackend",
+	"yang.MustRegister",
+}
+
+// isInventorySource reports a change that must re-run the inventory gates.
+func isInventorySource(root, path string) (bool, error) {
+	switch path {
+	case makefile, "mk/report-inventory.mk", "scripts/codegen/plugin_imports.go",
+		"internal/component/plugin/all/all.go":
+		return true, nil
+	}
+	if strings.HasPrefix(path, "scripts/inventory/") {
+		return true, nil
+	}
+	if strings.HasSuffix(path, ".yang") && strings.HasPrefix(path, "internal/") {
+		return true, nil
+	}
+	if strings.HasSuffix(path, "register.go") && strings.HasPrefix(path, "internal/") {
+		return fileOrHeadContainsAny(root, path, registryMarkers[:])
+	}
+	return false, nil
+}
+
+func fileOrHeadContains(root, path, needle string) (bool, error) {
+	return fileOrHeadContainsAny(root, path, []string{needle})
+}
+
+func fileOrHeadContainsAny(root, path string, needles []string) (bool, error) {
+	text, err := readCurrentOrEmpty(root, path)
+	if err != nil {
+		return false, err
+	}
+	head := readHeadOrEmpty(root, path)
+	for _, needle := range needles {
+		if strings.Contains(text, needle) || strings.Contains(head, needle) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// readHeadOrEmpty answers a path's content at HEAD, or "" when git does not
+// hold it there. A path git cannot show is a path this change ADDS, which is
+// the case the caller is looking for rather than an error.
+func readHeadOrEmpty(root, path string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
+	defer cancel()
+
+	var tb textbuf.Buffer
+	cmd := exec.CommandContext(ctx, "git", "show", tb.Str("HEAD:").Str(path).String()) //nolint:gosec // a repository path the caller named, handed to git as one argument
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return string(out)
+}
+
+// ChangedFiles answers every path this working tree has changed against HEAD,
+// staged or not, tracked or not.
+//
+// A failed git command means that no check judged the tree. The caller reports
+// the run failure without a group.
+func ChangedFiles(root string) ([]string, error) {
+	files := make(map[string]bool)
+	for _, argv := range [][]string{
+		{"diff", "--name-only"},
+		{"diff", "--cached", "--name-only"},
+		{"ls-files", "--others", "--exclude-standard"},
+	} {
+		out, err := gitLines(root, argv)
+		if err != nil {
+			return nil, err
+		}
+		for _, line := range out {
+			files[line] = true
+		}
+	}
+
+	out := make([]string, 0, len(files))
+	for path := range files {
+		out = append(out, path)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// gitFailure names the failed query and git's message. A command failure means
+// that no check judged the tree. A caller can distinguish it from a check
+// finding.
+func gitFailure(argv []string, stderr string) error {
+	var tb textbuf.Buffer
+	message := strings.TrimSpace(stderr)
+	if message == "" {
+		message = tb.Str("git ").Join(argv, " ").Str(" failed").String()
+	}
+	return errors.New(message)
+}
+
+// gitLines runs one git query and answers its non-blank output lines.
+func gitLines(root string, argv []string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "git", argv...) //nolint:gosec // one of three fixed queries declared above
+	cmd.Dir = root
+	var errOut strings.Builder
+	cmd.Stderr = &errOut
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, gitFailure(argv, errOut.String())
+	}
+
+	var lines []string
+	scanner := bufio.NewScanner(strings.NewReader(string(out)))
+	for scanner.Scan() {
+		if line := strings.TrimSpace(scanner.Text()); line != "" {
+			lines = append(lines, line)
+		}
+	}
+	return lines, scanner.Err()
+}
+
+// TargetOrder answers the check order. It derives from the selection table, so
+// a Python comparison cannot accidentally use a second copy.
+func TargetOrder() []string { return slices.Clone(targetOrder[:]) }
+
+// CommandMarkers answers the spellings that make a Go file part of the command
+// surface.
+func CommandMarkers() []string { return slices.Clone(commandMarkers[:]) }
+
+// RegistryMarkers answers the spellings that make a register.go part of the
+// runtime inventory.
+func RegistryMarkers() []string { return slices.Clone(registryMarkers[:]) }

@@ -1,10 +1,12 @@
 // Design: docs/architecture/core-design.md -- an le area, as one command
 //
-// Package leaction is the Python `le` AREA, ported once. `le generate
-// ze-web-assets-check` selected one gate out of a GateSet; `le web-assets
-// check` selects one action out of an Area. The three fields a Gate carried
-// travel with it: the Make target it still is, the reason `--list` printed, and
-// whether it WRITES.
+// Package leaction ports the Python `le` AREA once. `le generate
+// ze-web-assets-check` selected one gate from a GateSet. `le web-assets check`
+// selects one action from an Area. Three Gate fields travel with the action:
+// the existing Make target, the reason that `--list` printed, and whether it
+// WRITES. The port added a fourth field for the argv of a script that the action
+// still starts. letools/parity uses that argv to distinguish a converted gate
+// from a gate whose driver has not moved.
 //
 // It exists because ONE package registers ONE root command
 // (cmd/le/register_test.go, TestEveryPackageRegistersOneRootHandler) while a
@@ -21,6 +23,7 @@ package leaction
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -43,8 +46,68 @@ type Action struct {
 	// Writes says this action changes the tree. It is the fact a reader must
 	// not have to look up, so the listing prints it and help repeats it.
 	Writes bool
+	// Forks is the command line that this action starts when another program
+	// does the work. It is empty when the action does the work in Go.
+	// letools/parity uses that absence to distinguish a CONVERTED gate from a
+	// gate with a new command but a script driver.
+	//
+	// The argv, rather than a boolean, keeps the census honest. A flag records
+	// its author's belief. The argv records what runs. Thus, `go test` is
+	// converted, and `python3 scripts/evidence/effective-vpp.py` is forked.
+	// Nobody classifies the same action twice.
+	Forks []string
 	// Answer runs it.
 	Answer func() (any, int)
+}
+
+// scriptSuffixes lists the extensions of programs that this repository carries
+// as source rather than compiling. An action that starts one has a gate whose
+// command exists, but whose WORK has not been ported.
+//
+// Scripts and labs under test/ use these two extensions. letools/parity counts
+// both extensions as code that remains to move.
+var scriptSuffixes = [...]string{".py", ".sh"}
+
+// forksAScript reports whether an argv starts a script this repository carries.
+//
+// This property is DERIVED from the argv instead of declared beside it. The
+// script in `python3 scripts/evidence/effective-vpp.py` is in position two. The
+// script in `sudo VERBOSE= SESSION_TIMEOUT= python3 test/stress/run.py` is in
+// position five. Thus, the function reads every argument, not only the first.
+// An argv of `go test ...` names no script and is converted work.
+func forksAScript(argv []string) bool {
+	for _, arg := range argv {
+		for _, suffix := range scriptSuffixes {
+			if strings.HasSuffix(arg, suffix) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// ForksAScript reports whether an argv starts a repository script. The census
+// uses this rule to distinguish a converted gate from one whose driver has not
+// moved.
+//
+// The function is exported so a tool that is NOT an area uses the SAME rule.
+// letools/docwiring publishes the command lines that it still starts. It asks
+// this function whether any command represents an outstanding port. A second
+// predicate would define "ported" twice, and those definitions would drift.
+func ForksAScript(argv []string) bool { return forksAScript(argv) }
+
+// forkedArgv answers the argv that the listing publishes for one action. It
+// returns the command when that command is a script. It returns nothing when Go
+// does the work.
+//
+// The listing does not print `go test -tags integration ...`. That action does
+// its own work with the toolchain. A reader who wants it runs the verb. The
+// listing shows only work that has NOT moved.
+func forkedArgv(act Action) []string {
+	if !forksAScript(act.Forks) {
+		return nil
+	}
+	return slices.Clone(act.Forks)
 }
 
 // Area is one tool package's whole command surface: the name it is typed as,
@@ -102,6 +165,24 @@ func (a Area) Gates() []string {
 	return gates
 }
 
+// ForkedGates answers the Make targets of actions whose work remains in scripts.
+// The targets use table order.
+//
+// letools/parity subtracts these targets from the area claims. Thus, it counts
+// and NAMES a gate reached by a Go command that starts a Python driver as
+// claimed but not converted. It does not count the gate as ported. Every gate
+// here also appears in Gates() because the area serves it. A developer who
+// types the verb gets the proof, but the work is not migrated.
+func (a Area) ForkedGates() []string {
+	gates := make([]string, 0, len(a.actions))
+	for _, act := range a.actions {
+		if act.Gate != "" && forksAScript(act.Forks) {
+			gates = append(gates, act.Gate)
+		}
+	}
+	return gates
+}
+
 // verbOf answers the word a developer types for one action.
 //
 // For an action a Make target names, it is the gate name with the area's own
@@ -116,13 +197,17 @@ func (a Area) verbOf(act Action) string {
 	return strings.TrimPrefix(act.Gate, tb.Str("ze-").Str(a.name).Byte('-').String())
 }
 
-// Row is one row of the bare command's answer: what to type, whether it writes,
-// the Make target it still is, and why it exists.
+// Row is one row of the bare command's answer. It says what to type, whether the
+// action writes, which Make target remains, and why the action exists.
 type Row struct {
 	Verb   string `json:"verb"`
 	Writes bool   `json:"writes"`
 	Gate   string `json:"gate,omitempty"`
 	Why    string `json:"why"`
+	// Forks is the script that this action still starts. A listing reader uses
+	// this field to distinguish Go proofs from drivers that the migration has
+	// not reached. The reader does not need to consult the table.
+	Forks []string `json:"forks,omitempty"`
 }
 
 // List is what `le <area>` answers when no action is named. It is the area
@@ -139,6 +224,7 @@ func (a Area) Actions() List {
 	for _, act := range a.actions {
 		list.Actions = append(list.Actions, Row{
 			Verb: a.verbOf(act), Writes: act.Writes, Gate: act.Gate, Why: act.Why,
+			Forks: forkedArgv(act),
 		})
 	}
 	return list
@@ -242,4 +328,100 @@ func (a Area) refuseValue(verb, got string) int {
 	tb.Reset()
 	fmt.Fprintln(os.Stderr, tb.Str("usage: le ").Str(a.name).Byte(' ').Str(verb).Str(" [| json | yaml | table]").String()) //nolint:errcheck // CLI output
 	return 1
+}
+
+// ─── The sweep: several actions on one command line ─────────────────────────
+
+// SweepPolicy says what a sweep does after an action fails. Both spellings are
+// live, and each is a decision the Python area it comes from stated.
+type SweepPolicy int
+
+const (
+	// StopAtFirstFailure runs nothing after a failure. This is the policy of
+	// scripts/le/application/functional.py. It exists for the pair
+	// `docker-exec-selftest` and `docker-exec-check`. The selftest proves that
+	// the scan's verdicts fire. A scan after a failed selftest would report
+	// findings from a checker just shown to be broken.
+	StopAtFirstFailure SweepPolicy = iota
+	// RunEveryAction runs the whole selection and names every failure. It is
+	// what scripts/le/gateapp.py does, because the point of a sweep is to hand
+	// back the whole list rather than one problem per invocation.
+	RunEveryAction
+)
+
+// SweepRow is one action that a sweep ran. It records what was typed, the
+// remaining Make target, the exit code, and the payload.
+type SweepRow struct {
+	Verb   string `json:"verb"`
+	Gate   string `json:"gate,omitempty"`
+	Code   int    `json:"code"`
+	Answer any    `json:"answer,omitempty"`
+}
+
+// Sweep is what an area answers when several actions were named at once.
+type Sweep struct {
+	Area   string     `json:"area"`
+	Ran    []SweepRow `json:"ran"`
+	Failed []string   `json:"failed"`
+}
+
+// Text renders the closing line the Python area printed: the failures by name,
+// or the count that passed. Each action's own output has already streamed to
+// the terminal by the time this is read.
+func (s Sweep) Text() string {
+	var tb textbuf.Buffer
+	tb.Byte('\n')
+	if len(s.Failed) > 0 {
+		return tb.Str("Failed: ").Join(s.Failed, ", ").Byte('\n').String()
+	}
+	return tb.Str(s.Area).Str(": ").Int(int64(len(s.Ran))).Str(" gate(s) passed.\n").String()
+}
+
+// Sweep runs the actions named in args, in order, and answers the FIRST failing
+// action's own exit code.
+//
+// This rule is why Sweep lives here instead of in each area. The
+// discovery-index check exits 0 for fresh, 3 for stale, and 1 for a generator
+// failure. scripts/dev/commit_helper.py blocks on 3 but only warns on 1. A sweep
+// that returned 1 for every failure would have the defect that mk/check-rules.mk
+// warns about. The first code wins because a reader can act on it. A later
+// action's 1 says nothing about the first action's 3.
+//
+// Every name is resolved BEFORE anything runs. Running the good half of a
+// mistyped command line leaves the caller holding a refusal over a tree that
+// was half swept.
+func (a Area) Sweep(args []string, policy SweepPolicy) (any, int) {
+	chosen := make([]Action, 0, len(args))
+	for _, name := range args {
+		found := false
+		for _, act := range a.actions {
+			if a.verbOf(act) == name {
+				chosen = append(chosen, act)
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, a.refuseVerb(name)
+		}
+	}
+
+	sweep := Sweep{Area: a.name, Ran: make([]SweepRow, 0, len(chosen)), Failed: []string{}}
+	code := 0
+	for _, act := range chosen {
+		verb := a.verbOf(act)
+		answer, got := act.Answer()
+		sweep.Ran = append(sweep.Ran, SweepRow{Verb: verb, Gate: act.Gate, Code: got, Answer: answer})
+		if got == 0 {
+			continue
+		}
+		sweep.Failed = append(sweep.Failed, verb)
+		if code == 0 {
+			code = got
+		}
+		if policy == StopAtFirstFailure {
+			break
+		}
+	}
+	return sweep, code
 }

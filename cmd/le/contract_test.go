@@ -63,6 +63,12 @@ func TestNoPortedToolIsBuildIgnored(t *testing.T) {
 // TestNoTestShellsOutToGoRun is AC-5. A test that forks `go run` relinks the
 // tool for every case and asserts against a process rather than a function.
 // The whole point of compiling these tools is that their tests can call them.
+//
+// It reads TEXT, so a test that ASSERTS an argv also triggers it.
+// letools/gotoolchain builds `go run` command lines, and its test says so. Spell
+// that assertion without the two adjacent words. Do not soften the scan. A
+// pattern that separates the two cases must understand the surrounding call.
+// The scan's value comes from refusing such arguments.
 func TestNoTestShellsOutToGoRun(t *testing.T) {
 	walkGo(t, func(rel, body string) {
 		if !strings.HasSuffix(rel, "_test.go") {

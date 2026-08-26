@@ -1,16 +1,13 @@
 // Design: (none -- build tool)
 //
 // check-doc-drift compares documentation claims against the live plugin
-// registry, Makefile gates, filesystem counts, and structured doc tables.
-// It reports any drift between what the code provides and what the docs claim.
+// registry, Makefile gates, filesystem counts, and structured doc tables, and
+// reports every claim the tree disagrees with.
 //
-// Usage: CGO_ENABLED=0 go run scripts/check-doc-drift.go [--strict]
-// Called by: make ze-doc-drift-check, .claude/hooks/check-doc-drift.sh
-//
-// Exit codes:
-//   0 = no drift
-//   1 = drift detected (advisory)
-//   2 = drift detected + --strict (blocking)
+// Usage: CGO_ENABLED=0 go run scripts/docvalid/doc_drift.go [--strict]
+// Called by: make ze-doc-drift-check. Exit 0 means no drift. Exit 1 means drift,
+// and exit 2 means drift with --strict. No hook calls it. The old header named
+// .claude/hooks/check-doc-drift.sh, but that file does not exist.
 //
 //go:build ignore
 

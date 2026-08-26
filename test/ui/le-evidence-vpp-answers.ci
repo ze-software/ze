@@ -1,0 +1,318 @@
+# Test: the BUILT le binary runs the two VPP evidence gates ported in step 10b
+#       of spec-le-is-a-ze-binary, end to end, and renders their answers through
+#       the shared pipe operators.
+#
+# VALIDATES: spec-le-is-a-ze-binary AC-1, AC-7 and AC-8 for
+#            `le deployment vpp-iface-test` and `le qemu vpp-hugepages-test`,
+#            against the artifact a developer runs.
+# PREVENTS: a green package suite over a binary that does not compose, and a
+#           command whose answer only renders because a test called the function
+#           rather than the binary.
+#
+# Neither command needs Docker, QEMU or an appliance here. Both reach the outside
+# world through PATH, so this file puts recording stand-ins in front of them: the
+# same seam the parity tests beside the Python scripts use, driven one layer
+# further out. What that buys is the whole path -- argv, the registry, the action
+# table, the payload and the renderer -- over a fixture checkout that no
+# container and no virtual machine ever sees.
+#
+# The timeout is DECLARED because a cold build cache makes the first compile of
+# cmd/le far slower than the steady state.
+
+option=timeout:value=300s
+
+tmpfs=run.py:terminator=EOF_PY
+"""Compile le, then drive the two VPP evidence commands the way a developer does."""
+import json
+import os
+import stat
+import subprocess
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(f'FAIL: {message}')
+
+
+root = os.environ['ZE_REPO_ROOT']
+work = os.getcwd()
+binary = os.path.join(work, 'le')
+
+compiled = subprocess.run(
+    ['go', 'build', '-o', binary, './cmd/le'],
+    cwd=root, capture_output=True, text=True, check=False,
+)
+require(compiled.returncode == 0, f'compiling ./cmd/le failed: {compiled.stderr}')
+
+# A fixture checkout: the two markers lepath.Root looks for, and the manifest the
+# daemon build tags derive from.
+fixture = os.path.join(work, 'fixture')
+os.makedirs(fixture, exist_ok=True)
+with open(os.path.join(fixture, 'go.mod'), 'w', encoding='utf-8') as fh:
+    fh.write('module example.test/m\n\ngo 1.26\n')
+with open(os.path.join(fixture, 'feature-gates.txt'), 'w', encoding='utf-8') as fh:
+    fh.write('ze_bgp internal/component/bgp\nze_vpp internal/component/vpp\n')
+
+# The recording programs. docker plays the VPP daemon: it creates the two sockets
+# the run waits for and answers each feature query. Each feature probe waits for
+# the ze process of its own scenario, so the run cannot reach a verdict before
+# the call proving ze was started has been recorded.
+stubs = os.path.join(work, 'stubs')
+os.makedirs(stubs, exist_ok=True)
+
+DOCKER = r'''#!/bin/sh
+record() {
+  sep=$(printf '\037')
+  line=""
+  for a in "$@"; do
+    if [ -z "$line" ]; then line="$a"; else line="$line$sep$a"; fi
+  done
+  printf '%s\036' "$line" >> "$ZE_RECORD_DOCKER"
+}
+await_daemon() {
+  for _ in $(seq 60); do
+    if [ -f "$ZE_VPP_WORK.$1" ]; then return 0; fi
+    sleep 0.05
+  done
+  return 0
+}
+case "$1" in
+  image) record "$@" ; exit 0 ;;
+  pull)  record "$@" ; exit 0 ;;
+  rm)    record "$@" ; exit 0 ;;
+  logs)  record "$@" ; echo "vpp: container log" ; exit 0 ;;
+  run)
+    record "$@"
+    for a in "$@"; do
+      case "$a" in
+        *:/run/vpp) printf '%s' "${a%:/run/vpp}" > "$ZE_VPP_WORK" ;;
+      esac
+    done
+    echo deadbeef ; exit 0 ;;
+  exec)
+    case "$*" in
+      *"vpp -c /run/vpp/startup.conf"*)
+        record "$@"
+        w=$(cat "$ZE_VPP_WORK") ; : > "$w/api.sock" ; : > "$w/cli.sock" ; exit 0 ;;
+      *"show plugins"*)
+        record "$@"
+        if [ "${ZE_PLUGINS_EXIT:-0}" != "0" ]; then
+          echo "show plugins: unknown input" >&2 ; exit "$ZE_PLUGINS_EXIT"
+        fi
+        echo "wireguard_plugin.so" ; echo "linux_cp_plugin.so" ; echo "linux_nl_plugin.so" ; exit 0 ;;
+      *"show version"*) record "$@" ; echo "vpp v24.02-release" ; exit 0 ;;
+      *"show gre tunnel"*)
+        await_daemon tunnel.conf ; record "$@"
+        echo "[0] instance 0 src 10.10.10.1 dst 10.10.10.2" ; exit 0 ;;
+      *"show interface span"*)
+        await_daemon mirror.conf ; record "$@"
+        echo "msrc0    rx    mdst0" ; exit 0 ;;
+      *"show interface"*) record "$@" ; echo "local0    0    down" ; exit 0 ;;
+      *"show wireguard interface"*)
+        await_daemon wg.conf ; record "$@"
+        echo "[0] wg0 port 51820" ; exit 0 ;;
+      *"show lcp"*)
+        await_daemon lcp.conf ; record "$@"
+        echo "itf-pair: [0] loop0 tap0 host" ; exit 0 ;;
+      *"ip link show"*) record "$@" ; echo "1: lo: <LOOPBACK,UP>" ; exit 0 ;;
+      *"start /run/vpp/"*)
+        record "$@"
+        conf=""
+        for a in "$@"; do
+          case "$a" in /run/vpp/*.conf) conf=${a#/run/vpp/} ;; esac
+        done
+        : > "$ZE_VPP_WORK.$conf"
+        echo "ze: interface backend vpp ready" >&2 ; sleep 5 ; exit 0 ;;
+      *) record "$@" ; exit 0 ;;
+    esac ;;
+esac
+exit 0
+'''
+
+GO = r'''#!/bin/sh
+prev=""
+out=""
+for a in "$@"; do
+  if [ "$prev" = "-o" ]; then out="$a"; fi
+  prev="$a"
+done
+[ -z "$out" ] && exit 0
+mkdir -p "$(dirname "$out")"
+cat > "$out" <<'ZEHOST'
+#!/bin/sh
+case "$1 $2" in
+  "appliance init")
+    mkdir -p "$ZE_APPLIANCE_DIR/$3"
+    printf '%s' '{"name":"'"$3"'","image":{"arch":"amd64"}}' > "$ZE_APPLIANCE_DIR/$3/appliance.json"
+    ;;
+  "appliance build")
+    : > "$ZE_APPLIANCE_DIR/$3/ze-hugepages.img"
+    ;;
+esac
+exit 0
+ZEHOST
+chmod +x "$out"
+exit 0
+'''
+
+QEMU = r'''#!/bin/sh
+echo "appliance booting"
+sleep 30
+exit 0
+'''
+
+SSHPASS = r'''#!/bin/sh
+for a in "$@"; do
+  case "$a" in
+    "show host kernel | json")
+      printf '{"cmdline":"console=ttyS0 %s"}\n' "${ZE_HP_CMDLINE}" ; exit 0 ;;
+    "show host memory | json")
+      printf '{"hugepages-total":%s}\n' "${ZE_HP_TOTAL:-64}" ; exit 0 ;;
+  esac
+done
+exit 0
+'''
+
+TOOL = '#!/bin/sh\nexit 0\n'
+
+programs = {
+    'docker': DOCKER,
+    'go': GO,
+    'qemu-system-x86_64': QEMU,
+    'qemu-system-aarch64': QEMU,
+    'sshpass': SSHPASS,
+    'mkfs.ext4': TOOL,
+    'debugfs': TOOL,
+}
+for name, body in programs.items():
+    path = os.path.join(stubs, name)
+    with open(path, 'w', encoding='utf-8') as fh:
+        fh.write(body)
+    os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+
+
+def le(*args, record=None, plugins_exit='0', cmdline=None, total='64'):
+    env = dict(os.environ)
+    env['PATH'] = stubs + os.pathsep + env['PATH']
+    env['ZE_REPO_ROOT'] = fixture
+    env['ZE_RECORD_DOCKER'] = record or os.path.join(work, 'docker-argv')
+    env['ZE_VPP_WORK'] = os.path.join(work, 'vpp-work')
+    env['ZE_PLUGINS_EXIT'] = plugins_exit
+    env['ZE_VPP_HP_KEEP'] = '1'
+    env['ZE_VPP_HP_SSH_PORT'] = '34122'
+    env['ZE_HP_CMDLINE'] = cmdline or 'default_hugepagesz=2M hugepagesz=2M hugepages=64'
+    env['ZE_HP_TOTAL'] = total
+    return subprocess.run([binary, *args], capture_output=True, text=True,
+                          check=False, env=env)
+
+
+def recorded(path):
+    """Every docker call, its words rejoined with a space."""
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding='utf-8') as fh:
+        return [call.replace('\x1f', ' ') for call in fh.read().split('\x1e') if call]
+
+
+# Both commands appear in the composition root, which is what the usage page
+# reads back.
+usage = le('--help')
+page = usage.stdout + usage.stderr
+for name in ('deployment', 'qemu'):
+    require(name in page, f'le --help does not list the {name} command')
+
+# A bare area lists its actions, and the listing says which of them write.
+for name, verb in (('deployment', 'vpp-iface-test'), ('qemu', 'vpp-hugepages-test')):
+    listing = le(name)
+    require(listing.returncode == 0, f'le {name} exited {listing.returncode}')
+    require(verb in listing.stdout, f'le {name} does not list {verb}: {listing.stdout!r}')
+    require('checks' in listing.stdout, f'le {name} does not mark {verb} read-only')
+
+# The VPP interface proof, end to end: it builds a daemon, starts VPP, and asks
+# VPP's own command line about each of the four features.
+record = os.path.join(work, 'iface-argv')
+proof = le('deployment', 'vpp-iface-test', '|', 'json', record=record)
+require(proof.returncode == 0,
+        f'the VPP interface proof exited {proof.returncode}: {proof.stderr[-800:]}')
+report = json.loads(proof.stdout)
+for key in ('image', 'container', 'vpp-version', 'plugins', 'scenarios', 'passed'):
+    require(key in report, f'the proof answered no {key!r} key: {sorted(report)}')
+require(report['passed'] is True, 'the proof did not reach a pass')
+require(len(report['scenarios']) == 4,
+        f'the proof ran {len(report["scenarios"])} scenarios, want 4')
+for one in report['scenarios']:
+    require(one['outcome'] == 'pass',
+            f'scenario {one["feature"]} answered {one["outcome"]}: {one["detail"]}')
+require(len(report['plugins']) == 3,
+        f'the proof reported {len(report["plugins"])} plugins, want 3')
+
+calls = recorded(record)
+require(any('--privileged' in call for call in calls),
+        'the container is not privileged:\n' + '\n'.join(calls))
+for owed in ('start /run/vpp/tunnel.conf', 'show gre tunnel',
+             'start /run/vpp/wg.conf', 'show wireguard interface'):
+    require(any(owed in call for call in calls),
+            f'the proof never made a call carrying {owed!r}:\n' + '\n'.join(calls))
+
+# A plugin query that FAILED stops the run: it is not an absent plugin, and
+# reading it as one skipped half the proof and reported a pass.
+broken = le('deployment', 'vpp-iface-test', record=os.path.join(work, 'iface-broken'),
+            plugins_exit='1')
+require(broken.returncode == 1,
+        f'a failed plugin query exited {broken.returncode}, want 1')
+require(not any('start /run/vpp/' in call
+                for call in recorded(os.path.join(work, 'iface-broken'))),
+        'ze was started on a plugin answer nobody obtained')
+
+# The hugepage proof, end to end: it builds a host ze, builds an appliance, boots
+# it, and asks the booted appliance two questions over its own CLI.
+boot = le('qemu', 'vpp-hugepages-test', '|', 'json')
+require(boot.returncode == 0,
+        f'the hugepage proof exited {boot.returncode}: {boot.stderr[-800:]}')
+verdict = json.loads(boot.stdout)
+for key in ('verdict', 'arch', 'accelerator', 'page-token', 'pages',
+            'memory-mib', 'cmdline', 'hugepages-total'):
+    require(key in verdict, f'the proof answered no {key!r} key: {sorted(verdict)}')
+require(verdict['verdict'] == 'pass', f'the proof answered {verdict["verdict"]}')
+require(verdict['pages'] == 64, f'the proof asked for {verdict["pages"]} pages, want 64')
+require(verdict['hugepages-total'] == 64,
+        f'the kernel reserved {verdict["hugepages-total"]}, want 64')
+
+# A kernel command line carrying only the DEFAULT page-size argument fails: each
+# wanted argument is a whole argument of the command line, never a substring of
+# a longer one.
+partial = le('qemu', 'vpp-hugepages-test',
+             cmdline='default_hugepagesz=2M hugepages=64')
+require(partial.returncode == 1,
+        f'a cmdline with no standalone hugepagesz exited {partial.returncode}, want 1')
+
+# A kernel that reserved nothing fails, whatever the command line said. That is
+# the assertion the command line alone cannot make.
+none = le('qemu', 'vpp-hugepages-test', total='0')
+require(none.returncode == 1,
+        f'a kernel that reserved no pages exited {none.returncode}, want 1')
+require('hugepages-total=0' in none.stdout,
+        f'the failure does not name the kernel answer: {none.stdout!r}')
+
+# One payload, three renderings, none of them written by either tool.
+for args, needle in (
+    (('deployment', 'vpp-iface-test', '|', 'yaml'), 'passed:'),
+    (('qemu', 'vpp-hugepages-test', '|', 'yaml'), 'verdict:'),
+):
+    out = le(*args, record=os.path.join(work, 'render-argv'))
+    require(needle in out.stdout,
+            f'`le {" ".join(args)}` did not render the payload: {out.stdout[:200]!r}')
+
+# An action nobody declared is refused with its own code, told apart from a gate
+# that ran and failed.
+missing = le('qemu', 'no-such-action')
+require(missing.returncode == 2, f'an unknown action exited {missing.returncode}, want 2')
+extra = le('deployment', 'vpp-iface-test', 'somewhere')
+require(extra.returncode == 1, f'a value after an action exited {extra.returncode}, want 1')
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

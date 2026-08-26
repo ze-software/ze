@@ -13,16 +13,30 @@
 // It measures two populations, because the migration has two end states and
 // neither implies the other.
 //
-//   - GATES. The 156 gates `./le gates --json` declares are the behavior that
-//     must keep working. A gate is ported when a REGISTERED le command claims
-//     it, and the claim is the only thing here anybody types by hand.
+//   - GATES. The 158 gates `./le gates --json` declares are the behavior that
+//     must keep working. Each one is in one of THREE states, and the claim is
+//     the only thing here anybody types by hand.
 //   - FILES. Every code file left under scripts/ is work not yet moved. The
 //     owner's end state is that scripts/ holds no code, and that is derived
 //     from the filesystem with nothing claimed and nothing to keep in step.
 //
-// Four answers are red, and only the first two shrink as the port proceeds:
+// A gate has three states.
+// Counting a claimed gate as ported can overstate the migration, so this census distinguishes the states:
+//
+//   - CONVERTED. A registered le command claims the gate and performs the work in Go.
+//   - FORKED. A registered le command claims the gate, but its driver still starts a script.
+//     For example, `le deployment vpp-test` runs python3 scripts/evidence/effective-vpp.py.
+//     The area is ported, but the work is not. The census counts and names these rows.
+//   - UNPORTED. No Go command claims the gate.
+//
+// The census derives whether a claimed gate is converted or forked.
+// leaction.Area.ForkedGates inspects each action argv for a .py or .sh file
+// (letools/leaction, forksAScript).
+//
+// Five answers are red, and only the first three shrink as the port proceeds:
 //
 //   - a gate the Python le declares that no Go command claims;
+//   - a gate whose command was written and whose driver is still a script;
 //   - a code file still sitting under scripts/;
 //   - a claim naming a gate the Python le does not declare, which is what a
 //     renamed or deleted gate looks like from this side;
@@ -85,15 +99,25 @@ type Census struct {
 	// ScriptFilesByLanguage counts those files per extension, which is how the
 	// spec's own step table is sized.
 	ScriptFilesByLanguage map[string]int `json:"script-files-by-language"`
-	// Ported is how many gates a registered Go command claims.
-	Ported int `json:"ported"`
-	// Unported is Gates minus Ported, and it is the number the migration is
-	// driving to zero.
+	// Converted is how many gates a registered Go command claims AND does the
+	// work in Go for. It is the only number that says work has moved.
+	Converted int `json:"converted"`
+	// Forked is how many gates a registered Go command claims while its driver
+	// still starts a script. The command exists, the gate is reachable, and the
+	// work has not moved, so this is counted apart from Converted rather than
+	// added to it.
+	Forked int `json:"forked"`
+	// Unported is how many gates no Go command claims. Converted, Forked and
+	// Unported partition Gates, and the migration drives the last two to zero.
 	Unported int `json:"unported"`
 	// CommandNames lists every root command the Go le registers.
 	CommandNames []string `json:"command-names"`
 	// UnportedGates names every gate that is still Python only.
 	UnportedGates []string `json:"unported-gates"`
+	// ForkedGates names every gate a Go command claims whose driver is still a
+	// script. Naming them is what makes the third state actionable: each one is
+	// a port somebody still owes.
+	ForkedGates []string `json:"forked-gates"`
 	// ScriptDirs names every directory under scripts/ that still holds code,
 	// with its file count. The whole list is not named: 280 paths is a wall
 	// rather than an answer, and the directory is the unit the step table
@@ -107,16 +131,18 @@ type Census struct {
 	UnwiredClaims []string `json:"unwired-claims"`
 }
 
-// Complete reports whether the census found nothing wrong. It is the exit
-// code's only input.
+// Complete reports whether the census found no errors. This result alone sets the exit code.
+// A forked gate is incomplete, like an unported gate.
+// The migration is complete only after both the command and its work are in Go.
 func (c Census) Complete() bool {
-	return c.Unported == 0 && c.ScriptFiles == 0 &&
+	return c.Unported == 0 && c.Forked == 0 && c.ScriptFiles == 0 &&
 		len(c.UnknownClaims) == 0 && len(c.UnwiredClaims) == 0
 }
 
 var (
 	claimsMu sync.Mutex
 	claims   = make(map[string][]string)
+	forked   = make(map[string][]string)
 )
 
 // Claim records that the Go command `command` now serves these Python gates.
@@ -130,13 +156,35 @@ func Claim(command string, gates ...string) {
 	claims[command] = append(claims[command], gates...)
 }
 
-// claimSnapshot copies the claim table so a reader never holds the lock while
-// it works, and so a test can compare against a value that cannot move.
-func claimSnapshot() map[string][]string {
+// ClaimForked records that the Go command `command` reaches these gates by
+// starting a script rather than by doing the work. They are claimed and they
+// are NOT converted, and the census counts and names them apart.
+//
+// The caller passes leaction.Area.ForkedGates, which derives the list from the
+// argv each action starts. Nothing here is a second hand-typed list: an area
+// that stops forking a driver stops appearing in this population with no edit
+// to its register.go.
+//
+// A gate named here need not also be passed to Claim. Both are claims, and this
+// one carries the extra fact.
+func ClaimForked(command string, gates ...string) {
 	claimsMu.Lock()
 	defer claimsMu.Unlock()
-	out := make(map[string][]string, len(claims))
-	for command, gates := range claims {
+	forked[command] = append(forked[command], gates...)
+}
+
+// claimSnapshot copies both claim tables while it holds the lock. A reader then
+// uses stable values, and a test compares a snapshot that cannot change.
+func claimSnapshot() (claimed, forkedClaims map[string][]string) {
+	claimsMu.Lock()
+	defer claimsMu.Unlock()
+	return cloneClaims(claims), cloneClaims(forked)
+}
+
+// cloneClaims copies one claim table. The caller holds the lock.
+func cloneClaims(table map[string][]string) map[string][]string {
+	out := make(map[string][]string, len(table))
+	for command, gates := range table {
 		out[command] = slices.Clone(gates)
 	}
 	return out
@@ -188,7 +236,8 @@ func Answer(args []string) (any, int) {
 // this process too, and a claim must not count as ported because ZE owns the
 // name.
 func takeHere(gates []Gate, scripts ScriptCount) Census {
-	return Take(gates, scripts, claimSnapshot(), leroot.Owns, rootNames())
+	claimed, forkedClaims := claimSnapshot()
+	return Take(gates, scripts, claimed, forkedClaims, leroot.Owns, rootNames())
 }
 
 // rootNames answers every root command LE OWNS, which is every tool its
@@ -267,7 +316,7 @@ func claimLine(command, gate string) string {
 	return tb.Str(command).Str(" claims ").Str(gate).String()
 }
 
-func Take(gates []Gate, scripts ScriptCount, claimed map[string][]string, registered func(string) bool, commands []string) Census {
+func Take(gates []Gate, scripts ScriptCount, claimed, forkedClaims map[string][]string, registered func(string) bool, commands []string) Census {
 	declared := make(map[string]bool, len(gates))
 	areas := make(map[string]bool)
 	for _, gate := range gates {
@@ -280,32 +329,41 @@ func Take(gates []Gate, scripts ScriptCount, claimed map[string][]string, regist
 	// spec's "a step that ports a tool and leaves the count unchanged has not
 	// wired it" constraint asks the census to see.
 	served := make(map[string]bool, len(gates))
+	// stillAScript is the subset of served whose driver has not moved. It is a
+	// SUBSET rather than a separate population: the gate is reachable, so it is
+	// served, and what it is not is converted work.
+	stillAScript := make(map[string]bool)
 	// Empty rather than nil: a caller reading `le parity | json` gets [] for
 	// "nothing wrong here", never null, so the same key parses the same way in
 	// every answer.
 	unknown, unwired := []string{}, []string{}
-	for command, gateNames := range claimed {
-		wired := registered(command)
-		for _, name := range gateNames {
-			switch {
-			case !declared[name]:
-				unknown = append(unknown, claimLine(command, name))
-			case !wired:
-				unwired = append(unwired, claimLine(command, name))
-			default:
-				served[name] = true
+	for _, entry := range mergeClaims(claimed, forkedClaims) {
+		wired := registered(entry.command)
+		switch {
+		case !declared[entry.gate]:
+			unknown = append(unknown, claimLine(entry.command, entry.gate))
+		case !wired:
+			unwired = append(unwired, claimLine(entry.command, entry.gate))
+		default:
+			served[entry.gate] = true
+			if entry.forked {
+				stillAScript[entry.gate] = true
 			}
 		}
 	}
 
-	unported := []string{}
+	unported, forkedGates := []string{}, []string{}
 	for _, gate := range gates {
-		if !served[gate.Name] {
+		switch {
+		case !served[gate.Name]:
 			unported = append(unported, gate.Name)
+		case stillAScript[gate.Name]:
+			forkedGates = append(forkedGates, gate.Name)
 		}
 	}
 
 	sort.Strings(unported)
+	sort.Strings(forkedGates)
 	sort.Strings(unknown)
 	sort.Strings(unwired)
 
@@ -315,14 +373,60 @@ func Take(gates []Gate, scripts ScriptCount, claimed map[string][]string, regist
 		Commands:              len(commands),
 		ScriptFiles:           scripts.Total,
 		ScriptFilesByLanguage: scripts.ByLanguage,
-		Ported:                len(served),
+		Converted:             len(served) - len(forkedGates),
+		Forked:                len(forkedGates),
 		Unported:              len(unported),
 		CommandNames:          commands,
 		ScriptDirs:            scripts.ByDir,
 		UnportedGates:         unported,
+		ForkedGates:           forkedGates,
 		UnknownClaims:         unknown,
 		UnwiredClaims:         unwired,
 	}
+}
+
+// claimEntry is one command's claim on one gate, with the fact that decides
+// which of the two claimed states it is in.
+type claimEntry struct {
+	command string
+	gate    string
+	forked  bool
+}
+
+// mergeClaims returns both claim tables as one stable list.
+// Each command-and-gate pair appears once.
+//
+// Claim and ClaimForked can name the same gate, which is one claim with an extra property.
+// A duplicate would report one mistake twice in unknown-claims.
+// Stable ordering also prevents rows from moving between census runs.
+func mergeClaims(claimed, forkedClaims map[string][]string) []claimEntry {
+	commands := make([]string, 0, len(claimed)+len(forkedClaims))
+	for command := range claimed {
+		commands = append(commands, command)
+	}
+	for command := range forkedClaims {
+		if _, both := claimed[command]; !both {
+			commands = append(commands, command)
+		}
+	}
+	sort.Strings(commands)
+
+	entries := make([]claimEntry, 0, len(commands))
+	for _, command := range commands {
+		isForked := make(map[string]bool, len(forkedClaims[command]))
+		for _, gate := range forkedClaims[command] {
+			isForked[gate] = true
+		}
+		seen := make(map[string]bool, len(claimed[command])+len(forkedClaims[command]))
+		for _, gate := range slices.Concat(claimed[command], forkedClaims[command]) {
+			if seen[gate] {
+				continue
+			}
+			seen[gate] = true
+			entries = append(entries, claimEntry{command: command, gate: gate, forked: isForked[gate]})
+		}
+	}
+	return entries
 }
 
 // ScriptCount is the filesystem half of the census: how much code is still

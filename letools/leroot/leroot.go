@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md -- le's registration adapter
+// Detail: dispatch.go -- the loop that runs the commands registered here
 //
 // Package leroot is how an le tool joins the shared command engine. It declares
 // no registry, no grammar and no operator of its own: every piece of the

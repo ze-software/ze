@@ -31,7 +31,11 @@ func init() {
 	// is started. `| json`, `| yaml` and `| table` render both.
 	command.RegisterShape([]string{area}, command.ShapeDoc)
 
-	// The census counts each gate as ported from here, read out of the action
-	// table rather than from a second hand-typed list.
+	// The census counts each gate claimed here. It reads the gates from the
+	// action table instead of a second hand-typed list. It counts the five whose
+	// driver is still a script APART from the two that this package implements in
+	// Go. Both lists come from the same table. forked.go makes the second list
+	// non-empty. Porting a driver removes it from that list with no edit here.
 	parity.Claim(area, actions.Gates()...)
+	parity.ClaimForked(area, actions.ForkedGates()...)
 }

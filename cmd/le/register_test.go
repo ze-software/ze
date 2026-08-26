@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/letools/leroot"
 )
 
 // rootsAtStart is every root command LE OWNS by the time this package's
@@ -20,10 +21,11 @@ import (
 // any test runs. Later tests register probes of their own, so the set has to be
 // taken here rather than inside a test.
 //
-// It is leRoots rather than registry.ListRoot because le links the product:
-// tools that introspect ze load ze's registry to read it, so this process's
-// registry carries ze's root commands beside le's (letools/leroot, Owned).
-var rootsAtStart = leRoots()
+// It is leroot.Commands rather than registry.ListRoot because le links the
+// product: tools that introspect ze load ze's registry to read it, so this
+// process's registry carries ze's root commands beside le's (letools/leroot,
+// Owned).
+var rootsAtStart = leroot.Commands()
 
 // TestEveryPackageRegistersOneRootHandler holds the composition root to its
 // one job: every tool it imports is reachable, and every reachable tool was

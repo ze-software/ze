@@ -105,14 +105,38 @@ def load_rfc_detector(repo_root):
     return getattr(mod, "_rfc_tagged_change_err", None) if mod else None
 
 
+# The two Python test-file shapes this repository runs, taken from
+# `pythonTestGlobs` (scripts/dev/python_tests_test.go) so discovery and this
+# audit cannot name different populations. `<tool>_test.py` mirrors Go and is
+# what scripts/dev and test/scripts use; `test_<tool>.py` is pytest's spelling
+# and is what test/interop/speaker uses. A rule that knew only one of them would
+# cover half the corpus, silently.
+def _is_python_test(name):
+    return name.endswith("_test.py") or (
+        name.startswith("test_") and name.endswith(".py")
+    )
+
+
 def is_test_path(p):
+    """Whether `p` is a test this audit judges.
+
+    Python was absent until 2026-08-23, and the tooling suite IS Python: the
+    hooks, the commit helper, the rules pipeline and the verify runner are all
+    covered by `scripts/dev/*_test.py` alone. A weakening in any of them reported
+    CLEAN, which is a relaxation audit that cannot see the tests guarding the
+    relaxation audit.
+
+    The detector this audit imports carries Python arms
+    (`_test_weakening_errs`, .claude/hooks/pretool-writeedit.py), so a path
+    admitted here is really judged rather than merely walked past.
+    """
     if p.endswith("_test.go"):
         return True
     if (p.endswith(".ci") or p.endswith(".et")) and (
         p.startswith("test/") or "/test/" in p
     ):
         return True
-    return False
+    return _is_python_test(os.path.basename(p))
 
 
 def _suggest_remote_base(base, cwd, head_sha):
@@ -333,9 +357,16 @@ def audit_changes(
             if err:
                 return [], 0, err
 
+        # Branch audit and commit creation use the same executable-text rule.
+        # Fixture source strings are not live assertions or skips.
+        detector_old = weakened.executable_test_text(path, old)
+        detector_new = weakened.executable_test_text(path, new)
+
         # Keep both detector halves. The hook blocks the first and advises on
         # the second. A branch reviewer needs both to judge the complete range.
-        blocking, advisory = detector(old, new, path) if detector else ([], [])
+        blocking, advisory = (
+            detector(detector_old, detector_new, path) if detector else ([], [])
+        )
         file_details = list(blocking) + list(advisory)
         units = weakened.weakened_units(path, old, new, detector)
         if not units and file_details:

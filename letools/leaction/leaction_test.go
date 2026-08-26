@@ -165,3 +165,121 @@ func TestNewRefusesATableItCouldNotDispatch(t *testing.T) {
 		})
 	}
 }
+
+// ─── The sweep: several actions on one command line ─────────────────────────
+
+// sweepArea builds an area whose actions return the specified codes. A test
+// then drives the exit-code rule. It does not start a gate.
+func sweepArea(codes ...int) Area {
+	rows := make([]Action, 0, len(codes))
+	for i, code := range codes {
+		verb := string(rune('a' + i))
+		rows = append(rows, Action{
+			Verb: verb, Why: "a probe", Answer: probeAnswer(verb, code),
+		})
+	}
+	return New("probe", rows...)
+}
+
+func probeAnswer(verb string, code int) func() (any, int) {
+	return func() (any, int) { return map[string]any{"verb": verb}, code }
+}
+
+// TestFirstFailingGateExitCodeWins is AC-8. `commit_helper.py` reads 3 apart
+// from 1, so a sweep that answered 1 for every failure would break it.
+func TestFirstFailingGateExitCodeWins(t *testing.T) {
+	area := sweepArea(0, 3, 1)
+	for _, policy := range []SweepPolicy{StopAtFirstFailure, RunEveryAction} {
+		_, code := area.Sweep([]string{"a", "b", "c"}, policy)
+		if code != 3 {
+			t.Errorf("policy %v answered %d, want the first failing action's own 3", policy, code)
+		}
+	}
+}
+
+// TestStopAtFirstFailureRunsNoActionBehindTheRed tests the functional-area rule.
+// If a scan runs after its selftest fails, it reports findings from a checker
+// that the selftest has shown to be broken.
+func TestStopAtFirstFailureRunsNoActionBehindTheRed(t *testing.T) {
+	area := sweepArea(2, 0)
+	answer, code := area.Sweep([]string{"a", "b"}, StopAtFirstFailure)
+	if code != 2 {
+		t.Fatalf("code = %d, want 2", code)
+	}
+	sweep, ok := answer.(Sweep)
+	if !ok {
+		t.Fatalf("Sweep answered %T, want a Sweep payload", answer)
+	}
+	if len(sweep.Ran) != 1 {
+		t.Errorf("the sweep ran %d actions, want 1: %v", len(sweep.Ran), sweep.Ran)
+	}
+}
+
+// TestRunEveryActionReportsEveryFailureByName is the integration area's rule:
+// a sweep exists to hand back the whole list.
+func TestRunEveryActionReportsEveryFailureByName(t *testing.T) {
+	area := sweepArea(4, 0, 5)
+	answer, code := area.Sweep([]string{"a", "b", "c"}, RunEveryAction)
+	if code != 4 {
+		t.Fatalf("code = %d, want the first failing action's own 4", code)
+	}
+	sweep, ok := answer.(Sweep)
+	if !ok {
+		t.Fatalf("Sweep answered %T, want a Sweep payload", answer)
+	}
+	if len(sweep.Ran) != 3 {
+		t.Errorf("the sweep ran %d actions, want 3", len(sweep.Ran))
+	}
+	if len(sweep.Failed) != 2 {
+		t.Errorf("the sweep named %v as failed, want both a and c", sweep.Failed)
+	}
+}
+
+// TestSweepRefusesAnActionTheAreaDoesNotHold keeps a mistyped name apart from a
+// gate that ran and failed, which is what code 2 says.
+func TestSweepRefusesAnActionTheAreaDoesNotHold(t *testing.T) {
+	area := sweepArea(0)
+	answer, code := area.Sweep([]string{"a", "nope"}, RunEveryAction)
+	if code != 2 {
+		t.Errorf("a mistyped action answered %d, want 2", code)
+	}
+	if answer != nil {
+		t.Errorf("a refused sweep answered a payload: %v", answer)
+	}
+}
+
+// TestSweepRefusesBeforeItRunsAnything pins that the whole selection is
+// resolved first. Running the good half of a mistyped command line leaves the
+// tree half-swept and the caller reading a refusal.
+func TestSweepRefusesBeforeItRunsAnything(t *testing.T) {
+	ran := false
+	area := New("probe",
+		Action{Verb: "a", Why: "a probe", Answer: func() (any, int) { ran = true; return nil, 0 }},
+	)
+	if _, code := area.Sweep([]string{"a", "nope"}, RunEveryAction); code != 2 {
+		t.Fatalf("code = %d, want 2", code)
+	}
+	if ran {
+		t.Error("the sweep ran an action before it had resolved every name on the line")
+	}
+}
+
+// TestSweepCarriesEachActionsOwnAnswer is AC-7 for a sweep: the payload is the
+// data, so `| json` over `le functional a b` carries both answers.
+func TestSweepCarriesEachActionsOwnAnswer(t *testing.T) {
+	area := sweepArea(0, 0)
+	answer, _ := area.Sweep([]string{"a", "b"}, RunEveryAction)
+	sweep, ok := answer.(Sweep)
+	if !ok {
+		t.Fatalf("Sweep answered %T, want a Sweep payload", answer)
+	}
+	for i, row := range sweep.Ran {
+		got, ok := row.Answer.(map[string]any)
+		if !ok {
+			t.Fatalf("row %d carried %T, want the action's own payload", i, row.Answer)
+		}
+		if got["verb"] != row.Verb {
+			t.Errorf("row %d carries %v, want the answer of %q", i, got, row.Verb)
+		}
+	}
+}

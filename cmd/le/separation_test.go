@@ -10,9 +10,11 @@
 // what le must not do is own a product COMMAND, which is
 // TestLeRegistersNoProductCommand.
 //
-// The dependency check discriminates. Measured 2026-08-26, internal/perf/cli is
-// absent from ze's 630-package dependency list with ze_perf off and present
-// with it on, so a dependency list can see the difference it exists to see.
+// This file contains the dependency check and its proof. It does not rely on a
+// past measurement. TestZeWithTheLeTagLinksLesTools asks the same question of
+// the one build that DOES cross the line, `ze_core ze_le`. The test requires a
+// different answer. That build is the crossing (letools/zele). It is never a
+// default, and no shipped ze sets the tag.
 
 package main
 
@@ -35,6 +37,15 @@ import (
 // leTree is the import-path prefix of every package that belongs to le and to
 // no other program.
 const leTree = "github.com/ze-software/ze/letools/"
+
+// leTag is the build tag that carries le's commands into ze. No shipped build
+// CAN set this tag (letools/zele).
+const leTag = "ze_le"
+
+// crossingFlavor is the one build that links le's tools into ze: the ze_le tag
+// selects cmd/ze/ze_le_register.go, whose single blank import is the crossing.
+// It is never a default, so it is not in zeFlavors.
+const crossingFlavor = "ze_core ze_le"
 
 // engineRegistry is the one registry both binaries dispatch through.
 const engineRegistry = "github.com/ze-software/ze/internal/component/command/registry"
@@ -104,8 +115,15 @@ func repoRoot(t *testing.T) string {
 
 // TestZeLinksNoLePlugin is AC-2. A dev tool that reaches the product is a
 // dependency an appliance ships and nobody asked for.
+//
+// The tag that would cross the line is named here. Thus, the check cannot widen
+// without notice. This test refuses an edit that adds ze_le to a shipped flavor.
 func TestZeLinksNoLePlugin(t *testing.T) {
 	for _, tags := range zeFlavors {
+		if strings.Contains(tags, leTag) {
+			t.Errorf("flavor %q carries %s: the crossing is a developer build, never a shipped one", tags, leTag)
+			continue
+		}
 		t.Run(tags, func(t *testing.T) {
 			for _, pkg := range deps(t, tags, "./cmd/ze") {
 				if strings.HasPrefix(pkg, leTree) {
@@ -113,6 +131,34 @@ func TestZeLinksNoLePlugin(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestZeWithTheLeTagLinksLesTools makes the preceding test evidence rather than
+// a tautology. A dependency check that cannot say "present" would pass if ze
+// included all of le. This test asks the build that deliberately crosses the
+// line the same question. With ze_le enabled, le's trees MUST appear.
+func TestZeWithTheLeTagLinksLesTools(t *testing.T) {
+	crossed := 0
+	seam := false
+	for _, pkg := range deps(t, crossingFlavor, "./cmd/ze") {
+		if !strings.HasPrefix(pkg, leTree) {
+			continue
+		}
+		crossed++
+		if pkg == leTree+"zele" {
+			seam = true
+		}
+	}
+
+	if !seam {
+		t.Errorf("ze built with %q does not link %szele: the crossing is not wired", crossingFlavor, leTree)
+	}
+	// One package would be the seam alone. le's tool set is what the crossing
+	// exists to carry, and it is dozens of packages.
+	if crossed < 2 {
+		t.Errorf("ze built with %q links %d %s package(s): the tools did not cross with the seam",
+			crossingFlavor, crossed, leTree)
 	}
 }
 

@@ -319,22 +319,70 @@ func (p generatorPair) scriptAnswer(t *testing.T, root string, args ...string) a
 	return answer{stdout: out, stderr: errOut, code: code}
 }
 
-func (p generatorPair) run(t *testing.T, name string, build func(t *testing.T, root string)) {
+// fixtureState is what a case declares about its own tree: whether the
+// generator has work to do in it.
+//
+// It is declared rather than derived because a derived value would agree with
+// the run by construction. A fixture can stop reaching its intended generator
+// branch. Both halves then write nothing, and every comparison passes over two
+// untouched trees. The declaration makes that result fail.
+type fixtureState int
+
+const (
+	// fixtureCurrent is a tree with nothing to generate: the check passes and
+	// the write leaves the same bytes behind.
+	fixtureCurrent fixtureState = iota
+	// fixtureStale is a tree that the check refuses and the write then fixes.
+	// Only this state gives the byte comparison two results to compare.
+	fixtureStale
+	// fixtureRefused is a tree BOTH halves refuse: the generator cannot derive
+	// its answer from it, so it writes nothing and says why. The comparison
+	// there is of two refusals, and the tree is untouched on purpose.
+	fixtureRefused
+)
+
+// String names the state in the words the failures use.
+func (f fixtureState) String() string {
+	switch f {
+	case fixtureStale:
+		return "stale"
+	case fixtureRefused:
+		return "refused"
+	default:
+		return "current"
+	}
+}
+
+func (p generatorPair) run(t *testing.T, name string, state fixtureState, build func(t *testing.T, root string)) {
 	t.Helper()
 
 	t.Run(name, func(t *testing.T) {
 		scriptRoot, commandRoot := pairOfTrees(t, build)
 		checkArgs := append(append([]string{}, p.writeArgs...), "--check")
 
-		compare(t, "check before write",
-			p.scriptAnswer(t, scriptRoot, checkArgs...), scriptRoot,
-			p.check(commandRoot), commandRoot)
+		before := treeDigest(t, scriptRoot)
 
-		compare(t, "write",
-			p.scriptAnswer(t, scriptRoot, p.writeArgs...), scriptRoot,
-			p.write(commandRoot), commandRoot)
+		checkBefore := p.scriptAnswer(t, scriptRoot, checkArgs...)
+		compare(t, "check before write", checkBefore, scriptRoot, p.check(commandRoot), commandRoot)
+		if clean := checkBefore.code == 0; clean != (state == fixtureCurrent) {
+			t.Errorf("this fixture is declared %s and the check before the write exited %d",
+				state, checkBefore.code)
+		}
 
-		if got, want := treeDigest(t, commandRoot), treeDigest(t, scriptRoot); got != want {
+		write := p.scriptAnswer(t, scriptRoot, p.writeArgs...)
+		compare(t, "write", write, scriptRoot, p.write(commandRoot), commandRoot)
+		if refused := write.code != 0; refused != (state == fixtureRefused) {
+			t.Errorf("this fixture is declared %s and the write exited %d", state, write.code)
+		}
+
+		after := treeDigest(t, scriptRoot)
+		if changed := after != before; changed != (state == fixtureStale) {
+			t.Errorf("this fixture is declared %s and the write changed the tree: %v."+
+				" A comparison of two trees neither generator wrote into proves nothing",
+				state, changed)
+		}
+
+		if got, want := treeDigest(t, commandRoot), after; got != want {
 			t.Error("the two trees differ after the write; the two generators do not emit the same bytes")
 		}
 
@@ -429,7 +477,7 @@ var (
 // PREVENTS: glue generated for a different set of packages, or into the registry
 // package the glue registers INTO.
 func TestYangGlueAgrees(t *testing.T) {
-	yangGluePair.run(t, "two schema packages and two exclusions", func(t *testing.T, root string) {
+	yangGluePair.run(t, "two schema packages and two exclusions", fixtureStale, func(t *testing.T, root string) {
 		writeFixture(t, root, "internal/plugins/host/yang/ze-host-cmd.yang", "module ze-host-cmd {}\n")
 		writeFixture(t, root, "internal/plugins/host/yang/ze-host.yang", "module ze-host {}\n")
 		writeFixture(t, root, "internal/component/bgp/yang/ze-bgp.yang", "module ze-bgp {}\n")
@@ -437,11 +485,11 @@ func TestYangGlueAgrees(t *testing.T) {
 		writeFixture(t, root, "internal/test/fake/yang/ze-fake.yang", "module ze-fake {}\n")
 	})
 
-	yangGluePair.run(t, "a tree with no schema package", func(t *testing.T, root string) {
+	yangGluePair.run(t, "a tree with no schema package", fixtureCurrent, func(t *testing.T, root string) {
 		writeFixture(t, root, "internal/component/keep.go", "package component\n")
 	})
 
-	yangGluePair.run(t, "a module name carrying every acronym shape", func(t *testing.T, root string) {
+	yangGluePair.run(t, "a module name carrying every acronym shape", fixtureStale, func(t *testing.T, root string) {
 		writeFixture(t, root, "internal/plugins/x/yang/ze-ospfv3.yang", "module ze-ospfv3 {}\n")
 		writeFixture(t, root, "internal/plugins/x/yang/ze-flowexport.yang", "module ze-flowexport {}\n")
 		writeFixture(t, root, "internal/plugins/x/yang/ze-unlisted-word.yang", "module ze-unlisted-word {}\n")
@@ -454,7 +502,7 @@ func TestYangGlueAgrees(t *testing.T) {
 // PREVENTS: a composition root that names a different set of packages, which is
 // a feature that vanishes with no build error.
 func TestPluginImportsAgrees(t *testing.T) {
-	pluginImportsPair.run(t, "one package of each category", func(t *testing.T, root string) {
+	pluginImportsPair.run(t, "one package of each category", fixtureStale, func(t *testing.T, root string) {
 		writeFixture(t, root, "feature-gates.txt", "ze_lg internal/plugins/looking\n")
 		writeFixture(t, root, "internal/plugins/host/register.go", "package host\n")
 		writeFixture(t, root, "internal/plugins/cli/register.go", "package cli\n\n// codegen:skip\n")
@@ -470,7 +518,7 @@ func TestPluginImportsAgrees(t *testing.T) {
 		writeFixture(t, root, "internal/component/plugin/all/.keep", "")
 	})
 
-	pluginImportsPair.run(t, "a package nested under another gate", func(t *testing.T, root string) {
+	pluginImportsPair.run(t, "a package nested under another gate", fixtureStale, func(t *testing.T, root string) {
 		writeFixture(t, root, "feature-gates.txt",
 			"ze_l2tp internal/component/l2tp\nze_radius internal/component/radius\n"+
 				"ze_radius internal/component/l2tp/plugins/authradius\n")
@@ -479,7 +527,7 @@ func TestPluginImportsAgrees(t *testing.T) {
 		writeFixture(t, root, "internal/component/plugin/all/.keep", "")
 	})
 
-	pluginImportsPair.run(t, "a generated tag file no gate needs", func(t *testing.T, root string) {
+	pluginImportsPair.run(t, "a generated tag file no gate needs", fixtureStale, func(t *testing.T, root string) {
 		writeFixture(t, root, "internal/plugins/host/register.go", "package host\n")
 		writeFixture(t, root, "internal/component/plugin/all/all_ze_gone.go",
 			"// Code generated by scripts/codegen/plugin_imports.go; DO NOT EDIT.\n\n"+
@@ -492,18 +540,21 @@ func TestPluginImportsAgrees(t *testing.T) {
 // PREVENTS: a gated package left unlinted, unshipped, or unanalysed by CodeQL
 // because one of the four lists stopped naming its tag.
 func TestFeatureTagsAgrees(t *testing.T) {
-	featureTagsPair.run(t, "three gates, four stale files", func(t *testing.T, root string) {
+	featureTagsPair.run(t, "three gates, four stale files", fixtureStale, func(t *testing.T, root string) {
 		writeFeatureTagsFixture(t, root,
 			"ze_bgp internal/component/bgp\nze_web internal/component/web\nze_lg internal/component/lg\n",
 			"linters:\n  build-tags:\n    - ze_core\n    - ze_bgp\n  enable:\n    - errcheck\n")
 	})
 
-	featureTagsPair.run(t, "one gate, already current", func(t *testing.T, root string) {
+	// This was named "already current" until 2026-08-26. The state declaration
+	// above showed that the check refuses it because the linter file names the
+	// gate, but the other three derived files do not.
+	featureTagsPair.run(t, "one gate, named by the linter file alone", fixtureStale, func(t *testing.T, root string) {
 		writeFeatureTagsFixture(t, root, "ze_bgp internal/component/bgp\n",
 			"linters:\n  build-tags:\n    - ze_core\n    - ze_bgp\n  enable:\n    - errcheck\n")
 	})
 
-	featureTagsPair.run(t, "a golangci file whose key is gone", func(t *testing.T, root string) {
+	featureTagsPair.run(t, "a golangci file whose key is gone", fixtureRefused, func(t *testing.T, root string) {
 		writeFeatureTagsFixture(t, root, "ze_bgp internal/component/bgp\n",
 			"linters:\n  enable:\n    - errcheck\n")
 	})
@@ -530,9 +581,9 @@ func writeFeatureTagsFixture(t *testing.T, root, manifest, golangci string) {
 // PREVENTS: a page whose head block loads an asset its markup no longer uses, or
 // drops one it now needs, which is invisible everywhere but the browser.
 func TestWebAssetsAgrees(t *testing.T) {
-	webAssetsPair.run(t, "three surfaces, two page shapes", writeWebAssetsFixture)
+	webAssetsPair.run(t, "three surfaces, two page shapes", fixtureStale, writeWebAssetsFixture)
 
-	webAssetsPair.run(t, "a shell that hand-writes its script tags", func(t *testing.T, root string) {
+	webAssetsPair.run(t, "a shell that hand-writes its script tags", fixtureRefused, func(t *testing.T, root string) {
 		writeWebAssetsFixture(t, root)
 		writeFixture(t, root, "internal/component/web/layout.templ",
 			"package web\n\ntempl layout() {\n\t<html><head><script src=\"/assets/htmx.min.js\"></script></head></html>\n}\n")

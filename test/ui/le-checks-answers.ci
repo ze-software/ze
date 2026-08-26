@@ -21,15 +21,16 @@
 # modules out: the two sides would then disagree about the PRODUCT rather than
 # about the port.
 #
-# The timeout is DECLARED because five cold links of the product precede the
+# The timeout is DECLARED because ten cold links of the product precede the
 # comparisons.
 
-option=timeout:value=600s
+option=timeout:value=1800s
 
 tmpfs=run.py:terminator=EOF_PY
 """Compile both sides of the migration and check that each pair agrees."""
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -66,6 +67,15 @@ scripts = {
     'command-ownership': 'scripts/checks/command_ownership.go',
     'config-coercion': 'scripts/checks/config_string_coercion.go',
     'port-defaults': 'scripts/checks/port_defaults.go',
+    'cli-grammar': 'scripts/checks/cli_grammar.go',
+    'fs-persistence': 'scripts/checks/direct_fs_persistence.go',
+    'plugin-boundary': 'scripts/checks/plugin_process_boundary.go',
+    'yang-leaf-mentions': 'scripts/checks/yang_leaf_mentions.go',
+    'staticcheck-feature-matrix': 'scripts/checks/staticcheck_feature_matrix.go',
+    'dash-stdio': 'scripts/checks/cli_dash_stdio.go',
+    'ci-dispatch': 'scripts/checks/ci_dispatch_commands.go',
+    'repository-tracked-build': 'scripts/checks/tracked_build.go',
+    'test-sensitivity': 'scripts/checks/inert_tests.go',
 }
 paths = {}
 for command, source in scripts.items():
@@ -76,8 +86,12 @@ for command, source in scripts.items():
     paths[command] = out
 
 
-def run(argv, cwd):
-    return subprocess.run(argv, cwd=cwd, capture_output=True, text=True, check=False)
+def run(argv, cwd, extra_env=None):
+    env = None
+    if extra_env:
+        env = dict(os.environ)
+        env.update(extra_env)
+    return subprocess.run(argv, cwd=cwd, capture_output=True, text=True, check=False, env=env)
 
 
 # Each pair: the script invoked the way its gate invokes it, and the command
@@ -93,6 +107,33 @@ pairs = [
     ('port-defaults', [paths['port-defaults']], [binary, 'port-defaults', 'check']),
     ('port-defaults selftest', [paths['port-defaults'], '--selftest'],
      [binary, 'port-defaults', 'selftest']),
+    ('cli-grammar', [paths['cli-grammar']], [binary, 'cli-grammar']),
+    ('fs-persistence', [paths['fs-persistence']], [binary, 'fs-persistence', 'check']),
+    ('fs-persistence selftest', [paths['fs-persistence'], '--selftest'],
+     [binary, 'fs-persistence', 'selftest']),
+    ('plugin-boundary', [paths['plugin-boundary']], [binary, 'plugin-boundary', 'check']),
+    ('plugin-boundary selftest', [paths['plugin-boundary'], '--selftest'],
+     [binary, 'plugin-boundary', 'selftest']),
+    ('plugin-boundary roots', [paths['plugin-boundary'], '--print-roots'],
+     [binary, 'plugin-boundary', 'roots']),
+    ('yang-leaf-mentions report', [paths['yang-leaf-mentions']],
+     [binary, 'yang-leaf-mentions', 'report']),
+    ('yang-leaf-mentions selftest', [paths['yang-leaf-mentions'], '--selftest'],
+     [binary, 'yang-leaf-mentions', 'selftest']),
+    ('staticcheck-feature-matrix rows', [paths['staticcheck-feature-matrix'], '--print-matrix'],
+     [binary, 'staticcheck-feature-matrix', 'rows']),
+    ('dash-stdio', [paths['dash-stdio']], [binary, 'dash-stdio', 'check']),
+    ('dash-stdio selftest', [paths['dash-stdio'], '--selftest'],
+     [binary, 'dash-stdio', 'selftest']),
+    ('ci-dispatch', [paths['ci-dispatch']], [binary, 'ci-dispatch', 'check']),
+    ('ci-dispatch selftest', [paths['ci-dispatch'], '--selftest'],
+     [binary, 'ci-dispatch', 'selftest']),
+    ('repository-tracked-build selftest', [paths['repository-tracked-build'], '--selftest'],
+     [binary, 'repository-tracked-build', 'selftest']),
+    ('test-sensitivity report', [paths['test-sensitivity']],
+     [binary, 'test-sensitivity', 'report']),
+    ('test-sensitivity selftest', [paths['test-sensitivity'], '--selftest'],
+     [binary, 'test-sensitivity', 'selftest']),
 ]
 
 for name, script_argv, command_argv in pairs:
@@ -157,15 +198,172 @@ require(listing.returncode == 0, f'`le config-coercion` exited {listing.returnco
 for word in ('check', 'selftest', 'checks'):
     require(word in listing.stdout, f'the listing does not carry {word!r}:\n{listing.stdout}')
 
-# An action this area does not hold answers 2, which a caller reads apart from a
+# The verify runner hands one run's feature-tag scope to every stage through a
+# variable, and the matrix gate narrows on it. The comparison is here rather
+# than in a unit test because internal/core/env caches the whole environment on
+# its first read: only a fresh PROCESS proves the variable reaches the gate.
+answer = os.path.join(here, 'scope-tags')
+with open(answer, 'w', encoding='utf-8') as handle:
+    handle.write('ze_web\nze_ssh\n')
+scope_env = {'ZE_VERIFY_SCOPE_TAGS': answer}
+old = run([paths['staticcheck-feature-matrix'], '--print-matrix'], root, scope_env)
+new = run([binary, 'staticcheck-feature-matrix', 'rows'], here, scope_env)
+require(old.returncode == 0 and new.returncode == 0,
+        f'the scoped matrix exited {old.returncode}/{new.returncode}')
+require(old.stdout == new.stdout,
+        f'the scoped matrices differ.\nscript:\n{old.stdout}\ncommand:\n{new.stdout}')
+require(old.stderr == new.stderr,
+        f'the scope notices differ.\nscript: {old.stderr!r}\ncommand: {new.stderr!r}')
+require('4 of' in new.stderr,
+        f'the scoped run judged every row, so the variable never reached it: {new.stderr!r}')
+
+# A document with three row sets refuses the row operators BY NAME, and still
+# renders through every any-shape operator.
+counted = run([binary, 'cli-grammar', '|', 'count'], here)
+require(counted.returncode == 1,
+        f'`le cli-grammar | count` exited {counted.returncode}, want a refusal')
+require('count' in counted.stderr,
+        f'the refusal does not name the operator: {counted.stderr!r}')
+grammar = run([binary, 'cli-grammar', '|', 'json'], here)
+require(grammar.returncode == 0, f'`le cli-grammar | json` exited {grammar.returncode}')
+report = json.loads(grammar.stdout)
+for key in ('findings', 'flag-in-yang', 'demo-launch', 'commands-checked',
+            'roots-checked', 'demo-scripts-checked', 'valid'):
+    require(key in report, f'the grammar report answered no {key!r} key: {sorted(report)}')
+require(report['valid'], f'this checkout fails the grammar gate: {report}')
+for key in ('commands-checked', 'roots-checked', 'demo-scripts-checked'):
+    require(report[key] > 0, f'the gate read no {key}: a population it never walked')
+
+# A tool whose answer IS the rows takes the row operators.
+for argv, name in (([binary, 'fs-persistence', 'check'], 'fs-persistence check'),
+                   ([binary, 'plugin-boundary', 'check'], 'plugin-boundary check'),
+                   ([binary, 'dash-stdio', 'check'], 'dash-stdio check')):
+    rows = run(argv + ['|', 'json'], here)
+    require(rows.returncode == 0, f'`{name} | json` exited {rows.returncode}')
+    require(json.loads(rows.stdout) in (None, []),
+            f'`{name} | json` answered {rows.stdout!r} over a clean checkout')
+    counted = run(argv + ['|', 'count'], here)
+    require(counted.returncode == 0 and counted.stdout.strip() == '0',
+            f'`{name} | count` answered {counted.stdout!r}, want 0')
+
+# The dispatch report answers its counts beside its rows, for the same reason:
+# a run that checked nothing and a run in which everything resolved both report
+# zero findings, and only the counts tell them apart.
+dispatch = run([binary, 'ci-dispatch', 'check', '|', 'json'], here)
+require(dispatch.returncode == 0, f'`le ci-dispatch check | json` exited {dispatch.returncode}')
+routed = json.loads(dispatch.stdout)
+for key in ('schema-version', 'commands-known', 'emitters-checked', 'pass-through', 'findings'):
+    require(key in routed, f'the dispatch report answered no {key!r} key: {sorted(routed)}')
+require(routed['commands-known'] > 100 and routed['emitters-checked'] > 300,
+        f"the gate saw {routed['commands-known']} commands and {routed['emitters-checked']} emitters")
+
+# The advisory report answers its counts beside its rows, so a reader can tell a
+# clean tree from a tree nothing read.
+leaves = run([binary, 'yang-leaf-mentions', 'report', '|', 'json'], here)
+require(leaves.returncode == 0, f'`le yang-leaf-mentions report | json` exited {leaves.returncode}')
+mentions = json.loads(leaves.stdout)
+for key in ('modules', 'leaves', 'findings'):
+    require(key in mentions, f'the leaf report answered no {key!r} key: {sorted(mentions)}')
+require(mentions['modules'] > 0 and mentions['leaves'] > 0,
+        f'the report read {mentions["modules"]} modules and {mentions["leaves"]} leaves')
+
+# The sensitivity ratchet writes its verdict to stdout and its slack notice to
+# stderr, so BOTH streams are compared: the notice is what gets a floor
+# tightened, and losing it is how a ratchet goes slack unnoticed.
+old = run([paths['test-sensitivity'], '--check'], root)
+new = run([binary, 'test-sensitivity', 'check'], here)
+require(old.returncode == new.returncode,
+        f'test-sensitivity check: the script exited {old.returncode} and the command {new.returncode}')
+require(old.stdout == new.stdout,
+        f'the verdict lines differ.\nscript: {old.stdout!r}\ncommand: {new.stdout!r}')
+require(old.stderr == new.stderr,
+        f'the slack notices differ.\nscript: {old.stderr!r}\ncommand: {new.stderr!r}')
+
+# The TRACKED population is what the generated test-health page reads, and it
+# differs from the working tree only when something is uncommitted.
+old = run([paths['test-sensitivity'], '--json', '--tracked-only'], root)
+new = run([binary, 'test-sensitivity', 'tracked', '|', 'json'], here)
+require(json.loads(old.stdout) == json.loads(new.stdout),
+        'the tracked-population documents differ')
+tracked = json.loads(new.stdout)
+require(tracked['files-scanned'] > 100 and tracked['tests-scanned'] > 100,
+        f"the tracked scan read {tracked['files-scanned']} files and {tracked['tests-scanned']} tests")
+
+# The tracked-build gate compiles the tree GIT HOLDS, so both sides are run
+# over the same commit and their pages compared with the elapsed-time column
+# normalised: one run warms the build cache for the other, so the timings are
+# the one thing the two cannot agree on.
+timing = re.compile(r'\s+[0-9]+\.[0-9]s')
+old = run([paths['repository-tracked-build']], root)
+new = run([binary, 'repository-tracked-build', 'check'], here)
+require(old.returncode == 0, f'the commit does not compile: {old.stdout}{old.stderr}')
+require(old.returncode == new.returncode,
+        f'tracked-build: the script exited {old.returncode} and the command {new.returncode}')
+require(timing.sub(' TIME', old.stdout) == timing.sub(' TIME', new.stdout),
+        f'the tracked-build pages differ.\nscript:\n{old.stdout}\ncommand:\n{new.stdout}')
+
+# Its matrix names the same flavors on both sides. The KEYS differ on purpose:
+# the script's tagSet carries no JSON tags, so it answers Go field names where
+# every other answer in this repository is kebab-case.
+old = run([paths['repository-tracked-build'], '--matrix'], root)
+new = run([binary, 'repository-tracked-build', 'matrix', '|', 'json'], here)
+require(old.returncode == 0 and new.returncode == 0,
+        f'the matrix exited {old.returncode}/{new.returncode}')
+script_flavors = json.loads(old.stdout)
+command_flavors = json.loads(new.stdout)
+require(len(script_flavors) == len(command_flavors),
+        f'the script names {len(script_flavors)} flavors and the command {len(command_flavors)}')
+for was, now in zip(script_flavors, command_flavors):
+    require(was['Name'] == now['name'], f"flavor {was['Name']!r} is {now['name']!r} in the command")
+    require(was['Tags'] == now['tags'], f"flavor {was['Name']} carries different tags: {was['Tags']} {now['tags']}")
+    require(was['AnchorFiles'] == now['anchor-files'],
+            f"flavor {was['Name']} anchors differently: {was['AnchorFiles']} {now['anchor-files']}")
+
+# The matrix answer is rows, so `| count` says how many combinations run.
+matrix = run([binary, 'staticcheck-feature-matrix', 'rows', '|', 'json'], here)
+require(matrix.returncode == 0, f'`le staticcheck-feature-matrix rows | json` exited {matrix.returncode}')
+combos = json.loads(matrix.stdout)
+require(isinstance(combos, list) and len(combos) >= 3,
+        f'the matrix answered {combos!r}, want a row per feature plus the two shipped combinations')
+require(combos[0]['name'] == 'all_features' and combos[1]['name'] == 'core_only',
+        f'the first two rows are {combos[0]["name"]!r} and {combos[1]["name"]!r}')
+
+# Every selftest answers its cases as rows, so `| count` acts on them.
+for command, cases in (('fs-persistence', 8), ('plugin-boundary', 7),
+                       ('yang-leaf-mentions', 7), ('port-defaults', 8),
+                       ('dash-stdio', 14), ('ci-dispatch', 10),
+                       ('repository-tracked-build', 7), ('test-sensitivity', 46)):
+    answered = run([binary, command, 'selftest', '|', 'json'], here)
+    require(answered.returncode == 0,
+            f'`le {command} selftest | json` exited {answered.returncode}')
+    rows = json.loads(answered.stdout)
+    require(isinstance(rows, list) and len(rows) == cases,
+            f'`le {command} selftest` answered {len(rows)} rows, want {cases}')
+    require(all(row['passed'] for row in rows), f'a {command} selftest case failed: {rows}')
+
+# A single-gate tool takes no argument at all: the tree is the checkout and the
+# rendering is a pipe operator.
+refused = run([binary, 'cli-grammar', 'internal'], here)
+require(refused.returncode == 1,
+        f'`le cli-grammar internal` exited {refused.returncode}, want a refusal')
+require('takes no arguments' in refused.stderr,
+        f'the refusal does not say why: {refused.stderr!r}')
+
+# An action an area does not hold answers 2, which a caller reads apart from a
 # gate that ran and failed.
-require(run([binary, 'config-coercion', 'nonesuch'], here).returncode == 2,
-        'an unknown action did not answer 2')
+for command in ('config-coercion', 'fs-persistence', 'plugin-boundary',
+                'yang-leaf-mentions', 'staticcheck-feature-matrix', 'dash-stdio',
+                'ci-dispatch', 'repository-tracked-build', 'test-sensitivity'):
+    require(run([binary, command, 'nonesuch'], here).returncode == 2,
+            f'an unknown action of {command} did not answer 2')
 
 # Every ported command appears in the binary's own help.
 helped = run([binary], here)
 for command in ('config-claims', 'iface-resolution', 'command-ownership',
-                'config-coercion', 'port-defaults'):
+                'config-coercion', 'port-defaults', 'cli-grammar', 'fs-persistence',
+                'plugin-boundary', 'yang-leaf-mentions', 'staticcheck-feature-matrix',
+                'dash-stdio', 'ci-dispatch', 'repository-tracked-build',
+                'test-sensitivity'):
     require(command in helped.stdout + helped.stderr,
             f'`le` does not list {command!r} in its help')
 
