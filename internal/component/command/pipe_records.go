@@ -53,7 +53,8 @@ const (
 // record and pulls nothing. A positional display that names no schema field
 // returns a message before pulling a record.
 //
-// A format operator changes no record when it follows the data transforms.
+// NDJSON turns positional rows into field-named objects when the chain reaches
+// it. Other format operators change no record when they follow data transforms.
 // RenderRecords runs most format-before-transform chains over one collapsed
 // document. NDJSON plus line transforms deliberately stays on this path.
 func applyPipesRecords(
@@ -74,13 +75,15 @@ func applyPipesRecords(
 	ndjsonRendered := false
 	for _, op := range ops {
 		if op.kind == pipeNDJSON {
+			records = recordsNDJSONRendered(records, fields)
+			fields = nil
 			ndjsonRendered = true
 			continue
 		}
 		if ndjsonRendered {
 			switch op.kind { //nolint:exhaustive // only operators whose NDJSON line semantics differ.
 			case pipeMatch:
-				records = recordsMatchingRenderedJSON(records, fields, op.arg)
+				records = recordsMatchingRenderedJSON(records, op.arg)
 				continue
 			case pipeCount:
 				records = recordsLinesCounted(records)
@@ -176,16 +179,19 @@ func recordsMatching(records iter.Seq[rpc.Record], pattern string) iter.Seq[rpc.
 }
 
 // recordsMatchingRenderedJSON compares against the canonical line `| ndjson`
-// produces rather than the producer's original JSON spelling.
-func recordsMatchingRenderedJSON(records iter.Seq[rpc.Record], fields []string, pattern string) iter.Seq[rpc.Record] {
+// produced rather than the producer's original JSON spelling. Faults always
+// pass through: filtering results must not hide a row the pipeline rejected.
+func recordsMatchingRenderedJSON(records iter.Seq[rpc.Record], pattern string) iter.Seq[rpc.Record] {
 	lower := strings.ToLower(pattern)
 	return func(yield func(rpc.Record) bool) {
 		for record := range records {
-			line, err := marshalRecordJSONFields(record, fields)
-			if err != nil {
-				line = recordPayload(record)
+			if len(record.Fault) > 0 {
+				if !yield(record) {
+					return
+				}
+				continue
 			}
-			if !strings.Contains(strings.ToLower(string(line)), lower) {
+			if !strings.Contains(strings.ToLower(string(recordPayload(record))), lower) {
 				continue
 			}
 			if !yield(record) {
@@ -195,16 +201,31 @@ func recordsMatchingRenderedJSON(records iter.Seq[rpc.Record], fields []string, 
 	}
 }
 
-func recordsPositionalRendered(records iter.Seq[rpc.Record], fields []string) iter.Seq[rpc.Record] {
+// recordsNDJSONRendered canonicalizes each record when the NDJSON operator is
+// reached. Positional items become field-named objects here, so every later
+// line transform reads and retains the exact bytes the renderer will write.
+func recordsNDJSONRendered(records iter.Seq[rpc.Record], fields []string) iter.Seq[rpc.Record] {
 	return func(yield func(rpc.Record) bool) {
 		for record := range records {
-			if len(record.Item) > 0 {
-				rendered, err := marshalRecordJSONFields(record, fields)
-				if err != nil {
-					var tb textbuf.Buffer
-					yield(pipeFault(tb.Str("NDJSON cannot render positional row: ").Err(err).String()))
+			if len(record.Item) == 0 && len(record.Fault) == 0 {
+				if !yield(record) {
 					return
 				}
+				continue
+			}
+			rendered, err := marshalRecordJSONFields(record, fields)
+			if err != nil {
+				var tb textbuf.Buffer
+				message := "NDJSON cannot render record: "
+				if len(fields) > 0 && len(record.Item) > 0 {
+					message = "NDJSON cannot render positional row: "
+				}
+				yield(pipeFault(tb.Str(message).Err(err).String()))
+				return
+			}
+			if len(record.Fault) > 0 {
+				record.Fault = rendered
+			} else {
 				record.Item = rendered
 			}
 			if !yield(record) {
@@ -498,15 +519,16 @@ func selectItem(item json.RawMessage, keep map[string]struct{}) (json.RawMessage
 }
 
 // recordsPositionalAddressTransformed extends positional values and their head
-// schema together. Every selected source column contributes a fixed suffix set,
+// schema together. Existing derived columns are producer data and stay
+// untouched. Every absent suffix contributes one field and its matching value,
 // so lookup misses keep the same row width as hits.
 func recordsPositionalAddressTransformed(
 	records iter.Seq[rpc.Record],
 	fields []string,
 	op pipeOp,
 ) (iter.Seq[rpc.Record], []string) {
-	indices, derived := positionalAddressFields(fields, op)
-	if len(indices) == 0 {
+	transforms, derived := positionalAddressFields(fields, op)
+	if len(transforms) == 0 {
 		return records, fields
 	}
 	fieldCount := len(fields)
@@ -514,7 +536,7 @@ func recordsPositionalAddressTransformed(
 	return func(yield func(rpc.Record) bool) {
 		for record := range records {
 			if len(record.Item) > 0 {
-				transformed, msg := transformPositionalAddressItem(record.Item, indices, fieldCount, op.kind)
+				transformed, msg := transformPositionalAddressItem(record.Item, transforms, fieldCount, op.kind)
 				if msg != "" {
 					yield(pipeFault(msg))
 					return
@@ -528,26 +550,46 @@ func recordsPositionalAddressTransformed(
 	}, fields
 }
 
-func positionalAddressFields(fields []string, op pipeOp) ([]int, []string) {
-	var indices []int
+type positionalAddressTransform struct {
+	sourceIndex  int
+	valueIndices []int
+}
+
+func positionalAddressFields(fields []string, op pipeOp) ([]positionalAddressTransform, []string) {
+	seen := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		seen[strings.ToLower(field)] = struct{}{}
+	}
+
+	var transforms []positionalAddressTransform
 	var derived []string
 	for index, field := range fields {
 		if !addressFieldSelected(op.addressFields, field, op.allAddressFields) {
 			continue
 		}
-		indices = append(indices, index)
+		var suffixes []string
 		switch op.kind { //nolint:exhaustive // recordsPositionalAddressTransformed passes only resolve or origin.
 		case pipeResolve:
-			derived = append(derived, derivedAddressField(field, "-name"))
+			suffixes = []string{"-name"}
 		case pipeOrigin:
-			derived = append(derived,
-				derivedAddressField(field, "-asn"),
-				derivedAddressField(field, "-as-name"),
-				derivedAddressField(field, "-prefix"),
-			)
+			suffixes = []string{"-asn", "-as-name", "-prefix"}
+		}
+		transform := positionalAddressTransform{sourceIndex: index}
+		for valueIndex, suffix := range suffixes {
+			name := derivedAddressField(field, suffix)
+			folded := strings.ToLower(name)
+			if _, exists := seen[folded]; exists {
+				continue
+			}
+			seen[folded] = struct{}{}
+			transform.valueIndices = append(transform.valueIndices, valueIndex)
+			derived = append(derived, name)
+		}
+		if len(transform.valueIndices) > 0 {
+			transforms = append(transforms, transform)
 		}
 	}
-	return indices, derived
+	return transforms, derived
 }
 
 func derivedAddressField(field, suffix string) string {
@@ -557,7 +599,7 @@ func derivedAddressField(field, suffix string) string {
 
 func transformPositionalAddressItem(
 	item json.RawMessage,
-	indices []int,
+	transforms []positionalAddressTransform,
 	fieldCount int,
 	kind pipeKind,
 ) (json.RawMessage, string) {
@@ -573,9 +615,9 @@ func transformPositionalAddressItem(
 			Int(int64(len(values))).Str(" values, schema has ").
 			Int(int64(fieldCount)).String()
 	}
-	for _, index := range indices {
-		address, _ := values[index].(string)
-		switch kind { //nolint:exhaustive // positionalAddressFields produces indices only for resolve or origin.
+	for _, transform := range transforms {
+		address, _ := values[transform.sourceIndex].(string)
+		switch kind { //nolint:exhaustive // positionalAddressFields produces transforms only for resolve or origin.
 		case pipeResolve:
 			name := ""
 			if address != "*" {
@@ -591,7 +633,10 @@ func transformPositionalAddressItem(
 					origin = LookupOrigin(address)
 				}
 			}
-			values = append(values, origin.ASN, origin.Name, origin.Prefix)
+			derived := [...]any{origin.ASN, origin.Name, origin.Prefix}
+			for _, valueIndex := range transform.valueIndices {
+				values = append(values, derived[valueIndex])
+			}
 		}
 	}
 	encoded, err := json.Marshal(values)

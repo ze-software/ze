@@ -734,6 +734,9 @@ func (w *streamPipeWriter) writeEvent() error {
 	raw := strings.TrimSuffix(w.pending.String(), "\r")
 	formatted := strings.TrimRight(w.format(raw), "\r\n")
 	w.pending.Reset()
+	if command.IsPipeError(formatted) {
+		return errors.New(formatted)
+	}
 	if formatted == "" {
 		return nil
 	}

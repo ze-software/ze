@@ -41,7 +41,7 @@ import (
 // rpc.AnswerTypeMap or rpc.AnswerTypeTable. Count and Faults are the records the
 // chain produced, not the records the command did: `| count` answers one record
 // whatever it counted. Fields is the positional schema after every selection
-// and enrichment.
+// and enrichment, and is empty once NDJSON has made each row self-describing.
 type RecordAnswer struct {
 	Type   string
 	Fields []string
@@ -96,18 +96,13 @@ func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []strin
 	}
 
 	// NDJSON followed by a line transform stays record-shaped. Positional rows
-	// become self-describing NDJSON objects before the threshold check.
-	// Singleton metadata preserves document-path output. The wrapper retains at
-	// most one transformed record.
-	if ndjsonBeforeLineTransform(chain) {
-		if len(fields) > 0 {
-			records = recordsPositionalRendered(records, fields)
-			fields = nil
-		}
-		if len(meta) > 0 {
-			records = recordsWithSingletonMetadata(records, meta)
-			meta = nil
-		}
+	// already became self-describing objects when applyPipesRecords reached the
+	// NDJSON operator. Singleton metadata preserves document-path output. The
+	// wrapper retains at most one transformed record.
+	lineTransformedNDJSON := ndjsonBeforeLineTransform(chain)
+	if lineTransformedNDJSON && len(meta) > 0 {
+		records = recordsWithSingletonMetadata(records, meta)
+		meta = nil
 	}
 
 	answer := RecordAnswer{
@@ -160,6 +155,14 @@ func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []strin
 	}
 
 	if writing {
+		return answer, nil
+	}
+	if lineTransformedNDJSON {
+		for i := range held {
+			if err := writeRecordJSON(w, held[i]); err != nil {
+				return answer, err
+			}
+		}
 		return answer, nil
 	}
 	return answer, writeDocument(w, held, key, fields, answered, ops, meta, columns)
@@ -357,9 +360,9 @@ func answerDocument(held []rpc.Record, key string, fields []string, answered boo
 // alphabetical, so the same answer would read differently depending on how many
 // records it turned out to hold.
 //
-// A rejected row is written as its own line. A stream has no document to group
-// them under, which is where a buffered rendering puts them, and the
-// terminator's fault count states how many there were either way.
+// A rejected row is written as its own line whenever NDJSON line semantics keep
+// the record path, on both sides of the buffering threshold. The terminator's
+// fault count states how many there were.
 func writeRecordJSON(w io.Writer, record rpc.Record) error {
 	line, err := marshalRecordJSON(record)
 	if err != nil {
@@ -378,9 +381,9 @@ func writeRecordJSON(w io.Writer, record rpc.Record) error {
 // The format must be `| ndjson`, the one operator that names a line for each
 // value rather than one document for the answer.
 //
-// The answer must carry self-describing rows. A positional row is read against
-// the head's column names, and the zip that turns it back into an object belongs to
-// the collapse, so an answer that declares columns renders through it.
+// A positional answer becomes self-describing when the record pipeline reaches
+// NDJSON. A non-empty schema here therefore means no NDJSON operator converted
+// it, and the answer still needs a document that carries the schema.
 //
 // The chain must have folded no display metadata. Metadata rides in the
 // envelope beside the rows (injectPipeMeta, pipe.go), and a stream has no

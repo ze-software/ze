@@ -1,9 +1,11 @@
 # Test: reviewed folded-filter and remote-save contracts through the full binary
 #
-# VALIDATES: IR2-3 and IR3-7 -- folded RIB arguments are validated before
-# dispatch; one-shot log is refused; and daemon-expanded SSH exec, authenticated
-# production PTY, and web save cannot write a file.
-# PREVENTS: the stripped UI population hiding full-feature transport behavior.
+# VALIDATES: IR2-3, IR3-7, and IR4-9 -- folded RIB arguments are validated
+# before dispatch; one-shot log is refused; authenticated production PTY
+# controls reach the registered ping and traceroute piped views; and
+# daemon-expanded SSH exec, production PTY, and web save cannot write a file.
+# PREVENTS: the stripped UI population or ordinary command fallback hiding
+# full-feature transport behavior.
 
 option=timeout:value=60s
 
@@ -71,14 +73,31 @@ def require_refusal(result, operator, reason):
             % (operator, result.stdout))
 
 
+def drive_authenticated_hub_positive_controls(ssh_port, cases):
+    for command, marker in cases:
+        drive_authenticated_hub_command(
+            ssh_port, command, marker,
+            'registered piped view did not render %r for %r'
+            % (marker, command))
+
+
 def drive_authenticated_hub_pty(ssh_port, cases):
     for command, destination, forbidden_status in cases:
-        drive_authenticated_hub_command(
-            ssh_port, command, destination, forbidden_status)
+        answer = drive_authenticated_hub_command(
+            ssh_port, command, 'refused',
+            'PTY save did not render a refusal for %r' % command)
+        require('save' in answer and 'daemon' in answer,
+                'PTY refusal did not name save and daemon: %r' % answer)
+        require(not os.path.exists(destination),
+                'PTY refused save still created %s' % destination)
+        if forbidden_status:
+            require(forbidden_status not in answer,
+                    'PTY started a refused registered view (%s): %r'
+                    % (forbidden_status, answer))
 
 
 def drive_authenticated_hub_command(
-        ssh_port, command, destination, forbidden_status):
+        ssh_port, command, expected_marker, marker_description):
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ,
                 struct.pack('HHHH', 24, 100, 0, 0))
@@ -138,20 +157,12 @@ def drive_authenticated_hub_command(
                    'storage-backed hub model did not enter operational mode')
 
         command_at = len(transcript)
+        marker = expected_marker.lower()
         os.write(master, (command + '\r').encode())
         read_until(
-            lambda output: 'refused' in output[command_at:].lower(),
-            'PTY save did not render a refusal for %r' % command)
-        answer = transcript[command_at:].lower()
-        require('save' in answer and 'daemon' in answer,
-                'PTY refusal did not name save and daemon: %r' % answer)
-        require(not os.path.exists(destination),
-                'PTY refused save still created %s' % destination)
-        if forbidden_status:
-            require(forbidden_status not in answer,
-                    'PTY started a refused registered view (%s): %r'
-                    % (forbidden_status, answer))
-
+            lambda output: marker in output[command_at:].lower(),
+            marker_description)
+        return transcript[command_at:].lower()
     finally:
         if child.poll() is None:
             child.terminate()
@@ -260,6 +271,16 @@ try:
             'SSH save refusal did not state refusal: %r' % ssh_refusal.stderr)
     require(not os.path.exists(ssh_save),
             'SSH refused save still created %s' % ssh_save)
+
+    # Prove both piped live-view matchers resolve through the production PTY
+    # before testing their refusal boundary. The expected banners are emitted
+    # only by the registered views, not by ordinary command fallback.
+    drive_authenticated_hub_positive_controls(ssh_port, [
+        ('monitor ping 127.0.0.1 | log',
+         '--- monitor ping 127.0.0.1 | log (Esc to stop) ---'),
+        ('monitor traceroute 127.0.0.1 | log',
+         '--- monitor traceroute | log (Esc to stop) ---'),
+    ])
 
     pty_save = os.path.join(work, 'pty-must-not-exist.json')
     pty_ping_save = os.path.join(work, 'pty-ping-must-not-exist.json')

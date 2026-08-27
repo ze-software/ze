@@ -89,5 +89,4 @@ that row is where you say which of the two happened.
 
 | Test | Reason |
 |------|--------|
-| TestColumnOpsAfterTheFormatOperator | Replaced universal post-format acceptance with the compatibility matrix. `json` and `raw` preserve selection. Other formats refuse before record iteration. |
-| TestApplyPipes_NDJSONThenResolve | The old test pinned an inert structured transform after NDJSON. The replacement requires a refusal that names both `resolve` and `ndjson`, with record-boundary tests proving the refusal happens before source iteration. |
+| parseFunctionalLocalDataInvocations | Replaced line-regex checks with Python AST validation. New cases reject fake calls in strings, nested code, syntax errors, dynamic commands, and invalid parser output. |

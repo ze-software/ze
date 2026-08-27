@@ -712,11 +712,94 @@ func TestPositionalAddressOperatorsExtendSchemaAndKeepRowWidths(t *testing.T) {
 	if err != nil {
 		t.Fatalf("render enriched positional stream: %v", err)
 	}
-	if answer.Type != rpc.AnswerTypeTable {
-		t.Errorf("enriched stream type = %q, want table", answer.Type)
+	if answer.Type != rpc.AnswerTypeMap {
+		t.Errorf("enriched NDJSON stream type = %q, want map", answer.Type)
 	}
-	if !slices.Equal(answer.Fields, wantFields) {
-		t.Errorf("enriched RecordAnswer fields = %v, want %v", answer.Fields, wantFields)
+	if len(answer.Fields) != 0 {
+		t.Errorf("self-describing NDJSON fields = %v, want no positional schema", answer.Fields)
+	}
+	if !strings.Contains(output.String(), `"address-name":"peer.example"`) {
+		t.Errorf("enriched NDJSON did not name its derived columns: %.200q", output.String())
+	}
+}
+
+// TestPositionalAddressOperatorsPreserveProducerDerivedColumns covers both
+// enrichment operators when a positional producer already declares their
+// suffix fields. Field identity is case-insensitive, and producer values win.
+func TestPositionalAddressOperatorsPreserveProducerDerivedColumns(t *testing.T) {
+	ResetShapesForTest()
+	ResetAddressFieldsForTest()
+	t.Cleanup(ResetShapesForTest)
+	t.Cleanup(ResetAddressFieldsForTest)
+	const path = "show test positional existing derivation"
+	RegisterShape([]string{path}, ShapeTab)
+	RegisterAddressFields([]string{path}, "address")
+
+	SetPTRResolver(&mockPTRResolver{results: map[string][]string{
+		"192.0.2.1": {"lookup.example."},
+	}})
+	SetOriginResolver(positionalOriginResolver{results: map[string]OriginResult{
+		"192.0.2.1": {ASN: 64501, Name: "Lookup", Prefix: "192.0.2.0/24"},
+	}})
+	t.Cleanup(func() {
+		SetPTRResolver(nil)
+		SetOriginResolver(nil)
+	})
+
+	tests := []struct {
+		name       string
+		chain      string
+		fields     []string
+		item       string
+		wantFields []string
+		wantItem   string
+	}{
+		{
+			name:       "resolve",
+			chain:      path + " | resolve",
+			fields:     []string{"address", "Address-Name"},
+			item:       `["192.0.2.1","producer.example"]`,
+			wantFields: []string{"address", "Address-Name"},
+			wantItem:   `["192.0.2.1","producer.example"]`,
+		},
+		{
+			name:       "origin",
+			chain:      path + " | origin",
+			fields:     []string{"address", "ADDRESS-ASN", "address-As-Name", "ADDRESS-prefix"},
+			item:       `["192.0.2.1",64496,"Producer","198.51.100.0/24"]`,
+			wantFields: []string{"address", "ADDRESS-ASN", "address-As-Name", "ADDRESS-prefix"},
+			wantItem:   `["192.0.2.1",64496,"Producer","198.51.100.0/24"]`,
+		},
+		{
+			name:       "origin appends only absent suffix values",
+			chain:      path + " | origin",
+			fields:     []string{"address", "Address-AS-Name"},
+			item:       `["192.0.2.1","Producer"]`,
+			wantFields: []string{"address", "Address-AS-Name", "address-asn", "address-prefix"},
+			wantItem:   `["192.0.2.1","Producer",64501,"192.0.2.0/24"]`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			records, fields, msg := applyPipesRecords(
+				tt.chain,
+				tt.fields,
+				slices.Values([]rpc.Record{{Item: json.RawMessage(tt.item)}}),
+			)
+			if msg != "" {
+				t.Fatalf("address chain was refused: %s", msg)
+			}
+			if !slices.Equal(fields, tt.wantFields) {
+				t.Fatalf("fields = %v, want %v", fields, tt.wantFields)
+			}
+			got := collectRecords(records)
+			if len(got) != 1 {
+				t.Fatalf("address chain answered %d rows, want one", len(got))
+			}
+			if string(got[0].Item) != tt.wantItem {
+				t.Errorf("producer row = %s, want %s", got[0].Item, tt.wantItem)
+			}
+		})
 	}
 }
 
@@ -1077,6 +1160,118 @@ func TestNDJSONLineTransformsTreatFaultsAsRenderedLines(t *testing.T) {
 				t.Errorf("rendering %q does not contain %q", out.String(), tt.wantText)
 			}
 		})
+	}
+}
+
+// TestNDJSONLineSpellingDoesNotChangeAtTheThreshold keeps mixed result and
+// fault answers as one canonical JSON value per line on both sides of the
+// document/stream framing boundary.
+func TestNDJSONLineSpellingDoesNotChangeAtTheThreshold(t *testing.T) {
+	for _, count := range []int{rpc.AnswerBufferThreshold, rpc.AnswerBufferThreshold + 1} {
+		t.Run(textbuf.StringInt(int64(count))+" records", func(t *testing.T) {
+			records := func(yield func(rpc.Record) bool) {
+				if !yield(rpc.Record{Fault: json.RawMessage(`{"message":"threshold fault"}`)}) {
+					return
+				}
+				for range count - 1 {
+					if !yield(rpc.Record{Item: json.RawMessage(`{"value":"kept"}`)}) {
+						return
+					}
+				}
+			}
+
+			var out bytes.Buffer
+			answer, err := RenderRecords(
+				&out,
+				"system command list | ndjson | first 300",
+				"",
+				recordEnvelope,
+				nil,
+				records,
+			)
+			if err != nil {
+				t.Fatalf("RenderRecords: %v", err)
+			}
+			lines := strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n")
+			if len(lines) != count {
+				t.Fatalf("rendered %d lines, want %d: %.200q", len(lines), count, out.String())
+			}
+			if lines[0] != `{"message":"threshold fault"}` {
+				t.Errorf("fault line = %q, want canonical NDJSON", lines[0])
+			}
+			if lines[1] != `{"value":"kept"}` || lines[len(lines)-1] != lines[1] {
+				t.Errorf("result line spelling changed: first %q last %q", lines[1], lines[len(lines)-1])
+			}
+			wantType := rpc.AnswerTypeDocument
+			if count > rpc.AnswerBufferThreshold {
+				wantType = rpc.AnswerTypeMap
+			}
+			if answer.Type != wantType || answer.Count != uint64(count-1) || answer.Faults != 1 {
+				t.Errorf("answer = %+v, want type %q count %d faults 1", answer, wantType, count-1)
+			}
+		})
+	}
+}
+
+// TestMalformedPositionalNDJSONCannotBeDiscardedByMatch proves canonical
+// conversion happens before line filtering. The malformed first row fails the
+// walk closed even though neither it nor the following valid row matches.
+func TestMalformedPositionalNDJSONCannotBeDiscardedByMatch(t *testing.T) {
+	produced := 0
+	records := func(yield func(rpc.Record) bool) {
+		for _, item := range []string{`["short"]`, `["still","absent"]`} {
+			produced++
+			if !yield(rpc.Record{Item: json.RawMessage(item)}) {
+				return
+			}
+		}
+	}
+	var out bytes.Buffer
+	answer, err := RenderRecords(
+		&out,
+		"system command list | ndjson | match never-present",
+		"",
+		recordEnvelope,
+		commandColumns,
+		records,
+	)
+	if err != nil {
+		t.Fatalf("RenderRecords: %v", err)
+	}
+	if produced != 1 {
+		t.Errorf("malformed row pulled %d source records, want fail-closed stop after one", produced)
+	}
+	if answer.Count != 0 || answer.Faults != 1 {
+		t.Errorf("answer = %+v, want one propagated conversion fault", answer)
+	}
+	if !strings.Contains(out.String(), "NDJSON cannot render positional row") {
+		t.Errorf("conversion fault was discarded by match: %q", out.String())
+	}
+}
+
+// TestNDJSONLastMeasuresCanonicalPositionalBytes makes the field-named object
+// exceed the retention ceiling while the producer's positional array is tiny.
+// The bound therefore proves which representation last actually retained.
+func TestNDJSONLastMeasuresCanonicalPositionalBytes(t *testing.T) {
+	fields := []string{strings.Repeat("f", recordsLastBytesLimit)}
+	rows := slices.Values([]rpc.Record{{Item: json.RawMessage(`["x"]`)}})
+	var out bytes.Buffer
+	answer, err := RenderRecords(
+		&out,
+		"show test rows | ndjson | last 1",
+		"",
+		"rows",
+		fields,
+		rows,
+	)
+	if err != nil {
+		t.Fatalf("RenderRecords: %v", err)
+	}
+	if answer.Count != 0 || answer.Faults != 1 {
+		t.Errorf("answer = %+v, want one retention fault", answer)
+	}
+	if !strings.Contains(out.String(), lastRetentionBytesError()) {
+		t.Errorf("wide canonical object was retained: output has %d bytes", out.Len())
 	}
 }
 

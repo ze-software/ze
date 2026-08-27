@@ -1828,9 +1828,9 @@ func validateGeneratedWikiCommandSurface(
 			{availability: "when-streaming", label: "While the command keeps answering"},
 			{availability: "local-only", label: "Local process only"},
 		} {
-			actual := wikiOperatorGroup(detail, group.label)
+			actual := wikiOperatorGroups(detail, group.label)
 			expectedNames := commandOperatorNames(command, group.availability)
-			issues = append(issues, compareCommandOperatorGroup(
+			issues = append(issues, compareCommandOperatorGroups(
 				surface, command.Path, group.availability, expectedNames, actual,
 			)...)
 		}
@@ -2011,9 +2011,10 @@ func wikiCodeList(values []string) string {
 	return strings.Join(quoted, ", ")
 }
 
-func wikiOperatorGroup(content, label string) []string {
+func wikiOperatorGroups(content, label string) [][]string {
 	var marker textbuf.Buffer
 	prefix := marker.Str(label).Str(": ").String()
+	var groups [][]string
 	for line := range strings.SplitSeq(content, "\n") {
 		if !strings.HasPrefix(line, prefix) {
 			continue
@@ -2029,9 +2030,9 @@ func wikiOperatorGroup(content, label string) []string {
 				names = append(names, value)
 			}
 		}
-		return names
+		groups = append(groups, names)
 	}
-	return nil
+	return groups
 }
 
 var commandSurfaceSlugSeparator = regexp.MustCompile(`[^a-z0-9]+`)
@@ -2210,6 +2211,25 @@ func commandOperatorNames(command publishedCommand, availability string) []strin
 	return names
 }
 
+func compareCommandOperatorGroups(
+	path, command, availability string,
+	expected []string, actual [][]string,
+) []issue {
+	if len(actual) > 1 {
+		return []issue{duplicateCommandOperatorGroupIssue(
+			path, command, availability, len(actual),
+		)}
+	}
+	if len(actual) == 0 {
+		return compareCommandOperatorGroup(
+			path, command, availability, expected, nil,
+		)
+	}
+	return compareCommandOperatorGroup(
+		path, command, availability, expected, actual[0],
+	)
+}
+
 func compareCommandOperatorGroup(
 	path, command, availability string,
 	expected, actual []string,
@@ -2233,7 +2253,28 @@ func compareCommandOperatorGroup(
 			path, command, namedCommandDimension(dimension, name),
 		))
 	}
+	if len(issues) == 0 && !sameStrings(expected, actual) {
+		dimension := rendered.Reset().Str(availability).Str(" operator order").String()
+		issues = append(issues, generatedCommandSurfaceValueIssue(
+			path, command, dimension,
+			strings.Join(expected, ", "), strings.Join(actual, ", "),
+		))
+	}
 	return issues
+}
+
+func duplicateCommandOperatorGroupIssue(
+	path, command, availability string,
+	count int,
+) issue {
+	var detail textbuf.Buffer
+	return issue{
+		File:    path,
+		Message: "the generated per-command surface has a duplicate operator availability group",
+		Detail: detail.Str("command ").Quoted(command).Str(" has ").
+			Int(int64(count)).Byte(' ').Str(availability).
+			Str(" operator groups; expected at most one").String(),
+	}
 }
 
 func compareCommandNamedGroup(
@@ -2509,10 +2550,10 @@ func validatePrimaryCommandContract(
 		{availability: "when-streaming", label: "While streaming"},
 		{availability: "local-only", label: "Local process only"},
 	} {
-		issues = append(issues, compareCommandOperatorGroup(
+		issues = append(issues, compareCommandOperatorGroups(
 			path, command.Path, group.availability,
 			commandOperatorNames(command, group.availability),
-			commandHTMLGroupValues(row, group.label),
+			commandHTMLGroups(row, group.label),
 		)...)
 	}
 
@@ -2605,10 +2646,10 @@ func validatePrimaryMarkdownContract(
 		{availability: "when-streaming", label: "While streaming"},
 		{availability: "local-only", label: "Local process only"},
 	} {
-		issues = append(issues, compareCommandOperatorGroup(
+		issues = append(issues, compareCommandOperatorGroups(
 			path, command.Path, group.availability,
 			commandOperatorNames(command, group.availability),
-			commandMarkdownGroupValues(row, group.label),
+			commandMarkdownGroups(row, group.label),
 		)...)
 	}
 	expectedFilters := make([]string, 0, len(command.Pipes))
@@ -2636,29 +2677,42 @@ func validatePrimaryMarkdownContract(
 }
 
 func commandMarkdownGroupValues(content, label string) []string {
-	var marker textbuf.Buffer
-	startMarker := marker.Str(label).Str(": ").String()
-	start := strings.Index(content, startMarker)
-	if start == -1 {
+	groups := commandMarkdownGroups(content, label)
+	if len(groups) == 0 {
 		return nil
 	}
-	values := content[start+len(startMarker):]
-	end := len(values)
-	if lineBreak := strings.Index(values, "<br>"); lineBreak != -1 {
-		end = lineBreak
-	}
-	if cellEnd := strings.Index(values, " |"); cellEnd != -1 {
-		end = min(end, cellEnd)
-	}
-	values = values[:end]
-	parsed := make([]string, 0, strings.Count(values, ", ")+1)
-	for _, value := range strings.Split(values, ", ") {
-		value = strings.Trim(value, "`")
-		if value != "" {
-			parsed = append(parsed, strings.ReplaceAll(value, `\|`, "|"))
+	return groups[0]
+}
+
+func commandMarkdownGroups(content, label string) [][]string {
+	var marker textbuf.Buffer
+	startMarker := marker.Str(label).Str(": ").String()
+	var groups [][]string
+	remaining := content
+	for {
+		start := strings.Index(remaining, startMarker)
+		if start == -1 {
+			return groups
 		}
+		values := remaining[start+len(startMarker):]
+		end := len(values)
+		if lineBreak := strings.Index(values, "<br>"); lineBreak != -1 {
+			end = lineBreak
+		}
+		if cellEnd := strings.Index(values, " |"); cellEnd != -1 {
+			end = min(end, cellEnd)
+		}
+		values = values[:end]
+		parsed := make([]string, 0, strings.Count(values, ", ")+1)
+		for _, value := range strings.Split(values, ", ") {
+			value = strings.Trim(value, "`")
+			if value != "" {
+				parsed = append(parsed, strings.ReplaceAll(value, `\|`, "|"))
+			}
+		}
+		groups = append(groups, parsed)
+		remaining = remaining[start+len(startMarker):]
 	}
-	return parsed
 }
 
 func commandAvailabilityLabel(availability string) string {
@@ -2674,24 +2728,32 @@ func commandAvailabilityLabel(availability string) string {
 	}
 }
 
-func commandHTMLGroupValues(content, label string) []string {
+func commandHTMLGroups(content, label string) [][]string {
 	var marker textbuf.Buffer
 	startMarker := marker.Str("<span>").Str(html.EscapeString(label)).
 		Str("</span><code>").String()
-	start := strings.Index(content, startMarker)
-	if start == -1 {
-		return nil
+	var groups [][]string
+	remaining := content
+	for {
+		start := strings.Index(remaining, startMarker)
+		if start == -1 {
+			return groups
+		}
+		values := remaining[start+len(startMarker):]
+		end := strings.Index(values, "</code>")
+		if end == -1 {
+			return groups
+		}
+		var parsed []string
+		if values := values[:end]; values != "" {
+			parsed = strings.Split(values, " · ")
+			for i := range parsed {
+				parsed[i] = html.UnescapeString(parsed[i])
+			}
+		}
+		groups = append(groups, parsed)
+		remaining = values[end+len("</code>"):]
 	}
-	values := content[start+len(startMarker):]
-	end := strings.Index(values, "</code>")
-	if end == -1 {
-		return nil
-	}
-	parsed := strings.Split(values[:end], " · ")
-	for i := range parsed {
-		parsed[i] = html.UnescapeString(parsed[i])
-	}
-	return parsed
 }
 
 func htmlCodeNames(content, startMarker, endMarker string) []string {
@@ -2769,10 +2831,31 @@ func htmlDefinitionValue(content, label string) string {
 	return values[:end]
 }
 
+func equivalentHTMLCommandContent(content string) (string, bool) {
+	const startMarker = `<article class="cmd-detail-card cmd-detail-ze">`
+	start := strings.Index(content, startMarker)
+	if start == -1 {
+		return "", false
+	}
+	remaining := content[start+len(startMarker):]
+	end := strings.Index(remaining, "</article>")
+	if end == -1 {
+		return "", false
+	}
+	return remaining[:end], true
+}
+
 func validateEquivalentCommandContract(
 	path, content string,
 	command publishedCommand,
 ) []issue {
+	commandContent, ok := equivalentHTMLCommandContent(content)
+	if !ok {
+		return []issue{generatedCommandContractIssue(
+			path, command.Path, "command-equivalent HTML command section",
+		)}
+	}
+	content = commandContent
 	var issues []issue
 	var marker textbuf.Buffer
 	if command.AnswerShape != "" {
@@ -2807,10 +2890,10 @@ func validateEquivalentCommandContract(
 		{availability: "when-streaming", label: "Pipes, while streaming"},
 		{availability: "local-only", label: "Pipes, local process only"},
 	} {
-		issues = append(issues, compareCommandOperatorGroup(
+		issues = append(issues, compareCommandOperatorGroups(
 			path, command.Path, group.availability,
 			commandOperatorNames(command, group.availability),
-			equivalentHTMLGroupValues(content, group.label),
+			equivalentHTMLGroups(content, group.label),
 		)...)
 	}
 	expectedFilters := make([]string, 0, len(command.Pipes))
@@ -2846,10 +2929,31 @@ func validateEquivalentCommandContract(
 	}
 	return issues
 }
+
+func equivalentMarkdownCommandContent(content string) (string, bool) {
+	const startMarker = "## Ze command\n"
+	start := strings.Index(content, startMarker)
+	if start == -1 {
+		return "", false
+	}
+	remaining := content[start+len(startMarker):]
+	if end := strings.Index(remaining, "\n## "); end != -1 {
+		remaining = remaining[:end]
+	}
+	return remaining, true
+}
+
 func validateEquivalentMarkdownContract(
 	path, content string,
 	command publishedCommand,
 ) []issue {
+	commandContent, ok := equivalentMarkdownCommandContent(content)
+	if !ok {
+		return []issue{generatedCommandContractIssue(
+			path, command.Path, "command-equivalent Markdown command section",
+		)}
+	}
+	content = commandContent
 	var issues []issue
 	var marker textbuf.Buffer
 	registryPath := marker.Str("- Registry path: `").
@@ -2882,10 +2986,10 @@ func validateEquivalentMarkdownContract(
 		{availability: "when-streaming", label: "Pipes, while streaming"},
 		{availability: "local-only", label: "Pipes, local process only"},
 	} {
-		issues = append(issues, compareCommandOperatorGroup(
+		issues = append(issues, compareCommandOperatorGroups(
 			path, command.Path, group.availability,
 			commandOperatorNames(command, group.availability),
-			equivalentMarkdownGroupValues(content, group.label),
+			equivalentMarkdownGroups(content, group.label),
 		)...)
 	}
 	expectedFilters := make([]string, 0, len(command.Pipes))
@@ -2935,21 +3039,33 @@ func validateEquivalentMarkdownContract(
 }
 
 func equivalentMarkdownGroupValues(content, label string) []string {
-	line := commandMarkdownLine(content, label)
-	if line == "" {
+	groups := equivalentMarkdownGroups(content, label)
+	if len(groups) == 0 {
 		return nil
 	}
+	return groups[0]
+}
+
+func equivalentMarkdownGroups(content, label string) [][]string {
 	var marker textbuf.Buffer
-	values := strings.TrimPrefix(line,
-		marker.Str("- ").Str(label).Str(": ").String())
-	if values == "none" {
-		return nil
+	prefix := marker.Str("- ").Str(label).Str(": ").String()
+	var groups [][]string
+	for line := range strings.SplitSeq(content, "\n") {
+		if !strings.HasPrefix(line, prefix) {
+			continue
+		}
+		values := strings.TrimPrefix(line, prefix)
+		if values == "none" {
+			groups = append(groups, nil)
+			continue
+		}
+		parsed := strings.Split(values, ", ")
+		for i := range parsed {
+			parsed[i] = strings.ReplaceAll(parsed[i], `\|`, "|")
+		}
+		groups = append(groups, parsed)
 	}
-	parsed := strings.Split(values, ", ")
-	for i := range parsed {
-		parsed[i] = strings.ReplaceAll(parsed[i], `\|`, "|")
-	}
-	return parsed
+	return groups
 }
 
 func commandMarkdownLine(content, label string) string {
@@ -2979,24 +3095,32 @@ func equivalentAvailabilityLabel(availability string, declaredShape bool) string
 	}
 }
 
-func equivalentHTMLGroupValues(content, label string) []string {
+func equivalentHTMLGroups(content, label string) [][]string {
 	var marker textbuf.Buffer
 	startMarker := marker.Str("<dt>").Str(html.EscapeString(label)).
 		Str("</dt><dd>").String()
-	start := strings.Index(content, startMarker)
-	if start == -1 {
-		return nil
+	var groups [][]string
+	remaining := content
+	for {
+		start := strings.Index(remaining, startMarker)
+		if start == -1 {
+			return groups
+		}
+		values := remaining[start+len(startMarker):]
+		end := strings.Index(values, "</dd>")
+		if end == -1 {
+			return groups
+		}
+		var parsed []string
+		if values := values[:end]; values != "" {
+			parsed = strings.Split(values, ", ")
+			for i := range parsed {
+				parsed[i] = html.UnescapeString(parsed[i])
+			}
+		}
+		groups = append(groups, parsed)
+		remaining = values[end+len("</dd>"):]
 	}
-	values := content[start+len(startMarker):]
-	end := strings.Index(values, "</dd>")
-	if end == -1 {
-		return nil
-	}
-	parsed := strings.Split(values[:end], ", ")
-	for i := range parsed {
-		parsed[i] = html.UnescapeString(parsed[i])
-	}
-	return parsed
 }
 
 func llmsCommandMetadata(content, path string) (string, bool) {
@@ -3036,10 +3160,10 @@ func validateLLMSCommandContract(
 	for _, availability := range []string{
 		"always", "with-rows", "when-streaming", "local-only",
 	} {
-		issues = append(issues, compareCommandOperatorGroup(
+		issues = append(issues, compareCommandOperatorGroups(
 			path, command.Path, availability,
 			commandOperatorNames(command, availability),
-			commandMetaPipeGroupValues(meta, availability),
+			commandMetaPipeGroups(meta, availability),
 		)...)
 	}
 	if shape := commandMetaValue(meta, "shape"); shape != command.AnswerShape {
@@ -3080,15 +3204,21 @@ func validateLLMSCommandContract(
 	return issues
 }
 
-func commandMetaPipeGroupValues(meta, availability string) []string {
-	pipes := commandMetaValue(meta, "pipes")
-	for group := range strings.SplitSeq(pipes, ", ") {
-		label, values, ok := strings.Cut(group, ": ")
-		if ok && label == availability {
-			return strings.Fields(values)
+func commandMetaPipeGroups(meta, availability string) [][]string {
+	var groups [][]string
+	for segment := range strings.SplitSeq(meta, "; ") {
+		pipes, ok := strings.CutPrefix(segment, "pipes ")
+		if !ok {
+			continue
+		}
+		for group := range strings.SplitSeq(pipes, ", ") {
+			label, values, ok := strings.Cut(group, ": ")
+			if ok && label == availability {
+				groups = append(groups, strings.Fields(values))
+			}
 		}
 	}
-	return nil
+	return groups
 }
 
 func commandMetaValue(meta, label string) string {

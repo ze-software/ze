@@ -125,6 +125,69 @@ func TestSSHRawExecFormatsStreamEventsAndConsumesLog(t *testing.T) {
 	assert.Equal(t, "{\n  \"event\": \"first\"\n}\n{\n  \"event\": \"second\"\n}\n", stdout)
 }
 
+// TestStreamPipeWriterFormatsEachEventOnce uses a formatter whose output is not
+// idempotent, so a second application is observable rather than hidden by JSON
+// pretty-printing. Delimited and final unterminated events share the same rule.
+func TestStreamPipeWriterFormatsEachEventOnce(t *testing.T) {
+	var output bytes.Buffer
+	var calls []string
+	writer := streamPipeWriter{
+		output: &output,
+		format: func(event string) string {
+			calls = append(calls, event)
+			return "formatted[" + event + "]"
+		},
+	}
+
+	n, err := writer.Write([]byte(`{"event":"fir`))
+	require.NoError(t, err)
+	assert.Equal(t, len(`{"event":"fir`), n)
+	assert.Empty(t, calls, "a split event must wait for its delimiter")
+
+	const remainder = "st\"}\n{\"event\":\"second\"}"
+	n, err = writer.Write([]byte(remainder))
+	require.NoError(t, err)
+	assert.Equal(t, len(remainder), n)
+	require.NoError(t, writer.finish())
+
+	assert.Equal(t, []string{`{"event":"first"}`, `{"event":"second"}`}, calls)
+	assert.Equal(t,
+		"formatted[{\"event\":\"first\"}]\nformatted[{\"event\":\"second\"}]\n",
+		output.String())
+}
+
+// TestSSHRawExecReturnsLateStreamRefusalOnStderr drives an authenticated raw
+// SSH exec whose first event is a document, not rows. Count can be accepted
+// from the undeclared stream command but must refuse that actual event shape.
+//
+// VALIDATES: IR4-8 -- formatter sentinels are stderr/nonzero, never stream data.
+// PREVENTS: a late refusal reaching stdout before a later handler event.
+func TestSSHRawExecReturnsLateStreamRefusalOnStderr(t *testing.T) {
+	const streamCommand = "monitor ssh-late-refusal-test"
+	pluginserver.RegisterStreamingHandler(streamCommand, func(context.Context, *pluginserver.Server, io.Writer, string, []string) error {
+		return nil
+	})
+
+	server := answerServer(t, func(string) (*plugin.Response, error) {
+		return plugin.NewResponse(plugin.StatusDone, nil), nil
+	})
+	server.SetStreamingExecutorFactory(func(_, _ string, _ plugin.Authorizer) StreamingExecutor {
+		return func(_ context.Context, output io.Writer, _ []string) error {
+			_, err := io.WriteString(output,
+				"{\"event\":\"document\"}\n{\"items\":[{\"event\":\"continued\"}]}\n")
+			return err
+		}
+	})
+
+	stdout, stderr, err := runRawSSHExec(t, server, streamCommand+" | count")
+
+	require.Error(t, err)
+	assert.Empty(t, stdout)
+	assert.Contains(t, stderr, "count")
+	assert.Contains(t, stderr, "needs rows")
+	assert.NotContains(t, stderr, "continued")
+}
+
 // TestSSHRawExecRefusesStreamSaveBeforeDispatch proves the stream branch uses
 // the remote pipe boundary before it constructs or invokes a handler executor.
 func TestSSHRawExecRefusesStreamSaveBeforeDispatch(t *testing.T) {

@@ -702,7 +702,7 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 	writeTempDoc(t, root, "website/data/cli-commands.json",
 		renderedCommandCatalogFixture)
 	primaryHTML := `<html data-site-postprocessed="true"><body>
-<header>Injected site header</header>
+<header>Injected site header <span>Always</span><code>catalog-absent</code></header>
 <section class="cli-pipe-guide">
 <table><tbody>
 <tr><td><code>json</code></td><td>Output and control</td><td>Always</td><td>JSON output</td></tr>
@@ -733,6 +733,8 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 	writeTempDoc(t, root, "website/reference/cli/index.md",
 		strings.Join([]string{
 			"# CLI Reference",
+			"Always: `catalog-absent`",
+			"",
 			"",
 			"| Command | Mode | Description | Pipes |",
 			"| --- | --- | --- | --- |",
@@ -747,6 +749,8 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 	writeTempDoc(t, root,
 		"website/reference/command-equivalents/show-test/index.html",
 		`<html data-site-postprocessed="true"><body>
+<aside><dt>Pipes, always</dt><dd>catalog-absent</dd></aside>
+<article class="cmd-detail-card cmd-detail-ze">
 <div><dt>Pipes, always</dt><dd>json, save</dd></div>
 <div><dt>Pipes, on its rows</dt><dd>match</dd></div>
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
@@ -755,12 +759,15 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 <div><dt>Pipe aliases</dt><dd><code>summary</code>: Show a summary (<code>display address</code>)</dd></div>
 <div><dt>Answer shape</dt><dd>tab</dd></div>
 <div><dt>Address fields</dt><dd>address</dd></div>
+</article>
 </body></html>
 `)
 	writeTempDoc(t, root,
 		"website/reference/command-equivalents/show-test/index.md",
 		strings.Join([]string{
 			"# `show test`",
+			"",
+			"## Ze command",
 			"",
 			"- Registry path: `show test`",
 			"- Answer shape: tab",
@@ -771,6 +778,10 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 			"- Pipes, local process only: save",
 			"- Command pipes: `family <value>`: Filter by family",
 			"- Pipe aliases: `summary`: Show a summary (`display address`)",
+			"## Mapping intents",
+			"",
+			"- Pipes, always: catalog-absent",
+			"",
 			"",
 		}, "\n"))
 	writeTempDoc(t, root, "website/llms.txt",
@@ -778,6 +789,8 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 			"# Ze",
 			"",
 			"## CLI command surface",
+			"Site note: pipes always: catalog-absent",
+			"",
 			"",
 			"- `show test` (read-only; wire ze-show:test; pipes always: json save, with-rows: match, when-streaming: log, local-only: save; shape tab; address-fields address; filters family; aliases summary=display address; args family:enum): Show test rows",
 			"",
@@ -1125,8 +1138,8 @@ func TestDocDriftRejectsExtraOperatorsOnEveryRenderedSurface(t *testing.T) {
 		{
 			name: "command-equivalent HTML",
 			path: "reference/command-equivalents/show-test/index.html",
-			old:  "<dt>Pipes, always</dt><dd>json, save</dd>",
-			new:  "<dt>Pipes, always</dt><dd>json, save, catalog-absent</dd>",
+			old:  "<div><dt>Pipes, always</dt><dd>json, save</dd></div>",
+			new:  "<div><dt>Pipes, always</dt><dd>json, save, catalog-absent</dd></div>",
 		},
 		{
 			name: "command-equivalent Markdown",
@@ -1157,6 +1170,118 @@ func TestDocDriftRejectsExtraOperatorsOnEveryRenderedSurface(t *testing.T) {
 				t.Fatalf("doc drift did not identify the extra %s operator:\n%s", tc.name, out)
 			}
 		})
+	}
+}
+
+// VALIDATES: each command owns at most one correctly labeled operator group
+// for an availability on every rendered surface.
+// PREVENTS: a renderer hiding a catalog-absent operator in a second group after
+// the first group has already satisfied the live contract.
+func TestDocDriftRejectsDuplicateOperatorGroupsOnEveryRenderedSurface(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		old  string
+		new  string
+	}{
+		{
+			name: "primary HTML",
+			path: "reference/cli/index.html",
+			old:  "<p><span>Always</span><code>json · save</code></p>",
+			new:  "<p><span>Always</span><code>json · save</code></p><p><span>Always</span><code>catalog-absent</code></p>",
+		},
+		{
+			name: "primary Markdown",
+			path: "reference/cli/index.md",
+			old:  "Always: `json`, `save`",
+			new:  "Always: `json`, `save`<br>Always: `catalog-absent`",
+		},
+		{
+			name: "command-equivalent HTML",
+			path: "reference/command-equivalents/show-test/index.html",
+			old:  "<div><dt>Pipes, always</dt><dd>json, save</dd></div>",
+			new:  "<div><dt>Pipes, always</dt><dd>json, save</dd></div><div><dt>Pipes, always</dt><dd>catalog-absent</dd></div>",
+		},
+		{
+			name: "command-equivalent Markdown",
+			path: "reference/command-equivalents/show-test/index.md",
+			old:  "- Pipes, always: json, save",
+			new:  "- Pipes, always: json, save\n- Pipes, always: catalog-absent",
+		},
+		{
+			name: "llms",
+			path: "llms.txt",
+			old:  "pipes always: json save,",
+			new:  "pipes always: json save, always: catalog-absent,",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(t, root, tc.path, tc.old, tc.new)
+
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil {
+				t.Fatalf("doc drift accepted a duplicate operator group on %s:\n%s", tc.name, out)
+			}
+			if !strings.Contains(out, "duplicate operator availability group") ||
+				!strings.Contains(out, filepath.ToSlash(tc.path)) {
+				t.Fatalf("doc drift did not identify the duplicate %s group:\n%s", tc.name, out)
+			}
+		})
+	}
+
+	t.Run("wiki", func(t *testing.T) {
+		root := t.TempDir()
+		livePath := writeRenderedCommandCatalogFixture(t, root)
+		source, err := os.ReadFile(filepath.Join(
+			repoRoot(t), "scripts", "dev", "gen_wiki_commands.py",
+		))
+		if err != nil {
+			t.Fatal(err)
+		}
+		old := `lines.append(f"Always: {names}")`
+		replacement := old + "\n            lines.append(\"Always: `catalog-absent`\")"
+		mutated := strings.Replace(string(source), old, replacement, 1)
+		if mutated == string(source) {
+			t.Fatal("the duplicate wiki operator mutation did not apply")
+		}
+		writeTempDoc(t, root, "scripts/dev/gen_wiki_commands.py", mutated)
+
+		out, err := runRenderedCommandDriftFixture(t, root, livePath)
+		if err == nil {
+			t.Fatalf("doc drift accepted a duplicate wiki operator group:\n%s", out)
+		}
+		if !strings.Contains(out, "duplicate operator availability group") ||
+			!strings.Contains(out, "scripts/dev/gen_wiki_commands.py") {
+			t.Fatalf("doc drift did not identify the duplicate wiki group:\n%s", out)
+		}
+	})
+}
+
+// VALIDATES: a unique operator group preserves the catalog's ordered names.
+// PREVENTS: set-only comparison accepting reordered generated documentation.
+func TestDocDriftRejectsReorderedOperatorGroup(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	mutatePublishedCommandSurface(
+		t,
+		root,
+		"reference/cli/index.html",
+		"<p><span>Always</span><code>json · save</code></p>",
+		"<p><span>Always</span><code>save · json</code></p>",
+	)
+
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err == nil {
+		t.Fatalf("doc drift accepted a reordered operator group:\n%s", out)
+	}
+	if !strings.Contains(out, "always operator order") ||
+		!strings.Contains(out, "reference/cli/index.html") {
+		t.Fatalf("doc drift did not identify the reordered operator group:\n%s", out)
 	}
 }
 

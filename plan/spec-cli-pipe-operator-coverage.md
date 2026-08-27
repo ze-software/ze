@@ -796,6 +796,28 @@ reviewed commit and is recorded as dismissed.
 finding dismissed against the producer.** All 13 verified findings are fixed.
 The next independent round reviews their exact committed population.
 
+### Independent review, round 4 (2026-08-27)
+
+Three new contexts reviewed fix commit `c577d13b9` through logic, security,
+and public-contract lenses. The main session verified each finding against its
+producer.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR4-1 | BLOCKER | The AC-10 ratchet treats triple-quoted Python string content as executable top-level calls and completion markers (`internal/component/command/registry/local_data_functional_coverage_test.go` `parseFunctionalLocalDataInvocations`) | FIXED |
+| IR4-2 | BLOCKER | Generated-surface validators inspect only the first operator group and accept a duplicate group that names catalog-absent operators (`scripts/docvalid/doc_drift.go`) | FIXED |
+| IR4-3 | BLOCKER | `ServeLocal` invokes the local producer before it validates an explicit pipe refusal, so source work and producer errors can precede AC-3 (`internal/component/command/local_data.go` `ServeLocal`) | FIXED |
+| IR4-4 | BLOCKER | Positional record enrichment still appends duplicate derived columns and can overwrite producer values (`internal/component/command/pipe_records.go` `recordsPositionalAddressTransformed`) | FIXED |
+| IR4-5 | BLOCKER | NDJSON line transforms collapse short answers with faults but stream long answers line by line, making output threshold-dependent (`internal/component/command/render_records.go` `RenderRecords`) | FIXED |
+| IR4-6 | BLOCKER | NDJSON `last` measures positional array bytes before expansion to field-named objects, so the retained-byte bound applies to the wrong representation (`internal/component/command/pipe_records.go`) | FIXED |
+| IR4-7 | BLOCKER | NDJSON `match` can filter the fault from a malformed positional row before the schema violation reaches the caller (`internal/component/command/pipe_records.go` `recordsMatchingRenderedJSON`) | FIXED |
+| IR4-8 | BLOCKER | Raw SSH stream formatting writes `pipe error:` sentinels to stdout and returns success instead of stderr and nonzero (`internal/component/ssh/ssh.go` `streamPipeWriter.writeEvent`) | FIXED |
+| IR4-9 | BLOCKER | The production PTY ping and traceroute refusal cases also pass through the ordinary fallback, so they do not prove either registered piped view was reached (`test/plugin/pipe-review-remote-contracts.ci`) | FIXED |
+| IR4-10 | ISSUE | The raw stream formatter test uses idempotent pretty JSON and cannot detect applying the formatter twice (`internal/component/ssh/save_entry_test.go`) | FIXED |
+
+**Independent round 4: 9 BLOCKER, 1 ISSUE, 0 outstanding.** All 10
+findings are fixed. The next independent round reviews their exact commit.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and

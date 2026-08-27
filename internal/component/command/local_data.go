@@ -48,6 +48,14 @@ func ServeLocal(input, sessionFormat string) (answer string, code int, served bo
 	if handler == nil {
 		return "", 0, false
 	}
+	// The chain is validated against the command's DECLARED shape before source
+	// work starts, so a command that says it holds one document refuses a row
+	// operator here rather than answering something the published catalog says
+	// it does not support.
+	_, format, errMsg := ProcessPipesDefaultFormatLocal(input, sessionFormat)
+	if errMsg != "" {
+		return pipeError(errMsg), 1, true
+	}
 
 	payload, code := handler(args)
 	if code != 0 {
@@ -63,14 +71,6 @@ func ServeLocal(input, sessionFormat string) (answer string, code int, served bo
 		return pipeError(tb.Str("the answer could not be encoded: ").Str(err.Error()).String()), 1, true
 	}
 
-	// The chain is validated against the command's DECLARED shape as well as
-	// its answer, so a command that says it holds one document refuses a row
-	// operator here rather than answering something the published catalog says
-	// it does not support.
-	_, format, errMsg := ProcessPipesDefaultFormatLocal(input, sessionFormat)
-	if errMsg != "" {
-		return pipeError(errMsg), 1, true
-	}
 	rendered := format(string(encoded))
 	if IsPipeError(rendered) {
 		return rendered, 1, true
