@@ -22,7 +22,7 @@
 
 ### `show zeta`
 
-Zeta | first
+Zeta \| first
 Zeta details
 
 Mode: read-only | Wire: `show_zeta`
@@ -36,7 +36,7 @@ Address fields: `address`
 
 | Name | Type | Required | Values |
 |------|------|----------|--------|
-| `family` | enum | yes | blue, red |
+| `family` | `enum` | yes | `blue`, `red` |
 
 **Pipes:**
 Always: `json`, `save`

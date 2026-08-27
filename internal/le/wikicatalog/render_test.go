@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -74,5 +75,76 @@ func TestRenderRejectsUnknownOperatorAvailability(t *testing.T) {
 	}})
 	if err == nil || err.Error() != "unknown operator availability for mystery" {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRenderLiteralProseAndDynamicCodeSpans(t *testing.T) {
+	rendered, err := Render([]Entry{{
+		Path:          "show `tick`",
+		Mode:          "read-only",
+		Description:   "*summary* | literal\n_detail_",
+		WireMethod:    "`wire`",
+		AnswerShape:   "`shape`",
+		AddressFields: []string{"`address`"},
+		Aliases: []Alias{{
+			Name:        "`quick`",
+			Description: "**literal**",
+			Expansion:   "match `` value",
+		}},
+	}})
+	if err != nil {
+		t.Fatalf("Render() error: %v", err)
+	}
+	content := string(rendered)
+	for _, want := range []string{
+		"| `` show `tick` `` | read-only | \\*summary\\* \\| literal |",
+		"### `` show `tick` ``",
+		"\\*summary\\* \\| literal\n\\_detail\\_",
+		"Mode: read-only | Wire: `` `wire` ``",
+		"Answer shape: `` `shape` ``",
+		"Address fields: `` `address` ``",
+		"- `` `quick` `` -- \\*\\*literal\\*\\* (```match `` value```)",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("rendered catalog omitted %q:\n%s", want, content)
+		}
+	}
+}
+
+func TestNeedsDetailForEveryOptionalContractField(t *testing.T) {
+	for _, entry := range []Entry{
+		{Aliases: []Alias{{Name: "summary"}}},
+		{WireMethod: "show"},
+		{AnswerShape: "tab"},
+		{AddressFields: []string{"address"}},
+	} {
+		if !needsDetail(entry) {
+			t.Errorf("needsDetail(%+v) = false", entry)
+		}
+	}
+}
+
+func TestRenderAliasOnlyEntryIncludesDetail(t *testing.T) {
+	rendered, err := Render([]Entry{{
+		Path:        "show alias",
+		Mode:        "read-only",
+		Description: "Alias command",
+		Aliases: []Alias{{
+			Name:        "summary",
+			Description: "Show a summary",
+			Expansion:   "display address",
+		}},
+	}})
+	if err != nil {
+		t.Fatalf("Render() error: %v", err)
+	}
+	content := string(rendered)
+	for _, want := range []string{
+		"### `show alias`",
+		"Named chains:\n- `summary` -- Show a summary (`display address`)",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("alias-only catalog omitted %q:\n%s", want, content)
+		}
 	}
 }

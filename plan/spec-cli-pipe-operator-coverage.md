@@ -1033,6 +1033,27 @@ clean. The main session verified ten CommonMark and native-renderer issues.
 
 **Independent round 14: 0 BLOCKER, 10 ISSUE, 0 outstanding.** All ten findings are fixed.
 
+### Independent review, round 15 (2026-08-27)
+
+An owner-authorized independent context reviewed the native renderers and
+structural drift validators after Round 14.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR15-1 | BLOCKER | Wiki descriptions render active Markdown instead of literal catalog text | FIXED |
+| IR15-2 | BLOCKER | Wiki code values use fixed delimiters that break on embedded backticks | FIXED |
+| IR15-3 | BLOCKER | Alias-only and metadata-only wiki entries omit their detail sections | FIXED |
+| IR15-4 | BLOCKER | Wiki validation ignores duplicate optional metadata lines | FIXED |
+| IR15-5 | BLOCKER | Wiki validation ignores duplicate alias and filter groups | FIXED |
+| IR15-6 | BLOCKER | Wiki operator parsing accepts malformed unmatched code spans | FIXED |
+| IR15-7 | BLOCKER | Nested HTML command containers evade identity accounting | FIXED |
+| IR15-8 | BLOCKER | Primary HTML alias details can be satisfied by an unrelated serialized fragment | FIXED |
+| IR15-9 | BLOCKER | Greedy emphasis pairing miscomputes nested CommonMark visible text | FIXED |
+| IR15-10 | ISSUE | Unicode-only command paths produce empty renderer slugs | FIXED |
+| IR15-11 | ISSUE | Markdown command paths use fixed code-span delimiters | FIXED |
+
+**Independent round 15: 9 BLOCKER, 2 ISSUE, 0 outstanding.** All eleven findings are fixed.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and

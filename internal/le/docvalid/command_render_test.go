@@ -337,3 +337,36 @@ func TestMarkdownCodeLiteralRoundTripsMatchingDelimiters(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: command identities containing Unicode and backticks retain one
+// identity on every Markdown surface and receive a nonempty reserved slug.
+// PREVENTS: ASCII-only slug normalization dropping identities or fixed
+// backtick delimiters truncating paths.
+func TestRenderUnicodeBacktickCommandIdentityRoundTrips(t *testing.T) {
+	command := publishedCommand{
+		Path:        "表示 `経路`",
+		Mode:        "read-only",
+		Description: "Unicode route",
+	}
+	slug := commandSurfaceSlug(command.Path)
+	if other := commandSurfaceSlug("表示 `経路2`"); other == "" || other == slug {
+		t.Fatalf("distinct Unicode identity slug = %q; first slug %q", other, slug)
+	}
+	if slug == "" || !strings.HasPrefix(slug, "u--") {
+		t.Fatalf("commandSurfaceSlug(%q) = %q; want reserved Unicode slug",
+			command.Path, slug)
+	}
+	if asciiSlug := commandSurfaceSlug(slug); asciiSlug == slug {
+		t.Fatalf("Unicode slug %q collides with its ASCII spelling", slug)
+	}
+
+	root := t.TempDir()
+	if err := renderNativeCommandSurfaces(root, []publishedCommand{command}); err != nil {
+		t.Fatalf("render Unicode command surfaces: %v", err)
+	}
+	if issues := validateGeneratedCommandSurfaces(
+		root, root, []publishedCommand{command},
+	); len(issues) != 0 {
+		t.Fatalf("Unicode/backtick identity did not round-trip: %#v", issues)
+	}
+}

@@ -924,9 +924,10 @@ func TestDocDriftRejectsVisibleNoncanonicalZeHeadings(t *testing.T) {
 }
 
 // VALIDATES: command-like row and article elements nested directly inside a
-// captured container remain descendants until their own matching close.
-// PREVENTS: a nested element prematurely terminating its parent capture.
-func TestDocDriftAcceptsDirectChildHTMLContainers(t *testing.T) {
+// captured container are also independent identity candidates.
+// PREVENTS: nesting a catalog-absent or malformed command root inside a live
+// command container to hide it from identity validation.
+func TestDocDriftRejectsDirectChildHTMLContainers(t *testing.T) {
 	tests := []struct {
 		name string
 		path string
@@ -955,8 +956,9 @@ func TestDocDriftAcceptsDirectChildHTMLContainers(t *testing.T) {
 			writePublishedCommandSurfaceFixture(t, root, false)
 			mutatePublishedCommandSurface(t, root, tc.path, tc.old, tc.new)
 
-			if out, err := runRenderedCommandDriftFixture(t, root, livePath); err != nil {
-				t.Fatalf("doc drift rejected a direct child %s:\n%s", tc.name, out)
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil || !strings.Contains(out, "absent from the live command catalog") {
+				t.Fatalf("doc drift accepted a direct child %s:\n%s", tc.name, out)
 			}
 		})
 	}
@@ -1265,7 +1267,7 @@ func TestCommandSurfacesRejectMalformedSamePathRegistryIdentity(t *testing.T) {
 
 // VALIDATES: table rows, list rows, and wiki headings share exact matching-run
 // Markdown code-span parsing for two- and three-backtick delimiters.
-// PREVENTS: noncanonical same-command containers hiding behind wider delimiters.
+// PREVENTS: wider delimiters hiding duplicate same-command containers.
 func TestCommandSurfacesRecognizeMatchingRunMarkdownCodeSpans(t *testing.T) {
 	t.Run("primary table two ticks", func(t *testing.T) {
 		root := t.TempDir()
@@ -1345,10 +1347,10 @@ func TestCommandSurfacesRejectCommentedZeHeadingIdentity(t *testing.T) {
 	}
 }
 
-// VALIDATES: nested command-shaped rows and articles remain descendants, while
-// the malformed peer-container mutations above still terminate open captures.
-// PREVENTS: valid nested publication markup being mistaken for a peer command.
-func TestCommandSurfacesAcceptNestedRowsAndArticles(t *testing.T) {
+// VALIDATES: nested command-shaped rows and articles are collected without
+// terminating their parent captures.
+// PREVENTS: nested command candidates disappearing from identity validation.
+func TestCommandSurfacesRejectNestedRowsAndArticles(t *testing.T) {
 	root := t.TempDir()
 	livePath := writeRenderedCommandCatalogFixture(t, root)
 	writePublishedCommandSurfaceFixture(t, root, false)
@@ -1362,8 +1364,8 @@ func TestCommandSurfacesAcceptNestedRowsAndArticles(t *testing.T) {
 		`<div><article class="cmd-detail-card"><p>nested site article</p></article></div>`+
 			"<div><dt>Pipes, always</dt><dd>json, save</dd></div>")
 	out, err := runRenderedCommandDriftFixture(t, root, livePath)
-	if err != nil {
-		t.Fatalf("nested rows or articles terminated their command capture:\n%s", out)
+	if err == nil || !strings.Contains(out, "absent from the live command catalog") {
+		t.Fatalf("nested rows or articles escaped identity validation:\n%s", out)
 	}
 }
 
@@ -1592,9 +1594,10 @@ func TestCommandSurfacesRejectZeClassVariants(t *testing.T) {
 }
 
 // VALIDATES: nested command-container roots are excluded from every parent
-// identity and contract scan.
-// PREVENTS: a child Registry path or operator group contaminating its parent.
-func TestCommandSurfacesIsolateNestedCommandCards(t *testing.T) {
+// field scan but independently validated as command identities.
+// PREVENTS: a child Registry path or operator group contaminating its parent or
+// escaping as an uncounted catalog-absent identity.
+func TestCommandSurfacesRejectNestedCommandCards(t *testing.T) {
 	root := t.TempDir()
 	livePath := writeRenderedCommandCatalogFixture(t, root)
 	writePublishedCommandSurfaceFixture(t, root, false)
@@ -1611,8 +1614,9 @@ func TestCommandSurfacesIsolateNestedCommandCards(t *testing.T) {
 			`<span>Always</span><code>nosuchop</code></td></tr></table>`+
 			"<p><span>Always</span><code>json · save</code></p>")
 
-	if out, err := runRenderedCommandDriftFixture(t, root, livePath); err != nil {
-		t.Fatalf("nested command containers contaminated their parents:\n%s", out)
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err == nil || !strings.Contains(out, "absent from the live command catalog") {
+		t.Fatalf("nested command containers escaped identity validation:\n%s", out)
 	}
 }
 
@@ -1633,7 +1637,7 @@ func TestCommandSurfacesRejectContractsPresentOnlyInNestedCards(t *testing.T) {
 			`<table><tr id="cmd-nested"><td>`+description+`</td></tr></table>`,
 		)
 		out, err := runRenderedCommandDriftFixture(t, root, livePath)
-		if err == nil || !strings.Contains(out, `command filter "family"`) {
+		if err == nil || !strings.Contains(out, "command filters") {
 			t.Fatalf("nested primary contract satisfied its parent:\n%s", out)
 		}
 	})
@@ -2234,6 +2238,123 @@ func TestMarkdownInlineVisibleTextUsesMatchedDelimiters(t *testing.T) {
 			t.Errorf("markdownInlineVisibleText(%q) = %q; want %q",
 				tc.source, got, tc.visible)
 		}
+	}
+}
+
+func TestWikiValidatorRejectsDuplicateAndMalformedGroups(t *testing.T) {
+	tests := []struct {
+		name, old, replacement string
+	}{
+		{
+			name: "duplicate optional metadata",
+			old:  "Answer shape: `tab`",
+			replacement: "Answer shape: `tab`\n" +
+				"Answer shape: `tab`",
+		},
+		{
+			name: "duplicate alias group",
+			old: "Named chains:\n" +
+				"- `summary` -- Show a summary (`display address`)",
+			replacement: "Named chains:\n" +
+				"- `summary` -- Show a summary (`display address`)\n\n" +
+				"Named chains:\n" +
+				"- `summary` -- Show a summary (`display address`)",
+		},
+		{
+			name: "duplicate filter group",
+			old: "Command-specific:\n" +
+				"- `family` `<value>` -- Filter by family",
+			replacement: "Command-specific:\n" +
+				"- `family` `<value>` -- Filter by family\n\n" +
+				"Command-specific:\n" +
+				"- `family` `<value>` -- Filter by family",
+		},
+		{
+			name:        "operator code-span suffix",
+			old:         "Always: `json`, `save`",
+			replacement: "Always: `json`suffix, `save`",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			out, err := runRenderedWikiMutationFixture(
+				t, test.old, test.replacement,
+			)
+			if err == nil {
+				t.Fatalf("wiki mutation passed validation:\n%s", out)
+			}
+		})
+	}
+}
+
+func TestHTMLValidatorRejectsNestedAbsentIdentity(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	mutatePublishedCommandSurface(
+		t,
+		root,
+		"reference/command-equivalents/show-test/index.html",
+		"\n</article>",
+		`<article class="cmd-detail-card cmd-detail-ze">`+
+			`<div><dt>Registry path</dt><dd><code>show absent</code></dd></div>`+
+			`</article>`+"\n</article>",
+	)
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err == nil || !strings.Contains(out, "absent from the live command catalog") {
+		t.Fatalf("nested absent identity passed validation:\n%s", out)
+	}
+}
+
+func TestPrimaryHTMLAliasRequiresOneStructuralDefinitionEntry(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	mutatePublishedCommandSurface(
+		t,
+		root,
+		"reference/cli/index.html",
+		`<dt><code>summary</code></dt><dd>Show a summary <code>display address</code></dd>`,
+		`<dt><template><code>summary</code></template></dt>`+
+			`<dd>Show a summary <template><code>display address</code></template></dd>`,
+	)
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err == nil || !strings.Contains(out, "pipe aliases") {
+		t.Fatalf("inert alias fragments passed validation:\n%s", out)
+	}
+}
+
+func TestNestedCommonMarkEmphasisCannotImpersonateLiteralMarkers(t *testing.T) {
+	const mutation = "*foo **bar** baz*"
+	if visible := markdownInlineVisibleText(mutation); visible != "foo bar baz" {
+		t.Fatalf("markdownInlineVisibleText(%q) = %q; want %q",
+			mutation, visible, "foo bar baz")
+	}
+
+	command := publishedCommand{
+		Path:        "show emphasis",
+		Mode:        "read-only",
+		Description: mutation,
+	}
+	rendered := string(renderPrimaryCommandMarkdown([]publishedCommand{command}))
+	drifted := strings.Replace(
+		rendered,
+		markdownLiteralProse(mutation),
+		mutation,
+		1,
+	)
+	if drifted == rendered {
+		t.Fatalf("nested emphasis mutation did not apply:\n%s", rendered)
+	}
+	row, count, malformed := commandSurfaceMarkdownRow(drifted, command.Path)
+	if count != 1 || malformed {
+		t.Fatalf("mutated row count = %d, malformed = %t:\n%s",
+			count, malformed, drifted)
+	}
+	if issues := validatePrimaryMarkdownContract(
+		"index.md", row, command,
+	); len(issues) == 0 {
+		t.Fatalf("nested emphasis impersonated literal marker text:\n%s", drifted)
 	}
 }
 

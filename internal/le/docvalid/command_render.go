@@ -183,14 +183,15 @@ func renderPrimaryCommandMarkdown(commands []publishedCommand) []byte {
 			}
 			metadata = append(metadata, "Aliases: "+markdownCodeList(aliases))
 		}
-		fmt.Fprintf(
-			&out,
-			"| `%s` | %s | %s | %s |\n",
-			commandMarkdownValue(command.Path),
-			commandMarkdownValue(command.Mode),
-			markdownLiteralProse(command.Description),
-			strings.Join(metadata, "<br>"),
-		)
+		out.WriteString("| ")
+		out.WriteString(markdownCodeLiteral(commandMarkdownValue(command.Path)))
+		out.WriteString(" | ")
+		out.WriteString(commandMarkdownValue(command.Mode))
+		out.WriteString(" | ")
+		out.WriteString(markdownLiteralProse(command.Description))
+		out.WriteString(" | ")
+		out.WriteString(strings.Join(metadata, "<br>"))
+		out.WriteString(" |\n")
 	}
 	return []byte(out.String())
 }
@@ -209,7 +210,7 @@ func renderEquivalentIndexMarkdown(commands []publishedCommand) []byte {
 	var out strings.Builder
 	out.WriteString("# Command Equivalents\n\n")
 	for _, command := range commands {
-		fmt.Fprintf(&out, "- [`%s`](%s/)\n", commandMarkdownValue(command.Path), commandSurfaceSlug(command.Path))
+		fmt.Fprintf(&out, "- [%s](%s/)\n", markdownCodeLiteral(command.Path), commandSurfaceSlug(command.Path))
 	}
 	return []byte(out.String())
 }
@@ -307,7 +308,8 @@ func markdownLiteralProse(value string) string {
 
 func renderEquivalentMarkdown(command publishedCommand) []byte {
 	var out strings.Builder
-	fmt.Fprintf(&out, "# `%s`\n\n## Ze command\n\n- Registry path: `%s`\n", commandMarkdownValue(command.Path), commandMarkdownValue(command.Path))
+	fmt.Fprintf(&out, "# %s\n\n## Ze command\n\n- Registry path: %s\n",
+		markdownCodeLiteral(command.Path), markdownCodeLiteral(command.Path))
 	if command.AnswerShape != "" {
 		fmt.Fprintf(&out, "- Answer shape: %s\n", commandMarkdownValue(command.AnswerShape))
 	}
@@ -397,7 +399,7 @@ func renderCommandLLMS(commands []publishedCommand) []byte {
 			}
 			meta = append(meta, "args "+strings.Join(values, ", "))
 		}
-		fmt.Fprintf(&out, "- `%s` (%s): %s\n", command.Path, strings.Join(meta, "; "), markdownLiteralProse(command.Description))
+		fmt.Fprintf(&out, "- %s (%s): %s\n", markdownCodeLiteral(command.Path), strings.Join(meta, "; "), markdownLiteralProse(command.Description))
 	}
 	return []byte(out.String())
 }
