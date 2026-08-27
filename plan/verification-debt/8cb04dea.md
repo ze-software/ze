@@ -64,3 +64,6 @@ is open.
 | 2026-08-27 | 8cb04dea | fix(cli): validate count followers before folding | full ze-precommit-verify over this commit's Go | Folded count-follower and formatted-line tests passed; the periodic full gate has not run. | open |
 | 2026-08-27 | 8cb04dea | test(cli): bind coverage to observed completion | ze-precommit-verify (not FRESH-green) | Focused registry coverage tests passed; no fresh repository-wide verify status exists. | open |
 | 2026-08-27 | 8cb04dea | test(cli): bind coverage to observed completion | full ze-precommit-verify over this commit's Go | Production-runner, completion-marker, and registration-population tests passed; the periodic full gate has not run. | open |
+| 2026-08-27 | 8cb04dea | fix(web): remove retired command mappings | ze-precommit-verify (not FRESH-green) | Website renderer tests passed; no fresh repository-wide verify status exists. | open |
+| 2026-08-27 | 8cb04dea | fix(docs): port rendered command drift gate | ze-precommit-verify (not FRESH-green) | The migrated docvalid package passed in an isolated committed-tree test; no fresh repository-wide verify status exists. | open |
+| 2026-08-27 | 8cb04dea | fix(docs): port rendered command drift gate | full ze-precommit-verify over this commit's Go | Exact rendered-surface and adversarial parser tests passed; the periodic full gate has not run. | open |
