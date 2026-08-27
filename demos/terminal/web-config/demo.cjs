@@ -68,8 +68,24 @@ function pause(milliseconds) {
     await page.waitForSelector("#commit-bar.visible", { timeout: 10000 });
     await pause(3500);
 
-    await page.click("#commit-review-btn");
-    await page.waitForSelector("#diff-modal.open .diff-content", { timeout: 10000 });
+    const [diffResponse] = await Promise.all([
+      page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return (
+          url.pathname === "/config/diff" &&
+          url.search === "" &&
+          response.request().method() === "GET"
+        );
+      }),
+      page.click("#commit-review-btn"),
+    ]);
+    if (!diffResponse.ok()) {
+      const detail = (await diffResponse.text()).trim() || diffResponse.url();
+      throw new Error(
+        `/config/diff returned HTTP ${diffResponse.status()}: ${detail}`,
+      );
+    }
+    await page.waitForSelector("#diff-modal.open .diff-content");
     await pause(6000);
     await page.click('#diff-modal button:has-text("Confirm Commit")');
     await page.waitForFunction(() => !document.querySelector("#commit-bar.visible"));
