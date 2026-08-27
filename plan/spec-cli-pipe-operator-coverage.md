@@ -1119,6 +1119,16 @@ An owner-authorized independent context reviewed the committed Round-19 fixes.
 
 **Independent round 20: 3 BLOCKER, 0 ISSUE, 0 outstanding.** All three findings are fixed.
 
+### Independent review, round 21 (2026-08-27)
+
+An owner-authorized independent context reviewed the committed Round-20 fixes.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR21-1 | BLOCKER | Wiki pipe label classification uses raw Markdown instead of visible text | FIXED |
+
+**Independent round 21: 1 BLOCKER, 0 ISSUE, 0 outstanding.** The finding is fixed.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and

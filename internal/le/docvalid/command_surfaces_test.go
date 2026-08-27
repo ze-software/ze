@@ -728,19 +728,50 @@ func TestDocDriftRejectsUnknownEquivalentMarkdownPipeLabel(t *testing.T) {
 }
 
 // VALIDATES: every active operator-like line in a wiki command detail is
-// classified before its expected availability groups are compared.
-// PREVENTS: an obsolete wiki pipe label surviving beside canonical groups.
+// classified by its CommonMark-visible label before its expected availability
+// groups are compared.
+// PREVENTS: inline wrappers hiding an obsolete wiki pipe label beside canonical
+// groups.
 func TestDocDriftRejectsUnknownWikiPipeLabel(t *testing.T) {
-	out, err := runRenderedWikiMutationFixture(
-		t,
-		"- `family` `<value>` -- Filter by family",
-		"- `family` `<value>` -- Filter by family\n\n"+
-			"Pipes, legacy: `catalog-absent`",
-	)
-	if err == nil ||
-		!strings.Contains(out, "malformed operator availability group") ||
-		!strings.Contains(out, "Pipes, legacy") {
-		t.Fatalf("unknown wiki pipe label escaped validation:\n%s", out)
+	for _, test := range []struct {
+		mutation string
+		label    string
+	}{
+		{"*Pipes*, legacy: `catalog-absent`", "Pipes, legacy"},
+		{"**Pipes**, legacy: `catalog-absent`", "Pipes, legacy"},
+		{"`Pipes`, legacy: `catalog-absent`", "Pipes, legacy"},
+		{"[Pipes](https://example.invalid/), legacy: `catalog-absent`", "Pipes, legacy"},
+		{"<strong>Pipes</strong>, legacy: `catalog-absent`", "Pipes, legacy"},
+		{"*Pipes, legacy: `catalog-absent`", "Pipes, legacy"},
+		{"**Pipes, legacy: `catalog-absent`", "Pipes, legacy"},
+		{"`Pipes, legacy: catalog-absent", "Pipes, legacy"},
+		{"[Pipes](https://example.invalid/, legacy: `catalog-absent`", "Pipes"},
+		{"<strong>Pipes, legacy: `catalog-absent`", "Pipes, legacy"},
+	} {
+		t.Run(test.mutation, func(t *testing.T) {
+			out, err := runRenderedWikiMutationFixture(
+				t,
+				"- `family` `<value>` -- Filter by family",
+				"- `family` `<value>` -- Filter by family\n\n"+test.mutation,
+			)
+			if err == nil ||
+				!strings.Contains(out, "malformed operator availability group") ||
+				!strings.Contains(out, test.label) {
+				t.Fatalf("unknown wiki pipe label %q escaped validation:\n%s",
+					test.mutation, out)
+			}
+		})
+	}
+}
+
+// VALIDATES: the renderer's canonical plain-text wiki label still maps to its
+// expected availability.
+// PREVENTS: inline normalization rejecting the unwrapped output it is meant to
+// protect.
+func TestWikiPipeGroupLabelAcceptsCanonicalUnwrappedLabel(t *testing.T) {
+	label, candidate := wikiPipeGroupLabel("Always: `json`, `save`")
+	if label != "Always" || !candidate || wikiOperatorAvailability(label) != "always" {
+		t.Fatalf("canonical wiki pipe label classified as (%q, %t)", label, candidate)
 	}
 }
 

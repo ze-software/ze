@@ -1792,20 +1792,48 @@ func scanWikiPipeGroups(content string) wikiPipeGroupScan {
 }
 
 func wikiPipeGroupLabel(line string) (string, bool) {
-	if strings.HasPrefix(line, "**") {
+	rawLabel := ""
+	parts, valid := splitMarkdownOutsideCode(line, ": ")
+	if valid && len(parts) >= 2 {
+		rawLabel = parts[0]
+	} else if strings.HasPrefix(line, "**") {
 		end := strings.Index(line[2:], "**")
 		if end < 0 {
 			return "", false
 		}
-		label := strings.Join(strings.Fields(strings.TrimSuffix(line[2:2+end], ":")), " ")
-		return label, commandOperatorLabelCandidate(label)
-	}
-	separator := strings.IndexByte(line, ':')
-	if separator < 0 {
+		rawLabel = line[:2+end+2]
+	} else if !valid {
+		separator := strings.Index(line, ": ")
+		if separator < 0 {
+			return "", false
+		}
+		rawLabel = line[:separator]
+	} else {
 		return "", false
 	}
-	label := strings.Join(strings.Fields(line[:separator]), " ")
-	return label, commandOperatorLabelCandidate(label)
+	label := strings.Join(strings.Fields(strings.TrimSuffix(
+		markdownInlineVisibleText(rawLabel), ":",
+	)), " ")
+	candidate := commandOperatorLabelCandidate(label)
+	if !candidate {
+		candidate = malformedWikiOperatorLabelCandidate(rawLabel)
+	}
+	return label, candidate
+}
+
+// CommonMark renders unmatched openers literally. Ignore only a leading inline
+// wrapper opener when deciding whether a malformed label must be reported.
+func malformedWikiOperatorLabelCandidate(rawLabel string) bool {
+	label := strings.TrimLeft(strings.TrimSpace(rawLabel), "*_`[")
+	if commandOperatorLabelCandidate(label) {
+		return true
+	}
+	if strings.HasPrefix(label, "<") {
+		if end := strings.IndexByte(label, '>'); end >= 0 {
+			return commandOperatorLabelCandidate(label[end+1:])
+		}
+	}
+	return false
 }
 
 func wikiOperatorAvailability(label string) string {
