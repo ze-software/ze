@@ -36,18 +36,20 @@ def is_named_call(value, name):
     )
 
 
-def is_completion(statement):
+def completion_marker(statement):
     if not isinstance(statement, ast.Expr):
-        return False
+        return None
     if not is_named_call(statement.value, "print"):
-        return False
+        return None
     arguments = statement.value.args
-    return (
-        bool(arguments)
-        and isinstance(arguments[0], ast.Constant)
-        and isinstance(arguments[0].value, str)
-        and arguments[0].value.startswith("OK:")
-    )
+    if len(arguments) != 1 or statement.value.keywords:
+        return None
+    if not isinstance(arguments[0], ast.Constant):
+        return None
+    marker = arguments[0].value
+    if not isinstance(marker, str) or not marker.startswith("OK:"):
+        return None
+    return marker
 
 
 def command_template(argument):
@@ -70,17 +72,18 @@ def parse(source):
         line = error.lineno or 0
         return {"error": "run.py syntax error at line %d: %s" % (line, error.msg)}
 
-    completion_indexes = [
-        index for index, statement in enumerate(module.body)
-        if is_completion(statement)
+    completions = [
+        (index, completion_marker(statement))
+        for index, statement in enumerate(module.body)
+        if completion_marker(statement) is not None
     ]
-    if not completion_indexes:
+    if not completions:
         return {"error": "run.py has no top-level OK completion marker"}
-    if len(completion_indexes) != 1:
-        return {"error": "run.py has %d top-level OK completion markers" % len(completion_indexes)}
+    if len(completions) != 1:
+        return {"error": "run.py has %d top-level OK completion markers" % len(completions)}
 
     invocations = []
-    for statement in module.body[:completion_indexes[0]]:
+    for statement in module.body[:completions[0][0]]:
         if not isinstance(statement, (ast.Assign, ast.AnnAssign)):
             continue
         if not is_named_call(statement.value, "local_json"):
@@ -92,7 +95,7 @@ def parse(source):
         if command is None:
             return {"error": "local_json assignment at line %d has a dynamic command" % statement.lineno}
         invocations.append(command)
-    return {"invocations": invocations}
+    return {"completion_marker": completions[0][1], "invocations": invocations}
 
 
 result = parse(sys.stdin.read())
@@ -100,8 +103,9 @@ sys.stdout.write(json.dumps(result, separators=(",", ":"), sort_keys=True))
 `
 
 type pythonLocalDataResult struct {
-	Invocations *[]string `json:"invocations"`
-	Error       *string   `json:"error"`
+	CompletionMarker *string   `json:"completion_marker"`
+	Invocations      *[]string `json:"invocations"`
+	Error            *string   `json:"error"`
 }
 
 // TestEveryLocalDataRegistrationHasAFunctionalCase derives both populations:
@@ -160,7 +164,7 @@ func TestFunctionalLocalDataInvocationsIgnoreDrafts(t *testing.T) {
 		"payload = local_json('show env list | json compact')\n" +
 		"print('OK: live fixture')\n" +
 		"PY\n" +
-		functionalRunCommandDirective)
+		canonicalFunctionalScenarioDirectives("OK: live fixture"))
 	livePath := filepath.Join(liveDir, "pipe-local-command.ci")
 	if err := os.WriteFile(livePath, live, 0o600); err != nil {
 		t.Fatalf("write live functional population: %v", err)
@@ -292,6 +296,22 @@ func TestFunctionalLocalDataInvocationsRequireExecutedTopLevelAssignments(t *tes
 			wantError: true,
 		},
 		{
+			name: "completion marker with extra argument",
+			scenario: "tmpfs=run.py:terminator=PY\n" +
+				"payload = local_json('show live command | json compact')\n" +
+				"print('OK: fixture complete', 'decoy')\n" +
+				"PY\n",
+			wantError: true,
+		},
+		{
+			name: "completion marker with keyword",
+			scenario: "tmpfs=run.py:terminator=PY\n" +
+				"payload = local_json('show live command | json compact')\n" +
+				"print('OK: fixture complete', flush=True)\n" +
+				"PY\n",
+			wantError: true,
+		},
+		{
 			name: "dynamic command",
 			scenario: "tmpfs=run.py:terminator=PY\n" +
 				"command = 'show dynamic fake | json compact'\n" +
@@ -313,7 +333,8 @@ func TestFunctionalLocalDataInvocationsRequireExecutedTopLevelAssignments(t *tes
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := parseFunctionalLocalDataInvocations([]byte(test.scenario + functionalRunCommandDirective))
+			got, err := parseFunctionalLocalDataInvocations([]byte(test.scenario +
+				canonicalFunctionalScenarioDirectives("OK: fixture complete")))
 			if test.wantError {
 				if err == nil {
 					t.Fatalf("parse fixture succeeded with invocations %q, want error", got)
@@ -333,14 +354,22 @@ func TestFunctionalLocalDataInvocationsRequireExecutedTopLevelAssignments(t *tes
 // TestFunctionalLocalDataInvocationsRequireLaunchedRunPayload proves AC-10
 // evidence comes from the one run.py payload the scenario actually executes.
 //
-// VALIDATES: IR5-2, IR6-4, IR6-5, IR6-6, IR6-7, IR6-17, IR6-18 --
-// production discovery accepts one non-skipped foreground run.py launch and no competing step.
-// PREVENTS: malformed runner grammar or preemptive orchestration satisfying the ratchet.
+// VALIDATES: IR5-2, IR6-4, IR6-5, IR6-6, IR6-7, IR6-17, IR6-18,
+// IR7-2, IR7-3, IR7-4 -- production discovery accepts only the canonical
+// foreground run.py launch, timeout, and observed AST completion marker.
+// PREVENTS: malformed grammar, skips, weak assertions, or competing orchestration satisfying the ratchet.
 func TestFunctionalLocalDataInvocationsRequireLaunchedRunPayload(t *testing.T) {
-	const runPayload = "tmpfs=run.py:terminator=PY\n" +
-		"payload = local_json('show live command | json compact')\n" +
-		"print('OK: fixture complete')\n" +
-		"PY\n"
+	const (
+		runPayload = "tmpfs=run.py:terminator=PY\n" +
+			"payload = local_json('show live command | json compact')\n" +
+			"print('OK: fixture complete')\n" +
+			"PY\n"
+		canonicalExpectations = "expect=exit:code=0\n" +
+			"expect=stdout:contains=OK: fixture complete\n"
+		canonicalRuntime = functionalTimeoutOption + "\n" +
+			functionalRunCommandDirective +
+			canonicalExpectations
+	)
 
 	tests := []struct {
 		name      string
@@ -349,12 +378,166 @@ func TestFunctionalLocalDataInvocationsRequireLaunchedRunPayload(t *testing.T) {
 		wantError bool
 	}{
 		{
-			name: "valid launch with normal success expectations",
+			name:     "live canonical scenario",
+			scenario: runPayload + canonicalRuntime,
+			want:     []string{"show live command | json compact"},
+		},
+		{
+			name: "no expectations",
 			scenario: runPayload +
+				functionalTimeoutOption + "\n" +
+				functionalRunCommandDirective,
+			wantError: true,
+		},
+		{
+			name: "exit-only marker before calls",
+			scenario: "tmpfs=run.py:terminator=PY\n" +
+				"print('OK: fixture complete')\n" +
+				"payload = local_json('show late fake | json compact')\n" +
+				"PY\n" +
+				functionalTimeoutOption + "\n" +
+				functionalRunCommandDirective +
+				"expect=exit:code=0\n",
+			wantError: true,
+		},
+		{
+			name: "wrong OK expectation",
+			scenario: runPayload +
+				functionalTimeoutOption + "\n" +
 				functionalRunCommandDirective +
 				"expect=exit:code=0\n" +
+				"expect=stdout:contains=OK: somebody else completed\n",
+			wantError: true,
+		},
+		{
+			name: "nonzero file exit",
+			scenario: runPayload +
+				functionalTimeoutOption + "\n" +
+				functionalRunCommandDirective +
+				"expect=exit:code=1\n" +
 				"expect=stdout:contains=OK: fixture complete\n",
-			want: []string{"show live command | json compact"},
+			wantError: true,
+		},
+		{
+			name: "duplicate file exit",
+			scenario: runPayload + canonicalRuntime +
+				"expect=exit:code=0\n",
+			wantError: true,
+		},
+		{
+			name: "command exit",
+			scenario: runPayload +
+				functionalTimeoutOption + "\n" +
+				"cmd=foreground:seq=1:exec=python3 run.py:exit=0\n" +
+				canonicalExpectations,
+			wantError: true,
+		},
+		{
+			name: "command timeout",
+			scenario: runPayload +
+				functionalTimeoutOption + "\n" +
+				"cmd=foreground:seq=1:exec=python3 run.py:timeout=10s\n" +
+				canonicalExpectations,
+			wantError: true,
+		},
+		{
+			name: "await stderr",
+			scenario: runPayload + canonicalRuntime +
+				"await=stderr:contains=decoy\n",
+			wantError: true,
+		},
+		{
+			name: "stdout negative",
+			scenario: runPayload + canonicalRuntime +
+				"expect=stdout:!contains=ERROR\n",
+			wantError: true,
+		},
+		{
+			name: "stdout regex expectation",
+			scenario: runPayload + canonicalRuntime +
+				"expect=stdout:pattern=OK:.*\n",
+			wantError: true,
+		},
+		{
+			name: "stdout regex rejection",
+			scenario: runPayload + canonicalRuntime +
+				"reject=stdout:pattern=ERROR:.*\n",
+			wantError: true,
+		},
+		{
+			name: "stderr contains",
+			scenario: runPayload + canonicalRuntime +
+				"expect=stderr:contains=decoy\n",
+			wantError: true,
+		},
+		{
+			name: "stderr regex expectation",
+			scenario: runPayload + canonicalRuntime +
+				"expect=stderr:pattern=decoy\n",
+			wantError: true,
+		},
+		{
+			name: "stderr regex rejection",
+			scenario: runPayload + canonicalRuntime +
+				"reject=stderr:pattern=decoy\n",
+			wantError: true,
+		},
+		{
+			name: "syslog expectation",
+			scenario: runPayload + canonicalRuntime +
+				"expect=syslog:pattern=decoy\n",
+			wantError: true,
+		},
+		{
+			name: "syslog rejection",
+			scenario: runPayload + canonicalRuntime +
+				"reject=syslog:pattern=decoy\n",
+			wantError: true,
+		},
+		{
+			name: "malformed runtime regex",
+			scenario: runPayload + canonicalRuntime +
+				"expect=stdout:pattern=[invalid\n",
+			wantError: true,
+		},
+		{
+			name: "needs-path candidate",
+			scenario: runPayload + canonicalRuntime +
+				"option=needs-path:value=candidate.ci\n",
+			wantError: true,
+		},
+		{
+			name: "skip option",
+			scenario: runPayload + canonicalRuntime +
+				"option=skip-os:value=linux\n",
+			wantError: true,
+		},
+		{
+			name: "capability option",
+			scenario: runPayload + canonicalRuntime +
+				"option=needs-linux:caps=net-admin\n",
+			wantError: true,
+		},
+		{
+			name: "duplicate timeout",
+			scenario: runPayload + canonicalRuntime +
+				functionalTimeoutOption + "\n",
+			wantError: true,
+		},
+		{
+			name: "altered timeout",
+			scenario: runPayload +
+				"option=timeout:value=44s\n" +
+				functionalRunCommandDirective +
+				canonicalExpectations,
+			wantError: true,
+		},
+		{
+			name: "missing timeout",
+			scenario: runPayload +
+				functionalRunCommandDirective +
+				canonicalExpectations,
+			wantError: true,
 		},
 		{
 			name: "driver.py launch selects second payload",
@@ -362,7 +545,9 @@ func TestFunctionalLocalDataInvocationsRequireLaunchedRunPayload(t *testing.T) {
 				"tmpfs=driver.py:terminator=DRIVER\n" +
 				"print('OK: alternate driver')\n" +
 				"DRIVER\n" +
-				"cmd=foreground:seq=1:exec=python3 driver.py\n",
+				functionalTimeoutOption + "\n" +
+				"cmd=foreground:seq=1:exec=python3 driver.py\n" +
+				canonicalExpectations,
 			wantError: true,
 		},
 		{
@@ -371,7 +556,7 @@ func TestFunctionalLocalDataInvocationsRequireLaunchedRunPayload(t *testing.T) {
 				"tmpfs=run.py:terminator=SECOND\n" +
 				"print('OK: duplicate payload')\n" +
 				"SECOND\n" +
-				functionalRunCommandDirective,
+				canonicalRuntime,
 			wantError: true,
 		},
 		{
@@ -379,133 +564,124 @@ func TestFunctionalLocalDataInvocationsRequireLaunchedRunPayload(t *testing.T) {
 			scenario: "tmpfs=driver.py:terminator=DRIVER\n" +
 				"print('OK: alternate driver')\n" +
 				"DRIVER\n" +
-				functionalRunCommandDirective,
+				canonicalRuntime,
 			wantError: true,
 		},
 		{
-			name:      "missing command",
-			scenario:  runPayload,
+			name: "missing command",
+			scenario: runPayload +
+				functionalTimeoutOption + "\n" +
+				canonicalExpectations,
 			wantError: true,
 		},
 		{
 			name: "duplicate command",
-			scenario: runPayload +
-				functionalRunCommandDirective +
+			scenario: runPayload + canonicalRuntime +
 				"cmd=foreground:seq=2:exec=python3 driver.py\n",
 			wantError: true,
 		},
 		{
 			name: "ambiguous relative-path spelling",
 			scenario: runPayload +
-				"cmd=foreground:seq=1:exec=python3 ./run.py\n",
+				functionalTimeoutOption + "\n" +
+				"cmd=foreground:seq=1:exec=python3 ./run.py\n" +
+				canonicalExpectations,
 			wantError: true,
 		},
 		{
 			name: "ambiguous whitespace spelling",
 			scenario: runPayload +
-				"cmd=foreground:seq=1:exec=python3  run.py\n",
+				functionalTimeoutOption + "\n" +
+				"cmd=foreground:seq=1:exec=python3  run.py\n" +
+				canonicalExpectations,
 			wantError: true,
 		},
 		{
 			name: "missing run.py terminator",
 			scenario: "tmpfs=run.py:terminator=PY\n" +
 				"print('OK: fixture complete')\n" +
-				functionalRunCommandDirective,
+				canonicalRuntime,
 			wantError: true,
 		},
 		{
 			name: "malformed stop",
-			scenario: runPayload +
-				functionalRunCommandDirective +
+			scenario: runPayload + canonicalRuntime +
 				"cmd=stop:seq=2\n",
 			wantError: true,
 		},
 		{
 			name: "malformed API command",
-			scenario: runPayload +
-				functionalRunCommandDirective +
+			scenario: runPayload + canonicalRuntime +
 				"cmd=api:seq=2:text=shutdown\n",
 			wantError: true,
 		},
 		{
 			name: "malformed per-command exit",
 			scenario: runPayload +
-				"cmd=foreground:seq=1:exec=python3 run.py:exit=yes\n",
-			wantError: true,
-		},
-		{
-			name: "malformed stdout regex",
-			scenario: runPayload +
-				functionalRunCommandDirective +
-				"expect=stdout:pattern=[invalid\n",
+				functionalTimeoutOption + "\n" +
+				"cmd=foreground:seq=1:exec=python3 run.py:exit=yes\n" +
+				canonicalExpectations,
 			wantError: true,
 		},
 		{
 			name: "unresolved stdin binding",
 			scenario: runPayload +
-				"cmd=foreground:seq=1:exec=python3 run.py:stdin=missing\n",
+				functionalTimeoutOption + "\n" +
+				"cmd=foreground:seq=1:exec=python3 run.py:stdin=missing\n" +
+				canonicalExpectations,
 			wantError: true,
 		},
 		{
 			name: "valid but preemptive stop",
 			scenario: runPayload +
+				functionalTimeoutOption + "\n" +
 				"cmd=stop:seq=1:name=runner\n" +
-				"cmd=foreground:seq=2:exec=python3 run.py\n",
-			wantError: true,
-		},
-		{
-			name: "needs-path skip",
-			scenario: "option=needs-path:value=missing-functional-coverage-artifact\n" +
-				runPayload +
-				functionalRunCommandDirective,
+				"cmd=foreground:seq=2:exec=python3 run.py\n" +
+				canonicalExpectations,
 			wantError: true,
 		},
 		{
 			name: "extra API command",
-			scenario: runPayload +
-				functionalRunCommandDirective +
+			scenario: runPayload + canonicalRuntime +
 				"cmd=api:conn=1:seq=2:text=shutdown\n",
 			wantError: true,
 		},
 		{
 			name: "extra runner message",
-			scenario: runPayload +
-				functionalRunCommandDirective +
+			scenario: runPayload + canonicalRuntime +
 				"expect=json:conn=1:seq=2:json={}\n",
 			wantError: true,
 		},
 		{
 			name: "extra HTTP check",
-			scenario: runPayload +
-				functionalRunCommandDirective +
+			scenario: runPayload + canonicalRuntime +
 				"http=get:seq=2:url=http://127.0.0.1/:status=200\n",
 			wantError: true,
 		},
 		{
 			name: "extra HTTP wait",
-			scenario: runPayload +
-				functionalRunCommandDirective +
+			scenario: runPayload + canonicalRuntime +
 				"http=wait:seq=2:url=http://127.0.0.1/:status=200\n",
 			wantError: true,
 		},
 		{
 			name: "extra engine step",
-			scenario: runPayload +
-				functionalRunCommandDirective +
+			scenario: runPayload + canonicalRuntime +
 				"command=show version\n",
 			wantError: true,
 		},
 		{
 			name: "extra file check",
-			scenario: runPayload +
-				functionalRunCommandDirective +
+			scenario: runPayload + canonicalRuntime +
 				"expect=file:path=result.txt:exists=true\n",
 			wantError: true,
 		},
 		{
 			name: "named foreground launch",
 			scenario: runPayload +
-				"cmd=foreground:seq=1:exec=python3 run.py:name=runner\n",
+				functionalTimeoutOption + "\n" +
+				"cmd=foreground:seq=1:exec=python3 run.py:name=runner\n" +
+				canonicalExpectations,
 			wantError: true,
 		},
 	}
@@ -570,6 +746,98 @@ func TestDecodePythonLocalDataResultRejectsInvalidOutput(t *testing.T) {
 	}
 }
 
+func TestProductionLocalDataCommandsSkipTestdataAndLERootAdapter(t *testing.T) {
+	root := t.TempDir()
+	for _, dir := range []string{
+		filepath.Join(root, "cmd"),
+		filepath.Join(root, "cmd", "testdata", "malformed"),
+		filepath.Join(root, "internal", "le", "leroot"),
+		filepath.Join(root, "pkg"),
+	} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("create fixture directory %s: %v", dir, err)
+		}
+	}
+	livePath := filepath.Join(root, "cmd", "live.go")
+	if err := os.WriteFile(livePath, []byte("package cmd\nfunc register() {\n"+
+		"registry.MustRegisterLocalData(\"show live | json compact\")\n}\n"), 0o600); err != nil {
+		t.Fatalf("write live registration fixture: %v", err)
+	}
+	malformedPath := filepath.Join(root, "cmd", "testdata", "malformed", "broken.go")
+	if err := os.WriteFile(malformedPath, []byte("package malformed\nfunc {"), 0o600); err != nil {
+		t.Fatalf("write malformed testdata fixture: %v", err)
+	}
+	adapterPath := filepath.Join(root, "internal", "le", "leroot", "leroot.go")
+	if err := os.WriteFile(adapterPath, []byte("package leroot\nfunc Register(name string) {\n"+
+		"registry.MustRegisterLocalData(CommandPath(name))\n}\n"), 0o600); err != nil {
+		t.Fatalf("write leroot adapter fixture: %v", err)
+	}
+
+	commands := productionLocalDataCommands(t, root)
+	if len(commands) != 1 {
+		t.Fatalf("production registrations = %v, want only the live literal", commands)
+	}
+	if got := commands["show live | json compact"]; got != filepath.Join("cmd", "live.go") {
+		t.Fatalf("live registration source = %q, want cmd/live.go", got)
+	}
+}
+
+func TestLERootLocalDataAdapterExclusionIsExact(t *testing.T) {
+	commandPath := func(argumentCount int) ast.Expr {
+		arguments := make([]ast.Expr, argumentCount)
+		for index := range arguments {
+			arguments[index] = &ast.Ident{Name: "name"}
+		}
+		return &ast.CallExpr{
+			Fun:  &ast.Ident{Name: "CommandPath"},
+			Args: arguments,
+		}
+	}
+	tests := []struct {
+		name     string
+		path     string
+		argument ast.Expr
+		want     bool
+	}{
+		{
+			name:     "exact leroot adapter",
+			path:     filepath.Join("internal", "le", "leroot", "leroot.go"),
+			argument: commandPath(1),
+			want:     true,
+		},
+		{
+			name:     "same call elsewhere",
+			path:     filepath.Join("internal", "component", "other.go"),
+			argument: commandPath(1),
+		},
+		{
+			name:     "other dynamic expression in leroot",
+			path:     filepath.Join("internal", "le", "leroot", "leroot.go"),
+			argument: &ast.Ident{Name: "path"},
+		},
+		{
+			name: "different command path argument",
+			path: filepath.Join("internal", "le", "leroot", "leroot.go"),
+			argument: &ast.CallExpr{
+				Fun:  &ast.Ident{Name: "CommandPath"},
+				Args: []ast.Expr{&ast.Ident{Name: "other"}},
+			},
+		},
+		{
+			name:     "different command path arity",
+			path:     filepath.Join("internal", "le", "leroot", "leroot.go"),
+			argument: commandPath(2),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := isLERootLocalDataAdapter(test.path, test.argument); got != test.want {
+				t.Fatalf("isLERootLocalDataAdapter() = %t, want %t", got, test.want)
+			}
+		})
+	}
+}
+
 func repositoryRoot(t *testing.T) string {
 	t.Helper()
 	_, file, _, ok := runtime.Caller(0)
@@ -588,7 +856,13 @@ func productionLocalDataCommands(t *testing.T, root string) map[string]string {
 			if walkErr != nil {
 				return walkErr
 			}
-			if entry.IsDir() || filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_test.go") {
+			if entry.IsDir() {
+				if entry.Name() == "testdata" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_test.go") {
 				return nil
 			}
 			collectLocalDataRegistrations(t, root, path, commands)
@@ -623,8 +897,15 @@ func collectLocalDataRegistrations(t *testing.T, root, path string, commands map
 			t.Errorf("%s has MustRegisterLocalData without a path", path)
 			return true
 		}
+		relative, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			t.Fatalf("make %s relative: %v", path, relErr)
+		}
 		literal, ok := call.Args[0].(*ast.BasicLit)
 		if !ok || literal.Kind != token.STRING {
+			if isLERootLocalDataAdapter(relative, call.Args[0]) {
+				return true
+			}
 			t.Errorf("%s has a non-literal MustRegisterLocalData path", path)
 			return true
 		}
@@ -633,10 +914,6 @@ func collectLocalDataRegistrations(t *testing.T, root, path string, commands map
 			t.Errorf("%s has an invalid MustRegisterLocalData path: %v", path, unquoteErr)
 			return true
 		}
-		relative, relErr := filepath.Rel(root, path)
-		if relErr != nil {
-			t.Fatalf("make %s relative: %v", path, relErr)
-		}
 		if previous, exists := commands[command]; exists {
 			t.Errorf("%q is registered by both %s and %s", command, previous, relative)
 			return true
@@ -644,6 +921,22 @@ func collectLocalDataRegistrations(t *testing.T, root, path string, commands map
 		commands[command] = relative
 		return true
 	})
+}
+
+func isLERootLocalDataAdapter(relative string, argument ast.Expr) bool {
+	if filepath.ToSlash(relative) != "internal/le/leroot/leroot.go" {
+		return false
+	}
+	call, ok := argument.(*ast.CallExpr)
+	if !ok || len(call.Args) != 1 {
+		return false
+	}
+	function, ok := call.Fun.(*ast.Ident)
+	if !ok || function.Name != "CommandPath" {
+		return false
+	}
+	name, ok := call.Args[0].(*ast.Ident)
+	return ok && name.Name == "name"
 }
 
 func functionalLocalDataInvocations(t *testing.T, root string) []string {
@@ -666,7 +959,21 @@ func functionalLocalDataInvocations(t *testing.T, root string) []string {
 const (
 	functionalRunCommand          = "python3 run.py"
 	functionalRunCommandDirective = "cmd=foreground:seq=1:exec=" + functionalRunCommand + "\n"
+	functionalTimeoutOption       = "option=timeout:value=45s"
+	functionalTimeout             = "45s"
 )
+
+type parsedPythonLocalData struct {
+	Invocations      []string
+	CompletionMarker string
+}
+
+func canonicalFunctionalScenarioDirectives(completionMarker string) string {
+	return functionalTimeoutOption + "\n" +
+		functionalRunCommandDirective +
+		"expect=exit:code=0\n" +
+		"expect=stdout:contains=" + completionMarker + "\n"
+}
 
 func parseFunctionalLocalDataInvocations(content []byte) ([]string, error) {
 	dir, err := os.MkdirTemp("", "ze-functional-local-data-")
@@ -705,6 +1012,14 @@ func parseFunctionalLocalDataInvocations(content []byte) ([]string, error) {
 	if record.Error != nil {
 		return nil, fmt.Errorf("production runner recorded a functional scenario error: %w", record.Error)
 	}
+
+	scenario, err := tmpfs.Parse(bytes.NewReader(content))
+	if err != nil {
+		return nil, fmt.Errorf("locate run.py in functional scenario: %w", err)
+	}
+	if err := validateFunctionalScenarioOptions(record, scenario.OtherLines); err != nil {
+		return nil, err
+	}
 	if record.SkipReason != "" {
 		return nil, fmt.Errorf("production runner skipped functional scenario: %s", record.SkipReason)
 	}
@@ -715,6 +1030,9 @@ func parseFunctionalLocalDataInvocations(content []byte) ([]string, error) {
 	runCommand := record.RunCommands[0]
 	if runCommand.Mode != "foreground" {
 		return nil, fmt.Errorf("functional scenario run command mode is %q, want foreground", runCommand.Mode)
+	}
+	if runCommand.Seq != 1 {
+		return nil, fmt.Errorf("functional scenario run command sequence is %d, want 1", runCommand.Seq)
 	}
 	if runCommand.Exec != functionalRunCommand {
 		return nil, fmt.Errorf("functional scenario launches %q, want %q", runCommand.Exec, functionalRunCommand)
@@ -728,11 +1046,26 @@ func parseFunctionalLocalDataInvocations(content []byte) ([]string, error) {
 	if runCommand.Signal != "" {
 		return nil, fmt.Errorf("functional scenario run command has signal %q, want none", runCommand.Signal)
 	}
-	if len(record.Messages) != 0 || len(record.Expects) != 0 {
-		return nil, fmt.Errorf("functional scenario has runner message or API steps")
+	if runCommand.ExitCode != nil {
+		return nil, fmt.Errorf("functional scenario run command has a per-command exit assertion")
 	}
-	if len(record.HTTPChecks) != 0 || len(record.HTTPWaits) != 0 {
-		return nil, fmt.Errorf("functional scenario has HTTP check or wait steps")
+	if runCommand.Timeout != "" {
+		return nil, fmt.Errorf("functional scenario run command has timeout %q, want none", runCommand.Timeout)
+	}
+	if len(record.StdinBlocks) != 0 {
+		return nil, fmt.Errorf("functional scenario has stdin orchestration blocks")
+	}
+	if len(record.Messages) != 0 {
+		return nil, fmt.Errorf("functional scenario has runner message steps")
+	}
+	if len(record.Expects) != 0 {
+		return nil, fmt.Errorf("functional scenario has legacy API expectation steps")
+	}
+	if len(record.HTTPChecks) != 0 {
+		return nil, fmt.Errorf("functional scenario has HTTP check steps")
+	}
+	if len(record.HTTPWaits) != 0 {
+		return nil, fmt.Errorf("functional scenario has HTTP wait steps")
 	}
 	if len(record.EngineSteps) != 0 {
 		return nil, fmt.Errorf("functional scenario has engine steps")
@@ -741,10 +1074,6 @@ func parseFunctionalLocalDataInvocations(content []byte) ([]string, error) {
 		return nil, fmt.Errorf("functional scenario has file-check steps")
 	}
 
-	scenario, err := tmpfs.Parse(bytes.NewReader(content))
-	if err != nil {
-		return nil, fmt.Errorf("locate run.py in functional scenario: %w", err)
-	}
 	var payload []byte
 	runPayloads := 0
 	for _, file := range scenario.Files {
@@ -757,10 +1086,98 @@ func parseFunctionalLocalDataInvocations(content []byte) ([]string, error) {
 	if runPayloads != 1 {
 		return nil, fmt.Errorf("functional scenario has %d tmpfs=run.py payloads, want exactly 1", runPayloads)
 	}
-	return parsePythonLocalDataInvocations(payload)
+	parsed, err := parsePythonLocalDataInvocations(payload)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateFunctionalScenarioAssertions(record, parsed.CompletionMarker, scenario.OtherLines); err != nil {
+		return nil, err
+	}
+	return parsed.Invocations, nil
 }
 
-func parsePythonLocalDataInvocations(payload []byte) ([]string, error) {
+func validateFunctionalScenarioOptions(record *runner.Record, lines []string) error {
+	options := make([]string, 0, 1)
+	for _, line := range lines {
+		if strings.HasPrefix(line, "option=") {
+			options = append(options, line)
+		}
+	}
+	if len(options) != 1 {
+		return fmt.Errorf("functional scenario has %d raw options, want exactly %q", len(options), functionalTimeoutOption)
+	}
+	if options[0] != functionalTimeoutOption {
+		return fmt.Errorf("functional scenario option is %q, want exactly %q", options[0], functionalTimeoutOption)
+	}
+	if got := record.Extra["timeout"]; got != functionalTimeout {
+		return fmt.Errorf("production runner timeout is %q, want %q", got, functionalTimeout)
+	}
+	if len(record.Extra) != 1 {
+		return fmt.Errorf("production runner recorded %d runtime options, want only timeout", len(record.Extra))
+	}
+	return nil
+}
+
+func validateFunctionalScenarioAssertions(record *runner.Record, completionMarker string, lines []string) error {
+	exitAssertions := 0
+	for _, line := range lines {
+		if strings.HasPrefix(line, "expect=exit:") {
+			if line != "expect=exit:code=0" {
+				return fmt.Errorf("functional scenario exit directive is %q, want exactly expect=exit:code=0", line)
+			}
+			exitAssertions++
+		}
+	}
+	if exitAssertions != 1 {
+		return fmt.Errorf("functional scenario has %d raw exit assertions, want exactly 1", exitAssertions)
+	}
+	if record.ExpectExitCode == nil {
+		return fmt.Errorf("functional scenario has no file-level successful exit assertion")
+	}
+	if *record.ExpectExitCode != 0 {
+		return fmt.Errorf("functional scenario exit assertion is %d, want 0", *record.ExpectExitCode)
+	}
+	if len(record.ExpectStdoutMatch) != 1 {
+		return fmt.Errorf("functional scenario has %d stdout contains assertions, want exactly 1", len(record.ExpectStdoutMatch))
+	}
+	if record.ExpectStdoutMatch[0] != completionMarker {
+		return fmt.Errorf("functional scenario stdout assertion is %q, want AST completion marker %q",
+			record.ExpectStdoutMatch[0], completionMarker)
+	}
+	if len(record.ExpectStdoutNotMatch) != 0 {
+		return fmt.Errorf("functional scenario has stdout negative assertions")
+	}
+	if len(record.ExpectStdoutRegex) != 0 {
+		return fmt.Errorf("functional scenario has stdout regex expectations")
+	}
+	if len(record.RejectStdoutRegex) != 0 {
+		return fmt.Errorf("functional scenario has stdout regex rejections")
+	}
+	if len(record.ExpectStderrMatch) != 0 {
+		return fmt.Errorf("functional scenario has stderr contains expectations")
+	}
+	if len(record.ExpectStderr) != 0 {
+		return fmt.Errorf("functional scenario has stderr regex expectations")
+	}
+	if len(record.RejectStderr) != 0 {
+		return fmt.Errorf("functional scenario has stderr regex rejections")
+	}
+	if len(record.ExpectSyslog) != 0 {
+		return fmt.Errorf("functional scenario has syslog expectations")
+	}
+	if len(record.RejectSyslog) != 0 {
+		return fmt.Errorf("functional scenario has syslog rejections")
+	}
+	if record.AwaitStderr != "" {
+		return fmt.Errorf("functional scenario has an await stderr fence")
+	}
+	if record.AwaitStderrTimeout != "" {
+		return fmt.Errorf("functional scenario has an await stderr timeout")
+	}
+	return nil
+}
+
+func parsePythonLocalDataInvocations(payload []byte) (parsedPythonLocalData, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -772,39 +1189,45 @@ func parsePythonLocalDataInvocations(payload []byte) ([]string, error) {
 	command.Stdout = &stdout
 	command.Stderr = &stderr
 	if err := command.Run(); err != nil {
-		return nil, fmt.Errorf("run Python AST parser: %w: %s", err, strings.TrimSpace(stderr.String()))
+		return parsedPythonLocalData{}, fmt.Errorf("run Python AST parser: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
 	if stderr.Len() != 0 {
-		return nil, fmt.Errorf("Python AST parser wrote stderr: %s", strings.TrimSpace(stderr.String()))
+		return parsedPythonLocalData{}, fmt.Errorf("Python AST parser wrote stderr: %s", strings.TrimSpace(stderr.String()))
 	}
 	return decodePythonLocalDataResult(stdout.Bytes())
 }
 
-func decodePythonLocalDataResult(output []byte) ([]string, error) {
+func decodePythonLocalDataResult(output []byte) (parsedPythonLocalData, error) {
 	decoder := json.NewDecoder(bytes.NewReader(output))
 	decoder.DisallowUnknownFields()
 	var result pythonLocalDataResult
 	if err := decoder.Decode(&result); err != nil {
-		return nil, fmt.Errorf("decode Python AST parser output: %w", err)
+		return parsedPythonLocalData{}, fmt.Errorf("decode Python AST parser output: %w", err)
 	}
 	var trailing any
 	if err := decoder.Decode(&trailing); err != io.EOF {
 		if err == nil {
-			return nil, fmt.Errorf("decode Python AST parser output: unexpected trailing JSON")
+			return parsedPythonLocalData{}, fmt.Errorf("decode Python AST parser output: unexpected trailing JSON")
 		}
-		return nil, fmt.Errorf("decode Python AST parser output: trailing data: %w", err)
+		return parsedPythonLocalData{}, fmt.Errorf("decode Python AST parser output: trailing data: %w", err)
 	}
-	if result.Invocations != nil && result.Error != nil {
-		return nil, fmt.Errorf("decode Python AST parser output: both result and error are present")
+	if result.Error != nil && (result.Invocations != nil || result.CompletionMarker != nil) {
+		return parsedPythonLocalData{}, fmt.Errorf("decode Python AST parser output: both result and error are present")
 	}
 	if result.Error != nil {
 		if *result.Error == "" {
-			return nil, fmt.Errorf("decode Python AST parser output: empty error")
+			return parsedPythonLocalData{}, fmt.Errorf("decode Python AST parser output: empty error")
 		}
-		return nil, fmt.Errorf("parse run.py AST: %s", *result.Error)
+		return parsedPythonLocalData{}, fmt.Errorf("parse run.py AST: %s", *result.Error)
 	}
-	if result.Invocations == nil {
-		return nil, fmt.Errorf("decode Python AST parser output: result is missing")
+	if result.Invocations == nil || result.CompletionMarker == nil {
+		return parsedPythonLocalData{}, fmt.Errorf("decode Python AST parser output: result is missing")
 	}
-	return *result.Invocations, nil
+	if !strings.HasPrefix(*result.CompletionMarker, "OK:") {
+		return parsedPythonLocalData{}, fmt.Errorf("decode Python AST parser output: invalid completion marker %q", *result.CompletionMarker)
+	}
+	return parsedPythonLocalData{
+		Invocations:      *result.Invocations,
+		CompletionMarker: *result.CompletionMarker,
+	}, nil
 }
