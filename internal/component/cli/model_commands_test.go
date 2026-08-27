@@ -38,7 +38,7 @@ func TestModelErrorsCommand(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Get errors
@@ -65,7 +65,7 @@ func TestModelErrorsCommandNoIssues(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Get errors
@@ -90,7 +90,7 @@ func TestModelCmdTop(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Set a hierarchical context path
@@ -123,7 +123,7 @@ func TestModelCmdEditHierarchical(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Edit a nested block using full path (JUNOS-style: relative to context)
@@ -153,7 +153,7 @@ func TestModelCmdEditWildcardTemplate(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Edit with wildcard template — deferred to Part 2/3
@@ -177,7 +177,7 @@ func TestModelCmdEditNotFound(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Try to edit nonexistent block
@@ -220,7 +220,7 @@ func TestModelCmdEditFromContext(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Start at bgp level
@@ -276,7 +276,7 @@ func TestModelCmdEditExactMatch(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Edit "peer transit2" using full path (JUNOS-style)
@@ -303,7 +303,7 @@ func TestModelCmdUp(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Set a hierarchical context path (inside bgp > peer 1.1.1.1)
@@ -333,7 +333,7 @@ func TestModelCmdUpFromTemplate(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Set template context (inside bgp > peer *)
@@ -365,7 +365,7 @@ func TestModelCmdUpAtRoot(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// No context path (at root)
@@ -426,7 +426,7 @@ func TestModelPipeShowGrep(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Show with grep for specific peer
@@ -475,7 +475,7 @@ func TestModelPipeShowHead(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Show with head 2
@@ -512,7 +512,7 @@ func TestModelPipeChain(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Grep for 1.1.1.* then head 2
@@ -561,7 +561,7 @@ func TestSetCommandModifiesConfig(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Enter peer context
@@ -676,7 +676,7 @@ func TestSetCommandUpdatesExistingValue(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Enter peer context
@@ -713,7 +713,7 @@ func TestSetCommandRejectsInvalidValue(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Enter peer context
@@ -797,7 +797,7 @@ func TestEditQuotedListKey(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Edit group with quoted name using full path (JUNOS-style)
@@ -833,7 +833,7 @@ func TestSetInQuotedListEntry(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Enter the group context using full path (JUNOS-style)
@@ -888,7 +888,7 @@ func TestCommitTriggersReload(t *testing.T) {
 	// Mark dirty so save will proceed
 	ed.MarkDirty()
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.cmdCommit()
@@ -922,7 +922,7 @@ func TestCommitReloadFailsGracefully(t *testing.T) {
 
 	ed.MarkDirty()
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.cmdCommit()
@@ -967,7 +967,7 @@ func TestCommitValidationFailsNoReload(t *testing.T) {
 
 	ed.MarkDirty()
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.cmdCommit()
@@ -994,7 +994,7 @@ func TestCommitNoNotifierStandalone(t *testing.T) {
 	// No notifier set (standalone mode)
 	ed.MarkDirty()
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.cmdCommit()
@@ -1018,7 +1018,7 @@ func TestCLIConfigCommitAuditRecord(t *testing.T) {
 
 	recorder, err := audit.NewMemory(100)
 	require.NoError(t, err)
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.SetAuditRecorder(recorder, audit.SSH, "alice", "192.0.2.10:2222")
 
@@ -1048,7 +1048,7 @@ func TestCLIConfigDiscardAuditRecord(t *testing.T) {
 
 	recorder, err := audit.NewMemory(100)
 	require.NoError(t, err)
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.SetAuditRecorder(recorder, audit.SSH, "alice", "192.0.2.10:2222")
 
@@ -1078,7 +1078,7 @@ func TestCLIConfigRollbackAuditRecord(t *testing.T) {
 
 	recorder, err := audit.NewMemory(100)
 	require.NoError(t, err)
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.SetAuditRecorder(recorder, audit.SSH, "alice", "192.0.2.10:2222")
 
@@ -1108,7 +1108,7 @@ func TestSetThroughList(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Set receive-hold-time through list from root — no edit context
@@ -1134,7 +1134,7 @@ func TestSetRejectsNonLeafPath(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// "bgp" is a container, not a leaf — set should reject
@@ -1156,7 +1156,7 @@ func TestSetInContextPreserved(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Enter peer context
@@ -1187,7 +1187,7 @@ func TestSetThroughListDescription(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.dispatchCommand(`set bgp peer peer1 description "my peer"`)
@@ -1212,7 +1212,7 @@ func TestSetRejectsConfigFalse(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	_, err = model.dispatchCommand("set bgp rib adj-rib-in peer * route-count 5")
@@ -1241,7 +1241,7 @@ func TestSetListKeyKeywordThenChild(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.dispatchCommand("set static table default route 0.0.0.0/0 next hop address 10.104.1.254")
@@ -1268,7 +1268,7 @@ func TestSetRejectsMissingListKey(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// "set bgp peer timer receive-hold-time 90" — peer is a list, "timer" is not a valid key value,
@@ -1291,7 +1291,7 @@ func TestSetRejectsUnknownPath(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	_, err = model.dispatchCommand("set bgp totally-unknown-leaf value")
@@ -1316,7 +1316,7 @@ func TestWhoWithSession(t *testing.T) {
 
 	ed.SetSession(NewEditSession("testuser", "local"))
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.dispatchCommand("who")
@@ -1440,7 +1440,7 @@ func TestCmdOptionBlameRedirectsToPipe(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	_, err = model.cmdOption([]string{cmdBlame})
@@ -1465,7 +1465,7 @@ func TestCmdOptionChangesReportsColumnState(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.cmdOption([]string{cmdChanges})
@@ -1487,7 +1487,7 @@ func TestCmdShowFormatConfigWithoutSession(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// No session -- show | format config should work
@@ -1510,7 +1510,7 @@ func TestCmdWhoRequiresSession(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	_, err = model.dispatchCommand("who")
@@ -1532,7 +1532,7 @@ func TestCmdDisconnectRequiresSession(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	_, err = model.dispatchCommand("disconnect some-session")
@@ -1557,7 +1557,7 @@ func TestCmdDisconnectOwnSession(t *testing.T) {
 	session := NewEditSession("alice", "local")
 	ed.SetSession(session)
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	_, err = model.cmdDisconnectSession([]string{session.ID})
@@ -1582,7 +1582,7 @@ func TestCmdDisconnectNoArgs(t *testing.T) {
 	session := NewEditSession("alice", "local")
 	ed.SetSession(session)
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	_, err = model.cmdDisconnectSession(nil)
@@ -1611,7 +1611,7 @@ func TestCmdSaveSessionMode(t *testing.T) {
 	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
 	require.NoError(t, err)
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.cmdSave()
@@ -1651,7 +1651,7 @@ func TestCmdWhoOutputFormat(t *testing.T) {
 	err = ed.SetValue([]string{"bgp"}, "router-id", "10.0.0.1")
 	require.NoError(t, err)
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.cmdWho()
@@ -1679,7 +1679,7 @@ func TestCmdShowChangesNoChanges(t *testing.T) {
 	session := NewEditSession("alice", "local")
 	ed.SetSession(session)
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.cmdShowChanges(nil)
@@ -1717,7 +1717,7 @@ func TestCmdShowChangesAllGrouping(t *testing.T) {
 	err = ed2.SetValue([]string{"bgp", "session", "asn"}, "local", "65001")
 	require.NoError(t, err)
 
-	model, err := NewModel(ed2)
+	model, err := NewModel(ed2, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.cmdShowChangesAll()
@@ -1746,7 +1746,7 @@ func TestCmdCommitConfirmedRejectedInSession(t *testing.T) {
 	session := NewEditSession("alice", "local")
 	ed.SetSession(session)
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	_, err = model.dispatchCommand("commit confirmed 30")
@@ -1771,7 +1771,7 @@ func TestHasPendingChangesSessionAware(t *testing.T) {
 	session := NewEditSession("alice", "local")
 	ed.SetSession(session)
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// No changes yet
@@ -1801,7 +1801,7 @@ func TestAutoSaveOnQuitSkipsSession(t *testing.T) {
 	session := NewEditSession("alice", "local")
 	ed.SetSession(session)
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	model.autoSaveOnQuit()
@@ -1847,7 +1847,7 @@ func TestCmdCommitSessionReload(t *testing.T) {
 	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err)
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.cmdCommitSession()
@@ -1884,7 +1884,7 @@ func TestCmdCommitSessionDeleteContainerClearsDirty(t *testing.T) {
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
 	ed.SetSession(NewEditSession("thomas", "local"))
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	_, err = model.dispatchCommand("delete bgp peer peer1 timer")
@@ -1922,7 +1922,7 @@ func TestCmdCommitSessionReloadFails(t *testing.T) {
 	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err)
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.cmdCommitSession()
@@ -1962,7 +1962,7 @@ func TestCmdCommitSessionRejectsExistingCandidate(t *testing.T) {
 	ed.SetSession(session)
 	require.NoError(t, ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	_, err = model.cmdCommitSession()
@@ -2002,7 +2002,7 @@ func TestCmdCommitSessionValidatesSetFormat(t *testing.T) {
 	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err)
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.cmdCommitSession()
@@ -2089,7 +2089,7 @@ bgp {
 	ed.SetSession(session)
 	require.NoError(t, ed.SetValue([]string{"bgp"}, "router-id", "2.2.2.2"))
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result := model.validator.ValidateTransition(ed.OriginalContent(), ed.WorkingContent())
@@ -2112,7 +2112,7 @@ func TestRenameListEntry(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Rename peer1 to peer2
@@ -2144,7 +2144,7 @@ func TestRenameListEntryWithContext(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Enter bgp context
@@ -2177,7 +2177,7 @@ func TestRenameListEntryNotFound(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	_, err = model.cmdRename([]string{"bgp", "peer", "nonexistent", "to", "newname"})
@@ -2212,7 +2212,7 @@ func TestRenameListEntryTargetExists(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	_, err = model.cmdRename([]string{"bgp", "peer", "alpha", "to", "beta"})
@@ -2235,7 +2235,7 @@ func TestRenameListEntryBadSyntax(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -2271,7 +2271,7 @@ func TestRenameViaDispatch(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.dispatchCommand("rename bgp peer peer1 to renamed-peer")
@@ -2305,7 +2305,7 @@ func TestRenameQuotedListKey(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Dispatch handles tokenization including quotes
@@ -2342,7 +2342,7 @@ func TestRenameKeyNamedTo(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// "to" is at position len-2, so args = ["bgp", "peer", "to", "to", "newname"]
@@ -2370,7 +2370,7 @@ func TestCopyListEntry(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.cmdCopy([]string{"bgp", "peer", "peer1", "to", "peer2"})
@@ -2400,7 +2400,7 @@ func TestCopyListEntryDeepCopy(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Copy peer1 to peer2
@@ -2440,7 +2440,7 @@ func TestCopyListEntryWithContext(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Enter bgp context
@@ -2484,7 +2484,7 @@ func TestCopyListEntryTargetExists(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	_, err = model.cmdCopy([]string{"bgp", "peer", "alpha", "to", "beta"})
@@ -2507,7 +2507,7 @@ func TestCopyListEntryBadSyntax(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -2566,7 +2566,7 @@ func TestInsertLeafList(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Insert "charlie" after "alpha".
@@ -2617,7 +2617,7 @@ func TestInsertLeafListFirst(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.cmdInsert([]string{"bgp", "filter", "import", "zero", "first"})
@@ -2643,7 +2643,7 @@ func TestInsertBadSyntax(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Too few args.
@@ -2676,7 +2676,7 @@ system {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// name-server is zt:ip-address: a non-IP value must be rejected
@@ -2732,7 +2732,7 @@ func TestDeactivateLeafListValue(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.cmdDeactivate([]string{"bgp", "filter", "import", "no-self-as"})
@@ -2787,7 +2787,7 @@ func TestActivateLeafListValue(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.cmdActivate([]string{"bgp", "filter", "import", "no-self-as"})
@@ -2838,7 +2838,7 @@ func TestDeactivateLeafListPerPeer(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.cmdDeactivate([]string{"bgp", "peer", "peer1", "filter", "import", "no-self-as"})
@@ -2889,7 +2889,7 @@ func TestInsertDuplicateRejected(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Inserting "alpha" again should fail.
@@ -2913,7 +2913,7 @@ func TestInsertNonLeafListRejected(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// "router-id" is a leaf, not a leaf-list.
@@ -2937,7 +2937,7 @@ func TestCopyViaDispatch(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	result, err := model.dispatchCommand("copy bgp peer peer1 to cloned-peer")

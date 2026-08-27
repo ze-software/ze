@@ -43,15 +43,13 @@ class CommandContractTest(unittest.TestCase):
             }
         )
 
-        self.assertIn("always: json", meta)
-        self.assertIn("with-rows: match", meta)
-        self.assertIn("when-streaming: log", meta)
-        self.assertIn("local-only: save", meta)
-        self.assertIn("shape tab", meta)
-        self.assertIn("address-fields address", meta)
-        self.assertIn("filters family", meta)
-        self.assertIn("aliases summary=display address", meta)
-        self.assertIn("args family:enum", meta)
+        self.assertEqual(
+            "read-only; pipes always: json save, with-rows: match, "
+            "when-streaming: log, local-only: save; shape tab; "
+            "address-fields address; filters family; "
+            "aliases summary=display address; args family:enum",
+            meta,
+        )
 
 
 class PublishedDocumentationTest(unittest.TestCase):

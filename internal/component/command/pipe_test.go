@@ -1,6 +1,7 @@
 package command
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"iter"
@@ -633,7 +634,7 @@ func TestProcessPipesChecked_InvalidFilter(t *testing.T) {
 	t.Cleanup(ResetPipeFiltersForTest)
 	RegisterPipeFilters([]string{"show routes"}, PipeFilter{Name: "path", Description: "AS path", TakesArg: true})
 
-	cmd, format, errMsg := ProcessPipesChecked("show routes | bogus")
+	cmd, format, errMsg := processPipesChecked("show routes | bogus")
 	if cmd != "show routes" {
 		t.Fatalf("command = %q, want show routes", cmd)
 	}
@@ -919,7 +920,7 @@ func TestProcessStreamPipesDefaultFunc(t *testing.T) {
 // TestOneShotRefusesLogAndStreamAcceptsIt drives the same catalog operator
 // through every one-shot wrapper and the explicit stream wrapper.
 func TestOneShotRefusesLogAndStreamAcceptsIt(t *testing.T) {
-	if _, _, errMsg := ProcessPipesChecked("show version | log"); !strings.Contains(errMsg, "log requires a streaming command") {
+	if _, _, errMsg := processPipesChecked("show version | log"); !strings.Contains(errMsg, "log requires a streaming command") {
 		t.Fatalf("one-shot log refusal = %q", errMsg)
 	}
 	if _, _, errMsg := ProcessPipesDefaultFormatLocal("show version | log", ""); !strings.Contains(errMsg, "log requires a streaming command") {
@@ -1013,7 +1014,7 @@ func TestApplyResolve_UsesSystemResolver(t *testing.T) {
 	defer SetPTRResolver(nil)
 
 	input := `{"hops":[{"ttl":1,"addr":"10.0.0.1","rtt-ms":1.0},{"ttl":2,"addr":"154.54.74.6","rtt-ms":5.0}]}`
-	result := applyResolve(input, []string{"addr"})
+	result := applyResolve(input, []string{"addr"}, false)
 	if !strings.Contains(result, "gw.example.com") {
 		t.Errorf("expected gw.example.com in result: %s", result)
 	}
@@ -1025,7 +1026,7 @@ func TestApplyResolve_UsesSystemResolver(t *testing.T) {
 func TestApplyResolve_FallbackReverseLookup(t *testing.T) {
 	SetPTRResolver(nil)
 	input := `{"addr":"127.0.0.1"}`
-	result := applyResolve(input, []string{"addr"})
+	result := applyResolve(input, []string{"addr"}, false)
 	t.Logf("fallback result: %s", result)
 	if !strings.Contains(result, "addr-name") {
 		t.Errorf("should add addr-name field: %s", result)
@@ -1034,7 +1035,7 @@ func TestApplyResolve_FallbackReverseLookup(t *testing.T) {
 
 func TestApplyResolve_AddsNameField(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1}]}`
-	result := applyResolve(input, []string{"addr"})
+	result := applyResolve(input, []string{"addr"}, false)
 	if !strings.Contains(result, "addr-name") {
 		t.Errorf("resolve should add addr-name field: %s", result)
 	}
@@ -1042,7 +1043,7 @@ func TestApplyResolve_AddsNameField(t *testing.T) {
 
 func TestApplyResolve_SkipsStar(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"*","rtt-ms":null}]}`
-	result := applyResolve(input, []string{"addr"})
+	result := applyResolve(input, []string{"addr"}, false)
 	if strings.Contains(result, "addr-name") {
 		t.Errorf("resolve should skip '*' addresses: %s", result)
 	}
@@ -1341,7 +1342,7 @@ func TestPipeMetadataIdentityPath(t *testing.T) {
 		PipeFilter{Name: "count", Description: "count"},
 	)
 
-	_, format, errMsg := ProcessPipesChecked("show routes | count")
+	_, format, errMsg := processPipesChecked("show routes | count")
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -1527,14 +1528,14 @@ func TestApplyJSONIgnoresColumnOrder(t *testing.T) {
 
 	for _, input := range []string{"show test peers | json", "show test peers | ndjson", "show test peers | raw"} {
 		ResetColumnsForTest()
-		_, before, errMsg := ProcessPipesChecked(input)
+		_, before, errMsg := processPipesChecked(input)
 		if errMsg != "" {
 			t.Fatalf("ProcessPipesChecked(%q): %s", input, errMsg)
 		}
 		undeclared := before(payload)
 
 		RegisterColumns([]string{"show test peers"}, ColumnOrder{"state", "address"})
-		_, after, errMsg := ProcessPipesChecked(input)
+		_, after, errMsg := processPipesChecked(input)
 		if errMsg != "" {
 			t.Fatalf("ProcessPipesChecked(%q): %s", input, errMsg)
 		}
@@ -1556,14 +1557,14 @@ func requireTextOrderingIsLive(t *testing.T, payload string) {
 	t.Helper()
 
 	ResetColumnsForTest()
-	_, plain, errMsg := ProcessPipesChecked("show test peers | text")
+	_, plain, errMsg := processPipesChecked("show test peers | text")
 	if errMsg != "" {
 		t.Fatalf("ProcessPipesChecked: %s", errMsg)
 	}
 	alphabetical := plain(payload)
 
 	RegisterColumns([]string{"show test peers"}, ColumnOrder{"state", "address"})
-	_, ordered, errMsg := ProcessPipesChecked("show test peers | text")
+	_, ordered, errMsg := processPipesChecked("show test peers | text")
 	if errMsg != "" {
 		t.Fatalf("ProcessPipesChecked: %s", errMsg)
 	}
@@ -1592,7 +1593,7 @@ func TestAliasSurvivesFoldFiltersOnFilteredCommand(t *testing.T) {
 
 	const payload = `{"routes":[{"prefix":"10.10.1.0/24","aspath":"64501 64502","origin":"igp"}]}`
 
-	command, format, errMsg := ProcessPipesChecked("show bgp rib | peer 192.0.2.1 | prefixes | json")
+	command, format, errMsg := processPipesChecked("show bgp rib | peer 192.0.2.1 | prefixes | json")
 	if errMsg != "" {
 		t.Fatalf("the chain was refused: %s", errMsg)
 	}
@@ -1624,7 +1625,7 @@ func TestFoldFiltersKeepsAnInvalidOpOnAFilteredCommand(t *testing.T) {
 	)
 	RegisterAliases([]string{"show bgp rib"}, Alias{Name: "prefixes", Expansion: "display prefix"})
 
-	_, _, errMsg := ProcessPipesChecked("show bgp rib | peer 192.0.2.1 | prefixes wide")
+	_, _, errMsg := processPipesChecked("show bgp rib | peer 192.0.2.1 | prefixes wide")
 	if errMsg == "" {
 		t.Fatal("the refusal was dropped by the fold, so the operator sees an unfiltered answer")
 	}
@@ -1935,7 +1936,7 @@ func TestPipeAliasArgumentRefused(t *testing.T) {
 		t.Fatalf("the declared alias does not answer, so the refusal below proves nothing: %s", got)
 	}
 
-	_, _, errMsg := ProcessPipesChecked(declaring + " | totals established")
+	_, _, errMsg := processPipesChecked(declaring + " | totals established")
 	if errMsg == "" {
 		t.Fatal("a word after a declared alias was accepted, so the word went nowhere")
 	}
@@ -1946,7 +1947,7 @@ func TestPipeAliasArgumentRefused(t *testing.T) {
 // an answer. An apply-time refusal arrives as the formatted string, so without
 // this prefix a script would parse the refusal as data and exit 0.
 func TestRefusalIsDistinguishableFromData(t *testing.T) {
-	_, format, errMsg := ProcessPipesChecked("show version | count")
+	_, format, errMsg := processPipesChecked("show version | count")
 	if errMsg != "" {
 		t.Fatalf("the chain was refused at validation, not at apply: %s", errMsg)
 	}
@@ -2137,6 +2138,139 @@ func TestPipeArgumentsFollowTheCatalog(t *testing.T) {
 	}
 }
 
+// TestFoldedFiltersValidateCatalogArgumentsBeforeDispatch drives every public
+// wrapper that can fold a command-owned filter.
+//
+// VALIDATES: IR2-11 -- the final safe last count and bare count fold, while the
+// first oversized last and surplus count fail before a handler or row walk.
+// A row transform after text stays client-side for IR2-15 line semantics.
+// PREVENTS: foldFilters deleting malformed or post-format operators.
+func TestFoldedFiltersValidateCatalogArgumentsBeforeDispatch(t *testing.T) {
+	ResetPipeFiltersForTest()
+	t.Cleanup(ResetPipeFiltersForTest)
+	RegisterPipeFilters([]string{"show test rib"},
+		PipeFilter{Name: "count", Description: "count routes"},
+		PipeFilter{Name: "last", Description: "last routes", TakesArg: true},
+	)
+
+	lastValid := textbuf.StringInt(int64(recordsLastLimit))
+	command, _, msg := processPipesChecked("show test rib | last " + lastValid)
+	if msg != "" {
+		t.Fatalf("folded last %s was refused: %s", lastValid, msg)
+	}
+	if command != "show test rib last "+lastValid {
+		t.Errorf("valid last did not fold: %q", command)
+	}
+	command, _, msg = processPipesChecked("show test rib | count")
+	if msg != "" {
+		t.Fatalf("folded count was refused: %s", msg)
+	}
+	if command != "show test rib count" {
+		t.Errorf("valid count did not fold: %q", command)
+	}
+	command, _, msg = processPipesChecked("show test rib | text | last 1")
+	if msg != "" {
+		t.Fatalf("format-before-last was refused: %s", msg)
+	}
+	if command != "show test rib" {
+		t.Errorf("last after text folded into dispatch spelling %q", command)
+	}
+
+	wrappers := []struct {
+		name string
+		call func(string) (string, string)
+	}{
+		{
+			name: "checked",
+			call: func(input string) (string, string) {
+				command, _, errMsg := processPipesChecked(input)
+				return command, errMsg
+			},
+		},
+		{
+			name: "default remote",
+			call: func(input string) (string, string) {
+				command, _, errMsg := ProcessPipesDefaultFormatChecked(input, "")
+				return command, errMsg
+			},
+		},
+		{
+			name: "default local",
+			call: func(input string) (string, string) {
+				command, _, errMsg := ProcessPipesDefaultFormatLocal(input, "")
+				return command, errMsg
+			},
+		},
+		{
+			name: "stream",
+			call: func(input string) (string, string) {
+				command, _, _, _, errMsg := ProcessStreamPipes(input, "")
+				return command, errMsg
+			},
+		},
+		{
+			name: "stream default",
+			call: func(input string) (string, string) {
+				command, _, _, errMsg := ProcessStreamPipesDefaultFunc(input, func(value string) string {
+					return value
+				})
+				return command, errMsg
+			},
+		},
+	}
+	firstInvalid := textbuf.StringInt(int64(recordsLastLimit + 1))
+	refused := []struct {
+		name  string
+		input string
+	}{
+		{name: "oversized last", input: "show test rib | last " + firstInvalid},
+		{name: "surplus count", input: "show test rib | count extra"},
+	}
+	for _, wrapper := range wrappers {
+		for _, tt := range refused {
+			t.Run(wrapper.name+"/"+tt.name, func(t *testing.T) {
+				command, errMsg := wrapper.call(tt.input)
+				if errMsg == "" {
+					t.Fatalf("%s accepted %q", wrapper.name, tt.input)
+				}
+				if command != "show test rib" {
+					t.Errorf("invalid filter reached dispatch spelling %q, want the base command", command)
+				}
+			})
+		}
+	}
+
+	for _, tt := range refused {
+		t.Run("records/"+tt.name, func(t *testing.T) {
+			produced := 0
+			rows := func(yield func(rpc.Record) bool) {
+				produced++
+				yield(rpc.Record{Item: json.RawMessage(`{"row":1}`)})
+			}
+			records, _, _ := applyPipesRecords(tt.input, nil, rows)
+			got := collectRecords(records)
+			if len(got) != 1 {
+				t.Fatalf("record wrapper answered %d records, want one refusal", len(got))
+			}
+			if len(got[0].Fault) == 0 {
+				t.Fatalf("record wrapper answered %+v, want a fault", got[0])
+			}
+			if produced != 0 {
+				t.Errorf("record wrapper pulled %d rows before refusal", produced)
+			}
+
+			var output bytes.Buffer
+			_, err := RenderRecords(&output, tt.input, "", "rows", nil, rows)
+			if err == nil {
+				t.Fatal("record renderer accepted the invalid folded filter")
+			}
+			if produced != 0 {
+				t.Errorf("record renderer pulled %d rows before refusal", produced)
+			}
+		})
+	}
+}
+
 // TestLastRetentionLimitBoundaries fixes the exact accepted edge of the record
 // retention window.
 //
@@ -2285,7 +2419,7 @@ func TestAddressOperatorsTransformOnlyDeclaredFields(t *testing.T) {
 	})
 
 	const item = `{"address":"192.0.2.1","router-id":"192.0.2.254"}`
-	_, format, errMsg := ProcessPipesChecked("show test addresses | resolve | origin")
+	_, format, errMsg := processPipesChecked("show test addresses | resolve | origin")
 	if errMsg != "" {
 		t.Fatalf("declared chain was refused: %s", errMsg)
 	}
@@ -2300,7 +2434,7 @@ func TestAddressOperatorsTransformOnlyDeclaredFields(t *testing.T) {
 	}
 	assertDeclaredAddressFields(t, string(got[0].Item))
 
-	if _, _, msg := ProcessPipesChecked("show undeclared | resolve"); !strings.Contains(msg, "resolve") {
+	if _, _, msg := processPipesChecked("show undeclared | resolve"); !strings.Contains(msg, "resolve") {
 		t.Errorf("undeclared command refusal = %q, want resolve named", msg)
 	}
 }

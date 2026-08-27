@@ -739,6 +739,35 @@ boundary is unchecked.
 **Independent round 1: 7 BLOCKER, 12 ISSUE, 19 outstanding.** The review
 artifact records verdict `findings`. The spec remains in verification.
 
+### Independent review, round 2 (2026-08-27)
+
+Three fresh contexts reviewed fix commit `e25b12b49` through logic, security,
+and public-contract lenses. Repository wiring and test-relaxation checks were
+clean before the pass. The main session verified each finding against its
+producer.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR2-1 | BLOCKER | Interactive SSH runs `cli.Model` inside the daemon, but `Model.executeOperationalCommand` uses the local save validator. An SSH PTY user can write any daemon-writable path (`internal/component/cli/model_mode.go` `Model.executeOperationalCommand`; `internal/component/ssh/ssh.go` `Server.teaHandler`) | OUTSTANDING |
+| IR2-2 | BLOCKER | `functionalLocalDataInvocations` prefers an ignored draft test when present, so the ratchet can report coverage that no normal suite runs (`internal/component/command/registry/local_data_functional_coverage_test.go` `functionalLocalDataInvocations`) | OUTSTANDING |
+| IR2-3 | BLOCKER | Committed functional tests do not drive the new bounds, one-shot stream refusal, display typo refusal, remote save, traceroute save, `show version` publication, or derived help through their user entry points | OUTSTANDING |
+| IR2-4 | BLOCKER | `checkPublishedCommandSurfaces` returns clean when no sibling website or wiki catalog exists, so CI can execute no per-command comparison (`scripts/docvalid/doc_drift.go` `checkPublishedCommandSurfaces`) | OUTSTANDING |
+| IR2-5 | BLOCKER | The drift gate compares only website command JSON. Stale or incorrect CLI HTML, Markdown, equivalents, and `llms.txt` can remain green (`scripts/docvalid/doc_drift.go` `compareWebsiteCommandCatalog`) | OUTSTANDING |
+| IR2-6 | ISSUE | Public renderers treat `always` and `local-only` as alternatives. `save` loses its independent `always` answer qualifier (`cmd/ze/help_command.go` `splitOperators`; website and wiki renderer equivalents) | OUTSTANDING |
+| IR2-7 | ISSUE | The primary website CLI page does not render `answer-shape` or `address-fields` (`website/tools/render-cli-catalog.py` `render_pipe_details`) | OUTSTANDING |
+| IR2-8 | ISSUE | `ze cli --help` still copies five format values and omits valid `raw` (`internal/component/cli/client/main.go` `usage`) | OUTSTANDING |
+| IR2-9 | ISSUE | Verbose command help builds the `pipes:` heading and resets the buffer without writing it (`cmd/ze/help_command.go` `printCommandVerbose`) | OUTSTANDING |
+| IR2-10 | ISSUE | Command-equivalent detail pages omit command-specific filters and pipe aliases (`website/tools/render-command-equivalents.py` `render_ze_detail`, `render_detail_markdown`) | OUTSTANDING |
+| IR2-11 | BLOCKER | `foldFilters` removes RIB `last` and `count` before catalog argument validation. Oversized counts and surplus arguments bypass the new guards (`internal/component/command/pipe.go` `foldFilters`, `processPipesDefaultFormat`) | OUTSTANDING |
+| IR2-12 | BLOCKER | The undeclared-address guard rejects standalone `ze pipe resolve` over stdin although the command still publishes and tests that operator (`cmd/ze/ze_core_pipe.go` `runPipe`; `internal/component/command/pipe.go` `validateDeclaredShape`) | OUTSTANDING |
+| IR2-13 | ISSUE | Address enrichment accepts positional table rows but transforms only map keys, so positional arrays remain unchanged (`internal/component/command/pipe_records.go` `applyRecordOp`; `pipe_resolve.go` `resolveJSON`; `pipe_origin.go` `originJSON`) | OUTSTANDING |
+| IR2-14 | BLOCKER | Positional display narrows row values but SSH writes the original field schema in the streamed answer head (`internal/component/command/render_records.go` `RenderRecords`; `internal/component/ssh/answer.go` `writeExecRecords`) | OUTSTANDING |
+| IR2-15 | ISSUE | The record path applies row operators before formats regardless of chain order. `text \| first 1` changes behavior at the streaming threshold (`internal/component/command/pipe_records.go` `applyPipesRecords`; `internal/component/command/render_records.go` `RenderRecords`) | OUTSTANDING |
+| IR2-16 | ISSUE | Command-equivalent detail pages carry generic operators but omit command-owned `pipes` and `pipe-aliases` (`website/tools/render-command-equivalents.py`) | OUTSTANDING |
+
+**Independent round 2: 8 BLOCKER, 8 ISSUE, 16 outstanding.** The review
+artifact records verdict `findings`. The spec remains in progress.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and

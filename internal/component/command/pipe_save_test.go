@@ -15,7 +15,7 @@ func TestSaveWritesTheFormattedAnswer(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "answer.json")
 
-	_, format, errMsg := ProcessPipesChecked("show test | json compact | save " + path)
+	_, format, errMsg := processPipesChecked("show test | json compact | save " + path)
 	if errMsg != "" {
 		t.Fatalf("the chain was refused: %s", errMsg)
 	}
@@ -77,7 +77,7 @@ func TestSaveLeavesTheDestinationAloneWhenItCannotWrite(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "nonexistent-directory", "answer.json")
 
-	_, format, errMsg := ProcessPipesChecked("show test | json compact | save " + path)
+	_, format, errMsg := processPipesChecked("show test | json compact | save " + path)
 	if errMsg != "" {
 		t.Fatalf("the chain was refused at validation: %s", errMsg)
 	}
@@ -107,7 +107,7 @@ func TestSaveFileIsOwnerOnly(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "answer.json")
 
-	_, format, errMsg := ProcessPipesChecked("show test | json compact | save " + path)
+	_, format, errMsg := processPipesChecked("show test | json compact | save " + path)
 	if errMsg != "" {
 		t.Fatalf("the chain was refused: %s", errMsg)
 	}

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func TestModeSwitchToOperational(t *testing.T) {
@@ -258,7 +260,7 @@ func TestOperationalShowDispatchesToCommandExecutorWithEditor(t *testing.T) {
 // to the viewport.
 // PREVENTS: attached lifecycle teardown racing the CLI result writer.
 func TestOperationalCommandCompletesAfterResultApplied(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	completed := false
 	m.SetCommandExecutor(func(string) (CommandOutput, error) {
 		return CommandOutput{
@@ -586,6 +588,81 @@ func TestIsConfigCommandWithArgs(t *testing.T) {
 	}
 }
 
+// TestOperationalSaveRequiresOperatorLocalFilesystemAuthority checks filesystem
+// authority in Model execution. An unknown model refuses save by name and does
+// not dispatch the command. An operator-local model saves the bytes it displays.
+//
+// VALIDATES: IR2-1 -- Model construction selects remote or local save authority.
+// PREVENTS: a daemon-hosted or zero-value model writing an operator-chosen path.
+func TestOperationalSaveRequiresOperatorLocalFilesystemAuthority(t *testing.T) {
+	dir := t.TempDir()
+	remotePath := filepath.Join(dir, "daemon-answer.json")
+	remoteDispatched := false
+	remote := NewCommandModel(FilesystemAuthorityUnknown)
+	remote.SetCommandExecutor(func(string) (CommandOutput, error) {
+		remoteDispatched = true
+		return CommandOutput{Text: `{"value":"remote"}`}, nil
+	})
+
+	var remoteInput textbuf.Buffer
+	rawRemote := remote.executeOperationalCommand(
+		remoteInput.Str("show version | json compact | save ").Str(remotePath).String(),
+	)()
+	remoteMsg, ok := rawRemote.(commandResultMsg)
+	if !ok {
+		t.Fatalf("remote command result type = %T, want commandResultMsg", rawRemote)
+	}
+	if remoteMsg.err == nil {
+		t.Fatal("unknown filesystem authority accepted save")
+	}
+	if refusal := remoteMsg.err.Error(); !strings.Contains(refusal, "save") ||
+		!strings.Contains(refusal, "refused") {
+		t.Fatalf("remote refusal = %q, want save named as refused", refusal)
+	}
+	if remoteDispatched {
+		t.Fatal("remote save reached the command executor")
+	}
+	if _, err := os.Stat(remotePath); !os.IsNotExist(err) {
+		t.Fatalf("remote save path stat error = %v, want not exist", err)
+	}
+
+	localPath := filepath.Join(dir, "local-answer.json")
+	localDispatched := false
+	local := NewCommandModel(FilesystemAuthorityOperatorLocal)
+	local.SetCommandExecutor(func(input string) (CommandOutput, error) {
+		localDispatched = true
+		if input != "show version" {
+			return CommandOutput{}, fmt.Errorf("dispatched command = %q, want show version", input)
+		}
+		return CommandOutput{Text: `{"value":"local"}`}, nil
+	})
+
+	var localInput textbuf.Buffer
+	rawLocal := local.executeOperationalCommand(
+		localInput.Str("show version | json compact | save ").Str(localPath).String(),
+	)()
+	localMsg, ok := rawLocal.(commandResultMsg)
+	if !ok {
+		t.Fatalf("local command result type = %T, want commandResultMsg", rawLocal)
+	}
+	if localMsg.err != nil {
+		t.Fatalf("operator-local save failed: %v", localMsg.err)
+	}
+	if !localDispatched {
+		t.Fatal("operator-local save did not reach the command executor")
+	}
+	saved, err := os.ReadFile(localPath) //nolint:gosec // test-owned temporary path.
+	if err != nil {
+		t.Fatalf("operator-local save wrote no file: %v", err)
+	}
+	if string(saved) != localMsg.result.output {
+		t.Fatalf("saved answer = %q, displayed answer = %q", saved, localMsg.result.output)
+	}
+	if !strings.Contains(string(saved), `"value":"local"`) {
+		t.Fatalf("saved answer = %q, want local payload", saved)
+	}
+}
+
 // newTestModel creates a minimal Model for mode tests.
 func newTestModel(t *testing.T) *Model {
 	t.Helper()
@@ -597,7 +674,7 @@ func newTestModel(t *testing.T) *Model {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := NewModel(ed)
+	m, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	if err != nil {
 		t.Fatal(err)
 	}

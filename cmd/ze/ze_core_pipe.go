@@ -1,10 +1,10 @@
 // Design: docs/architecture/api/commands.md -- ze pipe: offline pipe operators
 //
-// ze pipe applies the same pipe operators used in the online CLI
-// (json, table, yaml, match, count, first, last, resolve) to stdin, so offline
-// commands can be transformed the same way. `pipe` names the whole operator
-// language (internal/component/command/pipe.go, knownPipeOps), not one clause of
-// it -- `format` is only one operator kind within that language.
+// ze pipe applies the pipe operator language to JSON on stdin. The standalone
+// address contract is explicit. Resolve and origin walk arbitrary JSON fields.
+// Command paths transform only fields their command declares. `pipe` names the
+// whole operator language (internal/component/command/pipe.go, knownPipeOps).
+// `format` is only one operator kind.
 
 //go:build ze_core
 
@@ -37,10 +37,7 @@ func runPipe(args []string) int {
 	}
 
 	pipeStr := textbuf.Join(args, " ")
-	var tb textbuf.Buffer
-	input := tb.Str("_ | ").Str(pipeStr).String()
-
-	_, format, errMsg := command.ProcessPipesChecked(input)
+	format, errMsg := command.ProcessStandalonePipesChecked(pipeStr)
 	if errMsg != "" {
 		fmt.Fprintf(os.Stderr, "error: %s\n", errMsg)
 		return 1

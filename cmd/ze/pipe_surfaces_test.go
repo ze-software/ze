@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -102,12 +103,12 @@ func TestPipeRootSubsNamesEveryOperator(t *testing.T) {
 
 // TestVerboseHelpNamesTheGlobalOperators holds `ze help command --verbose` to
 // what it is actually reporting. It printed one hand-typed line of ten for
-// every command, which was wrong in both directions: it omitted two globals
-// (raw, log) and asserted four row operators (match, count, resolve, origin)
-// that an answer holding one value cannot support.
+// every command, which was wrong in both directions: it omitted catalog
+// operators and asserted row operators that an answer holding one value cannot
+// support.
 //
-// It now reports the command's OWN operators, split by whether they always
-// apply or apply only to an answer carrying rows.
+// It now reports the command's OWN operators. Answer availability and
+// local-process restrictions remain independent dimensions.
 func TestVerboseHelpNamesTheGlobalOperators(t *testing.T) {
 	entry := commandEntry{
 		Path:        "show test",
@@ -119,6 +120,15 @@ func TestVerboseHelpNamesTheGlobalOperators(t *testing.T) {
 	rw := helpfmt.NewRenderWriter(&buf)
 	printCommandVerbose(rw, []commandEntry{entry})
 	out := buf.String()
+	if !strings.Contains(out, "  pipes:\n") {
+		t.Errorf("verbose help omits the pipes heading: %q", out)
+	}
+	if !strings.Contains(out, "    always: json, ndjson, table, text, yaml, raw, no-more, save\n") {
+		t.Errorf("verbose help always line does not include local-only save: %q", out)
+	}
+	if !strings.Contains(out, "    local process only: save\n") {
+		t.Errorf("verbose help local-process line does not contain exactly save: %q", out)
+	}
 
 	for _, op := range command.PipeOperatorCatalog() {
 		named := namesOperator(out, op.Name)
@@ -286,4 +296,112 @@ func TestACommandServedWithoutDataPublishesNoOperators(t *testing.T) {
 	if ops, _ := operatorsFor("show data registered"); len(ops) == 0 {
 		t.Error("show data registered publishes no operators; it answers with data")
 	}
+}
+
+type standalonePTRResolver struct{}
+
+func (standalonePTRResolver) ResolvePTR(string) ([]string, error) {
+	return []string{"standalone.example."}, nil
+}
+
+type standaloneOriginResolver struct{}
+
+func (standaloneOriginResolver) LookupOrigin(_ context.Context, _ string) (command.OriginResult, error) {
+	return command.OriginResult{ASN: 64500, Name: "standalone", Prefix: "192.0.2.0/24"}, nil
+}
+
+// TestStandalonePipeAddressOperatorsWalkArbitraryFields drives runPipe over its
+// stdin boundary rather than inventing a command declaration for a synthetic
+// command name.
+//
+// VALIDATES: IR2-12 -- resolve and origin enrich every address-valued field on
+// standalone JSON, while command validation still refuses an undeclared path.
+// PREVENTS: an exemption for "_" in validateDeclaredShape making command paths
+// guess address fields again.
+func TestStandalonePipeAddressOperatorsWalkArbitraryFields(t *testing.T) {
+	command.SetPTRResolver(standalonePTRResolver{})
+	command.SetOriginResolver(standaloneOriginResolver{})
+	t.Cleanup(func() {
+		command.SetPTRResolver(nil)
+		command.SetOriginResolver(nil)
+	})
+
+	input := `{"router-id":"192.0.2.1","nested":{"peer":"198.51.100.2","state":"up"}}`
+	stdout, stderr, code := runPipeCaptured(t, input, []string{"resolve", "|", "origin"})
+	if code != 0 {
+		t.Fatalf("runPipe returned %d: %s", code, stderr)
+	}
+	for _, key := range []string{
+		"router-id-name", "router-id-asn", "router-id-prefix",
+		"peer-name", "peer-asn", "peer-prefix",
+	} {
+		if !strings.Contains(stdout, `"`+key+`"`) {
+			t.Errorf("standalone output lacks %q: %s", key, stdout)
+		}
+	}
+	if !strings.Contains(stdout, `"state":"up"`) {
+		t.Errorf("standalone enrichment changed unrelated data: %s", stdout)
+	}
+
+	if _, _, errMsg := command.ProcessPipesDefaultFormatLocal("_ | resolve", ""); !strings.Contains(errMsg, "resolve") {
+		t.Errorf("generic command validation accepted the synthetic spelling: %q", errMsg)
+	}
+}
+
+func runPipeCaptured(t *testing.T, input string, args []string) (string, string, int) {
+	t.Helper()
+	stdinRead, stdinWrite, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stdin pipe: %v", err)
+	}
+	stdoutRead, stdoutWrite, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stdout pipe: %v", err)
+	}
+	stderrRead, stderrWrite, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stderr pipe: %v", err)
+	}
+	if _, err := stdinWrite.WriteString(input); err != nil {
+		t.Fatalf("write stdin: %v", err)
+	}
+	if err := stdinWrite.Close(); err != nil {
+		t.Fatalf("close stdin writer: %v", err)
+	}
+
+	savedStdin, savedStdout, savedStderr := os.Stdin, os.Stdout, os.Stderr
+	os.Stdin, os.Stdout, os.Stderr = stdinRead, stdoutWrite, stderrWrite
+	type readResult struct {
+		text string
+		err  error
+	}
+	stdoutResult := make(chan readResult, 1)
+	stderrResult := make(chan readResult, 1)
+	go func() {
+		data, readErr := io.ReadAll(stdoutRead)
+		stdoutResult <- readResult{text: string(data), err: readErr}
+	}()
+	go func() {
+		data, readErr := io.ReadAll(stderrRead)
+		stderrResult <- readResult{text: string(data), err: readErr}
+	}()
+
+	code := runPipe(args)
+	stdoutCloseErr := stdoutWrite.Close()
+	stderrCloseErr := stderrWrite.Close()
+	os.Stdin, os.Stdout, os.Stderr = savedStdin, savedStdout, savedStderr
+	stdinCloseErr := stdinRead.Close()
+	stdout := <-stdoutResult
+	stderr := <-stderrResult
+	stdoutReadCloseErr := stdoutRead.Close()
+	stderrReadCloseErr := stderrRead.Close()
+	for _, closeErr := range []error{
+		stdoutCloseErr, stderrCloseErr, stdinCloseErr,
+		stdoutReadCloseErr, stderrReadCloseErr, stdout.err, stderr.err,
+	} {
+		if closeErr != nil {
+			t.Fatalf("capture pipe: %v", closeErr)
+		}
+	}
+	return stdout.text, stderr.text, code
 }

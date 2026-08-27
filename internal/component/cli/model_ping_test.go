@@ -153,7 +153,7 @@ func TestParsePingMonitorArgsCountSizeBounds(t *testing.T) {
 // call site that forgets to pass them.
 func TestStartPingMonitorPassesCountAndSize(t *testing.T) {
 	var gotCount, gotSize int
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.SetPingFactory(func(_ context.Context, _ string, _, _ time.Duration, count, size int) (<-chan map[string]any, context.CancelFunc, error) {
 		gotCount, gotSize = count, size
 		ch := make(chan map[string]any)
@@ -259,7 +259,7 @@ func pingTestFactory(replies []map[string]any) PingFactory {
 // VALIDATES: | resolve and | origin flags are captured by startPingMonitorPiped.
 // PREVENTS: pipe flags parsed but dropped before the | log render path.
 func TestStartPingMonitorPiped_CapturesEnrichmentFlags(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.SetPingFactory(pingTestFactory(nil))
 
 	cmd := m.startPingMonitorPiped("monitor ping 192.0.2.1 | resolve | origin | log")
@@ -277,7 +277,7 @@ func TestStartPingMonitorPiped_CapturesEnrichmentFlags(t *testing.T) {
 func TestHandlePingPipedPoll_LogResolveEnrichesLegend(t *testing.T) {
 	setStubResolvers(t)
 
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.SetPingFactory(pingTestFactory([]map[string]any{
 		{"seq": 0, "status": "ok", "rtt-ms": 1.5},
 		{"seq": 1, "status": "timeout"},
@@ -299,7 +299,7 @@ func TestHandlePingPipedPoll_LogResolveEnrichesLegend(t *testing.T) {
 func TestHandlePingPipedPoll_LogOriginEnrichesLegend(t *testing.T) {
 	setStubResolvers(t)
 
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.SetPingFactory(pingTestFactory([]map[string]any{
 		{"seq": 0, "status": "ok", "rtt-ms": 1.5},
 	}))
@@ -317,7 +317,7 @@ func TestHandlePingPipedPoll_LogOriginEnrichesLegend(t *testing.T) {
 func TestHandlePingPipedPoll_LogPlainLegend(t *testing.T) {
 	setStubResolvers(t)
 
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.SetPingFactory(pingTestFactory([]map[string]any{
 		{"seq": 0, "status": "ok", "rtt-ms": 1.5},
 	}))

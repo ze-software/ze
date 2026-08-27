@@ -1,6 +1,7 @@
 package command
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -240,7 +241,7 @@ func TestAliasExpandsOnce(t *testing.T) {
 		t.Fatalf("a second pass changed the chain: %d ops, want %d", len(twice), len(once))
 	}
 	for i := range once {
-		if twice[i] != once[i] {
+		if !reflect.DeepEqual(twice[i], once[i]) {
 			t.Errorf("a second pass rewrote op %d: %+v, want %+v", i, twice[i], once[i])
 		}
 	}
@@ -255,7 +256,7 @@ func TestAliasTakesNoArgument(t *testing.T) {
 
 	RegisterAliases(nil, Alias{Name: "peers", Expansion: "display peers"})
 
-	_, _, errMsg := ProcessPipesChecked("show test summary | peers established")
+	_, _, errMsg := processPipesChecked("show test summary | peers established")
 	if errMsg == "" {
 		t.Fatal("an argument after an alias was accepted, so the word went nowhere")
 	}
@@ -729,7 +730,7 @@ func TestUnregisterPluginAliasesRemovesOnlyThatOwner(t *testing.T) {
 		declareForRemoval(t)
 		UnregisterPluginAliases(testOwner)
 
-		_, _, errMsg := ProcessPipesChecked("show bgp | wide")
+		_, _, errMsg := processPipesChecked("show bgp | wide")
 		if errMsg == "" {
 			t.Fatal("`| wide` still resolves, so the name outlived the owner that declared it")
 		}
@@ -825,7 +826,7 @@ func TestPluginAliasDoesNotLeakToSiblingLeaf(t *testing.T) {
 	if aliases := AliasesForCommand(leaf); len(aliases) != 0 {
 		t.Errorf("AliasesForCommand(%s) = %v, want none: the leaf declares no alias of its own", leaf, aliases)
 	}
-	_, _, errMsg := ProcessPipesChecked(leaf + " | totals")
+	_, _, errMsg := processPipesChecked(leaf + " | totals")
 	if errMsg == "" {
 		t.Fatal("the alias reached a command below the one it was declared for")
 	}

@@ -5,17 +5,22 @@ package hub
 import (
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/ze-software/ze/internal/component/config/infra"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	zessh "github.com/ze-software/ze/internal/component/ssh"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // TestMergePluginCommandsNilSafe verifies the SSH per-session merge is a no-op
@@ -112,4 +117,47 @@ func TestDashboardFactoryUsesPublicSummaryCommand(t *testing.T) {
 
 	assert.Equal(t, "show bgp", command)
 	assert.JSONEq(t, `{"peers-configured":3}`, output)
+}
+
+// TestSessionFactoryModelRefusesSaveBeforeDispatch checks the hub authority
+// boundary. buildSessionModelFactory creates the daemon-hosted model. The model
+// refuses save and does not call the daemon executor.
+//
+// VALIDATES: IR2-1 -- the production SSH PTY factory selects remote authority.
+// PREVENTS: a safe generic Model existing while the hub constructs it as local.
+func TestSessionFactoryModelRefusesSaveBeforeDispatch(t *testing.T) {
+	server, err := zessh.NewServer(zessh.Config{
+		HostKeyPath: filepath.Join(t.TempDir(), "host-key"),
+	})
+	require.NoError(t, err)
+
+	var dispatched atomic.Bool
+	server.SetExecutorFactory(
+		func(_, _ string, _ plugin.Authorizer) zessh.CommandExecutor {
+			return func(string) (*plugin.RenderedResponse, error) {
+				dispatched.Store(true)
+				return &plugin.RenderedResponse{Output: `{"version":"test"}`}, nil
+			}
+		},
+	)
+	factory := buildSessionModelFactory(server, infra.HookParams{}, nil, nil)
+	created := factory("operator", "192.0.2.10:2222", nil)
+	model, ok := created.(cli.Model)
+	require.True(t, ok, "session model type = %T, want cli.Model", created)
+
+	path := filepath.Join(t.TempDir(), "hub-ssh-save.json")
+	var input textbuf.Buffer
+	model.SetInput(input.Str("show version | json compact | save ").Str(path).String())
+	updated, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	require.NotNil(t, cmd, "operational command produced no execution command")
+	updated, _ = updated.Update(cmd())
+	model, ok = updated.(cli.Model)
+	require.True(t, ok, "updated session model type = %T, want cli.Model", updated)
+
+	output := model.View().Content
+	assert.Contains(t, output, "save")
+	assert.Contains(t, output, "refused")
+	assert.False(t, dispatched.Load(), "a refused hub PTY save must not reach the daemon dispatcher")
+	_, statErr := os.Stat(path)
+	assert.ErrorIs(t, statErr, os.ErrNotExist)
 }

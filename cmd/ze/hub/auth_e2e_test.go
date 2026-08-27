@@ -57,7 +57,7 @@ func TestWebLoginAdmitsPowerAndConfigUsers(t *testing.T) {
 	// response body is closed here so it never escapes the helper.
 	login := func(user, pass string) (status int, sessionToken string) {
 		form := url.Values{"username": {user}, "password": {pass}}
-		req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(form.Encode()))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", strings.NewReader(form.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		rec := httptest.NewRecorder()
 		handler(rec, req)

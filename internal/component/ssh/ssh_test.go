@@ -517,7 +517,7 @@ func TestSSHUsesSessionModelFactory(t *testing.T) {
 		factoryCalled = true
 		receivedUsername = username
 		receivedRemoteAddr = remoteAddr
-		return cli.NewCommandModel()
+		return cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
 	})
 
 	model := srv.createSessionModel("testuser", "203.0.113.5:2222", nil)
@@ -542,7 +542,7 @@ func TestSSHSessionGetsEditor(t *testing.T) {
 	srv.SetSessionModelFactory(func(username, remoteAddr string, _ plugin.Authorizer) tea.Model {
 		receivedUser = username
 		receivedRemoteAddr = remoteAddr
-		return cli.NewCommandModel()
+		return cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
 	})
 	srv.createSessionModel("alice", "198.51.100.1:22", nil)
 	assert.Equal(t, "alice", receivedUser)
@@ -654,7 +654,7 @@ func TestCreateSessionModelPreservesRemoteAddr(t *testing.T) {
 	srv.SetSessionModelFactory(func(username, remoteAddr string, _ plugin.Authorizer) tea.Model {
 		gotUser = username
 		gotRemoteAddr = remoteAddr
-		return cli.NewCommandModel()
+		return cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
 	})
 
 	model := srv.createSessionModel("alice", "203.0.113.5:2222", nil)

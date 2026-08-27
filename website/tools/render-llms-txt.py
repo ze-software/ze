@@ -384,7 +384,6 @@ def command_meta(command):
                 operator["name"]
                 for operator in operators
                 if operator.get("available") == availability
-                and not operator.get("local-only")
             ]
             if names:
                 pipe_groups.append("%s: %s" % (availability, " ".join(names)))

@@ -55,24 +55,29 @@ def split_operators(command):
     always = [
         operator["name"]
         for operator in operators
-        if operator.get("available") == "always" and not operator.get("local-only")
+        if operator.get("available") == "always"
     ]
     with_rows = [
         operator["name"]
         for operator in operators
         if operator.get("available") == "with-rows"
-        and not operator.get("local-only")
     ]
     streaming = [
         operator["name"]
         for operator in operators
         if operator.get("available") == "when-streaming"
-        and not operator.get("local-only")
     ]
     local_only = [
         operator["name"] for operator in operators if operator.get("local-only")
     ]
     return always, with_rows, streaming, local_only
+
+
+def command_pipe_name(pipe):
+    name = pipe.get("name", "")
+    if pipe.get("takes-arg"):
+        return "%s <value>" % name
+    return name
 
 
 def slugify(prefix, text):
@@ -595,8 +600,41 @@ def render_ze_detail(command):
         out.append('<div><dt>Pipes, while streaming</dt><dd>%s</dd></div>' % ", ".join(streaming))
     if local_only:
         out.append('<div><dt>Pipes, local process only</dt><dd>%s</dd></div>' % ", ".join(local_only))
-    if not always and not with_rows and not streaming and not local_only:
+    if (
+        not always
+        and not with_rows
+        and not streaming
+        and not local_only
+        and not command.get("pipes")
+        and not command.get("pipe-aliases")
+    ):
         out.append('<div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>')
+    pipes = command.get("pipes") or []
+    if pipes:
+        rendered_pipes = []
+        for pipe in pipes:
+            rendered = "<code>%s</code>" % html.escape(command_pipe_name(pipe))
+            if pipe.get("description"):
+                rendered += ": " + html.escape(pipe["description"])
+            rendered_pipes.append(rendered)
+        out.append(
+            "<div><dt>Command pipes</dt><dd>%s</dd></div>"
+            % "<br>".join(rendered_pipes)
+        )
+    aliases = command.get("pipe-aliases") or []
+    if aliases:
+        rendered_aliases = []
+        for alias in aliases:
+            rendered = "<code>%s</code>" % html.escape(alias.get("name", ""))
+            if alias.get("description"):
+                rendered += ": " + html.escape(alias["description"])
+            if alias.get("expansion"):
+                rendered += " (<code>%s</code>)" % html.escape(alias["expansion"])
+            rendered_aliases.append(rendered)
+        out.append(
+            "<div><dt>Pipe aliases</dt><dd>%s</dd></div>"
+            % "<br>".join(rendered_aliases)
+        )
     if command.get("answer-shape"):
         out.append('<div><dt>Answer shape</dt><dd>%s</dd></div>' % html.escape(command["answer-shape"]))
     if command.get("address-fields"):
@@ -748,6 +786,20 @@ def render_index_markdown(rows, groups, vendor_only, vendor_ids, vendor_labels, 
 def render_detail_markdown(row, mapping, vendor_ids, vendor_labels):
     command = row["command"]
     always, with_rows, streaming, local_only = split_operators(command)
+    pipe_details = []
+    for pipe in command.get("pipes") or []:
+        rendered = "`%s`" % md_cell(command_pipe_name(pipe))
+        if pipe.get("description"):
+            rendered += ": " + md_cell(pipe["description"])
+        pipe_details.append(rendered)
+    alias_details = []
+    for alias in command.get("pipe-aliases") or []:
+        rendered = "`%s`" % md_cell(alias.get("name", ""))
+        if alias.get("description"):
+            rendered += ": " + md_cell(alias["description"])
+        if alias.get("expansion"):
+            rendered += " (`%s`)" % md_cell(alias["expansion"])
+        alias_details.append(rendered)
     lines = [
         "# `%s`" % command_display_path(command),
         "",
@@ -763,6 +815,8 @@ def render_detail_markdown(row, mapping, vendor_ids, vendor_labels):
         "- Pipes, on rows: %s" % (", ".join(with_rows) or "none"),
         "- Pipes, while streaming: %s" % (", ".join(streaming) or "none"),
         "- Pipes, local process only: %s" % (", ".join(local_only) or "none"),
+        "- Command pipes: %s" % ("; ".join(pipe_details) or "none"),
+        "- Pipe aliases: %s" % ("; ".join(alias_details) or "none"),
         "",
         one_line(command.get("description", "No description listed.")),
         "",

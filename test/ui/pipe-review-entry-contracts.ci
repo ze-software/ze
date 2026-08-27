@@ -1,0 +1,175 @@
+# Test: reviewed local and published pipe contracts through the stripped UI binary
+#
+# VALIDATES: IR2-3 and IR2-7 -- standalone resolve remains usable; a display
+# typo refuses without an answer; show version publishes qualified operators;
+# CLI help is catalog-derived; and the primary website renders shape/address data.
+# PREVENTS: lower-layer coverage passing while the stripped process or a
+# published consumer drops its contract.
+
+option=timeout:value=45s
+
+tmpfs=run.py:terminator=EOF_PY
+import importlib.util
+import json
+import os
+import pathlib
+import subprocess
+import sys
+
+PROCESS_TIMEOUT_SECONDS = 15
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+
+def run(argv, env=None, input_text=None):
+    child_env = os.environ.copy()
+    if env:
+        child_env.update(env)
+    try:
+        return subprocess.run(
+            argv, input=input_text, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, text=True, env=child_env,
+            check=False, timeout=PROCESS_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired as exc:
+        return subprocess.CompletedProcess(
+            argv, 124, exc.stdout or '',
+            (exc.stderr or '') + 'process timed out after %d seconds'
+            % PROCESS_TIMEOUT_SECONDS)
+    except OSError as exc:
+        return subprocess.CompletedProcess(argv, 127, '', str(exc))
+
+
+def require_refusal(result, operator, reason):
+    combined = (result.stdout + result.stderr).lower()
+    require(result.returncode != 0,
+            '%s refusal exit=%d, want nonzero: %s%s'
+            % (operator, result.returncode, result.stdout, result.stderr))
+    require(operator in combined,
+            '%s refusal did not name the operator: %r' % (operator, combined))
+    require(reason in combined,
+            '%s refusal did not say %r: %r' % (operator, reason, combined))
+    require(result.stdout == '',
+            '%s refusal produced an answer before failing: %r' % (operator, result.stdout))
+
+
+def one_json(result, label):
+    require(result.returncode == 0,
+            '%s exit=%d: %s%s' % (label, result.returncode, result.stdout, result.stderr))
+    try:
+        value = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise SystemExit('%s did not answer JSON: %s\n%s%s'
+                         % (label, exc, result.stdout, result.stderr))
+    return value[0] if isinstance(value, list) else value
+
+
+# Standalone stdin is an explicit all-fields surface. This exact non-address
+# document must pass through resolve unchanged; the reviewed defect refused it
+# before the transform because no command declaration exists for `ze pipe`.
+standalone_input = '{"label":"edge","metric":7}\n'
+standalone = run(['ze', 'pipe', 'resolve'], input_text=standalone_input)
+require(standalone.returncode == 0,
+        'standalone resolve exit=%d: %s%s'
+        % (standalone.returncode, standalone.stdout, standalone.stderr))
+require(json.loads(standalone.stdout) == {'label': 'edge', 'metric': 7},
+        'standalone resolve changed exact input data: %r' % standalone.stdout)
+
+# A typo must refuse before any answer is emitted. Returning the complete env
+# rows would expose every field the operator attempted to narrow away.
+display = run(['ze', 'cli', '-c', 'show env list | display tpyofield'])
+require_refusal(display, 'display', 'no field')
+
+# The per-command machine contract is reached through the shipped help command.
+# `show version` is dual registered: its local shortcut must not suppress the
+# daemon command's operator surface.
+version = one_json(run(['ze', 'help', 'command', 'show version', '--json']),
+                   'show version published contract')
+operators = version.get('operators')
+require(isinstance(operators, list), 'show version published no operator list: %r' % version)
+by_name = {operator['name']: operator for operator in operators}
+require(set(by_name) == {
+            'json', 'ndjson', 'table', 'text', 'yaml', 'raw', 'no-more',
+            'log', 'save', 'match', 'count', 'first', 'last', 'display', 'fill'},
+        'show version operator population changed: %r' % sorted(by_name))
+require({name for name, op in by_name.items() if op.get('available') == 'always'} ==
+        {'json', 'ndjson', 'table', 'text', 'yaml', 'raw', 'no-more', 'save'},
+        'show version always qualifier changed: %r' % by_name)
+require({name for name, op in by_name.items() if op.get('available') == 'with-rows'} ==
+        {'match', 'count', 'first', 'last', 'display', 'fill'},
+        'show version with-rows qualifier changed: %r' % by_name)
+require({name for name, op in by_name.items() if op.get('available') == 'when-streaming'} ==
+        {'log'}, 'show version streaming qualifier changed: %r' % by_name)
+require(by_name['save'].get('local-only') is True,
+        'show version save lost local-only=true: %r' % by_name['save'])
+require(all(op.get('local-only', False) is False for name, op in by_name.items()
+            if name != 'save'), 'a non-save show version operator became local-only: %r' % by_name)
+require(all(op.get('class') in ('global', 'data', 'stream') for op in operators),
+        'show version operator lost its class qualifier: %r' % operators)
+
+# These are the exact fields the primary website must render from the same
+# machine contract. `monitor ping` is present in the stripped UI binary and
+# declares the streamed row's target address explicitly.
+monitor_ping = one_json(run(['ze', 'help', 'command', 'monitor ping', '--json']),
+                        'monitor ping published contract')
+require(monitor_ping.get('answer-shape') == 'tab',
+        'monitor ping answer-shape=%r, want tab' % monitor_ping.get('answer-shape'))
+require(monitor_ping.get('address-fields') == ['target'],
+        'monitor ping address-fields changed: %r' % monitor_ping.get('address-fields'))
+monitor_ops = {
+    operator['name']: operator for operator in monitor_ping.get('operators', [])
+}
+require(monitor_ops.get('resolve', {}).get('available') == 'always'
+        and monitor_ops.get('origin', {}).get('available') == 'always',
+        'declared address field did not publish resolve/origin: %r' % monitor_ops)
+
+# Drive the primary website page renderer, not only its machine-data producer.
+# DEST is redirected into this test's private working directory, so no tracked
+# or shared website artifact is touched.
+work = os.getcwd()
+checkout = os.environ['ZE_REPO_ROOT']
+website_tools = os.path.join(checkout, 'website', 'tools')
+sys.path.insert(0, website_tools)
+renderer_path = os.path.join(website_tools, 'render-cli-catalog.py')
+renderer_spec = importlib.util.spec_from_file_location('pipe_cli_renderer', renderer_path)
+require(renderer_spec is not None and renderer_spec.loader is not None,
+        'could not load primary website CLI renderer from %s' % renderer_path)
+renderer = importlib.util.module_from_spec(renderer_spec)
+renderer_spec.loader.exec_module(renderer)
+renderer.DEST = pathlib.Path(work) / 'rendered-cli' / 'index.html'
+renderer.render([monitor_ping], renderer.group_commands([monitor_ping]))
+rendered_page = renderer.DEST.read_text()
+require('<span>Answer shape</span><code>tab</code>' in rendered_page,
+        'primary CLI page omitted answer-shape: %r' % rendered_page)
+require('<span>Address fields</span><code>target</code>' in rendered_page,
+        'primary CLI page omitted address-fields: %r' % rendered_page)
+
+# The operator headings and --format values are rendered by the real CLI help
+# entry from the catalog. Requiring the full exact format sentence prevents
+# `json` from accidentally satisfying `ndjson`, and specifically pins raw.
+cli_help = run(['ze', 'cli', '--help'])
+require(cli_help.returncode == 0,
+        'ze cli --help exit=%d: %s%s'
+        % (cli_help.returncode, cli_help.stdout, cli_help.stderr))
+help_text = cli_help.stdout + cli_help.stderr
+require(
+    'Output format: json, ndjson, table, text, yaml, raw '
+    '(default: the daemon\'s environment cli format default)' in help_text,
+    'ze cli --help format/default sentence changed: %r' % help_text)
+for heading in ('Global pipe operators',
+                'Data pipe operators (when the answer has rows)',
+                'Stream pipe operators (when the command keeps answering)'):
+    require(heading in help_text, 'ze cli --help lost derived section %r: %r'
+            % (heading, help_text))
+for entry in ('<command> | raw', '<command> | save <path>', '<command> | log'):
+    require(entry in help_text, 'ze cli --help lost catalog entry %r: %r'
+            % (entry, help_text))
+
+print('OK: reviewed pipe entry contracts')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK: reviewed pipe entry contracts

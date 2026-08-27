@@ -1,0 +1,223 @@
+# Test: reviewed folded-filter and remote-save contracts through the full binary
+#
+# VALIDATES: IR2-3 -- folded RIB arguments are validated before dispatch;
+# one-shot log is refused; and daemon-expanded SSH/web save cannot write a file.
+# PREVENTS: the stripped UI population hiding full-feature transport behavior.
+
+option=timeout:value=45s
+
+tmpfs=run.py:terminator=EOF_PY
+import base64
+import json
+import os
+import re
+import ssl
+import subprocess
+import urllib.error
+import urllib.parse
+import urllib.request
+
+from ze_api import wait_until
+
+PROCESS_TIMEOUT_SECONDS = 15
+HTTP_TIMEOUT_SECONDS = 5
+READINESS_ATTEMPTS = 60
+READINESS_DELAY_SECONDS = 0.25
+SHUTDOWN_TIMEOUT_SECONDS = 5
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+
+def run(argv, env=None):
+    child_env = os.environ.copy()
+    if env:
+        child_env.update(env)
+    try:
+        return subprocess.run(
+            argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, env=child_env, check=False,
+            timeout=PROCESS_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired as exc:
+        return subprocess.CompletedProcess(
+            argv, 124, exc.stdout or '',
+            (exc.stderr or '') + 'process timed out after %d seconds'
+            % PROCESS_TIMEOUT_SECONDS)
+    except OSError as exc:
+        return subprocess.CompletedProcess(argv, 127, '', str(exc))
+
+
+def require_refusal(result, operator, reason):
+    combined = (result.stdout + result.stderr).lower()
+    require(result.returncode != 0,
+            '%s refusal exit=%d, want nonzero: %s%s'
+            % (operator, result.returncode, result.stdout, result.stderr))
+    require(operator in combined,
+            '%s refusal did not name the operator: %r' % (operator, combined))
+    require(reason in combined,
+            '%s refusal did not say %r: %r' % (operator, reason, combined))
+    require(result.stdout == '',
+            '%s refusal produced an answer before failing: %r'
+            % (operator, result.stdout))
+
+
+work = os.getcwd()
+state_dir = os.path.join(work, 'state')
+os.mkdir(state_dir)
+config_path = os.path.join(work, 'pipe-entry.conf')
+with open(config_path, 'w') as config:
+    config.write('''system {
+    authentication {
+        user operator {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+            profile [ pipe-entry ]
+        }
+    }
+    authorization {
+        profile pipe-entry {
+            run { default-action allow }
+            edit { default-action deny }
+        }
+    }
+}
+environment {
+    ssh {
+        enabled true
+        server main { ip 127.0.0.1; port 0; }
+    }
+    web {
+        enabled true
+        server main { ip 127.0.0.1; port 0; }
+    }
+}
+''')
+
+log_path = os.path.join(work, 'daemon.log')
+log_handle = open(log_path, 'w')
+daemon_env = os.environ.copy()
+daemon_env['ZE_CONFIG_DIR'] = state_dir
+daemon = subprocess.Popen(['ze', 'start', config_path], stdout=subprocess.DEVNULL,
+                          stderr=log_handle, text=True, env=daemon_env)
+try:
+    def daemon_log():
+        log_handle.flush()
+        with open(log_path) as log:
+            return log.read()
+
+    def ssh_port_from_log():
+        match = re.search(
+            r'SSH server listening.*?address=127\.0\.0\.1:([0-9]+)',
+            daemon_log())
+        return int(match.group(1)) if match else 0
+
+    def web_port_from_log():
+        match = re.search(
+            r'web server listening on https://127\.0\.0\.1:([0-9]+)/',
+            daemon_log())
+        return int(match.group(1)) if match else 0
+
+    require(wait_until(
+                lambda: ssh_port_from_log() != 0 and web_port_from_log() != 0,
+                attempts=READINESS_ATTEMPTS, delay=READINESS_DELAY_SECONDS),
+            'SSH/web servers did not report bound ports:\n' + daemon_log())
+    ssh_port = ssh_port_from_log()
+    web_port = web_port_from_log()
+    require(ssh_port != web_port,
+            'SSH and web listeners reused port %d instead of unique ephemeral ports'
+            % ssh_port)
+    remote_env = {
+        'ZE_CONFIG_DIR': state_dir,
+        'ZE_SSH_HOST': '127.0.0.1',
+        'ZE_SSH_PORT': str(ssh_port),
+        'ZE_SSH_PASSWORD': 'testpass',
+    }
+
+    # Both are command-owned RIB filters. Validation must inspect the complete
+    # operator before foldFilters removes it from the generic chain.
+    oversized = run(['ze', 'cli', '--user', 'operator', '-c',
+                     'show bgp rib | last 257'], env=remote_env)
+    require_refusal(oversized, 'last', 'at most 256')
+    require('257' in oversized.stderr.lower(),
+            'last refusal did not name the supplied 257: %r' % oversized.stderr)
+
+    surplus = run(['ze', 'cli', '--user', 'operator', '-c',
+                   'show bgp rib | count extra'], env=remote_env)
+    require_refusal(surplus, 'count', 'does not accept an argument')
+
+    # A command that answers once must refuse the stream-only operator before
+    # emitting show version.
+    one_shot = run(['ze', 'cli', '--user', 'operator', '-c',
+                    'show version | log'], env=remote_env)
+    require_refusal(one_shot, 'log', 'streaming command')
+
+    ssh_save = os.path.join(work, 'ssh-must-not-exist.json')
+    ssh_refusal = run(['ze', 'cli', '--user', 'operator', '-c',
+                       'show version | save ' + ssh_save], env=remote_env)
+    require_refusal(ssh_refusal, 'save', 'daemon')
+    require('refused' in ssh_refusal.stderr.lower(),
+            'SSH save refusal did not state refusal: %r' % ssh_refusal.stderr)
+    require(not os.path.exists(ssh_save),
+            'SSH refused save still created %s' % ssh_save)
+
+    auth = 'Basic ' + base64.b64encode(b'operator:testpass').decode()
+    tls = ssl._create_unverified_context()
+    base_url = 'https://127.0.0.1:%d' % web_port
+
+    def web_ready():
+        request = urllib.request.Request(base_url + '/ping',
+                                         headers={'Authorization': auth})
+        try:
+            with urllib.request.urlopen(
+                    request, timeout=HTTP_TIMEOUT_SECONDS, context=tls) as response:
+                return response.status == 200
+        except (urllib.error.URLError, ConnectionRefusedError, OSError):
+            return False
+
+    require(wait_until(web_ready, attempts=READINESS_ATTEMPTS,
+                       delay=READINESS_DELAY_SECONDS),
+            'web server did not become ready:\n' + daemon_log())
+    web_save = os.path.join(work, 'web-must-not-exist.json')
+    form = urllib.parse.urlencode({
+        'command': 'show version | save ' + web_save,
+        'mode': 'operational',
+    }).encode()
+    request = urllib.request.Request(
+        base_url + '/cli/terminal', data=form,
+        headers={'Authorization': auth,
+                 'Content-Type': 'application/x-www-form-urlencoded'},
+        method='POST')
+    with urllib.request.urlopen(
+            request, timeout=HTTP_TIMEOUT_SECONDS, context=tls) as response:
+        web_http_status = response.status
+        web_response = json.loads(response.read())
+    web_output = web_response.get('output', '')
+    web_command_status = 1 if web_output.startswith('pipe error:') else 0
+    require(web_http_status == 200,
+            'web terminal transport status=%d, want structured response 200'
+            % web_http_status)
+    require(web_command_status != 0,
+            'web terminal save command did not report nonzero refusal: %r'
+            % web_response)
+    require('save' in web_output.lower(),
+            'web save refusal did not name save: %r' % web_output)
+    require('refused' in web_output.lower() and 'daemon' in web_output.lower(),
+            'web save refusal did not name the daemon reason: %r' % web_output)
+    require(not os.path.exists(web_save),
+            'web refused save still created %s' % web_save)
+finally:
+    daemon.terminate()
+    try:
+        daemon.wait(timeout=SHUTDOWN_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        daemon.kill()
+        daemon.wait(timeout=SHUTDOWN_TIMEOUT_SECONDS)
+    log_handle.close()
+
+print('OK: reviewed remote pipe contracts')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK: reviewed remote pipe contracts

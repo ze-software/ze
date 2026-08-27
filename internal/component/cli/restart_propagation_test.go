@@ -11,7 +11,7 @@ import (
 // VALIDATES: .et lifecycle infrastructure -- restartFunc propagation.
 // PREVENTS: restartFunc lost during Update, causing "restart not available".
 func TestRestartFuncSurvivesUpdateChain(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 
 	// Initialize with window size (same as NewHeadlessCommandModel).
 	newM, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -53,7 +53,7 @@ func TestRestartFuncSurvivesUpdateChain(t *testing.T) {
 // VALIDATES: .et lifecycle -- restartFunc through processCmd chain.
 // PREVENTS: command callback replacing model without restartFunc.
 func TestRestartFuncSurvivesWithCmdProcessing(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 
 	newM, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m, _ = newM.(Model) //nolint:errcheck // type assertion always succeeds

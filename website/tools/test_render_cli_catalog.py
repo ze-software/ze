@@ -127,6 +127,43 @@ def test_render_row_preserves_stream_and_local_surface_qualifiers():
     )
     assert "Local process only" in guide
 
+def test_render_pipe_contract_preserves_independent_dimensions_exactly():
+    value = command(
+        **{
+            "answer-shape": "tab",
+            "address-fields": ["address", "peer"],
+            "operators": [
+                {
+                    "name": "save",
+                    "class": "global",
+                    "available": "always",
+                    "local-only": True,
+                    "description": "Write the answer",
+                }
+            ],
+        }
+    )
+
+    assert render_cli_catalog.render_pipe_details(value) == (
+        '<details class="cli-pipes"><summary>1 operator · answer: tab · 2 address fields</summary>'
+        '<div class="cli-pipe-detail"><p><span>Answer shape</span><code>tab</code></p>'
+        '<p><span>Address fields</span><code>address · peer</code></p>'
+        '<p><span>Always</span><code>save</code></p>'
+        '<p><span>Local process only</span><code>save</code></p></div></details>'
+    )
+    assert render_cli_catalog.markdown_pipe_details(value) == (
+        "Answer shape: `tab`<br>Address fields: `address`, `peer`"
+        "<br>Always: `save`<br>Local process only: `save`"
+    )
+    assert render_cli_catalog.operator_catalog([value]) == [
+        {
+            "name": "save",
+            "class": "global",
+            "description": "Write the answer",
+            "available": ["always", "local-only"],
+        }
+    ]
+
 
 def test_render_row_marks_commands_without_pipe_support():
     rendered = render_cli_catalog.render_row(command())

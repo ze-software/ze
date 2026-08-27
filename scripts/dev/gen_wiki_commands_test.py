@@ -33,14 +33,24 @@ class CommandWikiGeneratorTest(unittest.TestCase):
                 ],
             }
         )
-        rendered = "\n".join(lines)
-
-        self.assertIn("Always: `json`", rendered)
-        self.assertIn("When the answer has rows: `match`", rendered)
-        self.assertIn("While the command keeps answering: `log`", rendered)
-        self.assertIn("Local process only: `save`", rendered)
-        self.assertIn("Answer shape: `tab`", rendered)
-        self.assertIn("Address fields: `address`", rendered)
+        self.assertEqual(
+            [
+                "",
+                "Mode: read-only",
+                "Answer shape: `tab`",
+                "Address fields: `address`",
+                "",
+                "**Pipes:**",
+                "Always: `json`, `save`",
+                "",
+                "When the answer has rows: `match` -- this command has not declared its answer shape, so each of these applies to an answer that carries rows and is refused by name over one that does not.",
+                "",
+                "While the command keeps answering: `log`",
+                "",
+                "Local process only: `save` -- daemon-expanded SSH and web chains refuse these operators.",
+            ],
+            lines,
+        )
 
 
 if __name__ == "__main__":

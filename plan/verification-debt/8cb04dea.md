@@ -37,3 +37,6 @@ is open.
 | 2026-08-27 | 8cb04dea | fix(cli): make pipe contracts truthful across surfaces | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-27 | 8cb04dea | fix(cli): make pipe contracts truthful across surfaces | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
 | 2026-08-27 | 8cb04dea | fix(cli): make pipe contracts truthful across surfaces | discovery-index freshness | ai/PACKAGE-MAP.md includes unrelated in-flight letools packages and is excluded from this focused CLI commit. | open |
+| 2026-08-27 | 8cb04dea | fix(cli): close pipe contract review gaps | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-27 | 8cb04dea | fix(cli): close pipe contract review gaps | full ze-precommit-verify over this commit's Go | Focused package, live functional, documentation, and repository checks cover this review-fix chunk; the periodic full gate has not run. | open |
+| 2026-08-27 | 8cb04dea | fix(cli): close pipe contract review gaps | discovery-index freshness | ai/PACKAGE-MAP.md contains concurrent letools discovery work outside this CLI commit. | open |

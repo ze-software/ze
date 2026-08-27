@@ -27,7 +27,7 @@ func newModelWithLeafConfig(t *testing.T) Model {
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = ed.Close() })
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	return model
 }

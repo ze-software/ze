@@ -318,7 +318,7 @@ func TestDisplayUnknownFieldIsInert(t *testing.T) {
 // PREVENTS: a typo returning the complete record and exposing every field the
 // operator intended to remove.
 func TestDisplayTypoIsRefused(t *testing.T) {
-	_, format, errMsg := ProcessPipesChecked("show test peers | display routes-snet | json")
+	_, format, errMsg := processPipesChecked("show test peers | display routes-snet | json")
 	if errMsg != "" {
 		t.Fatalf("build display formatter: %s", errMsg)
 	}

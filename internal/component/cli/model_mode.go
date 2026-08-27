@@ -17,6 +17,19 @@ import (
 
 var errNoDaemonConnectionOperationalModeRequires = errors.New("no daemon connection (operational mode requires a running daemon)")
 
+// FilesystemAuthority states whether filesystem effects execute as the operator
+// who constructed this model. Unknown is the zero value and MUST fail closed.
+type FilesystemAuthority uint8
+
+const (
+	// FilesystemAuthorityUnknown denies filesystem effects. Daemon-hosted and
+	// otherwise unknown models MUST use this value.
+	FilesystemAuthorityUnknown FilesystemAuthority = iota
+	// FilesystemAuthorityOperatorLocal allows effects in a process the operator
+	// owns, where normal operating-system permissions are authoritative.
+	FilesystemAuthorityOperatorLocal
+)
+
 // EditorMode represents the current editor mode.
 type EditorMode int
 
@@ -152,7 +165,14 @@ func (m Model) executeOperationalCommand(input string) tea.Cmd {
 				err: errNoDaemonConnectionOperationalModeRequires,
 			}
 		}
-		cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatLocal(input, m.cliFormat)
+		var cmdStr string
+		var formatFn func(string) string
+		var pipeErr string
+		if m.filesystemAuthority == FilesystemAuthorityOperatorLocal {
+			cmdStr, formatFn, pipeErr = command.ProcessPipesDefaultFormatLocal(input, m.cliFormat)
+		} else {
+			cmdStr, formatFn, pipeErr = command.ProcessPipesDefaultFormatChecked(input, m.cliFormat)
+		}
 		if pipeErr != "" {
 			var tb2 textbuf.Buffer
 			return commandResultMsg{err: errors.New(tb2.Str("pipe error: ").Str(pipeErr).String())}

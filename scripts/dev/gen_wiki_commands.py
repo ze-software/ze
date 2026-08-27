@@ -95,17 +95,17 @@ def render_detail(entry):
         always = [
             o["name"]
             for o in operators
-            if o.get("available") == "always" and not o.get("local-only")
+            if o.get("available") == "always"
         ]
         with_rows = [
             o["name"]
             for o in operators
-            if o.get("available") == "with-rows" and not o.get("local-only")
+            if o.get("available") == "with-rows"
         ]
         streaming = [
             o["name"]
             for o in operators
-            if o.get("available") == "when-streaming" and not o.get("local-only")
+            if o.get("available") == "when-streaming"
         ]
         local_only = [o["name"] for o in operators if o.get("local-only")]
         if always:

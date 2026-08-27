@@ -367,7 +367,7 @@ func TestApplyPipesCountThenText(t *testing.T) {
 // the formatter is built.
 func renderThroughPipes(t *testing.T, input, payload string) string {
 	t.Helper()
-	_, format, errMsg := ProcessPipesChecked(input)
+	_, format, errMsg := processPipesChecked(input)
 	if errMsg != "" {
 		t.Fatalf("ProcessPipesChecked(%q): %s", input, errMsg)
 	}
@@ -657,7 +657,7 @@ func TestTableBuffersAndSaysSo(t *testing.T) {
 				}
 			}
 		}
-		for record := range ApplyPipesRecords(chain, records) {
+		for record := range applyRecordsForTest(t, chain, records) {
 			consumed++
 			if produced != consumed {
 				t.Errorf("%q had produced %d records when it answered record %d: the record stage is collecting them for the renderer", chain, produced, consumed)

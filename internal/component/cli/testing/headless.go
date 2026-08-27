@@ -30,7 +30,7 @@ func newHeadlessModel(store storage.Storage, configPath string) (*headlessModel,
 		return nil, fmt.Errorf("creating editor: %w", err)
 	}
 
-	model, err := cli.NewModel(ed)
+	model, err := cli.NewModel(ed, cli.FilesystemAuthorityOperatorLocal)
 	if err != nil {
 		return nil, fmt.Errorf("creating model: %w", err)
 	}
@@ -63,7 +63,7 @@ func newHeadlessModelWithSession(store storage.Storage, configPath, user, origin
 	session := cli.NewEditSession(user, origin)
 	ed.SetSession(session)
 
-	model, err := cli.NewModel(ed)
+	model, err := cli.NewModel(ed, cli.FilesystemAuthorityOperatorLocal)
 	if err != nil {
 		return nil, fmt.Errorf("creating model: %w", err)
 	}
@@ -86,7 +86,7 @@ func newHeadlessModelWithSession(store storage.Storage, configPath, user, origin
 // newHeadlessCommandModel creates a command-only headless model (no editor).
 // Used for testing ze cli behavior where no config file is loaded.
 func newHeadlessCommandModel() *headlessModel {
-	model := cli.NewCommandModel()
+	model := cli.NewCommandModel(cli.FilesystemAuthorityOperatorLocal)
 
 	newModel, _ := model.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	if m, ok := newModel.(cli.Model); ok {
@@ -306,21 +306,6 @@ func (hm *headlessModel) typeText(text string) {
 // pressEnter sends an Enter key message.
 func (hm *headlessModel) pressEnter() {
 	_ = hm.sendMsg(tea.KeyPressMsg{Code: tea.KeyEnter})
-}
-
-// PressTab sends a Tab key message.
-func (hm *headlessModel) PressTab() {
-	_ = hm.sendMsg(tea.KeyPressMsg{Code: tea.KeyTab})
-}
-
-// PressEsc sends an Escape key message.
-func (hm *headlessModel) PressEsc() {
-	_ = hm.sendMsg(tea.KeyPressMsg{Code: tea.KeyEscape})
-}
-
-// ClearInput sends Ctrl+U to clear the input line.
-func (hm *headlessModel) ClearInput() {
-	_ = hm.sendMsg(tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
 }
 
 // --- State Accessors ---

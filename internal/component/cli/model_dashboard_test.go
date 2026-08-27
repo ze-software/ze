@@ -418,7 +418,7 @@ func TestDashboardKeyHandling(t *testing.T) {
 			{Address: "10.0.0.3"},
 		},
 	}
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.activeView = &dashboardView{st: &dashboardState{
 		snapshot: snap,
 		sortAsc:  true,
@@ -480,7 +480,7 @@ func TestDashboardKeyHandling(t *testing.T) {
 // VALIDATES: AC-16 -- poll failure shows error, preserves last good data.
 // PREVENTS: dashboard crash or blank screen on poll error.
 func TestDashboardPollFailure(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.activeView = &dashboardView{st: &dashboardState{
 		sortAsc: true,
 		rates:   map[string]*peerRateEntry{},
@@ -517,7 +517,7 @@ func TestDashboardPollFailure(t *testing.T) {
 // VALIDATES: AC-8 -- detail view auto-refreshes on poll tick.
 // PREVENTS: stale detail view data.
 func TestDashboardDetailAutoRefresh(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.activeView = &dashboardView{st: &dashboardState{
 		sortAsc:    true,
 		rates:      map[string]*peerRateEntry{},
@@ -547,7 +547,7 @@ func TestDashboardDetailAutoRefresh(t *testing.T) {
 // VALIDATES: Detail view -- peer disappears while viewing.
 // PREVENTS: stuck detail view for disconnected peer.
 func TestDashboardDetailPeerDisappears(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.activeView = &dashboardView{st: &dashboardState{
 		sortAsc:    true,
 		rates:      map[string]*peerRateEntry{},
@@ -641,7 +641,7 @@ func TestDashboardParsesFlatPayload(t *testing.T) {
 // where one command puts its faults MUST find every other command's faults in
 // the same place.
 func TestDashboardViewAnswersItsFaultRatherThanRenderingIt(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	view := &dashboardView{st: &dashboardState{pollError: "connection lost"}}
 	m.activeView = view
 

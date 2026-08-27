@@ -115,7 +115,7 @@ func TestViewRegistryDiscoversRegisteredView(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, key, spec.key)
 
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.SetViewFactory(key, "sentinel-factory")
 	spec.start(&m, "unittestview now")
 	assert.True(t, started, "registered view start must be reachable via the registry")
@@ -159,7 +159,7 @@ func pingFactoryRecordingCancels(canceled *[]*bool) PingFactory {
 // PREVENTS: a re-introduction of the orphaned-context/goroutine leak on switch.
 func TestDispatchSwitchReleasesPreviousView(t *testing.T) {
 	var canceled []*bool
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.SetPingFactory(pingFactoryRecordingCancels(&canceled))
 
 	runOperationalCommand(t, &m, "monitor ping 192.0.2.1")
@@ -184,7 +184,7 @@ func TestDispatchSwitchReleasesPreviousView(t *testing.T) {
 // PREVENTS: a typo in a switch command silently killing a running monitor.
 func TestDispatchFailedStartPreservesActiveView(t *testing.T) {
 	var canceled []*bool
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.SetPingFactory(pingFactoryRecordingCancels(&canceled))
 
 	runOperationalCommand(t, &m, "monitor ping 192.0.2.1")

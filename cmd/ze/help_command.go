@@ -177,14 +177,11 @@ func aliasesFor(cliPath string) []commandAlias {
 	return out
 }
 
-// splitOperators separates operators that are unconditional on their allowed
-// surfaces from operators that require rows. Stream and local-only operators
-// are reported by their own helpers.
+// splitOperators separates the answer-availability dimensions. An operator
+// with a surface restriction remains in its availability group and is also
+// reported by localOperators.
 func splitOperators(ops []commandOperator) (always, withRows []string) {
 	for _, op := range ops {
-		if op.LocalOnly {
-			continue
-		}
 		switch op.Available {
 		case "always":
 			always = append(always, op.Name)
@@ -211,9 +208,6 @@ func localOperators(ops []commandOperator) []string {
 func streamingOperators(ops []commandOperator) []string {
 	var out []string
 	for _, op := range ops {
-		if op.LocalOnly {
-			continue
-		}
 		if op.Available == "when-streaming" {
 			out = append(out, op.Name)
 		}
@@ -525,6 +519,7 @@ func printCommandVerbose(rw *helpfmt.RenderWriter, entries []commandEntry) {
 		// Pipes
 		if len(e.Operators) > 0 || len(e.Pipes) > 0 || len(e.Aliases) > 0 {
 			tb.Reset().Str("  ").Colored(c.BrightYellow).Str("pipes:").Colored(c.Reset)
+			rw.Line(tb.Slice())
 			// Keep answer, stream, and surface qualifiers separate. Flattening
 			// any one of them tells a caller an operator is unconditional when
 			// it is not.

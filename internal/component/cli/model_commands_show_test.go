@@ -27,7 +27,7 @@ func testShowModel(t *testing.T) *Model {
 	require.NoError(t, err)
 	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	return &model
 }
@@ -457,7 +457,7 @@ func testScopedShowModel(t *testing.T) *Model {
 	require.NoError(t, err)
 	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	return &model
 }
@@ -761,7 +761,7 @@ func TestCmdShowPipeCompareRollback(t *testing.T) {
 	err = ed.createBackup(ed.OriginalContent(), nil)
 	require.NoError(t, err)
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	m := &model
 
@@ -821,7 +821,7 @@ func TestCmdShowPipeCompareRollbackStackFormat(t *testing.T) {
 	err = ed.createBackup(ed.OriginalContent(), nil)
 	require.NoError(t, err)
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	m := &model
 
@@ -851,7 +851,7 @@ func TestCmdShowConfirmed(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	m := &model
 
@@ -894,7 +894,7 @@ func TestCmdShowSaved(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	m := &model
 
@@ -942,7 +942,7 @@ func TestCmdShowCompareUsername(t *testing.T) {
 	err = ed.SetValue([]string{"bgp"}, "router-id", "7.7.7.7")
 	require.NoError(t, err)
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	m := &model
 

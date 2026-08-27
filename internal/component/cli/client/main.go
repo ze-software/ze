@@ -63,16 +63,22 @@ func Run(args []string) int {
 }
 
 func usage() {
-	sections := []helpfmt.HelpSection{
-		{Title: "Subsystems", Entries: []helpfmt.HelpEntry{
+	formatDescription := formatHelpDescription(
+		"the daemon's environment cli format default",
+	)
+	pipeSections := pipeHelpSections()
+	sections := make([]helpfmt.HelpSection, 0, 2+len(pipeSections))
+	sections = append(
+		sections,
+		helpfmt.HelpSection{Title: "Subsystems", Entries: []helpfmt.HelpEntry{
 			{Name: "bgp", Desc: "BGP daemon (default)"},
 		}},
-		{Title: "Options", Entries: []helpfmt.HelpEntry{
+		helpfmt.HelpSection{Title: "Options", Entries: []helpfmt.HelpEntry{
 			{Name: "-c <command>", Desc: "Execute single command and exit (like ssh -c)"},
-			{Name: "--format <format>", Desc: "Output format: text, table, json, yaml, ndjson. Default: the daemon's environment cli format default"},
+			{Name: "--format <format>", Desc: formatDescription},
 		}},
-	}
-	sections = append(sections, pipeHelpSections()...)
+	)
+	sections = append(sections, pipeSections...)
 	p := helpfmt.Page{
 		Command:  "ze cli",
 		Summary:  "Interactive CLI for Ze daemons",
@@ -86,6 +92,29 @@ func usage() {
 		},
 	}
 	p.WriteErr()
+}
+
+// formatOperatorNames returns the mutually exclusive global renderers in
+// catalog order. Other global operators are idempotent or composable.
+func formatOperatorNames() []string {
+	var names []string
+	for _, op := range cmd.PipeOperatorCatalog() {
+		if op.Class != cmd.ClassGlobal {
+			continue
+		}
+		if op.Repeat != cmd.RepeatRefuse {
+			continue
+		}
+		names = append(names, op.Name)
+	}
+	return names
+}
+
+func formatHelpDescription(defaultDescription string) string {
+	var description textbuf.Buffer
+	description.Str("Output format: ").Join(formatOperatorNames(), ", ").
+		Str(" (default: ").Str(defaultDescription).Byte(')')
+	return description.String()
 }
 
 func pipeHelpSections() []helpfmt.HelpSection {
@@ -134,7 +163,7 @@ func RunAttached(dispatch CommandFunc) int {
 }
 
 func runInteractiveWithDispatch(dispatch CommandFunc) int {
-	m := unicli.NewCommandModel()
+	m := unicli.NewCommandModel(unicli.FilesystemAuthorityOperatorLocal)
 
 	if dbPath := sshclient.ResolveDBPath(); dbPath != "" {
 		if store, storeErr := zefs.Open(dbPath); storeErr == nil {
@@ -224,7 +253,7 @@ func silenceDaemonOutput() func() {
 }
 
 func runInteractiveSession(client *cliClient) int {
-	m := unicli.NewCommandModel()
+	m := unicli.NewCommandModel(unicli.FilesystemAuthorityOperatorLocal)
 
 	if dbPath := sshclient.ResolveDBPath(); dbPath != "" {
 		if store, storeErr := zefs.Open(dbPath); storeErr == nil {
@@ -285,7 +314,11 @@ func runBGP(args []string) int {
 	// Empty means "no override": the daemon renders in its configured default
 	// (environment cli format default). The client cannot resolve that default
 	// itself, because nothing on this startup path loads the configuration.
-	format := fs.String("format", "", "Output format: text, table, json, yaml, ndjson (default: the daemon's configured format)")
+	format := fs.String(
+		"format",
+		"",
+		formatHelpDescription("the daemon's configured format"),
+	)
 	user := fs.String("user", "", "SSH login username (overrides zefs super-admin)")
 	fs.StringVar(user, "u", "", "Short alias for --user")
 	remote := fs.String("remote", "", "Connect to remote daemon (host:port)")
@@ -302,8 +335,7 @@ func runBGP(args []string) int {
 	// daemon handler implements.
 	if *runCmd != "" {
 		if answer, code, served := cmd.ServeLocal(*runCmd, *format); served {
-			cmd.WriteAnswer(answer)
-			return code
+			return emitLocalResult(*runCmd, answer, code, nil)
 		}
 	}
 
@@ -432,11 +464,7 @@ func (c *cliClient) execute(command, format string, tw *unicli.TranscriptWriter)
 	// handler implements. Serving it here runs the operator's chain over its
 	// answer, through the same pipe layer that renders a daemon answer.
 	if answer, code, served := cmd.ServeLocal(command, format); served {
-		cmd.WriteAnswer(answer)
-		if tw != nil {
-			tw.Record(command, answer)
-		}
-		return code
+		return emitLocalResult(command, answer, code, tw)
 	}
 
 	var transcript *textbuf.Buffer
@@ -464,6 +492,35 @@ func (c *cliClient) execute(command, format string, tw *unicli.TranscriptWriter)
 		return 1
 	}
 	return 0
+}
+
+// emitLocalResult sends locally served diagnostics to stderr. Transcripts keep
+// the same command and result for successful answers and diagnostics.
+func emitLocalResult(input, answer string, code int, tw *unicli.TranscriptWriter) int {
+	if tw != nil {
+		tw.Record(input, answer)
+	}
+	if code != 0 {
+		writeLocalDiagnostic(answer)
+		return code
+	}
+	if cmd.IsPipeError(answer) {
+		writeLocalDiagnostic(answer)
+		return 1
+	}
+	cmd.WriteAnswer(answer)
+	return 0
+}
+
+func writeLocalDiagnostic(answer string) {
+	if answer == "" {
+		return
+	}
+	os.Stderr.WriteString(answer) //nolint:errcheck // CLI diagnostic
+	if strings.HasSuffix(answer, "\n") {
+		return
+	}
+	os.Stderr.WriteString("\n") //nolint:errcheck // CLI diagnostic
 }
 
 // commandWithFormat appends the --format flag to the command as a format pipe,

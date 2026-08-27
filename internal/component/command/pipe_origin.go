@@ -60,7 +60,7 @@ func LookupOrigin(ip string) OriginResult {
 	return result
 }
 
-func originJSON(v any, fields []string) any {
+func originJSON(v any, fields []string, allFields bool) any {
 	stack := []any{v}
 	for len(stack) > 0 {
 		cur := stack[len(stack)-1]
@@ -76,10 +76,11 @@ func originJSON(v any, fields []string) any {
 			}
 		case map[string]any:
 			var derivedKey textbuf.Buffer
-			for key, value := range val {
+			for _, key := range addressObjectFields(val) {
+				value := val[key]
 				s, isString := value.(string)
 				if isString {
-					if declaredAddressField(fields, key) {
+					if addressFieldSelected(fields, key, allFields) {
 						if s != "*" {
 							if isIPAddress(s) {
 								o := LookupOrigin(s)
@@ -110,11 +111,11 @@ func originJSON(v any, fields []string) any {
 	return v
 }
 
-// applyOrigin adds ASN origin data for declared IP address fields in JSON.
-// For each matching string value, sibling fields are added: "<key>-asn"
-// (uint32), "<key>-as-name" (string), and "<key>-prefix" (string).
-func applyOrigin(input string, fields []string) string {
+// applyOrigin adds ASN origin data for selected IP address fields in JSON.
+// Command paths select declared fields. Standalone stdin selects every field.
+// The sibling fields are "<key>-asn", "<key>-as-name", and "<key>-prefix".
+func applyOrigin(input string, fields []string, allFields bool) string {
 	return applyJSONTransform(input, func(v any) any {
-		return originJSON(v, fields)
+		return originJSON(v, fields, allFields)
 	})
 }

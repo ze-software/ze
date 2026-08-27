@@ -211,7 +211,7 @@ func TestModelContextHighlighting(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
@@ -601,7 +601,7 @@ func TestModelStatusBarNoErrorsWhenValid(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24

@@ -2,6 +2,7 @@ package command
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"iter"
@@ -613,5 +614,180 @@ func TestPositionalDisplayTypoRefusesBeforeWalking(t *testing.T) {
 	}
 	if out.Len() != 0 {
 		t.Errorf("refused positional display wrote %q, want no partial answer", out.String())
+	}
+}
+
+type positionalOriginResolver struct {
+	results map[string]OriginResult
+}
+
+func (r positionalOriginResolver) LookupOrigin(_ context.Context, address string) (OriginResult, error) {
+	return r.results[address], nil
+}
+
+// TestPositionalAddressOperatorsExtendSchemaAndKeepRowWidths drives a lookup
+// hit and miss through the positional record path.
+//
+// VALIDATES: IR2-13 -- declared address columns gain deterministic resolve and
+// origin columns, and every row has the extended schema's width.
+// PREVENTS: map-key-only enrichment leaving arrays unchanged, or lookup misses
+// producing short positional rows that shift every later column.
+func TestPositionalAddressOperatorsExtendSchemaAndKeepRowWidths(t *testing.T) {
+	ResetShapesForTest()
+	ResetAddressFieldsForTest()
+	t.Cleanup(ResetShapesForTest)
+	t.Cleanup(ResetAddressFieldsForTest)
+	RegisterShape([]string{"show test positional addresses"}, ShapeTab)
+	RegisterAddressFields([]string{"show test positional addresses"}, "address")
+
+	SetPTRResolver(&mockPTRResolver{results: map[string][]string{
+		"192.0.2.1": {"peer.example."},
+	}})
+	SetOriginResolver(positionalOriginResolver{results: map[string]OriginResult{
+		"192.0.2.1": {ASN: 64501, Name: "Example", Prefix: "192.0.2.0/24"},
+	}})
+	t.Cleanup(func() {
+		SetPTRResolver(nil)
+		SetOriginResolver(nil)
+	})
+
+	rows := slices.Values([]rpc.Record{
+		{Item: json.RawMessage(`["192.0.2.1","192.0.2.254"]`)},
+		{Item: json.RawMessage(`["198.51.100.2","198.51.100.254"]`)},
+	})
+	records, fields, msg := applyPipesRecords(
+		"show test positional addresses | resolve | origin",
+		[]string{"address", "router-id"},
+		rows,
+	)
+	if msg != "" {
+		t.Fatalf("positional address chain was refused: %s", msg)
+	}
+	wantFields := []string{
+		"address", "router-id", "address-name",
+		"address-asn", "address-as-name", "address-prefix",
+	}
+	if !slices.Equal(fields, wantFields) {
+		t.Fatalf("derived fields = %v, want %v", fields, wantFields)
+	}
+
+	got := collectRecords(records)
+	if len(got) != 2 {
+		t.Fatalf("address chain answered %d rows, want 2", len(got))
+	}
+	values := make([][]any, len(got))
+	for i, record := range got {
+		if err := json.Unmarshal(record.Item, &values[i]); err != nil {
+			t.Fatalf("row %d is not a positional array: %v", i, err)
+		}
+		if len(values[i]) != len(fields) {
+			t.Fatalf("row %d has %d values, schema has %d", i, len(values[i]), len(fields))
+		}
+	}
+	wantHit := []any{"peer.example", float64(64501), "Example", "192.0.2.0/24"}
+	if !slices.Equal(values[0][2:], wantHit) {
+		t.Errorf("lookup hit derived values = %v, want %v", values[0][2:], wantHit)
+	}
+	wantMiss := []any{"", float64(0), "", ""}
+	if !slices.Equal(values[1][2:], wantMiss) {
+		t.Errorf("lookup miss derived values = %v, want fixed-width %v", values[1][2:], wantMiss)
+	}
+
+	streamRows := func(yield func(rpc.Record) bool) {
+		for range rpc.AnswerBufferThreshold + 1 {
+			if !yield(rpc.Record{Item: json.RawMessage(`["192.0.2.1","192.0.2.254"]`)}) {
+				return
+			}
+		}
+	}
+	var output bytes.Buffer
+	answer, err := RenderRecords(
+		&output,
+		"show test positional addresses | resolve | origin | ndjson",
+		"",
+		"addresses",
+		[]string{"address", "router-id"},
+		streamRows,
+	)
+	if err != nil {
+		t.Fatalf("render enriched positional stream: %v", err)
+	}
+	if answer.Type != rpc.AnswerTypeTable {
+		t.Errorf("enriched stream type = %q, want table", answer.Type)
+	}
+	if !slices.Equal(answer.Fields, wantFields) {
+		t.Errorf("enriched RecordAnswer fields = %v, want %v", answer.Fields, wantFields)
+	}
+}
+
+// TestFormatBeforeRowTransformAlwaysUsesTheDocumentPath fixes the exact
+// streaming boundary where operator order used to change.
+//
+// VALIDATES: IR2-15 -- text renders before first at 256 and 257 source rows.
+// PREVENTS: the record path applying first to JSON rows before text once the
+// answer crosses the streaming threshold.
+func TestFormatBeforeRowTransformAlwaysUsesTheDocumentPath(t *testing.T) {
+	const chain = "system command list | text | first 1"
+	var bodies []string
+	for _, count := range []int{rpc.AnswerBufferThreshold, rpc.AnswerBufferThreshold + 1} {
+		body, answer, _ := renderRecordsForTest(t, chain, count)
+		if want := renderedDocument(t, chain, recordEnvelope, count); body != want {
+			t.Errorf("%d rows rendered %q, want document path %q", count, body, want)
+		}
+		if answer.Type != rpc.AnswerTypeDocument {
+			t.Errorf("%d rows answered type %q, want document", count, answer.Type)
+		}
+		if answer.Count != 1 {
+			t.Errorf("%d rows answered count %d, want the one rendered line", count, answer.Count)
+		}
+		bodies = append(bodies, body)
+	}
+	if bodies[0] != bodies[1] {
+		t.Errorf("text | first 1 changed at the threshold: below %q, above %q", bodies[0], bodies[1])
+	}
+}
+
+// TestTransformBeforeFormatStillStreams guards the other side of IR2-15: only
+// chains that need a rendered value early become documents.
+//
+// VALIDATES: resolve before ndjson keeps ordinary per-record streaming.
+// PREVENTS: fixing format-first order by collecting every chain containing both
+// a transform and a format.
+func TestTransformBeforeFormatStillStreams(t *testing.T) {
+	ResetShapesForTest()
+	ResetAddressFieldsForTest()
+	t.Cleanup(ResetShapesForTest)
+	t.Cleanup(ResetAddressFieldsForTest)
+	RegisterShape([]string{"show test stream addresses"}, ShapeMap)
+	RegisterAddressFields([]string{"show test stream addresses"}, "address")
+
+	const rows = rpc.AnswerBufferThreshold + 10
+	produced := 0
+	records := func(yield func(rpc.Record) bool) {
+		for range rows {
+			produced++
+			if !yield(rpc.Record{Item: json.RawMessage(`{"address":"*"}`)}) {
+				return
+			}
+		}
+	}
+	writer := &witnessWriter{produced: &produced}
+	answer, err := RenderRecords(
+		writer,
+		"show test stream addresses | resolve | ndjson",
+		"",
+		"addresses",
+		nil,
+		records,
+	)
+	if err != nil {
+		t.Fatalf("RenderRecords: %v", err)
+	}
+	if answer.Type != rpc.AnswerTypeMap {
+		t.Errorf("transform-before-format type = %q, want map stream", answer.Type)
+	}
+	if writer.firstAt != rpc.AnswerBufferThreshold+1 {
+		t.Errorf("first write followed %d produced rows, want %d",
+			writer.firstAt, rpc.AnswerBufferThreshold+1)
 	}
 }

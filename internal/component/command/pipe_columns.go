@@ -266,7 +266,7 @@ func keepFields(display ColumnOrder) map[string]struct{} {
 // A second key, a value that is not an array, and a token after the value each
 // read as "not a sequence", so a shape this function does not recognize reaches
 // selectFields unchanged rather than being answered wrongly.
-func selectSequence(payload string, keep map[string]struct{}) (selected string, matched bool, empty bool, ok bool) {
+func selectSequence(payload string, keep map[string]struct{}) (selected string, matched, empty, ok bool) {
 	decoder := json.NewDecoder(strings.NewReader(payload))
 	decoder.UseNumber()
 
@@ -280,7 +280,7 @@ func selectSequence(payload string, keep map[string]struct{}) (selected string, 
 	}
 
 	var b textbuf.Buffer
-	rows := 0
+	var rows int
 	switch delim {
 	case '[':
 		var arrayOK bool

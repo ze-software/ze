@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html"
 	"io"
 	"io/fs"
 	"os"
@@ -1039,33 +1040,60 @@ type publishedCommand struct {
 
 const commandCatalogGenerationTimeout = 2 * time.Minute
 
+var commandSurfaceRendererFiles = []string{
+	"models.py",
+	"page_registry.py",
+	"render-cli-catalog.py",
+	"render-command-equivalents.py",
+	"render-llms-txt.py",
+	"sitefacts.py",
+	"sitelib.py",
+	"sitepaths.py",
+	"zebinary.py",
+}
+
 func checkPublishedCommandSurfaces(root, commandCatalogPath string) []issue {
-	websiteCandidates := []string{
-		filepath.Join(filepath.Dir(root), "gh-pages", "data", "cli-commands.json"),
+	if commandCatalogPath == "" {
+		if _, err := os.Stat(filepath.Join(root, "go.mod")); err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return []issue{{
+				File:    commandSurfacePath(root, filepath.Join(root, "go.mod")),
+				Message: "could not determine whether the root owns command surfaces",
+				Detail:  err.Error(),
+			}}
+		}
 	}
-	wikiCandidates := []string{
-		filepath.Join(filepath.Dir(root), "wiki", "command-catalog.md"),
-	}
+	websiteCandidate := filepath.Join(filepath.Dir(root), "gh-pages", "data", "cli-commands.json")
+	wikiCandidate := filepath.Join(filepath.Dir(root), "wiki", "command-catalog.md")
 	if commandCatalogPath != "" {
-		websiteCandidates = []string{
-			filepath.Join(root, "website", "data", "cli-commands.json"),
-		}
-		wikiCandidates = []string{
-			filepath.Join(root, "wiki", "command-catalog.md"),
-		}
+		websiteCandidate = filepath.Join(root, "website", "data", "cli-commands.json")
+		wikiCandidate = filepath.Join(root, "wiki", "command-catalog.md")
 	}
-	websitePaths, websitePathErr := existingPaths(websiteCandidates...)
-	wikiPaths, wikiPathErr := existingPaths(wikiCandidates...)
+
+	websitePaths, websitePathErr := existingPaths(websiteCandidate)
 	if websitePathErr != nil {
 		return []issue{commandSurfaceReadIssue("website command catalog", websitePathErr)}
 	}
+	if len(websitePaths) == 0 {
+		hasPublishedWebsite, err := publishedWebsiteRootExists(
+			filepath.Dir(filepath.Dir(websiteCandidate)), commandCatalogPath != "",
+		)
+		if err != nil {
+			return []issue{commandSurfaceReadIssue("website command surfaces", err)}
+		}
+		if hasPublishedWebsite {
+			return []issue{{
+				File:    commandSurfacePath(root, websiteCandidate),
+				Message: "the published website command catalog is missing",
+				Detail:  "regenerate the website command surfaces before running ze-doc-verify",
+			}}
+		}
+	}
+	wikiPaths, wikiPathErr := existingPaths(wikiCandidate)
 	if wikiPathErr != nil {
 		return []issue{commandSurfaceReadIssue("wiki command catalog", wikiPathErr)}
-	}
-	if len(websitePaths) == 0 {
-		if len(wikiPaths) == 0 {
-			return nil
-		}
 	}
 
 	liveRaw, live, err := loadLiveCommandCatalog(root, commandCatalogPath)
@@ -1077,14 +1105,306 @@ func checkPublishedCommandSurfaces(root, commandCatalogPath string) []issue {
 		}}
 	}
 
-	var issues []issue
-	for _, path := range websitePaths {
-		issues = append(issues, compareWebsiteCommandCatalog(root, path, live)...)
+	publicWebsiteRoot := ""
+	if len(websitePaths) != 0 {
+		publicWebsiteRoot = filepath.Dir(filepath.Dir(websitePaths[0]))
+	}
+	expectedRoot, err := renderExpectedCommandSurfaces(
+		root, commandCatalogPath, publicWebsiteRoot, liveRaw, len(live),
+	)
+	if err != nil {
+		return []issue{{
+			File:    "website/tools",
+			Message: "could not generate the expected per-command surfaces",
+			Detail:  err.Error(),
+		}}
+	}
+
+	issues := validateGeneratedCommandSurfaces(root, expectedRoot, live)
+	if publicWebsiteRoot != "" {
+		issues = append(issues,
+			compareWebsiteCommandCatalog(root, websitePaths[0], live)...)
+		issues = append(issues,
+			compareRenderedCommandSurfaces(root, publicWebsiteRoot, expectedRoot, live)...)
 	}
 	for _, path := range wikiPaths {
 		issues = append(issues, compareWikiCommandCatalog(root, path, liveRaw)...)
 	}
+	if err := os.RemoveAll(expectedRoot); err != nil {
+		issues = append(issues, issue{
+			File:    commandSurfacePath(root, expectedRoot),
+			Message: "could not remove the temporary command surfaces",
+			Detail:  err.Error(),
+		})
+	}
 	return issues
+}
+
+func renderExpectedCommandSurfaces(
+	root, commandCatalogPath, publicWebsiteRoot string,
+	liveRaw []byte,
+	commandCount int,
+) (string, error) {
+	moduleRoot, err := findModuleRoot()
+	if err != nil {
+		return "", fmt.Errorf("locate command renderers: %w", err)
+	}
+	tmpParent := filepath.Join(root, "tmp")
+	if err := os.MkdirAll(tmpParent, 0o755); err != nil {
+		return "", fmt.Errorf("create command render temporary parent %s: %w", tmpParent, err)
+	}
+	outputRoot, err := os.MkdirTemp(tmpParent, "docvalid-command-surfaces-")
+	if err != nil {
+		return "", fmt.Errorf("create command render temporary root: %w", err)
+	}
+	if err := prepareCommandRenderer(
+		root, moduleRoot, commandCatalogPath, publicWebsiteRoot, outputRoot, liveRaw, commandCount,
+	); err != nil {
+		if removeErr := os.RemoveAll(outputRoot); removeErr != nil {
+			return "", fmt.Errorf("%w; remove failed renderer output %s: %v",
+				err, outputRoot, removeErr)
+		}
+		return "", err
+	}
+	for _, name := range []string{
+		"render-cli-catalog.py",
+		"render-command-equivalents.py",
+		"render-llms-txt.py",
+	} {
+		if err := runCommandSurfaceRenderer(moduleRoot, outputRoot, name); err != nil {
+			if removeErr := os.RemoveAll(outputRoot); removeErr != nil {
+				return "", fmt.Errorf("%w; remove failed renderer output %s: %v",
+					err, outputRoot, removeErr)
+			}
+			return "", err
+		}
+	}
+	return outputRoot, nil
+}
+
+func prepareCommandRenderer(
+	root, moduleRoot, commandCatalogPath, publicWebsiteRoot, outputRoot string,
+	liveRaw []byte,
+	commandCount int,
+) error {
+	toolsOutput := filepath.Join(outputRoot, "tools")
+	if err := os.MkdirAll(toolsOutput, 0o755); err != nil {
+		return fmt.Errorf("create temporary renderer tools directory: %w", err)
+	}
+	for _, name := range commandSurfaceRendererFiles {
+		source := filepath.Join(moduleRoot, "website", "tools", name)
+		override := filepath.Join(root, "website", "tools", name)
+		if commandCatalogPath != "" {
+			exists, err := optionalCommandSurfacePath(override)
+			if err != nil {
+				return fmt.Errorf("inspect command renderer override %s: %w", override, err)
+			}
+			if exists {
+				source = override
+			}
+		}
+		if err := copyCommandSurfaceFile(source, filepath.Join(toolsOutput, name)); err != nil {
+			return fmt.Errorf("copy command renderer %s: %w", name, err)
+		}
+	}
+
+	dataSource := filepath.Join(moduleRoot, "website", "data")
+	if publicWebsiteRoot != "" {
+		if commandCatalogPath == "" {
+			dataSource = filepath.Join(publicWebsiteRoot, "data")
+		}
+	}
+	dataOutput := filepath.Join(outputRoot, "data")
+	if err := copyCommandSurfaceTree(dataSource, dataOutput, false); err != nil {
+		return fmt.Errorf("copy command renderer data from %s: %w", dataSource, err)
+	}
+	if commandCatalogPath != "" {
+		if err := writeCommandSurfaceFixtureData(dataOutput, commandCount); err != nil {
+			return err
+		}
+	}
+	if publicWebsiteRoot == "" {
+		if err := writeMissingCommandSurfaceData(dataOutput, commandCount); err != nil {
+			return err
+		}
+	}
+	if err := os.WriteFile(
+		filepath.Join(dataOutput, "cli-commands.json"), liveRaw, 0o644,
+	); err != nil {
+		return fmt.Errorf("write live command catalog for renderers: %w", err)
+	}
+
+	useCasesSource := filepath.Join(moduleRoot, "website", "use-cases")
+	if publicWebsiteRoot != "" {
+		publishedUseCases := filepath.Join(publicWebsiteRoot, "use-cases")
+		exists, err := optionalCommandSurfacePath(publishedUseCases)
+		if err != nil {
+			return fmt.Errorf("inspect published use-case sources %s: %w", publishedUseCases, err)
+		}
+		if exists {
+			useCasesSource = publishedUseCases
+		}
+	}
+	if err := copyCommandSurfaceTree(
+		useCasesSource, filepath.Join(outputRoot, "use-cases"), true,
+	); err != nil {
+		return fmt.Errorf("copy command renderer use-case sources: %w", err)
+	}
+	return nil
+}
+
+func writeCommandSurfaceFixtureData(dataRoot string, commandCount int) error {
+	mapping := `{
+  "schema-version": 1,
+  "summary": "Docvalid renderer fixture.",
+  "vendors": {
+    "fixture": {
+      "label": "Fixture",
+      "short-label": "Fixture",
+      "rooting-model": "fixture-rooted",
+      "documentation": []
+    }
+  },
+  "entries": []
+}
+`
+	if err := os.WriteFile(
+		filepath.Join(dataRoot, "command-equivalents.json"), []byte(mapping), 0o644,
+	); err != nil {
+		return fmt.Errorf("write command-equivalents renderer fixture: %w", err)
+	}
+	return writeMissingCommandSurfaceData(dataRoot, commandCount)
+}
+
+func writeMissingCommandSurfaceData(dataRoot string, commandCount int) error {
+	var facts textbuf.Buffer
+	facts.Str(`{
+  "features": {"core_experimental": 0, "planned": 0},
+  "tests": {"unit_display": "0", "fuzz_display": "0", "e2e_display": "0"},
+  "interop": {"scenarios": 0, "target_display": "0"},
+  "cli_commands": `).Int(int64(commandCount)).Str(`,
+  "config_sections": 0,
+  "dependencies": 0,
+  "changes": 0,
+  "blog_articles": 0,
+  "generated_at": "docvalid fixture"
+}
+`)
+	for name, content := range map[string]string{
+		"plugin-registry.json":  "[]\n",
+		"site-facts.json":       facts.String(),
+		"yang-config-tree.json": "{}\n",
+	} {
+		path := filepath.Join(dataRoot, name)
+		if _, err := os.Stat(path); err == nil {
+			continue
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			return fmt.Errorf("write %s renderer fixture: %w", name, err)
+		}
+	}
+	return nil
+}
+
+func copyCommandSurfaceTree(source, target string, markdownOnly bool) error {
+	return filepath.WalkDir(source, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relative, err := filepath.Rel(source, path)
+		if err != nil {
+			return err
+		}
+		targetPath := filepath.Join(target, relative)
+		if entry.IsDir() {
+			return os.MkdirAll(targetPath, 0o755)
+		}
+		if markdownOnly {
+			if filepath.Ext(path) != ".md" {
+				return nil
+			}
+		}
+		if !entry.Type().IsRegular() {
+			return nil
+		}
+		return copyCommandSurfaceFile(path, targetPath)
+	})
+}
+
+func copyCommandSurfaceFile(source, target string) error {
+	data, err := os.ReadFile(source) //nolint:gosec // repository renderer or generated public artifact
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(target, data, 0o644) //nolint:gosec // isolated temporary renderer output
+}
+
+func runCommandSurfaceRenderer(moduleRoot, outputRoot, name string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), commandCatalogGenerationTimeout)
+	defer cancel()
+	path := filepath.Join(outputRoot, "tools", name)
+	cmd := osexec.CommandContext(ctx, "python3", path)
+	cmd.Dir = outputRoot
+	var envValue textbuf.Buffer
+	mainRepoEnv := envValue.Str("ZE_MAIN_REPO=").Str(moduleRoot).String()
+	envValue.Reset()
+	repoRootEnv := envValue.Str("ZE_REPO_ROOT=").Str(moduleRoot).String()
+	envValue.Reset()
+	siteOutputEnv := envValue.Str("ZE_SITE_OUTPUT=").Str(outputRoot).String()
+	cmd.Env = append(os.Environ(),
+		"PYTHONDONTWRITEBYTECODE=1",
+		"ZE_CLI_CATALOG_USE_CACHE=1",
+		mainRepoEnv,
+		repoRootEnv,
+		siteOutputEnv,
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("run canonical command renderer %s: %w: %s",
+			name, err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func optionalCommandSurfacePath(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
+}
+
+func publishedWebsiteRootExists(path string, fixture bool) (bool, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("inspect published website root %s: %w", path, err)
+	}
+	if !info.IsDir() {
+		return false, fmt.Errorf("published website root %s is not a directory", path)
+	}
+	if !fixture {
+		return true, nil
+	}
+	for _, relative := range []string{"data", "reference", "llms.txt"} {
+		candidate := filepath.Join(path, relative)
+		exists, err := optionalCommandSurfacePath(candidate)
+		if err != nil {
+			return false, fmt.Errorf("inspect published website surface %s: %w", candidate, err)
+		}
+		if exists {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func existingPaths(paths ...string) ([]string, error) {
@@ -1355,6 +1675,791 @@ func compareWikiCommandCatalog(root, path string, liveRaw []byte) []issue {
 		Message: "the published wiki command catalog and the live command catalog disagree",
 		Detail:  "run `make ze-wiki-commands-update`; the wiki must preserve every per-command contract field",
 	}}
+}
+
+var commandSurfaceSlugSeparator = regexp.MustCompile(`[^a-z0-9]+`)
+
+func validateGeneratedCommandSurfaces(
+	root, expectedRoot string,
+	live []publishedCommand,
+) []issue {
+	primaryHTMLPath := filepath.Join(expectedRoot, "reference", "cli", "index.html")
+	primaryMarkdownPath := filepath.Join(expectedRoot, "reference", "cli", "index.md")
+	llmsPath := filepath.Join(expectedRoot, "llms.txt")
+	equivalentHTMLPath := filepath.Join(
+		expectedRoot, "reference", "command-equivalents", "index.html",
+	)
+	equivalentMarkdownPath := filepath.Join(
+		expectedRoot, "reference", "command-equivalents", "index.md",
+	)
+	primaryHTML, err := os.ReadFile(primaryHTMLPath) //nolint:gosec // isolated renderer output
+	if err != nil {
+		return []issue{generatedCommandSurfaceReadIssue(root, primaryHTMLPath, err)}
+	}
+	primaryMarkdown, err := os.ReadFile(primaryMarkdownPath) //nolint:gosec // isolated renderer output
+	if err != nil {
+		return []issue{generatedCommandSurfaceReadIssue(root, primaryMarkdownPath, err)}
+	}
+	llms, err := os.ReadFile(llmsPath) //nolint:gosec // isolated renderer output
+	if err != nil {
+		return []issue{generatedCommandSurfaceReadIssue(root, llmsPath, err)}
+	}
+	equivalentHTML, err := os.ReadFile(equivalentHTMLPath) //nolint:gosec // rendered command surface
+	if err != nil {
+		return []issue{generatedCommandSurfaceReadIssue(root, equivalentHTMLPath, err)}
+	}
+	equivalentMarkdown, err := os.ReadFile(equivalentMarkdownPath) //nolint:gosec // rendered command surface
+	if err != nil {
+		return []issue{generatedCommandSurfaceReadIssue(root, equivalentMarkdownPath, err)}
+	}
+
+	var issues []issue
+	for _, command := range live {
+		slug := commandSurfaceSlug(command.Path)
+		var equivalentHTMLMarker textbuf.Buffer
+		if !strings.Contains(string(equivalentHTML),
+			equivalentHTMLMarker.Str(`id="cmd-eq-`).Str(slug).Byte('"').String()) {
+			issues = append(issues, generatedCommandContractIssue(
+				commandSurfacePath(root, equivalentHTMLPath), command.Path,
+				"command-equivalent HTML index row",
+			))
+		}
+		var equivalentMarkdownMarker textbuf.Buffer
+		if !strings.Contains(string(equivalentMarkdown),
+			equivalentMarkdownMarker.Str("](").Str(slug).Str("/)").String()) {
+			issues = append(issues, generatedCommandContractIssue(
+				commandSurfacePath(root, equivalentMarkdownPath), command.Path,
+				"command-equivalent Markdown index row",
+			))
+		}
+		primaryRow, ok := commandSurfaceHTMLRow(string(primaryHTML), slug)
+		if !ok {
+			issues = append(issues, generatedCommandContractIssue(
+				commandSurfacePath(root, primaryHTMLPath), command.Path,
+				"primary CLI HTML command row",
+			))
+		} else {
+			issues = append(issues, validatePrimaryCommandContract(
+				commandSurfacePath(root, primaryHTMLPath), primaryRow, command,
+			)...)
+		}
+
+		primaryMarkdownRow, ok := commandSurfaceMarkdownRow(
+			string(primaryMarkdown), command.Path,
+		)
+		if !ok {
+			issues = append(issues, generatedCommandContractIssue(
+				commandSurfacePath(root, primaryMarkdownPath), command.Path,
+				"primary CLI Markdown command row",
+			))
+		} else {
+			issues = append(issues, validatePrimaryMarkdownContract(
+				commandSurfacePath(root, primaryMarkdownPath),
+				primaryMarkdownRow,
+				command,
+			)...)
+		}
+
+		detailHTMLPath := filepath.Join(
+			expectedRoot, "reference", "command-equivalents", slug, "index.html",
+		)
+		detailMarkdownPath := filepath.Join(
+			expectedRoot, "reference", "command-equivalents", slug, "index.md",
+		)
+		detailHTML, detailHTMLErr := os.ReadFile(detailHTMLPath) //nolint:gosec // isolated renderer output
+		if detailHTMLErr != nil {
+			issues = append(issues, generatedCommandSurfaceReadIssue(
+				root, detailHTMLPath, detailHTMLErr,
+			))
+		} else {
+			issues = append(issues, validateEquivalentCommandContract(
+				commandSurfacePath(root, detailHTMLPath), string(detailHTML), command,
+			)...)
+		}
+		detailMarkdown, detailMarkdownErr := os.ReadFile(detailMarkdownPath) //nolint:gosec // isolated renderer output
+		if detailMarkdownErr != nil {
+			issues = append(issues, generatedCommandSurfaceReadIssue(
+				root, detailMarkdownPath, detailMarkdownErr,
+			))
+		} else {
+			issues = append(issues, validateEquivalentMarkdownContract(
+				commandSurfacePath(root, detailMarkdownPath),
+				string(detailMarkdown),
+				command,
+			)...)
+		}
+
+		meta, ok := llmsCommandMetadata(string(llms), command.Path)
+		if !ok {
+			issues = append(issues, generatedCommandContractIssue(
+				commandSurfacePath(root, llmsPath), command.Path, "llms.txt command row",
+			))
+			continue
+		}
+		issues = append(issues,
+			validateLLMSCommandContract(commandSurfacePath(root, llmsPath), meta, command)...)
+	}
+	return issues
+}
+
+func generatedCommandSurfaceReadIssue(root, path string, err error) issue {
+	return issue{
+		File:    commandSurfacePath(root, path),
+		Message: "the canonical command renderer did not produce a required surface",
+		Detail:  err.Error(),
+	}
+}
+
+func generatedCommandContractIssue(path, command, dimension string) issue {
+	return issue{
+		File:    path,
+		Message: "the generated per-command surface dropped part of the live command contract",
+		Detail:  missingCommandDimension(command, dimension),
+	}
+}
+
+func missingCommandDimension(command, dimension string) string {
+	var detail textbuf.Buffer
+	return detail.Str("command ").Quoted(command).Str(" is missing ").Str(dimension).String()
+}
+
+func availabilityCommandDimension(availability, name string) string {
+	var dimension textbuf.Buffer
+	return dimension.Str(availability).Str(" availability for operator ").
+		Quoted(name).String()
+}
+
+func namedCommandDimension(kind, name string) string {
+	var dimension textbuf.Buffer
+	return dimension.Str(kind).Byte(' ').Quoted(name).String()
+}
+
+func commandSurfaceSlug(path string) string {
+	slug := commandSurfaceSlugSeparator.ReplaceAllString(strings.ToLower(path), "-")
+	return strings.Trim(slug, "-")
+}
+
+func commandSurfaceHTMLRow(content, slug string) (string, bool) {
+	var marker textbuf.Buffer
+	startMarker := marker.Str(`<tr id="cmd-`).Str(slug).Str(`">`).String()
+	start := strings.Index(content, startMarker)
+	if start == -1 {
+		return "", false
+	}
+	remaining := content[start:]
+	end := strings.Index(remaining, "</tr>")
+	if end == -1 {
+		return "", false
+	}
+	return remaining[:end+len("</tr>")], true
+}
+
+func validatePrimaryCommandContract(
+	path, row string,
+	command publishedCommand,
+) []issue {
+	var issues []issue
+	var marker textbuf.Buffer
+	if command.AnswerShape != "" {
+		want := marker.Str("<span>Answer shape</span><code>").
+			Str(html.EscapeString(command.AnswerShape)).Str("</code>").String()
+		if !strings.Contains(row, want) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path, "answer shape",
+			))
+		}
+	}
+	if len(command.AddressFields) != 0 {
+		marker.Reset()
+		want := marker.Str("<span>Address fields</span><code>").
+			Str(html.EscapeString(strings.Join(command.AddressFields, " · "))).
+			Str("</code>").String()
+		if !strings.Contains(row, want) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path, "address fields",
+			))
+		}
+	}
+	for _, operator := range command.Operators {
+		label := commandAvailabilityLabel(operator.Available)
+		if !commandHTMLGroupContains(row, label, operator.Name) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path,
+				availabilityCommandDimension(operator.Available, operator.Name),
+			))
+		}
+		if operator.LocalOnly {
+			if !commandHTMLGroupContains(row, "Local process only", operator.Name) {
+				issues = append(issues, generatedCommandContractIssue(
+					path, command.Path,
+					namedCommandDimension("local-only surface qualifier for operator", operator.Name),
+				))
+			}
+		}
+	}
+	return issues
+}
+
+func commandSurfaceMarkdownRow(content, path string) (string, bool) {
+	var marker textbuf.Buffer
+	prefix := marker.Str("| `").Str(commandMarkdownValue(path)).Str("` |").String()
+	for line := range strings.SplitSeq(content, "\n") {
+		if strings.HasPrefix(line, prefix) {
+			return line, true
+		}
+	}
+	return "", false
+}
+
+func commandMarkdownValue(value string) string {
+	return strings.ReplaceAll(value, "|", `\|`)
+}
+
+func validatePrimaryMarkdownContract(
+	path, row string,
+	command publishedCommand,
+) []issue {
+	var issues []issue
+	var marker textbuf.Buffer
+	if command.AnswerShape != "" {
+		want := marker.Str("Answer shape: `").
+			Str(commandMarkdownValue(command.AnswerShape)).Byte('`').String()
+		if !strings.Contains(row, want) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path, "answer shape",
+			))
+		}
+	}
+	for _, field := range command.AddressFields {
+		if !commandMarkdownGroupContains(row, "Address fields", field) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path, namedCommandDimension("address field", field),
+			))
+		}
+	}
+	for _, operator := range command.Operators {
+		label := commandAvailabilityLabel(operator.Available)
+		if !commandMarkdownGroupContains(row, label, operator.Name) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path,
+				availabilityCommandDimension(operator.Available, operator.Name),
+			))
+		}
+		if operator.LocalOnly {
+			if !commandMarkdownGroupContains(row, "Local process only", operator.Name) {
+				issues = append(issues, generatedCommandContractIssue(
+					path, command.Path,
+					namedCommandDimension("local-only surface qualifier for operator", operator.Name),
+				))
+			}
+		}
+	}
+	return issues
+}
+
+func commandMarkdownGroupContains(content, label, name string) bool {
+	var marker textbuf.Buffer
+	startMarker := marker.Str(label).Str(": ").String()
+	start := strings.Index(content, startMarker)
+	if start == -1 {
+		return false
+	}
+	values := content[start+len(startMarker):]
+	end := len(values)
+	if lineBreak := strings.Index(values, "<br>"); lineBreak != -1 {
+		end = lineBreak
+	}
+	if cellEnd := strings.Index(values, " |"); cellEnd != -1 {
+		end = min(end, cellEnd)
+	}
+	values = values[:end]
+	for _, value := range strings.Split(values, ", ") {
+		if strings.Trim(value, "`") == commandMarkdownValue(name) {
+			return true
+		}
+	}
+	return false
+}
+
+func commandAvailabilityLabel(availability string) string {
+	switch availability {
+	case "always":
+		return "Always"
+	case "with-rows":
+		return "With rows"
+	case "when-streaming":
+		return "While streaming"
+	default:
+		return availability
+	}
+}
+
+func commandHTMLGroupContains(content, label, name string) bool {
+	var marker textbuf.Buffer
+	startMarker := marker.Str("<span>").Str(html.EscapeString(label)).
+		Str("</span><code>").String()
+	start := strings.Index(content, startMarker)
+	if start == -1 {
+		return false
+	}
+	values := content[start+len(startMarker):]
+	end := strings.Index(values, "</code>")
+	if end == -1 {
+		return false
+	}
+	for _, value := range strings.Split(values[:end], " · ") {
+		if html.UnescapeString(value) == name {
+			return true
+		}
+	}
+	return false
+}
+
+func validateEquivalentCommandContract(
+	path, content string,
+	command publishedCommand,
+) []issue {
+	var issues []issue
+	var marker textbuf.Buffer
+	if command.AnswerShape != "" {
+		want := marker.Str("<dt>Answer shape</dt><dd>").
+			Str(html.EscapeString(command.AnswerShape)).Str("</dd>").String()
+		if !strings.Contains(content, want) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path, "answer shape",
+			))
+		}
+	}
+	if len(command.AddressFields) != 0 {
+		marker.Reset()
+		want := marker.Str("<dt>Address fields</dt><dd>").
+			Str(html.EscapeString(strings.Join(command.AddressFields, ", "))).
+			Str("</dd>").String()
+		if !strings.Contains(content, want) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path, "address fields",
+			))
+		}
+	}
+	for _, operator := range command.Operators {
+		label := equivalentAvailabilityLabel(operator.Available, command.AnswerShape != "")
+		if !equivalentHTMLGroupContains(content, label, operator.Name) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path,
+				availabilityCommandDimension(operator.Available, operator.Name),
+			))
+		}
+		if operator.LocalOnly {
+			if !equivalentHTMLGroupContains(
+				content, "Pipes, local process only", operator.Name,
+			) {
+				issues = append(issues, generatedCommandContractIssue(
+					path, command.Path,
+					namedCommandDimension("local-only surface qualifier for operator", operator.Name),
+				))
+			}
+		}
+	}
+	for _, filter := range command.Pipes {
+		marker.Reset().Str("<code>").Str(html.EscapeString(filter.Name))
+		if filter.TakesArg {
+			marker.Str(" &lt;value&gt;")
+		}
+		want := marker.Str("</code>: ").
+			Str(html.EscapeString(filter.Description)).String()
+		if !strings.Contains(content, want) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path, namedCommandDimension("command filter", filter.Name),
+			))
+		}
+	}
+	for _, alias := range command.Aliases {
+		marker.Reset()
+		want := marker.Str("<code>").Str(html.EscapeString(alias.Name)).
+			Str("</code>: ").Str(html.EscapeString(alias.Description)).
+			Str(" (<code>").Str(html.EscapeString(alias.Expansion)).
+			Str("</code>)").String()
+		if !strings.Contains(content, want) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path, namedCommandDimension("pipe alias", alias.Name),
+			))
+		}
+	}
+	return issues
+}
+func validateEquivalentMarkdownContract(
+	path, content string,
+	command publishedCommand,
+) []issue {
+	var issues []issue
+	var marker textbuf.Buffer
+	registryPath := marker.Str("- Registry path: `").
+		Str(commandMarkdownValue(command.Path)).Byte('`').String()
+	if !strings.Contains(content, registryPath) {
+		issues = append(issues, generatedCommandContractIssue(
+			path, command.Path, "registry path",
+		))
+	}
+	if command.AnswerShape != "" {
+		marker.Reset()
+		want := marker.Str("- Answer shape: ").
+			Str(commandMarkdownValue(command.AnswerShape)).String()
+		if !strings.Contains(content, want) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path, "answer shape",
+			))
+		}
+	}
+	for _, field := range command.AddressFields {
+		if !equivalentMarkdownGroupContains(content, "Address fields", field) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path, namedCommandDimension("address field", field),
+			))
+		}
+	}
+	for _, operator := range command.Operators {
+		label := equivalentMarkdownAvailabilityLabel(operator.Available)
+		if !equivalentMarkdownGroupContains(content, label, operator.Name) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path,
+				availabilityCommandDimension(operator.Available, operator.Name),
+			))
+		}
+		if operator.LocalOnly {
+			if !equivalentMarkdownGroupContains(
+				content, "Pipes, local process only", operator.Name,
+			) {
+				issues = append(issues, generatedCommandContractIssue(
+					path, command.Path,
+					namedCommandDimension("local-only surface qualifier for operator", operator.Name),
+				))
+			}
+		}
+	}
+	for _, filter := range command.Pipes {
+		marker.Reset().Byte('`').Str(commandMarkdownValue(filter.Name))
+		if filter.TakesArg {
+			marker.Str(" <value>")
+		}
+		marker.Byte('`')
+		if filter.Description != "" {
+			marker.Str(": ").Str(commandMarkdownValue(filter.Description))
+		}
+		want := marker.String()
+		if !strings.Contains(
+			commandMarkdownLine(content, "Command pipes"), want,
+		) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path, namedCommandDimension("command filter", filter.Name),
+			))
+		}
+	}
+	for _, alias := range command.Aliases {
+		marker.Reset().Byte('`').Str(commandMarkdownValue(alias.Name)).Byte('`')
+		if alias.Description != "" {
+			marker.Str(": ").Str(commandMarkdownValue(alias.Description))
+		}
+		if alias.Expansion != "" {
+			marker.Str(" (`").Str(commandMarkdownValue(alias.Expansion)).Str("`)")
+		}
+		want := marker.String()
+		if !strings.Contains(
+			commandMarkdownLine(content, "Pipe aliases"), want,
+		) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path, namedCommandDimension("pipe alias", alias.Name),
+			))
+		}
+	}
+	return issues
+}
+
+func equivalentMarkdownAvailabilityLabel(availability string) string {
+	switch availability {
+	case "always":
+		return "Pipes, always"
+	case "with-rows":
+		return "Pipes, on rows"
+	case "when-streaming":
+		return "Pipes, while streaming"
+	default:
+		return availability
+	}
+}
+
+func equivalentMarkdownGroupContains(content, label, want string) bool {
+	line := commandMarkdownLine(content, label)
+	if line == "" {
+		return false
+	}
+	var marker textbuf.Buffer
+	values := strings.TrimPrefix(line,
+		marker.Str("- ").Str(label).Str(": ").String())
+	for _, value := range strings.Split(values, ", ") {
+		if value == commandMarkdownValue(want) {
+			return true
+		}
+	}
+	return false
+}
+
+func commandMarkdownLine(content, label string) string {
+	var marker textbuf.Buffer
+	prefix := marker.Str("- ").Str(label).Str(": ").String()
+	for line := range strings.SplitSeq(content, "\n") {
+		if strings.HasPrefix(line, prefix) {
+			return line
+		}
+	}
+	return ""
+}
+
+func equivalentAvailabilityLabel(availability string, declaredShape bool) string {
+	switch availability {
+	case "always":
+		return "Pipes, always"
+	case "with-rows":
+		if declaredShape {
+			return "Pipes, on its rows"
+		}
+		return "Pipes, when the answer has rows"
+	case "when-streaming":
+		return "Pipes, while streaming"
+	default:
+		return availability
+	}
+}
+
+func equivalentHTMLGroupContains(content, label, name string) bool {
+	var marker textbuf.Buffer
+	startMarker := marker.Str("<dt>").Str(html.EscapeString(label)).
+		Str("</dt><dd>").String()
+	start := strings.Index(content, startMarker)
+	if start == -1 {
+		return false
+	}
+	values := content[start+len(startMarker):]
+	end := strings.Index(values, "</dd>")
+	if end == -1 {
+		return false
+	}
+	for _, value := range strings.Split(values[:end], ", ") {
+		if html.UnescapeString(value) == name {
+			return true
+		}
+	}
+	return false
+}
+
+func llmsCommandMetadata(content, path string) (string, bool) {
+	var marker textbuf.Buffer
+	prefix := marker.Str("- `").Str(path).Str("` (").String()
+	for line := range strings.SplitSeq(content, "\n") {
+		if !strings.HasPrefix(line, prefix) {
+			continue
+		}
+		remaining := line[len(prefix):]
+		end := strings.Index(remaining, "): ")
+		if end == -1 {
+			return "", false
+		}
+		return remaining[:end], true
+	}
+	return "", false
+}
+
+func validateLLMSCommandContract(
+	path, meta string,
+	command publishedCommand,
+) []issue {
+	var issues []issue
+	var marker textbuf.Buffer
+	for _, operator := range command.Operators {
+		if !commandMetaPipeGroupContains(meta, operator.Available, operator.Name) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path,
+				availabilityCommandDimension(operator.Available, operator.Name),
+			))
+		}
+		if operator.LocalOnly {
+			if !commandMetaPipeGroupContains(meta, "local-only", operator.Name) {
+				issues = append(issues, generatedCommandContractIssue(
+					path, command.Path,
+					namedCommandDimension("local-only surface qualifier for operator", operator.Name),
+				))
+			}
+		}
+	}
+	if command.AnswerShape != "" {
+		if commandMetaValue(meta, "shape") != command.AnswerShape {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path, "answer shape",
+			))
+		}
+	}
+	for _, field := range command.AddressFields {
+		if !commandMetaListContains(meta, "address-fields", field) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path, namedCommandDimension("address field", field),
+			))
+		}
+	}
+	for _, filter := range command.Pipes {
+		if !commandMetaListContains(meta, "filters", filter.Name) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path, namedCommandDimension("command filter", filter.Name),
+			))
+		}
+	}
+	aliases := commandMetaValue(meta, "aliases")
+	for _, alias := range command.Aliases {
+		marker.Reset()
+		want := marker.Str(alias.Name).Byte('=').Str(alias.Expansion).String()
+		if !strings.Contains(aliases, want) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path, namedCommandDimension("pipe alias", alias.Name),
+			))
+		}
+	}
+	return issues
+}
+
+func commandMetaPipeGroupContains(meta, availability, name string) bool {
+	pipes := commandMetaValue(meta, "pipes")
+	for group := range strings.SplitSeq(pipes, ", ") {
+		label, values, ok := strings.Cut(group, ": ")
+		if !ok {
+			continue
+		}
+		if label != availability {
+			continue
+		}
+		for value := range strings.FieldsSeq(values) {
+			if value == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func commandMetaListContains(meta, label, want string) bool {
+	for value := range strings.FieldsSeq(commandMetaValue(meta, label)) {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func commandMetaValue(meta, label string) string {
+	var marker textbuf.Buffer
+	prefix := marker.Str(label).Byte(' ').String()
+	for segment := range strings.SplitSeq(meta, "; ") {
+		if strings.HasPrefix(segment, prefix) {
+			return strings.TrimPrefix(segment, prefix)
+		}
+	}
+	return ""
+}
+
+func compareRenderedCommandSurfaces(
+	root, publicRoot, expectedRoot string,
+	live []publishedCommand,
+) []issue {
+	expected := map[string]bool{
+		"llms.txt":                 true,
+		"reference/cli/index.html": true,
+		"reference/cli/index.md":   true,
+	}
+	equivalentsRoot := filepath.Join(expectedRoot, "reference", "command-equivalents")
+	walkErr := filepath.WalkDir(equivalentsRoot,
+		func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entry.IsDir() {
+				return nil
+			}
+			extension := filepath.Ext(path)
+			if extension != ".html" {
+				if extension != ".md" {
+					return nil
+				}
+			}
+			relative, err := filepath.Rel(expectedRoot, path)
+			if err != nil {
+				return err
+			}
+			expected[filepath.ToSlash(relative)] = true
+			return nil
+		})
+	if walkErr != nil {
+		return []issue{{
+			File:    commandSurfacePath(root, equivalentsRoot),
+			Message: "could not enumerate generated command-equivalent surfaces",
+			Detail:  walkErr.Error(),
+		}}
+	}
+
+	issues := validateGeneratedCommandSurfaces(root, publicRoot, live)
+	paths := make([]string, 0, len(expected))
+	for path := range expected {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	for _, relative := range paths {
+		publishedPath := filepath.Join(publicRoot, filepath.FromSlash(relative))
+		if _, err := os.ReadFile(publishedPath); err != nil { //nolint:gosec // generated sibling artifact
+			issues = append(issues, issue{
+				File:    commandSurfacePath(root, publishedPath),
+				Message: "the published per-command surface is missing or unreadable",
+				Detail:  err.Error(),
+			})
+		}
+	}
+
+	publicEquivalentsRoot := filepath.Join(publicRoot, "reference", "command-equivalents")
+	if _, err := os.Stat(publicEquivalentsRoot); err != nil {
+		return issues
+	}
+	walkErr = filepath.WalkDir(publicEquivalentsRoot,
+		func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entry.IsDir() {
+				return nil
+			}
+			extension := filepath.Ext(path)
+			if extension != ".html" {
+				if extension != ".md" {
+					return nil
+				}
+			}
+			relative, err := filepath.Rel(publicRoot, path)
+			if err != nil {
+				return err
+			}
+			relative = filepath.ToSlash(relative)
+			if expected[relative] {
+				return nil
+			}
+			issues = append(issues, issue{
+				File:    commandSurfacePath(root, path),
+				Message: "the published command-equivalent surface is stale",
+				Detail:  "the live command catalog no longer generates this file",
+			})
+			return nil
+		})
+	if walkErr != nil {
+		issues = append(issues, issue{
+			File:    commandSurfacePath(root, publicEquivalentsRoot),
+			Message: "could not enumerate published command-equivalent surfaces",
+			Detail:  walkErr.Error(),
+		})
+	}
+	return issues
 }
 
 func commandSurfacePath(root, path string) string {

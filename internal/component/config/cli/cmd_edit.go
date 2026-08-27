@@ -678,7 +678,7 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string, d
 	}
 
 	// Create model
-	m, err := cli.NewModel(ed)
+	m, err := cli.NewModel(ed, cli.FilesystemAuthorityOperatorLocal)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1

@@ -109,14 +109,14 @@ func TestRenderYAMLIgnoresColumnOrder(t *testing.T) {
 
 	payload := `{"peers":[{"address":"192.0.2.1","description":"transit","state":"established","uptime":"1h0m0s"}]}`
 
-	_, before, errMsg := ProcessPipesChecked("show test peers | yaml")
+	_, before, errMsg := processPipesChecked("show test peers | yaml")
 	if errMsg != "" {
 		t.Fatalf("ProcessPipesChecked: %s", errMsg)
 	}
 	undeclared := before(payload)
 
 	RegisterColumns([]string{"show test peers"}, ColumnOrder{"state", "address"})
-	_, after, errMsg := ProcessPipesChecked("show test peers | yaml")
+	_, after, errMsg := processPipesChecked("show test peers | yaml")
 	if errMsg != "" {
 		t.Fatalf("ProcessPipesChecked: %s", errMsg)
 	}

@@ -89,10 +89,5 @@ that row is where you say which of the two happened.
 
 | Test | Reason |
 |------|--------|
-| assertOneShapeWhateverTheInput | Removed separate classifier assertions. The replacement checks the encoded envelope key and drives the real `count` operator for several, matched-one, and configured-one answers. |
-| TestShowPipelineOrdersTheSameWithAndWithoutATerminal | Replaced four broad comparisons with exact source-order assertions over received and advertised rows, two families, and 16 runs. |
-| TestProcessPipesDefaultFunc | The old streaming wrapper was removed. `TestProcessStreamPipesDefaultFunc` checks the same custom-default and explicit-format behavior through the lifecycle-owning replacement. |
-| TestProcessPipesDetectLog_HasFormat | The old wrapper was removed. `TestProcessStreamPipes_HasFormat` checks the same flags and explicit format through the replacement. |
-| TestProcessPipesDetectLog_NoExplicitFormat | The old wrapper was removed. `TestProcessStreamPipes_NoExplicitFormat` checks the same default format and log flag through the replacement. |
-| TestProcessPipesDetectLog_NDJSON | The old wrapper was removed. `TestProcessStreamPipes_NDJSON` checks the same NDJSON and stream flags through the replacement. |
-| pipe-local-command | The runner directives moved into one Python driver. The replacement executes all 15 local-data commands, checks command-specific data, and adds local save coverage. |
+| gen_wiki_commands_test | Consolidated six substring assertions into one exact rendered-line assertion that checks the full wiki command detail contract. |
+| test_render_llms | Consolidated overlapping command metadata assertions into one exact assertion that checks availability, locality, shape, address fields, filters, and aliases together. |

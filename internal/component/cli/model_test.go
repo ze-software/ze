@@ -42,7 +42,8 @@ var knownModelFields = map[string]bool{
 	"pasteMode": true, "pasteBuffer": true, "pasteModeLocation": true, "pasteModeAction": true,
 	"history": true, "outputBuf": true, "lastCommand": true,
 	"mode": true, "modeStates": true, "commandCompleter": true, "commandExecutor": true,
-	"monitorFactory": true, "monitorSession": true,
+	"filesystemAuthority": true,
+	"monitorFactory":      true, "monitorSession": true,
 	"activeView": true, "viewFactories": true,
 	"loginWarnings": true,
 	"auditRecorder": true, "auditSurface": true, "auditUsername": true, "auditRemoteAddr": true,
@@ -159,7 +160,7 @@ func TestModelValidationOnLoad(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Should have validation error from load
@@ -203,7 +204,7 @@ func TestModelCommitBlockedOnErrors(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Commit should fail — status message reports the block, config stays in viewport
@@ -250,7 +251,7 @@ func TestModelCommitSucceedsWhenValid(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.editor.MarkDirty() // Mark dirty so commit does something
 
@@ -278,7 +279,7 @@ func TestModelStatusMessageDisplay(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
@@ -307,7 +308,7 @@ func TestModelStatusMessageClearsOnCommand(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Set initial status
@@ -342,7 +343,7 @@ func TestModelStatusMessageClearsOnError(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Set initial status
@@ -378,7 +379,7 @@ func TestModelRevalidatesOnDiscard(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	assert.Empty(t, model.validationErrors, "initial config should be valid")
 
@@ -409,7 +410,7 @@ func TestModelValidationDebounce(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	initialID := model.validationID
 
@@ -481,7 +482,7 @@ func TestModelStatusBarErrorIndicator(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
@@ -509,7 +510,7 @@ func TestModelKeyrunesTriggersValidation(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	initialID := model.validationID
 
@@ -539,7 +540,7 @@ func TestExitCommandSwitchesMode(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
@@ -580,7 +581,7 @@ func TestExitBlockedByDirty(t *testing.T) {
 	// Mark as dirty
 	ed.MarkDirty()
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
@@ -611,7 +612,7 @@ func TestEscapeClearsInputInsteadOfQuitting(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
@@ -645,7 +646,7 @@ func TestEscapeEmptyInputTriggersQuit(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
@@ -676,7 +677,7 @@ func TestEscapeAfterErrorsReturnsToConfig(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
@@ -716,7 +717,7 @@ func TestCtrlCStillQuitsWithInput(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
@@ -744,7 +745,7 @@ func TestCommandHistoryRecall(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
@@ -792,7 +793,7 @@ func TestCommandHistorySavedOnEnter(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
@@ -820,7 +821,7 @@ func TestCommandHistoryNoDuplicates(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
@@ -858,7 +859,7 @@ func TestSetHistoryLoadsCurrentMode(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
-	m, err := NewModel(ed) // starts in ModeConfig
+	m, err := NewModel(ed, FilesystemAuthorityOperatorLocal) // starts in ModeConfig
 	require.NoError(t, err)
 
 	m.SetHistory(NewHistory(store, "testuser"))
@@ -886,7 +887,7 @@ func TestSetHistoryPreloadsOtherMode(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
-	m, err := NewModel(ed)
+	m, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	m.SetHistory(NewHistory(store, "testuser"))
@@ -920,7 +921,7 @@ func TestModelHistoryPersistOnEnter(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
@@ -950,7 +951,7 @@ func TestCommandModelHistoryPersistOnEnter(t *testing.T) {
 	store, err := zefs.Create(storePath)
 	require.NoError(t, err)
 
-	model := NewCommandModel()
+	model := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	model.width = 80
 	model.height = 24
 	model.SetHistory(NewHistory(store, "testuser"))
@@ -985,7 +986,7 @@ func TestTabOnListKeyShowsChildrenImmediately(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
@@ -1026,7 +1027,7 @@ func TestExitAfterDiscard(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
@@ -1071,7 +1072,7 @@ func TestExitAfterCommit(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
@@ -1146,7 +1147,7 @@ func TestModelStartsInEditMode(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	m, err := NewModel(ed)
+	m, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	assert.Equal(t, ModeConfig, m.Mode(), "editor model should start in ModeConfig")
 	assert.True(t, m.hasEditor(), "editor model should have an editor")
@@ -1158,7 +1159,7 @@ func TestModelStartsInEditMode(t *testing.T) {
 // VALIDATES: AC-2 from spec-unified-cli: ze cli opens in Command mode.
 // PREVENTS: Command-only model accidentally starting in edit mode.
 func TestModelStartsInCommandMode(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	assert.Equal(t, ModeOperational, m.Mode(), "command model should start in ModeOperational")
 	assert.False(t, m.hasEditor(), "command model should have no editor")
 }
@@ -1169,7 +1170,7 @@ func TestModelStartsInCommandMode(t *testing.T) {
 // VALIDATES: AC-3 from spec-unified-cli: edit commands unavailable without config.
 // PREVENTS: Nil dereference when dispatching set/delete/commit without editor.
 func TestEditCommandsUnavailableWithoutEditor(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.width = 80
 	m.height = 24
 
@@ -1198,7 +1199,7 @@ func TestEditCommandsUnavailableWithoutEditor(t *testing.T) {
 // VALIDATES: AC-3 from spec-unified-cli: mode switch blocked without config.
 // PREVENTS: Entering ModeConfig with nil editor causing nil panics in updateCompletions/View.
 func TestModeConfigBlockedWithoutEditor(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.width = 80
 	m.height = 24
 
@@ -1224,7 +1225,7 @@ func TestModeConfigBlockedWithoutEditor(t *testing.T) {
 // VALIDATES: BLOCKER-1 from spec review: View() m.editor.Dirty() nil guard.
 // PREVENTS: Panic on every render frame in command-only mode.
 func TestViewRendersWithoutEditor(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.width = 80
 	m.height = 24
 
@@ -1255,7 +1256,7 @@ func TestShiftArrowLineScroll(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Initialize with window size to activate viewport
@@ -1302,7 +1303,7 @@ func TestCtrlArrowPageScroll(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Initialize with window size to activate viewport
@@ -1373,7 +1374,7 @@ func TestPluginCommandCompleter(t *testing.T) {
 // VALIDATES: AC-4 from spec-login-warnings: Warning includes actionable command.
 // PREVENTS: Login warnings silently dropped, not rendered to operator.
 func TestModelDisplaysLoginWarnings(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.width = 80
 	m.height = 24
 
@@ -1391,7 +1392,7 @@ func TestModelDisplaysLoginWarnings(t *testing.T) {
 // VALIDATES: AC-2 from spec-login-warnings: No warning in welcome when no stale peers.
 // PREVENTS: Empty warning block rendered when warnings are nil.
 func TestModelNoLoginWarnings(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.width = 80
 	m.height = 24
 
@@ -1406,7 +1407,7 @@ func TestModelNoLoginWarnings(t *testing.T) {
 // VALIDATES: Multiple warnings render as consecutive blocks.
 // PREVENTS: Only first warning displayed, rest silently dropped.
 func TestModelMultipleLoginWarnings(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.width = 80
 	m.height = 24
 
@@ -1437,7 +1438,7 @@ func TestModelDisplaysLoginWarningsWithEditor(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
@@ -1456,7 +1457,7 @@ func TestModelDisplaysLoginWarningsWithEditor(t *testing.T) {
 // VALIDATES: Warning with no actionable command displays message only.
 // PREVENTS: Bare "run:" line displayed when Command is empty.
 func TestWarningWithEmptyCommand(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.width = 80
 	m.height = 24
 
@@ -1474,7 +1475,7 @@ func TestWarningWithEmptyCommand(t *testing.T) {
 // VALIDATES: Empty Message produces no visual artifact.
 // PREVENTS: Bare "warning: " line displayed for empty Message.
 func TestWarningWithEmptyMessage(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.width = 80
 	m.height = 24
 
@@ -1495,7 +1496,7 @@ func TestWarningWithEmptyMessage(t *testing.T) {
 // for its backend names, so every interactive session panicked before it drew
 // a prompt. No `-c` run reaches this path to say so.
 func TestCommandModelTakesACompleterWithNoEditor(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	if m.completer != nil {
 		t.Fatalf("NewCommandModel grew a config completer, so this test no longer covers the case")
 	}

@@ -84,6 +84,20 @@ func commandRecords(count int) iter.Seq[rpc.RowRecord] {
 	}
 }
 
+func positionalCommandRecords(count int) iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
+		var row rpc.RawRow
+		for i := range count {
+			var value textbuf.Buffer
+			value.Str(`["show cmd-`).Int(int64(i)).Str(`","row `).Int(int64(i)).Str(`"]`)
+			row = rpc.RawRow(value.String())
+			if !yield(rpc.RowRecord{Item: &row}) {
+				return
+			}
+		}
+	}
+}
+
 // TestARecordAnswerReachesTheOperatorOverTheExecChannel drives a row generator
 // from a handler to a client over a real SSH connection.
 //
@@ -131,6 +145,40 @@ func TestARecordAnswerReachesTheOperatorOverTheExecChannel(t *testing.T) {
 				"ndjson renders the records, not the envelope they collapse under")
 		})
 	}
+}
+
+// TestStreamHeadUsesTheSelectedPositionalSchema drives display over 257
+// positional rows and parses the real exec-channel head.
+//
+// VALIDATES: IR2-14 -- streamed row values and their head field names are
+// narrowed and reordered by the same chain.
+// PREVENTS: writeExecRecords framing records.Fields after RenderRecords changed
+// the positional values, which labels each value as the wrong field.
+func TestStreamHeadUsesTheSelectedPositionalSchema(t *testing.T) {
+	const rows = rpc.AnswerBufferThreshold + 1
+	srv := answerServer(t, func(string) (*plugin.Response, error) {
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data: plugin.Records{
+				Key:    "commands",
+				Fields: []string{"value", "help"},
+				Rows:   positionalCommandRecords(rows),
+			},
+		}, nil
+	})
+
+	_, stderr := execUndeclared(t, srv, "system command list | display help value | ndjson")
+	var head rpc.AnswerTail
+	for line := range strings.SplitSeq(strings.TrimRight(stderr, "\n"), "\n") {
+		kind, tail, err := rpc.ParseAnswerLine([]byte(line))
+		require.NoError(t, err)
+		if kind == rpc.AnswerKindHead {
+			head = tail
+		}
+	}
+	require.Equal(t, rpc.AnswerKindHead, head.Kind)
+	assert.Equal(t, rpc.AnswerTypeTable, head.Type)
+	assert.Equal(t, []string{"help", "value"}, head.Fields)
 }
 
 // recordRowsWanted is how many rows the server's handler answers with. The

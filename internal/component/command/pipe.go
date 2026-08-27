@@ -58,13 +58,23 @@ const (
 // pipeOp represents one parsed operator. Address declarations are bound when
 // the command is parsed, so both document and record paths transform the same
 // fields even after command-owned filters are folded into the command text.
-// selectionApplied marks display data already selected on the record path; the
-// renderer still reads its argument for column order.
+// allAddressFields is the explicit standalone-stdin contract. Command paths
+// always use declarations. selectionApplied marks display data already selected
+// on the record path. The renderer still reads its argument for column order.
 type pipeOp struct {
 	kind             pipeKind
 	arg              string
 	addressFields    []string
+	allAddressFields bool
 	selectionApplied bool
+}
+
+func (op pipeOp) hasAddressFields() bool {
+	return op.allAddressFields || len(op.addressFields) > 0
+}
+
+func isAddressOp(kind pipeKind) bool {
+	return kind == pipeResolve || kind == pipeOrigin
 }
 
 // pipeSurface says whether a caller receives one answer or a sequence.
@@ -72,10 +82,8 @@ type pipeOp struct {
 type pipeSurface uint8
 
 const (
-	// pipeSurfaceUnspecified is not a valid execution surface.
-	pipeSurfaceUnspecified pipeSurface = iota
-	// pipeSurfaceOneShot receives one answer.
-	pipeSurfaceOneShot
+	// Zero is invalid so an omitted surface fails every explicit comparison.
+	pipeSurfaceOneShot pipeSurface = iota + 1
 	// pipeSurfaceStream receives a sequence of answers.
 	pipeSurfaceStream
 )
@@ -199,12 +207,15 @@ func expandAliases(command string, ops []pipeOp) []pipeOp {
 }
 
 // foldFilters rewrites command-owned pipe filters into command arguments.
-// A folded filter runs in the command handler, at the source of the data.
-// Every other operator stays in the chain ApplyPipes runs over the answer.
-// Returns pipe metadata recording all data-shaping modifiers (both folded
-// and remaining). Display-only pipes are excluded from metadata.
+// Known catalog operators are argument-validated before any op can be removed.
+// A known row transform after a format stays in the chain because it acts on
+// the rendered document. Unknown operators stay available for command-filter
+// validation below. Returns pipe metadata recording all data-shaping modifiers.
 func foldFilters(command string, ops []pipeOp) (string, []pipeOp, pipeChainMeta) {
 	meta := collectPipeMeta(ops)
+	if msg := validateKnownPipeArguments(ops); msg != "" {
+		return command, []pipeOp{{kind: pipeInvalid, arg: msg}}, meta
+	}
 
 	trimmed := strings.TrimSpace(command)
 
@@ -216,33 +227,29 @@ func foldFilters(command string, ops []pipeOp) (string, []pipeOp, pipeChainMeta)
 	var leadingArgs []string
 	var serverArgs []string
 	var chainOps []pipeOp
+	formatSeen := false
 
 	for _, op := range ops {
+		if isFormatOp(op.kind) {
+			formatSeen = true
+		}
 		switch op.kind {
-		case pipeMatch:
-			if filter, ok := set.byName["match"]; ok {
-				serverArgs = appendFilter(serverArgs, filter, op.arg)
-			} else {
+		case pipeMatch, pipeCount, pipeFirst, pipeLast:
+			if formatSeen {
 				chainOps = append(chainOps, op)
+				continue
 			}
-		case pipeCount:
-			if filter, ok := set.byName["count"]; ok {
-				serverArgs = appendFilter(serverArgs, filter, "")
-			} else {
+			entry, known := lookupPipeOperatorByKind(op.kind)
+			if !known {
 				chainOps = append(chainOps, op)
+				continue
 			}
-		case pipeFirst:
-			if filter, ok := set.byName["first"]; ok {
-				serverArgs = appendFilter(serverArgs, filter, op.arg)
-			} else {
+			filter, owned := set.byName[entry.Name]
+			if !owned {
 				chainOps = append(chainOps, op)
+				continue
 			}
-		case pipeLast:
-			if filter, ok := set.byName["last"]; ok {
-				serverArgs = appendFilter(serverArgs, filter, op.arg)
-			} else {
-				chainOps = append(chainOps, op)
-			}
+			serverArgs = appendFilter(serverArgs, filter, op.arg)
 		case pipeUnknown:
 			filter, arg, known := lookupFilter(set, op.arg)
 			if !known {
@@ -457,15 +464,15 @@ func ApplyPipes(output string, ops []pipeOp, meta pipeChainMeta, columns []Colum
 		case pipeRaw:
 			// Identity: the dispatcher's JSON is already the answer.
 		case pipeResolve:
-			if len(op.addressFields) == 0 {
+			if !op.hasAddressFields() {
 				return "", addressOperatorRefusal("resolve")
 			}
-			result = applyResolve(result, op.addressFields)
+			result = applyResolve(result, op.addressFields, op.allAddressFields)
 		case pipeOrigin:
-			if len(op.addressFields) == 0 {
+			if !op.hasAddressFields() {
 				return "", addressOperatorRefusal("origin")
 			}
-			result = applyOrigin(result, op.addressFields)
+			result = applyOrigin(result, op.addressFields, op.allAddressFields)
 		case pipeFirst:
 			taken, msg := applyFirst(result, op.arg)
 			if msg != "" {
@@ -539,7 +546,7 @@ func hasFormatOp(ops []pipeOp) bool {
 // A caller that carries a default format of its own uses this to step aside:
 // what the operator typed outranks a default. ProcessStreamPipes already
 // applies that precedence internally. A caller that goes through
-// ProcessPipesChecked has to apply it itself, and this is what it asks.
+// processPipesChecked has to apply it itself, and this is what it asks.
 func HasFormatPipe(input string) bool {
 	command, ops := parsePipeChain(input)
 	_, ops, _ = foldFilters(command, ops)
@@ -556,11 +563,12 @@ func ValidatePipes(ops []pipeOp) string {
 }
 
 func validatePipeLanguage(ops []pipeOp) string {
+	if msg := validateKnownPipeArguments(ops); msg != "" {
+		return msg
+	}
+
 	formatCount := 0
 	for _, op := range ops {
-		if msg := validatePipeArgument(op); msg != "" {
-			return msg
-		}
 		if op.kind == pipeInvalid {
 			return op.arg
 		}
@@ -581,14 +589,6 @@ func validatePipeLanguage(ops []pipeOp) string {
 				return msg
 			}
 		}
-		if op.kind == pipeLast {
-			n, err := strconv.Atoi(op.arg)
-			if err == nil {
-				if n > recordsLastLimit {
-					return lastRetentionCountError(op.arg)
-				}
-			}
-		}
 	}
 	if formatCount > 1 {
 		return multipleFormatsError
@@ -600,6 +600,30 @@ func validatePipeLanguage(ops []pipeOp) string {
 		return msg
 	}
 	// The entry point checks the surface-dependent stream and save rules.
+	return ""
+}
+
+// validateKnownPipeArguments runs before command-owned filters are folded.
+// Unknown operators stay untouched for command-filter lookup. The fold
+// validates them against the command's own declaration.
+func validateKnownPipeArguments(ops []pipeOp) string {
+	for _, op := range ops {
+		if _, known := lookupPipeOperatorByKind(op.kind); !known {
+			continue
+		}
+		if msg := validatePipeArgument(op); msg != "" {
+			return msg
+		}
+		if op.kind != pipeLast {
+			continue
+		}
+		n, err := strconv.Atoi(op.arg)
+		if err == nil {
+			if n > recordsLastLimit {
+				return lastRetentionCountError(op.arg)
+			}
+		}
+	}
 	return ""
 }
 
@@ -1236,12 +1260,12 @@ func pipeError(msg string) string {
 	return tb.Str(PipeErrorPrefix).Str(msg).String()
 }
 
-// ProcessPipesChecked splits user input into a command and a formatting function,
+// processPipesChecked splits user input into a command and a formatting function,
 // validating the pipe chain upfront. The returned function applies pipe operators
 // (table, json, yaml, match, count) to raw JSON output. If no pipes are present,
 // the formatter returns raw JSON unchanged. Returns a non-empty errMsg (and a nil
 // format) if the pipe chain is invalid.
-func ProcessPipesChecked(input string) (command string, format func(string) string, errMsg string) {
+func processPipesChecked(input string) (command string, format func(string) string, errMsg string) {
 	command, ops := parsePipeChain(input)
 	columns := ColumnsForCommand(command)
 	command, ops, meta := foldFilters(command, ops)
@@ -1260,9 +1284,38 @@ func ProcessPipesChecked(input string) (command string, format func(string) stri
 	}
 
 	return command, func(rawJSON string) string {
-		result, errMsg := ApplyPipes(rawJSON, ops, meta, columns)
-		if errMsg != "" {
-			return pipeError(errMsg)
+		result, applyErr := ApplyPipes(rawJSON, ops, meta, columns)
+		if applyErr != "" {
+			return pipeError(applyErr)
+		}
+		return result
+	}, ""
+}
+
+// ProcessStandalonePipesChecked prepares one pipe chain over JSON read from
+// stdin. Unlike command paths, standalone input has no declaration registry:
+// resolve and origin therefore walk every JSON field whose value is an address.
+func ProcessStandalonePipesChecked(operators string) (format func(string) string, errMsg string) {
+	ops := parsePipeOps(operators)
+	for i := range ops {
+		if isAddressOp(ops[i].kind) {
+			ops[i].allAddressFields = true
+		}
+	}
+	if msg := validatePipeLanguage(ops); msg != "" {
+		return nil, msg
+	}
+	if msg := validateStreamOps(ops, pipeSurfaceOneShot); msg != "" {
+		return nil, msg
+	}
+	if msg := validateSaveOps(ops, true); msg != "" {
+		return nil, msg
+	}
+	meta := collectPipeMeta(ops)
+	return func(input string) string {
+		result, applyErr := ApplyPipes(input, ops, meta, nil)
+		if applyErr != "" {
+			return pipeError(applyErr)
 		}
 		return result
 	}, ""
@@ -1364,9 +1417,8 @@ func configuredDefault(sessionFormat string) pipeKind {
 	}
 }
 
-// ProcessPipesDefaultFormatChecked is ProcessPipesChecked but defaults to the
-// configured format when no explicit format pipe (json, table, yaml, text) is
-// specified.
+// ProcessPipesDefaultFormatChecked is processPipesChecked with the configured
+// default appended when the chain names no explicit format.
 //
 // This is the REMOTE form: the caller is a process expanding the chain on
 // somebody else's behalf, so `| save` is refused. The SSH exec channel and

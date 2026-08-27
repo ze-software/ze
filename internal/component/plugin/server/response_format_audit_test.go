@@ -144,7 +144,7 @@ func TestShowCommandPayloadsAreStructured(t *testing.T) {
 		}
 
 		for _, op := range formatOperators {
-			_, format, errMsg := command.ProcessPipesChecked(reg.WireMethod + " | " + op)
+			_, format, errMsg := command.ProcessPipesDefaultFormatChecked(reg.WireMethod+" | "+op, "")
 			if errMsg != "" {
 				t.Errorf("%s | %s: pipe chain rejected: %s", reg.WireMethod, op, errMsg)
 				continue
@@ -193,7 +193,7 @@ func TestPreRenderedTextPayloadIsRefused(t *testing.T) {
 	// And this is why it matters: every operator hands the reader the same text
 	// back, so `| json`, `| yaml` and `| table` stop being three renderings.
 	for _, op := range formatOperators {
-		_, format, errMsg := command.ProcessPipesChecked("x | " + op)
+		_, format, errMsg := command.ProcessPipesDefaultFormatChecked("x | "+op, "")
 		require.Empty(t, errMsg)
 		require.Contains(t, format(payload), "bgp keepalive",
 			"`| %s` renders the text back rather than a structure", op)

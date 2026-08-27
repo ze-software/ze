@@ -8,9 +8,10 @@
 // string.
 //
 // The memory shape is the reason this half exists. An operator that reads a
-// record and forgets it costs one record whatever the answer holds, `| last N`
-// costs at most the declared record and byte ceilings, and `| table` costs the
-// whole answer because a column width is measured over every row.
+// record and forgets it costs one record whatever the answer holds, and
+// `| last N` costs at most the declared record and byte ceilings. RenderRecords
+// keeps this path when transforms precede rendering. A format followed by a row
+// transform instead needs the rendered document and is collected there.
 // ChainBuffersRecords is what a consumer asks before it decides to render as it
 // reads.
 //
@@ -51,9 +52,9 @@ const (
 // record and pulls nothing. A positional display that names no schema field
 // returns a message before pulling a record.
 //
-// A format operator changes no record. What `| json`, `| ndjson`, `| yaml`,
-// `| table` and `| text` decide is how a consumer renders the records it is
-// handed, and that consumer is the SSH exec channel rather than this function.
+// A format operator changes no record when it follows the data transforms.
+// RenderRecords detects a format before a later transform and runs that whole
+// chain over one collapsed document instead of calling this path.
 func applyPipesRecords(
 	input string,
 	fields []string,
@@ -77,6 +78,12 @@ func applyPipesRecords(
 				return nil, fields, msg
 			}
 			continue
+		}
+		if len(fields) > 0 {
+			if isAddressOp(op.kind) {
+				records, fields = recordsPositionalAddressTransformed(records, fields, op)
+				continue
+			}
 		}
 		records = applyRecordOp(records, op)
 	}
@@ -102,11 +109,11 @@ func applyRecordOp(records iter.Seq[rpc.Record], op pipeOp) iter.Seq[rpc.Record]
 		return records
 	case pipeResolve:
 		return recordsTransformed(records, func(v any) any {
-			return resolveJSON(v, op.addressFields)
+			return resolveJSON(v, op.addressFields, op.allAddressFields)
 		})
 	case pipeOrigin:
 		return recordsTransformed(records, func(v any) any {
-			return originJSON(v, op.addressFields)
+			return originJSON(v, op.addressFields, op.allAddressFields)
 		})
 	case pipeTable, pipeText:
 		// The two operators that cannot answer from the record in hand, and the
@@ -403,6 +410,110 @@ func selectItem(item json.RawMessage, keep map[string]struct{}) (json.RawMessage
 		return item, true
 	}
 	return encoded, true
+}
+
+// recordsPositionalAddressTransformed extends positional values and their head
+// schema together. Every selected source column contributes a fixed suffix set,
+// so lookup misses keep the same row width as hits.
+func recordsPositionalAddressTransformed(
+	records iter.Seq[rpc.Record],
+	fields []string,
+	op pipeOp,
+) (iter.Seq[rpc.Record], []string) {
+	indices, derived := positionalAddressFields(fields, op)
+	if len(indices) == 0 {
+		return records, fields
+	}
+	fieldCount := len(fields)
+	fields = append(append([]string(nil), fields...), derived...)
+	return func(yield func(rpc.Record) bool) {
+		for record := range records {
+			if len(record.Item) > 0 {
+				transformed, msg := transformPositionalAddressItem(record.Item, indices, fieldCount, op.kind)
+				if msg != "" {
+					yield(pipeFault(msg))
+					return
+				}
+				record.Item = transformed
+			}
+			if !yield(record) {
+				return
+			}
+		}
+	}, fields
+}
+
+func positionalAddressFields(fields []string, op pipeOp) ([]int, []string) {
+	var indices []int
+	var derived []string
+	for index, field := range fields {
+		if !addressFieldSelected(op.addressFields, field, op.allAddressFields) {
+			continue
+		}
+		indices = append(indices, index)
+		switch op.kind { //nolint:exhaustive // recordsPositionalAddressTransformed passes only resolve or origin.
+		case pipeResolve:
+			derived = append(derived, derivedAddressField(field, "-name"))
+		case pipeOrigin:
+			derived = append(derived,
+				derivedAddressField(field, "-asn"),
+				derivedAddressField(field, "-as-name"),
+				derivedAddressField(field, "-prefix"),
+			)
+		}
+	}
+	return indices, derived
+}
+
+func derivedAddressField(field, suffix string) string {
+	var name textbuf.Buffer
+	return name.Str(field).Str(suffix).String()
+}
+
+func transformPositionalAddressItem(
+	item json.RawMessage,
+	indices []int,
+	fieldCount int,
+	kind pipeKind,
+) (json.RawMessage, string) {
+	decoder := json.NewDecoder(bytes.NewReader(item))
+	decoder.UseNumber()
+	var values []any
+	if err := decoder.Decode(&values); err != nil {
+		return nil, "address operator cannot transform a positional row: the row is not a JSON array"
+	}
+	if len(values) != fieldCount {
+		var tb textbuf.Buffer
+		return nil, tb.Str("address operator cannot transform a positional row: row has ").
+			Int(int64(len(values))).Str(" values, schema has ").
+			Int(int64(fieldCount)).String()
+	}
+	for _, index := range indices {
+		address, _ := values[index].(string)
+		switch kind { //nolint:exhaustive // positionalAddressFields produces indices only for resolve or origin.
+		case pipeResolve:
+			name := ""
+			if address != "*" {
+				if isIPAddress(address) {
+					name = ReverseLookup(address)
+				}
+			}
+			values = append(values, name)
+		case pipeOrigin:
+			origin := OriginResult{}
+			if address != "*" {
+				if isIPAddress(address) {
+					origin = LookupOrigin(address)
+				}
+			}
+			values = append(values, origin.ASN, origin.Name, origin.Prefix)
+		}
+	}
+	encoded, err := json.Marshal(values)
+	if err != nil {
+		return nil, "address operator cannot transform a positional row: derived values cannot be encoded"
+	}
+	return encoded, ""
 }
 
 // recordsTransformed rewrites each result with transform, which is how

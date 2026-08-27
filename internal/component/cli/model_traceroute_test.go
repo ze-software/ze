@@ -155,7 +155,7 @@ func assertPath(t *testing.T, ts *tracerouteState, ttlIdx, pathIdx int, addr str
 // assertRender checks that the rendered output contains all expected substrings.
 func assertRender(t *testing.T, ts *tracerouteState, expected []string) {
 	t.Helper()
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.width = 120
 	m.activeView = &tracerouteView{st: ts}
 	output := m.renderTraceroute()
@@ -328,7 +328,7 @@ func TestRender_HopNumberOnFirstPathOnly(t *testing.T) {
 		lastPollTime: time.Now(),
 	}
 
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.width = 120
 	m.activeView = &tracerouteView{st: ts}
 	output := m.renderTraceroute()
@@ -390,7 +390,7 @@ func TestHandleTraceroutePoll(t *testing.T) {
 	ch <- map[string]any{"ttl": 3, "addr": "*", "rtt-ms": nil}
 	close(ch)
 
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.activeView = &tracerouteView{st: &tracerouteState{
 		target:  "8.8.8.8",
 		maxHops: 16,
@@ -415,7 +415,7 @@ func TestHandleTraceroutePoll_Partial(t *testing.T) {
 	ch := make(chan map[string]any, 3)
 	ch <- map[string]any{"ttl": 1, "addr": "10.0.0.1", "rtt-ms": 2.0}
 
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.activeView = &tracerouteView{st: &tracerouteState{
 		target:  "8.8.8.8",
 		maxHops: 16,
@@ -444,7 +444,7 @@ func TestHandleTraceroutePoll_MultiRound(t *testing.T) {
 		return ch, cancel, nil
 	}
 
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.setTracerouteFactory(factory)
 	cmd := m.startTraceroute("monitor traceroute 8.8.8.8")
 	require.NotNil(t, cmd)
@@ -470,13 +470,13 @@ func TestHandleTraceroutePoll_MultiRound(t *testing.T) {
 }
 
 func TestHandleTraceroutePoll_NilSession(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	_, cmd := m.handleTraceroutePoll()
 	assert.Nil(t, cmd)
 }
 
 func TestRenderTraceroute_Empty(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.width = 80
 	m.activeView = &tracerouteView{st: &tracerouteState{target: "8.8.8.8", rounds: 0, maxHops: 30}}
 	output := m.renderTraceroute()
@@ -484,7 +484,7 @@ func TestRenderTraceroute_Empty(t *testing.T) {
 }
 
 func TestRenderTraceroute_Nil(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	assert.Equal(t, "", m.renderTraceroute())
 }
 
@@ -510,7 +510,7 @@ func TestWritePadRight(t *testing.T) {
 }
 
 func TestHandleTracerouteKey(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.activeView = &tracerouteView{st: &tracerouteState{target: "8.8.8.8"}}
 	assert.True(t, m.handleTracerouteKey("q"))
 	assert.Nil(t, m.activeTraceroute())
@@ -518,26 +518,26 @@ func TestHandleTracerouteKey(t *testing.T) {
 }
 
 func TestHandleTracerouteKey_Esc(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.activeView = &tracerouteView{st: &tracerouteState{target: "8.8.8.8"}}
 	assert.True(t, m.handleTracerouteKey("esc"))
 	assert.Nil(t, m.activeTraceroute())
 }
 
 func TestHandleTracerouteKey_NilSession(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	assert.False(t, m.handleTracerouteKey("q"))
 }
 
 func TestStartTraceroute_NoFactory(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	cmd := m.startTraceroute("monitor traceroute 8.8.8.8")
 	assert.Nil(t, cmd)
 	assert.Equal(t, "traceroute not available (no daemon connection)", m.statusMessage)
 }
 
 func TestStartTraceroute_NoTarget(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.setTracerouteFactory(testFactory(nil))
 	cmd := m.startTraceroute("monitor traceroute max-hops 10")
 	assert.Nil(t, cmd)
@@ -545,7 +545,7 @@ func TestStartTraceroute_NoTarget(t *testing.T) {
 }
 
 func TestStartTraceroute_OK(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.setTracerouteFactory(testFactory([]map[string]any{{"ttl": 1, "addr": "10.0.0.1", "rtt-ms": 1.0}}))
 	cmd := m.startTraceroute("monitor traceroute 8.8.8.8")
 	assert.NotNil(t, cmd)
@@ -647,7 +647,7 @@ func TestFormatTracerouteLogLineEmpty(t *testing.T) {
 // same string again as "error: ...". A reader saw one failure as two, and
 // neither copy was where the faults of any other command appear.
 func TestTracerouteViewAnswersItsFaultRatherThanRenderingIt(t *testing.T) {
-	m := NewCommandModel()
+	m := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	m.width = 120
 	view := &tracerouteView{st: &tracerouteState{
 		target:    "192.0.2.1",

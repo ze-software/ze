@@ -72,7 +72,7 @@ func TestBGPDecodePayloadRendersInEveryFormat(t *testing.T) {
 		{"table", "keepalive"},
 	} {
 		t.Run(tc.format, func(t *testing.T) {
-			cmdStr, formatFn, pipeErr := command.ProcessPipesChecked("show bgp decode " + keepaliveHex + " | " + tc.format)
+			cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked("show bgp decode "+keepaliveHex+" | "+tc.format, "")
 			require.Empty(t, pipeErr)
 			require.Equal(t, "show bgp decode "+keepaliveHex, cmdStr)
 
@@ -113,7 +113,7 @@ func TestBGPDecodeTextPayloadRendersInNoFormat(t *testing.T) {
 
 	for _, format := range []string{"json", "yaml", "table"} {
 		t.Run(format, func(t *testing.T) {
-			_, formatFn, pipeErr := command.ProcessPipesChecked("show bgp decode " + keepaliveHex + " | " + format)
+			_, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked("show bgp decode "+keepaliveHex+" | "+format, "")
 			require.Empty(t, pipeErr)
 
 			assert.Equal(t, text, formatFn(text), "a pre-rendered payload passes through %s unchanged, which is the escape this invariant closes", format)

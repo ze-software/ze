@@ -30,7 +30,7 @@ func TestModelCommitConfirmStartsTimer(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.editor.MarkDirty()
 
@@ -63,7 +63,7 @@ func TestModelCommitConfirmBoundaryLow(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.editor.MarkDirty()
 
@@ -88,7 +88,7 @@ func TestModelCommitConfirmBoundaryHigh(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.editor.MarkDirty()
 
@@ -113,7 +113,7 @@ func TestModelConfirmCancelsTimer(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.editor.MarkDirty()
 
@@ -152,7 +152,7 @@ func TestModelAbortRollsBack(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Modify content
@@ -198,7 +198,7 @@ func TestModelLoadFile(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Load the file
@@ -252,7 +252,7 @@ func TestModelLoadMerge(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Load merge
@@ -286,7 +286,7 @@ func TestModelLoadNotFound(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Load nonexistent file
@@ -317,7 +317,7 @@ func TestModelLoadRelativePath(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Load with relative path (relative to config file)
@@ -510,7 +510,7 @@ func TestLoadFileAbsoluteReplace(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Execute new load command
@@ -562,7 +562,7 @@ func TestLoadFileAbsoluteMerge(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Execute merge
@@ -622,7 +622,7 @@ description "new peer"`
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Enter peer context
@@ -682,7 +682,7 @@ timer { receive-hold-time 180; }`
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Enter peer context
@@ -719,7 +719,7 @@ func TestLoadOldSyntaxRejected(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Try old "load <file>" syntax
@@ -743,7 +743,7 @@ func TestLoadOldMergeSyntaxRejected(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Try old "load merge <file>" syntax
@@ -767,7 +767,7 @@ func TestLoadTerminalEntersPasteMode(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Execute terminal load command
@@ -818,7 +818,7 @@ peer peer1 {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Enter bgp context (single-element contextPath = ["bgp"])
@@ -878,7 +878,7 @@ description "merged content"`
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Enter bgp context (single-element contextPath = ["bgp"])
@@ -935,7 +935,7 @@ func TestCommitConfirmTriggersReload(t *testing.T) {
 		return nil
 	})
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.editor.MarkDirty()
 
@@ -966,7 +966,7 @@ func TestCommitConfirmReloadFailsGracefully(t *testing.T) {
 		return fmt.Errorf("connection refused")
 	})
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.editor.MarkDirty()
 
@@ -999,7 +999,7 @@ func TestConfirmTriggersReload(t *testing.T) {
 		return nil
 	})
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.editor.MarkDirty()
 
@@ -1040,7 +1040,7 @@ func TestAbortTriggersReload(t *testing.T) {
 		return nil
 	})
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 	model.editor.MarkDirty()
 
@@ -1076,7 +1076,7 @@ func TestCommitConfirmedSessionRouting(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model, err := NewModel(ed)
+	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)
 	require.NoError(t, err)
 
 	// Set up session.

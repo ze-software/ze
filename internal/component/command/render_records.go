@@ -3,16 +3,16 @@
 // Related: pipe.go — the same operator chain applied to one whole payload
 //
 // render_records.go turns the records of one answer into the bytes an operator
-// reads. It is the consumer pipe_records.go names: a format operator changes no
-// record, so the rendering happens here, once, at the edge that owns the writer.
+// reads. It is the edge that owns both the rendering writer and the decision to
+// keep record streaming or run one ordered document chain.
 //
 // Two decisions live in this file and they are independent.
 //
-// The first is what the answer IS, and it is read from the walk: a walk that
-// ends within rpc.AnswerBufferThreshold records is one document, and a walk that
-// passes it is a stream. The plugin connection's encoder makes the same decision
-// from the same constant (WriteAnswer, internal/component/plugin/dispatch.go), so
-// the two channels agree about what a bounded answer is.
+// The first is what the answer IS. A walk that ends within
+// rpc.AnswerBufferThreshold records is one document. A walk that passes the
+// threshold is a stream unless operator order requires a rendered document.
+// A format followed by a row transform requires that document at every row
+// count.
 //
 // The second is how the answer is RENDERED, and it is read from the chain. Only
 // `| ndjson` names one JSON value per line, so only `| ndjson` can be written as
@@ -29,19 +29,22 @@ import (
 	"io"
 	"iter"
 	"slices"
+	"strings"
 
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // RecordAnswer is what a walk turned out to be, for the caller that frames it.
 //
-// Type is rpc.AnswerTypeDocument when the walk ended within the threshold and the
-// answer is one document, and rpc.AnswerTypeMap or rpc.AnswerTypeTable when
-// it passed the threshold. Count and Faults are the records the CHAIN produced,
-// not the records the command did: `| count` answers one record whatever it
-// counted, and the operator's terminator must state what the operator received.
+// Type is rpc.AnswerTypeDocument when the walk ended within the threshold or
+// operator order requires one rendered document. Otherwise it is
+// rpc.AnswerTypeMap or rpc.AnswerTypeTable. Count and Faults are the records the
+// chain produced, not the records the command did: `| count` answers one record
+// whatever it counted. Fields is the positional schema after every selection
+// and enrichment.
 type RecordAnswer struct {
 	Type   string
+	Fields []string
 	Count  uint64
 	Faults uint64
 }
@@ -65,6 +68,13 @@ func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []strin
 	if msg := ValidatePipes(chain); msg != "" {
 		return RecordAnswer{}, errors.New(msg)
 	}
+	if msg := validateDeclaredShape(command, chain); msg != "" {
+		return RecordAnswer{}, errors.New(msg)
+	}
+	if formatBeforeDataTransform(chain) {
+		return renderRecordsDocument(w, key, fields, rows, chain, meta, columns)
+	}
+
 	answered := chainAnswersItsOwnDocument(chain)
 	ops = renderOps(chain, sessionFormat)
 
@@ -86,7 +96,10 @@ func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []strin
 		fields = nil
 	}
 
-	answer := RecordAnswer{Type: rpc.AnswerTypeDocument}
+	answer := RecordAnswer{
+		Type:   rpc.AnswerTypeDocument,
+		Fields: append([]string(nil), fields...),
+	}
 	streamed := streamsPerRecord(ops, fields, meta)
 
 	// held is the window the answer is decided in. It grows to the threshold
@@ -138,6 +151,92 @@ func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []strin
 	return answer, writeDocument(w, held, key, fields, answered, ops, meta, columns)
 }
 
+// formatBeforeDataTransform reports the chains whose later operator must read
+// the rendered document. Running their transforms on records first changes the
+// operator order and makes the answer depend on the streaming threshold.
+func formatBeforeDataTransform(ops []pipeOp) bool {
+	formatSeen := false
+	for _, op := range ops {
+		if isFormatOp(op.kind) {
+			formatSeen = true
+			continue
+		}
+		if formatSeen {
+			if isDataTransformOp(op.kind) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func renderRecordsDocument(
+	w io.Writer,
+	key string,
+	fields []string,
+	rows iter.Seq[rpc.Record],
+	ops []pipeOp,
+	meta pipeChainMeta,
+	columns []ColumnOrder,
+) (RecordAnswer, error) {
+	answer := RecordAnswer{Type: rpc.AnswerTypeDocument}
+	var held []rpc.Record
+	for record := range rows {
+		switch {
+		case len(record.Fault) > 0:
+			answer.Faults++
+		case len(record.Item) > 0:
+		default:
+			return answer, errEmptyRenderedRecord
+		}
+		held = append(held, record)
+	}
+	rendered, err := renderDocument(held, key, fields, false, ops, meta, columns)
+	if err != nil {
+		return answer, err
+	}
+	answer.Count = renderedRecordCount(rendered, chainInjectsMetadata(ops, meta))
+	return answer, writeRenderedDocument(w, rendered)
+}
+
+func chainInjectsMetadata(ops []pipeOp, meta pipeChainMeta) bool {
+	if len(meta) == 0 {
+		return false
+	}
+	for _, op := range ops {
+		if op.kind == pipeRaw {
+			return false
+		}
+	}
+	return true
+}
+
+func renderedRecordCount(rendered string, hasMetadata bool) uint64 {
+	trimmed := strings.TrimSpace(rendered)
+	if trimmed == "" {
+		return 0
+	}
+	var data any
+	if err := json.Unmarshal([]byte(trimmed), &data); err == nil {
+		if object, ok := data.(map[string]any); ok {
+			if hasMetadata {
+				delete(object, pipeMetaKey)
+			}
+		}
+		if rows, _, ok := rowsIn(data); ok {
+			return uint64(len(rows))
+		}
+		return 1
+	}
+	var count uint64
+	for line := range strings.SplitSeq(rendered, "\n") {
+		if line != "" {
+			count++
+		}
+	}
+	return count
+}
+
 // chainAnswersItsOwnDocument reports whether the chain answers a document of
 // its own rather than the rows of the command's answer.
 //
@@ -159,14 +258,26 @@ func chainAnswersItsOwnDocument(ops []pipeOp) bool {
 // buffered rendering needs, renders it through the format the chain named, and
 // writes it.
 func writeDocument(w io.Writer, held []rpc.Record, key string, fields []string, answered bool, ops []pipeOp, meta pipeChainMeta, columns []ColumnOrder) error {
-	document, err := answerDocument(held, key, fields, answered)
+	rendered, err := renderDocument(held, key, fields, answered, ops, meta, columns)
 	if err != nil {
 		return err
 	}
+	return writeRenderedDocument(w, rendered)
+}
+
+func renderDocument(held []rpc.Record, key string, fields []string, answered bool, ops []pipeOp, meta pipeChainMeta, columns []ColumnOrder) (string, error) {
+	document, err := answerDocument(held, key, fields, answered)
+	if err != nil {
+		return "", err
+	}
 	rendered, errMsg := ApplyPipes(string(document), ops, meta, columns)
 	if errMsg != "" {
-		return errors.New(errMsg)
+		return "", errors.New(errMsg)
 	}
+	return rendered, nil
+}
+
+func writeRenderedDocument(w io.Writer, rendered string) error {
 	if rendered == "" {
 		return nil
 	}
@@ -176,7 +287,7 @@ func writeDocument(w io.Writer, held []rpc.Record, key string, fields []string, 
 	if rendered[len(rendered)-1] == '\n' {
 		return nil
 	}
-	_, err = io.WriteString(w, "\n")
+	_, err := io.WriteString(w, "\n")
 	return err
 }
 

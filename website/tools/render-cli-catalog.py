@@ -215,6 +215,8 @@ def pipe_summary(command):
     pipes = pipe_items(command, "pipes")
     aliases = pipe_items(command, "pipe-aliases")
     operators = pipe_items(command, "operators")
+    answer_shape = command.get("answer-shape")
+    address_fields = pipe_items(command, "address-fields")
     if pipes:
         parts.append("%d command pipe%s" % (len(pipes), "" if len(pipes) == 1 else "s"))
     if aliases:
@@ -222,6 +224,13 @@ def pipe_summary(command):
     if operators:
         parts.append(
             "%d operator%s" % (len(operators), "" if len(operators) == 1 else "s")
+        )
+    if answer_shape:
+        parts.append("answer: %s" % answer_shape)
+    if address_fields:
+        parts.append(
+            "%d address field%s"
+            % (len(address_fields), "" if len(address_fields) == 1 else "s")
         )
     return " · ".join(parts) or "None"
 
@@ -235,17 +244,24 @@ def operators_by_availability(command):
                 "unknown operator availability for "
                 + operator.get("name", "<unnamed>")
             )
-        if operator.get("local-only"):
-            availability = "local-only"
         grouped.setdefault(availability, []).append(operator.get("name", ""))
-    return grouped
+        if operator.get("local-only"):
+            grouped.setdefault("local-only", []).append(operator.get("name", ""))
+    return {
+        availability: grouped[availability]
+        for availability in sorted(
+            grouped, key=lambda value: AVAILABILITY_ORDER.get(value, 99)
+        )
+    }
 
 
 def render_pipe_details(command):
     pipes = pipe_items(command, "pipes")
     aliases = pipe_items(command, "pipe-aliases")
     operators = pipe_items(command, "operators")
-    if not pipes and not aliases and not operators:
+    answer_shape = command.get("answer-shape")
+    address_fields = pipe_items(command, "address-fields")
+    if not pipes and not aliases and not operators and not answer_shape and not address_fields:
         return '<span class="cli-pipe-none">None</span>'
 
     parts = [
@@ -253,6 +269,16 @@ def render_pipe_details(command):
         "<summary>%s</summary>" % html.escape(pipe_summary(command)),
         '<div class="cli-pipe-detail">',
     ]
+    if answer_shape:
+        parts.append(
+            '<p><span>Answer shape</span><code>%s</code></p>'
+            % html.escape(answer_shape)
+        )
+    if address_fields:
+        parts.append(
+            '<p><span>Address fields</span><code>%s</code></p>'
+            % html.escape(" · ".join(address_fields))
+        )
     if pipes:
         parts.append('<strong>Command pipes</strong><div class="cli-pipe-chips">')
         for pipe in pipes:
@@ -320,10 +346,9 @@ def operator_catalog(commands):
                     "unknown operator availability for "
                     + operator.get("name", "<unnamed>")
                 )
-            if operator.get("local-only"):
-                available = "local-only"
-            if available not in entry["available"]:
-                entry["available"].append(available)
+            for value in (available, "local-only" if operator.get("local-only") else None):
+                if value and value not in entry["available"]:
+                    entry["available"].append(value)
     return list(catalog.values())
 
 
@@ -402,6 +427,12 @@ def markdown_code_list(values):
 
 def markdown_pipe_details(command):
     parts = []
+    answer_shape = command.get("answer-shape")
+    address_fields = pipe_items(command, "address-fields")
+    if answer_shape:
+        parts.append("Answer shape: %s" % markdown_code_list([answer_shape]))
+    if address_fields:
+        parts.append("Address fields: %s" % markdown_code_list(address_fields))
     pipes = pipe_items(command, "pipes")
     aliases = pipe_items(command, "pipe-aliases")
     if pipes:

@@ -371,6 +371,66 @@ func TestRun_HelpFlags(t *testing.T) {
 	}
 }
 
+// TestCLIHelpFormatValuesComeFromCatalog holds the --format values to the
+// catalog's mutually exclusive global renderers, including raw.
+func TestCLIHelpFormatValuesComeFromCatalog(t *testing.T) {
+	wantFormats := []string{"json", "ndjson", "table", "text", "yaml", "raw"}
+	if got := formatOperatorNames(); !slices.Equal(got, wantFormats) {
+		t.Fatalf("formatOperatorNames() = %q, want %q", got, wantFormats)
+	}
+
+	output := captureOutput(t, true, usage)
+
+	wantDescription := "Output format: json, ndjson, table, text, yaml, raw (default: the daemon's environment cli format default)"
+	if count := strings.Count(output, wantDescription); count != 1 {
+		t.Fatalf("usage contains exact format description %d times, want 1:\n%s", count, output)
+	}
+	if got := formatHelpDescription("the daemon's configured format"); got !=
+		"Output format: json, ndjson, table, text, yaml, raw (default: the daemon's configured format)" {
+		t.Fatalf("format flag description = %q", got)
+	}
+}
+
+// TestEmitLocalResultSeparatesAnswersAndDiagnostics holds both local client
+// call sites to the CLI stdout/stderr contract.
+func TestEmitLocalResultSeparatesAnswersAndDiagnostics(t *testing.T) {
+	diagnostic := "pipe error: display cannot apply here"
+	if !command.IsPipeError(diagnostic) {
+		t.Fatalf("diagnostic fixture is not a pipe error: %q", diagnostic)
+	}
+	var code int
+	var stdout string
+	stderr := captureOutput(t, true, func() {
+		stdout = captureOutput(t, false, func() {
+			code = emitLocalResult("show test | display typo", diagnostic, 1, nil)
+		})
+	})
+	if code != 1 {
+		t.Errorf("diagnostic exit = %d, want 1", code)
+	}
+	if stdout != "" {
+		t.Errorf("diagnostic stdout = %q, want empty", stdout)
+	}
+	if stderr != "pipe error: display cannot apply here\n" {
+		t.Errorf("diagnostic stderr = %q, want exact pipe error line", stderr)
+	}
+
+	stderr = captureOutput(t, true, func() {
+		stdout = captureOutput(t, false, func() {
+			code = emitLocalResult("show test", "answer\n", 0, nil)
+		})
+	})
+	if code != 0 {
+		t.Errorf("answer exit = %d, want 0", code)
+	}
+	if stdout != "answer\n" {
+		t.Errorf("answer stdout = %q, want %q", stdout, "answer\n")
+	}
+	if stderr != "" {
+		t.Errorf("answer stderr = %q, want empty", stderr)
+	}
+}
+
 // TestBuildRuntimeTree_FallbackToStatic verifies that buildRuntimeTree falls back
 // to the static command tree when the daemon is unreachable.
 //
@@ -401,7 +461,7 @@ func TestBuildRuntimeTree_FallbackToStatic(t *testing.T) {
 // VALIDATES: History recall via Up/Down arrows works correctly.
 // PREVENTS: History browsing returning wrong entries or panicking.
 func TestHistoryUpDown(t *testing.T) {
-	m := unicli.NewCommandModel()
+	m := unicli.NewCommandModel(unicli.FilesystemAuthorityOperatorLocal)
 	upKey := tea.KeyPressMsg{Code: tea.KeyUp}
 	downKey := tea.KeyPressMsg{Code: tea.KeyDown}
 	enterKey := tea.KeyPressMsg{Code: tea.KeyEnter}
@@ -469,7 +529,7 @@ func TestHistoryUpDown(t *testing.T) {
 // VALIDATES: Partial input is restored when pressing Down past the end.
 // PREVENTS: Losing user's in-progress input when browsing history.
 func TestHistoryPreservesInput(t *testing.T) {
-	m := unicli.NewCommandModel()
+	m := unicli.NewCommandModel(unicli.FilesystemAuthorityOperatorLocal)
 	upKey := tea.KeyPressMsg{Code: tea.KeyUp}
 	downKey := tea.KeyPressMsg{Code: tea.KeyDown}
 	enterKey := tea.KeyPressMsg{Code: tea.KeyEnter}
@@ -504,7 +564,7 @@ func TestHistoryPreservesInput(t *testing.T) {
 // PREVENTS: Index out of bounds on empty history.
 func TestHistoryEmpty(t *testing.T) {
 	t.Run("up", func(t *testing.T) {
-		m := unicli.NewCommandModel()
+		m := unicli.NewCommandModel(unicli.FilesystemAuthorityOperatorLocal)
 		m.SetInput("test")
 		updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyUp})
 		m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
@@ -514,7 +574,7 @@ func TestHistoryEmpty(t *testing.T) {
 	})
 
 	t.Run("down", func(t *testing.T) {
-		m := unicli.NewCommandModel()
+		m := unicli.NewCommandModel(unicli.FilesystemAuthorityOperatorLocal)
 		m.SetInput("test")
 		updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 		m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
@@ -530,7 +590,7 @@ func TestHistoryEmpty(t *testing.T) {
 // VALIDATES: Duplicate consecutive commands produce single history entry.
 // PREVENTS: History filling with repeated identical commands.
 func TestHistoryDedup(t *testing.T) {
-	m := unicli.NewCommandModel()
+	m := unicli.NewCommandModel(unicli.FilesystemAuthorityOperatorLocal)
 	enterKey := tea.KeyPressMsg{Code: tea.KeyEnter}
 	upKey := tea.KeyPressMsg{Code: tea.KeyUp}
 

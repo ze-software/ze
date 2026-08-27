@@ -86,7 +86,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 			if err != nil {
 				log.Warn("session editor creation failed", "user", username, "error", err)
 			} else {
-				m, modelErr := cli.NewModel(ed)
+				m, modelErr := cli.NewModel(ed, cli.FilesystemAuthorityUnknown)
 				if modelErr != nil {
 					log.Warn("session model creation failed", "user", username, "error", modelErr)
 				} else {
@@ -115,7 +115,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 		}
 
 		// Fallback: command-only model.
-		m := cli.NewCommandModel()
+		m := cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
 		m.SetCommandCompleter(cmdCompleter)
 		if executor != nil {
 			m.SetCommandExecutor(cliExecutor(executor))

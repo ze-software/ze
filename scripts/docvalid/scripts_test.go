@@ -351,7 +351,7 @@ func TestCodeToDocsCheckModeIsReadOnly(t *testing.T) {
 // nobody was told.
 func TestDocDriftReportsUnreadableSource(t *testing.T) {
 	root := t.TempDir()
-	readToolSource(t, "doc_drift.go", "func countMatchingLines(")
+	readToolSource(t, "func countMatchingLines(")
 
 	// One line above bufio.MaxScanTokenSize (64 KiB) stops the scan, so the
 	// `func Test` below it is never counted.
@@ -381,14 +381,14 @@ func TestDocDriftReportsUnreadableSource(t *testing.T) {
 // not an input to this test package's build, and a subprocess read is not an
 // input to the cache either, so without this an edit to the tool comes back as
 // a cached pass.
-func readToolSource(t *testing.T, name, want string) {
+func readToolSource(t *testing.T, want string) {
 	t.Helper()
-	src, err := os.ReadFile(name)
+	src, err := os.ReadFile("doc_drift.go")
 	if err != nil {
 		t.Fatalf("read the tool under test: %v", err)
 	}
 	if !strings.Contains(string(src), want) {
-		t.Fatalf("%s no longer holds %q; this test drives the wrong tool", name, want)
+		t.Fatalf("doc_drift.go no longer holds %q; this test drives the wrong tool", want)
 	}
 }
 
@@ -541,7 +541,7 @@ func TestDocDriftOperatorTableIgnoresFixtureRoots(t *testing.T) {
 // PREVENTS: AC-15 passing after one command loses an operator, an availability
 // qualifier, or an alias while the global operator table remains unchanged.
 func TestDocDriftRejectsPerCommandCatalogMutations(t *testing.T) {
-	readToolSource(t, "doc_drift.go", "checkPublishedCommandSurfaces")
+	readToolSource(t, "checkPublishedCommandSurfaces")
 	const liveCatalog = `[{
   "path": "show test",
   "description": "Show test rows",
@@ -610,12 +610,12 @@ func TestDocDriftRejectsPerCommandCatalogMutations(t *testing.T) {
 // PREVENTS: AC-15 passing vacuously when command generation or a published
 // catalog cannot be consumed.
 func TestDocDriftCommandCatalogErrorsFailClosed(t *testing.T) {
-	readToolSource(t, "doc_drift.go", "loadLiveCommandCatalog")
+	readToolSource(t, "loadLiveCommandCatalog")
 
 	t.Run("malformed published catalog", func(t *testing.T) {
 		root := t.TempDir()
 		livePath := filepath.Join(root, "live.json")
-		writeTempDoc(t, root, "live.json", `[{"path":"show test","mode":"read-only"}]`)
+		writeTempDoc(t, root, "live.json", renderedCommandCatalogFixture)
 		writeTempDoc(t, root, "website/data/cli-commands.json", `{`)
 
 		ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
@@ -657,4 +657,306 @@ func TestDocDriftCommandCatalogErrorsFailClosed(t *testing.T) {
 			t.Fatalf("doc drift did not report the live read error:\n%s", out)
 		}
 	})
+}
+
+const renderedCommandCatalogFixture = `[{
+  "path": "show test",
+  "description": "Show test rows",
+  "mode": "read-only",
+  "wire-method": "ze-show:test",
+  "args": [{"name": "family", "type": "enum", "values": ["ipv4"], "mandatory": true}],
+  "pipes": [{"name": "family", "description": "Filter by family", "takes-arg": true}],
+  "operators": [
+    {"name": "json", "class": "global", "available": "always", "description": "JSON output"},
+    {"name": "save", "class": "global", "available": "always", "local-only": true, "description": "Save output"},
+    {"name": "match", "class": "data", "available": "with-rows", "description": "Keep matching rows"},
+    {"name": "log", "class": "stream", "available": "when-streaming", "description": "Append updates"}
+  ],
+  "answer-shape": "tab",
+  "address-fields": ["address"],
+  "pipe-aliases": [{"name": "summary", "description": "Show a summary", "expansion": "display address"}]
+}]`
+
+func runRenderedCommandDriftFixture(t *testing.T, root, livePath string) (string, error) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*scriptTimeout)
+	defer cancel()
+	cmd := osexec.CommandContext(ctx, "go", goRunScript(t,
+		"scripts/docvalid/doc_drift.go",
+		"--root", root,
+		"--command-catalog", livePath,
+	)...)
+	cmd.Dir = repoRoot(t)
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
+func writeRenderedCommandCatalogFixture(t *testing.T, root string) string {
+	t.Helper()
+	writeTempDoc(t, root, "live.json", renderedCommandCatalogFixture)
+	return filepath.Join(root, "live.json")
+}
+
+func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress bool) {
+	t.Helper()
+	writeTempDoc(t, root, "website/data/cli-commands.json",
+		renderedCommandCatalogFixture)
+	primaryHTML := `<html data-site-postprocessed="true"><body>
+<header>Injected site header</header>
+<tr id="cmd-show-test"><td><code>show test</code></td><td>
+<p><span>Answer shape</span><code>tab</code></p>
+<p><span>Address fields</span><code>address</code></p>
+<p><span>Always</span><code>json · save</code></p>
+<p><span>With rows</span><code>match</code></p>
+<p><span>While streaming</span><code>log</code></p>
+<p><span>Local process only</span><code>save</code></p>
+</td></tr>
+<footer>Injected publication stamp</footer>
+</body></html>
+`
+	if dropAddress {
+		primaryHTML = strings.Replace(primaryHTML,
+			"<p><span>Address fields</span><code>address</code></p>\n", "", 1)
+	}
+	writeTempDoc(t, root, "website/reference/cli/index.html", primaryHTML)
+	writeTempDoc(t, root, "website/reference/cli/index.md",
+		strings.Join([]string{
+			"# CLI Reference",
+			"",
+			"| Command | Mode | Description | Pipes |",
+			"| --- | --- | --- | --- |",
+			"| `show test` | Read-only | Show test rows | Answer shape: `tab`<br>Address fields: `address`<br>Command: `family <value>`<br>Aliases: `summary -> display address`<br>Always: `json`, `save`<br>With rows: `match`<br>While streaming: `log`<br>Local process only: `save` |",
+			"",
+		}, "\n"))
+	writeTempDoc(t, root, "website/reference/command-equivalents/index.html",
+		`<html data-site-postprocessed="true"><body><tr id="cmd-eq-show-test"><td><code>show test</code></td></tr></body></html>
+`)
+	writeTempDoc(t, root, "website/reference/command-equivalents/index.md",
+		"# Command Equivalents\n\n| `show test` | Read-only | [details](show-test/) |\n")
+	writeTempDoc(t, root,
+		"website/reference/command-equivalents/show-test/index.html",
+		`<html data-site-postprocessed="true"><body>
+<div><dt>Pipes, always</dt><dd>json, save</dd></div>
+<div><dt>Pipes, on its rows</dt><dd>match</dd></div>
+<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
+<div><dt>Pipes, local process only</dt><dd>save</dd></div>
+<div><dt>Command pipes</dt><dd><code>family &lt;value&gt;</code>: Filter by family</dd></div>
+<div><dt>Pipe aliases</dt><dd><code>summary</code>: Show a summary (<code>display address</code>)</dd></div>
+<div><dt>Answer shape</dt><dd>tab</dd></div>
+<div><dt>Address fields</dt><dd>address</dd></div>
+</body></html>
+`)
+	writeTempDoc(t, root,
+		"website/reference/command-equivalents/show-test/index.md",
+		strings.Join([]string{
+			"# `show test`",
+			"",
+			"- Registry path: `show test`",
+			"- Answer shape: tab",
+			"- Address fields: address",
+			"- Pipes, always: json, save",
+			"- Pipes, on rows: match",
+			"- Pipes, while streaming: log",
+			"- Pipes, local process only: save",
+			"- Command pipes: `family <value>`: Filter by family",
+			"- Pipe aliases: `summary`: Show a summary (`display address`)",
+			"",
+		}, "\n"))
+	writeTempDoc(t, root, "website/llms.txt",
+		strings.Join([]string{
+			"# Ze",
+			"",
+			"## CLI command surface",
+			"",
+			"- `show test` (read-only; wire ze-show:test; pipes always: json save, with-rows: match, when-streaming: log, local-only: save; shape tab; address-fields address; filters family; aliases summary=display address; args family:enum): Show test rows",
+			"",
+		}, "\n"))
+}
+
+// VALIDATES: published HTML may carry normal site-pipeline wrappers while every
+// per-command contract dimension remains structurally identical to live JSON.
+// PREVENTS: raw-renderer byte comparison flagging headers, stamps, canonical
+// rewrites, or asset versions as CLI drift.
+func TestDocDriftAcceptsPublishedHTMLPostprocessing(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err != nil {
+		t.Fatalf("doc drift rejected benign published HTML postprocessing:\n%s", out)
+	}
+}
+
+// VALIDATES: structural published-HTML comparison still requires each command
+// dimension after byte comparison is removed.
+// PREVENTS: accepting a postprocessed primary page that dropped address fields.
+func TestDocDriftRejectsPublishedHTMLContractLoss(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, true)
+
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err == nil {
+		t.Fatalf("doc drift accepted published HTML without address fields:\n%s", out)
+	}
+	if !strings.Contains(out, "website/reference/cli/index.html") {
+		t.Fatalf("doc drift did not identify the published primary HTML:\n%s", out)
+	}
+	if !strings.Contains(out, "missing address fields") {
+		t.Fatalf("doc drift did not identify the dropped address dimension:\n%s", out)
+	}
+}
+
+// VALIDATES: ze-doc-verify generates and checks canonical per-command surfaces
+// when neither published sibling checkout exists.
+// PREVENTS: a normal single-repository checkout returning clean without
+// exercising any rendered command contract.
+func TestDocDriftNoSiblingsStillValidatesRenderedCommands(t *testing.T) {
+	readToolSource(t, "renderExpectedCommandSurfaces")
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err != nil {
+		t.Fatalf("a complete no-sibling renderer fixture failed:\n%s", out)
+	}
+}
+
+// VALIDATES: the no-sibling path checks independent command dimensions in the
+// canonical renderer output rather than treating successful process exit as proof.
+// PREVENTS: a renderer silently dropping one command's address contract while
+// ze-doc-verify has no published sibling to compare.
+func TestDocDriftNoSiblingsRejectsMutatedRendererContract(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	sourcePath := filepath.Join(repoRoot(t), "website", "tools", "render-llms-txt.py")
+	source, err := os.ReadFile(sourcePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mutated := strings.Replace(string(source),
+		"if address_fields:",
+		"if False and address_fields:",
+		1,
+	)
+	if mutated == string(source) {
+		t.Fatal("the llms renderer mutation did not apply")
+	}
+	writeTempDoc(t, root, "website/tools/render-llms-txt.py", mutated)
+
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err == nil {
+		t.Fatalf("doc drift accepted a renderer that dropped address fields:\n%s", out)
+	}
+	if !strings.Contains(out, "generated per-command surface dropped part of the live command contract") {
+		t.Fatalf("doc drift did not report the mutated renderer contract:\n%s", out)
+	}
+	if !strings.Contains(out, `address field "address"`) {
+		t.Fatalf("doc drift did not identify the dropped address dimension:\n%s", out)
+	}
+}
+
+// VALIDATES: the primary Markdown parser keeps the final local-only group
+// bounded to the Pipes table cell and requires save under that exact qualifier.
+// PREVENTS: a row-level name search passing when save remains under always but
+// disappears from the independent local-process-only contract.
+func TestDocDriftNoSiblingsRejectsPrimaryMarkdownQualifierMutation(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	sourcePath := filepath.Join(repoRoot(t), "website", "tools", "render-cli-catalog.py")
+	source, err := os.ReadFile(sourcePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := `    for availability, names in operators_by_availability(command).items():
+        parts.append(`
+	replacement := `    for availability, names in operators_by_availability(command).items():
+        if availability == "local-only":
+            continue
+        parts.append(`
+	mutationAt := bytes.LastIndex(source, []byte(original))
+	if mutationAt == -1 {
+		t.Fatal("the primary Markdown qualifier mutation did not apply")
+	}
+	mutated := make([]byte, 0, len(source)+len(replacement)-len(original))
+	mutated = append(mutated, source[:mutationAt]...)
+	mutated = append(mutated, replacement...)
+	mutated = append(mutated, source[mutationAt+len(original):]...)
+	writeTempDoc(t, root, "website/tools/render-cli-catalog.py", string(mutated))
+
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err == nil {
+		t.Fatalf("doc drift accepted primary Markdown without local-only save:\n%s", out)
+	}
+	if !strings.Contains(out, "reference/cli/index.md") {
+		t.Fatalf("doc drift did not identify the primary Markdown row:\n%s", out)
+	}
+	if !strings.Contains(out, `local-only surface qualifier for operator "save"`) {
+		t.Fatalf("doc drift did not identify the exact missing qualifier:\n%s", out)
+	}
+}
+
+// VALIDATES: canonical renderer execution errors are documentation findings.
+// PREVENTS: a broken in-repo renderer degrading into a skipped surface check.
+func TestDocDriftRendererErrorsFailClosed(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writeTempDoc(t, root, "website/tools/render-cli-catalog.py",
+		`raise SystemExit("fixture renderer failure")`+"\n")
+
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err == nil {
+		t.Fatalf("doc drift accepted a failing canonical renderer:\n%s", out)
+	}
+	if !strings.Contains(out, "could not generate the expected per-command surfaces") {
+		t.Fatalf("doc drift did not report expected-surface generation failure:\n%s", out)
+	}
+	if !strings.Contains(out, "fixture renderer failure") {
+		t.Fatalf("doc drift hid the renderer's corrective detail:\n%s", out)
+	}
+}
+
+// VALIDATES: every published HTML, Markdown, and llms command surface is
+// structurally checked against live JSON, and every generated page path exists.
+// PREVENTS: current cli-commands.json masking stale human or agent-facing pages.
+func TestDocDriftRejectsStaleRenderedCommandSurfaces(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writeTempDoc(t, root, "website/data/cli-commands.json",
+		renderedCommandCatalogFixture)
+	surfaces := []struct {
+		name string
+		path string
+	}{
+		{name: "primary CLI HTML", path: "reference/cli/index.html"},
+		{name: "primary CLI Markdown", path: "reference/cli/index.md"},
+		{name: "command equivalents HTML", path: "reference/command-equivalents/index.html"},
+		{name: "command equivalents Markdown", path: "reference/command-equivalents/index.md"},
+		{name: "llms", path: "llms.txt"},
+	}
+	for _, surface := range surfaces {
+		writeTempDoc(t, root, filepath.Join("website", surface.path),
+			"stale rendered command surface\n")
+	}
+
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err == nil {
+		t.Fatalf("doc drift accepted stale rendered surfaces with current JSON:\n%s", out)
+	}
+	for _, surface := range surfaces {
+		if !strings.Contains(out, filepath.ToSlash(surface.path)) {
+			t.Fatalf("doc drift did not identify stale %s:\n%s", surface.name, out)
+		}
+	}
+	if !strings.Contains(out,
+		"the generated per-command surface dropped part of the live command contract") {
+		t.Fatalf("doc drift did not structurally reject stale surfaces:\n%s", out)
+	}
+	if !strings.Contains(out, "reference/command-equivalents/show-test/index.html") {
+		t.Fatalf("doc drift did not identify a missing generated detail page:\n%s", out)
+	}
+	if !strings.Contains(out, "the published per-command surface is missing or unreadable") {
+		t.Fatalf("doc drift did not fail closed on missing published surfaces:\n%s", out)
+	}
 }

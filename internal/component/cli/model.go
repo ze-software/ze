@@ -182,10 +182,11 @@ type Model struct {
 	lastCommand string           // Most recently dispatched command (for echo in output buffer)
 
 	// Mode state
-	mode             EditorMode               // Current editor mode (config or operational)
-	modeStates       map[EditorMode]modeState // Saved screen state per mode
-	commandCompleter CommandModeCompleter     // Completer for command mode (nil if no daemon)
-	commandExecutor  CommandExecutor          // Executes operational commands via RPC (nil if no daemon)
+	mode                EditorMode               // Current editor mode (config or operational)
+	modeStates          map[EditorMode]modeState // Saved screen state per mode
+	commandCompleter    CommandModeCompleter     // Completer for command mode (nil if no daemon)
+	commandExecutor     CommandExecutor          // Executes operational commands via RPC (nil if no daemon)
+	filesystemAuthority FilesystemAuthority      // Whose OS identity would perform filesystem effects.
 
 	// Monitor streaming state (generic monitor view; not a registered live view)
 	monitorFactory MonitorFactory  // Creates monitor sessions (nil if unavailable)
@@ -363,8 +364,8 @@ type (
 	draftPollMsg struct{}
 )
 
-// NewModel creates a new editor model.
-func NewModel(ed *Editor) (Model, error) {
+// NewModel creates a new editor model with the stated filesystem authority.
+func NewModel(ed *Editor, filesystemAuthority FilesystemAuthority) (Model, error) {
 	ti := textinput.New()
 	ti.Prompt = ""
 	ti.Placeholder = "type command or Tab for suggestions"
@@ -398,31 +399,33 @@ func NewModel(ed *Editor) (Model, error) {
 	}
 
 	return Model{
-		editor:             ed,
-		dispatch:           newDispatchQueue(),
-		completer:          comp,
-		validator:          val,
-		textInput:          ti,
-		viewport:           vp,
-		contextPath:        nil,
-		selected:           -1,
-		history:            NewHistory(nil, ""),
-		validationErrors:   result.Errors,
-		validationWarnings: result.Warnings,
-		showHints:          true,
-		mode:               ModeConfig,
-		modeStates:         make(map[EditorMode]modeState),
-		statusMessage:      welcome,
-		pasteBuffer:        &strings.Builder{},
-		outputBuf:          &strings.Builder{},
-		viewFactories:      make(map[string]any),
+		editor:              ed,
+		dispatch:            newDispatchQueue(),
+		completer:           comp,
+		validator:           val,
+		filesystemAuthority: filesystemAuthority,
+		textInput:           ti,
+		viewport:            vp,
+		contextPath:         nil,
+		selected:            -1,
+		history:             NewHistory(nil, ""),
+		validationErrors:    result.Errors,
+		validationWarnings:  result.Warnings,
+		showHints:           true,
+		mode:                ModeConfig,
+		modeStates:          make(map[EditorMode]modeState),
+		statusMessage:       welcome,
+		pasteBuffer:         &strings.Builder{},
+		outputBuf:           &strings.Builder{},
+		viewFactories:       make(map[string]any),
 	}, nil
 }
 
-// NewCommandModel creates a command-only model with no editor.
+// NewCommandModel creates a command-only model with no editor and the stated
+// filesystem authority.
 // Used by ze cli and plugin CLI where no config file is loaded.
 // The model starts in ModeOperational with config commands unavailable.
-func NewCommandModel() Model {
+func NewCommandModel(filesystemAuthority FilesystemAuthority) Model {
 	ti := textinput.New()
 	ti.Prompt = ""
 	ti.Placeholder = "type command or press Tab for suggestions"
@@ -438,17 +441,18 @@ func NewCommandModel() Model {
 		BorderForeground(lipgloss.Color("62"))
 
 	return Model{
-		textInput:     ti,
-		viewport:      vp,
-		dispatch:      newDispatchQueue(),
-		selected:      -1,
-		history:       NewHistory(nil, ""),
-		mode:          ModeOperational,
-		modeStates:    make(map[EditorMode]modeState),
-		statusMessage: "welcome to ze!",
-		pasteBuffer:   &strings.Builder{},
-		outputBuf:     &strings.Builder{},
-		viewFactories: make(map[string]any),
+		textInput:           ti,
+		viewport:            vp,
+		dispatch:            newDispatchQueue(),
+		filesystemAuthority: filesystemAuthority,
+		selected:            -1,
+		history:             NewHistory(nil, ""),
+		mode:                ModeOperational,
+		modeStates:          make(map[EditorMode]modeState),
+		statusMessage:       "welcome to ze!",
+		pasteBuffer:         &strings.Builder{},
+		outputBuf:           &strings.Builder{},
+		viewFactories:       make(map[string]any),
 	}
 }
 

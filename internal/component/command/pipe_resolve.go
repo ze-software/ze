@@ -96,7 +96,7 @@ func isIPAddress(s string) bool {
 	return err == nil
 }
 
-func resolveJSON(v any, fields []string) any {
+func resolveJSON(v any, fields []string, allFields bool) any {
 	stack := []any{v}
 	for len(stack) > 0 {
 		cur := stack[len(stack)-1]
@@ -112,10 +112,11 @@ func resolveJSON(v any, fields []string) any {
 			}
 		case map[string]any:
 			var derivedKey textbuf.Buffer
-			for key, value := range val {
+			for _, key := range addressObjectFields(val) {
+				value := val[key]
 				s, isString := value.(string)
 				if isString {
-					if declaredAddressField(fields, key) {
+					if addressFieldSelected(fields, key, allFields) {
 						if s != "*" {
 							if isIPAddress(s) {
 								nameKey := derivedKey.Reset().Str(key).Str("-name").String()
@@ -135,14 +136,29 @@ func resolveJSON(v any, fields []string) any {
 	return v
 }
 
-// applyResolve adds reverse DNS names for declared IP address fields in JSON.
-// For each declared string value that parses as an IP, a sibling
-// "<key>-name" field is added with the PTR result. Results are cached across
-// invocations. Handles both single JSON values and NDJSON.
-func applyResolve(input string, fields []string) string {
+// applyResolve adds reverse DNS names for selected IP address fields in JSON.
+// Command paths select declared fields. Standalone stdin selects every field.
+// Each selected IP string gains a sibling "<key>-name" field with the PTR
+// result.
+func applyResolve(input string, fields []string, allFields bool) string {
 	return applyJSONTransform(input, func(v any) any {
-		return resolveJSON(v, fields)
+		return resolveJSON(v, fields, allFields)
 	})
+}
+
+func addressFieldSelected(fields []string, key string, allFields bool) bool {
+	if allFields {
+		return true
+	}
+	return declaredAddressField(fields, key)
+}
+
+func addressObjectFields(object map[string]any) []string {
+	fields := make([]string, 0, len(object))
+	for field := range object {
+		fields = append(fields, field)
+	}
+	return fields
 }
 
 func declaredAddressField(fields []string, key string) bool {
