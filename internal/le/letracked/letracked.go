@@ -395,7 +395,13 @@ func extract(ctx context.Context, repo, commit, dest string) error {
 // under an unexpected name. It can compile successfully but fail or be absent
 // at startup. A check that only compiles the tree cannot detect either problem.
 func buildAndList(ctx context.Context, dest string) ([]string, error) {
-	binary := filepath.Join(dest, "le-tracked-probe")
+	probeDir, err := os.MkdirTemp(dest, ".le-tracked-probe-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(probeDir) //nolint:errcheck // the extracted tree is scratch space
+
+	binary := filepath.Join(probeDir, "le")
 
 	tags, err := featuretags.DaemonBuildTags(dest, "ze_le")
 	if err != nil {
