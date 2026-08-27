@@ -1069,6 +1069,20 @@ An owner-authorized independent context reviewed the committed Round-15 fixes.
 
 **Independent round 16: 4 BLOCKER, 2 ISSUE, 0 outstanding.** All six findings are fixed.
 
+### Independent review, round 17 (2026-08-27)
+
+An owner-authorized independent context reviewed the committed Round-16 fixes.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR17-1 | BLOCKER | Primary HTML rows without canonical IDs evade command and operator accounting | FIXED |
+| IR17-2 | BLOCKER | Primary HTML operator groups ignore trailing sibling values | FIXED |
+| IR17-3 | ISSUE | Punctuation-only wiki verbs produce empty contents anchors | FIXED |
+| IR17-4 | ISSUE | Equivalent HTML emits `dt` and `dd` groups without a containing `dl` | FIXED |
+| IR17-5 | ISSUE | Wiki descriptions do not normalize CRLF or bare CR before row rendering | FIXED |
+
+**Independent round 17: 2 BLOCKER, 3 ISSUE, 0 outstanding.** All five findings are fixed.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and

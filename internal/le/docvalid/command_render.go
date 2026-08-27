@@ -220,7 +220,7 @@ func renderEquivalentIndexMarkdown(commands []publishedCommand) []byte {
 
 func renderEquivalentHTML(command publishedCommand) []byte {
 	var out strings.Builder
-	out.WriteString("<!doctype html><html><body>\n<article class=\"cmd-detail-card cmd-detail-ze\">\n")
+	out.WriteString("<!doctype html><html><body>\n<article class=\"cmd-detail-card cmd-detail-ze\">\n<dl>")
 	fmt.Fprintf(&out, "<div><dt>Registry path</dt><dd><code>%s</code></dd></div>", html.EscapeString(command.Path))
 	if command.AnswerShape != "" {
 		fmt.Fprintf(&out, "<div><dt>Answer shape</dt><dd>%s</dd></div>", html.EscapeString(command.AnswerShape))
@@ -252,7 +252,7 @@ func renderEquivalentHTML(command publishedCommand) []byte {
 		}
 		fmt.Fprintf(&out, "<div><dt>Pipe aliases</dt><dd>%s</dd></div>", strings.Join(values, "<br>"))
 	}
-	out.WriteString("\n</article>\n</body></html>\n")
+	out.WriteString("\n</dl>\n</article>\n</body></html>\n")
 	return []byte(out.String())
 }
 

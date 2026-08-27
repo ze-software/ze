@@ -2,6 +2,7 @@ package wikicatalog
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"slices"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 func Render(entries []Entry) ([]byte, error) {
 	groups := make(map[string][]Entry)
 	for _, entry := range entries {
+		entry.Description = normalizeLineBreaks(entry.Description)
 		words := strings.Fields(entry.Path)
 		verb := entry.Path
 		if len(words) > 0 {
@@ -91,6 +93,14 @@ func Render(entries []Entry) ([]byte, error) {
 	writeInt(&out, len(entries))
 	line(&out, " commands total.*")
 	return out.Bytes(), nil
+}
+
+func normalizeLineBreaks(value string) string {
+	if !strings.ContainsRune(value, '\r') {
+		return value
+	}
+	value = strings.ReplaceAll(value, "\r\n", "\n")
+	return strings.ReplaceAll(value, "\r", "\n")
 }
 
 func firstLine(description string) string {
@@ -385,6 +395,9 @@ func headingAnchor(value string) string {
 		case !unicode.IsPunct(character) && !unicode.IsSpace(character):
 			anchor.WriteRune(character)
 		}
+	}
+	if anchor.Len() == 0 {
+		return "u--" + hex.EncodeToString([]byte(value))
 	}
 	return anchor.String()
 }

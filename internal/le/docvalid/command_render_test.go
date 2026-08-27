@@ -132,6 +132,28 @@ func TestRenderNativeCommandSurfacesRendersMultipleCommands(t *testing.T) {
 	}
 }
 
+// VALIDATES: equivalent HTML owns every definition term inside one article
+// definition list.
+// PREVENTS: dt/dd groups being emitted under div without a valid dl parent.
+func TestRenderEquivalentHTMLWrapsTermGroupsInDefinitionList(t *testing.T) {
+	command := publishedCommand{
+		Path:          "show test",
+		AnswerShape:   "tab",
+		AddressFields: []string{"address"},
+		Operators: []publishedCommandOperator{{
+			Name: "json", Available: "always", Description: "JSON output",
+		}},
+	}
+	document := parseRenderedHTML(string(renderEquivalentHTML(command)))
+	node, count, closed := equivalentHTMLCommandContent(document, command.Path)
+	if count != 1 || !closed {
+		t.Fatalf("rendered equivalent article is not a closed owned container")
+	}
+	if !equivalentHTMLDefinitionList(document, node) {
+		t.Fatalf("rendered equivalent article does not own one valid definition list")
+	}
+}
+
 // VALIDATES: native equivalent Markdown escapes detail separators and literal
 // backslashes, and the validator recovers each original description and
 // expansion without changing detail cardinality.
@@ -290,7 +312,7 @@ func TestRenderMarkdownLiteralValuesRoundTripAcrossSurfaces(t *testing.T) {
 
 	primaryHTML := parseRenderedHTML(string(renderPrimaryCommandHTML([]publishedCommand{command})))
 	primaryRow, primaryCount, primaryClosed := commandSurfaceHTMLRow(
-		primaryHTML, commandSurfaceSlug(command.Path),
+		primaryHTML, command.Path,
 	)
 	if primaryCount != 1 || !primaryClosed {
 		t.Fatalf("primary HTML row count = %d, closed = %t", primaryCount, primaryClosed)

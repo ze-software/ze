@@ -591,14 +591,12 @@ func validateGeneratedWikiCommandSurface(
 		wikiCommandDetailPaths(content),
 	)...)
 	for _, command := range live {
-		description := command.Description
-		if line, _, found := strings.Cut(description, "\n"); found {
-			description = line
-		}
+		description := normalizeWikiDescription(command.Description)
+		summary, _, _ := strings.Cut(description, "\n")
 		wantRow := rendered.Reset().Str("| ").
 			Str(markdownCodeLiteral(commandMarkdownTableValue(command.Path))).Str(" | ").
 			Str(command.Mode).Str(" | ").
-			Str(markdownLiteralProse(description)).Str(" |").String()
+			Str(markdownLiteralProse(summary)).Str(" |").String()
 		row, rowCount, rowMalformed := commandSurfaceMarkdownRow(content, command.Path)
 		if rowCount != 1 || rowMalformed || row != wantRow {
 			issues = append(issues, generatedCommandContractIssue(
@@ -616,8 +614,8 @@ func validateGeneratedWikiCommandSurface(
 			))
 			continue
 		}
-		if strings.Contains(command.Description, "\n") {
-			lines := strings.Split(command.Description, "\n")
+		if strings.Contains(description, "\n") {
+			lines := strings.Split(description, "\n")
 			for index := range lines {
 				lines[index] = markdownLiteralProse(lines[index])
 			}
@@ -877,6 +875,9 @@ func wikiHeadingAnchor(value string) string {
 			anchor.WriteRune(character)
 		}
 	}
+	if anchor.Len() == 0 {
+		return "u--" + hex.EncodeToString([]byte(value))
+	}
 	return anchor.String()
 }
 
@@ -957,6 +958,14 @@ func wikiTotalLines(content string) ([]string, bool) {
 	return totals, footer && valid
 }
 
+func normalizeWikiDescription(value string) string {
+	if !strings.ContainsRune(value, '\r') {
+		return value
+	}
+	value = strings.ReplaceAll(value, "\r\n", "\n")
+	return strings.ReplaceAll(value, "\r", "\n")
+}
+
 func wikiCommandNeedsDetail(command publishedCommand) bool {
 	return len(command.Args) != 0 ||
 		len(command.Pipes) != 0 ||
@@ -968,7 +977,7 @@ func wikiCommandNeedsDetail(command publishedCommand) bool {
 		len(command.Operators) != 0 ||
 		command.AnswerShape != "" ||
 		len(command.AddressFields) != 0 ||
-		strings.Contains(command.Description, "\n")
+		strings.Contains(normalizeWikiDescription(command.Description), "\n")
 }
 
 type markdownLine struct {
@@ -1789,7 +1798,7 @@ func validateGeneratedCommandSurfaces(
 	llmsCommandSurface := llmsCommandSurfaceContent(string(llms))
 
 	var issues []Issue
-	issues = append(issues, validateAggregateCommandIdentities(
+	issues = append(issues, validatePrimaryHTMLIdentities(
 		commandSurfacePath(root, primaryHTMLPath),
 		"primary CLI HTML command row",
 		live,
@@ -1823,7 +1832,7 @@ func validateGeneratedCommandSurfaces(
 	for _, command := range live {
 		slug := commandSurfaceSlug(command.Path)
 		primaryRow, rowCount, rowClosed := commandSurfaceHTMLRow(
-			primaryHTMLDocument, slug,
+			primaryHTMLDocument, command.Path,
 		)
 		switch {
 		case rowCount != 1:
@@ -1923,27 +1932,77 @@ func validateGeneratedCommandSurfaces(
 	return issues
 }
 
-func primaryHTMLCommandIdentities(document renderedHTMLDocument) []string {
-	ids := make([]string, 0, len(document.rows))
-	for id := range document.rows {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-	var identities []string
-	for _, id := range ids {
-		for _, container := range document.rows[id] {
-			code := htmlFirstDescendant(container.root, "code")
-			if code == nil {
-				identities = append(identities, "")
-				continue
-			}
-			identities = append(
-				identities,
-				normalizeRenderedHTMLText(htmlText(code)),
-			)
+type renderedPrimaryHTMLIdentity struct {
+	path  string
+	valid bool
+}
+
+func primaryHTMLCommandIdentities(
+	document renderedHTMLDocument,
+) []renderedPrimaryHTMLIdentity {
+	identities := make([]renderedPrimaryHTMLIdentity, 0, len(document.htmlRows))
+	for _, container := range document.htmlRows {
+		identity, candidate, identityValid := primaryHTMLRowIdentity(container.root)
+		if !candidate {
+			continue
 		}
+		slug := commandSurfaceSlug(identity)
+		identities = append(identities, renderedPrimaryHTMLIdentity{
+			path: identity,
+			valid: identityValid && slug != "" &&
+				primaryHTMLCanonicalID(container.root, "cmd-"+slug),
+		})
 	}
 	return identities
+}
+
+func primaryHTMLCanonicalID(row *xhtml.Node, expected string) bool {
+	count := 0
+	matches := false
+	for _, attribute := range row.Attr {
+		if attribute.Key != "id" {
+			continue
+		}
+		count++
+		matches = attribute.Val == expected
+	}
+	return count == 1 && matches
+}
+
+func primaryHTMLRowIdentity(row *xhtml.Node) (string, bool, bool) {
+	idCandidate := strings.HasPrefix(htmlAttribute(row, "id"), "cmd-")
+	if !idCandidate {
+		for parent := row.Parent; parent != nil; parent = parent.Parent {
+			if parent.Data == "section" && htmlHasClass(parent, "cli-pipe-guide") {
+				return "", false, false
+			}
+		}
+	}
+	var cells []*xhtml.Node
+	for child := row.FirstChild; child != nil; child = child.NextSibling {
+		if child.Type == xhtml.ElementNode && child.Data == "td" {
+			cells = append(cells, child)
+		}
+	}
+	if !idCandidate && len(cells) != 4 {
+		return "", false, false
+	}
+	if len(cells) == 0 {
+		return "", idCandidate, false
+	}
+	var codes []*xhtml.Node
+	htmlWalk(cells[0], func(node *xhtml.Node) {
+		if node.Data == "code" {
+			codes = append(codes, node)
+		}
+	})
+	if len(codes) == 0 {
+		return "", idCandidate, false
+	}
+	identity := normalizeRenderedHTMLText(htmlText(codes[0]))
+	valid := len(codes) == 1 && identity != "" &&
+		normalizeRenderedHTMLText(htmlText(cells[0])) == identity
+	return identity, idCandidate || len(cells) == 4, valid
 }
 
 func primaryMarkdownCommandIdentities(content string) []string {
@@ -2231,6 +2290,55 @@ func llmsCommandIdentities(content string) []string {
 		identities = append(identities, path)
 	}
 	return identities
+}
+
+func validatePrimaryHTMLIdentities(
+	path, kind string,
+	live []publishedCommand,
+	identities []renderedPrimaryHTMLIdentity,
+) []Issue {
+	expected := make(map[string]bool, len(live))
+	for _, command := range live {
+		expected[command.Path] = true
+	}
+	observed := make(map[string]int, len(identities))
+	var issues []Issue
+	for _, identity := range identities {
+		if identity.path != "" {
+			observed[identity.path]++
+		}
+		rendered := identity.path
+		if rendered == "" {
+			rendered = "<malformed>"
+		}
+		if !identity.valid {
+			issues = append(issues, malformedPrimaryHTMLIdentityIssue(
+				path, rendered, kind,
+			))
+		}
+		if !expected[identity.path] {
+			issues = append(issues, generatedCommandExtraIssue(
+				path, rendered, kind+" absent from the live command catalog",
+			))
+		}
+	}
+	for _, command := range live {
+		if observed[command.Path] != 1 {
+			issues = append(issues, commandContainerCountIssue(
+				path, command.Path, kind+" identity", observed[command.Path],
+			))
+		}
+	}
+	return issues
+}
+func malformedPrimaryHTMLIdentityIssue(path, command, kind string) Issue {
+	var detail textbuf.Buffer
+	return Issue{
+		File:    path,
+		Message: "the generated per-command surface has a malformed command container",
+		Detail: detail.Str("command ").Quoted(command).Byte(' ').Str(kind).
+			Str(" does not have its canonical cmd-* row ID and identity cells").String(),
+	}
 }
 
 func validateAggregateCommandIdentities(
@@ -2750,6 +2858,7 @@ func commandSurfaceSlug(path string) string {
 type renderedHTMLDocument struct {
 	root       *xhtml.Node
 	rows       map[string][]renderedHTMLContainer
+	htmlRows   []renderedHTMLContainer
 	zeArticles []renderedHTMLContainer
 	nodeClosed map[*xhtml.Node]bool
 	err        error
@@ -2791,8 +2900,11 @@ func parseRenderedHTML(content string) renderedHTMLDocument {
 			}
 			switch capture.kind {
 			case "tr":
+				document.htmlRows = append(document.htmlRows, container)
 				id := htmlAttribute(capture.root, "id")
-				document.rows[id] = append(document.rows[id], container)
+				if strings.HasPrefix(id, "cmd-") {
+					document.rows[id] = append(document.rows[id], container)
+				}
 			case "article":
 				document.zeArticles = append(document.zeArticles, container)
 			}
@@ -2827,11 +2939,9 @@ func parseRenderedHTML(content string) renderedHTMLDocument {
 			closable := tokenType != xhtml.SelfClosingTagToken
 			switch token.Data {
 			case "tr":
-				if id := tokenAttribute(token, "id"); strings.HasPrefix(id, "cmd-") {
-					captures = append(captures, renderedHTMLCapture{
-						kind: "tr", closable: closable, root: node,
-					})
-				}
+				captures = append(captures, renderedHTMLCapture{
+					kind: "tr", closable: closable, root: node,
+				})
 			case "article":
 				classValid, candidate := zeArticleClass(tokenAttribute(token, "class"))
 				if candidate {
@@ -2961,17 +3071,22 @@ func htmlVoidElement(name string) bool {
 
 func commandSurfaceHTMLRow(
 	document renderedHTMLDocument,
-	slug string,
+	path string,
 ) (*xhtml.Node, int, bool) {
 	if document.err != nil {
 		return nil, 1, false
 	}
-	var rendered textbuf.Buffer
-	rows := document.rows[rendered.Str("cmd-").Str(slug).String()]
-	if len(rows) != 1 {
-		return nil, len(rows), false
+	var matches []renderedHTMLContainer
+	for _, row := range document.htmlRows {
+		identity, candidate, _ := primaryHTMLRowIdentity(row.root)
+		if candidate && identity == path {
+			matches = append(matches, row)
+		}
 	}
-	return rows[0].root, len(rows), rows[0].closed
+	if len(matches) != 1 {
+		return nil, len(matches), false
+	}
+	return matches[0].root, len(matches), matches[0].closed
 }
 func validatePrimaryCommandContract(
 	path string,
@@ -3422,16 +3537,40 @@ func commandHTMLGroups(
 			normalizeRenderedHTMLText(htmlText(node)) != label {
 			return
 		}
-		code := htmlNextElement(node)
-		if !htmlVisibleSubtreeClosed(document, node) || code == nil ||
-			code.Data != "code" || !htmlVisibleSubtreeClosed(document, code) {
-			scan.malformed = true
-			return
-		}
-		values := htmlText(code)
 		var parsed []string
-		if values != "" {
-			parsed = strings.Split(values, " · ")
+		codeCount := 0
+	segment:
+		for sibling := node.NextSibling; sibling != nil; sibling = sibling.NextSibling {
+			switch sibling.Type {
+			case xhtml.CommentNode:
+				continue
+			case xhtml.TextNode:
+				if strings.TrimSpace(sibling.Data) != "" {
+					scan.malformed = true
+				}
+				continue
+			case xhtml.ElementNode:
+				if sibling.Data == "span" || sibling.Data == "strong" ||
+					htmlCommandContainerRoot(sibling) {
+					break segment
+				}
+				if sibling.Data != "code" || codeCount != 0 {
+					scan.malformed = true
+				}
+				if !htmlVisibleSubtreeClosed(document, sibling) {
+					scan.malformed = true
+				}
+				if sibling.Data == "code" {
+					codeCount++
+					values := normalizeRenderedHTMLText(htmlText(sibling))
+					if values != "" {
+						parsed = append(parsed, strings.Split(values, " · ")...)
+					}
+				}
+			}
+		}
+		if !htmlVisibleSubtreeClosed(document, node) || codeCount == 0 {
+			scan.malformed = true
 		}
 		scan.groups = append(scan.groups, parsed)
 	})
@@ -4094,6 +4233,33 @@ func parseHTMLAliasDetail(
 	return detail, true
 }
 
+func equivalentHTMLDefinitionList(
+	document renderedHTMLDocument,
+	article *xhtml.Node,
+) bool {
+	var lists []*xhtml.Node
+	valid := true
+	htmlWalk(article, func(node *xhtml.Node) {
+		if node.Data == "dl" {
+			lists = append(lists, node)
+			return
+		}
+		if node.Data != "dt" && node.Data != "dd" {
+			return
+		}
+		owned := false
+		for parent := node.Parent; parent != nil && parent != article; parent = parent.Parent {
+			if parent.Data == "dl" {
+				owned = true
+				break
+			}
+		}
+		valid = valid && owned
+	})
+	return valid && len(lists) == 1 && lists[0].Parent == article &&
+		htmlVisibleSubtreeClosed(document, lists[0])
+}
+
 func htmlEquivalentFilterDetails(
 	document renderedHTMLDocument,
 	root *xhtml.Node,
@@ -4253,6 +4419,12 @@ func validateEquivalentCommandContract(
 			path, command.Path, "command-equivalent Ze HTML article",
 		))
 		return issues
+	}
+	if !equivalentHTMLDefinitionList(document, commandNode) {
+		issues = append(issues, generatedCommandSurfaceValueIssue(
+			path, command.Path, "definition list structure",
+			"one command-owned dl", "malformed term ownership",
+		))
 	}
 	var marker textbuf.Buffer
 	issues = append(issues, compareHTMLLabeledValue(

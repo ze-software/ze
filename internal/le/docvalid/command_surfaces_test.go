@@ -3,6 +3,7 @@
 package docvalid
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -96,8 +97,9 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 		"website/reference/command-equivalents/show-test/index.html",
 		`<html data-site-postprocessed="true"><body>
 <aside><dt>Pipes, always</dt><dd>catalog-absent</dd></aside>
-<article class="cmd-detail-card cmd-detail-ze"><div><dt>Registry path</dt><dd><code>show test extra</code></dd></div><div><dt>Pipes, always</dt><dd>catalog-absent</dd></div></article>
+<article class="cmd-detail-card cmd-detail-ze"><dl><div><dt>Registry path</dt><dd><code>show test extra</code></dd></div><div><dt>Pipes, always</dt><dd>catalog-absent</dd></div></dl></article>
 <article class="cmd-detail-card cmd-detail-ze">
+<dl>
 <div><dt>Registry path</dt><dd><code>show test</code></dd></div>
 <div><dt>Pipes, always</dt><dd>json, save</dd></div>
 <div><dt>Pipes, on its rows</dt><dd>match</dd></div>
@@ -107,6 +109,7 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 <div><dt>Pipe aliases</dt><dd><code>summary</code>: Show a summary (<code>display address</code>)</dd></div>
 <div><dt>Answer shape</dt><dd>tab</dd></div>
 <div><dt>Address fields</dt><dd>address</dd></div>
+</dl>
 </article>
 </body></html>
 `)
@@ -669,9 +672,15 @@ func TestDocDriftRejectsDuplicateCommandContainersOnEverySurface(t *testing.T) {
 			if err == nil {
 				t.Fatalf("doc drift accepted duplicate %s container:\n%s", tc.name, out)
 			}
-			if !strings.Contains(out, "does not have exactly one command container") ||
+			wantMessage := "does not have exactly one command container"
+			wantCommand := `command "show test"`
+			if tc.name == "primary HTML row" {
+				wantMessage = "malformed command container"
+				wantCommand = ""
+			}
+			if !strings.Contains(out, wantMessage) ||
 				!strings.Contains(out, filepath.ToSlash(tc.path)) ||
-				!strings.Contains(out, `command "show test"`) {
+				wantCommand != "" && !strings.Contains(out, wantCommand) {
 				t.Fatalf("doc drift did not identify the duplicate %s container:\n%s", tc.name, out)
 			}
 		})
@@ -712,9 +721,10 @@ func TestDocDriftRejectsMalformedTrailingHTMLOperatorGroups(t *testing.T) {
 		{
 			name: "command-equivalent HTML",
 			path: "reference/command-equivalents/show-test/index.html",
-			old:  "<div><dt>Address fields</dt><dd>address</dd></div>\n</article>",
+			old: "<div><dt>Address fields</dt><dd>address</dd></div>\n" +
+				"</dl>\n</article>",
 			new: "<div><dt>Address fields</dt><dd>address</dd></div>\n" +
-				"<div><dt>Pipes, always</dt><dd>catalog-absent\n</article>",
+				"<div><dt>Pipes, always</dt><dd>catalog-absent\n</dl>\n</article>",
 		},
 	}
 	for _, tc := range tests {
@@ -758,6 +768,113 @@ func TestDocDriftRejectsReorderedOperatorGroup(t *testing.T) {
 	if !strings.Contains(out, "always operator order") ||
 		!strings.Contains(out, "reference/cli/index.html") {
 		t.Fatalf("doc drift did not identify the reordered operator group:\n%s", out)
+	}
+}
+
+// VALIDATES: primary command rows remain identity candidates when their id is
+// missing or noncanonical, and their owned contract is still inspected.
+// PREVENTS: removing cmd-* from a stale row hiding its identity or operators.
+func TestDocDriftRejectsPrimaryRowsWithoutCanonicalIDs(t *testing.T) {
+	for _, replacement := range []string{
+		"<tr",
+		`<tr id="show-test"`,
+	} {
+		t.Run(replacement, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(
+				t, root, "reference/cli/index.html",
+				`<tr id="cmd-show-test"`, replacement,
+			)
+			mutatePublishedCommandSurface(
+				t, root, "reference/cli/index.html",
+				"<p><span>Always</span><code>json · save</code></p>",
+				"<p><span>Always</span><code>json · save</code><code>catalog-absent</code></p>",
+			)
+
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil ||
+				!strings.Contains(out, "does not have its canonical cmd-* row ID") ||
+				!strings.Contains(out, "catalog-absent operator") {
+				t.Fatalf("noncanonical primary row escaped structural validation:\n%s", out)
+			}
+		})
+	}
+}
+
+// VALIDATES: every command-like row contributes its visible identity even when
+// no canonical id associates it with a live command.
+// PREVENTS: catalog-absent command rows disappearing by dropping their id.
+func TestDocDriftRejectsCatalogAbsentPrimaryRowWithoutID(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	mutatePublishedCommandSurface(
+		t, root, "reference/cli/index.html",
+		`<tr id="cmd-show-test"><td><code>show test</code>`,
+		`<tr><td><code>show removed</code></td><td>Read-only</td>`+
+			`<td>Removed</td><td><span>Always</span><code>nosuchop</code></td></tr>`+
+			`<tr id="cmd-show-test"><td><code>show test</code>`,
+	)
+
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err == nil ||
+		!strings.Contains(out, "show removed") ||
+		!strings.Contains(out, "absent from the live command catalog") {
+		t.Fatalf("catalog-absent no-id primary row escaped identity validation:\n%s", out)
+	}
+}
+
+// VALIDATES: a labeled primary operator segment is consumed through its next
+// label boundary rather than ending at the first code element.
+// PREVENTS: a trailing sibling code element hiding a catalog-absent operator.
+func TestDocDriftRejectsTrailingPrimaryOperatorSegmentContent(t *testing.T) {
+	for _, tc := range []struct {
+		name, suffix, want string
+	}{
+		{"catalog-absent code", "<code>nosuchop</code>", "catalog-absent operator"},
+		{"text", "trailing text", "malformed operator availability group"},
+		{"element", "<em>trailing element</em>", "malformed operator availability group"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(
+				t, root, "reference/cli/index.html",
+				"<p><span>Always</span><code>json · save</code></p>",
+				"<p><span>Always</span><code>json · save</code>"+tc.suffix+"</p>",
+			)
+
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil || !strings.Contains(out, tc.want) {
+				t.Fatalf("trailing %s escaped validation:\n%s", tc.name, out)
+			}
+		})
+	}
+}
+
+// VALIDATES: every equivalent article's term groups are owned by one dl.
+// PREVENTS: valid-looking dt/dd siblings reverting to invalid standalone terms.
+func TestDocDriftRejectsEquivalentTermsWithoutDefinitionList(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	mutatePublishedCommandSurface(
+		t, root, "reference/command-equivalents/show-test/index.html",
+		"<article class=\"cmd-detail-card cmd-detail-ze\">\n<dl>\n",
+		"<article class=\"cmd-detail-card cmd-detail-ze\">\n",
+	)
+	mutatePublishedCommandSurface(
+		t, root, "reference/command-equivalents/show-test/index.html",
+		"\n</dl>\n</article>",
+		"\n</article>",
+	)
+
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err == nil || !strings.Contains(out, "definition list structure") {
+		t.Fatalf("standalone equivalent terms escaped structural validation:\n%s", out)
 	}
 }
 
@@ -813,8 +930,9 @@ func TestDocDriftRejectsMalformedStructuredHTMLContainers(t *testing.T) {
 		{
 			name: "Ze article missing close before next article",
 			path: "reference/command-equivalents/show-test/index.html",
-			old:  "<div><dt>Address fields</dt><dd>address</dd></div>\n</article>",
-			new: "<div><dt>Address fields</dt><dd>address</dd></div>\n" +
+			old: "<div><dt>Address fields</dt><dd>address</dd></div>\n" +
+				"</dl>\n</article>",
+			new: "<div><dt>Address fields</dt><dd>address</dd></div>\n</dl>\n" +
 				`<article class="cmd-detail-card"><p>next</p></article>`,
 		},
 		{
@@ -826,9 +944,9 @@ func TestDocDriftRejectsMalformedStructuredHTMLContainers(t *testing.T) {
 		{
 			name: "partial Ze article opener",
 			path: "reference/command-equivalents/show-test/index.html",
-			old: "<article class=\"cmd-detail-card cmd-detail-ze\">\n" +
+			old: "<article class=\"cmd-detail-card cmd-detail-ze\">\n<dl>\n" +
 				"<div><dt>Registry path</dt><dd><code>show test</code></dd></div>",
-			new: "<article class=\"cmd-detail-card cmd-detail-ze\"\n" +
+			new: "<article class=\"cmd-detail-card cmd-detail-ze\"\n<dl>\n" +
 				"<div><dt>Registry path</dt><dd><code>show test</code></dd></div>",
 		},
 		{
@@ -943,8 +1061,9 @@ func TestDocDriftRejectsDirectChildHTMLContainers(t *testing.T) {
 		{
 			name: "command-like article",
 			path: "reference/command-equivalents/show-test/index.html",
-			old:  "<div><dt>Address fields</dt><dd>address</dd></div>\n</article>",
-			new: "<div><dt>Address fields</dt><dd>address</dd></div>\n" +
+			old: "<div><dt>Address fields</dt><dd>address</dd></div>\n" +
+				"</dl>\n</article>",
+			new: "<div><dt>Address fields</dt><dd>address</dd></div>\n</dl>\n" +
 				`<article class="cmd-detail-card cmd-detail-ze"><p>nested</p></article>` +
 				"\n</article>",
 		},
@@ -976,17 +1095,17 @@ func TestDocDriftRejectsMissingCloseBeforeTruePeer(t *testing.T) {
 		t,
 		root,
 		path,
-		"<article class=\"cmd-detail-card cmd-detail-ze\">\n"+
+		"<article class=\"cmd-detail-card cmd-detail-ze\">\n<dl>\n"+
 			"<div><dt>Registry path</dt><dd><code>show test</code></dd></div>",
-		"<section><article class=\"cmd-detail-card cmd-detail-ze\">\n"+
+		"<section><article class=\"cmd-detail-card cmd-detail-ze\">\n<dl>\n"+
 			"<div><dt>Registry path</dt><dd><code>show test</code></dd></div>",
 	)
 	mutatePublishedCommandSurface(
 		t,
 		root,
 		path,
-		"<div><dt>Address fields</dt><dd>address</dd></div>\n</article>\n</body>",
-		"<div><dt>Address fields</dt><dd>address</dd></div>\n</section>\n"+
+		"<div><dt>Address fields</dt><dd>address</dd></div>\n</dl>\n</article>\n</body>",
+		"<div><dt>Address fields</dt><dd>address</dd></div>\n</dl>\n</section>\n"+
 			`<article class="cmd-detail-card cmd-detail-ze">`+
 			`<dt>Registry path</dt><dd><code>show test extra</code></dd>`+
 			"</article>\n</body>",
@@ -2604,5 +2723,72 @@ func installCommandRendererMutation(
 			return errors.New("renderer mutation did not apply")
 		}
 		return os.WriteFile(path, []byte(mutated), 0o644)
+	}
+}
+
+func TestWikiValidatorAcceptsReservedEmptyHeadingAnchors(t *testing.T) {
+	live := []publishedCommand{
+		{Path: "!!! route", Mode: "read-only", Description: "ASCII punctuation"},
+		{Path: "u--212121 route", Mode: "read-only", Description: "Reserved collision"},
+		{Path: "！！！ route", Mode: "read-only", Description: "Unicode punctuation"},
+	}
+	raw, err := json.Marshal(live)
+	if err != nil {
+		t.Fatalf("marshal command catalog: %v", err)
+	}
+	rendered, err := renderExpectedWikiCommandSurface("", "", raw)
+	if err != nil {
+		t.Fatalf("render wiki command catalog: %v", err)
+	}
+	content := string(rendered)
+	for _, want := range []string{
+		"- [\\!\\!\\!](#u--212121) (1)",
+		"- [u\\-\\-212121](#u--212121-1) (1)",
+		"- [！！！](#u--efbc81efbc81efbc81) (1)",
+	} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("wiki catalog omitted reserved anchor %q:\n%s", want, content)
+		}
+	}
+	if issues := validateGeneratedWikiCommandSurface(rendered, live); len(issues) != 0 {
+		t.Fatalf("validator rejected canonical reserved anchors: %#v", issues)
+	}
+	drifted := strings.Replace(content, "#u--212121)", "#)", 1)
+	if issues := validateGeneratedWikiCommandSurface([]byte(drifted), live); len(issues) == 0 {
+		t.Fatal("validator accepted an empty punctuation-only heading link")
+	}
+}
+
+func TestWikiValidatorRoundTripsNormalizedDescriptionBreaks(t *testing.T) {
+	live := []publishedCommand{
+		{Path: "show crlf", Mode: "read-only", Description: "first\r\nsecond"},
+		{Path: "clear cr", Mode: "offline", Description: "first\rsecond"},
+		{Path: "set mixed", Mode: "offline", Description: "first\r\nsecond\rthird\nfourth"},
+	}
+	raw, err := json.Marshal(live)
+	if err != nil {
+		t.Fatalf("marshal command catalog: %v", err)
+	}
+	rendered, err := renderExpectedWikiCommandSurface("", "", raw)
+	if err != nil {
+		t.Fatalf("render wiki command catalog: %v", err)
+	}
+	if issues := validateGeneratedWikiCommandSurface(rendered, live); len(issues) != 0 {
+		t.Fatalf("validator rejected normalized descriptions: %#v\n%s", issues, rendered)
+	}
+	content := string(rendered)
+	if strings.ContainsRune(content, '\r') {
+		t.Fatalf("canonical wiki catalog retained carriage returns: %q", content)
+	}
+	for _, want := range []string{
+		"| `show crlf` | read-only | first |",
+		"### `show crlf`\n\nfirst\nsecond\n\nMode: read-only",
+		"| `clear cr` | offline | first |",
+		"### `clear cr`\n\nfirst\nsecond\n\nMode: offline",
+		"### `set mixed`\n\nfirst\nsecond\nthird\nfourth\n\nMode: offline",
+	} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("normalized wiki catalog omitted %q:\n%s", want, content)
+		}
 	}
 }

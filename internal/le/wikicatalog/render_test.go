@@ -162,18 +162,22 @@ func TestRenderAliasOnlyEntryIncludesDetail(t *testing.T) {
 
 func TestRenderLiteralVerbLabelsAndHeadingAnchors(t *testing.T) {
 	rendered, err := Render([]Entry{
+		{Path: "!!! route", Mode: "read-only", Description: "Empty ASCII anchor"},
 		{Path: "`show` route", Mode: "read-only", Description: "Backtick"},
 		{Path: "contents route", Mode: "read-only", Description: "Reserved"},
 		{Path: "show! route", Mode: "read-only", Description: "Punctuation"},
 		{Path: "show? route", Mode: "read-only", Description: "Collision"},
 		{Path: "show-1 route", Mode: "read-only", Description: "Slug collision"},
 		{Path: "表示 route", Mode: "read-only", Description: "Unicode"},
+		{Path: "u--212121 route", Mode: "read-only", Description: "Reserved collision"},
+		{Path: "！！！ route", Mode: "read-only", Description: "Empty Unicode anchor"},
 	})
 	if err != nil {
 		t.Fatalf("Render() error: %v", err)
 	}
 	content := string(rendered)
 	for _, want := range []string{
+		"- [\\!\\!\\!](#u--212121) (1)",
 		"- [\\`show\\`](#show) (1)",
 		"- [contents](#contents-1) (1)",
 		"- [show\\!](#show-1) (1)",
@@ -181,6 +185,8 @@ func TestRenderLiteralVerbLabelsAndHeadingAnchors(t *testing.T) {
 		"- [show\\-1](#show-1-1) (1)",
 		"## show\\-1",
 		"- [表示](#表示) (1)",
+		"- [u\\-\\-212121](#u--212121-1) (1)",
+		"- [！！！](#u--efbc81efbc81efbc81) (1)",
 		"## \\`show\\`",
 		"## contents",
 		"## show\\!",
@@ -190,5 +196,36 @@ func TestRenderLiteralVerbLabelsAndHeadingAnchors(t *testing.T) {
 		if !strings.Contains(content, want) {
 			t.Errorf("literal-verb catalog omitted %q:\n%s", want, content)
 		}
+	}
+}
+
+func TestRenderNormalizesDescriptionLineBreaks(t *testing.T) {
+	entries := []Entry{
+		{Path: "show crlf", Mode: "read-only", Description: "first\r\nsecond"},
+		{Path: "clear cr", Mode: "offline", Description: "first\rsecond"},
+		{Path: "set mixed", Mode: "offline", Description: "first\r\nsecond\rthird\nfourth"},
+	}
+	rendered, err := Render(entries)
+	if err != nil {
+		t.Fatalf("Render() error: %v", err)
+	}
+	content := string(rendered)
+	for _, want := range []string{
+		"| `show crlf` | read-only | first |",
+		"### `show crlf`\n\nfirst\nsecond\n\nMode: read-only",
+		"| `clear cr` | offline | first |",
+		"### `clear cr`\n\nfirst\nsecond\n\nMode: offline",
+		"| `set mixed` | offline | first |",
+		"### `set mixed`\n\nfirst\nsecond\nthird\nfourth\n\nMode: offline",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("normalized catalog omitted %q:\n%s", want, content)
+		}
+	}
+	if strings.ContainsRune(content, '\r') {
+		t.Fatalf("normalized catalog retained carriage returns:\n%q", content)
+	}
+	if entries[0].Description != "first\r\nsecond" {
+		t.Fatalf("Render() mutated caller-owned entries: %q", entries[0].Description)
 	}
 }
