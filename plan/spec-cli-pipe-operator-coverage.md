@@ -88,7 +88,7 @@ Source files read for the table above:
 - [ ] `cmd/ze/help_command.go` -- `printCommandVerbose`, hand-copied list of 10
 - [ ] `cmd/ze/ze_core_pipe.go` -- `pipeUsage`, a different hand-copied list of 10
 - [ ] `internal/component/ssh/ssh.go` -- `ProcessPipesDefaultFormatChecked` on the exec channel
-- [ ] `scripts/dev/gen_wiki_commands.py` -- the generator holding its own copy
+- [ ] `internal/le/wikicatalog/render.go` -- the generator holding its own copy
 - [ ] `website/tools/page_registry.py` -- `DOCS_MANIFEST`, which omits the accurate page
 
 Three paths run a chain and the same operator means different things on each
@@ -178,9 +178,9 @@ This spec inserts one step and changes one:
 - `cmd/ze/help_command.go`, `cmd/ze/ze_core_pipe.go`, `ze_core_dispatch.go`,
   `completer.go`: the five hand-copied lists, all deleted and read from the
   catalog.
-- `scripts/dev/gen_wiki_commands.py`, `website/tools/render-cli-catalog.py`,
+- `internal/le/wikicatalog/render.go`, `website/tools/render-cli-catalog.py`,
   `render-command-equivalents.py`, `render-llms-txt.py`: the generators.
-- `scripts/docvalid/doc_drift.go` under `ze-doc-verify`: the gate.
+- `internal/le/docvalid/drift.go` under `./le doc-check verify`: the gate.
 
 ### Architectural Verification
 
@@ -247,7 +247,7 @@ This spec inserts one step and changes one:
 |-------------|--------------|------|
 | `ze help command --json` | `ShapeForCommand` -> catalog derivation | `TestWiringShapeReachesPublishedJSON` |
 | `ze cli -c "<testcmd> \| fill"` | `ValidatePipes` -> shape refusal | `test/plugin/pipe-shape-refusal.ci` <!-- doc-links: ignore (this spec creates this file; the phase that does is named in the same row) --> |
-| `make ze-wiki-commands-update` | JSON -> `gen_wiki_commands.py` | `test/plugin/pipe-catalog-published.ci` <!-- doc-links: ignore (this spec creates this file; the phase that does is named in the same row) --> |
+| `./le wiki-catalog update` | JSON -> `gen_wiki_commands.py` | `test/plugin/pipe-catalog-published.ci` <!-- doc-links: ignore (this spec creates this file; the phase that does is named in the same row) --> |
 
 A command registered in a test package, declaring shape `tab` with one address
 field, MUST:
@@ -279,8 +279,8 @@ not wired and the phase is not done.
 | **AC-11** | `ze show interface` versus `ze cli -c "show interface"` | A dual-registered command answers identically through `ze <verb>` and `ze cli -c`, including its pipe handling. The `show interface` asymmetry is gone. |
 | **AC-12** | `\| resolve` / `\| origin` on a command declaring no address field | `resolve` and `origin` are refused unless a field is DECLARED to hold an address. A `tab` head carries field types; `doc` and `map` refuse until the command declares otherwise. |
 | **AC-13** | `ze help command --json` | `ze help command --json` publishes, per command, the operator list the command's shape derives, plus its filters and its aliases. The `global-pipes` boolean is gone. |
-| **AC-14** | `make ze-wiki-commands-update`; the website build | The wiki catalog and the website CLI catalog are generated from that JSON and hold no operator literal. `docs/architecture/api/commands.md` is in the website manifest. |
-| **AC-15** | an operator name in docs absent from the catalog | `ze-doc-verify` fails when any operator name in `docs/` or the wiki is absent from the catalog, or when a command's published list disagrees with what it declares. |
+| **AC-14** | `./le wiki-catalog update`; the website build | The wiki catalog and the website CLI catalog are generated from that JSON and hold no operator literal. `docs/architecture/api/commands.md` is in the website manifest. |
+| **AC-15** | an operator name in docs absent from the catalog | `./le doc-check verify` fails when any operator name in `docs/` or the wiki is absent from the catalog, or when a command's published list disagrees with what it declares. |
 | **AC-16** | `ai/rules/cli.md` read against the product | `ai/rules/cli.md` states the two rules of audit section 6, replacing the unmeetable universal one, and its point file follows. |
 
 ## End-to-End User Stories
@@ -356,10 +356,10 @@ Ze's own answer format and is covered by the round-trip unit test above.
 | `internal/component/cli/completer.go` | delete `PipeOperators`, read the catalog |
 | `internal/component/cli/*` (`RunCommand`, `matchLocalHandler`) | route a local answer through the pipe layer |
 | `internal/plugins/env/register.go`, `internal/component/config/{schema,storage,yang}/cli/register.go`, `internal/component/config/cli/register.go` | the five families that reach no pipe layer |
-| `scripts/dev/gen_wiki_commands.py` | delete the operator literal |
+| `internal/le/wikicatalog/render.go` | delete the operator literal |
 | `website/tools/render-cli-catalog.py`, `render-command-equivalents.py`, `render-llms-txt.py` | render the real list |
 | `website/tools/page_registry.py` | add `docs/architecture/api/commands.md` to `DOCS_MANIFEST` |
-| `scripts/docvalid/doc_drift.go` | the new gate check |
+| `internal/le/docvalid/drift.go` | the new gate check |
 | `docs/features/formatting.md`, `docs/guide/command-reference.md`, `docs/guide/cli.md`, `docs/guide/isis.md` | take the operator table from a generated include; stop re-listing |
 | `ai/rules/cli.md` and its point file | the two rules replacing the universal one |
 
@@ -498,7 +498,7 @@ the published page says so per command rather than averaging it away.
 the same call the checker compares against, so a description or an argument kind
 that changes in the catalog and not on the page reddens as surely as a missing
 operator. Mutation-proven: renaming `fill` to `filll` on the page reddens
-`ze-doc-drift-check` by name.
+`./le docvalid doc-drift` by name.
 
 ### Phase 5, as built
 
@@ -725,8 +725,8 @@ boundary is unchecked.
 | IR-7 | BLOCKER | `TestShowPipelineOrdersTheSameWithAndWithoutATerminal` cannot detect the removed global sort. Its fixture is already ordered by the same keys (`internal/component/bgp/plugins/rib/rib_pipeline_show_stream_test.go` `TestShowPipelineOrdersTheSameWithAndWithoutATerminal`) | FIXED |
 | IR-8 | ISSUE | An empty keyed row set such as `{"peers":{}}` becomes one outer row, so a zero-peer answer counts as one (`internal/component/command/answer_shape.go` `rowSet`, `rowsInKeyed`; `internal/component/bgp/plugins/cmd/peer/peer.go` `handleBgpPeerList`) | FIXED |
 | IR-9 | BLOCKER | `operatorsFor` suppresses operators for a plain local handler even when the CLI reaches a daemon data handler. `show version` is published with no operators although its daemon path pipes (`cmd/ze/help_command.go` `operatorsFor`; `internal/component/cmd/show/show.go` `handleShowVersion`) | FIXED |
-| IR-10 | BLOCKER | The documentation drift gate compares only the global generated operator table. It does not verify per-command wiki or website output against `operatorsFor`, so AC-15 is not enforced (`scripts/docvalid/doc_drift.go` `checkPipeOperatorReference`) | FIXED |
-| IR-11 | ISSUE | `ClassStream` is dropped or mislabeled by `pipeUsage`, the wiki generator, the command-equivalents generator, and the CLI rule. The LLM catalog removes its qualifier (`cmd/ze/ze_core_pipe.go` `pipeUsage`; `scripts/dev/gen_wiki_commands.py` `render_detail`; `website/tools/render-command-equivalents.py` `split_operators`; `website/tools/render-llms-txt.py` `command_meta`) | FIXED |
+| IR-10 | BLOCKER | The documentation drift gate compares only the global generated operator table. It does not verify per-command wiki or website output against `operatorsFor`, so AC-15 is not enforced (`internal/le/docvalid/drift.go` `checkPipeOperatorReference`) | FIXED |
+| IR-11 | ISSUE | `ClassStream` is dropped or mislabeled by `pipeUsage`, the wiki generator, the command-equivalents generator, and the CLI rule. The LLM catalog removes its qualifier (`cmd/ze/ze_core_pipe.go` `pipeUsage`; `internal/le/wikicatalog/render.go` `render_detail`; `website/tools/render-command-equivalents.py` `split_operators`; `website/tools/render-llms-txt.py` `command_meta`) | FIXED |
 | IR-12 | ISSUE | `ze cli --help` keeps a second six-operator list, omits catalog entries, and still describes row operators as line operations (`internal/component/cli/client/main.go` `usage`) | FIXED |
 | IR-13 | BLOCKER | Address declarations neither gate undeclared commands nor constrain enrichment to declared fields. `show version \| origin` is accepted, while declared `show bgp \| resolve` also enriches `router-id` (`internal/component/command/pipe.go` `validateDeclaredShape`; `internal/component/command/pipe_resolve.go` `resolveJSON`; `internal/component/command/pipe_origin.go` `originJSON`) | FIXED |
 | IR-14 | ISSUE | Pipe metadata is injected before the first format operator. A later row operator treats the metadata slice as a second row set and refuses or truncates the wrong set (`internal/component/command/pipe.go` `ApplyPipes`; `internal/component/command/answer_shape.go` `rowsInKeyed`) | FIXED |
@@ -751,8 +751,8 @@ producer.
 | IR2-1 | BLOCKER | Interactive SSH runs `cli.Model` inside the daemon, but `Model.executeOperationalCommand` uses the local save validator. An SSH PTY user can write any daemon-writable path (`internal/component/cli/model_mode.go` `Model.executeOperationalCommand`; `internal/component/ssh/ssh.go` `Server.teaHandler`) | FIXED |
 | IR2-2 | BLOCKER | `functionalLocalDataInvocations` prefers an ignored draft test when present, so the ratchet can report coverage that no normal suite runs (`internal/component/command/registry/local_data_functional_coverage_test.go` `functionalLocalDataInvocations`) | FIXED |
 | IR2-3 | BLOCKER | Committed functional tests do not drive the new bounds, one-shot stream refusal, display typo refusal, remote save, traceroute save, `show version` publication, or derived help through their user entry points | FIXED |
-| IR2-4 | BLOCKER | `checkPublishedCommandSurfaces` returns clean when no sibling website or wiki catalog exists, so CI can execute no per-command comparison (`scripts/docvalid/doc_drift.go` `checkPublishedCommandSurfaces`) | FIXED |
-| IR2-5 | BLOCKER | The drift gate compares only website command JSON. Stale or incorrect CLI HTML, Markdown, equivalents, and `llms.txt` can remain green (`scripts/docvalid/doc_drift.go` `compareWebsiteCommandCatalog`) | FIXED |
+| IR2-4 | BLOCKER | `checkPublishedCommandSurfaces` returns clean when no sibling website or wiki catalog exists, so CI can execute no per-command comparison (`internal/le/docvalid/drift.go` `checkPublishedCommandSurfaces`) | FIXED |
+| IR2-5 | BLOCKER | The drift gate compares only website command JSON. Stale or incorrect CLI HTML, Markdown, equivalents, and `llms.txt` can remain green (`internal/le/docvalid/drift.go` `compareWebsiteCommandCatalog`) | FIXED |
 | IR2-6 | ISSUE | Public renderers treat `always` and `local-only` as alternatives. `save` loses its independent `always` answer qualifier (`cmd/ze/help_command.go` `splitOperators`; website and wiki renderer equivalents) | FIXED |
 | IR2-7 | ISSUE | The primary website CLI page does not render `answer-shape` or `address-fields` (`website/tools/render-cli-catalog.py` `render_pipe_details`) | FIXED |
 | IR2-8 | ISSUE | `ze cli --help` still copies five format values and omits valid `raw` (`internal/component/cli/client/main.go` `usage`) | FIXED |
@@ -781,12 +781,12 @@ reviewed commit and is recorded as dismissed.
 | IR3-2 | BLOCKER | Raw SSH streaming exec dispatches the full pipe-bearing input before remote validation. `log` is not applied and `save` is not refused before handler dispatch (`internal/component/ssh/ssh.go` `Server.execMiddleware`) | FIXED |
 | IR3-3 | BLOCKER | The hub authority test reaches only the command-model fallback. No test discriminates the editor-capable production `NewModel` branch (`cmd/ze/hub/session_factory.go` `buildSessionModelFactory`) | FIXED |
 | IR3-4 | BLOCKER | Local-data `ze cli -c --format raw` passes `raw` as a default and falls back to text. Invalid explicit formats fail open to text on the same path (`internal/component/cli/client/main.go` `runBGP`) | FIXED |
-| IR3-5 | BLOCKER | Without a sibling wiki checkout, docvalid neither runs nor structurally validates `gen_wiki_commands.py` (`scripts/docvalid/doc_drift.go` `checkPublishedCommandSurfaces`) | FIXED |
+| IR3-5 | BLOCKER | Without a sibling wiki checkout, docvalid neither runs nor structurally validates `gen_wiki_commands.py` (`internal/le/docvalid/drift.go` `checkPublishedCommandSurfaces`) | FIXED |
 | IR3-6 | BLOCKER | The local-data functional ratchet scans comments and dead Python text, so a non-executed call can satisfy AC-10 (`internal/component/command/registry/local_data_functional_coverage_test.go` `functionalLocalDataInvocations`) | FIXED |
 | IR3-7 | BLOCKER | The live remote scenario does not drive an authenticated production SSH PTY, so the authority boundary remains functionally unproven (`test/plugin/pipe-review-remote-contracts.ci`) | FIXED |
-| IR3-8 | BLOCKER | Primary CLI HTML and Markdown drift validators omit command-owned filters and aliases (`scripts/docvalid/doc_drift.go` `validatePrimaryCommandContract`, `validatePrimaryMarkdownContract`) | FIXED |
-| IR3-9 | BLOCKER | Generated-surface validators require catalog operators but never reject extra names absent from the catalog (`scripts/docvalid/doc_drift.go` `validateGeneratedCommandSurfaces`) | FIXED |
-| IR3-10 | BLOCKER | Generated operator class and description are not compared with the catalog (`scripts/docvalid/doc_drift.go` `validatePrimaryCommandContract`) | FIXED |
+| IR3-8 | BLOCKER | Primary CLI HTML and Markdown drift validators omit command-owned filters and aliases (`internal/le/docvalid/drift.go` `validatePrimaryCommandContract`, `validatePrimaryMarkdownContract`) | FIXED |
+| IR3-9 | BLOCKER | Generated-surface validators require catalog operators but never reject extra names absent from the catalog (`internal/le/docvalid/drift.go` `validateGeneratedCommandSurfaces`) | FIXED |
+| IR3-10 | BLOCKER | Generated operator class and description are not compared with the catalog (`internal/le/docvalid/drift.go` `validatePrimaryCommandContract`) | FIXED |
 | IR3-11 | BLOCKER | A format-before-transform record chain always materializes every source record. `ndjson` followed by bounded line transforms loses record-path cancellation and bounded retention (`internal/component/command/render_records.go` `RenderRecords`) | FIXED |
 | IR3-12 | BLOCKER | Structured transforms after incompatible rendered formats are accepted as inert successes instead of refused by operator and format (`internal/component/command/pipe.go` `ApplyPipes`; `render_records.go` `formatBeforeDataTransform`) | FIXED |
 | IR3-13 | ISSUE | Address enrichment overwrites existing derived sibling fields and iterates unsorted source keys, so it can erase data or produce order-dependent derived fields (`internal/component/command/pipe_resolve.go` `resolveJSON`; `pipe_origin.go` `originJSON`) | FIXED |
@@ -805,7 +805,7 @@ producer.
 | # | Sev | Finding | Disposition |
 |---|-----|---------|-------------|
 | IR4-1 | BLOCKER | The AC-10 ratchet treats triple-quoted Python string content as executable top-level calls and completion markers (`internal/component/command/registry/local_data_functional_coverage_test.go` `parseFunctionalLocalDataInvocations`) | FIXED |
-| IR4-2 | BLOCKER | Generated-surface validators inspect only the first operator group and accept a duplicate group that names catalog-absent operators (`scripts/docvalid/doc_drift.go`) | FIXED |
+| IR4-2 | BLOCKER | Generated-surface validators inspect only the first operator group and accept a duplicate group that names catalog-absent operators (`internal/le/docvalid/drift.go`) | FIXED |
 | IR4-3 | BLOCKER | `ServeLocal` invokes the local producer before it validates an explicit pipe refusal, so source work and producer errors can precede AC-3 (`internal/component/command/local_data.go` `ServeLocal`) | FIXED |
 | IR4-4 | BLOCKER | Positional record enrichment still appends duplicate derived columns and can overwrite producer values (`internal/component/command/pipe_records.go` `recordsPositionalAddressTransformed`) | FIXED |
 | IR4-5 | BLOCKER | NDJSON line transforms collapse short answers with faults but stream long answers line by line, making output threshold-dependent (`internal/component/command/render_records.go` `RenderRecords`) | FIXED |
@@ -828,8 +828,8 @@ verified the five remaining findings against their producers.
 |---|-----|---------|-------------|
 | IR5-1 | BLOCKER | Positional `count \| ndjson` leaves the source schema attached to the count document, so canonicalization emits a positional-row fault (`internal/component/command/pipe_records.go`) | FIXED |
 | IR5-2 | BLOCKER | The AC-10 ratchet validates `run.py` but does not prove the `.ci` command executes it instead of a second payload (`internal/component/command/registry/local_data_functional_coverage_test.go`) | FIXED |
-| IR5-3 | BLOCKER | Rendered validators select the first per-command row or section and accept a duplicate container for the same command with catalog-absent operators (`scripts/docvalid/doc_drift.go`) | FIXED |
-| IR5-4 | BLOCKER | HTML group scanners return prior valid groups when a later duplicate group is unterminated, accepting malformed catalog-absent output (`scripts/docvalid/doc_drift.go`) | FIXED |
+| IR5-3 | BLOCKER | Rendered validators select the first per-command row or section and accept a duplicate container for the same command with catalog-absent operators (`internal/le/docvalid/drift.go`) | FIXED |
+| IR5-4 | BLOCKER | HTML group scanners return prior valid groups when a later duplicate group is unterminated, accepting malformed catalog-absent output (`internal/le/docvalid/drift.go`) | FIXED |
 | IR5-5 | ISSUE | The AST fixture changed the post-completion fake call from a literal to a dynamic value, losing discrimination for late literal evidence (`internal/component/command/registry/local_data_functional_coverage_test.go`) | FIXED |
 
 **Independent round 5: 4 BLOCKER, 1 ISSUE, 0 outstanding.** All five
@@ -880,7 +880,7 @@ all findings against their producers.
 | IR7-2 | BLOCKER | AC-10 does not require the top-level `OK:` marker to be observed, so exit-only or assertion-free scenarios can pass without executing AST-counted calls | FIXED |
 | IR7-3 | BLOCKER | AC-10 accepts malformed expectation fields validated only during runner execution | FIXED |
 | IR7-4 | BLOCKER | The isolated candidate path can satisfy `needs-path` when the real repository would skip the scenario | FIXED |
-| IR7-5 | BLOCKER | Equivalent HTML ignores malformed same-path Ze articles whose Registry-path markup is noncanonical (`scripts/docvalid/doc_drift.go`) | FIXED |
+| IR7-5 | BLOCKER | Equivalent HTML ignores malformed same-path Ze articles whose Registry-path markup is noncanonical (`internal/le/docvalid/drift.go`) | FIXED |
 | IR7-6 | BLOCKER | Markdown command identity parsers assume one-backtick code-span delimiters and ignore valid matching multi-backtick spans | FIXED |
 | IR7-7 | BLOCKER | Invalid backtick fence openers can hide active command containers | FIXED |
 | IR7-8 | BLOCKER | Equivalent Markdown ignores duplicate Ze headings with inline comments or other non-space suffixes | FIXED |
@@ -888,6 +888,150 @@ all findings against their producers.
 
 **Independent round 7: 8 BLOCKER, 1 ISSUE, 0 outstanding.** All nine
 findings are fixed. The next authorized review covers their exact commits.
+
+### Independent review, round 8 (2026-08-27)
+
+Three owner-authorized contexts reviewed the Round-7 semantics, coverage, and
+migrated rendered-contract fixes. The semantics lens returned clean. The main
+session verified the five remaining findings against their producers.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR8-1 | BLOCKER | AC-10 still equates AST call syntax with execution, so helper rebinding or a spoofed marker can pass without real `ze cli -c` calls | FIXED |
+| IR8-2 | BLOCKER | Migrated equivalent HTML ignores malformed same-path Ze articles when noncanonical Registry-path markup prevents identity recovery | FIXED |
+| IR8-3 | BLOCKER | Migrated equivalent Markdown ignores duplicate Ze headings with text-free inline HTML that renders the same identity | FIXED |
+| IR8-4 | ISSUE | HTML capture treats valid direct child articles as peer containers and rejects valid nested postprocessing | FIXED |
+| IR8-5 | ISSUE | Markdown code-span identity uses `strings.Fields` instead of CommonMark whitespace normalization | FIXED |
+
+**Independent round 8: 3 BLOCKER, 2 ISSUE, 0 outstanding.** All five
+findings are fixed. The next authorized review covers their exact files.
+
+### Independent review, round 9 (2026-08-27)
+
+Two owner-authorized contexts reviewed the compiled runtime-evidence path and
+the final migrated rendered-contract parser. The main session verified all
+findings against their producers.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR9-1 | BLOCKER | Compiled coverage fixtures use the inherited working directory and can overwrite or race checkout files | FIXED |
+| IR9-2 | BLOCKER | The compiled helper accepts extra schema protocol fields | FIXED |
+| IR9-3 | BLOCKER | The compiled helper drops malformed YANG tree nodes and children | FIXED |
+| IR9-4 | ISSUE | The compiled helper accepts completion collisions without array-valued siblings | FIXED |
+| IR9-5 | BLOCKER | The compiled helper accepts extra count-result and pipe-metadata fields | FIXED |
+| IR9-6 | BLOCKER | Runtime evidence markers are prefix-spoofable for a new registration path | FIXED |
+| IR9-7 | BLOCKER | The migrated gate bypasses its native renderer seam, leaving renderer failure and mutation tests vacuous | FIXED |
+| IR9-8 | BLOCKER | Registry identity recovery misses visibly matching labels or later code descendants | FIXED |
+| IR9-9 | BLOCKER | Markdown container identity does not parse code spans across physical lines | FIXED |
+| IR9-10 | BLOCKER | Native rendering silently overwrites command detail files on slug collisions | FIXED |
+| IR9-11 | BLOCKER | Aggregate rendered surfaces do not reject command containers absent from the live catalog | FIXED |
+| IR9-12 | ISSUE | Fence closing accepts non-ASCII whitespace forbidden by CommonMark | FIXED |
+| IR9-13 | BLOCKER | CRLF in a code span normalizes to two spaces instead of one line ending | FIXED |
+| IR9-14 | ISSUE | HTML shape and address checks reject benign postprocessing because they compare serialized fragments | FIXED |
+| IR9-15 | BLOCKER | Truncated Ze article classes are not treated as malformed candidates | FIXED |
+| IR9-16 | ISSUE | Nested command articles contaminate their parent Registry-path scan | FIXED |
+
+**Independent round 9: 12 BLOCKER, 4 ISSUE, 0 outstanding.** All 16
+findings are fixed. The next authorized review covers their exact files.
+
+### Independent review, round 10 (2026-08-27)
+
+Two owner-authorized contexts reviewed the committed self-contained runtime
+proof and migrated rendered gate. The main session verified all findings
+against their producers.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR10-1 | BLOCKER | The runtime ratchet reads the draft path instead of the committed scenario | FIXED |
+| IR10-2 | BLOCKER | The interpreted proof does not reject rebinding of `run` or `subprocess.run` | FIXED |
+| IR10-3 | BLOCKER | Indirect stdout aliases and dynamically assembled markers can spoof interpreted evidence | FIXED |
+| IR10-4 | BLOCKER | Interpreted tree traversal accepts non-array children | FIXED |
+| IR10-5 | ISSUE | Interpreted completion collisions accept non-array siblings | FIXED |
+| IR10-6 | ISSUE | Interpreted row helpers accept non-object entries | FIXED |
+| IR10-7 | BLOCKER | The interpreted scenario can substitute a fake `ze` through `PATH` | FIXED |
+| IR10-8 | BLOCKER | Aggregate rendered surfaces do not reject command containers absent from live | FIXED |
+| IR10-9 | BLOCKER | Markdown command identities do not span physical lines and CRLF normalizes incorrectly | FIXED |
+| IR10-10 | ISSUE | Fence closers accept non-ASCII whitespace | FIXED |
+| IR10-11 | BLOCKER | Markdown heading identity ignores visible inline emphasis and links | FIXED |
+| IR10-12 | BLOCKER | Registry identity markup is accepted without explicit node closure | FIXED |
+| IR10-13 | BLOCKER | Truncated Ze article classes are not malformed candidates | FIXED |
+| IR10-14 | ISSUE | Nested articles contaminate parent Registry scans | FIXED |
+| IR10-15 | BLOCKER | HTML values use serialized fragments instead of exact parsed visible values with closure | FIXED |
+| IR10-16 | BLOCKER | Metadata fields lack exact zero-or-one cardinality and duplicate-value rejection | FIXED |
+| IR10-17 | BLOCKER | Primary and LLM surfaces do not compare every visible path, mode, and description value | FIXED |
+
+**Independent round 10: 13 BLOCKER, 4 ISSUE, 0 outstanding.** All 17
+findings are fixed. The next authorized review covers their exact files.
+
+### Independent review, round 11 (2026-08-27)
+
+Two owner-authorized contexts reviewed the final compiled coverage and native
+rendered-contract fixes. The main session verified all findings against their
+producers.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR11-1 | ISSUE | Compiled coverage row conversion silently accepts non-object members when another row matches | FIXED |
+| IR11-2 | ISSUE | Compiled coverage accepts non-object completion sibling members | FIXED |
+| IR11-3 | BLOCKER | Equivalent indexes do not compare complete exact command identity multisets | FIXED |
+| IR11-4 | ISSUE | Equivalent detail Markdown does not validate the visible top-level command heading | FIXED |
+| IR11-5 | ISSUE | Visible HTML values do not recursively reject unclosed descendants | FIXED |
+| IR11-6 | ISSUE | Equivalent filter and alias details compare serialized fragments instead of structural visible values | FIXED |
+| IR11-7 | ISSUE | Native rendering accepts an empty normalized command slug and can overwrite the aggregate index | FIXED |
+| IR11-8 | ISSUE | The CommonMark whitespace test does not distinguish correct attribution from broad collapsing | FIXED |
+| IR11-9 | ISSUE | The pseudo-fence mutation accepts both zero and two-container failures and is non-discriminating | FIXED |
+
+**Independent round 11: 1 BLOCKER, 8 ISSUE, 0 outstanding.** All nine
+findings are fixed. The next authorized review covers their exact files.
+
+### Independent review, round 12 (2026-08-27)
+
+Two owner-authorized contexts reviewed the Round-11 coverage and rendered
+surface fixes. Coverage returned clean. The main session verified two
+remaining rendered-surface issues.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR12-1 | ISSUE | Wrapped command code spans in equivalent Markdown indexes can evade the identity multiset | FIXED |
+| IR12-2 | ISSUE | Semicolons in valid filter or alias descriptions are parsed as extra Markdown detail entries | FIXED |
+
+**Independent round 12: 0 BLOCKER, 2 ISSUE, 0 outstanding.** Both issues are fixed.
+
+### Independent review, round 13 (2026-08-27)
+
+Two owner-authorized contexts reviewed the Round-12 fixes. Coverage returned
+clean. The main session verified six rendered-surface findings.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR13-1 | BLOCKER | Postprocessed operator guide rows can hide catalog-absent operators from the raw HTML regex | FIXED |
+| IR13-2 | BLOCKER | Wrapped identities on primary Markdown and LLM aggregate surfaces can evade exact population checks | FIXED |
+| IR13-3 | BLOCKER | Unmatched CommonMark emphasis markers are discarded and visible drift can pass | FIXED |
+| IR13-4 | ISSUE | Wrapped-identity tests do not prove valid wrappers decode successfully | FIXED |
+| IR13-5 | BLOCKER | Detail expectation derivation does not apply renderer escaping for literal backslashes and semicolons | FIXED |
+| IR13-6 | BLOCKER | Multiline descriptions break one-line primary Markdown and LLM containers | FIXED |
+
+**Independent round 13: 5 BLOCKER, 1 ISSUE, 0 outstanding.** All six findings are fixed.
+
+### Independent review, round 14 (2026-08-27)
+
+Two owner-authorized contexts reviewed the Round-13 fixes. Coverage returned
+clean. The main session verified ten CommonMark and native-renderer issues.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR14-1 | ISSUE | CommonMark rule-of-three logic uses the opener's `canOpen` state where `canClose` is required | FIXED |
+| IR14-2 | ISSUE | CommonMark punctuation classification incorrectly treats every Unicode symbol as punctuation | FIXED |
+| IR14-3 | ISSUE | Alias expansions are backslash-escaped inside code spans and render visibly wrong | FIXED |
+| IR14-4 | ISSUE | Existing backslashes are not protected before escaping Markdown table pipes | FIXED |
+| IR14-5 | ISSUE | Multiline detail descriptions escape delimiters but still leave physical line breaks | FIXED |
+| IR14-6 | ISSUE | LLM alias metadata does not encode semicolon or comma delimiters in expansions | FIXED |
+| IR14-7 | ISSUE | Primary Markdown metadata splits commas inside alias code spans | FIXED |
+| IR14-8 | ISSUE | Primary Markdown scans contract labels in every table cell instead of the contract cell | FIXED |
+| IR14-9 | ISSUE | Aggregate descriptions render active Markdown instead of literal catalog text | FIXED |
+| IR14-10 | ISSUE | Detail descriptions leave emphasis, links, and inline HTML active | FIXED |
+
+**Independent round 14: 0 BLOCKER, 10 ISSUE, 0 outstanding.** All ten findings are fixed.
 
 ## Design Insights
 
@@ -947,8 +1091,8 @@ Not applicable.
 
 ### Closure
 
-- [ ] `make ze-lint-changed` clean
-- [ ] `make ze-precommit-verify` green over the commits (worktree, on cadence)
+- [ ] `./le changed scope` clean
+- [ ] `./le verify current mode full` green over the commits (worktree, on cadence)
 - [ ] Review Gate 0 BLOCKER / 0 ISSUE
 - [ ] `plan/deferrals/cli-pipe-operator-coverage.md` rows resolved
 
@@ -956,7 +1100,7 @@ Not applicable.
 
 Everything below is done and verified. Closure is blocked on ONE thing: the
 independent review that `ai/rules/planning.md` requires and that
-`scripts/dev/commit_helper.py` enforces through
+`internal/le/commit/prepare.go` enforces through
 `tmp/review/cli-pipe-operator-coverage-<session>.md`.
 
 The Review Gate above is a SELF-review and says so in its first paragraph. The
@@ -994,7 +1138,7 @@ What landed, in one sentence each:
 | `internal/component/command/pipe_save.go` | `\| save <path>`, atomic temp-and-rename at mode 0600, refused on a daemon-expanded chain |
 | `internal/component/command/local_data.go` | `ServeLocal` / `RenderLocalAnswer` / `WriteAnswer`, the path by which a command served in the client's own process reaches the pipe layer at all |
 | `cmd/ze/help_command.go` | Publishes per command the operator list its shape derives, each with `always` / `with-rows` / `when-streaming`, plus filters and aliases. `global-pipes` is gone |
-| `docs/features/pipe-operators.generated.md` | Generated from the catalog. `ze-doc-drift-check` reddens when it and the catalog disagree |
+| `docs/features/pipe-operators.generated.md` | Generated from the catalog. `./le docvalid doc-drift` reddens when it and the catalog disagree |
 | `internal/component/bgp/plugins/rib/rib_pipeline.go` | `show bgp rib` answers flat rows, one row per route with `peer` and `direction` as fields, streamed, in one deterministic order on both paths |
 
 The shape of the answer decides what an operator can do, and the command
@@ -1033,7 +1177,7 @@ And make sure ALL the command support ALL the modifier which make them useful."*
 
 | Goal clause | Met | Evidence |
 |-------------|-----|----------|
-| the website documentation can be improved with what each command supports | YES | `ze help command --json` publishes 199 commands, each with its operator list, every entry qualified `always` / `with-rows` / `when-streaming`, plus `answer-shape` where declared. `docs/features/pipe-operators.generated.md` is generated from the same catalog and `ze-doc-drift-check` reddens when they disagree (mutation-proven at closure) |
+| the website documentation can be improved with what each command supports | YES | `ze help command --json` publishes 199 commands, each with its operator list, every entry qualified `always` / `with-rows` / `when-streaming`, plus `answer-shape` where declared. `docs/features/pipe-operators.generated.md` is generated from the same catalog and `./le docvalid doc-drift` reddens when they disagree (mutation-proven at closure) |
 | ALL the commands support ALL the modifiers which make them useful | YES, with the second half enforced | 46 of 46 local-registry paths reach the pipe layer. What a command cannot support is refused BY NAME with a reason rather than silently mishandled, which is what "which make them useful" requires: `show schema protocol \| first 1` says `first cannot apply here: this command answers one document, and first acts on rows` |
 | not half-existing | YES | The catalog is the single source; the five hand-copied lists are gone. A surface that names an operator the catalog does not hold, or omits one it does, reddens a test |
 
@@ -1093,7 +1237,7 @@ commands, not by reading the audit — which is how I-2 was found.
 | AC-12 | `show env list \| resolve` → `resolve cannot apply here: no field of this command's answer is declared to hold an IP address` |
 | AC-13 | `ze help command --json` publishes 199 commands with `operators`; no entry carries `global-pipes` |
 | AC-14 | `docs/features/pipe-operators.generated.md` holds 0 hand-written operator literals |
-| AC-15 | Mutation-proven at closure: renaming one row `count` → `nosuchop` reddens `ze-doc-drift-check` with *the published pipe operator table and the operator catalog disagree*; restored byte-identical and the check returns *No documentation drift detected* |
+| AC-15 | Mutation-proven at closure: renaming one row `count` → `nosuchop` reddens `./le docvalid doc-drift` with *the published pipe operator table and the operator catalog disagree*; restored byte-identical and the check returns *No documentation drift detected* |
 | AC-16 | `ai/rules/cli.md:15` states both rules and names the replaced one |
 
 ### Wiring Verified
@@ -1105,7 +1249,7 @@ commands, not by reading the audit — which is how I-2 was found.
 | `test/parse/cli-data-ls-show.ci` | The AC-10 local-data path, asserted unchanged |
 | `internal/component/bgp/plugins/rib/rib_pipeline_show_stream_test.go` | `TestShowPipelineOrdersTheSameWithAndWithoutATerminal` (I-1) |
 
-`make ze-functional-ui-test`: 184/184 pass, 10 skip. Section 9 was RED before
+the retired `ze-functional-ui-test` (current: `./le functional ui`): 184/184 pass, 10 skip. Section 9 was RED before
 the I-2 fix with *the two surfaces answer different bytes*, and green after.
 
 ### Assumptions Resolved
@@ -1121,15 +1265,15 @@ the I-2 fix with *the two surfaces answer different bytes*, and green after.
 | Page | Reviewed | Claims checked |
 |------|----------|----------------|
 | `docs/architecture/api/commands.md` | this session | It is now the `// Related:` destination for all 7 files this spec's code carried, and the `VALIDATES:` target for `test/ui/pipe-local-command.ci`. Reachable, and describes the operator model those files implement |
-| `docs/features/pipe-operators.generated.md` | generated + gated | Cannot disagree with the catalog without reddening `ze-doc-drift-check` |
+| `docs/features/pipe-operators.generated.md` | generated + gated | Cannot disagree with the catalog without reddening `./le docvalid doc-drift` |
 
 ### Gates
 
 | Gate | Result |
 |------|--------|
-| `make ze-functional-ui-test` | 184/184 PASS |
+| `./le functional ui` | 184/184 PASS |
 | `go test ./internal/component/command/` | ok |
 | `go test -tags ze_core ./cmd/ze/ -run 'Pipe\|Operator\|Shape'` | ok |
-| `make ze-doc-drift-check` | No documentation drift detected |
-| `make ze-repository-tracked-build-check` | OK, every flavor compiles |
-| `make ze-doc-verify` | RED, and NOT from this work: one source anchor in `docs/guide/web-interface.md` broken by another session's uncommitted edit to `cmd/ze/hub/aaa_authenticator_web.go`, and `ai/PACKAGE-MAP.md` stale from that session's untracked `internal/core/configorder` and `internal/core/configvalue`. Regenerating the map would carry their packages into this commit, which is mistake M-8; it was left alone deliberately |
+| `./le docvalid doc-drift` | No documentation drift detected |
+| `./le repository-tracked-build check` | OK, every flavor compiles |
+| `./le doc-check verify` | RED, and NOT from this work: one source anchor in `docs/guide/web-interface.md` broken by another session's uncommitted edit to `cmd/ze/hub/aaa_authenticator_web.go`, and `ai/PACKAGE-MAP.md` stale from that session's untracked `internal/core/configorder` and `internal/core/configvalue`. Regenerating the map would carry their packages into this commit, which is mistake M-8; it was left alone deliberately |

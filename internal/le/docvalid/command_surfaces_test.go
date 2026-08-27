@@ -3,7 +3,6 @@
 package docvalid
 
 import (
-	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -58,8 +57,7 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 <tr><td><code>log</code></td><td>Streaming</td><td>While streaming</td><td>Append updates</td></tr>
 </tbody></table>
 </section>
-<tr id="cmd-show-test-extra"><td><p><span>Always</span><code>catalog-absent</code></p></td></tr>
-<tr id="cmd-show-test"><td><code>show test</code></td><td>
+<tr id="cmd-show-test"><td><code>show test</code></td><td>Read-only</td><td>Show test rows</td><td>
 <p><span>Answer shape</span><code>tab</code></p>
 <p><span>Address fields</span><code>address</code></p>
 <strong>Command pipes</strong><div class="cli-pipe-chips"><code title="Filter by family">family &lt;value&gt;</code></div>
@@ -87,7 +85,6 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 			"| Command | Mode | Description | Pipes |",
 			"| --- | --- | --- | --- |",
 			"| `show test` | Read-only | Show test rows | Answer shape: `tab`<br>Address fields: `address`<br>Command: `family <value>`<br>Aliases: `summary -> display address`<br>Always: `json`, `save`<br>With rows: `match`<br>While streaming: `log`<br>Local process only: `save` |",
-			"| `show test extra` | Read-only | Prefix collision | Always: `catalog-absent` |",
 			"",
 		}, "\n"))
 	writeDoc(t, root, "website/reference/command-equivalents/index.html",
@@ -149,7 +146,6 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 			"",
 			"",
 			"- `show test` (read-only; wire ze-show:test; pipes always: json save, with-rows: match, when-streaming: log, local-only: save; shape tab; address-fields address; filters family; aliases summary=display address; args family:enum): Show test rows",
-			"- `show test extra` (read-only; pipes always: catalog-absent): Prefix collision",
 			"",
 		}, "\n"))
 }
@@ -271,22 +267,14 @@ func TestDocDriftNoSiblingsStillValidatesRenderedCommands(t *testing.T) {
 // PREVENTS: a renderer silently dropping one command's address contract while
 // ze-doc-verify has no published sibling to compare.
 func TestDocDriftNoSiblingsRejectsMutatedRendererContract(t *testing.T) {
+	installCommandRendererMutation(
+		t,
+		"llms.txt",
+		"address-fields address",
+		"address-fields",
+	)
 	root := t.TempDir()
 	livePath := writeRenderedCommandCatalogFixture(t, root)
-	sourcePath := filepath.Join(repoRoot(t), "website", "tools", "render-llms-txt.py")
-	source, err := os.ReadFile(sourcePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mutated := strings.Replace(string(source),
-		"if address_fields:",
-		"if False and address_fields:",
-		1,
-	)
-	if mutated == string(source) {
-		t.Fatal("the llms renderer mutation did not apply")
-	}
-	writeDoc(t, root, "website/tools/render-llms-txt.py", mutated)
 
 	out, err := runRenderedCommandDriftFixture(t, root, livePath)
 	if err == nil {
@@ -305,28 +293,14 @@ func TestDocDriftNoSiblingsRejectsMutatedRendererContract(t *testing.T) {
 // PREVENTS: a row-level name search passing when save remains under always but
 // disappears from the independent local-process-only contract.
 func TestDocDriftNoSiblingsRejectsPrimaryMarkdownQualifierMutation(t *testing.T) {
+	installCommandRendererMutation(
+		t,
+		"reference/cli/index.md",
+		"<br>Local process only: `save`",
+		"",
+	)
 	root := t.TempDir()
 	livePath := writeRenderedCommandCatalogFixture(t, root)
-	sourcePath := filepath.Join(repoRoot(t), "website", "tools", "render-cli-catalog.py")
-	source, err := os.ReadFile(sourcePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	original := `    for availability, names in operators_by_availability(command).items():
-        parts.append(`
-	replacement := `    for availability, names in operators_by_availability(command).items():
-        if availability == "local-only":
-            continue
-        parts.append(`
-	mutationAt := bytes.LastIndex(source, []byte(original))
-	if mutationAt == -1 {
-		t.Fatal("the primary Markdown qualifier mutation did not apply")
-	}
-	mutated := make([]byte, 0, len(source)+len(replacement)-len(original))
-	mutated = append(mutated, source[:mutationAt]...)
-	mutated = append(mutated, replacement...)
-	mutated = append(mutated, source[mutationAt+len(original):]...)
-	writeDoc(t, root, "website/tools/render-cli-catalog.py", string(mutated))
 
 	out, err := runRenderedCommandDriftFixture(t, root, livePath)
 	if err == nil {
@@ -343,10 +317,15 @@ func TestDocDriftNoSiblingsRejectsPrimaryMarkdownQualifierMutation(t *testing.T)
 // VALIDATES: canonical renderer execution errors are documentation findings.
 // PREVENTS: a broken in-repo renderer degrading into a skipped surface check.
 func TestDocDriftRendererErrorsFailClosed(t *testing.T) {
+	previous := renderCommandSurfaces
+	t.Cleanup(func() {
+		renderCommandSurfaces = previous
+	})
+	renderCommandSurfaces = func(string, []publishedCommand) error {
+		return errors.New("fixture renderer failure")
+	}
 	root := t.TempDir()
 	livePath := writeRenderedCommandCatalogFixture(t, root)
-	writeDoc(t, root, "website/tools/render-cli-catalog.py",
-		`raise SystemExit("fixture renderer failure")`+"\n")
 
 	out, err := runRenderedCommandDriftFixture(t, root, livePath)
 	if err == nil {
@@ -354,6 +333,9 @@ func TestDocDriftRendererErrorsFailClosed(t *testing.T) {
 	}
 	if !strings.Contains(out, "could not generate the expected per-command surfaces") {
 		t.Fatalf("doc drift did not report expected-surface generation failure:\n%s", out)
+	}
+	if !strings.Contains(out, "internal/le/sitebuild") {
+		t.Fatalf("doc drift did not identify the native site producer:\n%s", out)
 	}
 	if !strings.Contains(out, "fixture renderer failure") {
 		t.Fatalf("doc drift hid the renderer's corrective detail:\n%s", out)
@@ -621,7 +603,7 @@ func TestDocDriftRejectsDuplicateOperatorGroupsOnEveryRenderedSurface(t *testing
 		)
 		if err == nil ||
 			!strings.Contains(out, "duplicate operator availability group") ||
-			!strings.Contains(out, "scripts/dev/gen_wiki_commands.py") {
+			!strings.Contains(out, "internal/le/wikicatalog/render.go") {
 			t.Fatalf("doc drift did not identify the duplicate wiki group:\n%s", out)
 		}
 	})
@@ -703,7 +685,7 @@ func TestDocDriftRejectsDuplicateCommandContainersOnEverySurface(t *testing.T) {
 		)
 		if err == nil ||
 			!strings.Contains(out, "does not have exactly one command container") ||
-			!strings.Contains(out, "scripts/dev/gen_wiki_commands.py") ||
+			!strings.Contains(out, "internal/le/wikicatalog/render.go") ||
 			!strings.Contains(out, `command "show test"`) {
 			t.Fatalf("doc drift did not identify the duplicate wiki command detail:\n%s", out)
 		}
@@ -1034,7 +1016,7 @@ func TestNormalizeMarkdownCodeSpanCommonMarkWhitespace(t *testing.T) {
 		{name: "tabs", input: " \tshow test\t ", want: "\tshow test\t"},
 		{name: "all spaces", input: "   ", want: "   "},
 		{name: "line feed", input: "show\ntest", want: "show test"},
-		{name: "CRLF", input: " show\r\ntest ", want: "show  test"},
+		{name: "CRLF", input: " show\r\ntest ", want: "show test"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1045,21 +1027,60 @@ func TestNormalizeMarkdownCodeSpanCommonMarkWhitespace(t *testing.T) {
 	}
 }
 
-// VALIDATES: space-bearing CommonMark identities remain unrelated to the
-// canonical command, while one-space padding normalizes to that command.
-// PREVENTS: false command attribution from broad whitespace collapsing.
+// VALIDATES: complete matching-run code values are decoded before inline HTML
+// rendering, preserving literal angle-bracket argument notation.
+// PREVENTS: `<value>` being mistaken for an HTML element and disappearing.
+func TestCommandMarkdownGroupsPreserveLiteralCodeAngles(t *testing.T) {
+	row := "| `show test` | read-only | Show test rows | Command: `family <value>` |"
+	groups := commandMarkdownGroups(row, "Command")
+	if len(groups) != 1 || len(groups[0]) != 1 || groups[0][0] != "family <value>" {
+		t.Fatalf("command Markdown groups = %#v; want [[family <value>]]", groups)
+	}
+}
+
+// VALIDATES: CommonMark normalization determines the exact parsed identity and
+// therefore whether an added row is unrelated or a second live-command row.
+// PREVENTS: an error from a zero-count misclassification satisfying a mutation
+// which is specifically meant to prove duplicate attribution.
 func TestDocDriftUsesExactCommonMarkCodeSpanIdentity(t *testing.T) {
 	tests := []struct {
-		name     string
-		identity string
-		wantErr  bool
+		name         string
+		identity     string
+		wantIdentity string
+		wantCount    int
 	}{
-		{name: "two boundary spaces", identity: "  show test  "},
-		{name: "internal double space", identity: "show  test"},
-		{name: "one boundary space", identity: " show test ", wantErr: true},
+		{
+			name: "two boundary spaces", identity: "  show test  ",
+			wantIdentity: " show test ", wantCount: 1,
+		},
+		{
+			name: "internal double space", identity: "show  test",
+			wantIdentity: "show  test", wantCount: 1,
+		},
+		{
+			name: "one boundary space", identity: " show test ",
+			wantIdentity: "show test", wantCount: 2,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			content := "| `show test` | Read-only | Show test rows |\n" +
+				"| `" + tc.identity + "` | Read-only | Extra command |"
+			identities := primaryMarkdownCommandIdentities(content)
+			if len(identities) != 2 || identities[1] != tc.wantIdentity {
+				t.Fatalf("primary identities = %#v; want second identity %q",
+					identities, tc.wantIdentity)
+			}
+			count := 0
+			for _, identity := range identities {
+				if identity == "show test" {
+					count++
+				}
+			}
+			if count != tc.wantCount {
+				t.Fatalf("show test attribution count = %d; want %d", count, tc.wantCount)
+			}
+
 			root := t.TempDir()
 			livePath := writeRenderedCommandCatalogFixture(t, root)
 			writePublishedCommandSurfaceFixture(t, root, false)
@@ -1067,16 +1088,16 @@ func TestDocDriftUsesExactCommonMarkCodeSpanIdentity(t *testing.T) {
 				t,
 				root,
 				"reference/cli/index.md",
-				"| `show test extra` | Read-only | Prefix collision |",
-				"| `"+tc.identity+"` | Read-only | Prefix collision |",
+				"| `show test` | Read-only | Show test rows |",
+				content,
 			)
-
 			out, err := runRenderedCommandDriftFixture(t, root, livePath)
-			if tc.wantErr && err == nil {
-				t.Fatalf("doc drift accepted noncanonical same-command identity %q:\n%s", tc.identity, out)
+			if err == nil {
+				t.Fatalf("doc drift accepted identity %q:\n%s", tc.identity, out)
 			}
-			if !tc.wantErr && err != nil {
-				t.Fatalf("doc drift attributed space-bearing identity %q to show test:\n%s", tc.identity, out)
+			if tc.wantCount == 2 &&
+				!strings.Contains(out, "has 2 primary CLI Markdown command row identity containers") {
+				t.Fatalf("duplicate was not attributed exactly twice:\n%s", out)
 			}
 		})
 	}
@@ -1102,8 +1123,8 @@ func TestDocDriftRejectsMalformedMarkdownCommandOpeners(t *testing.T) {
 		{
 			name: "primary row after canonical",
 			path: "reference/cli/index.md",
-			old:  "| `show test extra` | Read-only | Prefix collision |",
-			new:  "| `show test | malformed row\n| `show test extra` | Read-only | Prefix collision |",
+			old:  "| `show test` | Read-only | Show test rows |",
+			new:  "| `show test` | Read-only | Show test rows |\n| `show test | malformed row",
 		},
 		{
 			name: "Ze heading before canonical",
@@ -1302,8 +1323,9 @@ func TestCommandSurfacesRejectBacktickInfoPseudoFence(t *testing.T) {
 		"): Show test rows\n```markdown`invalid\n"+
 			"- `show test` (read-only; pipes always: catalog-absent): duplicate\n")
 	out, err := runRenderedCommandDriftFixture(t, root, livePath)
-	if err == nil || !strings.Contains(out, "does not have exactly one command container") {
-		t.Fatalf("invalid backtick-info opener hid a duplicate row:\n%s", out)
+	if err == nil ||
+		!strings.Contains(out, "has 2 llms.txt command metadata row identity containers") {
+		t.Fatalf("invalid backtick-info opener did not expose exactly two rows:\n%s", out)
 	}
 }
 
@@ -1342,6 +1364,876 @@ func TestCommandSurfacesAcceptNestedRowsAndArticles(t *testing.T) {
 	out, err := runRenderedCommandDriftFixture(t, root, livePath)
 	if err != nil {
 		t.Fatalf("nested rows or articles terminated their command capture:\n%s", out)
+	}
+}
+
+// VALIDATES: aggregate command surfaces publish exactly the live command
+// identities, not merely at least one container for each live command.
+// PREVENTS: stale removed commands surviving beside every current command.
+func TestCommandSurfacesRejectExtraAggregateCommands(t *testing.T) {
+	tests := []struct {
+		name, path, old, replacement string
+	}{
+		{
+			name: "primary HTML",
+			path: "reference/cli/index.html",
+			old:  `<tr id="cmd-show-test"><td><code>show test</code>`,
+			replacement: `<tr id="cmd-show-removed"><td><code>show removed</code></td></tr>` +
+				`<tr id="cmd-show-test"><td><code>show test</code>`,
+		},
+		{
+			name: "primary Markdown",
+			path: "reference/cli/index.md",
+			old:  "| `show test` | Read-only | Show test rows |",
+			replacement: "| `show removed` | Read-only | Removed command |\n" +
+				"| `show test` | Read-only | Show test rows |",
+		},
+		{
+			name: "malformed primary Markdown",
+			path: "reference/cli/index.md",
+			old:  "| `show test` | Read-only | Show test rows |",
+			replacement: "| ``show removed`` | malformed removed command |\n" +
+				"| `show test` | Read-only | Show test rows |",
+		},
+		{
+			name: "llms",
+			path: "llms.txt",
+			old:  "- `show test` (read-only;",
+			replacement: "- `show removed` (read-only; pipes always: nosuchop): stale\n" +
+				"- `show test` (read-only;",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(t, root, tc.path, tc.old, tc.replacement)
+
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil || !strings.Contains(out, "absent from the live command catalog") {
+				t.Fatalf("extra aggregate command escaped %s:\n%s", tc.name, out)
+			}
+		})
+	}
+
+	t.Run("llms unrelated section", func(t *testing.T) {
+		root := t.TempDir()
+		livePath := writeRenderedCommandCatalogFixture(t, root)
+		writePublishedCommandSurfaceFixture(t, root, false)
+		mutatePublishedCommandSurface(
+			t,
+			root,
+			"llms.txt",
+			"# Ze",
+			"# Ze\n\n## Other inventory\n\n- `show unrelated`: not a command container",
+		)
+		if out, err := runRenderedCommandDriftFixture(t, root, livePath); err != nil {
+			t.Fatalf("llms code list outside the command surface was rejected:\n%s", out)
+		}
+	})
+}
+
+// VALIDATES: matching delimiter runs are parsed across CommonMark physical-line
+// continuations before table, list, and heading identity classification.
+// PREVENTS: a line break hiding a malformed duplicate of a live command.
+func TestCommandSurfacesRejectMultilineCodeSpanIdentities(t *testing.T) {
+	t.Run("primary table", func(t *testing.T) {
+		root := t.TempDir()
+		livePath := writeRenderedCommandCatalogFixture(t, root)
+		writePublishedCommandSurfaceFixture(t, root, false)
+		mutatePublishedCommandSurface(t, root, "reference/cli/index.md",
+			"| `show test` | Read-only | Show test rows |",
+			"| ``show\n  test`` | malformed duplicate |\n"+
+				"| `show test` | Read-only | Show test rows |")
+		out, err := runRenderedCommandDriftFixture(t, root, livePath)
+		if err == nil || !strings.Contains(out, "primary CLI Markdown command row") {
+			t.Fatalf("multiline table identity escaped the gate:\n%s", out)
+		}
+	})
+
+	t.Run("llms CRLF continuation", func(t *testing.T) {
+		root := t.TempDir()
+		livePath := writeRenderedCommandCatalogFixture(t, root)
+		writePublishedCommandSurfaceFixture(t, root, false)
+		mutatePublishedCommandSurface(t, root, "llms.txt",
+			"- `show test` (read-only;",
+			"- `show\r\n  test` (read-only; pipes always: nosuchop): duplicate\n"+
+				"- `show test` (read-only;")
+		out, err := runRenderedCommandDriftFixture(t, root, livePath)
+		if err == nil || !strings.Contains(out, "llms.txt command metadata row") {
+			t.Fatalf("multiline CRLF list identity escaped the gate:\n%s", out)
+		}
+	})
+
+	t.Run("wiki heading", func(t *testing.T) {
+		out, err := runRenderedWikiMutationFixture(
+			t,
+			"### `show test`",
+			"### ``show\n    test``\nAlways: `nosuchop`\n\n### `show test`",
+		)
+		if err == nil ||
+			!strings.Contains(out, "does not have exactly one command container") {
+			t.Fatalf("multiline heading identity escaped the gate:\n%s", out)
+		}
+	})
+}
+
+// VALIDATES: only ASCII space and tab may follow a CommonMark fence closer.
+// PREVENTS: Unicode or form-feed content suffixes exposing fenced command rows.
+func TestCommandSurfacesUseASCIIFenceCloserSuffix(t *testing.T) {
+	tests := []struct {
+		name, suffix string
+		wantErr      bool
+	}{
+		{name: "space", suffix: " ", wantErr: true},
+		{name: "tab", suffix: "\t", wantErr: true},
+		{name: "non-breaking space", suffix: "\u00a0"},
+		{name: "form feed", suffix: "\f"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(
+				t,
+				root,
+				"llms.txt",
+				"## CLI command surface",
+				"## CLI command surface\n\n```\n```"+tc.suffix+"\n"+
+					"- `show test` (read-only; pipes always: nosuchop): example\n```",
+			)
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if tc.wantErr && err == nil {
+				t.Fatalf("ASCII fence closer did not expose the duplicate:\n%s", out)
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("invalid fence closer exposed fenced content:\n%s", out)
+			}
+		})
+	}
+}
+
+// VALIDATES: Registry identity sees normalized visible labels and every code
+// descendant while still requiring a single canonical definition.
+// PREVENTS: a malformed same-path article hiding behind label whitespace or a
+// preceding unrelated code element.
+func TestCommandSurfacesInspectEveryRegistryIdentityCode(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	mutatePublishedCommandSurface(t, root,
+		"reference/command-equivalents/show-test/index.html",
+		"</article>\n</body>",
+		"</article>\n"+
+			`<article class="cmd-detail-card cmd-detail-ze">`+
+			"<dt> Registry\n path </dt><dd><code>other</code>"+
+			"<span><code>show test</code></span></dd></article>\n</body>")
+
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err == nil || !strings.Contains(out, "does not have exactly one command container") {
+		t.Fatalf("later Registry identity code escaped the gate:\n%s", out)
+	}
+}
+
+// VALIDATES: benign HTML wrappers and physical whitespace preserve labeled
+// answer-shape and address values on both primary and equivalent surfaces.
+// PREVENTS: structural postprocessing being mistaken for contract drift.
+func TestCommandSurfacesAcceptPostprocessedLabeledValues(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	mutatePublishedCommandSurface(t, root, "reference/cli/index.html",
+		"<p><span>Answer shape</span><code>tab</code></p>",
+		"<p><span> Answer\n shape </span><code><b>tab</b></code></p>")
+	mutatePublishedCommandSurface(t, root, "reference/cli/index.html",
+		"<p><span>Address fields</span><code>address</code></p>",
+		"<p><span> Address\n fields </span><code><b>address</b></code></p>")
+	mutatePublishedCommandSurface(t, root,
+		"reference/command-equivalents/show-test/index.html",
+		"<div><dt>Answer shape</dt><dd>tab</dd></div>",
+		"<div><dt> Answer\n shape </dt><dd><b>tab</b></dd></div>")
+	mutatePublishedCommandSurface(t, root,
+		"reference/command-equivalents/show-test/index.html",
+		"<div><dt>Address fields</dt><dd>address</dd></div>",
+		"<div><dt> Address\n fields </dt><dd><b>address</b></dd></div>")
+
+	if out, err := runRenderedCommandDriftFixture(t, root, livePath); err != nil {
+		t.Fatalf("benign labeled-value postprocessing was rejected:\n%s", out)
+	}
+}
+
+// VALIDATES: truncated, suffixed, and prefixed Ze class variants remain
+// malformed command-card candidates.
+// PREVENTS: a duplicate command article escaping by one class-token mutation.
+func TestCommandSurfacesRejectZeClassVariants(t *testing.T) {
+	for _, class := range []string{
+		"cmd-detail-z",
+		"cmd-detail-ze-extra",
+		"prefix-cmd-detail-ze",
+		"detail-ze",
+	} {
+		t.Run(class, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(t, root,
+				"reference/command-equivalents/show-test/index.html",
+				"</article>\n</body>",
+				"</article>\n<article class=\"cmd-detail-card "+class+
+					"\"><dt>Registry path</dt><dd><code>show test</code></dd></article>\n</body>")
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil || !strings.Contains(out, "does not have exactly one command container") {
+				t.Fatalf("Ze class variant %q escaped the gate:\n%s", class, out)
+			}
+		})
+	}
+}
+
+// VALIDATES: nested command-container roots are excluded from every parent
+// identity and contract scan.
+// PREVENTS: a child Registry path or operator group contaminating its parent.
+func TestCommandSurfacesIsolateNestedCommandCards(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	mutatePublishedCommandSurface(t, root,
+		"reference/command-equivalents/show-test/index.html",
+		"<div><dt>Pipes, always</dt><dd>json, save</dd></div>",
+		`<article class="cmd-detail-card cmd-detail-ze">`+
+			`<dt>Registry path</dt><dd><code>show nested</code></dd>`+
+			`<dt>Pipes, always</dt><dd>nosuchop</dd></article>`+
+			"<div><dt>Pipes, always</dt><dd>json, save</dd></div>")
+	mutatePublishedCommandSurface(t, root, "reference/cli/index.html",
+		"<p><span>Always</span><code>json · save</code></p>",
+		`<table><tr id="cmd-show-nested"><td><code>show nested</code>`+
+			`<span>Always</span><code>nosuchop</code></td></tr></table>`+
+			"<p><span>Always</span><code>json · save</code></p>")
+
+	if out, err := runRenderedCommandDriftFixture(t, root, livePath); err != nil {
+		t.Fatalf("nested command containers contaminated their parents:\n%s", out)
+	}
+}
+
+// VALIDATES: nested command containers cannot satisfy a parent contract value
+// after the parent's own value is removed.
+// PREVENTS: bounded tree scans followed by unbounded serialization searches.
+func TestCommandSurfacesRejectContractsPresentOnlyInNestedCards(t *testing.T) {
+	t.Run("primary filter description", func(t *testing.T) {
+		root := t.TempDir()
+		livePath := writeRenderedCommandCatalogFixture(t, root)
+		writePublishedCommandSurfaceFixture(t, root, false)
+		const description = `<details class="cli-pipe-descriptions"><summary>Command pipe descriptions</summary><dl><dt><code>family &lt;value&gt;</code></dt><dd>Filter by family</dd></dl></details>`
+		mutatePublishedCommandSurface(
+			t,
+			root,
+			"reference/cli/index.html",
+			description,
+			`<table><tr id="cmd-nested"><td>`+description+`</td></tr></table>`,
+		)
+		out, err := runRenderedCommandDriftFixture(t, root, livePath)
+		if err == nil || !strings.Contains(out, `command filter "family"`) {
+			t.Fatalf("nested primary contract satisfied its parent:\n%s", out)
+		}
+	})
+
+	t.Run("equivalent filter value", func(t *testing.T) {
+		root := t.TempDir()
+		livePath := writeRenderedCommandCatalogFixture(t, root)
+		writePublishedCommandSurfaceFixture(t, root, false)
+		mutatePublishedCommandSurface(
+			t,
+			root,
+			"reference/command-equivalents/show-test/index.html",
+			`<div><dt>Command pipes</dt><dd><code>family &lt;value&gt;</code>: Filter by family</dd></div>`,
+			`<div><dt>Command pipes</dt><dd><article class="cmd-detail-card">`+
+				`<code>family &lt;value&gt;</code>: Filter by family`+
+				`</article></dd></div>`,
+		)
+		out, err := runRenderedCommandDriftFixture(t, root, livePath)
+		if err == nil || !strings.Contains(out, "command filters") {
+			t.Fatalf("nested equivalent contract satisfied its parent:\n%s", out)
+		}
+	})
+}
+
+// VALIDATES: Ze-section identity follows CommonMark emphasis and link rendering,
+// in addition to inline HTML rendering.
+// PREVENTS: a visibly duplicate heading escaping through non-HTML inline syntax.
+func TestCommandSurfacesRejectCommonMarkRenderedZeHeadings(t *testing.T) {
+	for _, heading := range []string{"## *Ze* command", "## [Ze](https://example.invalid/) command"} {
+		t.Run(heading, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(t, root,
+				"reference/command-equivalents/show-test/index.md",
+				"## Ze command", heading+"\n\n## Ze command")
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil || !strings.Contains(out, "exactly one command container") {
+				t.Fatalf("rendered duplicate Ze heading escaped the gate:\n%s", out)
+			}
+		})
+	}
+}
+
+// VALIDATES: every element in a matched visible-value subtree carries its own
+// explicit closing token.
+// PREVENTS: a closed parent or value root repairing a truncated descendant.
+func TestCommandSurfacesRejectUnclosedRegistryAndValueNodes(t *testing.T) {
+	tests := []struct {
+		name, relative, old, replacement string
+	}{
+		{
+			name:        "primary value",
+			relative:    "reference/cli/index.html",
+			old:         "<span>Answer shape</span><code>tab</code>",
+			replacement: "<span>Answer shape</span><code>tab",
+		},
+		{
+			name:        "Registry value",
+			relative:    "reference/command-equivalents/show-test/index.html",
+			old:         "<dt>Registry path</dt><dd><code>show test</code></dd>",
+			replacement: "<dt>Registry path</dt><dd><code>show test</dd>",
+		},
+		{
+			name:        "primary description descendant",
+			relative:    "reference/cli/index.html",
+			old:         "<td>Show test rows</td><td>",
+			replacement: "<td><span>Show test rows</td><td>",
+		},
+		{
+			name:        "equivalent answer descendant",
+			relative:    "reference/command-equivalents/show-test/index.html",
+			old:         "<dt>Answer shape</dt><dd>tab</dd>",
+			replacement: "<dt>Answer shape</dt><dd><span>tab</dd>",
+		},
+		{
+			name:        "equivalent filter descendant",
+			relative:    "reference/command-equivalents/show-test/index.html",
+			old:         "Filter by family</dd>",
+			replacement: "<em>Filter by family</dd>",
+		},
+		{
+			name:        "equivalent alias descendant",
+			relative:    "reference/command-equivalents/show-test/index.html",
+			old:         "<code>display address</code>",
+			replacement: "<code><b>display address</code>",
+		},
+		{
+			name:        "equivalent index descendant",
+			relative:    "reference/command-equivalents/index.html",
+			old:         "<code>show test</code>",
+			replacement: "<code><span>show test</code>",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(
+				t, root, tc.relative, tc.old, tc.replacement,
+			)
+			if out, err := runRenderedCommandDriftFixture(t, root, livePath); err == nil {
+				t.Fatalf("unclosed %s escaped the gate:\n%s", tc.name, out)
+			}
+		})
+	}
+}
+
+// VALIDATES: metadata labels are zero-or-one values, including labels absent
+// from live, duplicate llms segments, and duplicate Markdown Registry lines.
+// PREVENTS: a valid first value hiding stale or contradictory metadata.
+func TestCommandSurfacesEnforceMetadataCardinality(t *testing.T) {
+	t.Run("absent answer shape", func(t *testing.T) {
+		command := publishedCommand{
+			Path: "show test", Mode: "read-only", Description: "Show test rows",
+		}
+		issues := validateLLMSCommandContract(
+			"llms.txt", "show test", "read-only; shape tab", "Show test rows", command,
+		)
+		if len(issues) == 0 {
+			t.Fatal("catalog-absent llms answer shape was accepted")
+		}
+		row := "| `show test` | read-only | Show test rows | Answer shape: `tab` |"
+		if issues := validatePrimaryMarkdownContract("index.md", row, command); len(issues) == 0 {
+			t.Fatal("catalog-absent Markdown answer shape was accepted")
+		}
+	})
+
+	t.Run("duplicate llms segment", func(t *testing.T) {
+		root := t.TempDir()
+		livePath := writeRenderedCommandCatalogFixture(t, root)
+		writePublishedCommandSurfaceFixture(t, root, false)
+		mutatePublishedCommandSurface(t, root, "llms.txt",
+			"; shape tab;", "; shape tab; shape tab;")
+		if out, err := runRenderedCommandDriftFixture(t, root, livePath); err == nil {
+			t.Fatalf("duplicate llms segment escaped the gate:\n%s", out)
+		}
+	})
+
+	t.Run("duplicate Markdown Registry line", func(t *testing.T) {
+		root := t.TempDir()
+		livePath := writeRenderedCommandCatalogFixture(t, root)
+		writePublishedCommandSurfaceFixture(t, root, false)
+		mutatePublishedCommandSurface(t, root,
+			"reference/command-equivalents/show-test/index.md",
+			"- Registry path: `show test`",
+			"- Registry path: `show test`\n- Registry path: `show test`")
+		if out, err := runRenderedCommandDriftFixture(t, root, livePath); err == nil {
+			t.Fatalf("duplicate Registry line escaped the gate:\n%s", out)
+		}
+	})
+}
+
+// VALIDATES: primary HTML, Markdown, and llms compare the visible command path,
+// mode, and description after renderer-safe inline normalization.
+// PREVENTS: current contract metadata hiding a stale visible command summary.
+func TestCommandSurfacesCompareVisiblePrimaryValues(t *testing.T) {
+	tests := []struct {
+		name, relative, old, replacement string
+	}{
+		{"HTML path", "reference/cli/index.html", "<code>show test</code></td><td>Read-only", "<code>show stale</code></td><td>Read-only"},
+		{"HTML mode", "reference/cli/index.html", "<td>Read-only</td><td>Show test rows", "<td>write-only</td><td>Show test rows"},
+		{"HTML description", "reference/cli/index.html", "<td>Show test rows</td><td>", "<td>Stale description</td><td>"},
+		{"Markdown path", "reference/cli/index.md", "| `show test` | Read-only", "| `show stale` | Read-only"},
+		{"Markdown mode", "reference/cli/index.md", "| Read-only | Show test rows |", "| write-only | Show test rows |"},
+		{"Markdown description", "reference/cli/index.md", "| Show test rows | Answer shape:", "| Stale description | Answer shape:"},
+		{"llms path", "llms.txt", "- `show test` (read-only;", "- `show stale` (read-only;"},
+		{"llms mode", "llms.txt", "(read-only; wire", "(write-only; wire"},
+		{"llms description", "llms.txt", "): Show test rows", "): Stale description"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(t, root, tc.relative, tc.old, tc.replacement)
+			if out, err := runRenderedCommandDriftFixture(t, root, livePath); err == nil {
+				t.Fatalf("stale visible %s escaped the gate:\n%s", tc.name, out)
+			}
+		})
+	}
+}
+
+// VALIDATES: semantically neutral HTML, emphasis, and link wrappers preserve
+// visible primary command values.
+// PREVENTS: visible-value checks regressing to serialized-byte comparison.
+func TestCommandSurfacesAcceptPostprocessedVisiblePrimaryValues(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	mutatePublishedCommandSurface(t, root, "reference/cli/index.html",
+		"<code>show test</code></td><td>Read-only</td><td>Show test rows</td>",
+		"<code><b>show test</b></code></td><td><em>Read-only</em></td>"+
+			"<td><span>Show test rows</span></td>")
+	mutatePublishedCommandSurface(t, root, "reference/cli/index.md",
+		"| Read-only | Show test rows |",
+		"| *Read-only* | [Show test rows](https://example.invalid/) |")
+	mutatePublishedCommandSurface(t, root, "llms.txt",
+		"): Show test rows", "): <strong>Show test rows</strong>")
+	if out, err := runRenderedCommandDriftFixture(t, root, livePath); err != nil {
+		t.Fatalf("postprocessed visible values were rejected:\n%s", out)
+	}
+}
+
+// VALIDATES: both equivalent indexes are exact multisets of visible command
+// path plus detail slug, not substring-presence checks.
+// PREVENTS: stale paths, slug collisions, duplicates, extras, or missing rows
+// surviving while the expected slug marker remains elsewhere.
+func TestCommandSurfacesCompareCompleteEquivalentIndexIdentities(t *testing.T) {
+	tests := []struct {
+		name, relative, old, replacement string
+	}{
+		{
+			"HTML visible path", "reference/command-equivalents/index.html",
+			"<code>show test</code>", "<code>show stale</code>",
+		},
+		{
+			"HTML duplicate", "reference/command-equivalents/index.html",
+			"</body>", `<tr id="cmd-eq-show-test"><td><code>show test</code></td></tr></body>`,
+		},
+		{
+			"HTML extra", "reference/command-equivalents/index.html",
+			"</body>", `<tr id="cmd-eq-show-removed"><td><code>show removed</code></td></tr></body>`,
+		},
+		{
+			"HTML missing", "reference/command-equivalents/index.html",
+			`<tr id="cmd-eq-show-test"><td><code>show test</code></td></tr>`, "",
+		},
+		{
+			"HTML slug mismatch", "reference/command-equivalents/index.html",
+			"cmd-eq-show-test", "cmd-eq-show-stale",
+		},
+		{
+			"Markdown visible path", "reference/command-equivalents/index.md",
+			"`show test`", "`show stale`",
+		},
+		{
+			"Markdown duplicate", "reference/command-equivalents/index.md",
+			"| `show test` | Read-only | [details](show-test/) |",
+			"| `show test` | Read-only | [details](show-test/) |\n" +
+				"| `show test` | Read-only | [details](show-test/) |",
+		},
+		{
+			"Markdown emphasized duplicate", "reference/command-equivalents/index.md",
+			"| `show test` | Read-only | [details](show-test/) |",
+			"| `show test` | Read-only | [details](show-test/) |\n" +
+				"| *`show test`* | Read-only | [details](show-test/) |",
+		},
+		{
+			"Markdown strong extra", "reference/command-equivalents/index.md",
+			"| `show test` | Read-only | [details](show-test/) |",
+			"| `show test` | Read-only | [details](show-test/) |\n" +
+				"| **`show removed`** | Read-only | [details](show-removed/) |",
+		},
+		{
+			"Markdown link-wrapped duplicate", "reference/command-equivalents/index.md",
+			"| `show test` | Read-only | [details](show-test/) |",
+			"| `show test` | Read-only | [details](show-test/) |\n" +
+				"| [`show test`](#identity) | Read-only | [details](show-test/) |",
+		},
+		{
+			"Markdown malformed wrapped duplicate", "reference/command-equivalents/index.md",
+			"| `show test` | Read-only | [details](show-test/) |",
+			"| `show test` | Read-only | [details](show-test/) |\n" +
+				"| *`show test` | Read-only | [details](show-test/) |",
+		},
+		{
+			"Markdown extra", "reference/command-equivalents/index.md",
+			"| `show test` | Read-only | [details](show-test/) |",
+			"| `show test` | Read-only | [details](show-test/) |\n" +
+				"| `show removed` | Read-only | [details](show-removed/) |",
+		},
+		{
+			"Markdown missing", "reference/command-equivalents/index.md",
+			"| `show test` | Read-only | [details](show-test/) |", "",
+		},
+		{
+			"Markdown slug mismatch", "reference/command-equivalents/index.md",
+			"[details](show-test/)", "[details](show-stale/)",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(
+				t, root, tc.relative, tc.old, tc.replacement,
+			)
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil || !strings.Contains(out, tc.relative) {
+				t.Fatalf("equivalent-index mutation escaped the gate:\n%s", out)
+			}
+		})
+	}
+}
+
+// VALIDATES: wrapped command identities inside fenced examples are inactive.
+// PREVENTS: wrapper-aware index parsing from counting documentation examples.
+func TestCommandSurfacesIgnoreFencedWrappedEquivalentIndexRows(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	mutatePublishedCommandSurface(
+		t,
+		root,
+		"reference/command-equivalents/index.md",
+		"# Command Equivalents",
+		"# Command Equivalents\n\n```markdown\n"+
+			"| **`show test`** | Read-only | [details](show-test/) |\n```",
+	)
+	if out, err := runRenderedCommandDriftFixture(t, root, livePath); err != nil {
+		t.Fatalf("fenced wrapped equivalent row was counted:\n%s", out)
+	}
+}
+
+// VALIDATES: a command-equivalent Markdown detail has one active H1 consisting
+// of a complete matching-run code span for the live path.
+// PREVENTS: a current Registry line masking a stale, malformed, or duplicate
+// page title.
+func TestCommandSurfacesValidateEquivalentMarkdownTitle(t *testing.T) {
+	tests := []struct {
+		name, replacement string
+	}{
+		{name: "wrong path", replacement: "# `show stale`"},
+		{name: "unclosed code span", replacement: "# `show test"},
+		{name: "second top-level heading", replacement: "# `show test`\n\n# `other`"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(t, root,
+				"reference/command-equivalents/show-test/index.md",
+				"# `show test`", tc.replacement)
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil || !strings.Contains(out, "top-level heading") {
+				t.Fatalf("invalid equivalent title escaped the gate:\n%s", out)
+			}
+		})
+	}
+}
+
+// VALIDATES: equivalent filter and alias details compare code identities and
+// normalized visible values while ignoring semantically neutral wrappers.
+// PREVENTS: serialized-fragment comparison rejecting site postprocessing.
+func TestCommandSurfacesAcceptWrappedEquivalentDetails(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	mutatePublishedCommandSurface(t, root,
+		"reference/command-equivalents/show-test/index.html",
+		"<code>family &lt;value&gt;</code>: Filter by family",
+		"<span><code><b>family &lt;value&gt;</b></code></span>: "+
+			"<em>Filter</em> by <a href=\"#family\">family</a>")
+	mutatePublishedCommandSurface(t, root,
+		"reference/command-equivalents/show-test/index.html",
+		"<code>summary</code>: Show a summary (<code>display address</code>)",
+		"<span><code>summary</code></span>: <em>Show a</em> "+
+			"<a href=\"#summary\">summary</a> (<code><b>display address</b></code>)")
+	mutatePublishedCommandSurface(t, root,
+		"reference/command-equivalents/show-test/index.md",
+		"`family <value>`: Filter by family",
+		"**`family <value>`**: *Filter* by [family](#family)")
+	mutatePublishedCommandSurface(t, root,
+		"reference/command-equivalents/show-test/index.md",
+		"`summary`: Show a summary (`display address`)",
+		"**`summary`**: *Show a* [summary](#summary) (**`display address`**)")
+	mutatePublishedCommandSurface(t, root,
+		"reference/command-equivalents/show-test/index.md",
+		"# `show test`", "# **`show test`**")
+	if out, err := runRenderedCommandDriftFixture(t, root, livePath); err != nil {
+		t.Fatalf("benign equivalent-detail wrappers were rejected:\n%s", out)
+	}
+}
+func TestCommandSurfacesAcceptExplicitEmptyMarkdownDetails(t *testing.T) {
+	command := publishedCommand{Path: "show test"}
+	content := strings.Join([]string{
+		"# `show test`",
+		"",
+		"## Ze command",
+		"",
+		"- Registry path: `show test`",
+		"- Command pipes: **none**",
+		"- Pipe aliases: *none*",
+		"",
+		"## Mapping intents",
+	}, "\n")
+	if issues := validateEquivalentMarkdownContract("index.md", content, command); len(issues) != 0 {
+		t.Fatalf("explicit empty details were rejected: %#v", issues)
+	}
+	malformed := strings.Replace(content, "**none**", "`none`", 1)
+	if issues := validateEquivalentMarkdownContract("index.md", malformed, command); len(issues) == 0 {
+		t.Fatal("code identity disguised as an empty filter projection was accepted")
+	}
+}
+
+// VALIDATES: equivalent filter and alias projections preserve identity,
+// description, expansion, order, and exact cardinality.
+// PREVENTS: a valid first detail hiding a stale or duplicate detail.
+func TestCommandSurfacesRejectEquivalentDetailMutations(t *testing.T) {
+	tests := []struct {
+		name, relative, old, replacement string
+	}{
+		{
+			"HTML filter description",
+			"reference/command-equivalents/show-test/index.html",
+			"<code>family &lt;value&gt;</code>: Filter by family",
+			"<code>family &lt;value&gt;</code>: Stale",
+		},
+		{
+			"HTML alias expansion",
+			"reference/command-equivalents/show-test/index.html",
+			"(<code>display address</code>)", "(<code>display stale</code>)",
+		},
+		{
+			"HTML duplicate filter",
+			"reference/command-equivalents/show-test/index.html",
+			"<code>family &lt;value&gt;</code>: Filter by family",
+			"<code>family &lt;value&gt;</code>: Filter by family<br>" +
+				"<code>family &lt;value&gt;</code>: Filter by family",
+		},
+		{
+			"Markdown filter description",
+			"reference/command-equivalents/show-test/index.md",
+			"`family <value>`: Filter by family", "`family <value>`: Stale",
+		},
+		{
+			"Markdown alias expansion",
+			"reference/command-equivalents/show-test/index.md",
+			"(`display address`)", "(`display stale`)",
+		},
+		{
+			"Markdown duplicate alias",
+			"reference/command-equivalents/show-test/index.md",
+			"`summary`: Show a summary (`display address`)",
+			"`summary`: Show a summary (`display address`); " +
+				"`summary`: Show a summary (`display address`)",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(
+				t, root, tc.relative, tc.old, tc.replacement,
+			)
+			if out, err := runRenderedCommandDriftFixture(t, root, livePath); err == nil {
+				t.Fatalf("equivalent-detail mutation escaped the gate:\n%s", out)
+			}
+		})
+	}
+}
+
+// VALIDATES: operator guide rows are structural HTML values with normal
+// wrappers and attributes, while every extra or malformed row remains visible
+// to exact-set validation.
+// PREVENTS: postprocessing hiding a stale operator from the catalog projection.
+func TestCommandSurfacesParseStructuralOperatorGuideRows(t *testing.T) {
+	t.Run("wrapped visible values", func(t *testing.T) {
+		root := t.TempDir()
+		livePath := writeRenderedCommandCatalogFixture(t, root)
+		writePublishedCommandSurfaceFixture(t, root, false)
+		mutatePublishedCommandSurface(
+			t, root, "reference/cli/index.html",
+			"<tr><td><code>json</code></td><td>Output and control</td><td>Always</td><td>JSON output</td></tr>",
+			`<tr data-rendered="true"><td><span><code class="name">json</code></span></td>`+
+				`<td><strong>Output and control</strong></td><td><span>Always</span></td>`+
+				`<td><em>JSON output</em></td></tr>`,
+		)
+		if out, err := runRenderedCommandDriftFixture(t, root, livePath); err != nil {
+			t.Fatalf("wrapped operator values were rejected:\n%s", out)
+		}
+	})
+
+	for _, tc := range []struct {
+		name, old, replacement string
+	}{
+		{
+			name: "wrapped extra",
+			old:  "</tbody></table>\n</section>",
+			replacement: `<tr><td><span>removed</span></td><td>Row data</td>` +
+				`<td>With rows</td><td>Removed operator</td></tr></tbody></table>` +
+				"\n</section>",
+		},
+		{
+			name:        "three cells",
+			old:         "<tr><td><code>json</code></td><td>Output and control</td><td>Always</td><td>JSON output</td></tr>",
+			replacement: "<tr><td><code>json</code></td><td>Output and control</td><td>Always</td></tr>",
+		},
+		{
+			name:        "unclosed descendant",
+			old:         "<td><code>json</code></td>",
+			replacement: "<td><span><code>json</code></td>",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(
+				t, root, "reference/cli/index.html", tc.old, tc.replacement,
+			)
+			if out, err := runRenderedCommandDriftFixture(t, root, livePath); err == nil {
+				t.Fatalf("%s operator row escaped exact validation:\n%s", tc.name, out)
+			}
+		})
+	}
+}
+
+// VALIDATES: primary Markdown and llms aggregate scanners recover a sole code
+// span through valid emphasis, strong, or link wrappers and ignore fenced rows.
+// PREVENTS: wrappers hiding extra identities or making a live identity vanish.
+func TestCommandSurfacesParseWrappedAggregateIdentities(t *testing.T) {
+	for _, wrapper := range []struct {
+		name, value string
+	}{
+		{name: "emphasis", value: "*`show test`*"},
+		{name: "strong", value: "**`show test`**"},
+		{name: "link", value: "[`show test`](#identity)"},
+	} {
+		t.Run(wrapper.name, func(t *testing.T) {
+			table := "| " + wrapper.value + " | Read-only | Description |"
+			if got := primaryMarkdownCommandIdentities(table); len(got) != 1 ||
+				got[0] != "show test" {
+				t.Fatalf("primary wrapped identities = %#v", got)
+			}
+			list := "- " + wrapper.value + " (read-only): Description"
+			if got := llmsCommandIdentities(list); len(got) != 1 ||
+				got[0] != "show test" {
+				t.Fatalf("llms wrapped identities = %#v", got)
+			}
+			fenced := "```markdown\n" + table + "\n" + list + "\n```"
+			if got := primaryMarkdownCommandIdentities(fenced); len(got) != 0 {
+				t.Fatalf("fenced primary wrapped identities = %#v", got)
+			}
+			if got := llmsCommandIdentities(fenced); len(got) != 0 {
+				t.Fatalf("fenced llms wrapped identities = %#v", got)
+			}
+		})
+	}
+
+	for _, surface := range []struct {
+		name, path, old, replacement string
+	}{
+		{
+			name: "primary Markdown extra",
+			path: "reference/cli/index.md",
+			old:  "| `show test` | Read-only | Show test rows |",
+			replacement: "| `show test` | Read-only | Show test rows |\n" +
+				"| **`show removed`** | Read-only | Removed |",
+		},
+		{
+			name: "llms extra",
+			path: "llms.txt",
+			old:  "): Show test rows\n",
+			replacement: "): Show test rows\n" +
+				"- [`show removed`](#identity) (read-only): Removed\n",
+		},
+	} {
+		t.Run(surface.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(
+				t, root, surface.path, surface.old, surface.replacement,
+			)
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil || !strings.Contains(out, "absent from the live command catalog") {
+				t.Fatalf("wrapped aggregate extra escaped %s:\n%s", surface.name, out)
+			}
+		})
+	}
+}
+
+// VALIDATES: CommonMark emphasis and link delimiters disappear only when they
+// form valid inline constructs; unmatched markers remain visible literally.
+// PREVENTS: punctuation characters being unconditionally deleted from values.
+func TestMarkdownInlineVisibleTextUsesMatchedDelimiters(t *testing.T) {
+	for _, tc := range []struct {
+		source, visible string
+	}{
+		{source: "*emphasis*", visible: "emphasis"},
+		{source: "_emphasis_", visible: "emphasis"},
+		{source: "**strong**", visible: "strong"},
+		{source: "__strong__", visible: "strong"},
+		{source: "[linked](https://example.invalid/)", visible: "linked"},
+		{source: "literal * marker_", visible: "literal * marker_"},
+		{source: "under_score stays", visible: "under_score stays"},
+		{source: "**unclosed", visible: "**unclosed"},
+		{source: "**foo*", visible: "*foo"},
+		{source: "€_foo_", visible: "€_foo_"},
+	} {
+		if got := markdownInlineVisibleText(tc.source); got != tc.visible {
+			t.Errorf("markdownInlineVisibleText(%q) = %q; want %q",
+				tc.source, got, tc.visible)
+		}
 	}
 }
 
@@ -1390,5 +2282,31 @@ func mutatePublishedCommandSurface(
 	}
 	if err := os.WriteFile(path, []byte(mutated), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func installCommandRendererMutation(
+	t *testing.T,
+	relative, old, replacement string,
+) {
+	t.Helper()
+	previous := renderCommandSurfaces
+	t.Cleanup(func() {
+		renderCommandSurfaces = previous
+	})
+	renderCommandSurfaces = func(root string, commands []publishedCommand) error {
+		if err := previous(root, commands); err != nil {
+			return err
+		}
+		path := filepath.Join(root, filepath.FromSlash(relative))
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		mutated := strings.Replace(string(content), old, replacement, 1)
+		if mutated == string(content) {
+			return errors.New("renderer mutation did not apply")
+		}
+		return os.WriteFile(path, []byte(mutated), 0o644)
 	}
 }
