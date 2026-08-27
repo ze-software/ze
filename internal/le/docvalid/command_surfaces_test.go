@@ -875,6 +875,213 @@ func TestDocDriftRejectsMalformedStructuredHTMLContainers(t *testing.T) {
 	}
 }
 
+// VALIDATES: an article's visible Registry path is recovered independently
+// from whether its definition markup is canonical.
+// PREVENTS: malformed same-command articles escaping duplicate detection by
+// inserting elements between the term and definition or around the code.
+func TestDocDriftRejectsMalformedSamePathHTMLIdentity(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	mutatePublishedCommandSurface(
+		t,
+		root,
+		"reference/command-equivalents/show-test/index.html",
+		"</article>\n</body>",
+		"</article>\n"+
+			`<article class="cmd-detail-card cmd-detail-ze">`+
+			`<dt>Registry path</dt><span>intervening</span>`+
+			`<dd><span><code>show test</code></span></dd></article>`+
+			"\n</body>",
+	)
+
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err == nil {
+		t.Fatalf("doc drift accepted a malformed same-path article:\n%s", out)
+	}
+	if !strings.Contains(out, "does not have exactly one command container") ||
+		!strings.Contains(out, `command "show test"`) {
+		t.Fatalf("doc drift did not attribute the malformed article to show test:\n%s", out)
+	}
+}
+
+// VALIDATES: Markdown heading identity follows rendered inline HTML text while
+// canonicality remains byte-exact.
+// PREVENTS: tags, comments, and entities hiding a malformed Ze command heading.
+func TestDocDriftRejectsVisibleNoncanonicalZeHeadings(t *testing.T) {
+	for _, heading := range []string{
+		"## Ze <span>command</span>",
+		"## Ze <!--publication note-->command",
+		"## Ze&#32;command",
+	} {
+		t.Run(heading, func(t *testing.T) {
+			_, source := markdownATXHeading(heading)
+			if got := markdownRenderedHeadingIdentity(source); got != "Ze command" {
+				t.Fatalf("heading %q renders as %q; want %q", heading, got, "Ze command")
+			}
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(
+				t,
+				root,
+				"reference/command-equivalents/show-test/index.md",
+				"## Ze command",
+				heading,
+			)
+
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil {
+				t.Fatalf("doc drift accepted visible noncanonical heading %q:\n%s", heading, out)
+			}
+			if !strings.Contains(out, `command "show test"`) {
+				t.Fatalf("doc drift did not bind heading %q to the Ze container:\n%s", heading, out)
+			}
+		})
+	}
+}
+
+// VALIDATES: command-like row and article elements nested directly inside a
+// captured container remain descendants until their own matching close.
+// PREVENTS: a nested element prematurely terminating its parent capture.
+func TestDocDriftAcceptsDirectChildHTMLContainers(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		old  string
+		new  string
+	}{
+		{
+			name: "row",
+			path: "reference/cli/index.html",
+			old:  "</td></tr>\n<footer>",
+			new:  `</td><tr id="cmd-nested"><td>nested</td></tr></tr>` + "\n<footer>",
+		},
+		{
+			name: "command-like article",
+			path: "reference/command-equivalents/show-test/index.html",
+			old:  "<div><dt>Address fields</dt><dd>address</dd></div>\n</article>",
+			new: "<div><dt>Address fields</dt><dd>address</dd></div>\n" +
+				`<article class="cmd-detail-card cmd-detail-ze"><p>nested</p></article>` +
+				"\n</article>",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(t, root, tc.path, tc.old, tc.new)
+
+			if out, err := runRenderedCommandDriftFixture(t, root, livePath); err != nil {
+				t.Fatalf("doc drift rejected a direct child %s:\n%s", tc.name, out)
+			}
+		})
+	}
+}
+
+// VALIDATES: closing a captured container's ancestor exposes the missing close
+// before a later candidate starts at the captured container's parent level.
+// PREVENTS: a true peer's close repairing a malformed command article.
+func TestDocDriftRejectsMissingCloseBeforeTruePeer(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	const path = "reference/command-equivalents/show-test/index.html"
+	mutatePublishedCommandSurface(
+		t,
+		root,
+		path,
+		"<article class=\"cmd-detail-card cmd-detail-ze\">\n"+
+			"<div><dt>Registry path</dt><dd><code>show test</code></dd></div>",
+		"<section><article class=\"cmd-detail-card cmd-detail-ze\">\n"+
+			"<div><dt>Registry path</dt><dd><code>show test</code></dd></div>",
+	)
+	mutatePublishedCommandSurface(
+		t,
+		root,
+		path,
+		"<div><dt>Address fields</dt><dd>address</dd></div>\n</article>\n</body>",
+		"<div><dt>Address fields</dt><dd>address</dd></div>\n</section>\n"+
+			`<article class="cmd-detail-card cmd-detail-ze">`+
+			`<dt>Registry path</dt><dd><code>show test extra</code></dd>`+
+			"</article>\n</body>",
+	)
+
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err == nil {
+		t.Fatalf("doc drift accepted a missing close before a true peer:\n%s", out)
+	}
+	if !strings.Contains(out, filepath.ToSlash(path)) ||
+		!strings.Contains(out, `command "show test"`) {
+		t.Fatalf("doc drift did not bind the missing close to show test:\n%s", out)
+	}
+}
+
+// VALIDATES: CommonMark code spans replace line endings with spaces and trim
+// exactly one boundary space only when the content is not all spaces.
+// PREVENTS: Fields-style collapsing from changing command identity.
+func TestNormalizeMarkdownCodeSpanCommonMarkWhitespace(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "plain", input: "show test", want: "show test"},
+		{name: "one boundary space", input: " show test ", want: "show test"},
+		{name: "two boundary spaces", input: "  show test  ", want: " show test "},
+		{name: "internal spaces", input: "show  test", want: "show  test"},
+		{name: "tabs", input: " \tshow test\t ", want: "\tshow test\t"},
+		{name: "all spaces", input: "   ", want: "   "},
+		{name: "line feed", input: "show\ntest", want: "show test"},
+		{name: "CRLF", input: " show\r\ntest ", want: "show  test"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := normalizeMarkdownCodeSpan(tc.input); got != tc.want {
+				t.Fatalf("normalizeMarkdownCodeSpan(%q) = %q; want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+// VALIDATES: space-bearing CommonMark identities remain unrelated to the
+// canonical command, while one-space padding normalizes to that command.
+// PREVENTS: false command attribution from broad whitespace collapsing.
+func TestDocDriftUsesExactCommonMarkCodeSpanIdentity(t *testing.T) {
+	tests := []struct {
+		name     string
+		identity string
+		wantErr  bool
+	}{
+		{name: "two boundary spaces", identity: "  show test  "},
+		{name: "internal double space", identity: "show  test"},
+		{name: "one boundary space", identity: " show test ", wantErr: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(
+				t,
+				root,
+				"reference/cli/index.md",
+				"| `show test extra` | Read-only | Prefix collision |",
+				"| `"+tc.identity+"` | Read-only | Prefix collision |",
+			)
+
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if tc.wantErr && err == nil {
+				t.Fatalf("doc drift accepted noncanonical same-command identity %q:\n%s", tc.identity, out)
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("doc drift attributed space-bearing identity %q to show test:\n%s", tc.identity, out)
+			}
+		})
+	}
+}
+
 // VALIDATES: primary rows, Ze sections, and llms rows accept only their exact
 // opening grammar, even when a canonical container also exists.
 // PREVENTS: malformed same-command prefixes being ignored before or after the

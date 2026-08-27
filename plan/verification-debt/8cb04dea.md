@@ -67,3 +67,5 @@ is open.
 | 2026-08-27 | 8cb04dea | fix(web): remove retired command mappings | ze-precommit-verify (not FRESH-green) | Website renderer tests passed; no fresh repository-wide verify status exists. | open |
 | 2026-08-27 | 8cb04dea | fix(docs): port rendered command drift gate | ze-precommit-verify (not FRESH-green) | The migrated docvalid package passed in an isolated committed-tree test; no fresh repository-wide verify status exists. | open |
 | 2026-08-27 | 8cb04dea | fix(docs): port rendered command drift gate | full ze-precommit-verify over this commit's Go | Exact rendered-surface and adversarial parser tests passed; the periodic full gate has not run. | open |
+| 2026-08-27 | 8cb04dea | fix(docs): harden rendered identity parsing | ze-precommit-verify (not FRESH-green) | The isolated migrated docvalid package passed; no fresh repository-wide verify status exists. | open |
+| 2026-08-27 | 8cb04dea | fix(docs): harden rendered identity parsing | full ze-precommit-verify over this commit's Go | Registry identity, inline heading, nested HTML, and CommonMark whitespace tests passed; the periodic full gate has not run. | open |

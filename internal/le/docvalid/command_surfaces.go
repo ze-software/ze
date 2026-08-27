@@ -1068,22 +1068,16 @@ func markdownHeadingContent(content, canonical string) (string, int) {
 }
 
 func markdownRenderedHeadingIdentity(heading string) string {
+	tokenizer := xhtml.NewTokenizer(strings.NewReader(heading))
 	var rendered strings.Builder
 	for {
-		start := strings.Index(heading, "<!--")
-		if start == -1 {
-			rendered.WriteString(heading)
-			break
+		switch tokenizer.Next() {
+		case xhtml.ErrorToken:
+			return strings.Join(strings.Fields(rendered.String()), " ")
+		case xhtml.TextToken:
+			rendered.WriteString(tokenizer.Token().Data)
 		}
-		rendered.WriteString(heading[:start])
-		remaining := heading[start+len("<!--"):]
-		end := strings.Index(remaining, "-->")
-		if end == -1 {
-			break
-		}
-		heading = remaining[end+len("-->"):]
 	}
-	return strings.Join(strings.Fields(rendered.String()), " ")
 }
 
 func markdownLineRange(lines []markdownLine, start, end int) string {
@@ -1203,7 +1197,13 @@ func markdownCodeSpanPrefix(value string) (string, string, int, bool) {
 }
 
 func normalizeMarkdownCodeSpan(value string) string {
-	return strings.Join(strings.Fields(value), " ")
+	value = strings.ReplaceAll(value, "\r", " ")
+	value = strings.ReplaceAll(value, "\n", " ")
+	if len(value) >= 2 && value[0] == ' ' && value[len(value)-1] == ' ' &&
+		strings.Trim(value, " ") != "" {
+		return value[1 : len(value)-1]
+	}
+	return value
 }
 
 func markdownFirstCodeCell(line string) (string, bool) {
@@ -1885,7 +1885,11 @@ type renderedHTMLCapture struct {
 	kind       string
 	classValid bool
 	root       *xhtml.Node
-	stack      []*xhtml.Node
+}
+
+type renderedHTMLOpenElement struct {
+	name string
+	node *xhtml.Node
 }
 
 func parseRenderedHTML(content string) renderedHTMLDocument {
@@ -1895,6 +1899,7 @@ func parseRenderedHTML(content string) renderedHTMLDocument {
 	}
 	tokenizer := xhtml.NewTokenizer(strings.NewReader(content))
 	var capture *renderedHTMLCapture
+	var openElements []renderedHTMLOpenElement
 	finish := func(closed bool) {
 		if capture == nil {
 			return
@@ -1932,70 +1937,64 @@ func parseRenderedHTML(content string) renderedHTMLDocument {
 				document.err = fmt.Errorf("malformed HTML start tag %q", raw)
 				return document
 			}
-			if capture != nil && len(capture.stack) == 1 &&
-				token.Data == capture.kind && renderedHTMLPeerContainer(token) {
-				finish(false)
-			}
+			var node *xhtml.Node
 			if capture == nil {
 				switch token.Data {
 				case "tr":
 					if id := tokenAttribute(token, "id"); strings.HasPrefix(id, "cmd-") {
-						root := htmlTokenNode(token)
-						capture = &renderedHTMLCapture{
-							kind:  "tr",
-							root:  root,
-							stack: []*xhtml.Node{root},
-						}
+						node = htmlTokenNode(token)
+						capture = &renderedHTMLCapture{kind: "tr", root: node}
 					}
 				case "article":
 					classValid, candidate := zeArticleClass(tokenAttribute(token, "class"))
 					if candidate {
-						root := htmlTokenNode(token)
+						node = htmlTokenNode(token)
 						capture = &renderedHTMLCapture{
 							kind:       "article",
 							classValid: classValid,
-							root:       root,
-							stack:      []*xhtml.Node{root},
+							root:       node,
 						}
 					}
 				}
-				if capture == nil {
+			}
+			if capture != nil {
+				if node == nil {
+					node = htmlTokenNode(token)
+					htmlAppendChild(openElements[len(openElements)-1].node, node)
+				}
+				closed := tokenType == xhtml.SelfClosingTagToken || htmlVoidElement(token.Data)
+				document.nodeClosed[node] = closed
+				if closed {
+					if node == capture.root {
+						finish(false)
+					}
 					continue
 				}
-				document.nodeClosed[capture.root] = tokenType == xhtml.SelfClosingTagToken
-				if tokenType == xhtml.SelfClosingTagToken {
-					finish(false)
-				}
-				continue
 			}
-			node := htmlTokenNode(token)
-			htmlAppendChild(capture.stack[len(capture.stack)-1], node)
-			closed := tokenType == xhtml.SelfClosingTagToken || htmlVoidElement(token.Data)
-			document.nodeClosed[node] = closed
-			if !closed {
-				capture.stack = append(capture.stack, node)
+			if tokenType != xhtml.SelfClosingTagToken && !htmlVoidElement(token.Data) {
+				openElements = append(openElements, renderedHTMLOpenElement{
+					name: token.Data,
+					node: node,
+				})
 			}
 		case xhtml.TextToken:
 			if capture != nil {
-				htmlAppendChild(capture.stack[len(capture.stack)-1], &xhtml.Node{
+				htmlAppendChild(openElements[len(openElements)-1].node, &xhtml.Node{
 					Type: xhtml.TextNode,
 					Data: token.Data,
 				})
 			}
 		case xhtml.CommentToken:
 			if capture != nil {
-				htmlAppendChild(capture.stack[len(capture.stack)-1], &xhtml.Node{
+				htmlAppendChild(openElements[len(openElements)-1].node, &xhtml.Node{
 					Type: xhtml.CommentNode,
 					Data: token.Data,
 				})
 			}
 		case xhtml.EndTagToken:
-			if capture == nil {
-				continue
-			}
 			match := -1
-			for index := len(capture.stack) - 1; index >= 0; index-- {
-				if capture.stack[index].Data == token.Data {
+			for index := len(openElements) - 1; index >= 0; index-- {
+				if openElements[index].name == token.Data {
 					match = index
 					break
 				}
@@ -2003,29 +2002,25 @@ func parseRenderedHTML(content string) renderedHTMLDocument {
 			if match == -1 {
 				continue
 			}
-			for index := len(capture.stack) - 1; index > match; index-- {
-				document.nodeClosed[capture.stack[index]] = false
+			rootPopped := false
+			rootMatched := false
+			for index := len(openElements) - 1; index >= match; index-- {
+				node := openElements[index].node
+				if node == nil {
+					continue
+				}
+				document.nodeClosed[node] = index == match
+				if capture != nil && node == capture.root {
+					rootPopped = true
+					rootMatched = index == match
+				}
 			}
-			document.nodeClosed[capture.stack[match]] = true
-			capture.stack = capture.stack[:match]
-			if match == 0 {
-				finish(true)
-			}
-		}
-	}
-}
-func renderedHTMLPeerContainer(token xhtml.Token) bool {
-	switch token.Data {
-	case "tr":
-		return strings.HasPrefix(tokenAttribute(token, "id"), "cmd-")
-	case "article":
-		for _, class := range strings.Fields(tokenAttribute(token, "class")) {
-			if class == "cmd-detail-card" {
-				return true
+			openElements = openElements[:match]
+			if rootPopped {
+				finish(rootMatched)
 			}
 		}
 	}
-	return false
 }
 
 func htmlStartTokenMalformed(raw []byte) bool {
@@ -2468,24 +2463,63 @@ func htmlDefinitionCodeIdentity(
 			return
 		}
 		count++
-		definition := htmlNextElement(node)
-		if definition == nil || definition.Data != "dd" {
-			valid = false
-			return
+		definition := htmlFollowingDefinition(node)
+		code := htmlFirstDescendant(definition, "code")
+		if code != nil {
+			matches = matches || normalizeRenderedHTMLText(htmlText(code)) == expected
 		}
-		code := htmlFirstElement(definition)
-		identity := strings.TrimSpace(htmlText(definition))
-		if code != nil && code.Data == "code" {
-			identity = normalizeMarkdownCodeSpan(htmlText(code))
+		directDefinition := htmlNextElement(node)
+		var directCode *xhtml.Node
+		if definition != nil {
+			directCode = htmlFirstElement(definition)
 		}
-		matches = matches || identity == expected
-		if code == nil || code.Data != "code" ||
+		if definition == nil || definition != directDefinition ||
+			directCode == nil || directCode != code ||
 			htmlNextElement(code) != nil ||
 			strings.TrimSpace(htmlText(definition)) != htmlText(code) {
 			valid = false
 		}
 	})
 	return matches, count != 0, count == 1 && valid
+}
+
+func normalizeRenderedHTMLText(value string) string {
+	fields := strings.FieldsFunc(value, func(current rune) bool {
+		switch current {
+		case ' ', '\t', '\n', '\r', '\f':
+			return true
+		default:
+			return false
+		}
+	})
+	return strings.Join(fields, " ")
+}
+
+func htmlFollowingDefinition(term *xhtml.Node) *xhtml.Node {
+	for sibling := term.NextSibling; sibling != nil; sibling = sibling.NextSibling {
+		if sibling.Type != xhtml.ElementNode {
+			continue
+		}
+		switch sibling.Data {
+		case "dt":
+			return nil
+		case "dd":
+			return sibling
+		}
+	}
+	return nil
+}
+
+func htmlFirstDescendant(root *xhtml.Node, element string) *xhtml.Node {
+	var found *xhtml.Node
+	if root != nil {
+		htmlWalk(root, func(node *xhtml.Node) {
+			if found == nil && node.Data == element {
+				found = node
+			}
+		})
+	}
+	return found
 }
 
 func equivalentHTMLCommandContent(
