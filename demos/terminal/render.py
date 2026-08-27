@@ -112,9 +112,9 @@ def validate_contract(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
         if not isinstance(renderer.get(field), str) or not renderer[field]:
             raise ValueError(f"manifest.json: renderer.{field} is required")
 
-    gallery_page = manifest.get("gallery_page")
+    gallery_page = manifest.get("gallery-page")
     if not isinstance(gallery_page, str) or not gallery_page:
-        raise ValueError("manifest.json: gallery_page is required")
+        raise ValueError("manifest.json: gallery-page is required")
     if not (ROOT / "docs" / gallery_page).is_file():
         raise ValueError(f"manifest.json: gallery page does not exist: {gallery_page}")
     indexed = demo_by_id(manifest)
@@ -330,6 +330,14 @@ def container_command(
 ) -> list[str]:
     uid = str(os.getuid()) if hasattr(os, "getuid") else "0"
     gid = str(os.getgid()) if hasattr(os, "getgid") else "0"
+    scratch_root = ROOT / "tmp" / "terminal-demos"
+    resolved_scratch_root = scratch_root.resolve()
+    scratch_volume = []
+    if resolved_scratch_root != scratch_root:
+        scratch_volume = [
+            "--volume",
+            f"{resolved_scratch_root}:{resolved_scratch_root}",
+        ]
     command = [
         "docker",
         "run",
@@ -352,6 +360,7 @@ def container_command(
         "ZE_DEMO_LOCK_HELD=1",
         "--volume",
         f"{ROOT}:/src",
+        *scratch_volume,
         "--volume",
         f"{ARTIFACT_ROOT}:/src/demos/terminal/artifacts",
         "--workdir",
@@ -706,7 +715,7 @@ def _render_demo(
             # to see, and making it again costs a container run.
             rejected = ROOT / "tmp" / "terminal-demos" / "rejected" / cast_path.name
             rejected.parent.mkdir(parents=True, exist_ok=True)
-            cast_path.replace(rejected)
+            shutil.move(cast_path, rejected)
             raise
     shutil.copyfile(transcript_source, expected["transcript"])
 
@@ -722,9 +731,9 @@ def _render_demo(
 
     return {
         "release": release,
-        "binary_sha256": sha256(BINARY_PATH),
-        "source_sha256": source_digest(demo),
-        "definition_sha256": definition_digest(demo),
+        "binary-sha256": sha256(BINARY_PATH),
+        "source-sha256": source_digest(demo),
+        "definition-sha256": definition_digest(demo),
         "assets": assets,
     }
 
@@ -772,7 +781,7 @@ def verify_assets(
             raise ValueError(
                 f"{demo_id}: rendered for {entry.get('release')!r}, expected {release!r}"
             )
-        digest_key = "definition_sha256" if definition_only else "source_sha256"
+        digest_key = "definition-sha256" if definition_only else "source-sha256"
         expected_digest = (
             definition_digest(indexed[demo_id])
             if definition_only
@@ -829,7 +838,7 @@ def stamp_definition_hashes(
         entry = generated_demos.get(demo_id)
         if not isinstance(entry, dict):
             raise ValueError(f"generated manifest: missing {demo_id}")
-        entry["definition_sha256"] = definition_digest(indexed[demo_id])
+        entry["definition-sha256"] = definition_digest(indexed[demo_id])
     write_artifact_manifest(generated)
     verify_assets(manifest, indexed, selected, None, definition_only=True)
 

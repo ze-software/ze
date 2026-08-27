@@ -1,6 +1,6 @@
 // The migration's proof for this tool: the script and the command agree.
 //
-// scripts/lint/consistency.go is being replaced by letools/consistency, and the
+// scripts/lint/consistency.go is being replaced by internal/le/consistency, and the
 // two live side by side until the swap (plan/spec-le-is-a-ze-binary.md, step
 // 14). This file is what makes that safe, and it is deliberately HERE rather
 // than beside the new package: it is a migration artifact, so it is deleted by
@@ -43,7 +43,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/letools/consistency"
+	"github.com/ze-software/ze/internal/le/consistency"
 )
 
 // ansiSGR matches a color escape, so a comparison can be about the findings

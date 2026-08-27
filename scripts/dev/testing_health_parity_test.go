@@ -38,7 +38,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/letools/testhealth"
+	"github.com/ze-software/ze/internal/le/testhealth"
 )
 
 // healthScript is the tool this file compares against.
@@ -76,7 +76,7 @@ func healthPyTree(t *testing.T, extra map[string]string) string {
 	}
 
 	// The detector the script starts as a subprocess. The command calls
-	// letools/testsensitivity instead, so this copy is what the SCRIPT half
+	// internal/le/testsensitivity instead, so this copy is what the SCRIPT half
 	// needs and the two halves must agree over it. A case that supplies its own
 	// keeps it: one of them stands a stub in for the detector.
 	if _, supplied := files[healthDetector]; !supplied {

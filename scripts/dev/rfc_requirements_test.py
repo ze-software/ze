@@ -694,6 +694,8 @@ class TestCarrierTable(unittest.TestCase):
             R.carrier_for("test/stress/scenarios/01-x/check.py").name, "scenario-check"
         )
         self.assertEqual(R.carrier_for("internal/x_test.go").name, "unit")
+        self.assertEqual(R.carrier_for("internal/rfc/audit_test.go").name, "unit")
+        self.assertIsNone(R.carrier_for("internal/le/rfc/audit_test.go"))
         # One row per suite ze-functional-test runs, so the specific suite beats the
         # catch-all -- the check the flat `functional` row could not make.
         self.assertEqual(R.carrier_for("test/plugin/x.ci").name, "functional-plugin")

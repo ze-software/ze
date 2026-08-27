@@ -1,7 +1,7 @@
 // The migration's proof for the functional and integration areas: the script
 // and the commands agree about what they would run.
 //
-// letools/functional and letools/integration replace
+// internal/le/functional and internal/le/integration replace
 // scripts/le/application/functional.py and integration.py. Both versions remain
 // until the swap (plan/spec-le-is-a-ze-binary.md, step 14). This file makes that
 // overlap safe. It is deliberately HERE because it is a migration artifact. The
@@ -39,14 +39,14 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 
-	"github.com/ze-software/ze/letools/deployment"
-	"github.com/ze-software/ze/letools/evidence"
-	"github.com/ze-software/ze/letools/functional"
-	"github.com/ze-software/ze/letools/gotoolchain"
-	"github.com/ze-software/ze/letools/integration"
-	"github.com/ze-software/ze/letools/leaction"
-	"github.com/ze-software/ze/letools/lepath"
-	"github.com/ze-software/ze/letools/qemu"
+	"github.com/ze-software/ze/internal/le/deployment"
+	"github.com/ze-software/ze/internal/le/evidence"
+	"github.com/ze-software/ze/internal/le/functional"
+	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/integration"
+	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/qemu"
 )
 
 // runTimeout bounds one Python run. Each of these imports two modules and
@@ -227,7 +227,7 @@ print(json.dumps(f._build_commands(pathlib.Path("`+binaries+`"), chaos=`+flag+`)
 
 // TestIntegrationGateArgvMatchesTheScript compares every gate served by this
 // area. Two of the 21 script gates are deliberately absent.
-// letools/deployment and letools/evidence own and serve their gate-name
+// internal/le/deployment and internal/le/evidence own and serve their gate-name
 // families. Listing a row in two areas creates the drift that this parity gate
 // prevents.
 func TestIntegrationGateArgvMatchesTheScript(t *testing.T) {
@@ -263,7 +263,7 @@ func TestIntegrationGateArgvMatchesTheScript(t *testing.T) {
 
 // TestEveryIntegrationGateOfTheScriptIsServedSomewhere tests the other half of
 // that split. The owning areas must declare the two gates absent from
-// letools/integration. Otherwise, the port dropped them.
+// internal/le/integration. Otherwise, the port dropped them.
 func TestEveryIntegrationGateOfTheScriptIsServedSomewhere(t *testing.T) {
 	root := areaCheckout(t)
 	script := runFunctionalPython(t, root,
@@ -283,7 +283,7 @@ func TestEveryIntegrationGateOfTheScriptIsServedSomewhere(t *testing.T) {
 	// local list would be a third record of gate ownership and invite the drift
 	// that the census detects.
 	//
-	// letools/qemu joined these areas on 2026-08-26 when it received
+	// internal/le/qemu joined these areas on 2026-08-26 when it received
 	// ze-qemu-vpp-hugepages-test. This case read only three areas, although the
 	// fourth already owned a gate declared by the script.
 	for _, area := range []leaction.List{

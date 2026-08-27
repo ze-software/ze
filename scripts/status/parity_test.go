@@ -1,7 +1,7 @@
 // The migration's proof for the spec inventory: the script and the command
 // agree.
 //
-// scripts/status/spec_status.go is being replaced by letools/specstatus, and the
+// scripts/status/spec_status.go is being replaced by internal/le/specstatus, and the
 // two live side by side until the swap (plan/spec-le-is-a-ze-binary.md, step
 // 14). This file is what makes that safe, and it is deliberately HERE rather
 // than beside the new package: it is a migration artifact, so it is deleted by
@@ -40,7 +40,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/letools/specstatus"
+	"github.com/ze-software/ze/internal/le/specstatus"
 )
 
 // parityTree writes a fixture plan/ tree and answers its root. It is a

@@ -584,7 +584,7 @@ def fib_config(api_sock: Path) -> str:
     }}
 }}
 
-{vpp_config(api_sock)}
+{vpp_config(api_sock).rstrip()}
 fib {{
     vpp {{ enabled true; }}
 }}
@@ -842,7 +842,7 @@ def mpls_fib_config(api_sock: Path) -> str:
     }}
 }}
 
-{vpp_config(api_sock)}
+{vpp_config(api_sock).rstrip()}
 fib {{
     vpp {{ enabled true; }}
 }}

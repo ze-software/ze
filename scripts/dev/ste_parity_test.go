@@ -39,7 +39,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ze-software/ze/letools/ste"
+	"github.com/ze-software/ze/internal/le/ste"
 )
 
 // steScript is the tool this file compares against.

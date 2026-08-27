@@ -98,6 +98,24 @@ func TestB(t *testing.T) {
 }
 """
 
+# An assertion-shaped URL remains fixture data. The `//` is inside a balanced
+# string token, so it cannot become the blocking "commenting out assertions" arm.
+ASSERTION_STRING_GO = """package a
+
+import "testing"
+
+func TestA(t *testing.T) {
+	url := "https://example.test//require.NoError"
+	require.Equal(t, 1, f())
+	require.NoError(t, err)
+	_ = url
+}
+
+func TestB(t *testing.T) {
+	require.True(t, g())
+}
+"""
+
 # TestA is gone from the file.
 DELETED_GO = """package a
 
@@ -105,6 +123,43 @@ import "testing"
 
 func TestB(t *testing.T) {
 	require.True(t, g())
+}
+"""
+
+
+DOCWIRING_OLD_GO = """package a
+
+func TestKept(t *testing.T) {
+	require.NoError(t, err)
+}
+
+func TestRemoved(t *testing.T) {
+	require.Equal(t, 1, got)
+	require.NoError(t, err)
+}
+"""
+
+DOCWIRING_NEW_GO = """package a
+
+func TestKept(t *testing.T) {
+	require.NoError(t, err)
+}
+"""
+
+PACKAGE_ASSERTION_OLD_GO = """package a
+
+var packageCheck = assert.Equal(t, 1, got)
+
+func TestA(t *testing.T) {
+	require.NoError(t, err)
+}
+"""
+
+PACKAGE_ASSERTION_NEW_GO = """package a
+
+func TestA(t *testing.T) {
+	require.NoError(t, err)
+	require.Equal(t, 1, got)
 }
 """
 
@@ -139,6 +194,29 @@ WEAK_CI = """name=session comes up
 exec=ze bgp run
 expect=stdout:contains=Established
 """
+
+PYTHON_BASELINE = (
+    "import unittest\n"
+    "class T(unittest.TestCase):\n"
+    "    def test_skip_detection(self):\n"
+    '        fixture = "pass\\n"\n'
+    "        self.assertEqual([], detect(fixture))\n"
+)
+PYTHON_FIXTURE_SKIP = (
+    "import unittest\n"
+    "class T(unittest.TestCase):\n"
+    "    def test_skip_detection(self):\n"
+    '        fixture = \'self.skipTest("flaky")\\n\'\n'
+    "        self.assertEqual([], detect(fixture))\n"
+)
+PYTHON_EXECUTABLE_SKIP = (
+    "import unittest\n"
+    "class T(unittest.TestCase):\n"
+    "    def test_skip_detection(self):\n"
+    '        self.skipTest("flaky")\n'
+    '        fixture = "pass\\n"\n'
+    "        self.assertEqual([], detect(fixture))\n"
+)
 
 
 def contract(*rows: tuple[str, str]) -> str:
@@ -249,6 +327,163 @@ class TestCommitWithoutARow(RepoCase):
         self.assertEqual(cw.weakened_problems(repo.root, ["pkg/b_test.go"]), [])
 
 
+class TestMovedTests(RepoCase):
+    """A rename compares the old test with its new path instead of empty text."""
+
+    def move(
+        self,
+        repo: Repo,
+        new_text: str = BASELINE_GO,
+        old_path: str = "pkg/a_test.go",
+        new_path: str = "internal/le/a_test.go",
+    ) -> tuple[str, str, tuple[cw.RenamePair, ...]]:
+        repo.write(new_path, new_text)
+        repo.delete(old_path)
+        return old_path, new_path, (cw.RenamePair(old_path, new_path, 100),)
+
+    def test_an_unchanged_move_is_clean(self) -> None:
+        repo = self.baseline()
+        old_path, new_path, renames = self.move(repo)
+        self.assertEqual(
+            cw.weakened_problems(
+                repo.root, [new_path], removed=[old_path], rename_pairs=renames
+            ),
+            [],
+        )
+
+    def test_a_move_with_import_path_and_comment_edits_is_clean(self) -> None:
+        repo = self.baseline()
+        moved = BASELINE_GO.replace(
+            'import "testing"',
+            'import (\n\t"testing"\n\t"internal/pkg/testsupport"\n)',
+        ).replace(
+            "func TestA(t *testing.T) {",
+            "// TestA uses testsupport after the package move.\n"
+            "func TestA(t *testing.T) {\n\t_ = testsupport.Path",
+        )
+        old_path, new_path, renames = self.move(repo, moved)
+        self.assertEqual(
+            cw.weakened_problems(
+                repo.root, [new_path], removed=[old_path], rename_pairs=renames
+            ),
+            [],
+        )
+
+    def test_a_moved_test_that_loses_an_assertion_uses_the_new_identity(self) -> None:
+        repo = self.baseline()
+        old_path, new_path, renames = self.move(repo, FEWER_ASSERTIONS_GO)
+        weakened, errors = cw.weakened_tests(
+            repo.root, [new_path], removed=[old_path], rename_pairs=renames
+        )
+        self.assertEqual(errors, [])
+        self.assertEqual(
+            [(item.path, item.package, item.name) for item in weakened],
+            [(new_path, "le", "TestA")],
+        )
+        self.assertIn("removing assertions", "\n".join(weakened[0].details))
+        repo.write(
+            cw.WEAKENED_PATH,
+            contract(("le.TestA", "the moved test no longer checks the error")),
+        )
+        self.assertEqual(
+            cw.weakened_problems(
+                repo.root, [new_path], removed=[old_path], rename_pairs=renames
+            ),
+            [],
+        )
+
+    def test_a_moved_rfc_tagged_test_remains_protected(self) -> None:
+        old = BASELINE_GO.replace(
+            "func TestA",
+            "// RFC requirement: RFC4271-6.3-1 positive: malformed input is rejected.\n"
+            "func TestA",
+        )
+        repo = self.baseline()
+        repo.write("pkg/a_test.go", old)
+        repo.commit("tagged baseline")
+        moved = old.replace("\trequire.NoError(t, err)\n", "")
+        old_path, new_path, renames = self.move(repo, moved)
+        weakened, errors = cw.weakened_tests(
+            repo.root, [new_path], removed=[old_path], rename_pairs=renames
+        )
+        self.assertEqual(errors, [])
+        self.assertEqual(
+            [(item.path, item.package, item.name) for item in weakened],
+            [(new_path, "le", "TestA")],
+        )
+        self.assertIn("removing assertions", "\n".join(weakened[0].details))
+
+    def test_a_moved_test_that_loses_an_rfc_tag_is_blocked(self) -> None:
+        tag = (
+            "\t// RFC requirement: RFC4271-6.3-1 positive: "
+            "malformed input is rejected.\n"
+        )
+        old = BASELINE_GO.replace(
+            "\trequire.Equal(t, 1, f())\n",
+            tag + "\trequire.Equal(t, 1, f())\n",
+        )
+        repo = self.baseline()
+        repo.write("pkg/a_test.go", old)
+        repo.commit("tagged baseline")
+        old_path, new_path, renames = self.move(repo, old.replace(tag, ""))
+        weakened, errors = cw.weakened_tests(
+            repo.root, [new_path], removed=[old_path], rename_pairs=renames
+        )
+        self.assertEqual(errors, [])
+        self.assertEqual(
+            [(item.path, item.package, item.name) for item in weakened],
+            [(new_path, "le", "TestA")],
+        )
+        self.assertIn(
+            "removing RFC requirement tag", "\n".join(weakened[0].details)
+        )
+
+    def test_ambiguous_rename_pairs_fail_closed(self) -> None:
+        repo = self.baseline()
+        old_path, new_path, _ = self.move(repo)
+        second_path = "other/pkg/a_test.go"
+        repo.write(second_path, BASELINE_GO)
+        renames = (
+            cw.RenamePair(old_path, new_path, 100),
+            cw.RenamePair(old_path, second_path, 100),
+        )
+        weakened, errors = cw.weakened_tests(
+            repo.root,
+            [new_path, second_path],
+            removed=[old_path],
+            rename_pairs=renames,
+        )
+        self.assertEqual(weakened, [])
+        self.assertIn("ambiguous", "\n".join(errors).lower())
+
+    def test_an_unreadable_rename_target_fails_closed(self) -> None:
+        repo = self.baseline()
+        old_path = "pkg/a_test.go"
+        new_path = "internal/le/a_test.go"
+        repo.delete(old_path)
+        weakened, errors = cw.weakened_tests(
+            repo.root,
+            [new_path],
+            removed=[old_path],
+            rename_pairs=(cw.RenamePair(old_path, new_path, 100),),
+        )
+        self.assertEqual(weakened, [])
+        self.assertIn("could not run", "\n".join(errors))
+
+    def test_an_unrelated_worktree_weakening_is_excluded_from_a_move(self) -> None:
+        repo = self.baseline()
+        repo.write("other/unrelated_test.go", BASELINE_GO)
+        repo.commit("add unrelated test")
+        repo.write("other/unrelated_test.go", SKIPPED_GO)
+        old_path, new_path, renames = self.move(repo)
+        self.assertEqual(
+            cw.weakened_problems(
+                repo.root, [new_path], removed=[old_path], rename_pairs=renames
+            ),
+            [],
+        )
+
+
 class TestStaleRow(RepoCase):
     """AC-4 / R-2: a row for a test this commit does not weaken is refused."""
 
@@ -301,6 +536,11 @@ class TestWeakensNothing(RepoCase):
         repo.write("pkg/a_test.go", STRONGER_GO)
         self.assertEqual(cw.weakened_problems(repo.root, ["pkg/a_test.go"]), [])
 
+    def test_an_assertion_shaped_url_is_not_a_weakening(self) -> None:
+        repo = self.baseline()
+        repo.write("pkg/a_test.go", ASSERTION_STRING_GO)
+        self.assertEqual(cw.weakened_problems(repo.root, ["pkg/a_test.go"]), [])
+
     def test_a_missing_file_refuses_a_weakening(self) -> None:
         repo = self.baseline()
         repo.delete(cw.WEAKENED_PATH)
@@ -326,6 +566,76 @@ class TestWeakensNothing(RepoCase):
         joined = "\n".join(problems)
         self.assertIn("TestA", joined)
         self.assertIn("TestB", joined)
+
+
+class TestUnitResidualAttribution(unittest.TestCase):
+    """Whole-file count drops name only coverage outside top-level functions."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.detector = staticmethod(cw.load_detector(cw.PROJECT_DIR))
+        cls.rfc_detector = staticmethod(cw.load_rfc_detector(cw.PROJECT_DIR))
+
+    def units(self, old: str, new: str):
+        return cw.weakened_units(
+            "pkg/a_test.go",
+            old,
+            new,
+            self.detector,
+            self.rfc_detector,
+        )
+
+    def test_deleted_function_assertions_are_not_attributed_to_file_stem(
+        self,
+    ) -> None:
+        units = self.units(DOCWIRING_OLD_GO, DOCWIRING_NEW_GO)
+        self.assertEqual([name for name, _ in units], ["TestRemoved"])
+        self.assertNotIn(
+            "removing assertions",
+            "\n".join(
+                detail
+                for name, details in units
+                if name == "a_test"
+                for detail in details
+            ),
+        )
+
+    def test_package_scope_assertion_drop_is_preserved(self) -> None:
+        units = self.units(PACKAGE_ASSERTION_OLD_GO, PACKAGE_ASSERTION_NEW_GO)
+        self.assertEqual([name for name, _ in units], ["a_test"])
+        self.assertIn(
+            "removing assertions outside top-level functions",
+            "\n".join(units[0][1]),
+        )
+
+
+class TestPythonExecutableText(RepoCase):
+    """The shared producer judges Python code, not source stored as fixture data."""
+
+    def test_fixture_skip_is_ignored_and_executable_skip_is_detected(self) -> None:
+        repo = self.repo()
+        path = "scripts/dev/tool_test.py"
+        repo.write(path, PYTHON_BASELINE)
+        repo.commit()
+
+        repo.write(path, PYTHON_FIXTURE_SKIP)
+        weakened, errors = cw.weakened_tests(repo.root, [path])
+        self.assertEqual(errors, [])
+        self.assertEqual(weakened, [], "fixture text is not an executable skip")
+
+        repo.write(path, PYTHON_EXECUTABLE_SKIP)
+        weakened, errors = cw.weakened_tests(repo.root, [path])
+        self.assertEqual(errors, [])
+        self.assertEqual(len(weakened), 1, weakened)
+        self.assertEqual(weakened[0].name, "tool_test")
+        self.assertIn("adding a Python skip", "\n".join(weakened[0].details))
+
+    def test_malformed_python_source_is_not_masked(self) -> None:
+        malformed = 'fixture = """self.skipTest("flaky")\n'
+        self.assertEqual(
+            cw.executable_test_text("scripts/dev/tool_test.py", malformed),
+            malformed,
+        )
 
 
 class TestNoComparison(RepoCase):

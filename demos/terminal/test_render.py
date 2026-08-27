@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import contextlib
+import errno
 import importlib.util
 import json
 import os
@@ -494,6 +495,86 @@ class DemoLockTest(unittest.TestCase):
 
         self.assertIn("ZE_DEMO_LOCK_HELD=1", command)
 
+    def test_container_mounts_the_resolved_absolute_scratch_target(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = pathlib.Path(tmp).resolve()
+            root = base / "checkout"
+            scratch_root = root / "tmp" / "terminal-demos"
+            cache_parent = base / "cache"
+            cache_target = cache_parent / "terminal-demos"
+            artifact_root = base / "artifacts"
+            scratch_root.parent.mkdir(parents=True)
+            cache_target.mkdir(parents=True)
+            scratch_root.symlink_to(cache_target, target_is_directory=True)
+
+            with mock.patch.multiple(
+                terminal_render, ROOT=root, ARTIFACT_ROOT=artifact_root
+            ):
+                command = terminal_render.container_command(
+                    {
+                        "image": "ze-terminal-demo-render-all:test",
+                        "platform": "linux/native",
+                    },
+                    pathlib.PurePosixPath(
+                        "/src/demos/terminal/example/validate.sh"
+                    ),
+                    False,
+                )
+
+            volumes = [
+                command[index + 1]
+                for index, argument in enumerate(command)
+                if argument == "--volume"
+            ]
+            resolved_target = cache_target.resolve()
+            self.assertEqual(
+                volumes,
+                [
+                    f"{root}:/src",
+                    f"{resolved_target}:{resolved_target}",
+                    f"{artifact_root}:/src/demos/terminal/artifacts",
+                ],
+            )
+            self.assertNotIn(f"{cache_parent}:{cache_parent}", volumes)
+
+    def test_container_adds_no_scratch_mount_for_a_real_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = pathlib.Path(tmp).resolve()
+            root = base / "checkout"
+            scratch_root = root / "tmp" / "terminal-demos"
+            cache_parent = base / "cache"
+            artifact_root = base / "artifacts"
+            scratch_root.mkdir(parents=True)
+            cache_parent.mkdir()
+
+            with mock.patch.multiple(
+                terminal_render, ROOT=root, ARTIFACT_ROOT=artifact_root
+            ):
+                command = terminal_render.container_command(
+                    {
+                        "image": "ze-terminal-demo-render-all:test",
+                        "platform": "linux/native",
+                    },
+                    pathlib.PurePosixPath(
+                        "/src/demos/terminal/example/validate.sh"
+                    ),
+                    False,
+                )
+
+            volumes = [
+                command[index + 1]
+                for index, argument in enumerate(command)
+                if argument == "--volume"
+            ]
+            self.assertEqual(
+                volumes,
+                [
+                    f"{root}:/src",
+                    f"{artifact_root}:/src/demos/terminal/artifacts",
+                ],
+            )
+            self.assertNotIn(f"{cache_parent}:{cache_parent}", volumes)
+
     def test_the_harness_lock_refuses_a_tree_another_run_holds(self):
         with tempfile.TemporaryDirectory() as tmp:
             lock_path = pathlib.Path(tmp) / "demo-run.lock"
@@ -683,6 +764,109 @@ class ValidatorDiagnosticTest(unittest.TestCase):
         self.assertIn("bridge stp: permission denied", result.stderr)
 
 
+class HealthReportsDemoSourceContractTest(unittest.TestCase):
+    """Synchronization contracts for the checked-in health reports tape."""
+
+    # VALIDATES: `show health` completes on its final aggregate status row.
+    # PREVENTS: waiting for the editor title after the health table scrolls it away.
+    def test_show_health_waits_for_aggregate_status_not_the_editor_title(self):
+        source = (HERE / "health-reports" / "demo.tape").read_text(encoding="utf-8")
+        health_flow = source[
+            source.index("sshpass -e ssh ze-demo 'show health'")
+            : source.index("sshpass -e ssh ze-demo 'show warnings source bgp'")
+        ]
+
+        self.assertIn("Wait+Screen /ipsec/", health_flow)
+        self.assertIn(r"Wait+Screen /status\s+down/", health_flow)
+        self.assertLess(
+            health_flow.index("Wait+Screen /ipsec/"),
+            health_flow.index(r"Wait+Screen /status\s+down/"),
+        )
+        self.assertNotIn("Wait+Screen /Ze Editor/", health_flow)
+
+    # VALIDATES: the teardown completes on its final structured result row.
+    # PREVENTS: waiting for the editor title after the result scrolls it away.
+    def test_peer_teardown_waits_for_final_subcode_not_the_editor_title(self):
+        source = (HERE / "health-reports" / "demo.tape").read_text(encoding="utf-8")
+        teardown_flow = source[
+            source.index("sshpass -e ssh ze-demo 'request peer 127.0.0.2 teardown 4'")
+            : source.index("sshpass -e ssh ze-demo 'show errors source bgp'")
+        ]
+
+        peer_wait = r"Wait+Screen /peer\s+127\.0\.0\.2/"
+        subcode_wait = r"Wait+Screen /subcode\s+4/"
+        self.assertIn(peer_wait, teardown_flow)
+        self.assertIn(subcode_wait, teardown_flow)
+        self.assertLess(
+            teardown_flow.index(peer_wait),
+            teardown_flow.index(subcode_wait),
+        )
+        self.assertNotIn("Wait+Screen /Ze Editor/", teardown_flow)
+
+    # VALIDATES: every transcript command is a visible shell-level SSH exec.
+    # PREVENTS: claiming full-screen TUI input that the recorder never paints.
+    def test_transcript_commands_use_visible_ssh_exec(self):
+        source = (HERE / "health-reports" / "demo.tape").read_text(encoding="utf-8")
+        transcript = (HERE / "health-reports" / "transcript.txt").read_text(
+            encoding="utf-8"
+        )
+        invocations = (
+            "sshpass -e ssh ze-demo 'show health'",
+            "sshpass -e ssh ze-demo 'show warnings source bgp'",
+            "sshpass -e ssh ze-demo 'request peer 127.0.0.2 teardown 4'",
+            "sshpass -e ssh ze-demo 'show errors source bgp'",
+        )
+
+        for invocation in invocations:
+            with self.subTest(invocation=invocation):
+                self.assertIn(f'Type "{invocation}"\nEnter\n', source)
+
+        transcript_commands = [
+            line.removeprefix("$ ")
+            for line in transcript.splitlines()
+            if line.startswith("$ ")
+        ]
+        self.assertEqual(transcript_commands, list(invocations))
+        self.assertNotIn('Type "sshpass -e ssh ze-demo"\n', source)
+        self.assertNotIn('Type "run ', source)
+        self.assertNotIn("Escape\n", source)
+        self.assertNotIn("ze# run ", transcript)
+
+
+class BrowserDemoSourceContractTest(unittest.TestCase):
+    """Synchronization contracts for the checked-in browser demo driver."""
+
+    # VALIDATES: diff review waits for the exact HTMX response before the modal.
+    # PREVENTS: aggregate rendering turning server latency into a selector timeout.
+    def test_diff_review_waits_on_the_response_and_then_the_modal(self):
+        source = (HERE / "web-config" / "demo.cjs").read_text(encoding="utf-8")
+        diff_flow = source[
+            source.index("const [diffResponse]")
+            : source.index("await pause(6000)")
+        ]
+
+        promise_flow = diff_flow[: diff_flow.index("    ]);")]
+        self.assertIn("const [diffResponse] = await Promise.all([", promise_flow)
+        self.assertIn("page.waitForResponse((response) =>", promise_flow)
+        self.assertIn('url.pathname === "/config/diff"', promise_flow)
+        self.assertIn('url.search === ""', promise_flow)
+        self.assertIn('page.click("#commit-review-btn")', promise_flow)
+        self.assertLess(
+            promise_flow.index("page.waitForResponse"),
+            promise_flow.index('page.click("#commit-review-btn")'),
+        )
+        self.assertIn('response.request().method() === "GET"', promise_flow)
+        self.assertIn("if (!diffResponse.ok())", diff_flow)
+        self.assertIn("diffResponse.status()", diff_flow)
+        self.assertIn("await diffResponse.text()", diff_flow)
+        self.assertIn("diffResponse.url()", diff_flow)
+        self.assertIn(
+            'await page.waitForSelector("#diff-modal.open .diff-content");',
+            diff_flow,
+        )
+        self.assertNotIn("timeout: 10000", diff_flow)
+
+
 class TerminalDemoAssetTest(unittest.TestCase):
     """The four Wiring Test rows of spec-website-asciinema-terminal-demos.
 
@@ -766,7 +950,7 @@ class TerminalDemoAssetTest(unittest.TestCase):
                     "demos": {
                         "example": {
                             "release": "test",
-                            "definition_sha256": terminal_render.definition_digest(
+                            "definition-sha256": terminal_render.definition_digest(
                                 demo
                             ),
                             "assets": assets,
@@ -926,8 +1110,8 @@ class TerminalDemoAssetTest(unittest.TestCase):
             )
             return {
                 "release": release,
-                "source_sha256": terminal_render.source_digest(demo),
-                "definition_sha256": terminal_render.definition_digest(demo),
+                "source-sha256": terminal_render.source_digest(demo),
+                "definition-sha256": terminal_render.definition_digest(demo),
                 "assets": assets,
             }
 
@@ -1346,6 +1530,45 @@ class TranscriptGateTest(unittest.TestCase):
                 self.root / "tmp" / "terminal-demos" / "rejected" / "example.cast"
             ).is_file()
         )
+
+    def test_transcript_mismatch_quarantines_across_filesystems(self):
+        painted = ["$ ze show config", "running-config is empty", "$ "]
+        self.transcript("$ ze show version\n")
+        cast_path = self.write_cast(painted)
+
+        with tempfile.TemporaryDirectory() as cache_tmp:
+            cache_root = pathlib.Path(cache_tmp).resolve()
+            expected_cast = cache_root / "expected.cast"
+            shutil.copy2(cast_path, expected_cast)
+            terminal_render.expand_cast_timeline(
+                expected_cast, terminal_render.capture_speedup(self.demo)
+            )
+            expected_bytes = expected_cast.read_bytes()
+            cast_path.unlink()
+
+            cache_target = cache_root / "terminal-demos"
+            cache_target.mkdir()
+            scratch_root = self.root / "tmp" / "terminal-demos"
+            shutil.rmtree(scratch_root)
+            scratch_root.symlink_to(cache_target, target_is_directory=True)
+            cross_device = OSError(
+                errno.EXDEV, os.strerror(errno.EXDEV), str(cast_path)
+            )
+
+            with (
+                mock.patch.object(
+                    terminal_render.os, "rename", side_effect=cross_device
+                ),
+                mock.patch.object(
+                    terminal_render.os, "replace", side_effect=cross_device
+                ),
+            ):
+                with self.assertRaises(RuntimeError):
+                    self.render(painted)
+
+            rejected = cache_target / "rejected" / "example.cast"
+            self.assertFalse(cast_path.exists())
+            self.assertEqual(rejected.read_bytes(), expected_bytes)
 
     def test_a_faithful_cast_passes_the_render(self):
         """The other half of AC-5: the gate accepts the session it describes.

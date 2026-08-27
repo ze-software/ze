@@ -1,7 +1,7 @@
 // The migration's proof for `le lint`: the script and the command run the same
 // checkers over the same scopes and print the same page.
 //
-// letools/pylint replaces scripts/le/application/lint.py. Both versions remain
+// internal/le/pylint replaces scripts/le/application/lint.py. Both versions remain
 // until the swap. This file is deliberately HERE because it is a migration
 // artifact. The commit that deletes the script also deletes this proof.
 //
@@ -27,7 +27,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/letools/pylint"
+	"github.com/ze-software/ze/internal/le/pylint"
 )
 
 // standIn is a checker that records its argv and answers what the case wants.

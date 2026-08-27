@@ -25,7 +25,7 @@
 // from the repository gate. The script writes raw ANSI, but a compiled Ze
 // package can omit ANSI. Thus, the command writes the semantic palette from
 // docs/architecture/cli/color-system.md. The test strips color before it
-// compares the pages. letools/repository test
+// compares the pages. internal/le/repository test
 // TestTheTwoSeveritiesAreColoredApart checks the command shades. Step 2 made the
 // same choice in scripts/lint/parity_test.go.
 //
@@ -49,9 +49,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/letools/digest"
-	"github.com/ze-software/ze/letools/repository"
-	"github.com/ze-software/ze/letools/tier"
+	"github.com/ze-software/ze/internal/le/digest"
+	"github.com/ze-software/ze/internal/le/repository"
+	"github.com/ze-software/ze/internal/le/tier"
 )
 
 const (
@@ -158,7 +158,7 @@ func TestDigestBothHalvesAgreeOverAFixtureFullOfBadAnchors(t *testing.T) {
 
 	// The test compares the command failure page through the library instead of
 	// captured stderr. The action writes it to global os.Stderr, which no
-	// injectable writer reaches. letools/digest test
+	// injectable writer reaches. internal/le/digest test
 	// TestTheVerdictAndTheFailurePageAreDifferentStreams confirms that the action
 	// uses this stream.
 	report, err := digest.Check(tree)
@@ -415,7 +415,7 @@ func TestTierBothHalvesAgreeOverAFixtureWithAMisplacedEngine(t *testing.T) {
 	script := devPyRunScript(t, tierScript, []string{"--check"}, tree)
 
 	// As above: the failure page is compared through the library, because the
-	// action writes it to os.Stderr and letools/tier's own
+	// action writes it to os.Stderr and internal/le/tier's own
 	// TestTheVerdictAndTheFailureAreDifferentStreams pins that it does.
 	report, err := tier.Check(tree)
 	if err != nil {
@@ -475,7 +475,7 @@ func TestScriptTierStillPassesOverAnUnreadableGoFile(t *testing.T) {
 
 // tierFixtureFiles answers a fixture checkout that fails the engine-placement
 // check. Its generator declares the plugin roots that the Go half gets by
-// calling letools/pluginimports.
+// calling internal/le/pluginimports.
 //
 // This generator lets the test compare the same populations. The script parses
 // its source text for the search roots, and the command calls the compiled list.

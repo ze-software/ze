@@ -932,6 +932,406 @@ class TestDeferralInDiff(unittest.TestCase):
             )
 
 
+class TestProspectiveTestRenames(unittest.TestCase):
+    """The weakening gate gets renames from its isolated prospective index."""
+
+    baseline = textwrap.dedent(
+        """\
+        package a
+
+        import "testing"
+
+        func TestA(t *testing.T) {
+        	require.Equal(t, 1, f())
+        	require.NoError(t, err)
+        }
+        """
+    )
+
+    def repo(self, tmp: str) -> Path:
+        root = Path(tmp)
+        _git(root, "init", "-q")
+        _git(root, "config", "user.email", "t@example.com")
+        _git(root, "config", "user.name", "t")
+        _git(root, "config", "commit.gpgsign", "false")
+        (root / "old tools" / "shared").mkdir(parents=True)
+        (root / "test").mkdir()
+        (root / "old tools" / "shared" / "a test_test.go").write_text(self.baseline)
+        (root / "test" / "weakened.md").write_text(
+            "# Tests this commit weakens\n\n"
+            "| Test | Reason |\n"
+            "|------|--------|\n"
+        )
+        _git(root, "add", "-A")
+        _git(root, "commit", "-qm", "baseline")
+        return root
+
+    @staticmethod
+    def move(root: Path, content: str) -> tuple[str, str]:
+        old_path = "old tools/shared/a test_test.go"
+        new_path = "new tools/shared/a test_test.go"
+        (root / "new tools" / "shared").mkdir(parents=True, exist_ok=True)
+        (root / new_path).write_text(content)
+        (root / old_path).unlink()
+        return old_path, new_path
+
+    @staticmethod
+    def staged_state(root: Path) -> bytes:
+        return subprocess.run(
+            ["git", "diff", "--cached", "--name-status", "-z"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+        ).stdout
+
+    def test_spaces_score_and_shared_index_are_preserved(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            old_path, new_path = self.move(root, self.baseline)
+            (root / "foreign.txt").write_text("another session\n")
+            _git(root, "add", "foreign.txt")
+            before = self.staged_state(root)
+
+            pairs, errors = ch._prospective_rename_pairs(
+                root, (new_path,), (old_path,)
+            )
+
+            self.assertEqual(errors, [])
+            self.assertEqual(
+                pairs,
+                (ch.check_weakened_tests.RenamePair(old_path, new_path, 100),),
+            )
+            self.assertEqual(self.staged_state(root), before)
+
+    def test_low_similarity_cross_name_pair_is_not_accepted(self) -> None:
+        raw = b"R001\0old/a_test.go\0new/unrelated_test.go\0"
+        with mock.patch.object(
+            ch, "_prospective_index_diff", return_value=(raw, None)
+        ):
+            pairs, errors = ch._prospective_rename_pairs(
+                Path("."), ("new/unrelated_test.go",), ("old/a_test.go",)
+            )
+        self.assertEqual(errors, [])
+        self.assertEqual(pairs, ())
+
+    def test_duplicate_basename_uses_unique_maximum_suffix_pairing(self) -> None:
+        raw = (
+            b"R010\0former/docvalid/contract_test.go\0"
+            b"internal/le/docvalid/contract_test.go\0"
+            b"R011\0cmd/le/contract_test.go\0internal/le/contract_test.go\0"
+        )
+        with mock.patch.object(
+            ch, "_prospective_index_diff", return_value=(raw, None)
+        ):
+            pairs, errors = ch._prospective_rename_pairs(
+                Path("."),
+                (
+                    "internal/le/docvalid/contract_test.go",
+                    "internal/le/contract_test.go",
+                ),
+                ("former/docvalid/contract_test.go", "cmd/le/contract_test.go"),
+            )
+        self.assertEqual(errors, [])
+        self.assertEqual(
+            set(pairs),
+            {
+                ch.check_weakened_tests.RenamePair(
+                    "former/docvalid/contract_test.go",
+                    "internal/le/docvalid/contract_test.go",
+                    10,
+                ),
+                ch.check_weakened_tests.RenamePair(
+                    "cmd/le/contract_test.go",
+                    "internal/le/contract_test.go",
+                    11,
+                ),
+            },
+        )
+
+    def test_unique_suffix_pairing_preserves_path_components_with_spaces(self) -> None:
+        pairs, error = ch._unique_suffix_pairing(
+            [
+                "former/doc valid/contract test.go",
+                "former/cmd le/contract test.go",
+            ],
+            [
+                "internal/le/doc valid/contract test.go",
+                "internal/le/cmd le/contract test.go",
+            ],
+        )
+        self.assertIsNone(error)
+        self.assertEqual(
+            set(pairs),
+            {
+                (
+                    "former/doc valid/contract test.go",
+                    "internal/le/doc valid/contract test.go",
+                ),
+                (
+                    "former/cmd le/contract test.go",
+                    "internal/le/cmd le/contract test.go",
+                ),
+            },
+        )
+
+    def test_two_by_three_suffix_pairing_leaves_extra_addition(self) -> None:
+        pairs, error = ch._unique_suffix_pairing(
+            ["former/docvalid/dispatch.go", "cmd/le/dispatch.go"],
+            [
+                "internal/le/docvalid/dispatch.go",
+                "internal/le/dispatch.go",
+                "internal/other/dispatch.go",
+            ],
+        )
+        self.assertIsNone(error)
+        self.assertEqual(
+            set(pairs),
+            {
+                (
+                    "former/docvalid/dispatch.go",
+                    "internal/le/docvalid/dispatch.go",
+                ),
+                ("cmd/le/dispatch.go", "internal/le/dispatch.go"),
+            },
+        )
+
+    def test_three_by_two_suffix_pairing_leaves_extra_removal(self) -> None:
+        pairs, error = ch._unique_suffix_pairing(
+            [
+                "former/docvalid/dispatch.go",
+                "cmd/le/dispatch.go",
+                "former/other/dispatch.go",
+            ],
+            ["internal/le/docvalid/dispatch.go", "internal/le/dispatch.go"],
+        )
+        self.assertIsNone(error)
+        self.assertEqual(
+            set(pairs),
+            {
+                (
+                    "former/docvalid/dispatch.go",
+                    "internal/le/docvalid/dispatch.go",
+                ),
+                ("cmd/le/dispatch.go", "internal/le/dispatch.go"),
+            },
+        )
+
+    def test_two_directory_moves_leave_consolidated_same_basename_unmatched(
+        self,
+    ) -> None:
+        raw = (
+            b"R010\0former/leroot/dispatch.go\0internal/le/leroot/dispatch.go\0"
+            b"R011\0former/verifydispatch/dispatch.go\0"
+            b"internal/le/verifydispatch/dispatch.go\0"
+            b"R012\0cmd/le/dispatch.go\0internal/other/dispatch.go\0"
+        )
+        with mock.patch.object(
+            ch, "_prospective_index_diff", return_value=(raw, None)
+        ):
+            pairs, errors = ch._prospective_rename_pairs(
+                Path("."),
+                (
+                    "internal/le/leroot/dispatch.go",
+                    "internal/le/verifydispatch/dispatch.go",
+                    "internal/other/dispatch.go",
+                ),
+                (
+                    "former/leroot/dispatch.go",
+                    "former/verifydispatch/dispatch.go",
+                    "cmd/le/dispatch.go",
+                ),
+            )
+        self.assertEqual(errors, [])
+        self.assertEqual(
+            set(pairs),
+            {
+                ch.check_weakened_tests.RenamePair(
+                    "former/leroot/dispatch.go",
+                    "internal/le/leroot/dispatch.go",
+                    10,
+                ),
+                ch.check_weakened_tests.RenamePair(
+                    "former/verifydispatch/dispatch.go",
+                    "internal/le/verifydispatch/dispatch.go",
+                    11,
+                ),
+            },
+        )
+
+    def test_low_score_root_file_move_remains_unmatched(self) -> None:
+        raw = b"R010\0dispatch.go\0internal/le/dispatch.go\0"
+        with mock.patch.object(
+            ch, "_prospective_index_diff", return_value=(raw, None)
+        ):
+            pairs, errors = ch._prospective_rename_pairs(
+                Path("."), ("internal/le/dispatch.go",), ("dispatch.go",)
+            )
+        self.assertEqual(errors, [])
+        self.assertEqual(pairs, ())
+
+    def test_tied_rectangular_suffix_pairing_with_spaces_fails_closed(self) -> None:
+        raw = (
+            b"R001\0old one/shared dir/shared test.go\0"
+            b"new three/shared dir/shared test.go\0"
+            b"R001\0old two/shared dir/shared test.go\0"
+            b"new four/shared dir/shared test.go\0"
+        )
+        with mock.patch.object(
+            ch, "_prospective_index_diff", return_value=(raw, None)
+        ):
+            pairs, errors = ch._prospective_rename_pairs(
+                Path("."),
+                (
+                    "new three/shared dir/shared test.go",
+                    "new four/shared dir/shared test.go",
+                    "new five/shared dir/shared test.go",
+                ),
+                (
+                    "old one/shared dir/shared test.go",
+                    "old two/shared dir/shared test.go",
+                ),
+            )
+        self.assertEqual(pairs, ())
+        self.assertIn("ambiguous", "\n".join(errors))
+
+    def test_an_unchanged_move_needs_no_weakening_row(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            old_path, new_path = self.move(root, self.baseline)
+            self.assertEqual(
+                ch.weakened_problems(root, (new_path,), (old_path,)), []
+            )
+
+    def test_a_move_with_import_path_and_comment_edits_needs_no_row(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            moved = self.baseline.replace(
+                'import "testing"',
+                'import (\n\t"testing"\n\t"internal/pkg/testsupport"\n)',
+            ).replace(
+                "func TestA(t *testing.T) {",
+                "// TestA uses testsupport from its new path.\n"
+                "func TestA(t *testing.T) {\n\t_ = testsupport.Path",
+            )
+            old_path, new_path = self.move(root, moved)
+            self.assertEqual(
+                ch.weakened_problems(root, (new_path,), (old_path,)), []
+            )
+
+    def test_a_weakening_in_a_low_similarity_move_is_still_blocked(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            moved = self.baseline.replace(
+                'import "testing"',
+                'import (\n\t"testing"\n\t"internal/pkg/testsupport"\n)',
+            ).replace(
+                "func TestA(t *testing.T) {",
+                "// TestA uses testsupport from its new path.\n"
+                "func TestA(t *testing.T) {\n\t_ = testsupport.Path",
+            ).replace(
+                "\trequire.NoError(t, err)\n", ""
+            )
+            old_path, new_path = self.move(root, moved)
+            joined = "\n".join(
+                ch.weakened_problems(root, (new_path,), (old_path,))
+            )
+            self.assertIn(new_path, joined)
+            self.assertIn("removing assertions", joined)
+
+    def test_uncarried_ledger_rows_are_outside_commit_scope(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            (root / "test" / "weakened.md").write_text(
+                "# Tests this commit weakens\n\n"
+                "| Test | Reason |\n"
+                "|------|--------|\n"
+                "| ForeignTest | another session's uncommitted reason |\n"
+            )
+            weakened = self.baseline.replace("\trequire.NoError(t, err)\n", "")
+            old_path, new_path = self.move(root, weakened)
+            joined = "\n".join(
+                ch.weakened_problems(root, (new_path,), (old_path,))
+            )
+            self.assertNotIn("ForeignTest", joined)
+            self.assertIn(new_path, joined)
+            self.assertIn("TestA", joined)
+            self.assertIn("--file test/weakened.md", joined)
+            self.assertIn("has no carried row", joined)
+            self.assertNotIn("has no row for it", joined)
+
+            self.assertIn("removing assertions", joined)
+
+    def test_carried_ledger_rows_are_validated_for_staleness(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            (root / "test" / "weakened.md").write_text(
+                "# Tests this commit weakens\n\n"
+                "| Test | Reason |\n"
+                "|------|--------|\n"
+                "| TestA | the moved test no longer checks the error |\n"
+                "| TestGone | stale from another commit |\n"
+            )
+            weakened = self.baseline.replace("\trequire.NoError(t, err)\n", "")
+            old_path, new_path = self.move(root, weakened)
+            joined = "\n".join(
+                ch.weakened_problems(
+                    root,
+                    (new_path, "test/weakened.md"),
+                    (old_path,),
+                )
+            )
+            self.assertIn("TestGone", joined)
+            self.assertNotIn("has no carried row", joined)
+
+    def test_a_weakening_inside_a_move_is_attributed_to_the_new_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            weakened = self.baseline.replace("\trequire.NoError(t, err)\n", "")
+            old_path, new_path = self.move(root, weakened)
+            problems = ch.weakened_problems(root, (new_path,), (old_path,))
+            joined = "\n".join(problems)
+            self.assertIn(new_path, joined)
+            self.assertIn("TestA", joined)
+            self.assertIn("removing assertions", joined)
+            self.assertNotIn(f"{old_path} weakens", joined)
+
+    def test_an_unmatched_removal_remains_a_deletion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            old_path = "old tools/shared/a test_test.go"
+            (root / old_path).unlink()
+            problems = ch.weakened_problems(root, (), (old_path,))
+            self.assertIn(old_path, "\n".join(problems))
+
+    def test_a_rename_comparison_error_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            old_path, new_path = self.move(root, self.baseline)
+            error = "check could not run: rename pairing is ambiguous"
+            with mock.patch.object(
+                ch, "_prospective_rename_pairs", return_value=((), [error])
+            ):
+                self.assertEqual(
+                    ch.weakened_problems(root, (new_path,), (old_path,)), [error]
+                )
+
+    def test_unrelated_worktree_tests_are_not_in_the_prospective_population(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.repo(tmp)
+            unrelated = root / "other" / "unrelated_test.go"
+            unrelated.parent.mkdir()
+            unrelated.write_text(self.baseline)
+            _git(root, "add", "other/unrelated_test.go")
+            _git(root, "commit", "-qm", "add unrelated")
+            unrelated.write_text('package other\n\nfunc TestGone(t *testing.T) {}\n')
+            old_path, new_path = self.move(root, self.baseline)
+            self.assertEqual(
+                ch.weakened_problems(root, (new_path,), (old_path,)), []
+            )
+
+
 class TestStagingGuard(unittest.TestCase):
     """render_staging_guard aborts a generated commit script when the shared index
     holds files this commit did not stage (concurrent-session cross-commit guard)."""
@@ -4120,7 +4520,9 @@ class TestWeakenedTestsGate(unittest.TestCase):
                 ("TestOne", "the case moved to the fuzz corpus"),
                 ("TestGone", "left over from the last commit"),
             )
-            problems = ch.commit_gate_problems(root, (self.TEST_PATH,), ())
+            problems = ch.commit_gate_problems(
+                root, (self.TEST_PATH, self.FILE_PATH), ()
+            )
             self.assertTrue(problems, "a stale row must block")
             joined = "\n".join(problems)
             self.assertIn("TestGone", joined)

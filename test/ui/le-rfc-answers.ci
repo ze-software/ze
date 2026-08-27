@@ -1,0 +1,398 @@
+# Test: the BUILT le binary answers the RFC extraction envelope, the audit
+#       re-seal and the requirement ledger over the real checkout, byte for
+#       byte what rfc_requirements.py answers, and renders each payload through
+#       every pipe operator.
+#
+# VALIDATES: spec-le-is-a-ze-binary AC-1, AC-7, AC-8 and AC-11 over the REAL
+#            TREE, for the five actions ported out of
+#            scripts/dev/rfc_requirements.py, against the artifact a developer
+#            runs. Exactly two of the five WRITE, and each one's bytes are
+#            compared over its own export of HEAD rather than over this working
+#            tree.
+# PREVENTS: a port that agrees with its script in a Go test and disagrees in the
+#           binary. This gate publishes how much of the standards claim is
+#           BOUNDED, and the umbrella's drain quota consumes those numbers, so a
+#           count that quietly changed would move a policy nobody re-read.
+#
+# The binary is compiled here rather than by the runner, which builds only ze
+# and ze-test (internal/test/runner/runner.go, setupBinShims). It is written
+# into the test's own directory, so nothing is written back into the checkout.
+#
+# No feature tag set is needed: the tool reads the tree, not the product
+# registry. It reads rfc/short, rfc/enrolled.txt, rfc/extraction, rfc/full and
+# the three test roots.
+#
+# The comparison is over the CHECKOUT rather than over a fixture, and that is
+# the right tree here: the envelope is derived from files several sessions edit,
+# so the two halves run within a second of each other and a change between them
+# would show up as a difference this test names rather than as a silent pass.
+#
+# The timeout is DECLARED because a cold build cache makes the first compile of
+# cmd/ze le personality far slower than the steady state, and each half walks 4400 files under
+# the three test roots.
+
+option=timeout:value=900s
+
+tmpfs=run.py:terminator=EOF_PY
+"""Compile le, then compare each ported RFC gate with its command."""
+import json
+import os
+import re
+import subprocess
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(f'FAIL: {message}')
+
+
+root = os.environ['ZE_REPO_ROOT']
+here = os.getcwd()
+binary = os.path.join(here, 'le')
+
+build = subprocess.run(['make', '--no-print-directory', 'le-build',
+                        f'ZE_BIN_DIR={os.path.dirname(binary)}'],
+                       cwd=root, capture_output=True, text=True, check=False)
+require(build.returncode == 0, f'building the cmd/ze le personality failed: {build.stderr}')
+
+
+def run(argv, cwd, env=None):
+    merged = dict(os.environ)
+    if env:
+        merged.update(env)
+    return subprocess.run(argv, cwd=cwd, capture_output=True, text=True,
+                          check=False, env=merged)
+
+
+def script(*args):
+    # The script derives its checkout from its own __file__, never from
+    # ZE_REPO_ROOT, so it always judges this checkout.
+    return run(['python3', os.path.join(root, 'scripts', 'dev', 'rfc_requirements.py'), *args], root)
+
+
+def le(*args):
+    # Run from the test directory, never from the root: the tree a command
+    # judges comes from the checkout it discovers, not from where it was typed.
+    return run([binary, *args], here, {'ZE_REPO_ROOT': root})
+
+
+old = script('--extraction-status')
+new = le('rfc', 'extraction-status')
+
+require(old.returncode == 0,
+        f'this checkout does not pass the gate: {old.stdout}{old.stderr}')
+require(old.returncode == new.returncode,
+        f'the script exited {old.returncode} and the command exited {new.returncode}\n'
+        f'{new.stdout}{new.stderr}')
+require(old.stdout == new.stdout,
+        f'the envelopes differ.\nscript:\n{old.stdout}\ncommand:\n{new.stdout}')
+require(new.stderr == '', f'the command wrote to stderr: {new.stderr}')
+
+# The envelope measured something. A gate that read no summary and no artifact
+# would answer every count at zero and still exit 0.
+envelope = json.loads(new.stdout)
+require(envelope['enrolled'] > 100,
+        f"the command read {envelope['enrolled']} enrolled RFC(s)")
+require(envelope['signed'] + envelope['backlog'] == envelope['enrolled'],
+        f'the credit and the backlog do not cover the enrolled set: {envelope}')
+require(sum(envelope['signed-by-register'].values()) == envelope['signed'],
+        f'the register split disagrees with the total: {envelope}')
+require(sorted(envelope['signed-by-register']) == ['manual-walk', 'prose', 'rfc2119'],
+        f"every register is published even at zero: {envelope['signed-by-register']}")
+
+# One payload, several renderings. Each operator goes to the engine, and none of
+# them is implemented in the tool (ai/rules/cli.md).
+for operator in ('json', 'yaml'):
+    rendered = le('rfc', 'extraction-status', '|', operator)
+    require(rendered.returncode == 0,
+            f'| {operator} answered {rendered.returncode}: {rendered.stderr}')
+    require('enrolled' in rendered.stdout,
+            f'| {operator} rendered no envelope: {rendered.stdout[:200]}')
+
+as_json = json.loads(le('rfc', 'extraction-status', '|', 'json').stdout)
+require(as_json['enrolled'] == envelope['enrolled'],
+        f'| json answers a different envelope: {as_json}')
+
+# The listing names the action and says it does not write.
+listing = le('rfc')
+require('extraction-status' in listing.stdout,
+        f'the listing does not carry the action:\n{listing.stdout}')
+require('checks' in listing.stdout,
+        f'the listing does not say the action is read-only:\n{listing.stdout}')
+
+# A value typed after the action is refused: the tree is the checkout and the
+# rendering is a pipe operator.
+refused = le('rfc', 'extraction-status', 'rfc7606')
+require(refused.returncode == 1, f'a stem argument answered {refused.returncode}')
+require('takes no arguments' in refused.stderr, f'the refusal is silent: {refused.stderr!r}')
+
+# ─── The read-only check ───────────────────────────────────────────────────
+#
+# The checkout can be red while the RFC gate is repaired. Both implementations
+# must give the same verdict, text, and structured diagnostics now, and the
+# assertions must accept the stable success summary when both become green.
+
+old = script('--check')
+new = le('rfc', 'check')
+plain = re.sub(r'\x1b\[[0-9;]*m', '', old.stdout)
+
+require(old.returncode == new.returncode,
+        f'the script exited {old.returncode} and the command exited {new.returncode}\n'
+        f'{new.stdout}{new.stderr}')
+require(plain == new.stdout,
+        f'the pages differ.\nscript:\n{plain}\ncommand:\n{new.stdout}')
+require(new.stderr == '', f'the command wrote to stderr: {new.stderr}')
+
+rendered = le('rfc', 'check', '|', 'json')
+require(rendered.returncode == new.returncode,
+        f'| json flattened action code {new.returncode} to {rendered.returncode}')
+check_payload = json.loads(rendered.stdout)
+if old.returncode == 0:
+    require('rfc-requirements OK:' in plain,
+            f'the green script printed no stable summary:\n{plain}')
+    require(isinstance(check_payload, dict),
+            f'| json did not return the green summary document: {check_payload}')
+    summary_fields = {
+        'gated', 'enrolled', 'tags', 'evidence', 'signed',
+        'signed-by-register', 'audit-verdicts', 'audit-done', 'audit-total',
+    }
+    require(summary_fields <= set(check_payload),
+            f'| json omitted green summary fields: {check_payload}')
+else:
+    require(old.returncode == 2,
+            f'the red script answered {old.returncode}, want the gate code 2')
+    require('rfc-requirements: 5 violation(s)' in plain and 'rfc9552' in plain.lower(),
+            f'the red script omitted the known RFC 9552 violations:\n{plain}')
+    require(isinstance(check_payload, list) and check_payload,
+            f'| json omitted the red violation rows: {check_payload}')
+    require(any('rfc9552' in violation.lower() for violation in check_payload),
+            f'| json omitted the RFC 9552 violation rows: {check_payload}')
+
+refused = le('rfc', 'check', 'rfc7606')
+require(refused.returncode == 1, f'a check argument answered {refused.returncode}')
+require('takes no arguments' in refused.stderr, f'the refusal is silent: {refused.stderr!r}')
+
+# ─── The fixture selftest ──────────────────────────────────────────────────
+#
+# The legacy real-tree case calls the red public check, while the Go report
+# publishes that same property as a structured row. When the tree is green,
+# both implementations print their stable success verdict instead.
+
+old = script('--selftest')
+new = le('rfc', 'selftest')
+
+require(old.returncode == new.returncode,
+        f'the script exited {old.returncode} and the command exited {new.returncode}\n'
+        f'{new.stdout}{new.stderr}')
+require(new.stderr == '', f'the command wrote to stderr: {new.stderr}')
+if old.returncode == 0:
+    require('rfc_requirements selftest OK' in old.stdout,
+            f'the green script printed no stable verdict:\n{old.stdout}{old.stderr}')
+    require(new.stdout == 'rfc_requirements selftest OK\n',
+            f'the green command printed a different verdict: {new.stdout!r}')
+else:
+    require(old.returncode == 1,
+            f'the red script answered {old.returncode}, want the selftest code 1')
+    require('TestRealTreeIsGreen' in old.stdout + old.stderr,
+            f'the legacy failure omitted its real-tree case:\n{old.stdout}{old.stderr}')
+    require('real-tree/public-check' in new.stdout,
+            f'the command failure omitted its real-tree row:\n{new.stdout}')
+
+rendered = le('rfc', 'selftest', '|', 'json')
+require(rendered.returncode == new.returncode,
+        f'| json flattened action code {new.returncode} to {rendered.returncode}')
+selftest_payload = json.loads(rendered.stdout)
+require(isinstance(selftest_payload, list) and selftest_payload,
+        f'| json returned no structured selftest rows: {selftest_payload}')
+real_tree = [row for row in selftest_payload
+             if row.get('case') == 'real-tree/public-check']
+require(len(real_tree) == 1,
+        f'| json omitted the real-tree property: {selftest_payload}')
+require(real_tree[0].get('passed') == (rendered.returncode == 0),
+        f'the real-tree verdict disagrees with exit {rendered.returncode}: {real_tree[0]}')
+
+refused = le('rfc', 'selftest', 'rfc7606')
+require(refused.returncode == 1, f'a selftest argument answered {refused.returncode}')
+require('takes no arguments' in refused.stderr, f'the refusal is silent: {refused.stderr!r}')
+
+# The listing names all five actions and marks exactly the two writers.
+listing = le('rfc')
+listed = {}
+for line in listing.stdout.splitlines()[1:]:
+    columns = line.split()
+    if len(columns) >= 2:
+        listed[columns[0]] = columns[1]
+require(listed == {
+            'extraction-status': 'checks',
+            'check': 'checks',
+            'selftest': 'checks',
+            'reseal': 'writes',
+            'index-update': 'writes',
+        },
+        f'the listing does not name five actions with two writers:\n{listing.stdout}')
+
+# ─── The re-seal, which WRITES ─────────────────────────────────────────────
+#
+# Over this checkout every recorded verdict is fresh, so both halves print the
+# same "nothing to re-seal" line and neither writes. That agreement is real and
+# it is not evidence about the WRITER, so the second half of this section runs
+# both over two exports of HEAD with every tagged file shifted, which puts every
+# unit-bearing verdict into the re-sealable state at once and compares the bytes
+# each half then wrote.
+
+def audit_state(tree):
+    """Every audit file of a tree, by name, so a write is visible."""
+    directory = os.path.join(tree, 'rfc', 'audit')
+    return {name: open(os.path.join(directory, name), 'rb').read()
+            for name in sorted(os.listdir(directory))}
+
+
+before = audit_state(root)
+old = script('--reseal')
+new = le('rfc', 'reseal')
+require(old.returncode == 0, f'the script refused this checkout: {old.stdout}{old.stderr}')
+require(new.returncode == old.returncode,
+        f'the script exited {old.returncode} and the command exited {new.returncode}\n'
+        f'{new.stdout}{new.stderr}')
+plain = re.sub(r'\x1b\[[0-9;]*m', '', old.stdout)
+require(plain == new.stdout,
+        f'the pages differ.\nscript:\n{plain}\ncommand:\n{new.stdout}')
+require(audit_state(root) == before,
+        'a read-only re-seal wrote into rfc/audit of this checkout')
+
+as_json = json.loads(le('rfc', 'reseal', '|', 'json').stdout)
+require(sorted(as_json) == ['refused', 'resealed'],
+        f'| json renders a different payload: {as_json}')
+
+listing = le('rfc')
+require('reseal' in listing.stdout and 'writes' in listing.stdout,
+        f'the listing does not say the re-seal writes:\n{listing.stdout}')
+
+refused = le('rfc', 'reseal', 'rfc7606')
+require(refused.returncode == 1, f'a stem argument answered {refused.returncode}')
+
+
+def export_head(name):
+    """A clean export of HEAD, so neither half reads a tree the other wrote."""
+    tree = os.path.join(here, name)
+    os.makedirs(tree, exist_ok=True)
+    packed = subprocess.run(['git', '-C', root, 'archive', 'HEAD'],
+                            capture_output=True, check=True).stdout
+    subprocess.run(['tar', '-x', '-C', tree], input=packed, check=True)
+    return tree
+
+
+def shift(tree, paths):
+    """Append a line BELOW every function, so units are identical and the file is not."""
+    for rel in paths:
+        with open(os.path.join(tree, rel), 'a') as handle:
+            handle.write('\n// a line the parity test appended, below every function\n')
+
+
+cited = set()
+for body in before.values():
+    for verdict in json.loads(body)['requirements'].values():
+        for key in verdict.get('tests', {}):
+            cited.add(key.split('::')[0].split('#')[0])
+cited = sorted(cited)
+require(len(cited) >= 10, f'HEAD cites only {len(cited)} tagged file(s)')
+
+script_tree = export_head('export-script')
+command_tree = export_head('export-command')
+shift(script_tree, cited)
+shift(command_tree, cited)
+
+shifted_script = run(['python3', os.path.join(script_tree, 'scripts', 'dev', 'rfc_requirements.py'),
+                      '--reseal'], script_tree)
+shifted_command = run([binary, 'rfc', 'reseal'], here, {'ZE_REPO_ROOT': command_tree})
+require(shifted_script.returncode == 0,
+        f'the script refused the export: {shifted_script.stdout}{shifted_script.stderr}')
+plain = re.sub(r'\x1b\[[0-9;]*m', '', shifted_script.stdout)
+require('re-sealed ' in plain, f'the shift moved no verdict into the shifted state:\n{plain}')
+require(plain == shifted_command.stdout,
+        f'the pages differ.\nscript:\n{plain}\ncommand:\n{shifted_command.stdout}')
+require(audit_state(script_tree) == audit_state(command_tree),
+        'the two halves wrote different bytes into rfc/audit')
+require(audit_state(script_tree) != before,
+        'neither half rewrote the record it had just called shifted')
+
+# ─── The generator, which WRITES and DELETES ───────────────────────────────
+#
+# It rewrites ai/RFC-REQUIREMENTS.md and one table per RFC under
+# rfc/requirements/, and it removes a table the render no longer produces. So
+# it never runs against this working tree: each half gets its own export of
+# HEAD, and every file each one left is compared byte for byte, in both
+# directions, so a page one half emitted and the other did not is a failure
+# rather than a silence.
+
+def generated(tree):
+    """Every file the generator owns, by repo-relative path."""
+    out = {}
+    ledger = os.path.join(tree, 'ai', 'RFC-REQUIREMENTS.md')
+    if os.path.exists(ledger):
+        out['ai/RFC-REQUIREMENTS.md'] = open(ledger, 'rb').read()
+    shards = os.path.join(tree, 'rfc', 'requirements')
+    for name in sorted(os.listdir(shards)):
+        out['rfc/requirements/' + name] = open(os.path.join(shards, name), 'rb').read()
+    return out
+
+
+# Read BEFORE anything runs, so the check at the end compares two different
+# moments rather than one value against itself.
+checkout_pages = generated(root)
+
+index_script = export_head('index-script')
+index_command = export_head('index-command')
+wrote = run(['python3', os.path.join(index_script, 'scripts', 'dev', 'rfc_requirements.py'),
+             '--write'], index_script)
+answered = run([binary, 'rfc', 'index-update'], here, {'ZE_REPO_ROOT': index_command})
+require(wrote.returncode == 0, f'the script refused the export: {wrote.stdout}{wrote.stderr}')
+require(answered.returncode == wrote.returncode,
+        f'the script exited {wrote.returncode} and the command exited {answered.returncode}\n'
+        f'{answered.stdout}{answered.stderr}')
+plain = re.sub(r'\x1b\[[0-9;]*m', '', wrote.stdout)
+require(plain == answered.stdout,
+        f'the pages differ.\nscript:\n{plain}\ncommand:\n{answered.stdout}')
+
+by_script = generated(index_script)
+by_command = generated(index_command)
+require(len(by_script) > 100,
+        f'the script wrote only {len(by_script)} generated file(s)')
+require(sorted(by_script) == sorted(by_command),
+        'the two halves wrote different FILES: '
+        f'{sorted(set(by_script) ^ set(by_command))[:10]}')
+for name, body in by_script.items():
+    require(by_command[name] == body, f'the two halves wrote different bytes into {name}')
+
+# A third export for the pipe rendering, because a second run over one of the
+# two above would compare a page against what the first run had just written.
+index_json = export_head('index-json')
+rendered = run([binary, 'rfc', 'index-update', '|', 'json'], here,
+               {'ZE_REPO_ROOT': index_json})
+require(rendered.returncode == 0, f'| json answered {rendered.returncode}: {rendered.stderr}')
+payload = json.loads(rendered.stdout)
+require(sorted(payload) == ['deleted', 'ledger', 'shards'],
+        f'| json renders a different payload: {payload}')
+require(payload['shards'] == len(by_script) - 1,
+        f"the report counts {payload['shards']} shard(s) and the tree holds "
+        f'{len(by_script) - 1}')
+
+listing = le('rfc')
+require('index-update' in listing.stdout,
+        f'the listing does not carry the action:\n{listing.stdout}')
+
+refused = le('rfc', 'index-update', 'rfc7606')
+require(refused.returncode == 1, f'a stem argument answered {refused.returncode}')
+
+# Nothing above may have written into the checkout several sessions share. Every
+# generator run in this section was aimed at an export, and the one invocation
+# aimed here was refused before it read anything.
+require(generated(root) == checkout_pages,
+        'a run in this section wrote into the generated pages of this checkout')
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

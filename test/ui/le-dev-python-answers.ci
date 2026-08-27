@@ -18,7 +18,7 @@
 # registry. They read the tree, git, and one markdown file.
 #
 # The timeout is DECLARED because a cold build cache makes the first compile of
-# cmd/le far slower than the steady state.
+# cmd/ze le personality far slower than the steady state.
 
 option=timeout:value=300s
 
@@ -38,9 +38,10 @@ root = os.environ['ZE_REPO_ROOT']
 here = os.getcwd()
 binary = os.path.join(here, 'le')
 
-build = subprocess.run(['go', 'build', '-o', binary, './cmd/le'],
+build = subprocess.run(['make', '--no-print-directory', 'le-build',
+                        f'ZE_BIN_DIR={os.path.dirname(binary)}'],
                        cwd=root, capture_output=True, text=True, check=False)
-require(build.returncode == 0, f'building cmd/le failed: {build.stderr}')
+require(build.returncode == 0, f'building the cmd/ze le personality failed: {build.stderr}')
 
 
 def run(argv, cwd):

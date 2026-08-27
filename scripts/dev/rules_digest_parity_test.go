@@ -35,7 +35,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/letools/rules"
+	"github.com/ze-software/ze/internal/le/rules"
 )
 
 // The three scripts this file compares against. They move as one: each imports

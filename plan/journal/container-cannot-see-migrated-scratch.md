@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-08-26 | cli-pipe-operator-coverage | `demos/terminal/render.py` `container_command` | `make ze-site-generate` mounted the repository at `/src`, but migrated `tmp/terminal-demos` was an absolute symlink to a host cache path that the container could not see. Demo validation failed before website generation. | `container_command` bind-mounts the resolved terminal-demo scratch directory at the same absolute path when the repository path is a symlink. The container can follow the symlink without exposing the cache parent. |

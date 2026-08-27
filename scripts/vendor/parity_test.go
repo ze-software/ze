@@ -2,7 +2,7 @@
 // agree.
 //
 // scripts/vendor/check_web.go and scripts/vendor/sync_web.go are being replaced
-// by letools/vendorweb, and the two live side by side until the swap
+// by internal/le/vendorweb, and the two live side by side until the swap
 // (plan/spec-le-is-a-ze-binary.md, step 14). This file is what makes that safe,
 // and it is deliberately HERE rather than beside the new package: it is a
 // migration artifact, so it is deleted by the same commit that deletes the
@@ -44,7 +44,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/letools/vendorweb"
+	"github.com/ze-software/ze/internal/le/vendorweb"
 )
 
 // The two bounds this file needs. A link and a walk of a fixture tree are both

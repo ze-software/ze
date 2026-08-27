@@ -16,7 +16,7 @@
 # ze-test (internal/test/runner/runner.go, setupBinShims). The binary is written
 # into the test's own directory, so nothing is written back into the checkout.
 #
-# The timeout is DECLARED because a cold build of cmd/le precedes the run.
+# The timeout is DECLARED because a cold cmd/ze le personality build precedes the run.
 
 option=timeout:value=300s
 
@@ -37,9 +37,10 @@ checkout = os.environ['ZE_REPO_ROOT']
 here = os.getcwd()
 binary = os.path.join(here, 'le')
 
-built = subprocess.run(['go', 'build', '-o', binary, './cmd/le'],
+built = subprocess.run(['make', '--no-print-directory', 'le-build',
+                        f'ZE_BIN_DIR={os.path.dirname(binary)}'],
                        cwd=checkout, capture_output=True, text=True, check=False)
-require(built.returncode == 0, f'building cmd/le failed: {built.stderr}')
+require(built.returncode == 0, f'building the cmd/ze le personality failed: {built.stderr}')
 
 # A fixture checkout: the posts the command reads and the archive it consults
 # are both here, so the answer does not change with what has really been

@@ -1,95 +1,47 @@
-# Tests this commit weakens
-
-Each row accepts one test weakening in the commit that carries this file. A
-weakening removes an assertion, a case, or a test. `ai/rules/testing.md` forbids
-every weakening. This file is the record of the ones a reviewer accepted.
-
-Two gates read it. `c_test_weakening` (`.claude/hooks/pretool-writeedit.py`)
-refuses the edit until this file names the test the edit weakens.
-`scripts/dev/commit_helper.py` recomputes the weakenings of the paths the commit
-names, and refuses a commit whose weakenings this file does not cover.
-
-Both gates call one implementation, `scripts/dev/check_weakened_tests.py`, so
-neither can disagree with the other about what a diff weakens or which row
-covers it. `make ze-test-weakened-check` runs that checker over this file alone. It is
-a stage of `ze-precommit-verify` in both modes, so a table this parser cannot read goes red
-before any commit needs it.
-
-A commit that weakens nothing carries the table with no rows.
-
-## The commit carries this file
-
-`scripts/dev/commit_helper.py` refuses a commit that weakens a test and does not
-name `test/weakened.md` in its own `--file` list. A row that stays in the working
-tree records nothing. The reason must sit in git history beside the weakening it
-accepts, because that is the only place a later reader can find it.
-
-## The file is replaced per commit
-
-Delete the rows of the last commit. Write the rows of this one. This file never
-accumulates.
-
-The reason is the mechanism it replaces. A `test-relax:` comment stayed in the
-test file forever, and a ceiling file capped their number. That corpus reached
-601 tokens and 2,660 lines of prose across 413 test files. Nobody can read 601
-justifications, so nobody read them, so writing one cost nothing.
-
-A justification explains one diff. It is written at edit time and it is read at
-review time. After the commit lands, it explains a change the reader of the test
-file can no longer see. Storing that record permanently is what built the pile.
-
-Git history holds every past entry. `git log -p -- test/weakened.md` shows the
-rows of any commit beside the change they accepted.
-
-## The test name
-
-| Carrier | The name |
-|---------|----------|
-| Go, inside a top-level func | the enclosing `func TestXxx` |
-| Go, outside every top-level func | the file stem |
-| `.ci`, `.et` | the file stem, because each such file is one test |
-
-`scripts/dev/rfc_tagged_scope.py` resolves each one. `go_func_units` returns the
-top-level functions of a Go file with their names. `scope_reader` treats a file
-that is not Go as one unit.
-
-Row two is the case with no enclosing func to name. An `ignore` build tag in the
-file header drops the whole file from the build, and a count can fall over
-package-level code. The stem is then the only name available, so a weakening in
-`a_test.go` is written as `a_test`.
-
-**A stem row is owed only for what no named row already carries.** `weakened_units`
-(`scripts/dev/check_weakened_tests.py`) reads a Go file twice, per function and
-whole-file, and keeps a file-level finding only when its KIND is one no function
-reported. Deleting a test lowers the file's count as well as emptying the func,
-and both readings see it, so without that filter one deletion would demand two
-rows. Write the stem row when the stem is the ONLY carrier, never as a second
-row restating a named one: the commit gate refuses a row it cannot pair with a
-weakening, and reports it as naming something "which this commit does not
-weaken".
-
-A bare name is accepted when it resolves to exactly one weakened test in the
-commit. Write `package.TestName` when it does not.
-`TestNoGoFileBuildsMarkup` exists in `internal/component/lg` and in
-`internal/component/web`, so a commit that weakens both writes
-`lg.TestNoGoFileBuildsMarkup` and `web.TestNoGoFileBuildsMarkup`.
-
-## The reason
-
-Name what left the suite, and say why the commit is correct without it. A reason
-that names no lost coverage tells the reviewer that the detector fired on a
-change which removed none.
-
-Every weakening kind needs a row at commit time, a falling count included, and
-one row carries every kind the gate attributes to that name. The hook is
-narrower on purpose. An edit that only lowers a count gets a notice and
-lands. Consolidating three cases into one table lowers a count exactly as
-deleting a check does. So the commit gate asks for a row the hook did not, and
-that row is where you say which of the two happened.
-
 | Test | Reason |
 |------|--------|
-| functionalCommandExec | Deleted the custom command grammar. Production `runner.EncodingTests` now validates every directive, skip, binding, and orchestration step before coverage is counted. |
-| nextFunctionalCommandMarker | Deleted the marker parser with the custom command grammar. Production runner discovery is the replacement. |
-| renderedDocument | Split document rendering into `renderedDocumentBytes`. The moved helper keeps the ProcessPipes refusal assertion and lets byte-exact newline tests reuse it. |
-| TestPositionalCountThenNDJSONDropsTheSourceSchema | Replaced record-to-record comparison with `TestCountThenNDJSONMatchesTheDocumentRunner` at 0, 1, 256, and 257 rows. New tests also cover count followers and both NDJSON operator orders. |
+| TestCensusCountsAForkedDriverApartFromConvertedWork | Deleted the old expectation that one driver remains forked. The approved all-native architecture requires zero forked gates; `TestCensusReportsNoUnportedForkedUnknownOrUnwiredGate` now asserts that invariant. |
+| TestCensusCountsNoScriptDriverAsConverted | Deleted the old script-driver conversion distinction. All requested gates are native, so a script-driver category would be false; `TestAllRequestedGatesAreServedNatively` checks the complete requested population. |
+| TestAreaListingPublishesTheScriptItStarts | Deleted the assertion that area listings publish a script argv. Former forks now publish no forks; `TestEveryFormerForkActionPublishesNoForks` enforces the new all-native invariant. |
+| le.walkGo | Moved the repository Go-file walker into `walkLeGo` after the tools moved under `internal/le`; `TestNoDevelopmentToolIsBuildIgnored` and `TestNoDevelopmentToolTestShellsOutToGoRun` use it. |
+| TestNoPortedToolIsBuildIgnored | Renamed and moved to `TestNoDevelopmentToolIsBuildIgnored`, which still scans every development-tool Go header and rejects the ignore build constraint. |
+| TestNoTestShellsOutToGoRun | Renamed and moved to `TestNoDevelopmentToolTestShellsOutToGoRun`, which still scans every development-tool test and rejects `go run`. |
+| le.captureStdout | Moved stdout capture into `internal/le/leroot`; `TestDispatchReachesRegisteredLocalDataAndPreservesNonzeroPayload` and `TestDispatchUsesSharedPipeRenderers` use the current helper. |
+| TestLeDispatchesEveryRegisteredTool | Replaced per-tool root coverage with `TestLeRegistersOneRootAndNoToolRoots` and `TestEveryLeToolUsesFullPathAndParityAloneHasNoShape`, which check every local-data tool is reachable with complete metadata under the single `le` root. |
+| TestDispatchReachesTheRegisteredHandler | Replaced by `TestDispatchReachesRegisteredLocalDataAndPreservesNonzeroPayload`, which checks the registered handler receives unchanged arguments and its payload reaches stdout. |
+| TestDispatchPropagatesToolExitCode | Consolidated four root-handler cases into `TestDispatchReachesRegisteredLocalDataAndPreservesNonzeroPayload`; its nonzero code 3 assertion still detects any flattened dispatch status. |
+| TestDispatchRefusesAnUnknownCommand | Consolidated into `TestDispatchRefusesUnknownAndHandlesHelp`, which requires an unknown local-data tool to return 1. |
+| TestDispatchWithNoArgumentsAsksForOne | Consolidated into `TestDispatchRefusesUnknownAndHandlesHelp`, which requires empty input to return 1 and help to return 0. |
+| le.pipeProbe | Inlined the structured probe payload into `TestDispatchUsesSharedPipeRenderers`, so the current test owns the fixture beside its JSON, YAML, table, and match assertions. |
+| TestLeCommandAnswersStructuredData | Replaced by `TestDispatchUsesSharedPipeRenderers`, which drives the real local-data dispatch and checks JSON, YAML, table, and match output retain the structured fields. |
+| TestLeRefusesTwoFormatOperators | Renamed to `TestDispatchRefusesTwoFormatOperators`, which still requires code 1 and no stdout for two format operators. |
+| TestEveryPackageRegistersOneRootHandler | Deleted the obsolete one-root-per-package assertion. `TestCompositionEqualsLiveRegisteringPackagePopulation` checks the exact imports, and `TestLeRegistersOneRootAndNoToolRoots` enforces the approved single-root local-data architecture. |
+| le.toolImports | Replaced the cmd/le-specific parser with `blankImports` and `registeringPackages`; `TestCompositionEqualsLiveRegisteringPackagePopulation` uses them to compare the composition with every live registering package. |
+| TestNoLeNameCollidesWithZe | Renamed to `TestDuplicateLeRootIsRejected`, which still checks both duplicate registration error handling and the must-register panic path. |
+| le.deps | Moved dependency discovery to `personalityDeps`; `TestNormalZeLinksNoInternalLe` and `TestStandaloneLeAndZeLeHaveIdenticalSurface` use it against the current cmd/ze personalities. |
+| le.repoRoot | Replaced by `personalityRepoRoot`; `TestNormalZeLinksNoInternalLe` and `TestStandaloneLeAndZeLeHaveIdenticalSurface` use it to locate the checkout they build and inspect. |
+| TestZeLinksNoLePlugin | Replaced by `TestNormalZeLinksNoInternalLe`, which checks every normal cmd/ze feature-tag build for any `internal/le` dependency. |
+| TestZeWithTheLeTagLinksLesTools | Replaced by `TestStandaloneLeAndZeLeHaveIdenticalSurface`, which requires nonempty and identical internal/le dependency sets for standalone `le` and tagged `ze le`. |
+| TestLeRegistersNoProductCommand | Deleted the per-tool root-handler ownership probe because tools are local data below one root. `TestLeRegistersOneRootAndNoToolRoots` and `TestCompositionEqualsLiveRegisteringPackagePopulation` enforce the new boundary. |
+| TestLeDispatchesNoProductCommand | Moved to cmd/ze with the same name; current `TestLeDispatchesNoProductCommand` registers a product-root probe and proves standalone `le` returns 1 without running it. |
+| TestLeOwnsWhatItRegisters | Replaced by `TestLeRegistersOneRootAndNoToolRoots` and `TestEveryLeToolUsesFullPathAndParityAloneHasNoShape`, which check the single root and every owned local-data command path. |
+| le.handlerFile | Deleted runtime source attribution for per-tool root handlers. The approved local-data architecture has no such handlers; `TestLeRegistersOneRootAndNoToolRoots` asserts that tools never become roots. |
+| le.ownedByLe | Deleted path-based ownership for per-tool root handlers. Ownership is now the `le` local-data namespace, enforced by `TestEveryLeToolUsesFullPathAndParityAloneHasNoShape`. |
+| TestBothBinariesShareOneRegistry | Replaced by `TestStandaloneLeAndZeLeHaveIdenticalSurface`, which builds both cmd/ze personalities and requires identical dependencies, help, dispatch results, and renderer output. |
+| le.declaresRegistration | Deleted the scan for a second legacy root registry after both personalities became cmd/ze builds over the shared registry. `TestLeRegistersOneRootAndNoToolRoots` and `TestStandaloneLeAndZeLeHaveIdenticalSurface` enforce the current invariant. |
+| TestDriftReportsAFailedSuiteDerivation | Deleted the old failure expectation. Suite derivation now reads the linked native catalog without an `le` subprocess, so the old assertion is false; `TestDriftDerivesSuitesWithoutAnLESubprocess` checks the new invariant. |
+| TestAGoTargetRunsInThisProcessAndAMakeTargetDoesNot | Downgraded one Make-only refusal from fatal to nonfatal so the test can report it with the native callback checks. The all-native router still requires failure, code 2, and the exact no-native-callback message. |
+| TestEveryGateDeclaresACommandAndAReason | Renamed to `TestEveryGateDeclaresOneRunnerAndAReason`, which requires each gate to declare exactly one native callback or external command plus a reason. |
+| TestCgoIsDerivedFromTheCommandRatherThanDeclared | Renamed to `TestCgoIsDerivedFromTheExternalCommand`, which still derives cgo only from external race commands and rejects cgo on native callbacks. |
+| TestAScenarioVariableSelectsOneScenario | Replaced by `TestGeneralInteropSelectorReachesTheNativeOptions`, which passes the selected scenario into the native interop options. |
+| TestSudoCarriesTheTwoVariablesThroughItself | Deleted sudo environment propagation because former script gates now use native callbacks and invoke no sudo process. `TestFormerScriptGatesUseNativeCallbacks` enforces that invariant. |
+| TestANamedImportIsRefused | Deleted the obsolete refusal: `internal/le/register.go` now legitimately names support packages while blank imports define tool membership. `TestNamedSupportImportsAreIgnored` checks the new rule. |
+| zele.compileCrossing | Replaced by `buildPersonality`; `TestStandaloneLeAndZeLeHaveIdenticalSurface` uses it to build both current cmd/ze personalities. |
+| zele.invoke | Replaced by `invokePersonality`; `TestStandaloneLeAndZeLeHaveIdenticalSurface` uses it to compare stdout, stderr, and exact exit codes. |
+| TestZeWithTheLeTagRunsLesCommands | Replaced by `TestStandaloneLeAndZeLeHaveIdenticalSurface`, which builds tagged `ze le`, checks its help inventory, runs a real tool, checks renderers, and checks refusal codes. |
+| zele.blankImports | Moved to `le.blankImports`; `TestCompositionEqualsLiveRegisteringPackagePopulation` uses it to compare the one current composition root with live registering packages. |
+| TestTheCrossingLinksEveryToolLeCarries | Deleted the duplicate cmd/le and zele composition-list comparison. `TestCompositionEqualsLiveRegisteringPackagePopulation` checks the single composition, and `TestStandaloneLeAndZeLeHaveIdenticalSurface` requires both personalities to link the same set. |
+| TestTheCrossingClaimsOneRootName | Replaced by `TestLeRegistersOneRootAndNoToolRoots` plus `TestStandaloneLeAndZeLeHaveIdenticalSurface`, which enforce one `le` root and reject direct tool roots in tagged ze. |
+| TestTheCrossingDispatchesAnLeCommand | Replaced by `TestStandaloneLeAndZeLeHaveIdenticalSurface`, which invokes `working-tree` through both personalities and compares the exact status and output. |
+| TestTheCrossingRefusesAWordLeDoesNotOwn | Replaced by `TestStandaloneLeAndZeLeHaveIdenticalSurface`, which requires both personalities to return 1 with matching output for `no-such-tool`. |
+| TestTheCrossingRefusesZesOwnCommands | Moved to cmd/ze with the same name; current `TestTheCrossingRefusesZesOwnCommands` registers a product-root probe and proves `ze le` returns 1 without running it. |

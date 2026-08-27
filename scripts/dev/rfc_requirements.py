@@ -1047,6 +1047,11 @@ TIER_UNRUN = "unrun"  # nothing runs it automatically: a tag here is refused
 # internal/test/runner/draft_dir_test.go's TestDraftDirIsInvisibleToRepoGates.
 DRAFT_PREFIX = "test/draft/"
 
+# Tests for the repository development tool exercise this scanner, not protocol
+# implementations. The tool moved under internal/, which the unit carrier scans,
+# but its fixture tags cannot become protocol evidence.
+DEVELOPMENT_TOOLS_PREFIX = "internal/le/"
+
 # `ze-functional-test` names the suites it runs in ONE place, and a suite name is also the
 # test/<suite>/ directory the runner walks (internal/test/runner/draft_dir.go:40). Reading
 # that list is what keeps a `.ci`'s tier tied to whether anything executes it, instead of
@@ -1529,13 +1534,10 @@ _READERS = {
 def carrier_for(rel: str) -> Optional[Carrier]:
     """The carrier a repo-relative path belongs to, or None when the shape carries no tags.
 
-    The single predicate behind BOTH extension filters. `rel` is always slash-separated:
-    every caller normalizes before asking, so this never has to know about os.sep.
-
-    test/draft/ yields None -- SKIPPED, never refused. The incubator is gitignored and
-    invisible to every repo-wide gate (ai/rules/testing.md; test/draft/README.md), so a
-    draft must be able neither to claim evidence nor to fail this gate for a session that
-    has nothing to do with it. Refusing it would do the latter.
+    The single predicate behind both the current-tree and HEAD tables.
+    test/draft/ and internal/le/ yield None: drafts execute in no repository
+    gate, and development-tool tests exercise this scanner rather than protocol
+    implementations.
     """
     if rel.startswith(DRAFT_PREFIX):
         return None
@@ -1544,6 +1546,8 @@ def carrier_for(rel: str) -> Optional[Carrier]:
 
 def _lookup(rel: str, carriers: Sequence["Carrier"]) -> Optional["Carrier"]:
     """First carrier whose prefix AND suffix match. Shared by the tree and HEAD tables."""
+    if rel.startswith(DEVELOPMENT_TOOLS_PREFIX):
+        return None
     for c in carriers:
         if rel.startswith(c.prefix) and rel.endswith(c.suffix):
             return c
@@ -3123,7 +3127,7 @@ def check_new_summaries(
             errs.append(
                 f"rfc/short/{stem}.md is new and declares {gated} gated MUST-level "
                 f"requirement(s), but is not in rfc/enrolled.txt -- so none of them is "
-                f"checked. Enrol it (see .claude/skills/ze-rfc/SKILL.md), classifying each "
+                f"checked. Enroll it (see .claude/skills/ze-rfc/SKILL.md), classifying each "
                 f"requirement as tested, {{single-polarity}}, {{gap}} or {{not-applicable}}"
             )
             continue
@@ -3133,7 +3137,7 @@ def check_new_summaries(
                 f"rfc/short/{stem}.md is new and declares NO MUST-level requirement, but "
                 f"the source text has {src} MUST-level keyword(s) outside any RFC 2119 "
                 f"key-words paragraph this gate recognizes. An absent summary is "
-                f"indistinguishable from a compliant one. Enrol the stem, with the "
+                f"indistinguishable from a compliant one. Enroll the stem, with the "
                 f"obligations extracted; when those keywords are not requirements on a "
                 f'speaker (a key-words paragraph written "keywords", or "defined in '
                 f'RFC 2119", is invisible to the exclusion), record that at each site as '
@@ -3384,7 +3388,7 @@ def check_summary_disposition(
             f"rfc/short/{stem}.md is in neither rfc/enrolled.txt nor "
             f"rfc/not-enrolled.txt. Every summary is enrolled or declared: an un-enrolled "
             f"summary with no recorded reason cannot be told apart from one nobody has got "
-            f"to yet. Enrol it, or declare it with a kind from "
+            f"to yet. Enroll it, or declare it with a kind from "
             f"{sorted(DISPOSITION_KINDS)}"
         )
     for stem in sorted(enrolled & set(dispositions)):
@@ -4082,7 +4086,7 @@ def check_audit_files(enrolled: Set[str], stems: Set[str]) -> List[str]:
             errs.append(
                 f"{rel}: {stem} is not in rfc/enrolled.txt, so nothing reads these verdicts "
                 f"-- an audit file for an un-enrolled RFC is evidence the gate never loads. "
-                f"Enrol {stem}, or delete the file"
+                f"Enroll {stem}, or delete the file"
             )
     return errs
 

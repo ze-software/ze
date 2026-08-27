@@ -22,14 +22,14 @@ of unrelated work, and it is why this gate can BLOCK rather than warn.
 
 WHAT THIS OWNS, AND WHAT IT BORROWS
 -----------------------------------
-It owns the pairing rule and the table reader. It owns neither of the two
+It owns the pairing rule and the table reader. It owns none of the three
 judgements underneath:
 
-  * WHICH CHANGES WEAKEN a test is `_test_weakening_errs`, imported from
-    `.claude/hooks/pretool-writeedit.py` through `load_detector` in
-    `scripts/dev/audit-test-relaxation.py`. The edit-time hook and this gate
-    must never disagree about what a weakening is, and one function is the only
-    way to guarantee that.
+  * WHICH STRUCTURAL CHANGES WEAKEN a test is `_test_weakening_errs`, imported
+    from `.claude/hooks/pretool-writeedit.py` through `load_detector` in
+    `scripts/dev/audit-test-relaxation.py`.
+  * WHICH RFC TAGS LEFT a test is `_rfc_tagged_change_err`, imported through
+    that same module. The checker uses only tags absent from the new text.
   * WHICH TEXT IS ONE TEST is `scripts/dev/rfc_tagged_scope.py`. Its own
     docstring records the failure a second copy would cause: two gates that
     drifted about which text a rule covers. Go resolves to the enclosing
@@ -65,11 +65,13 @@ anchor does not resolve to a commit.
 """
 
 import importlib.util
+import io
 import os
 import re
 import subprocess
 import sys
 import tempfile
+import tokenize
 from typing import NamedTuple
 
 RED = "\033[31m"
@@ -148,6 +150,11 @@ def load_detector(repo_root):
     return _audit().load_detector(repo_root)
 
 
+def load_rfc_detector(repo_root):
+    """`_rfc_tagged_change_err` from the canonical hook, or None."""
+    return _audit().load_rfc_detector(repo_root)
+
+
 class Row(NamedTuple):
     """One row of `test/weakened.md`."""
 
@@ -163,6 +170,15 @@ class Weakened(NamedTuple):
     package: str  # the directory that holds the file, the row's qualifier
     name: str  # the enclosing Go func, or the file stem when there is none
     details: list  # what the detector said, blocking and advisory together
+
+
+
+class RenamePair(NamedTuple):
+    """One Git-detected rename in the prospective commit."""
+
+    old_path: str
+    new_path: str
+    score: int
 
 
 # --------------------------------------------------------------------------- #
@@ -265,6 +281,44 @@ def _kind(detail):
     return re.split(r"\s*[(;]", detail, maxsplit=1)[0].strip()
 
 
+_COUNT_DROP_KINDS = (
+    "removing assertions",
+    "removing t.Run cases",
+    "removing expectations",
+    "removing negative expectations",
+)
+_COUNT_DROP_RE = re.compile(
+    r"^(removing (?:assertions|t\.Run cases|expectations|negative expectations)) "
+    r"\((\d+) -> (\d+)"
+)
+
+
+def _reported_count_drops(details):
+    """Positive detector count deltas keyed by their stable finding kind."""
+    drops = {}
+    for detail in details:
+        match = _COUNT_DROP_RE.match(detail)
+        if match:
+            drops[match.group(1)] = int(match.group(2)) - int(match.group(3))
+    return drops
+
+
+def _count_deltas(old, new, path, detector):
+    """Signed detector count deltas, including counts hidden by an empty side."""
+    marker = "\n// retained count scope\n"
+
+    def drops(left, right):
+        blocking, advisory = detector(left + marker, right + marker, path)
+        return _reported_count_drops(list(blocking) + list(advisory))
+
+    forward = drops(old, new)
+    reverse = drops(new, old)
+    return {
+        kind: forward.get(kind, 0) - reverse.get(kind, 0)
+        for kind in _COUNT_DROP_KINDS
+    }
+
+
 def _units_by_name(content):
     """{name: text} for the top-level Go funcs of `content`, in file order.
 
@@ -278,7 +332,53 @@ def _units_by_name(content):
     return {name: "\n".join(texts) for name, texts in out.items()}
 
 
-def weakened_units(path, old, new, detector):
+def executable_test_text(path, text):
+    """Text the lexical weakening detector must judge for one test path.
+
+    Python tests routinely carry source snippets as fixture data. Mask every
+    STRING token's contents so fixture text such as ``self.skipTest("flaky")``
+    is not treated as executable source. Token positions and line endings stay
+    intact. If tokenization cannot finish, return the original text so malformed
+    source fails closed rather than hiding a weakening.
+
+    This normalization belongs only to weakening detection. RFC-tagged change
+    detection must continue to inspect the raw source.
+    """
+    if not path.endswith(".py"):
+        return text
+
+    line_starts = [0]
+    for line in text.splitlines(keepends=True):
+        line_starts.append(line_starts[-1] + len(line))
+
+    spans = []
+    try:
+        tokens = tokenize.generate_tokens(io.StringIO(text).readline)
+        for token in tokens:
+            if token.type != tokenize.STRING:
+                continue
+            start = line_starts[token.start[0] - 1] + token.start[1]
+            end = line_starts[token.end[0] - 1] + token.end[1]
+            spans.append((start, end))
+    except (IndentationError, tokenize.TokenError):
+        return text
+
+    if not spans:
+        return text
+
+    masked = []
+    cursor = 0
+    for start, end in spans:
+        masked.append(text[cursor:start])
+        masked.append(
+            "".join(char if char in "\r\n" else " " for char in text[start:end])
+        )
+        cursor = end
+    masked.append(text[cursor:])
+    return "".join(masked)
+
+
+def weakened_units(path, old, new, detector, rfc_detector=None):
     """[(name, details)] -- the tests `new` weakens, named as `test/weakened.md` names them.
 
     A non-Go carrier is one unit and its name is the file stem, which is
@@ -286,35 +386,68 @@ def weakened_units(path, old, new, detector):
 
     Go is read twice, and both readings are kept. Per function, so a finding
     carries the name of the test that holds it. Then over the whole file, so a
-    weakening that sits outside every function is not lost: an `ignore` build tag
-    in the header drops the file from the build, and no function span covers it.
-    Only the file-level KINDS no function already reported are added, or deleting
-    one test would demand two rows.
+    weakening in the header or package scope is not lost. Count findings use
+    signed deltas: top-level-function deltas are subtracted from the file delta,
+    and only a positive outside-function remainder uses the file stem.
 
     A Go weakening outside every function is named by the FILE STEM, the same way
     a `.ci` is. `test/weakened.md` publishes no name for that case, and the stem
     is the only one available: there is no enclosing func to name.
     """
+    old = executable_test_text(path, old)
+    new = executable_test_text(path, new)
     stem = os.path.splitext(os.path.basename(path))[0]
-    file_errs, file_soft = detector(old, new, path)
-    file_details = list(file_errs) + list(file_soft)
+
+    def judge(old_text, new_text):
+        errs, soft = detector(old_text, new_text, path)
+        details = list(errs) + list(soft)
+        if rfc_detector is None:
+            return details
+        tags = rfc_detector(old_text, new_text, path) or ()
+        dropped = [tag for tag in tags if tag not in new_text]
+        if dropped:
+            details.append(
+                f"removing RFC requirement tags ({len(dropped)}): "
+                + ", ".join(sorted(dropped))
+            )
+        return details
+
+    file_details = judge(old, new)
     if rfc_tagged_scope.scope_reader(path) != "go":
         return [(stem, file_details)] if file_details else []
 
     old_units = _units_by_name(old)
     new_units = _units_by_name(new)
+    file_count_deltas = _count_deltas(old, new, path, detector)
+    unit_count_deltas = {kind: 0 for kind in _COUNT_DROP_KINDS}
+    for name in dict.fromkeys((*old_units, *new_units)):
+        deltas = _count_deltas(
+            old_units.get(name, ""), new_units.get(name, ""), path, detector
+        )
+        for kind, delta in deltas.items():
+            unit_count_deltas[kind] += delta
+
     found = []
     named_kinds = set()
     for name, old_text in old_units.items():
         if not old_text.strip():
             continue
-        errs, soft = detector(old_text, new_units.get(name, ""), path)
-        details = list(errs) + list(soft)
+        details = judge(old_text, new_units.get(name, ""))
         if not details:
             continue
         found.append((name or stem, details))
         named_kinds.update(_kind(d) for d in details)
-    residual = [d for d in file_details if _kind(d) not in named_kinds]
+
+    residual = [
+        detail
+        for detail in file_details
+        if _kind(detail) not in _COUNT_DROP_KINDS
+        and _kind(detail) not in named_kinds
+    ]
+    for kind in _COUNT_DROP_KINDS:
+        outside = file_count_deltas[kind] - unit_count_deltas[kind]
+        if outside > 0:
+            residual.append(f"{kind} outside top-level functions ({outside})")
     if residual:
         found.append((stem, residual))
     return found
@@ -410,17 +543,86 @@ def _worktree_text(repo_root, path):
         return ""
 
 
-def weakened_tests(repo_root, paths, removed=(), detector=None, anchor="HEAD"):
+def _rename_maps(paths, removed, rename_pairs):
+    """({old: pair}, {new}, errors) for an unambiguous commit-local pairing."""
+    added = set(paths)
+    deleted = set(removed)
+    by_old = {}
+    by_new = {}
+    errors = []
+    for pair in rename_pairs:
+        if pair.old_path not in deleted or pair.new_path not in added:
+            errors.append(
+                f"{_CANNOT_RUN}rename {pair.old_path} -> {pair.new_path} is outside "
+                "the commit's exact add/remove population"
+            )
+            continue
+        if pair.old_path in by_old:
+            errors.append(
+                f"{_CANNOT_RUN}rename pairing is ambiguous: {pair.old_path} maps "
+                f"to both {by_old[pair.old_path].new_path} and {pair.new_path}"
+            )
+            continue
+        if pair.new_path in by_new:
+            errors.append(
+                f"{_CANNOT_RUN}rename pairing is ambiguous: {pair.new_path} maps "
+                f"from both {by_new[pair.new_path].old_path} and {pair.old_path}"
+            )
+            continue
+        if not isinstance(pair.score, int) or not 1 <= pair.score <= 100:
+            errors.append(
+                f"{_CANNOT_RUN}rename {pair.old_path} -> {pair.new_path} has "
+                f"invalid Git similarity score {pair.score!r}"
+            )
+            continue
+        by_old[pair.old_path] = pair
+        by_new[pair.new_path] = pair
+    return by_old, set(by_new), errors
+
+
+def _renamed_worktree_text(repo_root, pair):
+    """(text, error) for the new side of a rename, with read failure visible."""
+    try:
+        with open(
+            os.path.join(repo_root, pair.new_path),
+            encoding="utf-8",
+            errors="replace",
+        ) as fh:
+            return fh.read(), None
+    except OSError as exc:
+        return "", (
+            f"{_CANNOT_RUN}rename {pair.old_path} -> {pair.new_path} was paired "
+            f"at {pair.score}% similarity, but the new path could not be read: {exc}"
+        )
+
+
+def weakened_tests(
+    repo_root,
+    paths,
+    removed=(),
+    detector=None,
+    anchor="HEAD",
+    rename_pairs=(),
+    rfc_detector=None,
+):
     """(weakened, errors) -- every test the named paths weaken, against `anchor`.
 
-    `paths` and `removed` are the commit's own lists. Nothing else is read, so a
-    concurrent session's edit to a file this commit does not name is invisible
-    here, which is what lets the caller BLOCK on the result.
+    `paths`, `removed`, and `rename_pairs` describe the commit's exact
+    population. A rename compares the old path at `anchor` with the new path in
+    the worktree. The finding uses the new path as its identity. Nothing else is
+    read, so a concurrent session's unrelated edit is invisible here.
 
-    A non-empty `errors` means the comparison did not happen and the empty
+    A non-empty `errors` means that the comparison did not happen. The empty
     `weakened` beside it says nothing about the commit. The caller MUST report
     the errors rather than read the list as a clean bill of health.
     """
+    paths = tuple(paths)
+    removed = tuple(removed)
+    renames, renamed_new_paths, errors = _rename_maps(
+        paths, removed, rename_pairs
+    )
+    if errors:
+        return [], errors
     if detector is None:
         detector = load_detector(PROJECT_DIR)
     if detector is None:
@@ -428,24 +630,43 @@ def weakened_tests(repo_root, paths, removed=(), detector=None, anchor="HEAD"):
             f"{_CANNOT_RUN}_test_weakening_errs is not importable from "
             f".claude/hooks/pretool-writeedit.py, so no weakening could be judged"
         ]
+    if rfc_detector is None:
+        rfc_detector = load_rfc_detector(PROJECT_DIR)
+    if rfc_detector is None:
+        return [], [
+            f"{_CANNOT_RUN}_rfc_tagged_change_err is not importable from "
+            f".claude/hooks/pretool-writeedit.py, so no RFC tag loss could be judged"
+        ]
     out = []
     errors = []
-    seen = []
-    for path in list(paths) + list(removed):
-        if path in seen or not is_test_path(path):
+    seen = set()
+    for path in paths + removed:
+        if path in seen or path in renamed_new_paths or not is_test_path(path):
             continue
-        seen.append(path)
+        seen.add(path)
         old, err = _head_text(repo_root, path, anchor)
         if err:
             errors.append(f"{_CANNOT_RUN}{err}")
             continue
         if not old.strip():
             continue  # added by this commit: a new test weakens nothing
-        new = "" if path in removed else _worktree_text(repo_root, path)
-        package = os.path.basename(os.path.dirname(path))
-        for name, details in weakened_units(path, old, new, detector):
-            out.append(Weakened(path, package, name, details))
-    return out, errors
+        pair = renames.get(path)
+        comparison_path = pair.new_path if pair else path
+        if pair:
+            new, err = _renamed_worktree_text(repo_root, pair)
+            if err:
+                errors.append(err)
+                continue
+        else:
+            new = "" if path in removed else _worktree_text(repo_root, path)
+        package = os.path.basename(os.path.dirname(comparison_path))
+        for name, details in weakened_units(
+            comparison_path, old, new, detector, rfc_detector
+        ):
+            out.append(Weakened(comparison_path, package, name, details))
+    if errors:
+        return [], errors
+    return out, []
 
 
 # --------------------------------------------------------------------------- #
@@ -496,7 +717,7 @@ def _row_to_write(weak, qualify):
     )
 
 
-def unmatched_problems(rows, weakened):
+def unmatched_problems(rows, weakened, ledger_carried=True):
     """[problem] -- every row and every weakening that does not pair one to one.
 
     Ambiguity is refused rather than resolved (AC-7). One bare name over two
@@ -532,16 +753,27 @@ def unmatched_problems(rows, weakened):
             continue
         detail = "\n".join(f"    - {d}" for d in weak.details)
         qualify = sum(1 for w in weakened if w.name == weak.name) > 1
+        missing = (
+            f"{WEAKENED_PATH} has no row for it"
+            if ledger_carried
+            else "this commit has no carried row for it"
+        )
         problems.append(
-            f"{weak.path} weakens {weak.name} and {WEAKENED_PATH} has no row for "
-            f"it:\n{detail}\n"
+            f"{weak.path} weakens {weak.name} and {missing}:\n{detail}\n"
             f"    Add the row, then commit the file with the change:\n"
             f"    {_row_to_write(weak, qualify)}"
         )
     return problems
 
 
-def weakened_problems(repo_root, paths, removed=(), detector=None, anchor="HEAD"):
+def weakened_problems(
+    repo_root,
+    paths,
+    removed=(),
+    detector=None,
+    anchor="HEAD",
+    rename_pairs=(),
+):
     """[problem] -- why `test/weakened.md` does not accept this change set.
 
     The whole gate, and what `scripts/dev/commit_helper.py` calls with the
@@ -554,7 +786,9 @@ def weakened_problems(repo_root, paths, removed=(), detector=None, anchor="HEAD"
     would import the hook back through `load_detector`, and a hook importing a
     module that re-executes the hook does not terminate.
     """
-    weakened, errors = weakened_tests(repo_root, paths, removed, detector, anchor)
+    weakened, errors = weakened_tests(
+        repo_root, paths, removed, detector, anchor, rename_pairs
+    )
     if errors:
         return errors
     if not weakened:

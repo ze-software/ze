@@ -1,8 +1,8 @@
 // Design: docs/architecture/system-architecture.md -- unified binary dispatch infrastructure
 //
 // Shared dispatch infrastructure for all ze binaries. Build tags control which
-// commands register; the dispatch loop adapts to what's registered. The binary
-// name is used only for usage/help text, never for dispatch.
+// commands register. A binary whose exact basename names a root projects its
+// complete argv through that root, which is how the le personality works.
 
 package main
 
@@ -80,10 +80,15 @@ func defaultUsage() {
 	p.WriteErr()
 }
 
-// defaultDispatch handles the common case: look up a registered root command
-// and dispatch to it. Used by ze-test, ze-chaos, ze-perf, and ze-analyze where
-// all commands are registered as root handlers.
+// defaultDispatch handles registry-only personalities. An exact basename root
+// receives the full argv before generic help handling, so a cmd/ze artifact
+// named le behaves as `le <tool>` while an artifact named ze stays unchanged.
 func defaultDispatch(args []string) int {
+	rctx := &registry.RuntimeContext{}
+	if handler := registry.LookupRoot(binaryName()); handler != nil {
+		return handler(rctx, args)
+	}
+
 	if len(args) == 0 {
 		printUsage()
 		return 1
@@ -95,7 +100,6 @@ func defaultDispatch(args []string) int {
 		return 0
 	}
 
-	rctx := &registry.RuntimeContext{}
 
 	if handler := registry.LookupRoot(arg); handler != nil {
 		return handler(rctx, args[1:])

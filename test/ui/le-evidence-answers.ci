@@ -16,7 +16,7 @@
 # sees.
 #
 # The timeout is DECLARED because a cold build cache makes the first compile of
-# cmd/le far slower than the steady state.
+# cmd/ze le personality far slower than the steady state.
 
 option=timeout:value=240s
 
@@ -39,10 +39,10 @@ work = os.getcwd()
 binary = os.path.join(work, 'le')
 
 compiled = subprocess.run(
-    ['go', 'build', '-o', binary, './cmd/le'],
+    ['make', '--no-print-directory', 'le-build', f'ZE_BIN_DIR={os.path.dirname(binary)}'],
     cwd=root, capture_output=True, text=True, check=False,
 )
-require(compiled.returncode == 0, f'compiling ./cmd/le failed: {compiled.stderr}')
+require(compiled.returncode == 0, f'compiling the cmd/ze le personality failed: {compiled.stderr}')
 
 # A fixture checkout: the two markers lepath.Root looks for, and the manifest
 # the daemon build tags derive from.

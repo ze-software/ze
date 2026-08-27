@@ -19,7 +19,7 @@
 # finding, every group count and the summary are pinned by the set.
 #
 # The timeout is DECLARED because two full walks of the checkout follow a cold
-# build of cmd/le.
+# build of the cmd/ze le personality.
 
 option=timeout:value=300s
 
@@ -43,7 +43,8 @@ here = os.getcwd()
 binary = os.path.join(here, 'le')
 script = os.path.join(here, 'consistency')
 
-for args in (['go', 'build', '-o', binary, './cmd/le'],
+for args in (['make', '--no-print-directory', 'le-build',
+              f'ZE_BIN_DIR={os.path.dirname(binary)}'],
              ['go', 'build', '-o', script, 'scripts/lint/consistency.go']):
     built = subprocess.run(args, cwd=root, capture_output=True, text=True, check=False)
     require(built.returncode == 0, f'{" ".join(args)} failed: {built.stderr}')

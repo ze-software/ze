@@ -1,7 +1,7 @@
 // The migration's proof for the gates in this directory: each script and its
 // command agree.
 //
-// The tools under scripts/checks are being replaced by packages under letools,
+// The tools under scripts/checks are being replaced by packages under internal/le,
 // and the two sides live together until the swap
 // (plan/spec-le-is-a-ze-binary.md, step 14). This file is what makes that safe,
 // and it is deliberately HERE rather than beside the new packages: it is a
@@ -39,21 +39,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/letools/cidispatch"
-	"github.com/ze-software/ze/letools/cligrammar"
-	"github.com/ze-software/ze/letools/commandownership"
-	"github.com/ze-software/ze/letools/configclaims"
-	"github.com/ze-software/ze/letools/configcoercion"
-	"github.com/ze-software/ze/letools/dashstdio"
-	"github.com/ze-software/ze/letools/fspersistence"
-	"github.com/ze-software/ze/letools/ifaceresolution"
-	"github.com/ze-software/ze/letools/leroot"
-	"github.com/ze-software/ze/letools/pluginboundary"
-	"github.com/ze-software/ze/letools/portdefaults"
-	"github.com/ze-software/ze/letools/staticcheckmatrix"
-	"github.com/ze-software/ze/letools/testsensitivity"
-	"github.com/ze-software/ze/letools/trackedbuild"
-	"github.com/ze-software/ze/letools/yangleafmentions"
+	"github.com/ze-software/ze/internal/le/cidispatch"
+	"github.com/ze-software/ze/internal/le/cligrammar"
+	"github.com/ze-software/ze/internal/le/commandownership"
+	"github.com/ze-software/ze/internal/le/configclaims"
+	"github.com/ze-software/ze/internal/le/configcoercion"
+	"github.com/ze-software/ze/internal/le/dashstdio"
+	"github.com/ze-software/ze/internal/le/fspersistence"
+	"github.com/ze-software/ze/internal/le/ifaceresolution"
+	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/pluginboundary"
+	"github.com/ze-software/ze/internal/le/portdefaults"
+	"github.com/ze-software/ze/internal/le/staticcheckmatrix"
+	"github.com/ze-software/ze/internal/le/testsensitivity"
+	"github.com/ze-software/ze/internal/le/trackedbuild"
+	"github.com/ze-software/ze/internal/le/yangleafmentions"
 )
 
 // The two bounds these comparisons need. A link of the product and a walk of
@@ -1126,7 +1126,7 @@ func TestFSPersistenceSelftestsAgree(t *testing.T) {
 //
 // It also writes a copy of the composition-root generator because the SCRIPT
 // gets its scan roots from that file's source text. The command calls
-// letools/pluginimports to get the roots. The copy lets both sides receive the
+// internal/le/pluginimports to get the roots. The copy lets both sides receive the
 // same question.
 func boundaryFixture(t *testing.T) string {
 	t.Helper()

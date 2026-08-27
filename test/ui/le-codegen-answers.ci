@@ -56,7 +56,8 @@ GENERATORS = {
     'web-assets': 'web_assets.go',
 }
 
-builds = [['go', 'build', '-o', binary, './cmd/le']]
+builds = [['make', '--no-print-directory', 'le-build',
+           f'ZE_BIN_DIR={os.path.dirname(binary)}']]
 for source in GENERATORS.values():
     builds.append(['go', 'build', '-o', os.path.join(here, source[:-3]),
                    os.path.join('scripts', 'codegen', source)])

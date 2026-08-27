@@ -44,7 +44,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/letools/deployment"
+	"github.com/ze-software/ze/internal/le/deployment"
 )
 
 // pppHalfTimeout bounds one run of either half. The stand-ins answer within
@@ -722,7 +722,7 @@ func TestBothHalvesBuildTheL2TPPPPDaemonWithEveryGate(t *testing.T) {
 // that refusal is unreachable from a full run. Thus, the case that tests it
 // calls the builder directly:
 // TestTheDaemonEnvironmentStripsTheEscapeAndCarriesTheSettings in
-// letools/deployment. This run never sets the escape, so an absence assertion
+// internal/le/deployment. This run never sets the escape, so an absence assertion
 // here cannot fail.
 func TestBothHalvesHandTheDaemonTheSameSettings(t *testing.T) {
 	requireNamespaceSupport(t)

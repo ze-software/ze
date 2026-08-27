@@ -29,7 +29,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/letools/deployment"
+	"github.com/ze-software/ze/internal/le/deployment"
 )
 
 // scriptTimeout bounds one run of the Python original. The stub answers in a

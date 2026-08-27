@@ -56,9 +56,10 @@ with open(os.path.join(root, 'feature-gates.txt'), encoding='utf-8') as handle:
 tagset = ' '.join(tags)
 
 binary = os.path.join(here, 'le')
-build = subprocess.run(['go', 'build', '-tags', tagset, '-o', binary, './cmd/le'],
+build = subprocess.run(['make', '--no-print-directory', 'le-build',
+                        f'ZE_BIN_DIR={os.path.dirname(binary)}'],
                        cwd=root, capture_output=True, text=True, check=False)
-require(build.returncode == 0, f'building cmd/le failed: {build.stderr}')
+require(build.returncode == 0, f'building the cmd/ze le personality failed: {build.stderr}')
 
 # One compiled script per gate, named by the command that replaces it.
 scripts = {

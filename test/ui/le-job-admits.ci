@@ -5,7 +5,7 @@
 #            wrapper, against the artifact a developer runs rather than against
 #            a package.
 # PREVENTS: a green package suite over a binary that does not compose. The Go
-#           tests drive letools/lejob directly; between them and this file sit
+#           tests drive internal/le/lejob directly; between them and this file sit
 #           the build, the composition root, argv handling and the process
 #           boundary -- which is where a stale or mis-composed binary fails
 #           (R-4), and where an admission gate failing open costs the machine.
@@ -25,7 +25,7 @@
 # starts.
 #
 # The timeout is DECLARED because a cold build cache makes the first compile of
-# cmd/le far slower than the steady state.
+# cmd/ze le personality far slower than the steady state.
 
 option=timeout:value=180s
 
@@ -46,10 +46,10 @@ checkout = os.environ['ZE_REPO_ROOT']
 binary = os.path.join(os.getcwd(), 'le')
 
 compiled = subprocess.run(
-    ['go', 'build', '-o', binary, './cmd/le'],
+    ['make', '--no-print-directory', 'le-build', f'ZE_BIN_DIR={os.path.dirname(binary)}'],
     cwd=checkout, capture_output=True, text=True, check=False,
 )
-require(compiled.returncode == 0, f'compiling ./cmd/le failed: {compiled.stderr}')
+require(compiled.returncode == 0, f'compiling the cmd/ze le personality failed: {compiled.stderr}')
 
 # The scratch checkout the registry lives in. git answers nothing about it, so
 # both jobs measure the same tree hash over the same absent repository, which is

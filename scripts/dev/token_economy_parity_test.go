@@ -28,7 +28,7 @@
 // detect a shared bound, bucket edge, or phase ranking when no fixture uses that
 // value.
 //
-// This file is deliberately HERE instead of beside letools/tokeneconomy. It is
+// This file is deliberately HERE instead of beside internal/le/tokeneconomy. It is
 // a migration artifact, so the commit that deletes the script also deletes its
 // proof.
 //
@@ -53,7 +53,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/letools/tokeneconomy"
+	"github.com/ze-software/ze/internal/le/tokeneconomy"
 )
 
 const (

@@ -1,7 +1,7 @@
 // The migration's proof for the Python tools of this directory: the script and
 // the command answer the same thing.
 //
-// The scripts under scripts/dev are being replaced by packages under letools/,
+// The scripts under scripts/dev are being replaced by packages under internal/le/,
 // and the two live side by side until the swap. This file is deliberately HERE
 // rather than beside the new packages: it is a migration artifact, so the
 // commit that deletes the scripts deletes their proof with them.
@@ -38,11 +38,11 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/letools/archmap"
-	"github.com/ze-software/ze/letools/gokrazygosum"
-	"github.com/ze-software/ze/letools/leroot"
-	"github.com/ze-software/ze/letools/protocolskeleton"
-	"github.com/ze-software/ze/letools/workingtree"
+	"github.com/ze-software/ze/internal/le/archmap"
+	"github.com/ze-software/ze/internal/le/gokrazygosum"
+	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/protocolskeleton"
+	"github.com/ze-software/ze/internal/le/workingtree"
 )
 
 // devPyTimeout bounds one script run. Every tool compared here reads a tree and
@@ -298,7 +298,7 @@ func TestWorkingTreeBothHalvesOrderAndAdviseTheSameWay(t *testing.T) {
 	tree := devPyDirty(t,
 		"docs/a.md", "docs/b.md",
 		"ai/rules/x.md", "ai/rules/y.md", "ai/rules/z.md",
-		"cmd/le/main.go",
+		"cmd/ze/main.go",
 		"Makefile")
 
 	script := devPyRunScript(t, workingTreeScript, nil, tree)
@@ -311,7 +311,7 @@ func TestWorkingTreeBothHalvesOrderAndAdviseTheSameWay(t *testing.T) {
 }
 
 func TestWorkingTreeBothHalvesFailAtTheSameCeiling(t *testing.T) {
-	tree := devPyDirty(t, "docs/a.md", "cmd/le/main.go", "Makefile")
+	tree := devPyDirty(t, "docs/a.md", "cmd/ze/main.go", "Makefile")
 
 	script := devPyRunScript(t, workingTreeScript, []string{"--max-areas", "2"}, tree)
 	command := devPyRunCommand(t, "working-tree", workingtree.Answer, []string{"max-areas", "2"})
@@ -327,7 +327,7 @@ func TestWorkingTreeBothHalvesFailAtTheSameCeiling(t *testing.T) {
 }
 
 func TestWorkingTreeBothHalvesPassAtTheCeiling(t *testing.T) {
-	tree := devPyDirty(t, "docs/a.md", "cmd/le/main.go")
+	tree := devPyDirty(t, "docs/a.md", "cmd/ze/main.go")
 
 	script := devPyRunScript(t, workingTreeScript, []string{"--max-areas", "2"}, tree)
 	command := devPyRunCommand(t, "working-tree", workingtree.Answer, []string{"max-areas", "2"})

@@ -1,0 +1,121 @@
+# Test: the built le binary exposes all four native installer-QEMU actions and
+#       renders each structured skip report through the shared pipe engine.
+#
+# VALIDATES: built-binary registration, exact action names, self-skip exit zero,
+#            zero-invalid structured verdicts, and global pipe coverage.
+# PREVENTS: a Python fork, a function-only proof, or one installer action with a
+#           private output path.
+
+option=timeout:value=300s
+
+tmpfs=run.py:terminator=EOF_PY
+import json
+import os
+import subprocess
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(f'FAIL: {message}')
+
+
+root = os.environ['ZE_REPO_ROOT']
+work = os.getcwd()
+
+
+def feature_tags():
+    """ze_core plus every ze_* tag feature-gates.txt declares, sorted."""
+    found = set()
+    with open(os.path.join(root, 'feature-gates.txt'), encoding='utf-8') as handle:
+        for line in handle:
+            words = line.split()
+            if words and words[0].startswith('ze_'):
+                found.add(words[0])
+    return ','.join(['ze_core'] + sorted(found))
+
+
+binary = os.path.join(work, 'le')
+build_env = dict(os.environ)
+build_env['CGO_ENABLED'] = '0'
+compiled = subprocess.run(
+    ['make', '--no-print-directory', 'le-build', f'ZE_BIN_DIR={os.path.dirname(binary)}'],
+    cwd=root, capture_output=True, text=True, check=False, env=build_env,
+)
+require(compiled.returncode == 0, f'compiling le failed: {compiled.stderr}')
+
+# No qemu-system-* executable exists here. Each action must self-skip before it
+# creates a work directory or attempts a build, and the skip remains report data.
+stubs = os.path.join(work, 'empty-path')
+os.makedirs(stubs, exist_ok=True)
+env = dict(os.environ)
+env['PATH'] = stubs
+env['ZE_REPO_ROOT'] = root
+env['ZE_INSTALL_ARCH'] = 'amd64'
+env['ZE_INSTALL_KERNEL'] = os.path.join(work, 'installer-kernel')
+with open(env['ZE_INSTALL_KERNEL'], 'wb') as handle:
+    handle.write(b'kernel')
+
+actions = (
+    ('install-test', 'INSTALL-QEMU'),
+    ('install-iso-test', 'INSTALL-ISO-QEMU'),
+    ('install-scenarios-test', 'INSTALL-SCENARIOS-QEMU'),
+    ('install-ventoy-test', 'INSTALL-VENTOY-QEMU'),
+)
+
+
+def le(action, *pipes):
+    return subprocess.run(
+        [binary, 'qemu', action, *pipes], capture_output=True, text=True,
+        check=False, env=env,
+    )
+
+
+listing = subprocess.run(
+    [binary, 'qemu'], capture_output=True, text=True, check=False, env=env,
+)
+require(listing.returncode == 0, f'qemu listing failed: {listing.stderr}')
+for action, _ in actions:
+    require(action in listing.stdout, f'qemu listing omitted {action}: {listing.stdout}')
+
+for action, prefix in actions:
+    bare = le(action)
+    require(bare.returncode == 0, f'{action} skip exited {bare.returncode}: {bare.stderr}')
+    exact = f'{prefix}: SKIP qemu-system-x86_64 not found\n'
+    require(bare.stdout == exact, f'{action} skip changed: {bare.stdout!r} want {exact!r}')
+
+    answer = le(action, '|', 'json')
+    require(answer.returncode == 0, f'{action} json exited {answer.returncode}: {answer.stderr}')
+    report = json.loads(answer.stdout)
+    require(report['action'] == action, f'{action} report action changed: {report}')
+    require(report['verdict'] == 'skip', f'{action} report verdict changed: {report}')
+    require(report['arch'] == 'amd64' and report['accelerator'],
+            f'{action} report lost plan data: {report}')
+    require('qemu-system-x86_64 not found' in report['reason'],
+            f'{action} report lost skip reason: {report}')
+
+# Every global renderer and display modifier reaches one install report.
+for operator in ('json', 'ndjson', 'table', 'text', 'yaml', 'raw', 'no-more'):
+    rendered = le('install-test', '|', operator)
+    require(rendered.returncode == 0,
+            f'global pipe {operator} exited {rendered.returncode}: {rendered.stderr}')
+    require(rendered.stdout.strip(), f'global pipe {operator} returned no answer')
+
+# `log` is global to streaming answers, not global to one-shot answers. The
+# qemu action answers once, so the shared catalog must refuse it exactly.
+logged = le('install-test', '|', 'log', '|', 'json')
+require(logged.returncode == 1, f'one-shot log refusal exited {logged.returncode}')
+require(logged.stdout == '', f'one-shot log refusal wrote stdout: {logged.stdout!r}')
+require(logged.stderr == 'error: log requires a streaming command\n',
+        f'one-shot log refusal changed: {logged.stderr!r}')
+
+saved_path = os.path.join(work, 'install-answer.json')
+saved = le('install-test', '|', 'save', saved_path)
+require(saved.returncode == 0, f'save pipe exited {saved.returncode}: {saved.stderr}')
+require(os.path.isfile(saved_path) and os.path.getsize(saved_path) > 0,
+        'save pipe wrote no install report')
+print('LE_QEMU_INSTALL_ANSWERS_OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=LE_QEMU_INSTALL_ANSWERS_OK

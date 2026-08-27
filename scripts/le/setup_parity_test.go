@@ -1,7 +1,7 @@
 // The migration's proof for `le setup`: the script and the command probe the
 // same machine, would run the same commands, and write the same page.
 //
-// letools/devsetup replaces scripts/le/application/setup.py. Both versions
+// internal/le/devsetup replaces scripts/le/application/setup.py. Both versions
 // remain until the swap. This file is deliberately HERE because it is a
 // migration artifact. The commit that deletes the script also deletes this
 // proof.
@@ -21,7 +21,7 @@
 // write to a real kernel setting, group database, and loopback interface. Both
 // halves READ and agree on that state. The probe-only case compares these rows.
 // This test does not start their apply branches because that would change the
-// test machine. Tests in letools/devsetup pin their argv through a struct-field
+// test machine. Tests in internal/le/devsetup pin their argv through a struct-field
 // seam.
 
 package main
@@ -35,7 +35,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/letools/devsetup"
+	"github.com/ze-software/ze/internal/le/devsetup"
 )
 
 // setupStandIn records its argv and prints the configured response. It fails

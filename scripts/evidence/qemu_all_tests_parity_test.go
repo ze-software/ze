@@ -1,7 +1,7 @@
 package main
 
 // This file validates AC-11 for the in-VM run. It compares the COMMAND SEQUENCE
-// from scripts/evidence/qemu-all-tests.sh with letools/qemu.AllTests. Stand-in
+// from scripts/evidence/qemu-all-tests.sh with internal/le/qemu.AllTests. Stand-in
 // binaries record the calls, and both sides have asserted call counts.
 //
 // The comparison covers commands instead of a passing full run. The script
@@ -23,7 +23,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/letools/qemu"
+	"github.com/ze-software/ze/internal/le/qemu"
 )
 
 // The stand-in programs record every command from either half. `timeout` starts
@@ -214,13 +214,13 @@ func readCommandLog(t *testing.T, path string) [][]string {
 	return commands
 }
 
-// runPortHalf runs letools/qemu over the same stand-in workspace and answers
+// runPortHalf runs internal/le/qemu over the same stand-in workspace and answers
 // the command sequence it emitted.
 //
 // Its binary shim uses a temporary directory instead of guest path
 // /tmp/ze-qemu-bin. This avoids changes to symlinks used by an active
 // ze-qemu-debug session. The comparison therefore normalizes the shim path, and
-// a letools/qemu test pins the constant.
+// an internal/le/qemu test pins the constant.
 func runPortHalf(t *testing.T, workspace string) ([][]string, string) {
 	t.Helper()
 	binDir := filepath.Join(t.TempDir(), "shim")

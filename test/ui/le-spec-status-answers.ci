@@ -24,7 +24,7 @@
 # moving, not the port. The re-read costs a whole inventory, so it happens only
 # when there is a difference to explain.
 #
-# The timeout is DECLARED because a cold build of cmd/le precedes four walks of
+# The timeout is DECLARED because a cold cmd/ze le personality build precedes four walks of
 # the spec tree, each asking git for one date per spec.
 
 option=timeout:value=300s
@@ -47,7 +47,8 @@ here = os.getcwd()
 binary = os.path.join(here, 'le')
 script = os.path.join(here, 'spec-status')
 
-for args in (['go', 'build', '-o', binary, './cmd/le'],
+for args in (['make', '--no-print-directory', 'le-build',
+              f'ZE_BIN_DIR={os.path.dirname(binary)}'],
              ['go', 'build', '-o', script, 'scripts/status/spec_status.go']):
     built = subprocess.run(args, cwd=root, capture_output=True, text=True,
                            check=False, env={**os.environ, 'CGO_ENABLED': '0'})

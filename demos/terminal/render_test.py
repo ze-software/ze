@@ -109,8 +109,8 @@ class DefinitionDigestTest(unittest.TestCase):
                     "demos": {
                         "sample": {
                             "release": "old",
-                            "source_sha256": "stale-source",
-                            "definition_sha256": render.definition_digest(demo),
+                            "source-sha256": "stale-source",
+                            "definition-sha256": render.definition_digest(demo),
                             "assets": assets,
                         }
                     },
@@ -121,7 +121,7 @@ class DefinitionDigestTest(unittest.TestCase):
         )
 
         # The assertion is that this call returns rather than raises. A stale
-        # source_sha256 must not be read when definition_only is set.
+        # source-sha256 must not be read when definition_only is set.
         render.verify_assets(
             manifest, {"sample": demo}, ["sample"], None, definition_only=True
         )

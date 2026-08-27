@@ -2,7 +2,7 @@
 // the command agree, on what they PRINT, on what they EXIT with, and on the
 // BYTES they leave behind.
 //
-// scripts/dev/go_extract.go is being replaced by letools/goextract, and the two
+// scripts/dev/go_extract.go is being replaced by internal/le/goextract, and the two
 // live side by side until the swap (plan/spec-le-is-a-ze-binary.md, step 14).
 // This file is what makes that safe, and it is deliberately HERE rather than
 // beside the new package: it is a migration artifact, so it is deleted by the
@@ -48,8 +48,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/letools/goextract"
-	"github.com/ze-software/ze/letools/leroot"
+	"github.com/ze-software/ze/internal/le/goextract"
+	"github.com/ze-software/ze/internal/le/leroot"
 )
 
 // The two bounds this file needs. A link and a move over a three-file fixture
@@ -444,7 +444,7 @@ func TestScriptGoExtractStillMovesAPartialSetOfSymbols(t *testing.T) {
 	// The script matches what it can and refuses only when NOTHING matched, so
 	// one mistyped name of two moves the other and reports success. The port
 	// refuses the whole move and names the symbol that is not there
-	// (letools/goextract, match).
+	// (internal/le/goextract, match).
 	//
 	// This case asserts the SCRIPT still does it, so it reddens the day
 	// somebody fixes the script -- and the answer then is to delete the script
@@ -466,7 +466,7 @@ func TestScriptGoExtractStillMovesAPartialSetOfSymbols(t *testing.T) {
 func TestScriptGoExtractStillEmptiesTheSourceWhenTheDestinationCannotBeWritten(t *testing.T) {
 	// The script writes the SOURCE first and the destination second, so a
 	// destination it cannot write leaves the declaration in neither file. The
-	// port writes the destination first (letools/goextract, Move).
+	// port writes the destination first (internal/le/goextract, Move).
 	//
 	// This case asserts the SCRIPT still does it, so it reddens the day
 	// somebody fixes the script.
@@ -495,7 +495,7 @@ func TestScriptGoExtractStillOverwritesADestinationItCannotRead(t *testing.T) {
 	// there" and writes a fresh file over it, so a destination it cannot read
 	// is a destination it destroys. A write-only file is the case: reading is
 	// refused and writing is not. The port refuses before either file is
-	// written (letools/goextract, destBody).
+	// written (internal/le/goextract, destBody).
 	//
 	// This case asserts the SCRIPT still does it, so it reddens the day
 	// somebody fixes the script.

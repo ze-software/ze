@@ -1,7 +1,7 @@
 // The migration's proof for `le fuzz` and for the toolchain behind it: the
 // script and the command run the same Go commands.
 //
-// letools/fuzz and letools/gotoolchain replace scripts/le/application/fuzz.py
+// internal/le/fuzz and internal/le/gotoolchain replace scripts/le/application/fuzz.py
 // and scripts/le/devtools/toolchain.py. Both versions remain until the swap. This
 // file is deliberately HERE because it is a migration artifact. The commit that
 // deletes the scripts also deletes this proof.
@@ -28,9 +28,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/letools/fuzz"
-	"github.com/ze-software/ze/letools/gotoolchain"
-	"github.com/ze-software/ze/letools/lepath"
+	"github.com/ze-software/ze/internal/le/fuzz"
+	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 // repoRoot answers the checkout both halves are pointed at.

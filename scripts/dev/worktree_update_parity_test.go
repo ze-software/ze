@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/letools/worktree"
+	"github.com/ze-software/ze/internal/le/worktree"
 )
 
-// VALIDATES: letools/worktree leaves a real git worktree in the state
+// VALIDATES: internal/le/worktree leaves a real git worktree in the state
 // scripts/dev/worktree_update.sh leaves it in -- and refuses the detached
 // checkout the script rewrites and calls done.
 // PREVENTS: a swap (step 14) that turns a rebase-and-stash script into a

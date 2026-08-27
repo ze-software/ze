@@ -1,10 +1,11 @@
-.PHONY: all build ze-build ze-appliance-build ze-setup-build ze-stripped-build ze-chaos-build ze-test-build ze-analyze-build clean clean-all fmt vet tidy generate help
+.PHONY: all build le-build ze-build ze-appliance-build ze-setup-build ze-stripped-build ze-chaos-build ze-test-build ze-analyze-build clean clean-all fmt vet tidy generate help
 .PHONY: ze-docker-build ze-docker-lab-build
 .PHONY: ze-lint _ze-lint-impl ze-evidence-vet ze-unit-reactor-test-race ze-unit-linux-test ze-functional-exabgp-test ze-dependency-vulnerability-check
 .PHONY: ze-standard-test ze-precommit-verify ze-precommit-verify-changed ze-precommit-verify-list ze-repository-check ze-repository-tree-check ze-smoke-verify ze-ci-verify ze-verify-all ze-test-all
 .PHONY: ze-lint-changed ze-unit-test-changed ze-scratch-clean ze-session-clean ze-session-reap ze-unit-hook-test
 .PHONY: ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-yang-leaf-mentions-report ze-platform-vet ze-ci-dispatch-check
 .PHONY: ze-test-sensitivity-check ze-test-health-update ze-test-health-check ze-test-health-record ze-test-weakened-check
+.PHONY: ze-site-facts-update ze-site-facts-check
 .PHONY: ze-staticcheck-feature-matrix-check ze-repository-tracked-build-check ze-le-tracked-import-check ze-verify-scope-selector ze-verify-debt-clear
 .PHONY: ze-iso-build-full ze-iso-initialize ze-iso-build ze-iso-check ze-pxe-build
 .PHONY: ze-vendor-web-sync ze-vendor-web-check ze-vendor-web-update-report ze-htmx-upgrade-check ze-htmx-upgrade-report ze-ai-skills-sync ze-ai-instructions-generate ze-ai-sync-check
@@ -508,7 +509,7 @@ _ze-plugin-snapshot-update-impl:
 	@$(GO_TEST) -run 'TestRegisteredPluginNames|TestRegisteredWireMethods|TestYANGSchemaProviders' ./internal/component/plugin/all/ -update
 	@echo "Updated internal/component/plugin/all/testdata/*.snapshot"
 
-build: generate $(ZEBIN_ZE) $(ZEBIN_APPLIANCE) $(ZEBIN_SETUP) $(ZEBIN_STRIPPED) $(ZEBIN_TEST) $(ZEBIN_CHAOS) $(ZEBIN_PERF) $(ZEBIN_ANALYZE)
+build: generate $(ZEBIN_LE) $(ZEBIN_ZE) $(ZEBIN_APPLIANCE) $(ZEBIN_SETUP) $(ZEBIN_STRIPPED) $(ZEBIN_TEST) $(ZEBIN_CHAOS) $(ZEBIN_PERF) $(ZEBIN_ANALYZE)
 	@echo "All binaries built"
 ZE_SITE_OUTPUT ?= $(CURDIR)/../gh-pages
 ZE_SITE_DEMO_OUTPUT ?= $(ZE_SITE_OUTPUT)/assets/demos
@@ -521,6 +522,10 @@ ze-site-generate: $(ZEBIN_ZE)
 	uv run --with pytest --with markdown python3 -m pytest -q website/tools/test_*.py
 	ZE_SITE_OUTPUT="$(ZE_SITE_OUTPUT)" ZE_TERMINAL_DEMO_SOURCE="$(ZE_SITE_DEMO_OUTPUT)" website/update-website.sh
 
+
+le-build:
+	@mkdir -p $(ZE_BIN_DIR)
+	CGO_ENABLED=0 $(GO) build -tags 'ze_le $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZEBIN_LE) ./cmd/ze
 
 ze-build:
 	@mkdir -p $(ZE_BIN_DIR)
@@ -556,6 +561,11 @@ ze-analyze-build:
 	@mkdir -p $(ZE_BIN_DIR)
 	CGO_ENABLED=0 $(GO) build -tags ze_analyze -o $(ZEBIN_ANALYZE) ./cmd/ze
 
+
+$(ZEBIN_LE): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
+	@echo "Building le..."
+	@mkdir -p $(ZE_BIN_DIR)
+	CGO_ENABLED=0 $(GO) build -tags 'ze_le $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZEBIN_LE) ./cmd/ze
 
 $(ZEBIN_ZE): $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze..."
@@ -1129,6 +1139,18 @@ ze-test-health-update:
 ze-test-health-check:
 	@$(CURDIR)/le repository ze-test-health-check
 
+# Regenerate website/data/repo-facts.json, the numbers the website publishes
+# about this repository. Same shape as the pair above, for the same reason: the
+# site build reads the committed file instead of walking a checkout several
+# sessions share, so a published figure is a claim about a commit.
+ze-site-facts-update:
+	@$(CURDIR)/le repository ze-site-facts-update
+
+# Staleness gate for the above; a prerequisite of ze-generated-files-check. It
+# judges the last COMMIT in a throwaway worktree, never the working tree.
+ze-site-facts-check:
+	@$(CURDIR)/le repository ze-site-facts-check
+
 # Append one KPI row to test/health/history.ndjson. Run after a mutation or verify
 # run; the page renders trends from the committed history, never from live output.
 ze-test-health-record:
@@ -1250,7 +1272,7 @@ ze-ai-skills-sync:
 ze-ai-sync-check:
 	@scripts/dev/skill_sync.sh --check
 
-ze-generated-files-update: generate ze-rules-render-update ze-rules-condensed-update ze-ai-instructions-generate ze-ai-skills-sync ze-doc-index-update ze-rules-index-update ze-discovery-index-update ze-test-health-update
+ze-generated-files-update: generate ze-rules-render-update ze-rules-condensed-update ze-ai-instructions-generate ze-ai-skills-sync ze-doc-index-update ze-rules-index-update ze-discovery-index-update ze-test-health-update ze-site-facts-update
 	@echo "All generated files updated"
 
 # Write-safe twin of ze-generated-files-reconcile, and the ONLY one wired into verify
@@ -1321,7 +1343,7 @@ ze-generated-files-update: generate ze-rules-render-update ze-rules-condensed-up
 ze-arch-map-check:
 	@$(CURDIR)/le generate ze-arch-map-check
 
-ze-generated-files-check: ze-plugin-imports-check ze-yang-glue-check ze-feature-tags-check ze-templ-output-check ze-vendor-web-check ze-web-assets-check ze-doc-index-check ze-rules-render-check ze-rules-index-check ze-rules-condensed-check ze-rules-lint ze-arch-map-check ze-discovery-index-check ze-test-health-check
+ze-generated-files-check: ze-plugin-imports-check ze-yang-glue-check ze-feature-tags-check ze-templ-output-check ze-vendor-web-check ze-web-assets-check ze-doc-index-check ze-rules-render-check ze-rules-index-check ze-rules-condensed-check ze-rules-lint ze-arch-map-check ze-discovery-index-check ze-test-health-check ze-site-facts-check
 	@echo "All generated files are up to date"
 
 ze-generated-files-reconcile: ze-generated-files-update
@@ -1642,6 +1664,8 @@ help-test:
 	@echo "  Test health (would a regression be caught, not how many tests exist):"
 	@echo "    ze-test-health-update                      Regenerate docs/features/test-health.md + test/health/"
 	@echo "    ze-test-health-check                       Fail if a structural fact drifted (in ze-precommit-verify)"
+	@echo "    ze-site-facts-update                       Regenerate website/data/repo-facts.json, the numbers the site publishes"
+	@echo "    ze-site-facts-check                        Fail if the last commit publishes different numbers (in ze-precommit-verify)"
 	@echo "    ze-test-health-record                      Append one KPI sample to the committed history"
 	@echo "    ze-test-sensitivity-check                  Ratchet: tests that cannot fail, files no target runs"
 	@echo "    ze-test-weakened-check                     Check test/weakened.md parses for the commit gate"

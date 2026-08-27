@@ -1,7 +1,7 @@
 // The migration's proof for the five generators here: the scripts and the
 // commands agree, on what they PRINT and on what they WRITE.
 //
-// scripts/codegen/*.go are being replaced by letools/{yangglue,pluginimports,
+// scripts/codegen/*.go are being replaced by internal/le/{yangglue,pluginimports,
 // featuretags,webassets,ianaasn}, and the two live side by side until the swap
 // (plan/spec-le-is-a-ze-binary.md, step 14). This file is what makes that safe,
 // and it is deliberately HERE rather than beside the new packages: it is a
@@ -34,7 +34,7 @@
 //     stdout where `| json` can carry it, and only a genuine failure reaches
 //     stderr. The two streams are therefore compared TOGETHER. What each stream
 //     carries is not left unchecked -- it is a property of leroot.Run and
-//     leaction.ReportError, which every ported tool shares and letools/leroot
+//     leaction.ReportError, which every ported tool shares and internal/le/leroot
 //     tests directly.
 //
 // TWO fail-open behaviors of the scripts are pinned rather than reproduced, so
@@ -69,11 +69,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/letools/featuretags"
-	"github.com/ze-software/ze/letools/ianaasn"
-	"github.com/ze-software/ze/letools/pluginimports"
-	"github.com/ze-software/ze/letools/webassets"
-	"github.com/ze-software/ze/letools/yangglue"
+	"github.com/ze-software/ze/internal/le/featuretags"
+	"github.com/ze-software/ze/internal/le/ianaasn"
+	"github.com/ze-software/ze/internal/le/pluginimports"
+	"github.com/ze-software/ze/internal/le/webassets"
+	"github.com/ze-software/ze/internal/le/yangglue"
 )
 
 // The two bounds this file needs. A link and a walk of a fixture tree are both

@@ -3663,6 +3663,21 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
         repr(r),
     )
 
+    # The same quote boundary owns the blocking comment arm. `//require.NoError`
+    # inside a balanced URL string is fixture data, not a disabled assertion.
+    r = edit(
+        '\trequire.Equal(t, 1, got)\n',
+        '\turl := "https://example.test//require.NoError"\n'
+        '\trequire.Equal(t, 1, got)\n'
+        '\t_ = url\n',
+        taut_go,
+    )
+    results.check(
+        'relax-go-assertion-like-url-is-not-a-comment',
+        r is None,
+        repr(r),
+    )
+
     # ...and a TRAILING comment must not PAY for deleted coverage. Stripping only
     # whole-line comments left this open on every arm that is not statement-anchored.
     r = edit(

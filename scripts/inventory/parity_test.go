@@ -2,7 +2,7 @@
 // agree.
 //
 // scripts/inventory/inventory.go and commands.go are being replaced by
-// letools/inventory and letools/commandlist, and the two sides live together
+// internal/le/inventory and internal/le/commandlist, and the two sides live together
 // until the swap (plan/spec-le-is-a-ze-binary.md, step 14). This file is what
 // makes that safe, and it is deliberately HERE rather than beside the new
 // packages: it is a migration artifact, so it is deleted by the same commit
@@ -49,8 +49,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/letools/commandlist"
-	"github.com/ze-software/ze/letools/inventory"
+	"github.com/ze-software/ze/internal/le/commandlist"
+	"github.com/ze-software/ze/internal/le/inventory"
 )
 
 // The two bounds this test needs. A link of the product and a walk of a fixture

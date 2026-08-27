@@ -46,7 +46,8 @@ binary = os.path.join(here, 'le')
 check_script = os.path.join(here, 'check_web')
 sync_script = os.path.join(here, 'sync_web')
 
-for args in (['go', 'build', '-o', binary, './cmd/le'],
+for args in (['make', '--no-print-directory', 'le-build',
+              f'ZE_BIN_DIR={os.path.dirname(binary)}'],
              ['go', 'build', '-o', check_script, 'scripts/vendor/check_web.go'],
              ['go', 'build', '-o', sync_script, 'scripts/vendor/sync_web.go']):
     built = subprocess.run(args, cwd=root, capture_output=True, text=True, check=False)

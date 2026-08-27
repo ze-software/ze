@@ -6,7 +6,7 @@
     "image": "ze-terminal-demo-render-all:debian-13-playwright-1.55.0-firacode-6.002-notosans-2.015-liberation-2.1.5",
     "platform": "linux/native"
   },
-  "gallery_page": "guide/terminal-demonstrations.md",
+  "gallery-page": "guide/terminal-demonstrations.md",
   "demos": [
     {
       "id": "cli-dashboard",

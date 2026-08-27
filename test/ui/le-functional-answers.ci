@@ -54,9 +54,10 @@ def feature_tags():
 
 
 binary = os.path.join(here, 'le')
-built = subprocess.run(['go', 'build', '-tags', feature_tags(), '-o', binary, './cmd/le'],
+built = subprocess.run(['make', '--no-print-directory', 'le-build',
+                        f'ZE_BIN_DIR={os.path.dirname(binary)}'],
                        cwd=root, capture_output=True, text=True, check=False)
-require(built.returncode == 0, f'building cmd/le failed: {built.stderr}')
+require(built.returncode == 0, f'building the cmd/ze le personality failed: {built.stderr}')
 
 
 def run(argv, cwd=here):

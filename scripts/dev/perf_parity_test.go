@@ -11,7 +11,7 @@
 // when the fixture has no file under that prefix. Thus, the test also compares
 // the two lists BY VALUE.
 //
-// This file is deliberately HERE instead of beside letools/perfbench. It is a
+// This file is deliberately HERE instead of beside internal/le/perfbench. It is a
 // migration artifact, so the commit that deletes the script also deletes its
 // proof.
 //
@@ -32,7 +32,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/letools/perfbench"
+	"github.com/ze-software/ze/internal/le/perfbench"
 )
 
 const (

@@ -1,0 +1,22 @@
+// Design: docs/architecture/core-design.md -- le composition, one import per tool
+package verifyworktree
+
+import (
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/parity"
+	"github.com/ze-software/ze/internal/le/verifydispatch"
+)
+
+func init() {
+	SetGateRunner(verifydispatch.RunGate)
+	leroot.Register(area, Answer, registry.Meta{
+		Description: "the full pre-commit gate against a fixed commit in a detached worktree",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
+	})
+	leroot.RegisterShape(area, command.ShapeDoc)
+	parity.Claim(area, Gates()...)
+}

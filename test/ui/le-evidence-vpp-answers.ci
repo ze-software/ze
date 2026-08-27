@@ -1,28 +1,27 @@
-# Test: the BUILT le binary runs the two VPP evidence gates ported in step 10b
-#       of spec-le-is-a-ze-binary, end to end, and renders their answers through
-#       the shared pipe operators.
+# Test: the BUILT le binary runs the three real VPP evidence gates, end to end,
+#       and renders their answers through the shared pipe operators.
 #
 # VALIDATES: spec-le-is-a-ze-binary AC-1, AC-7 and AC-8 for
-#            `le deployment vpp-iface-test` and `le qemu vpp-hugepages-test`,
-#            against the artifact a developer runs.
+#            `le deployment vpp-test`, `le deployment vpp-iface-test`, and
+#            `le qemu vpp-hugepages-test`, against the artifact a developer runs.
 # PREVENTS: a green package suite over a binary that does not compose, and a
 #           command whose answer only renders because a test called the function
 #           rather than the binary.
 #
-# Neither command needs Docker, QEMU or an appliance here. Both reach the outside
-# world through PATH, so this file puts recording stand-ins in front of them: the
-# same seam the parity tests beside the Python scripts use, driven one layer
-# further out. What that buys is the whole path -- argv, the registry, the action
-# table, the payload and the renderer -- over a fixture checkout that no
-# container and no virtual machine ever sees.
+# The three commands need no Docker, QEMU, or appliance here. They reach the
+# outside world through PATH, so this file puts recording stand-ins in front of
+# them. The parity tests beside the Python scripts use the same seam. This test
+# drives it one layer further out. It covers argv, the registry, the action
+# table, the payload, and the renderer over a fixture checkout that no container
+# or virtual machine sees.
 #
-# The timeout is DECLARED because a cold build cache makes the first compile of
-# cmd/le far slower than the steady state.
+# The timeout is DECLARED because a cold build cache makes the first cmd/ze
+# le-personality compile far slower than the steady state.
 
 option=timeout:value=300s
 
 tmpfs=run.py:terminator=EOF_PY
-"""Compile le, then drive the two VPP evidence commands the way a developer does."""
+"""Compile le, then drive the three VPP evidence commands the way a developer does."""
 import json
 import os
 import stat
@@ -38,11 +37,21 @@ root = os.environ['ZE_REPO_ROOT']
 work = os.getcwd()
 binary = os.path.join(work, 'le')
 
+# Registry-backed le tools must see the same full feature set as the product.
+tags = {'ze_le'}
+with open(os.path.join(root, 'feature-gates.txt'), encoding='utf-8') as handle:
+    for line in handle:
+        words = line.split()
+        if words and words[0].startswith('ze_'):
+            tags.add(words[0])
+tagset = ' '.join(sorted(tags))
+build_env = dict(os.environ)
+build_env['CGO_ENABLED'] = '0'
 compiled = subprocess.run(
-    ['go', 'build', '-o', binary, './cmd/le'],
-    cwd=root, capture_output=True, text=True, check=False,
+    ['go', 'build', '-tags', tagset, '-o', binary, './cmd/ze'],
+    cwd=root, capture_output=True, text=True, check=False, env=build_env,
 )
-require(compiled.returncode == 0, f'compiling ./cmd/le failed: {compiled.stderr}')
+require(compiled.returncode == 0, f'compiling the cmd/ze le personality failed: {compiled.stderr}')
 
 # A fixture checkout: the two markers lepath.Root looks for, and the manifest the
 # daemon build tags derive from.
@@ -76,6 +85,18 @@ await_daemon() {
   done
   return 0
 }
+mkdir -p "$ZE_VPP_STATE"
+state() { printf '%s/%s' "$ZE_VPP_STATE" "$1"; }
+has() { [ -f "$(state "$1")" ]; }
+set_state() { : > "$(state "$1")"; }
+await_state() {
+  for _ in $(seq 60); do
+    if has "$1"; then return 0; fi
+    sleep 0.05
+  done
+  return 1
+}
+clear_state() { rm -f "$(state "$1")"; }
 case "$1" in
   image) record "$@" ; exit 0 ;;
   pull)  record "$@" ; exit 0 ;;
@@ -94,6 +115,27 @@ case "$1" in
       *"vpp -c /run/vpp/startup.conf"*)
         record "$@"
         w=$(cat "$ZE_VPP_WORK") ; : > "$w/api.sock" ; : > "$w/cli.sock" ; exit 0 ;;
+      *"TestVPPRealDataplaneInstalls"*)
+        record "$@"
+        printf '%s\n' 'ze-vpp-ipsec:spd-id=41' 'ze-vpp-ipsec:sad-id=42' \
+          'ze-vpp-ipsec:close-removed-spi=43' 'ze-vpp-ipsec:close-removed-spd-id=44'
+        exit 0 ;;
+      *"show ipsec sa 0"*)
+        record "$@"
+        printf '%s' 'salt 0xdeadbeef aes-gcm-256 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f integrity alg none encap-copy-ecn decap-copy-ecn'
+        exit 0 ;;
+      *"show ipsec sa"*)
+        record "$@"
+        printf '%s' '[0] spi 287454020 protocol:esp tunnel
+[1] spi 1432778632 protocol:esp tunnel inbound'
+        exit 0 ;;
+      *"show ipsec all"*)
+        record "$@"
+        printf '%s' 'spd 41
+41 -> loop0
+priority -100 action bypass type ip4-outbound protocol any
+priority -2000 action protect type ip4-outbound protocol any'
+        exit 0 ;;
       *"show plugins"*)
         record "$@"
         if [ "${ZE_PLUGINS_EXIT:-0}" != "0" ]; then
@@ -101,19 +143,61 @@ case "$1" in
         fi
         echo "wireguard_plugin.so" ; echo "linux_cp_plugin.so" ; echo "linux_nl_plugin.so" ; exit 0 ;;
       *"show version"*) record "$@" ; echo "vpp v24.02-release" ; exit 0 ;;
+      *"create loopback interface"*) record "$@" ; echo loop0 ; exit 0 ;;
+      *"set interface state loop0 up"*) record "$@" ; exit 0 ;;
       *"show gre tunnel"*)
         await_daemon tunnel.conf ; record "$@"
         echo "[0] instance 0 src 10.10.10.1 dst 10.10.10.2" ; exit 0 ;;
       *"show interface span"*)
         await_daemon mirror.conf ; record "$@"
         echo "msrc0    rx    mdst0" ; exit 0 ;;
-      *"show interface"*) record "$@" ; echo "local0    0    down" ; exit 0 ;;
+      *"show interface features loop0"*)
+        record "$@"
+        has pol-default && echo "policer-output"
+        if has pol-tcp || has pol-cs6 || has pol-web || has pol-dns; then echo "policer-classify"; fi
+        exit 0 ;;
+      *"show interface"*) record "$@" ; printf 'loop0 7 up\nlocal0 0 down\n' ; exit 0 ;;
       *"show wireguard interface"*)
         await_daemon wg.conf ; record "$@"
         echo "[0] wg0 port 51820" ; exit 0 ;;
       *"show lcp"*)
         await_daemon lcp.conf ; record "$@"
         echo "itf-pair: [0] loop0 tap0 host" ; exit 0 ;;
+      *"show ip fib 10.20.0.0/24"*) record "$@" ; has fib && echo "10.20.0.0/24 via 10.0.0.1" ; exit 0 ;;
+      *"show ip fib 10.30.0.0/24"*) record "$@" ; has mpls && echo "10.30.0.0/24 via 10.0.0.1 label 100" ; exit 0 ;;
+      *"show policer"*)
+        w=$(cat "$ZE_VPP_WORK")
+        if has pol-default && ! grep -q 'interface loop0' "$w/traffic.conf"; then await_state clear-pol-default; fi
+        if has pol-tcp && ! grep -q 'interface loop0' "$w/traffic-proto.conf"; then await_state clear-pol-tcp; fi
+        if has pol-cs6 && ! grep -q 'interface loop0' "$w/traffic-dscp.conf"; then await_state clear-pol-cs6; fi
+        if has pol-web && ! grep -q 'interface loop0' "$w/traffic-mc.conf"; then await_state clear-pol-multi; fi
+        record "$@"
+        has pol-default && echo "ze/loop0/default"
+        has pol-tcp && echo "ze/loop0/tcp"
+        has pol-cs6 && echo "ze/loop0/cs6"
+        has pol-web && echo "ze/loop0/web"
+        has pol-dns && echo "ze/loop0/dns"
+        if has clear-pol-default; then clear_state pol-default; clear_state clear-pol-default; fi
+        if has clear-pol-tcp; then clear_state pol-tcp; clear_state clear-pol-tcp; fi
+        if has clear-pol-cs6; then clear_state pol-cs6; clear_state clear-pol-cs6; fi
+        if has clear-pol-multi; then clear_state pol-web; clear_state pol-dns; clear_state clear-pol-multi; fi
+        exit 0 ;;
+      *"show classify tables"*) record "$@" ; echo "table 0 sessions" ; exit 0 ;;
+      *"show acl-plugin interface loop0"*) record "$@" ; has acl && echo "input acl 0" ; exit 0 ;;
+      *"show acl-plugin acl"*)
+        if has acl && ! grep -q 'table wan' "$(cat "$ZE_VPP_WORK")/firewall.conf"; then await_state clear-acl; fi
+        record "$@"
+        has acl && echo "ze/wan/input"
+        if has clear-acl; then clear_state acl; clear_state clear-acl; fi
+        exit 0 ;;
+      *"pkill -TERM -f ze-test-linux-amd64"*) record "$@" ; clear_state fib ; clear_state mpls ; exit 0 ;;
+      *"/ze-test-linux-amd64 peer "*)
+        record "$@"
+        case "$*" in *mpls-peer-script*) marker=mpls ;; *) marker=fib ;; esac
+        set_state "$marker"
+        echo "listening on 127.0.0.1"
+        while has "$marker"; do sleep 0.05; done
+        exit 0 ;;
       *"ip link show"*) record "$@" ; echo "1: lo: <LOOPBACK,UP>" ; exit 0 ;;
       *"start /run/vpp/"*)
         record "$@"
@@ -122,7 +206,18 @@ case "$1" in
           case "$a" in /run/vpp/*.conf) conf=${a#/run/vpp/} ;; esac
         done
         : > "$ZE_VPP_WORK.$conf"
-        echo "ze: interface backend vpp ready" >&2 ; sleep 5 ; exit 0 ;;
+        w=$(cat "$ZE_VPP_WORK")
+        case "$conf" in
+          traffic.conf) grep -q 'interface loop0' "$w/$conf" && set_state pol-default || set_state clear-pol-default ; echo "traffic-control config applied" >&2 ;;
+          traffic-proto.conf) grep -q 'interface loop0' "$w/$conf" && set_state pol-tcp || set_state clear-pol-tcp ; echo "traffic-control config applied" >&2 ;;
+          traffic-dscp.conf) grep -q 'interface loop0' "$w/$conf" && set_state pol-cs6 || set_state clear-pol-cs6 ; echo "traffic-control config applied" >&2 ;;
+          traffic-mc.conf)
+            if grep -q 'interface loop0' "$w/$conf"; then set_state pol-web; set_state pol-dns; else set_state clear-pol-multi; fi
+            echo "traffic-control config applied" >&2 ;;
+          firewall.conf) grep -q 'table wan' "$w/$conf" && set_state acl || set_state clear-acl ; echo "firewall config applied" >&2 ;;
+          *) echo "ze: interface backend vpp ready" >&2 ;;
+        esac
+        exec sleep 300 ;;
       *) record "$@" ; exit 0 ;;
     esac ;;
 esac
@@ -197,6 +292,11 @@ def le(*args, record=None, plugins_exit='0', cmdline=None, total='64'):
     env['ZE_REPO_ROOT'] = fixture
     env['ZE_RECORD_DOCKER'] = record or os.path.join(work, 'docker-argv')
     env['ZE_VPP_WORK'] = os.path.join(work, 'vpp-work')
+    state_key = os.path.basename(env['ZE_RECORD_DOCKER'])
+    env['ZE_VPP_STATE'] = os.path.join(work, f'vpp-state-{state_key}')
+    env['ZE_VPP_DOCKER_IMAGE'] = 'ligato/vpp-base:latest'
+    env['ZE_VPP_DOCKER_PLATFORM'] = 'linux/amd64'
+    env['ZE_VPP_DOCKER_GOARCH'] = 'amd64'
     env['ZE_PLUGINS_EXIT'] = plugins_exit
     env['ZE_VPP_HP_KEEP'] = '1'
     env['ZE_VPP_HP_SSH_PORT'] = '34122'
@@ -263,6 +363,55 @@ require(broken.returncode == 1,
 require(not any('start /run/vpp/' in call
                 for call in recorded(os.path.join(work, 'iface-broken'))),
         'ze was started on a plugin answer nobody obtained')
+
+# The eight-scenario VPP deployment proof, through the built command and the
+# shared structured-data renderer.
+record = os.path.join(work, 'vpp-evidence-argv')
+evidence = le('deployment', 'vpp-test', '|', 'json', record=record)
+require(evidence.returncode == 0,
+        f'the VPP deployment proof exited {evidence.returncode}: {evidence.stderr[-800:]}')
+vpp_report = json.loads(evidence.stdout)
+for key in ('image', 'container', 'vpp-version', 'interface', 'scenarios', 'passed'):
+    require(key in vpp_report,
+            f'the VPP deployment proof answered no {key!r}: {sorted(vpp_report)}')
+require(vpp_report['passed'] is True, 'the VPP deployment proof did not pass')
+require(len(vpp_report['scenarios']) == 8,
+        f'the VPP deployment proof ran {len(vpp_report["scenarios"])} scenarios, want 8')
+check_count = sum(len(one['checks']) for one in vpp_report['scenarios'])
+require(check_count == 21,
+        f'the VPP deployment proof returned {check_count} checks, want 21')
+for one in vpp_report['scenarios']:
+    require(one['verdict'] == 'pass',
+            f'VPP scenario {one["scenario"]} answered {one["verdict"]}')
+
+vpp_calls = recorded(record)
+require(len(vpp_calls) == 62,
+        f'the VPP deployment proof made {len(vpp_calls)} Docker calls, want 62 '
+        '(57 distinct steps plus five cleanup polls)')
+for owed in ('TestVPPRealDataplaneInstalls', 'show ip fib 10.20.0.0/24',
+             'show classify tables', 'show acl-plugin acl'):
+    require(any(owed in call for call in vpp_calls),
+            f'the VPP deployment proof made no call carrying {owed!r}')
+
+evidence_yaml = le('deployment', 'vpp-test', '|', 'yaml',
+                   record=os.path.join(work, 'vpp-evidence-yaml-argv'))
+require(evidence_yaml.returncode == 0,
+        f'the YAML VPP deployment proof exited {evidence_yaml.returncode}')
+require('scenarios:' in evidence_yaml.stdout and 'passed: true' in evidence_yaml.stdout,
+        f'the YAML renderer omitted the structured report: {evidence_yaml.stdout[:300]!r}')
+
+evidence_table = le('deployment', 'vpp-test', '|', 'table',
+                    record=os.path.join(work, 'vpp-evidence-table-argv'))
+require(evidence_table.returncode == 0,
+        f'the table VPP deployment proof exited {evidence_table.returncode}')
+for heading in ('scenario', 'verdict', 'checks'):
+    require(heading in evidence_table.stdout,
+            f'the VPP table has no {heading!r} scenario column: {evidence_table.stdout[:500]!r}')
+for scenario in ('ipsec', 'ipv4-fib', 'mpls-fib', 'traffic-interface-class',
+                 'traffic-protocol-class', 'traffic-dscp-class',
+                 'traffic-multi-class', 'firewall-acl'):
+    require(scenario in evidence_table.stdout,
+            f'the VPP table omitted scenario {scenario!r}: {evidence_table.stdout[:500]!r}')
 
 # The hugepage proof, end to end: it builds a host ze, builds an appliance, boots
 # it, and asks the booted appliance two questions over its own CLI.

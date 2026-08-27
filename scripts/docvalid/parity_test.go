@@ -2,7 +2,7 @@
 // agree.
 //
 // scripts/docvalid/doc_drift.go and commands.go are being replaced by
-// letools/docvalid, and the two sides live together until the swap
+// internal/le/docvalid, and the two sides live together until the swap
 // (plan/spec-le-is-a-ze-binary.md, step 14). This file is what makes that safe,
 // and it is deliberately HERE rather than beside the new package: it is a
 // migration artifact, so it is deleted by the same commit that deletes the
@@ -57,7 +57,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/letools/docvalid"
+	"github.com/ze-software/ze/internal/le/docvalid"
 )
 
 // The two bounds this test needs. A link of the product and a walk of this

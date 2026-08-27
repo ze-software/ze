@@ -56,8 +56,7 @@ func TestInteropRunnerFailsClosedWithoutDocker(t *testing.T) {
 	if err == nil {
 		t.Fatalf("test/interop/run.py exited 0 with no Docker; it must fail closed.\noutput:\n%s", out)
 	}
-	var exitErr *exec.ExitError
-	if !errors.As(err, &exitErr) {
+	if _, ok := errors.AsType[*exec.ExitError](err); !ok {
 		t.Fatalf("run.py did not run: %v\noutput:\n%s", err, out)
 	}
 	text := strings.ToLower(string(out))

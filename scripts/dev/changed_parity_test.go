@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/letools/changed"
+	"github.com/ze-software/ze/internal/le/changed"
 )
 
-// VALIDATES: letools/changed answers what scripts/dev/changed-groups.sh and
+// VALIDATES: internal/le/changed answers what scripts/dev/changed-groups.sh and
 // scripts/dev/changed-pkgs.sh answer, over the same checkout -- and fails
 // CLOSED on the three routes where the shell half fails open.
 // PREVENTS: a swap (step 14) that repoints mk/test-unit.mk and the scoped
@@ -60,7 +60,7 @@ func changedFixture(t *testing.T) string {
 	git(t, root, "add", "internal/core/env/env.go")
 	write("cmd/ze/main.go", "package main\n\nfunc main() {}\n")
 	write("internal/component/l2tp/ppp/session.go", "package ppp\n")
-	write("letools/tool/tool.go", "package tool\n")
+	write("internal/le/tool/tool.go", "package tool\n")
 	write("scripts/gen/gen.go", "//go:build zzz_never_defined\n\npackage main\n")
 	return root
 }
@@ -188,7 +188,7 @@ func TestBothHalvesAnswerTheSamePackagePatterns(t *testing.T) {
 		"./internal/component/bgp/...",
 		"./internal/component/l2tp/...",
 		"./internal/core/...",
-		"./letools/tool",
+		"./internal/le/tool",
 	}
 	equal(t, "the shell's patterns", sorted(shell), want)
 	equal(t, "the port's patterns", sorted(port), want)

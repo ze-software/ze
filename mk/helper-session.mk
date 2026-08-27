@@ -168,6 +168,7 @@ endif
 # rebuild forever). The final element of $(ZE_BIN_DIR) is always `bin`, or ze
 # cannot resolve a config directory at all (internal/core/paths/paths.go
 # isBinDir).
+ZEBIN_LE        := $(ZE_BIN_DIR)/le
 ZEBIN_ZE        := $(ZE_BIN_DIR)/ze
 ZEBIN_APPLIANCE := $(ZE_BIN_DIR)/ze-appliance
 ZEBIN_SETUP     := $(ZE_BIN_DIR)/ze-setup

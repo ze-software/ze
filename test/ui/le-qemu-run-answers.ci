@@ -1,0 +1,178 @@
+# Test: the built le binary drives the host QEMU harness through recording
+#       stand-ins and renders its structured report through every global pipe.
+#
+# VALIDATES: `le qemu run` keyword grammar, built-binary dispatch, dotted
+#            environment preservation, structured output, and guest exit codes.
+# PREVENTS: a function-only proof, a Python fork, or a report that bypasses the
+#           shared pipe registry.
+
+option=timeout:value=300s
+
+tmpfs=run.py:terminator=EOF_PY
+import hashlib
+import json
+import os
+import stat
+import subprocess
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(f'FAIL: {message}')
+
+
+root = os.environ['ZE_REPO_ROOT']
+work = os.getcwd()
+
+
+def feature_tags():
+    """ze_core plus every ze_* tag feature-gates.txt declares, sorted."""
+    found = set()
+    with open(os.path.join(root, 'feature-gates.txt'), encoding='utf-8') as handle:
+        for line in handle:
+            words = line.split()
+            if words and words[0].startswith('ze_'):
+                found.add(words[0])
+    return ','.join(['ze_core'] + sorted(found))
+
+
+binary = os.path.join(work, 'le')
+build_env = dict(os.environ)
+build_env['CGO_ENABLED'] = '0'
+compiled = subprocess.run(
+    ['make', '--no-print-directory', 'le-build', f'ZE_BIN_DIR={os.path.dirname(binary)}'], cwd=root,
+    capture_output=True, text=True, check=False, env=build_env,
+)
+require(compiled.returncode == 0, f'compiling le failed: {compiled.stderr}')
+
+fixture = os.path.join(work, 'fixture')
+os.makedirs(os.path.join(fixture, 'tmp'), exist_ok=True)
+with open(os.path.join(fixture, 'go.mod'), 'w', encoding='utf-8') as handle:
+    handle.write('module fixture\n')
+with open(os.path.join(fixture, 'feature-gates.txt'), 'w', encoding='utf-8') as handle:
+    handle.write('ze_core internal/core\n')
+
+arm = os.uname().machine in ('arm64', 'aarch64')
+arch = 'aarch64' if arm else 'x86_64'
+qemu_name = f'qemu-system-{arch}'
+cache = os.path.join(work, 'cache')
+iso_dir = os.path.join(cache, 'ze', 'alpine-iso')
+os.makedirs(iso_dir, exist_ok=True)
+iso_name = f'alpine-virt-3.21.3-{arch}.iso'
+iso = b'ui fixture iso'
+with open(os.path.join(iso_dir, iso_name), 'wb') as handle:
+    handle.write(iso)
+with open(os.path.join(iso_dir, iso_name + '.sha256'), 'w', encoding='utf-8') as handle:
+    handle.write(f'{hashlib.sha256(iso).hexdigest()}  {iso_name}\n')
+brew = os.path.join(work, 'brew')
+if arm:
+    firmware = os.path.join(brew, 'share', 'qemu', 'edk2-aarch64-code.fd')
+    os.makedirs(os.path.dirname(firmware), exist_ok=True)
+    with open(firmware, 'wb') as handle:
+        handle.write(b'firmware')
+
+stubs = os.path.join(work, 'stubs')
+os.makedirs(stubs, exist_ok=True)
+programs = {
+    qemu_name: r'''#!/usr/bin/env python3
+import json, os, sys
+with open(os.environ['QEMU_RECORD'], 'a', encoding='utf-8') as handle:
+    json.dump({'program': 'qemu', 'args': sys.argv[1:],
+               'dotted': sorted(k for k in os.environ if '.' in k)}, handle)
+    handle.write('\n')
+print('login:', flush=True)
+for line in sys.stdin:
+    if 'SSHD_READY' in line:
+        print('SSHD_READY', flush=True)
+''',
+    'ssh': r'''#!/usr/bin/env python3
+import json, os, sys
+with open(os.environ['QEMU_RECORD'], 'a', encoding='utf-8') as handle:
+    json.dump({'program': 'ssh', 'args': sys.argv[1:],
+               'dotted': sorted(k for k in os.environ if '.' in k)}, handle)
+    handle.write('\n')
+if sys.argv[-1] == 'true':
+    raise SystemExit(0)
+raise SystemExit(int(os.environ.get('QEMU_GUEST_CODE', '0')))
+''',
+}
+for name, body in programs.items():
+    target = os.path.join(stubs, name)
+    with open(target, 'w', encoding='utf-8') as handle:
+        handle.write(body)
+    os.chmod(target, os.stat(target).st_mode | stat.S_IEXEC | stat.S_IXGRP)
+
+
+def le(*args, guest_code='0', record='calls.ndjson'):
+    env = dict(os.environ)
+    env['PATH'] = stubs + os.pathsep + env['PATH']
+    env['ZE_REPO_ROOT'] = fixture
+    env['XDG_CACHE_HOME'] = cache
+    env['HOMEBREW_PREFIX'] = brew
+    env['ZE_QEMU_SSH_PORT'] = '2222'
+    env['ZE_QEMU_BOOT_TIMEOUT'] = '30s'
+    env['QEMU_GUEST_CODE'] = guest_code
+    env['QEMU_RECORD'] = os.path.join(work, record)
+    env['ze.l2tp.ncp.ip-timeout'] = '9'
+    return subprocess.run([binary, *args], capture_output=True, text=True,
+                          check=False, env=env)
+
+
+listing = le('qemu')
+require(listing.returncode == 0 and 'run' in listing.stdout,
+        f'qemu listing did not publish run: {listing.stdout!r} {listing.stderr!r}')
+
+base = ('qemu', 'run', 'command', 'printf ui-proof',
+        'packages', 'git bash', 'timeout', '30s')
+answer = le(*base, '|', 'json')
+require(answer.returncode == 0, f'qemu run exited {answer.returncode}: {answer.stderr[-800:]}')
+report = json.loads(answer.stdout)
+require(report['verdict'] == 'pass', f'QEMU verdict is {report!r}')
+plan = report['plan']
+for key in ('qemu-argv', 'bootstrap-command', 'setup-command', 'ssh-port',
+            'command-timeout-seconds', 'alpine-version', 'go-version'):
+    require(key in plan, f'run plan has no {key!r}: {sorted(plan)}')
+require(plan['command'] == 'printf ui-proof', f'command changed: {plan["command"]!r}')
+require(plan['packages'] == ['git', 'bash'], f'packages changed: {plan["packages"]!r}')
+
+with open(os.path.join(work, 'calls.ndjson'), encoding='utf-8') as handle:
+    calls = [json.loads(line) for line in handle if line.strip()]
+require(len(calls) == 3, f'qemu run made {len(calls)} commands, want 3: {calls}')
+require([call['program'] for call in calls] == ['qemu', 'ssh', 'ssh'],
+        f'command order changed: {calls}')
+for call in calls:
+    require('ze.l2tp.ncp.ip-timeout' in call['dotted'],
+            f'dotted environment key was lost: {call}')
+
+failed = le(*base, '|', 'json', guest_code='3', record='failed.ndjson')
+require(failed.returncode == 3, f'guest exit 3 became {failed.returncode}: {failed.stderr[-800:]}')
+require(json.loads(failed.stdout)['verdict'] == 'fail',
+        f'guest failure report changed: {failed.stdout!r}')
+
+# Every global format and paging operator reaches this document shape.
+for operator in ('json', 'ndjson', 'table', 'text', 'yaml', 'raw', 'no-more'):
+    rendered = le(*base, '|', operator, record=f'{operator}.ndjson')
+    require(rendered.returncode == 0,
+            f'global pipe {operator} exited {rendered.returncode}: {rendered.stderr[-800:]}')
+    require(rendered.stdout.strip(), f'global pipe {operator} returned no structured answer')
+
+# A one-shot action refuses the stream-only log operator before it starts QEMU.
+log_record = os.path.join(work, 'log.ndjson')
+logged = le(*base, '|', 'log', record='log.ndjson')
+require(logged.returncode == 1, f'one-shot pipe log exited {logged.returncode}, want 1')
+require(logged.stdout == '', f'one-shot pipe log returned data: {logged.stdout!r}')
+require(logged.stderr == 'error: log requires a streaming command\n',
+        f'one-shot pipe log refusal changed: {logged.stderr!r}')
+require(not os.path.exists(log_record), 'one-shot pipe log started the QEMU harness')
+
+saved_path = os.path.join(work, 'saved-answer.json')
+saved = le(*base, '|', 'save', saved_path, record='save.ndjson')
+require(saved.returncode == 0, f'global pipe save exited {saved.returncode}: {saved.stderr[-800:]}')
+require(os.path.isfile(saved_path) and os.path.getsize(saved_path) > 0,
+        'global pipe save wrote no answer')
+print('LE_QEMU_RUN_ANSWERS_OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=LE_QEMU_RUN_ANSWERS_OK

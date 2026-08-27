@@ -1,10 +1,10 @@
-# Test: the BUILT le binary dispatches a registered command and renders its
-#       answer through the shared pipe operators.
+# Test: the BUILT le binary dispatches registered commands, renders shared pipe
+#       operators, and permanently holds the completed 158-gate native cutover.
 #
 # VALIDATES: spec-le-is-a-ze-binary AC-1 and AC-7, against the artifact a
 #            developer runs rather than against a package.
 # PREVENTS: a green package suite over a binary that does not compose. Every Go
-#           test in cmd/le exercises a PACKAGE; between them and this file sit
+#           test in internal/le exercises a PACKAGE; between them and this file sit
 #           the build, the composition root and argv handling, which is exactly
 #           where a stale or mis-composed binary fails (R-4).
 #
@@ -13,7 +13,7 @@
 # into the test's own directory, so nothing is written back into the checkout.
 #
 # The timeout is DECLARED because a cold build cache makes the first compile of
-# cmd/le far slower than the steady state.
+# the cmd/ze le personality far slower than the steady state.
 
 option=timeout:value=180s
 
@@ -34,10 +34,10 @@ root = os.environ['ZE_REPO_ROOT']
 binary = os.path.join(os.getcwd(), 'le')
 
 compiled = subprocess.run(
-    ['go', 'build', '-o', binary, './cmd/le'],
+    ['make', '--no-print-directory', 'le-build', f'ZE_BIN_DIR={os.path.dirname(binary)}'],
     cwd=root, capture_output=True, text=True, check=False,
 )
-require(compiled.returncode == 0, f'compiling ./cmd/le failed: {compiled.stderr}')
+require(compiled.returncode == 0, f'compiling the cmd/ze le personality failed: {compiled.stderr}')
 
 
 def le(*args):
@@ -61,26 +61,29 @@ except json.JSONDecodeError as exc:
     raise SystemExit(f'FAIL: `le parity | json` did not answer JSON: {exc}\n{answer.stdout}') from exc
 
 for key in ('gates', 'converted', 'forked', 'unported', 'unported-gates',
-            'forked-gates', 'command-names', 'script-files',
-            'script-files-by-language', 'script-dirs'):
+            'forked-gates', 'unknown-claims', 'unwired-claims', 'command-names',
+            'script-files', 'script-files-by-language', 'script-dirs'):
     require(key in census, f'the census answered no {key!r} key: {sorted(census)}')
 require(census['gates'] > 0, 'the census found no gate on the Python side')
 
-# THREE states, not two. A gate whose le command claims it and still starts a
-# Python driver is claimed, not converted, and counting it as ported is how the
-# census came to overstate the migration by ten gates.
+# Converted, forked and unported still partition the gate population. The
+# completed native cutover additionally pins every residual count and name list
+# to zero, so a reopened migration cannot hide behind correct arithmetic.
 require(census['converted'] + census['forked'] + census['unported'] == census['gates'],
         f"converted {census['converted']} + forked {census['forked']} + unported "
         f"{census['unported']} != {census['gates']} gates")
-require(len(census['unported-gates']) == census['unported'],
-        'the census counted unported gates it did not name')
-require(len(census['forked-gates']) == census['forked'],
-        'the census counted forked drivers it did not name')
-require('ze-deployment-vpp-test' in census['forked-gates'],
-        '`le deployment vpp-test` starts scripts/evidence/effective-vpp.py and is '
-        f"not named as forked: {census['forked-gates']}")
-require('ze-deployment-vpp-test' not in census['unported-gates'],
-        'a gate a registered le command claims was reported unported')
+require(census['converted'] == census['gates'],
+        f"converted {census['converted']} != {census['gates']} gates")
+require(census['unported'] == 0, f"the census reports {census['unported']} unported gates")
+require(census['forked'] == 0, f"the census reports {census['forked']} forked gates")
+require(census['unported-gates'] == [],
+        f"the census names unported gates: {census['unported-gates']}")
+require(census['forked-gates'] == [],
+        f"the census names forked gates: {census['forked-gates']}")
+require(census['unknown-claims'] == [],
+        f"the census names unknown claims: {census['unknown-claims']}")
+require(census['unwired-claims'] == [],
+        f"the census names unwired claims: {census['unwired-claims']}")
 
 # The second population: the code still sitting under scripts/, derived from
 # the filesystem rather than claimed by anybody.
@@ -89,9 +92,9 @@ require(sum(census['script-files-by-language'].values()) == census['script-files
 require(sum(census['script-dirs'].values()) == census['script-files'],
         'the per-directory counts do not sum to the file total')
 
-# Red until ALL THREE reach zero: the exit status is the census's verdict, never
-# a constant. A forked driver counts against it the way an unported gate does,
-# because the end state is the work being Go rather than the command existing.
+# The gate migration is complete, but code files under scripts/ are a second
+# population. Their presence alone keeps parity red, so derive the expected exit
+# from all three migration counts rather than pinning it to a constant.
 want = 0 if (census['unported'] == 0 and census['forked'] == 0
              and census['script-files'] == 0) else 1
 require(answer.returncode == want,

@@ -1,0 +1,365 @@
+// Design: docs/architecture/core-design.md -- the RFC conformance gate, as one command
+// Detail: summary.go -- the registry of obligations, read off rfc/short
+// Detail: tags.go -- the tests that prove them, read off the three test roots
+// Detail: carriers.go -- whether anything executes a test, and what that is worth
+// Detail: pytokens.go -- where a scenario check's comments are, without Python
+// Detail: inventory.go -- the derived walk over an RFC's own text
+// Detail: artifact.go -- the authored sign-off over that walk
+// Detail: signoff.go -- judging the one against the other
+// Detail: goscope.go -- the tagged unit, the text one tag governs
+// Detail: audit.go -- the recorded verdicts, and the schema they satisfy
+// Detail: freshness.go -- which of those verdicts is still current
+// Detail: reseal.go -- the one writer of rfc/audit/
+// Detail: status.go -- the envelope the drain quota consumes
+// Detail: ledger.go -- the three authored pages the generated ones quote back
+// Detail: coverage.go -- the counting half, with no markup in it at all
+// Detail: render.go -- the two generated pages, and write.go -- the one writer of them
+// Detail: actions.go -- the command surface, and register.go -- how le finds it
+// Detail: pyfmt.go -- the Python spellings a message carries
+//
+// Package rfc is scripts/dev/rfc_requirements.py, ported. The module binds every
+// MUST-level requirement of an enrolled RFC to the tests that enforce it, and it
+// carries the eight ratchets ai/rules/rfc-compliance.md names.
+//
+// The port lands one gate at a time because the module is 8610 lines and its
+// five gates share one core. What is here now is that core -- summary parsing,
+// tag scanning, the carrier table -- plus the whole extraction half, which is
+// what `le rfc extraction-status` answers, and the whole audit half, which is
+// what `le rfc reseal` answers.
+//
+// Two spellings are kept deliberately, because a message is DATA when a test
+// compares it against the script's: Python's repr() and its rune slicing are
+// reproduced in pyfmt.go rather than replaced by Go's %q and byte slicing.
+package rfc
+
+import (
+	"errors"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
+)
+
+// area is the word a developer types, and the prefix leaction removes from
+// every gate name in the table. `ze-rfc-check` becomes `le rfc check`.
+const area = "rfc"
+
+// The tree-relative locations this gate reads. Slash-separated, joined through
+// filepath.FromSlash at each use, so one spelling serves the reader and the
+// message that names the file.
+const (
+	summaryRel    = "rfc/short"
+	enrolledRel   = "rfc/enrolled.txt"
+	extractionRel = "rfc/extraction"
+	fullRel       = "rfc/full"
+	draftsRel     = "rfc/drafts"
+	// specDirName has ONE spelling: specPathPattern builds its prefix from it,
+	// so the validator and the resolver can never disagree about where a spec
+	// is (ai/rules/evidence.md).
+	specDirName = "plan"
+)
+
+// testRoots are the three trees a tag may live under.
+var testRoots = [...]string{"internal", "pkg", "test"}
+
+// The RFC 2119 keywords that create an obligation the gate enforces.
+// SHOULD/MAY are listed in the ledger and may be tagged, but never gate.
+var gatedLevels = map[string]bool{
+	"MUST":      true,
+	"MUST NOT":  true,
+	"SHALL":     true,
+	"SHALL NOT": true,
+	"REQUIRED":  true,
+}
+
+var advisoryLevels = map[string]bool{
+	"SHOULD":          true,
+	"SHOULD NOT":      true,
+	"MAY":             true,
+	"RECOMMENDED":     true,
+	"NOT RECOMMENDED": true,
+	"OPTIONAL":        true,
+}
+
+// GatedLevels answers the MUST-level keyword set, sorted. The comparison
+// against the Python module reads it by value, which is the only thing that
+// kills a one-word mutation in a set an output comparison never prints.
+func GatedLevels() []string { return sortedKeys(gatedLevels) }
+
+// AdvisoryLevels answers the SHOULD-level keyword set, sorted.
+func AdvisoryLevels() []string { return sortedKeys(advisoryLevels) }
+
+// polarities are the two directions a tag can prove.
+var polarities = map[string]bool{"positive": true, "negative": true}
+
+// Polarities answers them sorted, for the value comparison.
+func Polarities() []string { return sortedKeys(polarities) }
+
+// annotationKinds are the three `{...}` kinds that say something about Ze's
+// COVERAGE. supersededKind is named apart because it says something about the
+// DOCUMENT, and the two registers must never share a slot: had superseded
+// joined this set, marking a requirement would have EVICTED its {gap} and a
+// document's obsolescence would have become a way out of the gated population.
+// The three annotation kinds a checklist line can carry. Named, because
+// annotationSinglePolarity is read in three places -- the parser that demands a
+// polarity beside it, the coverage rule that treats it as complete cover, and
+// the audit schema that lets one test carry an `enforced` verdict -- and a
+// literal spelled three times is a rule three files can disagree about.
+const (
+	annotationNotApplicable  = "not-applicable"
+	annotationGap            = "gap"
+	annotationSinglePolarity = "single-polarity"
+)
+
+var annotationKinds = map[string]bool{
+	annotationNotApplicable:  true,
+	annotationGap:            true,
+	annotationSinglePolarity: true,
+}
+
+// AnnotationKinds answers them sorted.
+func AnnotationKinds() []string { return sortedKeys(annotationKinds) }
+
+const supersededKind = "superseded"
+
+// What a superseded document's obligation became. A closed set, because free
+// text lets "the RFC was replaced" read as "Ze need not comply".
+const (
+	successorRestated    = "restated"
+	successorDropped     = "dropped"
+	successorUnextracted = "unextracted"
+	successorUnresolved  = "unresolved"
+)
+
+var successorDispositions = map[string]bool{
+	successorRestated:    true,
+	successorDropped:     true,
+	successorUnextracted: true,
+	successorUnresolved:  true,
+}
+
+// SuccessorDispositions answers them sorted.
+func SuccessorDispositions() []string { return sortedKeys(successorDispositions) }
+
+// successorTargeted are the two dispositions that name something.
+var successorTargeted = map[string]bool{successorRestated: true, successorUnextracted: true}
+
+// noSection is the anchor a requirement citing no section of its own takes.
+// Deliberately conspicuous: it is a summary defect to fix, not a resting state.
+const noSection = "x"
+
+// tagMarker is the literal every tag in every carrier contains. It is the cheap
+// pre-filter that tells "this file certainly holds no tag" from "this file
+// might", so the expensive answer is only computed where it can change the
+// verdict. Both call sites read the constant; neither re-spells the string.
+const tagMarker = "RFC requirement:"
+
+// shaHexLen is the width of every fingerprint this package records, in hex
+// characters.
+const shaHexLen = 16
+
+// tagPunct is the trailing punctuation an author legitimately writes around a
+// tag. `godot` requires a Go doc comment's last line to end in a period, so a
+// tag placed last becomes "RFC7606-2-1 negative." -- rejecting that would make
+// the lint rule and the tag convention contradict each other.
+const tagPunct = ".,;:"
+
+// levelAlternation is every RFC 2119 keyword, longest first, so "MUST NOT"
+// wins over "MUST" and "NOT RECOMMENDED" over "RECOMMENDED".
+//
+// Built in an init rather than written out, because the set above is what the
+// value comparison against Python reads: a keyword added to one and not the
+// other would leave the alternation and the set disagreeing about the
+// population.
+var levelAlternation = buildLevelAlternation()
+
+func buildLevelAlternation() string {
+	all := append(GatedLevels(), AdvisoryLevels()...)
+	// Longest first. Equal lengths keep sorted order, which is what Python's
+	// sorted(key=len, reverse=True) does: the sort is stable there too.
+	for i := 1; i < len(all); i++ {
+		for j := i; j > 0 && len(all[j]) > len(all[j-1]); j-- {
+			all[j], all[j-1] = all[j-1], all[j]
+		}
+	}
+	var tb textbuf.Buffer
+	for i, level := range all {
+		if i > 0 {
+			tb.Byte('|')
+		}
+		tb.Str(regexp.QuoteMeta(level))
+	}
+	return tb.String()
+}
+
+// The patterns that read a Compliance Checklist line.
+//
+// Each is assembled from a const rather than written inline, because
+// c_string_concat refuses a `+` beside a quote in non-test Go and a regex is
+// the one literal where that shape is unavoidable.
+var (
+	// checklistPattern parses the whole line. Sections carry lowercase letters
+	// (S3.b, S7.11), so the id must too.
+	checklistRE = regexp.MustCompile(reChecklist())
+	// firstTagRE tells "this line is trying to be a requirement and is
+	// malformed" from "this line is prose" and from an ad-hoc implementation
+	// checklist entry ([FORMAT], [IPSEC]).
+	firstTagRE = regexp.MustCompile(`^-\s*\[[ xX]\]\s*\[(?P<tag>[^\]]*)\]`)
+	// levelBracketRE finds any bracketed RFC 2119 keyword anywhere on the
+	// line. Its presence means "this line is a compliance requirement",
+	// independent of whether the id parses -- which is what makes a malformed
+	// id an ERROR instead of a silent skip.
+	levelBracketRE = regexp.MustCompile(reLevelBracket())
+	// idRE splits on the LAST hyphen for the ordinal; everything between the
+	// RFC prefix and that hyphen is the section, so dotted (5.3), lettered
+	// (3.b) and deep (9.1.2.2) sections all work.
+	idRE = regexp.MustCompile(`^(?P<head>.+)-(?P<ord>\d+)$`)
+	// trailingParenRE finds the last parenthetical on the line: by convention
+	// that is where the section is cited.
+	trailingParenRE = regexp.MustCompile(`\((?P<body>[^()]*)\)[^()]*$`)
+	// annotationRE matches ONE trailing `{...}` group.
+	annotationRE = regexp.MustCompile(`\{(?P<body>[^{}]*)\}\s*$`)
+)
+
+func reChecklist() string {
+	var tb textbuf.Buffer
+	return tb.Str(`^-\s*\[(?P<box>[ xX])\]\s*`).
+		Str(`(?:\[(?P<rid>[A-Za-z0-9][A-Za-z0-9.\-]*-\d+)\]\s*)?`).
+		Str(`\[(?P<level>`).Str(levelAlternation).Str(`)\]\s*`).
+		Str(`(?P<rest>.*)$`).String()
+}
+
+func reLevelBracket() string {
+	var tb textbuf.Buffer
+	return tb.Str(`\[(?:`).Str(levelAlternation).Str(`)\]`).String()
+}
+
+// ParseError says the input is malformed. It is always raised and never
+// swallowed: a silently skipped MUST is a false green.
+//
+// It is a distinct type because the drivers separate "this tree is wrong" from
+// "I could not read the tree", and both exit 2 while only one names a file.
+type ParseError struct{ msg string }
+
+func (e *ParseError) Error() string { return e.msg }
+
+// parseErr builds one, from a buffer the caller has already filled.
+func parseErr(tb *textbuf.Buffer) error { return &ParseError{msg: tb.String()} }
+
+// IsParseError reports whether err came from malformed input rather than from
+// an unreadable tree.
+func IsParseError(err error) bool {
+	var pe *ParseError
+	return errors.As(err, &pe)
+}
+
+// Annotation is a `{kind: reason}` marker on a requirement line: why this
+// requirement owes less than a positive and a negative test.
+type Annotation struct {
+	Kind     string `json:"kind"`
+	Polarity string `json:"polarity,omitempty"`
+	Reason   string `json:"reason"`
+}
+
+// Successor is where one requirement of a superseded document now lives.
+//
+// Target is the successor's requirement id under `restated` and the
+// successor's section under `unextracted`; `dropped` and `unresolved` have
+// nothing to name, which is what they exist to say.
+type Successor struct {
+	Disposition string `json:"disposition"`
+	Target      string `json:"target,omitempty"`
+	Reason      string `json:"reason"`
+}
+
+// Requirement is one Compliance Checklist line.
+type Requirement struct {
+	RFC     string `json:"rfc"`
+	RID     string `json:"rid"`
+	Level   string `json:"level"`
+	Text    string `json:"text"`
+	Section string `json:"section"`
+	// Annotation is nil when the line carries no coverage annotation.
+	Annotation *Annotation `json:"annotation,omitempty"`
+	Source     string      `json:"source"`
+	Line       int         `json:"line"`
+	// Ticked records a hand-written "- [x]". Recorded, not obeyed: coverage is
+	// DERIVED from test tags, so a tick is someone's claim, not evidence.
+	Ticked bool `json:"ticked"`
+	// Superseded is where this obligation now lives, when the document stating
+	// it has been obsoleted. Its OWN field, never a member of Annotation.
+	Superseded *Successor `json:"superseded,omitempty"`
+}
+
+// Gated reports whether this requirement's level creates an obligation the
+// gate enforces.
+func (r Requirement) Gated() bool { return gatedLevels[r.Level] }
+
+// Correction is one `Correction <date>:` paragraph in a summary: the recorded
+// authorisation for a change to the rows it names. Quotes holds every
+// double-quoted span in the paragraph, unverified.
+type Correction struct {
+	Date   string   `json:"date"`
+	RIDs   []string `json:"rids"`
+	Quotes []string `json:"quotes"`
+	Line   int      `json:"line"`
+}
+
+// Tag is one `RFC requirement: <ID> <polarity>` comment found in a test.
+type Tag struct {
+	RID      string `json:"rid"`
+	Polarity string `json:"polarity"`
+	File     string `json:"file"`
+	Line     int    `json:"line"`
+}
+
+// Prefix answers the id prefix of a summary stem: rfc7606 -> RFC7606,
+// draft-foo-bar -> DRAFT-FOO-BAR.
+func Prefix(stem string) string { return strings.ToUpper(stem) }
+
+func hasRIDStem(rid, stem string) bool {
+	prefix := Prefix(stem)
+	if len(prefix) < len(rid) {
+		if strings.HasPrefix(rid, prefix) {
+			return rid[len(prefix)] == '-'
+		}
+	}
+	return false
+}
+
+// treePath joins a slash-separated tree-relative path onto the checkout.
+func treePath(tree string, rel ...string) string {
+	parts := make([]string, 0, len(rel)+1)
+	parts = append(parts, tree)
+	for _, one := range rel {
+		parts = append(parts, filepath.FromSlash(one))
+	}
+	return filepath.Join(parts...)
+}
+
+// relTo answers a path relative to the tree, slash-separated, so a message
+// names the file the way a developer types it. It answers the input unchanged
+// when the two share no prefix, which is what os.path.relpath would not do --
+// and a message naming an absolute path is better than one naming a walk of
+// `..` segments.
+func relTo(tree, path string) string {
+	rel, err := filepath.Rel(tree, path)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return filepath.ToSlash(path)
+	}
+	return filepath.ToSlash(rel)
+}
+
+// readFile answers a file's text, or a ParseError naming it. errors.Join is not
+// used: the message is compared against the script's, which names the path and
+// the operating system's reason and nothing else.
+func readFile(path, rel string) (string, error) {
+	raw, err := os.ReadFile(path) // #nosec G304 -- a path under the checkout this gate judges
+	if err != nil {
+		var tb textbuf.Buffer
+		return "", parseErr(tb.Str(rel).Str(": cannot read: ").Err(err))
+	}
+	return string(raw), nil
+}

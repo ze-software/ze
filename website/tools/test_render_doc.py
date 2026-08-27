@@ -49,7 +49,7 @@ def terminal_demo_fixture(root):
     (demo_root / "manifest.json").write_text(
         json.dumps(
             {
-                "gallery_page": "guide/terminal-demonstrations.md",
+                "gallery-page": "guide/terminal-demonstrations.md",
                 "schema": 2,
                 "demos": [
                     {

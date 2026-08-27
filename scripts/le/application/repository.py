@@ -74,6 +74,13 @@ def _go(script: str, *args: str) -> tuple[str, ...]:
     return (os.environ.get('GO', 'go'), 'run', script, *args)
 
 
+def _le(*args: str) -> tuple[str, ...]:
+    """Run the le personality through the shared cmd/ze entry point."""
+    tc = toolchain()
+    tags = ' '.join(('ze_le', *tc.features, *tc.extra_tags))
+    return (os.environ.get('GO', 'go'), 'run', '-tags', tags, './cmd/ze', 'le', *args)
+
+
 def _py(script: str, *args: str) -> tuple[str, ...]:
     return ('python3', f'scripts/dev/{script}', *args)
 
@@ -292,14 +299,14 @@ GATES = GateSet(
         ),
         # The two gates below are the first here whose implementation is the GO
         # `le` rather than a script. The regeneration and the check share ONE
-        # derivation (letools/sitefacts, derive), so a Python re-implementation
+        # derivation (internal/le/sitefacts, derive), so a Python re-implementation
         # would be a second counter over one tree -- and two counters over one
         # tree drift by construction: the site and the repository disagreed by
         # 30 tests the moment both counted for themselves. When the Makefile
         # routes to the Go `le` directly, these two rows go and the shims stay.
         Gate(
             name='ze-site-facts-update',
-            argv=_go('./cmd/le', 'site-facts', 'update'),
+            argv=_le('site-facts', 'update'),
             why=(
                 'derive the numbers the website publishes about this repository into'
                 ' website/data/repo-facts.json, so a site build reads a commit instead of'
@@ -309,7 +316,7 @@ GATES = GateSet(
         ),
         Gate(
             name='ze-site-facts-check',
-            argv=_go('./cmd/le', 'site-facts', 'check'),
+            argv=_le('site-facts', 'check'),
             why=(
                 'website/data/repo-facts.json still publishes what the last COMMIT says.'
                 ' It judges a commit in a throwaway worktree rather than the working tree,'

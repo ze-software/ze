@@ -35,7 +35,7 @@ import subprocess
 # The repository gate is the one that colors its page. The script writes the
 # plain three-bit codes and a compiled Ze package may not, so the command writes
 # the semantic palette (docs/architecture/cli/color-system.md). The SHADE is
-# pinned by letools/repository's TestTheTwoSeveritiesAreColoredApart, and it is
+# pinned by internal/le/repository's TestTheTwoSeveritiesAreColoredApart, and it is
 # stripped here so this comparison is about the page.
 ANSI = re.compile(r'\x1b\[[0-9;]*m')
 
@@ -53,9 +53,10 @@ root = os.environ['ZE_REPO_ROOT']
 here = os.getcwd()
 binary = os.path.join(here, 'le')
 
-build = subprocess.run(['go', 'build', '-o', binary, './cmd/le'],
+build = subprocess.run(['make', '--no-print-directory', 'le-build',
+                        f'ZE_BIN_DIR={os.path.dirname(binary)}'],
                        cwd=root, capture_output=True, text=True, check=False)
-require(build.returncode == 0, f'building cmd/le failed: {build.stderr}')
+require(build.returncode == 0, f'building the cmd/ze le personality failed: {build.stderr}')
 
 
 def run(argv):

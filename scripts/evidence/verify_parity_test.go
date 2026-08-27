@@ -29,7 +29,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/letools/evidence"
+	"github.com/ze-software/ze/internal/le/evidence"
 )
 
 // stubs writes a recording docker and git onto a PATH directory, and answers

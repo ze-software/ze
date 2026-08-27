@@ -33,7 +33,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/letools/qemu"
+	"github.com/ze-software/ze/internal/le/qemu"
 )
 
 // hugepagesTimeout bounds one run of the Python original. The stand-ins answer

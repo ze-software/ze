@@ -40,7 +40,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/letools/deployment"
+	"github.com/ze-software/ze/internal/le/deployment"
 )
 
 // gokChildEnv marks the re-executed test binary that runs the port inside the

@@ -15,7 +15,7 @@
 // between the two runs would otherwise make the halves disagree about a tree
 // that neither half got wrong.
 //
-// This file is deliberately HERE instead of beside letools/docstocode. It is a
+// This file is deliberately HERE instead of beside internal/le/docstocode. It is a
 // migration artifact, so the commit that deletes the script also deletes its
 // proof.
 
@@ -31,7 +31,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/letools/docstocode"
+	"github.com/ze-software/ze/internal/le/docstocode"
 )
 
 const (

@@ -39,9 +39,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/letools/discoveryindex"
-	"github.com/ze-software/ze/letools/docstocode"
-	"github.com/ze-software/ze/letools/docwiring"
+	"github.com/ze-software/ze/internal/le/discoveryindex"
+	"github.com/ze-software/ze/internal/le/docstocode"
+	"github.com/ze-software/ze/internal/le/docwiring"
 )
 
 const (

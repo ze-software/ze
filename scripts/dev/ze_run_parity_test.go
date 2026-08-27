@@ -1,5 +1,5 @@
 // The migration's proof for the admission wrapper: scripts/dev/ze-run.sh and
-// letools/lejob are one mechanism over one registry, and either half admits
+// internal/le/lejob are one mechanism over one registry, and either half admits
 // the other's jobs.
 //
 // VALIDATES: spec-le-is-a-ze-binary AC-11 for scripts/dev/ze-run.sh. Admission
@@ -13,9 +13,9 @@
 // uses a different work key can admit every session at once. A different tree
 // hash has the same effect, while output comparisons still pass.
 //
-// This file is deliberately HERE instead of beside letools/lejob. It is a
+// This file is deliberately HERE instead of beside internal/le/lejob. It is a
 // migration artifact, so the commit that deletes the script also deletes its
-// proof. letools/lejob/contention_test.go survives the swap and tests the same
+// proof. internal/le/lejob/contention_test.go survives the swap and tests the same
 // five properties against only the Go half.
 //
 // The tests never wait for the clock. The shortest stall window is one minute.
@@ -34,7 +34,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/letools/lejob"
+	"github.com/ze-software/ze/internal/le/lejob"
 )
 
 // admitMarker separates this test binary's own arguments from the ones that
@@ -109,7 +109,7 @@ func shellJob(t *testing.T, ctx context.Context, root, label string, argv []stri
 	return admitCommand(ctx, root, append([]string{"bash", script, label}, argv...))
 }
 
-// goJob runs one job through letools/lejob, in a process of its own.
+// goJob runs one job through internal/le/lejob, in a process of its own.
 func goJob(t *testing.T, ctx context.Context, root, label string, argv []string) *exec.Cmd {
 	t.Helper()
 	invocation := append([]string{os.Args[0], "-test.run=^TestHelperAdmit$", admitMarker, root, label}, argv...)

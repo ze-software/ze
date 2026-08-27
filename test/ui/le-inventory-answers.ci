@@ -61,7 +61,8 @@ binary = os.path.join(here, 'le')
 script_inventory = os.path.join(here, 'inventory')
 script_commands = os.path.join(here, 'commands')
 
-for args in (['go', 'build', '-tags', TAGS, '-o', binary, './cmd/le'],
+for args in (['make', '--no-print-directory', 'le-build',
+              f'ZE_BIN_DIR={os.path.dirname(binary)}'],
              ['go', 'build', '-tags', TAGS, '-o', script_inventory, 'scripts/inventory/inventory.go'],
              ['go', 'build', '-tags', TAGS, '-o', script_commands, 'scripts/inventory/commands.go']):
     built = subprocess.run(args, cwd=root, capture_output=True, text=True, check=False)

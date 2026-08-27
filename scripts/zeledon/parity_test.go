@@ -1,7 +1,7 @@
 // The migration's proof for this tool: the script and the command publish the
 // same thing.
 //
-// scripts/zeledon/post_weekly.py is being replaced by letools/weekly, and the
+// scripts/zeledon/post_weekly.py is being replaced by internal/le/weekly, and the
 // two live side by side until the swap. This file is deliberately HERE rather
 // than beside the new package: it is a migration artifact, so the commit that
 // deletes the script deletes its proof with it.
@@ -42,7 +42,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/letools/weekly"
+	"github.com/ze-software/ze/internal/le/weekly"
 )
 
 // runTimeout bounds one Python run over one post. A parse and a message of a

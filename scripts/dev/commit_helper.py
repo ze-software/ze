@@ -2269,6 +2269,61 @@ def deferral_unassigned_problems(repo: Path) -> list[str]:
     return problems
 
 
+def _prospective_index_diff(
+    repo: Path,
+    add_paths: tuple[str, ...],
+    remove_paths: tuple[str, ...],
+    *diff_args: str,
+) -> tuple[bytes, str | None]:
+    """The prospective commit's raw diff from a throwaway Git index."""
+    (repo / "tmp").mkdir(exist_ok=True)
+    fd, index = tempfile.mkstemp(prefix="ze-commit-index-", dir=str(repo / "tmp"))
+    os.close(fd)
+    os.unlink(index)
+    env = dict(os.environ, GIT_INDEX_FILE=index)
+
+    def git(*args: str) -> subprocess.CompletedProcess[bytes]:
+        return subprocess.run(
+            ("git", "-C", str(repo), *args),
+            check=False,
+            capture_output=True,
+            env=env,
+        )
+
+    def failed(result: subprocess.CompletedProcess[bytes], operation: str):
+        if result.returncode == 0:
+            return None
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        return f"{operation} failed for the prospective commit: {detail}"
+
+    try:
+        has_head = git("rev-parse", "--verify", "-q", "HEAD").returncode == 0
+        if has_head:
+            result = git("read-tree", "HEAD")
+            error = failed(result, "git read-tree HEAD")
+            if error:
+                return b"", error
+        if add_paths:
+            result = git("add", "--", *add_paths)
+            error = failed(result, "git add")
+            if error:
+                return b"", error
+        for path in remove_paths:
+            result = git("rm", "--cached", "-q", "--", path)
+            error = failed(result, f"git rm --cached -- {path}")
+            if error:
+                return b"", error
+        result = git("diff", "--cached", *diff_args)
+        error = failed(result, "git diff --cached")
+        return result.stdout if error is None else b"", error
+    finally:
+        for temporary in (index, index + ".lock"):
+            try:
+                os.unlink(temporary)
+            except OSError:
+                pass
+
+
 def _prospective_line_changes(
     repo: Path,
     add_paths: tuple[str, ...],
@@ -2288,35 +2343,17 @@ def _prospective_line_changes(
     the diff as `--- ...`) is content, not a path header. For a deleted file the
     `+++` side is `/dev/null`, so the path falls back to the `---` side.
     """
-    (repo / "tmp").mkdir(exist_ok=True)
-    fd, index = tempfile.mkstemp(prefix="ze-commit-index-", dir=str(repo / "tmp"))
-    os.close(fd)
-    os.unlink(index)  # git wants to create it; a pre-existing empty file is fine too
-    env = dict(os.environ, GIT_INDEX_FILE=index)
-
-    def git(*args: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            ("git", "-C", str(repo), *args),
-            check=False,
-            text=True,
-            capture_output=True,
-            env=env,
-        )
-
-    try:
-        has_head = git("rev-parse", "--verify", "-q", "HEAD").returncode == 0
-        if has_head:
-            git("read-tree", "HEAD")
-        if add_paths:
-            git("add", "--", *add_paths)
-        for path in remove_paths:
-            git("rm", "--cached", "-q", "--", path)
-        diff = git("diff", "--cached", "--no-color", "-U0", *extra_args).stdout
-    finally:
-        try:
-            os.unlink(index)
-        except OSError:
-            pass
+    raw, error = _prospective_index_diff(
+        repo,
+        add_paths,
+        remove_paths,
+        "--no-color",
+        "-U0",
+        *extra_args,
+    )
+    if error:
+        return []
+    diff = raw.decode("utf-8", errors="replace")
     result: list[tuple[str, str, str]] = []
     old = new = ""
     in_header = False
@@ -2339,6 +2376,162 @@ def _prospective_line_changes(
         elif line.startswith("-"):
             result.append((new or old, "-", line[1:]))
     return result
+
+
+def _common_suffix_components(old_path: str, new_path: str) -> int:
+    """Number of equal trailing path components."""
+    count = 0
+    for old_part, new_part in zip(
+        reversed(Path(old_path).parts), reversed(Path(new_path).parts)
+    ):
+        if old_part != new_part:
+            break
+        count += 1
+    return count
+
+
+def _unique_suffix_pairing(
+    old_paths: list[str], new_paths: list[str]
+) -> tuple[tuple[tuple[str, str], ...], str | None]:
+    """Unique maximum pairing by common trailing path components."""
+
+    def component(path: str, depth: int):
+        parts = Path(path).parts
+        return parts[-depth - 1] if depth < len(parts) else None
+
+    def pair_at_depth(olds: list[str], news: list[str], depth: int):
+        old_groups = {}
+        new_groups = {}
+        for path in olds:
+            old_groups.setdefault(component(path, depth), []).append(path)
+        for path in news:
+            new_groups.setdefault(component(path, depth), []).append(path)
+
+        pairs = []
+        old_left = []
+        new_left = []
+        unique = True
+        shared = (set(old_groups) & set(new_groups)) - {None}
+        for key in sorted(shared):
+            child_pairs, child_old, child_new, child_unique = pair_at_depth(
+                old_groups[key], new_groups[key], depth + 1
+            )
+            pairs.extend(child_pairs)
+            old_left.extend(child_old)
+            new_left.extend(child_new)
+            unique = unique and child_unique
+        for key, paths in old_groups.items():
+            if key not in shared:
+                old_left.extend(paths)
+        for key, paths in new_groups.items():
+            if key not in shared:
+                new_left.extend(paths)
+
+        old_left.sort()
+        new_left.sort()
+        matched = min(len(old_left), len(new_left)) if depth >= 2 else 0
+        if matched and (len(old_left) != 1 or len(new_left) != 1):
+            unique = False
+        pairs.extend(zip(old_left[:matched], new_left[:matched]))
+        return pairs, old_left[matched:], new_left[matched:], unique
+
+    pairs, _old_left, _new_left, unique = pair_at_depth(
+        sorted(old_paths), sorted(new_paths), 0
+    )
+    if not unique:
+        return (), "the maximum common-suffix pairing is not unique"
+    return tuple(sorted(pairs)), None
+
+
+def _prospective_rename_pairs(
+    repo: Path,
+    add_paths: tuple[str, ...],
+    remove_paths: tuple[str, ...],
+) -> tuple[tuple[check_weakened_tests.RenamePair, ...], list[str]]:
+    """Git rename pairs and scores for the prospective commit's exact paths.
+
+    Git's default 50% threshold owns ordinary renames. A lower-score pair must
+    share the basename and one parent component. Its basename group is accepted
+    only when the maximum-cardinality, maximum-common-suffix subset is unique
+    and agrees with Git's scored pairs.
+    """
+    raw, error = _prospective_index_diff(
+        repo,
+        add_paths,
+        remove_paths,
+        "--name-status",
+        "-z",
+        "--find-renames=1%",
+        "-l0",
+        "--diff-filter=R",
+    )
+    if error:
+        return (), [f"check could not run: {error}, so no rename was compared"]
+
+    fields = raw.split(b"\0")
+    if fields and fields[-1] == b"":
+        fields.pop()
+    pairs = []
+    index = 0
+    while index < len(fields):
+        status = fields[index].decode("ascii", errors="replace")
+        if (
+            not status.startswith("R")
+            or not status[1:].isdigit()
+            or index + 2 >= len(fields)
+        ):
+            return (), [
+                "check could not run: Git returned malformed or ambiguous rename "
+                "status, so no rename was compared"
+            ]
+        pairs.append(
+            check_weakened_tests.RenamePair(
+                os.fsdecode(fields[index + 1]),
+                os.fsdecode(fields[index + 2]),
+                int(status[1:]),
+            )
+        )
+        index += 3
+    accepted = [pair for pair in pairs if pair.score >= 50]
+    used_old = {pair.old_path for pair in accepted}
+    used_new = {pair.new_path for pair in accepted}
+    low_by_basename = {}
+    for pair in pairs:
+        if pair.score >= 50:
+            continue
+        basename = os.path.basename(pair.old_path)
+        if basename != os.path.basename(pair.new_path):
+            continue
+        if _common_suffix_components(pair.old_path, pair.new_path) < 2:
+            continue
+        low_by_basename.setdefault(basename, []).append(pair)
+
+    for basename, scored_pairs in low_by_basename.items():
+        old_candidates = [
+            path
+            for path in remove_paths
+            if path not in used_old and os.path.basename(path) == basename
+        ]
+        new_candidates = [
+            path
+            for path in add_paths
+            if path not in used_new and os.path.basename(path) == basename
+        ]
+        optimum, error = _unique_suffix_pairing(old_candidates, new_candidates)
+        if error:
+            return (), [
+                "check could not run: low-similarity rename pairing is ambiguous "
+                f"for basename {basename!r}: {error}"
+            ]
+        scored = {(pair.old_path, pair.new_path): pair for pair in scored_pairs}
+        if set(optimum) != set(scored):
+            return (), [
+                "check could not run: Git's low-similarity rename pairs conflict "
+                f"with the unique common-suffix pairing for basename {basename!r}"
+            ]
+        for paths in optimum:
+            accepted.append(scored[paths])
+    return tuple(accepted), []
 
 
 def _prospective_added_lines(
@@ -2728,7 +2921,8 @@ def weakened_problems(
 
     The judgement is delegated whole to scripts/dev/check_weakened_tests.py: what
     a diff weakens, what name the enclosing test carries, and how a row pairs
-    with it. This function contributes the commit's own paths and nothing else.
+    with it. This function contributes the commit's own paths and Git's rename
+    pairs from the same prospective add/remove population.
 
     Those paths are the reason the gate can BLOCK. Several sessions share this
     checkout, so a check that read the working tree at large would refuse a
@@ -2745,23 +2939,44 @@ def weakened_problems(
     the COMMIT and not about the change set: test/weakened.md must be one of the
     committed paths. A row that stays in the working tree records nothing, and
     the mechanism exists so the reason sits in history beside the weakening it
-    accepts (owner, 2026-08-16; AC-10). The delegate is asked for the weakenings
-    first and for the row judgement second, so a commit that weakens nothing
-    still runs one comparison and reads no file.
+    accepts (owner, 2026-08-16; AC-10). The delegate reads the ledger only when
+    this commit carries it. Otherwise, this function prints suggestions from the
+    commit's findings without reading mutable worktree rows.
     """
     tests = tuple(p for p in add_paths if check_weakened_tests.is_test_path(p))
     removed = tuple(p for p in remove_paths if check_weakened_tests.is_test_path(p))
     if not tests and not removed:
         return []
+    rename_pairs = ()
+    if tests and removed:
+        prospective_pairs, errors = _prospective_rename_pairs(
+            repo, add_paths, remove_paths
+        )
+        if errors:
+            return errors
+        rename_pairs = tuple(
+            pair
+            for pair in prospective_pairs
+            if check_weakened_tests.is_test_path(pair.old_path)
+            and check_weakened_tests.is_test_path(pair.new_path)
+        )
     weakened, errors = check_weakened_tests.weakened_tests(
-        str(repo), tests, removed=removed
+        str(repo), tests, removed=removed, rename_pairs=rename_pairs
     )
     if errors:
         return errors  # the comparison did not happen, so nothing is accepted
     if not weakened:
         return []  # AC-5: no weakening, so no row is owed and none is read
-    problems = check_weakened_tests.weakened_problems(str(repo), tests, removed=removed)
-    if check_weakened_tests.WEAKENED_PATH not in add_paths:
+    carries_ledger = check_weakened_tests.WEAKENED_PATH in add_paths
+    if carries_ledger:
+        problems = check_weakened_tests.weakened_problems(
+            str(repo), tests, removed=removed, rename_pairs=rename_pairs
+        )
+    else:
+        problems = check_weakened_tests.unmatched_problems(
+            [], weakened, ledger_carried=False
+        )
+    if not carries_ledger:
         problems.append(
             f"this commit weakens {len(weakened)} test(s) and does not carry "
             f"{check_weakened_tests.WEAKENED_PATH}. The row is in the working "

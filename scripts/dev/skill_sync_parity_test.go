@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/letools/aisync"
+	"github.com/ze-software/ze/internal/le/aisync"
 )
 
-// VALIDATES: letools/aisync writes the same tree scripts/dev/skill_sync.sh
+// VALIDATES: internal/le/aisync writes the same tree scripts/dev/skill_sync.sh
 // writes, file for file and byte for byte -- and refuses the two inputs the
 // script answers success for.
 // PREVENTS: a swap (step 14) that repoints `make ze-ai-skills-sync` and

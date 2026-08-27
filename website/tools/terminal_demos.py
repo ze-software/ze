@@ -114,9 +114,9 @@ def _load_catalog():
         raise ValueError("terminal demo artifact manifest demos must be an object")
     if not isinstance(renderer, dict):
         raise ValueError("terminal demo artifact manifest renderer must be an object")
-    gallery_page = source.get("gallery_page")
+    gallery_page = source.get("gallery-page")
     if not isinstance(gallery_page, str) or not gallery_page:
-        raise ValueError("terminal demo source manifest gallery_page is required")
+        raise ValueError("terminal demo source manifest gallery-page is required")
 
     catalog = {}
     for demo in source_demos:

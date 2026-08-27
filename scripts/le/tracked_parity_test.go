@@ -1,7 +1,7 @@
 // The migration's proof for `le tracked`: both halves judge the same commit and
 // reach the same verdict about it.
 //
-// letools/letracked replaces scripts/le/application/tracked.py. Both versions
+// internal/le/letracked replaces scripts/le/application/tracked.py. Both versions
 // remain until the swap. This file is deliberately HERE because it is a
 // migration artifact. The commit that deletes the script also deletes this
 // proof.
@@ -22,7 +22,7 @@
 //
 // The exit-2 case gives each half its OWN commit because each has a different
 // root file. The commit must predate that file. The Python tree arrived with
-// scripts/le/registry.py, and the Go tree arrived with cmd/le/register.go. One
+// scripts/le/registry.py, and the Go tree arrived with internal/le/register.go. One
 // existing commit cannot predate both.
 
 package main
@@ -35,7 +35,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/letools/letracked"
+	"github.com/ze-software/ze/internal/le/letracked"
 )
 
 // scriptTracked runs the Python half over one revision and answers its exit
@@ -83,7 +83,7 @@ func TestBothHalvesFindThisCheckoutsHeadSound(t *testing.T) {
 
 // TestBothHalvesRefuseACommitThatPredatesThem pins exit 2 for both halves. An
 // unjudgeable commit must not appear sound. Each half has a separate root-file
-// commit to predate: scripts/le/registry.py for Python and cmd/le/register.go for
+// commit to predate: scripts/le/registry.py for Python and internal/le/register.go for
 // Go.
 func TestBothHalvesRefuseACommitThatPredatesThem(t *testing.T) {
 	root := repoRoot(t)
