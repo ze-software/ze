@@ -316,6 +316,110 @@ func TestABoundedChainStopsTheWalkAndAnswersOneDocument(t *testing.T) {
 	}
 }
 
+// TestPositionalCountThenNDJSONDropsTheSourceSchema checks that count replaces
+// positional rows with its own self-describing document before NDJSON sees it.
+func TestPositionalCountThenNDJSONDropsTheSourceSchema(t *testing.T) {
+	const countNDJSON = "system command list | count | ndjson"
+	tests := []struct {
+		name         string
+		chain        string
+		available    int
+		wantCount    int
+		wantProduced int
+	}{
+		{name: "zero rows", chain: countNDJSON},
+		{name: "one row", chain: countNDJSON, available: 1, wantCount: 1, wantProduced: 1},
+		{
+			name:         "past the streaming threshold",
+			chain:        countNDJSON,
+			available:    rpc.AnswerBufferThreshold + 1,
+			wantCount:    rpc.AnswerBufferThreshold + 1,
+			wantProduced: rpc.AnswerBufferThreshold + 1,
+		},
+		{
+			name:         "positional display runs before count",
+			chain:        "system command list | display value | count | ndjson",
+			available:    2,
+			wantCount:    2,
+			wantProduced: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			produced := 0
+			records, fields, msg := applyPipesRecords(
+				tt.chain,
+				commandColumns,
+				commandColumnRecords(tt.available, &produced),
+			)
+			if msg != "" {
+				t.Fatalf("applyPipesRecords: %s", msg)
+			}
+
+			var want textbuf.Buffer
+			want.Str(`{"count":`).Int(int64(tt.wantCount)).Str("}")
+			wantCount := want.String()
+			got := collectRecords(records)
+			if len(got) != 1 {
+				t.Fatalf("count produced %d records, want one", len(got))
+			}
+			if len(got[0].Fault) != 0 {
+				t.Errorf("count produced fault %q, want none", got[0].Fault)
+			}
+			if string(got[0].Item) != wantCount {
+				t.Errorf("count record = %q, want %q", got[0].Item, wantCount)
+			}
+			if fields != nil {
+				t.Errorf("count record retained positional fields %v, want nil", fields)
+			}
+			if produced != tt.wantProduced {
+				t.Errorf("source produced %d rows, want %d", produced, tt.wantProduced)
+			}
+
+			var positional bytes.Buffer
+			answer, err := RenderRecords(
+				&positional,
+				tt.chain,
+				"",
+				recordEnvelope,
+				commandColumns,
+				commandColumnRecords(tt.available, nil),
+			)
+			if err != nil {
+				t.Fatalf("RenderRecords over positional rows: %v", err)
+			}
+			var selfDescribing bytes.Buffer
+			wantAnswer, err := RenderRecords(
+				&selfDescribing,
+				tt.chain,
+				"",
+				recordEnvelope,
+				nil,
+				commandRecords(tt.available, nil),
+			)
+			if err != nil {
+				t.Fatalf("RenderRecords over self-describing rows: %v", err)
+			}
+			if positional.String() != selfDescribing.String() {
+				t.Errorf("positional count rendered %q, want schema-less rendering %q",
+					positional.String(), selfDescribing.String())
+			}
+			if answer.Count != 1 || answer.Faults != 0 {
+				t.Errorf("answer counted %d records and %d faults, want 1 and 0", answer.Count, answer.Faults)
+			}
+			if answer.Fields != nil {
+				t.Errorf("answer retained positional fields %v, want nil", answer.Fields)
+			}
+			if answer.Type != wantAnswer.Type || answer.Count != wantAnswer.Count || answer.Faults != wantAnswer.Faults {
+				t.Errorf("positional answer = {%q %d %d}, want schema-less {%q %d %d}",
+					answer.Type, answer.Count, answer.Faults,
+					wantAnswer.Type, wantAnswer.Count, wantAnswer.Faults)
+			}
+		})
+	}
+}
+
 // TestAPositionalAnswerRendersLikeItsSelfDescribingTwin is the control on the
 // column schema: an answer whose head declares its columns and whose rows carry
 // values alone renders exactly what the same rows render when each one carries

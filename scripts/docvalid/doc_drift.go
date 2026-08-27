@@ -1739,13 +1739,13 @@ func validateGeneratedWikiCommandSurface(
 			))
 		}
 
-		detail, hasDetail := wikiCommandDetail(content, command.Path)
 		if !wikiCommandNeedsDetail(command) {
 			continue
 		}
-		if !hasDetail {
-			issues = append(issues, generatedCommandContractIssue(
-				surface, command.Path, "wiki command detail",
+		detail, detailCount := wikiCommandDetail(content, command.Path)
+		if detailCount != 1 {
+			issues = append(issues, commandContainerCountIssue(
+				surface, command.Path, "wiki command detail section", detailCount,
 			))
 			continue
 		}
@@ -1884,21 +1884,42 @@ func wikiCommandNeedsDetail(command publishedCommand) bool {
 		strings.Contains(command.Description, "\n")
 }
 
-func wikiCommandDetail(content, path string) (string, bool) {
-	var marker textbuf.Buffer
-	startMarker := marker.Str("### `").Str(path).Str("`\n").String()
-	start := strings.Index(content, startMarker)
-	if start == -1 {
-		return "", false
+func markdownHeadingContent(content, heading string) (string, int) {
+	count := 0
+	for line := range strings.SplitSeq(content, "\n") {
+		if line == heading {
+			count++
+		}
 	}
-	remaining := content[start+len(startMarker):]
+	if count != 1 || content == heading {
+		return "", count
+	}
+	var marker textbuf.Buffer
+	startMarker := marker.Str(heading).Byte('\n').String()
+	if strings.HasPrefix(content, startMarker) {
+		return content[len(startMarker):], count
+	}
+	start := strings.Index(content, marker.Reset().Byte('\n').Str(startMarker).String())
+	if start == -1 {
+		return "", count
+	}
+	return content[start+1+len(startMarker):], count
+}
+
+func wikiCommandDetail(content, path string) (string, int) {
+	var marker textbuf.Buffer
+	heading := marker.Str("### `").Str(path).Byte('`').String()
+	remaining, count := markdownHeadingContent(content, heading)
+	if count != 1 {
+		return "", count
+	}
 	end := len(remaining)
 	for _, next := range []string{"\n### `", "\n## ", "\n---"} {
 		if at := strings.Index(remaining, next); at != -1 {
 			end = min(end, at)
 		}
 	}
-	return remaining[:end], true
+	return remaining[:end], count
 }
 
 func wikiCommandSummaryPaths(content string) []string {
@@ -2090,25 +2111,33 @@ func validateGeneratedCommandSurfaces(
 				"command-equivalent Markdown index row",
 			))
 		}
-		primaryRow, ok := commandSurfaceHTMLRow(string(primaryHTML), slug)
-		if !ok {
-			issues = append(issues, generatedCommandContractIssue(
+		primaryRow, rowCount, rowClosed := commandSurfaceHTMLRow(
+			string(primaryHTML), slug,
+		)
+		switch {
+		case rowCount != 1:
+			issues = append(issues, commandContainerCountIssue(
+				commandSurfacePath(root, primaryHTMLPath), command.Path,
+				"primary CLI HTML command row", rowCount,
+			))
+		case !rowClosed:
+			issues = append(issues, malformedCommandContainerIssue(
 				commandSurfacePath(root, primaryHTMLPath), command.Path,
 				"primary CLI HTML command row",
 			))
-		} else {
+		default:
 			issues = append(issues, validatePrimaryCommandContract(
 				commandSurfacePath(root, primaryHTMLPath), primaryRow, command,
 			)...)
 		}
 
-		primaryMarkdownRow, ok := commandSurfaceMarkdownRow(
+		primaryMarkdownRow, markdownRowCount := commandSurfaceMarkdownRow(
 			string(primaryMarkdown), command.Path,
 		)
-		if !ok {
-			issues = append(issues, generatedCommandContractIssue(
+		if markdownRowCount != 1 {
+			issues = append(issues, commandContainerCountIssue(
 				commandSurfacePath(root, primaryMarkdownPath), command.Path,
-				"primary CLI Markdown command row",
+				"primary CLI Markdown command row", markdownRowCount,
 			))
 		} else {
 			issues = append(issues, validatePrimaryMarkdownContract(
@@ -2147,15 +2176,26 @@ func validateGeneratedCommandSurfaces(
 			)...)
 		}
 
-		meta, ok := llmsCommandMetadata(string(llms), command.Path)
-		if !ok {
-			issues = append(issues, generatedCommandContractIssue(
-				commandSurfacePath(root, llmsPath), command.Path, "llms.txt command row",
+		meta, metadataCount, metadataClosed := llmsCommandMetadata(
+			string(llms), command.Path,
+		)
+		switch {
+		case metadataCount != 1:
+			issues = append(issues, commandContainerCountIssue(
+				commandSurfacePath(root, llmsPath), command.Path,
+				"llms.txt command metadata row", metadataCount,
 			))
-			continue
+		case !metadataClosed:
+			issues = append(issues, malformedCommandContainerIssue(
+				commandSurfacePath(root, llmsPath), command.Path,
+				"llms.txt command metadata row",
+			))
+		default:
+			issues = append(issues,
+				validateLLMSCommandContract(
+					commandSurfacePath(root, llmsPath), meta, command,
+				)...)
 		}
-		issues = append(issues,
-			validateLLMSCommandContract(commandSurfacePath(root, llmsPath), meta, command)...)
 	}
 	issues = append(issues, validatePrimaryOperatorCatalog(
 		commandSurfacePath(root, primaryHTMLPath), string(primaryHTML), live,
@@ -2182,6 +2222,26 @@ func generatedCommandContractIssue(path, command, dimension string) issue {
 func missingCommandDimension(command, dimension string) string {
 	var detail textbuf.Buffer
 	return detail.Str("command ").Quoted(command).Str(" is missing ").Str(dimension).String()
+}
+
+func commandContainerCountIssue(path, command, kind string, count int) issue {
+	var detail textbuf.Buffer
+	return issue{
+		File:    path,
+		Message: "the generated per-command surface does not have exactly one command container",
+		Detail: detail.Str("command ").Quoted(command).Str(" has ").
+			Int(int64(count)).Byte(' ').Str(kind).Str(" containers; expected exactly one").String(),
+	}
+}
+
+func malformedCommandContainerIssue(path, command, kind string) issue {
+	var detail textbuf.Buffer
+	return issue{
+		File:    path,
+		Message: "the generated per-command surface has a malformed command container",
+		Detail: detail.Str("command ").Quoted(command).Byte(' ').Str(kind).
+			Str(" is missing its closing delimiter").String(),
+	}
 }
 
 func availabilityCommandDimension(availability, name string) string {
@@ -2230,6 +2290,22 @@ func compareCommandOperatorGroups(
 	)
 }
 
+func compareScannedCommandOperatorGroups(
+	path, command, availability string,
+	expected []string,
+	scan commandHTMLGroupScan,
+) []issue {
+	issues := compareCommandOperatorGroups(
+		path, command, availability, expected, scan.groups,
+	)
+	if scan.malformed {
+		issues = append(issues, malformedCommandOperatorGroupIssue(
+			path, command, availability,
+		))
+	}
+	return issues
+}
+
 func compareCommandOperatorGroup(
 	path, command, availability string,
 	expected, actual []string,
@@ -2274,6 +2350,16 @@ func duplicateCommandOperatorGroupIssue(
 		Detail: detail.Str("command ").Quoted(command).Str(" has ").
 			Int(int64(count)).Byte(' ').Str(availability).
 			Str(" operator groups; expected at most one").String(),
+	}
+}
+
+func malformedCommandOperatorGroupIssue(path, command, availability string) issue {
+	var detail textbuf.Buffer
+	return issue{
+		File:    path,
+		Message: "the generated per-command surface has a malformed operator availability group",
+		Detail: detail.Str("command ").Quoted(command).Byte(' ').Str(availability).
+			Str(" operator group is missing its closing delimiter").String(),
 	}
 }
 
@@ -2500,19 +2586,20 @@ func commandSurfaceSlug(path string) string {
 	return strings.Trim(slug, "-")
 }
 
-func commandSurfaceHTMLRow(content, slug string) (string, bool) {
+func commandSurfaceHTMLRow(content, slug string) (string, int, bool) {
 	var marker textbuf.Buffer
 	startMarker := marker.Str(`<tr id="cmd-`).Str(slug).Str(`">`).String()
-	start := strings.Index(content, startMarker)
-	if start == -1 {
-		return "", false
+	count := strings.Count(content, startMarker)
+	if count != 1 {
+		return "", count, false
 	}
+	start := strings.Index(content, startMarker)
 	remaining := content[start:]
 	end := strings.Index(remaining, "</tr>")
 	if end == -1 {
-		return "", false
+		return "", count, false
 	}
-	return remaining[:end+len("</tr>")], true
+	return remaining[:end+len("</tr>")], count, true
 }
 
 func validatePrimaryCommandContract(
@@ -2550,10 +2637,10 @@ func validatePrimaryCommandContract(
 		{availability: "when-streaming", label: "While streaming"},
 		{availability: "local-only", label: "Local process only"},
 	} {
-		issues = append(issues, compareCommandOperatorGroups(
+		scan := commandHTMLGroups(row, group.label)
+		issues = append(issues, compareScannedCommandOperatorGroups(
 			path, command.Path, group.availability,
-			commandOperatorNames(command, group.availability),
-			commandHTMLGroups(row, group.label),
+			commandOperatorNames(command, group.availability), scan,
 		)...)
 	}
 
@@ -2603,15 +2690,18 @@ func validatePrimaryCommandContract(
 	return issues
 }
 
-func commandSurfaceMarkdownRow(content, path string) (string, bool) {
+func commandSurfaceMarkdownRow(content, path string) (string, int) {
 	var marker textbuf.Buffer
 	prefix := marker.Str("| `").Str(commandMarkdownValue(path)).Str("` |").String()
+	var row string
+	count := 0
 	for line := range strings.SplitSeq(content, "\n") {
 		if strings.HasPrefix(line, prefix) {
-			return line, true
+			row = line
+			count++
 		}
 	}
-	return "", false
+	return row, count
 }
 
 func commandMarkdownValue(value string) string {
@@ -2728,21 +2818,27 @@ func commandAvailabilityLabel(availability string) string {
 	}
 }
 
-func commandHTMLGroups(content, label string) [][]string {
+type commandHTMLGroupScan struct {
+	groups    [][]string
+	malformed bool
+}
+
+func commandHTMLGroups(content, label string) commandHTMLGroupScan {
 	var marker textbuf.Buffer
 	startMarker := marker.Str("<span>").Str(html.EscapeString(label)).
 		Str("</span><code>").String()
-	var groups [][]string
+	var scan commandHTMLGroupScan
 	remaining := content
 	for {
 		start := strings.Index(remaining, startMarker)
 		if start == -1 {
-			return groups
+			return scan
 		}
 		values := remaining[start+len(startMarker):]
 		end := strings.Index(values, "</code>")
 		if end == -1 {
-			return groups
+			scan.malformed = true
+			return scan
 		}
 		var parsed []string
 		if values := values[:end]; values != "" {
@@ -2751,7 +2847,7 @@ func commandHTMLGroups(content, label string) [][]string {
 				parsed[i] = html.UnescapeString(parsed[i])
 			}
 		}
-		groups = append(groups, parsed)
+		scan.groups = append(scan.groups, parsed)
 		remaining = values[end+len("</code>"):]
 	}
 }
@@ -2831,28 +2927,34 @@ func htmlDefinitionValue(content, label string) string {
 	return values[:end]
 }
 
-func equivalentHTMLCommandContent(content string) (string, bool) {
+func equivalentHTMLCommandContent(content string) (string, int, bool) {
 	const startMarker = `<article class="cmd-detail-card cmd-detail-ze">`
-	start := strings.Index(content, startMarker)
-	if start == -1 {
-		return "", false
+	count := strings.Count(content, startMarker)
+	if count != 1 {
+		return "", count, false
 	}
+	start := strings.Index(content, startMarker)
 	remaining := content[start+len(startMarker):]
 	end := strings.Index(remaining, "</article>")
 	if end == -1 {
-		return "", false
+		return "", count, false
 	}
-	return remaining[:end], true
+	return remaining[:end], count, true
 }
 
 func validateEquivalentCommandContract(
 	path, content string,
 	command publishedCommand,
 ) []issue {
-	commandContent, ok := equivalentHTMLCommandContent(content)
-	if !ok {
-		return []issue{generatedCommandContractIssue(
-			path, command.Path, "command-equivalent HTML command section",
+	commandContent, containerCount, containerClosed := equivalentHTMLCommandContent(content)
+	switch {
+	case containerCount != 1:
+		return []issue{commandContainerCountIssue(
+			path, command.Path, "command-equivalent Ze HTML article", containerCount,
+		)}
+	case !containerClosed:
+		return []issue{malformedCommandContainerIssue(
+			path, command.Path, "command-equivalent Ze HTML article",
 		)}
 	}
 	content = commandContent
@@ -2890,10 +2992,10 @@ func validateEquivalentCommandContract(
 		{availability: "when-streaming", label: "Pipes, while streaming"},
 		{availability: "local-only", label: "Pipes, local process only"},
 	} {
-		issues = append(issues, compareCommandOperatorGroups(
+		scan := equivalentHTMLGroups(content, group.label)
+		issues = append(issues, compareScannedCommandOperatorGroups(
 			path, command.Path, group.availability,
-			commandOperatorNames(command, group.availability),
-			equivalentHTMLGroups(content, group.label),
+			commandOperatorNames(command, group.availability), scan,
 		)...)
 	}
 	expectedFilters := make([]string, 0, len(command.Pipes))
@@ -2930,27 +3032,26 @@ func validateEquivalentCommandContract(
 	return issues
 }
 
-func equivalentMarkdownCommandContent(content string) (string, bool) {
-	const startMarker = "## Ze command\n"
-	start := strings.Index(content, startMarker)
-	if start == -1 {
-		return "", false
+func equivalentMarkdownCommandContent(content string) (string, int) {
+	remaining, count := markdownHeadingContent(content, "## Ze command")
+	if count != 1 {
+		return "", count
 	}
-	remaining := content[start+len(startMarker):]
 	if end := strings.Index(remaining, "\n## "); end != -1 {
 		remaining = remaining[:end]
 	}
-	return remaining, true
+	return remaining, count
 }
 
 func validateEquivalentMarkdownContract(
 	path, content string,
 	command publishedCommand,
 ) []issue {
-	commandContent, ok := equivalentMarkdownCommandContent(content)
-	if !ok {
-		return []issue{generatedCommandContractIssue(
-			path, command.Path, "command-equivalent Markdown command section",
+	commandContent, containerCount := equivalentMarkdownCommandContent(content)
+	if containerCount != 1 {
+		return []issue{commandContainerCountIssue(
+			path, command.Path, "command-equivalent Markdown Ze command section",
+			containerCount,
 		)}
 	}
 	content = commandContent
@@ -3095,21 +3196,22 @@ func equivalentAvailabilityLabel(availability string, declaredShape bool) string
 	}
 }
 
-func equivalentHTMLGroups(content, label string) [][]string {
+func equivalentHTMLGroups(content, label string) commandHTMLGroupScan {
 	var marker textbuf.Buffer
 	startMarker := marker.Str("<dt>").Str(html.EscapeString(label)).
 		Str("</dt><dd>").String()
-	var groups [][]string
+	var scan commandHTMLGroupScan
 	remaining := content
 	for {
 		start := strings.Index(remaining, startMarker)
 		if start == -1 {
-			return groups
+			return scan
 		}
 		values := remaining[start+len(startMarker):]
 		end := strings.Index(values, "</dd>")
 		if end == -1 {
-			return groups
+			scan.malformed = true
+			return scan
 		}
 		var parsed []string
 		if values := values[:end]; values != "" {
@@ -3118,26 +3220,31 @@ func equivalentHTMLGroups(content, label string) [][]string {
 				parsed[i] = html.UnescapeString(parsed[i])
 			}
 		}
-		groups = append(groups, parsed)
+		scan.groups = append(scan.groups, parsed)
 		remaining = values[end+len("</dd>"):]
 	}
 }
 
-func llmsCommandMetadata(content, path string) (string, bool) {
+func llmsCommandMetadata(content, path string) (string, int, bool) {
 	var marker textbuf.Buffer
 	prefix := marker.Str("- `").Str(path).Str("` (").String()
+	var meta string
+	count := 0
+	closed := true
 	for line := range strings.SplitSeq(content, "\n") {
 		if !strings.HasPrefix(line, prefix) {
 			continue
 		}
+		count++
 		remaining := line[len(prefix):]
 		end := strings.Index(remaining, "): ")
 		if end == -1 {
-			return "", false
+			closed = false
+			continue
 		}
-		return remaining[:end], true
+		meta = remaining[:end]
 	}
-	return "", false
+	return meta, count, closed
 }
 
 func validateLLMSCommandContract(

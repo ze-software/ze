@@ -46,3 +46,6 @@ is open.
 | 2026-08-27 | 8cb04dea | fix(cli): close fourth pipe review findings | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-27 | 8cb04dea | fix(cli): close fourth pipe review findings | full ze-precommit-verify over this commit's Go | Focused command, registry, SSH, docvalid, and authenticated production PTY tests cover this review-fix chunk; the periodic full gate has not run. | open |
 | 2026-08-27 | 8cb04dea | fix(cli): close fourth pipe review findings | discovery-index freshness | ai/PACKAGE-MAP.md and ai/DOCS-TO-CODE.md contain concurrent repository changes outside this CLI commit. | open |
+| 2026-08-27 | 8cb04dea | fix(cli): close fifth pipe review findings | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-27 | 8cb04dea | fix(cli): close fifth pipe review findings | full ze-precommit-verify over this commit's Go | Focused command, registry, docvalid, and documentation drift tests cover this review-fix chunk; the periodic full gate has not run. | open |
+| 2026-08-27 | 8cb04dea | fix(cli): close fifth pipe review findings | discovery-index freshness | ai/PACKAGE-MAP.md and ai/DOCS-TO-CODE.md contain concurrent repository changes outside this CLI commit. | open |

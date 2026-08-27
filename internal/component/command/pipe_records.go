@@ -96,6 +96,11 @@ func applyPipesRecords(
 				continue
 			}
 		}
+		if op.kind == pipeCount {
+			records = recordsCounted(records)
+			fields = nil
+			continue
+		}
 		if op.kind == pipeDisplay {
 			var msg string
 			records, fields, msg = recordsSelected(records, request, fields)

@@ -1,7 +1,6 @@
 package registry_test
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -18,6 +17,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/test/tmpfs"
 )
 
 const pythonLocalDataAST = `
@@ -157,7 +158,8 @@ func TestFunctionalLocalDataInvocationsIgnoreDrafts(t *testing.T) {
 	live := []byte("tmpfs=run.py:terminator=PY\n" +
 		"payload = local_json('show env list | json compact')\n" +
 		"print('OK: live fixture')\n" +
-		"PY\n")
+		"PY\n" +
+		functionalRunCommandDirective)
 	livePath := filepath.Join(liveDir, "pipe-local-command.ci")
 	if err := os.WriteFile(livePath, live, 0o600); err != nil {
 		t.Fatalf("write live functional population: %v", err)
@@ -183,9 +185,9 @@ func TestFunctionalLocalDataInvocationsIgnoreDrafts(t *testing.T) {
 // TestFunctionalLocalDataInvocationsRequireExecutedTopLevelAssignments proves
 // the static live-scenario contract cannot be satisfied by inert Python text.
 //
-// VALIDATES: IR3-6, IR4-1 -- only executable top-level AST assignments before
-// exactly one top-level success marker count.
-// PREVENTS: comments, strings, nested blocks, and dynamic commands faking coverage.
+// VALIDATES: IR3-6, IR4-1, IR5-5 -- only executable top-level AST assignments
+// before exactly one top-level success marker count.
+// PREVENTS: comments, strings, nested blocks, dynamic commands, and late literals faking coverage.
 func TestFunctionalLocalDataInvocationsRequireExecutedTopLevelAssignments(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -255,10 +257,10 @@ func TestFunctionalLocalDataInvocationsRequireExecutedTopLevelAssignments(t *tes
 				"payload = local_json('show after fake | json compact')\n",
 		},
 		{
-			name: "after successful completion",
+			name: "literal after successful completion",
 			scenario: "tmpfs=run.py:terminator=PY\n" +
 				"print('OK: fixture complete')\n" +
-				"payload = local_json(command)\n" +
+				"payload = local_json('show late fake | json compact')\n" +
 				"PY\n",
 		},
 		{
@@ -300,6 +302,106 @@ func TestFunctionalLocalDataInvocationsRequireExecutedTopLevelAssignments(t *tes
 				"payload = local_json(template % 'argument')\n" +
 				"print('OK: fixture complete')\n" +
 				"PY\n",
+			wantError: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := parseFunctionalLocalDataInvocations([]byte(test.scenario + functionalRunCommandDirective))
+			if test.wantError {
+				if err == nil {
+					t.Fatalf("parse fixture succeeded with invocations %q, want error", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parse fixture: %v", err)
+			}
+			if strings.Join(got, "\n") != strings.Join(test.want, "\n") {
+				t.Fatalf("invocations = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+// TestFunctionalLocalDataInvocationsRequireLaunchedRunPayload proves AC-10
+// evidence comes from the one run.py payload the scenario actually executes.
+//
+// VALIDATES: IR5-2 -- one unambiguous runner command launches one run.py payload.
+// PREVENTS: an inert payload or alternate driver satisfying the coverage ratchet.
+func TestFunctionalLocalDataInvocationsRequireLaunchedRunPayload(t *testing.T) {
+	const runPayload = "tmpfs=run.py:terminator=PY\n" +
+		"payload = local_json('show live command | json compact')\n" +
+		"print('OK: fixture complete')\n" +
+		"PY\n"
+
+	tests := []struct {
+		name      string
+		scenario  string
+		want      []string
+		wantError bool
+	}{
+		{
+			name:     "valid launch",
+			scenario: runPayload + functionalRunCommandDirective,
+			want:     []string{"show live command | json compact"},
+		},
+		{
+			name: "driver.py launch selects second payload",
+			scenario: runPayload +
+				"tmpfs=driver.py:terminator=DRIVER\n" +
+				"print('OK: alternate driver')\n" +
+				"DRIVER\n" +
+				"cmd=foreground:seq=1:exec=python3 driver.py\n",
+			wantError: true,
+		},
+		{
+			name: "second run.py payload",
+			scenario: runPayload +
+				"tmpfs=run.py:terminator=SECOND\n" +
+				"print('OK: duplicate payload')\n" +
+				"SECOND\n" +
+				functionalRunCommandDirective,
+			wantError: true,
+		},
+		{
+			name: "missing run.py payload",
+			scenario: "tmpfs=driver.py:terminator=DRIVER\n" +
+				"print('OK: alternate driver')\n" +
+				"DRIVER\n" +
+				functionalRunCommandDirective,
+			wantError: true,
+		},
+		{
+			name:      "missing command",
+			scenario:  runPayload,
+			wantError: true,
+		},
+		{
+			name: "duplicate command",
+			scenario: runPayload +
+				functionalRunCommandDirective +
+				"cmd=foreground:seq=2:exec=python3 driver.py\n",
+			wantError: true,
+		},
+		{
+			name: "ambiguous relative-path spelling",
+			scenario: runPayload +
+				"cmd=foreground:seq=1:exec=python3 ./run.py\n",
+			wantError: true,
+		},
+		{
+			name: "ambiguous whitespace spelling",
+			scenario: runPayload +
+				"cmd=foreground:seq=1:exec=python3  run.py\n",
+			wantError: true,
+		},
+		{
+			name: "missing run.py terminator",
+			scenario: "tmpfs=run.py:terminator=PY\n" +
+				"print('OK: fixture complete')\n" +
+				functionalRunCommandDirective,
 			wantError: true,
 		},
 	}
@@ -438,38 +540,102 @@ func functionalLocalDataInvocations(t *testing.T, root string) []string {
 	return invocations
 }
 
-func parseFunctionalLocalDataInvocations(content []byte) ([]string, error) {
-	const payloadPrefix = "tmpfs=run.py:terminator="
+const (
+	functionalRunCommand          = "python3 run.py"
+	functionalRunCommandDirective = "cmd=foreground:seq=1:exec=" + functionalRunCommand + "\n"
+)
 
-	scanner := bufio.NewScanner(bytes.NewReader(content))
-	var payload bytes.Buffer
-	terminator := ""
-	inPayload := false
-	for scanner.Scan() {
-		line := strings.TrimSuffix(scanner.Text(), "\r")
-		if !inPayload {
-			if payloadTerminator, ok := strings.CutPrefix(line, payloadPrefix); ok {
-				terminator = payloadTerminator
-				if terminator == "" {
-					return nil, fmt.Errorf("run.py payload has an empty terminator")
-				}
-				inPayload = true
-			}
+func parseFunctionalLocalDataInvocations(content []byte) ([]string, error) {
+	scenario, err := tmpfs.Parse(bytes.NewReader(content))
+	if err != nil {
+		return nil, fmt.Errorf("parse functional scenario: %w", err)
+	}
+
+	var payload []byte
+	runPayloads := 0
+	for _, file := range scenario.Files {
+		if file.Path != "run.py" {
 			continue
 		}
-		if line == terminator {
-			return parsePythonLocalDataInvocations(payload.Bytes())
+		runPayloads++
+		payload = file.Content
+	}
+	if runPayloads != 1 {
+		return nil, fmt.Errorf("functional scenario has %d tmpfs=run.py payloads, want exactly 1", runPayloads)
+	}
+
+	executableCommands := 0
+	runExec := ""
+	for _, line := range scenario.OtherLines {
+		directive, ok := strings.CutPrefix(line, "cmd=")
+		if !ok {
+			continue
 		}
-		payload.WriteString(line)
-		payload.WriteByte('\n')
+		execValue, executable, parseErr := functionalCommandExec(directive)
+		if parseErr != nil {
+			return nil, parseErr
+		}
+		if !executable {
+			continue
+		}
+		executableCommands++
+		runExec = execValue
 	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("scan functional scenario: %w", err)
+	if executableCommands != 1 {
+		return nil, fmt.Errorf("functional scenario has %d executable cmd= directives, want exactly 1", executableCommands)
 	}
-	if !inPayload {
-		return nil, fmt.Errorf("functional scenario has no tmpfs=run.py payload")
+	if runExec != functionalRunCommand {
+		return nil, fmt.Errorf("functional scenario launches %q, want %q", runExec, functionalRunCommand)
 	}
-	return nil, fmt.Errorf("run.py payload has no %q terminator", terminator)
+
+	return parsePythonLocalDataInvocations(payload)
+}
+
+func functionalCommandExec(directive string) (string, bool, error) {
+	mode, _, hasFields := strings.Cut(directive, ":")
+	if mode == "stop" || mode == "api" {
+		return "", false, nil
+	}
+	if !hasFields || (mode != "foreground" && mode != "background") {
+		return "", false, fmt.Errorf("malformed executable cmd= directive %q", directive)
+	}
+
+	const (
+		seqMarker  = ":seq="
+		execMarker = ":exec="
+	)
+	if strings.Count(directive, seqMarker) != 1 {
+		return "", false, fmt.Errorf("executable cmd= directive %q must have exactly one seq= field", directive)
+	}
+	if strings.Count(directive, execMarker) != 1 {
+		return "", false, fmt.Errorf("executable cmd= directive %q must have exactly one exec= field", directive)
+	}
+
+	seqStart := strings.Index(directive, seqMarker) + len(seqMarker)
+	seqEnd := nextFunctionalCommandMarker(directive, seqStart,
+		execMarker, ":stdin=", ":timeout=", ":exit=", ":name=")
+	sequence, err := strconv.Atoi(directive[seqStart:seqEnd])
+	if err != nil || sequence < 1 {
+		return "", false, fmt.Errorf("executable cmd= directive %q has an invalid seq= field", directive)
+	}
+
+	execStart := strings.Index(directive, execMarker) + len(execMarker)
+	execEnd := nextFunctionalCommandMarker(directive, execStart,
+		":stdin=", ":timeout=", ":exit=", ":name=")
+	if execStart == execEnd {
+		return "", false, fmt.Errorf("executable cmd= directive %q has an empty exec= field", directive)
+	}
+	return directive[execStart:execEnd], true, nil
+}
+
+func nextFunctionalCommandMarker(line string, start int, markers ...string) int {
+	end := len(line)
+	for _, marker := range markers {
+		if index := strings.Index(line[start:], marker); index >= 0 && start+index < end {
+			end = start + index
+		}
+	}
+	return end
 }
 
 func parsePythonLocalDataInvocations(payload []byte) ([]string, error) {

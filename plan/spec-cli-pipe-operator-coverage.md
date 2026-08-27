@@ -818,6 +818,23 @@ producer.
 **Independent round 4: 9 BLOCKER, 1 ISSUE, 0 outstanding.** All 10
 findings are fixed. The next independent round reviews their exact commit.
 
+### Independent review, round 5 (2026-08-27)
+
+Three new contexts reviewed fix commit `ffa2697d5` through logic, security,
+and public-contract lenses. The security lens returned clean. The main session
+verified the five remaining findings against their producers.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR5-1 | BLOCKER | Positional `count \| ndjson` leaves the source schema attached to the count document, so canonicalization emits a positional-row fault (`internal/component/command/pipe_records.go`) | FIXED |
+| IR5-2 | BLOCKER | The AC-10 ratchet validates `run.py` but does not prove the `.ci` command executes it instead of a second payload (`internal/component/command/registry/local_data_functional_coverage_test.go`) | FIXED |
+| IR5-3 | BLOCKER | Rendered validators select the first per-command row or section and accept a duplicate container for the same command with catalog-absent operators (`scripts/docvalid/doc_drift.go`) | FIXED |
+| IR5-4 | BLOCKER | HTML group scanners return prior valid groups when a later duplicate group is unterminated, accepting malformed catalog-absent output (`scripts/docvalid/doc_drift.go`) | FIXED |
+| IR5-5 | ISSUE | The AST fixture changed the post-completion fake call from a literal to a dynamic value, losing discrimination for late literal evidence (`internal/component/command/registry/local_data_functional_coverage_test.go`) | FIXED |
+
+**Independent round 5: 4 BLOCKER, 1 ISSUE, 0 outstanding.** All five
+findings are fixed. The next independent round reviews their exact commit.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and

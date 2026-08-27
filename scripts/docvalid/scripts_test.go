@@ -1261,6 +1261,153 @@ func TestDocDriftRejectsDuplicateOperatorGroupsOnEveryRenderedSurface(t *testing
 	})
 }
 
+// VALIDATES: every command is parsed from exactly one command-owned container
+// before any operator groups are inspected.
+// PREVENTS: a valid first container hiding a catalog-absent operator in a
+// duplicate row, article, section, or metadata line.
+func TestDocDriftRejectsDuplicateCommandContainersOnEverySurface(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		old  string
+		new  string
+	}{
+		{
+			name: "primary HTML row",
+			path: "reference/cli/index.html",
+			old:  "</td></tr>\n<footer>",
+			new: "</td></tr>\n" +
+				`<tr id="cmd-show-test"><td><p><span>Always</span><code>catalog-absent</code></p></td></tr>` +
+				"\n<footer>",
+		},
+		{
+			name: "primary Markdown row",
+			path: "reference/cli/index.md",
+			old:  "| `show test` | Read-only | Show test rows |",
+			new: "| `show test` | Read-only | Duplicate | Always: `catalog-absent` |\n" +
+				"| `show test` | Read-only | Show test rows |",
+		},
+		{
+			name: "command-equivalent HTML article",
+			path: "reference/command-equivalents/show-test/index.html",
+			old:  "</article>\n</body>",
+			new: "</article>\n" +
+				`<article class="cmd-detail-card cmd-detail-ze"><dt>Pipes, always</dt><dd>catalog-absent</dd></article>` +
+				"\n</body>",
+		},
+		{
+			name: "command-equivalent Markdown section",
+			path: "reference/command-equivalents/show-test/index.md",
+			old:  "## Mapping intents",
+			new: "## Ze command\n\n- Registry path: `show test`\n" +
+				"- Pipes, always: catalog-absent\n\n## Mapping intents",
+		},
+		{
+			name: "llms metadata row",
+			path: "llms.txt",
+			old:  "): Show test rows\n",
+			new: "): Show test rows\n" +
+				"- `show test` (read-only; pipes always: catalog-absent): Duplicate\n",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(t, root, tc.path, tc.old, tc.new)
+
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil {
+				t.Fatalf("doc drift accepted duplicate %s container:\n%s", tc.name, out)
+			}
+			if !strings.Contains(out, "does not have exactly one command container") ||
+				!strings.Contains(out, filepath.ToSlash(tc.path)) ||
+				!strings.Contains(out, `command "show test"`) {
+				t.Fatalf("doc drift did not identify the duplicate %s container:\n%s", tc.name, out)
+			}
+		})
+	}
+
+	t.Run("wiki command detail section", func(t *testing.T) {
+		root := t.TempDir()
+		livePath := writeRenderedCommandCatalogFixture(t, root)
+		source, err := os.ReadFile(filepath.Join(
+			repoRoot(t), "scripts", "dev", "gen_wiki_commands.py",
+		))
+		if err != nil {
+			t.Fatal(err)
+		}
+		old := "                print(f\"### `{entry['path']}`\")\n" +
+			"                for line in render_detail(entry):\n" +
+			"                    print(line)\n" +
+			"                print()\n"
+		replacement := old +
+			"                print(f\"### `{entry['path']}`\")\n" +
+			"                print(\"Always: `catalog-absent`\")\n"
+		mutated := strings.Replace(string(source), old, replacement, 1)
+		if mutated == string(source) {
+			t.Fatal("the duplicate wiki command container mutation did not apply")
+		}
+		writeTempDoc(t, root, "scripts/dev/gen_wiki_commands.py", mutated)
+
+		out, err := runRenderedCommandDriftFixture(t, root, livePath)
+		if err == nil {
+			t.Fatalf("doc drift accepted a duplicate wiki command detail:\n%s", out)
+		}
+		if !strings.Contains(out, "does not have exactly one command container") ||
+			!strings.Contains(out, "scripts/dev/gen_wiki_commands.py") ||
+			!strings.Contains(out, `command "show test"`) {
+			t.Fatalf("doc drift did not identify the duplicate wiki command detail:\n%s", out)
+		}
+	})
+}
+
+// VALIDATES: HTML group scanners report a matched opener without its closing
+// delimiter even after a valid group has already satisfied the live catalog.
+// PREVENTS: an unterminated trailing duplicate being treated as absence or EOF.
+func TestDocDriftRejectsMalformedTrailingHTMLOperatorGroups(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		old  string
+		new  string
+	}{
+		{
+			name: "primary HTML",
+			path: "reference/cli/index.html",
+			old:  "<p><span>Local process only</span><code>save</code></p>\n</td></tr>",
+			new: "<p><span>Local process only</span><code>save</code></p>\n" +
+				"<p><span>Always</span><code>catalog-absent\n</td></tr>",
+		},
+		{
+			name: "command-equivalent HTML",
+			path: "reference/command-equivalents/show-test/index.html",
+			old:  "<div><dt>Address fields</dt><dd>address</dd></div>\n</article>",
+			new: "<div><dt>Address fields</dt><dd>address</dd></div>\n" +
+				"<div><dt>Pipes, always</dt><dd>catalog-absent\n</article>",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(t, root, tc.path, tc.old, tc.new)
+
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil {
+				t.Fatalf("doc drift accepted a malformed trailing %s group:\n%s", tc.name, out)
+			}
+			if !strings.Contains(out, "malformed operator availability group") ||
+				!strings.Contains(out, filepath.ToSlash(tc.path)) ||
+				!strings.Contains(out, `command "show test"`) {
+				t.Fatalf("doc drift did not identify the malformed trailing %s group:\n%s", tc.name, out)
+			}
+		})
+	}
+}
+
 // VALIDATES: a unique operator group preserves the catalog's ordered names.
 // PREVENTS: set-only comparison accepting reordered generated documentation.
 func TestDocDriftRejectsReorderedOperatorGroup(t *testing.T) {
