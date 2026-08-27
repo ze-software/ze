@@ -2375,6 +2375,129 @@ func TestFoldedFiltersValidateCatalogArgumentsBeforeDispatch(t *testing.T) {
 	}
 }
 
+// TestOwnedCountCannotHideInvalidDocumentFollowers exercises the filtered
+// command boundary where count belongs to the command, while the generic row
+// operators still belong to the pipe engine.
+//
+// VALIDATES: IR7-1 -- count/document validation sees the expanded chain before
+// foldFilters can remove count. A formatted line follower remains valid.
+// PREVENTS: dispatching a command or pulling its records after the fold erased
+// the count that made match, first, or last invalid.
+func TestOwnedCountCannotHideInvalidDocumentFollowers(t *testing.T) {
+	ResetPipeFiltersForTest()
+	t.Cleanup(ResetPipeFiltersForTest)
+	RegisterPipeFilters([]string{"show bgp rib"},
+		PipeFilter{Name: "received", Description: "Select received routes", Leading: true},
+		PipeFilter{Name: "advertised", Description: "Select advertised routes", Leading: true},
+		PipeFilter{Name: "peer", Description: "Filter by peer", TakesArg: true},
+		PipeFilter{Name: "family", Description: "Filter by family", TakesArg: true},
+		PipeFilter{Name: "prefix", Description: "Filter by prefix", TakesArg: true},
+		PipeFilter{Name: "count", Description: "Count matching routes"},
+	)
+
+	tests := []struct {
+		name        string
+		follower    string
+		followerArg string
+		want        string
+	}{
+		{
+			name:        "match",
+			follower:    "match established",
+			followerArg: "established",
+			want:        "match cannot apply after count: count produces one document, not rendered lines; add a format before match",
+		},
+		{
+			name:        "first",
+			follower:    "first 1",
+			followerArg: "1",
+			want:        "first cannot apply after count: count produces one document, not rendered lines; add a format before first",
+		},
+		{
+			name:        "last",
+			follower:    "last 1",
+			followerArg: "1",
+			want:        "last cannot apply after count: count produces one document, not rendered lines; add a format before last",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := "show bgp rib | count | " + tt.follower
+			command, ops := parsePipeChain(input)
+			foldedCommand, folded, meta := foldFilters(command, ops)
+			if foldedCommand != command {
+				t.Errorf("invalid chain changed dispatch command to %q, want %q", foldedCommand, command)
+			}
+			if len(folded) != 1 || folded[0].kind != pipeInvalid || folded[0].arg != tt.want {
+				t.Fatalf("folded ops = %+v, want one pipeInvalid carrying %q", folded, tt.want)
+			}
+			if len(meta) != 2 ||
+				meta[0] != (pipeChainStep{Op: "count"}) ||
+				meta[1] != (pipeChainStep{Op: tt.name, Arg: tt.followerArg}) {
+				t.Errorf("fold changed chain metadata to %+v", meta)
+			}
+
+			handlerReached := false
+			handler := func() string {
+				handlerReached = true
+				return `{"routes":[]}`
+			}
+			processedCommand, format, errMsg := processPipesChecked(input)
+			if errMsg == "" {
+				format(handler())
+			}
+			if handlerReached {
+				t.Fatal("ProcessPipes reached the handler before refusing the chain")
+			}
+			if processedCommand != command || format != nil || errMsg != tt.want {
+				t.Errorf("ProcessPipes = (%q, %v, %q), want (%q, nil, %q)",
+					processedCommand, format != nil, errMsg, command, tt.want)
+			}
+
+			sourceReached := false
+			source := func(yield func(rpc.Record) bool) {
+				sourceReached = true
+				yield(rpc.Record{Item: json.RawMessage(`{"prefix":"192.0.2.0/24"}`)})
+			}
+			selected, _, msg := applyPipesRecords(input, nil, source)
+			if msg != "" {
+				t.Fatalf("record entry returned side-channel error %q", msg)
+			}
+			records := collectRecords(selected)
+			if sourceReached {
+				t.Fatal("record entry pulled the source before refusing the chain")
+			}
+			if len(records) != 1 || len(records[0].Fault) == 0 {
+				t.Fatalf("record entry answered %+v, want one named fault", records)
+			}
+			var fault struct {
+				Message string `json:"message"`
+			}
+			if err := json.Unmarshal(records[0].Fault, &fault); err != nil {
+				t.Fatalf("decode record fault: %v", err)
+			}
+			if fault.Message != tt.want {
+				t.Errorf("record refusal = %q, want %q", fault.Message, tt.want)
+			}
+		})
+	}
+
+	command, format, errMsg := processPipesChecked("show bgp rib | count | ndjson | first 1")
+	if errMsg != "" {
+		t.Fatalf("formatted count follower was refused: %s", errMsg)
+	}
+	if command != "show bgp rib count" {
+		t.Errorf("valid count did not fold: command = %q", command)
+	}
+	result := format(`{"count":3}`)
+	if IsPipeError(result) {
+		t.Fatalf("first used document semantics after ndjson: %s", result)
+	}
+	if !strings.Contains(result, `"count":3`) || strings.Count(result, "\n") != 1 {
+		t.Errorf("ndjson | first did not return one rendered count line: %q", result)
+	}
+}
+
 // TestLastRetentionLimitBoundaries fixes the exact accepted edge of the record
 // retention window.
 //

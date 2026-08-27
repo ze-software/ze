@@ -207,13 +207,17 @@ func expandAliases(command string, ops []pipeOp) []pipeOp {
 }
 
 // foldFilters rewrites command-owned pipe filters into command arguments.
-// Known catalog operators are argument-validated before any op can be removed.
+// Known catalog arguments and count's document followers are validated before
+// any op can be removed.
 // A known row transform after a format stays in the chain because it acts on
 // the rendered document. Unknown operators stay available for command-filter
 // validation below. Returns pipe metadata recording all data-shaping modifiers.
 func foldFilters(command string, ops []pipeOp) (string, []pipeOp, pipeChainMeta) {
 	meta := collectPipeMeta(ops)
 	if msg := validateKnownPipeArguments(ops); msg != "" {
+		return command, []pipeOp{{kind: pipeInvalid, arg: msg}}, meta
+	}
+	if msg := validateCountDocumentFollowers(ops); msg != "" {
 		return command, []pipeOp{{kind: pipeInvalid, arg: msg}}, meta
 	}
 

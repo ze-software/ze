@@ -60,3 +60,7 @@ is open.
 | 2026-08-27 | 8cb04dea | fix(le): probe committed tree with le basename | independent critical review | Independent review will cover the final committed le cutover and this inventory fix together. | open |
 | 2026-08-27 | 8cb04dea | fix(demo): show health banner and visible commands | ze-precommit-verify (not FRESH-green) | Focused source tests and an isolated health-reports render pass; no fresh repository-wide verify status exists. | open |
 | 2026-08-27 | 8cb04dea | fix(demo): arm config response before submit | ze-precommit-verify (not FRESH-green) | An isolated web-config render passed; no fresh repository-wide verify status exists. | open |
+| 2026-08-27 | 8cb04dea | fix(cli): validate count followers before folding | ze-precommit-verify (not FRESH-green) | Focused command tests passed; no fresh repository-wide verify status exists. | open |
+| 2026-08-27 | 8cb04dea | fix(cli): validate count followers before folding | full ze-precommit-verify over this commit's Go | Folded count-follower and formatted-line tests passed; the periodic full gate has not run. | open |
+| 2026-08-27 | 8cb04dea | test(cli): bind coverage to observed completion | ze-precommit-verify (not FRESH-green) | Focused registry coverage tests passed; no fresh repository-wide verify status exists. | open |
+| 2026-08-27 | 8cb04dea | test(cli): bind coverage to observed completion | full ze-precommit-verify over this commit's Go | Production-runner, completion-marker, and registration-population tests passed; the periodic full gate has not run. | open |
