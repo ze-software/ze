@@ -114,7 +114,7 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 		"website/reference/command-equivalents/show-test/index.html",
 		`<html data-site-postprocessed="true"><body>
 <aside><dt>Pipes, always</dt><dd>catalog-absent</dd></aside>
-<article class="cmd-detail-card cmd-detail-ze"><dl><div><dt>Registry path</dt><dd><code>show test extra</code></dd></div><div><dt>Pipes, always</dt><dd>catalog-absent</dd></div></dl></article>
+<article class="site-publication-note"><dl><div><dt>Registry path</dt><dd><code>show test extra</code></dd></div><div><dt>Pipes, always</dt><dd>catalog-absent</dd></div></dl></article>
 <article class="cmd-detail-card cmd-detail-ze">
 <dl>
 <div><dt>Registry path</dt><dd><code>show test</code></dd></div>
@@ -702,6 +702,70 @@ func TestDocDriftRejectsUnknownEquivalentHTMLPipeTerm(t *testing.T) {
 		!strings.Contains(out, "malformed operator availability group") ||
 		!strings.Contains(out, "Pipes, legacy") {
 		t.Fatalf("unknown equivalent HTML pipe term escaped validation:\n%s", out)
+	}
+}
+
+// VALIDATES: every active Pipes,* list label in the command-equivalent Ze
+// section is classified before the four catalog groups are compared.
+// PREVENTS: an obsolete Markdown pipe group surviving beside all current groups.
+func TestDocDriftRejectsUnknownEquivalentMarkdownPipeLabel(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	mutatePublishedCommandSurface(
+		t, root, "reference/command-equivalents/show-test/index.md",
+		"- Pipe aliases: `summary`: Show a summary (`display address`)",
+		"- Pipes, legacy: nosuchop\n"+
+			"- Pipe aliases: `summary`: Show a summary (`display address`)",
+	)
+
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err == nil ||
+		!strings.Contains(out, "malformed operator availability group") ||
+		!strings.Contains(out, "Pipes, legacy") {
+		t.Fatalf("unknown equivalent Markdown pipe label escaped validation:\n%s", out)
+	}
+}
+
+// VALIDATES: primary HTML and Markdown enumerate operator-like labels inside
+// the command-owned contract cell rather than querying only expected labels.
+// PREVENTS: an obsolete Pipes,* segment surviving beside all current groups.
+func TestDocDriftRejectsUnknownPrimaryOperatorLabels(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		old  string
+		new  string
+	}{
+		{
+			name: "HTML",
+			path: "reference/cli/index.html",
+			old:  "<p><span>Local process only</span><code>save</code></p>",
+			new: "<p><span>Local process only</span><code>save</code></p>" +
+				"<p><span>Pipes, legacy</span><code>nosuchop</code></p>",
+		},
+		{
+			name: "Markdown",
+			path: "reference/cli/index.md",
+			old:  "Local process only: `save`",
+			new:  "Local process only: `save`<br>Pipes, legacy: `nosuchop`",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(t, root, tc.path, tc.old, tc.new)
+
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil ||
+				!strings.Contains(out, "malformed operator availability group") ||
+				!strings.Contains(out, "Pipes, legacy") ||
+				!strings.Contains(out, filepath.ToSlash(tc.path)) {
+				t.Fatalf("unknown primary %s operator label escaped validation:\n%s", tc.name, out)
+			}
+		})
 	}
 }
 

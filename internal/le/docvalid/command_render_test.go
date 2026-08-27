@@ -145,7 +145,7 @@ func TestRenderEquivalentHTMLWrapsTermGroupsInDefinitionList(t *testing.T) {
 		}},
 	}
 	document := parseRenderedHTML(string(renderEquivalentHTML(command)))
-	node, count, closed := equivalentHTMLCommandContent(document, command.Path)
+	node, count, closed := equivalentHTMLCommandContent(document)
 	if count != 1 || !closed {
 		t.Fatalf("rendered equivalent article is not a closed owned container")
 	}

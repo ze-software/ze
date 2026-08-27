@@ -493,7 +493,6 @@ func duplicatePublishedCommandIdentity(source, path, list, identity string) erro
 		"parse %s: command %q has duplicate identity %q in its %s list",
 		source, path, identity, list,
 	)
-	return nil
 }
 
 func compareWebsiteCommandCatalog(root, path string, live []publishedCommand) []Issue {
@@ -3109,7 +3108,7 @@ func zeArticleClass(class string) (bool, bool) {
 				strings.HasPrefix(name, zeClass) ||
 				strings.HasSuffix(name, zeClass))
 	}
-	return hasCard && hasZe, hasCard && (hasZe || malformedZe)
+	return hasCard && hasZe, hasZe || malformedZe
 }
 
 func htmlVoidElement(name string) bool {
@@ -3187,19 +3186,18 @@ func validatePrimaryCommandContract(
 		normalizeRenderedHTMLText(strings.Join(command.AddressFields, " · ")),
 		htmlLabeledValues(document, row, "span", "Address fields", "code"),
 	)...)
-	for _, group := range []struct {
-		availability string
-		label        string
-	}{
-		{availability: "always", label: "Always"},
-		{availability: "with-rows", label: "With rows"},
-		{availability: "when-streaming", label: "While streaming"},
-		{availability: "local-only", label: "Local process only"},
-	} {
-		scan := commandHTMLGroups(document, row, group.label)
+	issues = append(issues, validatePrimaryHTMLOperatorGroupLabels(
+		path, command.Path, row,
+	)...)
+	for _, availability := range commandOperatorAvailabilities {
+		scan := commandHTMLGroups(
+			document,
+			row,
+			commandOperatorGroupLabel(primaryOperatorGroupSurface, availability, false),
+		)
 		issues = append(issues, compareScannedCommandOperatorGroups(
-			path, command.Path, group.availability,
-			commandOperatorNames(command, group.availability), scan,
+			path, command.Path, availability,
+			commandOperatorNames(command, availability), scan,
 		)...)
 	}
 
@@ -3490,19 +3488,19 @@ func validatePrimaryMarkdownContract(
 		path, command.Path, "address field", command.AddressFields,
 		commandMarkdownGroups(row, "Address fields"),
 	)...)
-	for _, group := range []struct {
-		availability string
-		label        string
-	}{
-		{availability: "always", label: "Always"},
-		{availability: "with-rows", label: "With rows"},
-		{availability: "when-streaming", label: "While streaming"},
-		{availability: "local-only", label: "Local process only"},
-	} {
+	issues = append(issues, validatePrimaryMarkdownOperatorGroupLabels(
+		path, command.Path, row,
+	)...)
+	for _, availability := range commandOperatorAvailabilities {
 		issues = append(issues, compareCommandOperatorGroups(
-			path, command.Path, group.availability,
-			commandOperatorNames(command, group.availability),
-			commandMarkdownGroups(row, group.label),
+			path, command.Path, availability,
+			commandOperatorNames(command, availability),
+			commandMarkdownGroups(
+				row,
+				commandOperatorGroupLabel(
+					primaryOperatorGroupSurface, availability, false,
+				),
+			),
 		)...)
 	}
 	expectedFilters := make([]string, 0, len(command.Pipes))
@@ -3561,6 +3559,127 @@ func commandMarkdownGroups(row, label string) [][]string {
 	return groups
 }
 
+type commandOperatorGroupSurface uint8
+
+const (
+	primaryOperatorGroupSurface commandOperatorGroupSurface = iota
+	equivalentHTMLOperatorGroupSurface
+	equivalentMarkdownOperatorGroupSurface
+)
+
+var commandOperatorAvailabilities = [...]string{
+	"always",
+	"with-rows",
+	"when-streaming",
+	"local-only",
+}
+
+func commandOperatorGroupLabel(
+	surface commandOperatorGroupSurface,
+	availability string,
+	declaredShape bool,
+) string {
+	switch surface {
+	case primaryOperatorGroupSurface:
+		return commandAvailabilityLabel(availability)
+	case equivalentHTMLOperatorGroupSurface:
+		if availability == "with-rows" {
+			return equivalentAvailabilityLabel(availability, declaredShape)
+		}
+	case equivalentMarkdownOperatorGroupSurface:
+		if availability == "with-rows" {
+			return "Pipes, on rows"
+		}
+	}
+	switch availability {
+	case "always":
+		return "Pipes, always"
+	case "when-streaming":
+		return "Pipes, while streaming"
+	case "local-only":
+		return "Pipes, local process only"
+	default:
+		return availability
+	}
+}
+
+func classifyCommandOperatorGroupLabel(
+	label string,
+	surface commandOperatorGroupSurface,
+	declaredShape bool,
+) (string, bool) {
+	for _, availability := range commandOperatorAvailabilities {
+		if label == commandOperatorGroupLabel(surface, availability, declaredShape) {
+			return availability, true
+		}
+	}
+	return "", strings.HasPrefix(label, "Pipes,")
+}
+
+func unknownCommandOperatorGroupLabelIssue(path, command, label string) Issue {
+	var detail textbuf.Buffer
+	return Issue{
+		File:    path,
+		Message: "the generated per-command surface has a malformed operator availability group",
+		Detail: detail.Str("command ").Quoted(command).
+			Str(" has unknown operator group label ").Quoted(label).String(),
+	}
+}
+
+func validatePrimaryHTMLOperatorGroupLabels(
+	path, command string,
+	root *xhtml.Node,
+) []Issue {
+	var issues []Issue
+	htmlWalk(root, func(node *xhtml.Node) {
+		if node.Data != "span" {
+			return
+		}
+		label := normalizeRenderedHTMLText(htmlText(node))
+		availability, candidate := classifyCommandOperatorGroupLabel(
+			label, primaryOperatorGroupSurface, false,
+		)
+		if candidate && availability == "" {
+			issues = append(issues,
+				unknownCommandOperatorGroupLabelIssue(path, command, label))
+		}
+	})
+	return issues
+}
+
+func validatePrimaryMarkdownOperatorGroupLabels(
+	path, command, row string,
+) []Issue {
+	cells, valid := markdownTableCells(row)
+	if !valid || len(cells) != 4 {
+		return nil
+	}
+	segments, valid := splitMarkdownOutsideCode(cells[3], "<br>")
+	if !valid {
+		return nil
+	}
+	var issues []Issue
+	for _, segment := range segments {
+		label, _ := markdownLabeledSegmentLabel(segment)
+		availability, candidate := classifyCommandOperatorGroupLabel(
+			label, primaryOperatorGroupSurface, false,
+		)
+		if candidate && availability == "" {
+			issues = append(issues,
+				unknownCommandOperatorGroupLabelIssue(path, command, label))
+		}
+	}
+	return issues
+}
+
+func markdownLabeledSegmentLabel(segment string) (string, bool) {
+	parts, valid := splitMarkdownOutsideCode(segment, ": ")
+	if !valid || len(parts) < 2 {
+		return strings.Join(strings.Fields(markdownInlineVisibleText(segment)), " "), false
+	}
+	return strings.Join(strings.Fields(markdownInlineVisibleText(parts[0])), " "), true
+}
+
 func commandAvailabilityLabel(availability string) string {
 	switch availability {
 	case "always":
@@ -3569,6 +3688,8 @@ func commandAvailabilityLabel(availability string) string {
 		return "With rows"
 	case "when-streaming":
 		return "While streaming"
+	case "local-only":
+		return "Local process only"
 	default:
 		return availability
 	}
@@ -3996,18 +4117,13 @@ func htmlFirstDescendant(root *xhtml.Node, element string) *xhtml.Node {
 
 func equivalentHTMLCommandContent(
 	document renderedHTMLDocument,
-	path string,
 ) (*xhtml.Node, int, bool) {
 	if document.err != nil {
 		return nil, 1, false
 	}
 	var matches []renderedHTMLContainer
 	for _, article := range document.zeArticles {
-		matchesExpected, present, valid := htmlDefinitionCodeIdentity(
-			document, article.root, "Registry path", path,
-		)
-		if present && matchesExpected {
-			article.classValid = article.classValid && valid
+		if !htmlNestedCommandContainer(article.root) {
 			matches = append(matches, article)
 		}
 	}
@@ -4345,24 +4461,18 @@ func validateEquivalentHTMLPipeTerms(
 	article *xhtml.Node,
 	command publishedCommand,
 ) []Issue {
-	expected := map[string]bool{
-		"Pipes, always":             true,
-		"Pipes, while streaming":    true,
-		"Pipes, local process only": true,
-		equivalentAvailabilityLabel("with-rows", command.AnswerShape != ""): true,
-	}
 	var issues []Issue
 	for _, term := range equivalentHTMLDirectDefinitionTerms(article) {
-		if !strings.HasPrefix(term, "Pipes,") || expected[term] {
+		availability, candidate := classifyCommandOperatorGroupLabel(
+			term,
+			equivalentHTMLOperatorGroupSurface,
+			command.AnswerShape != "",
+		)
+		if !candidate || availability != "" {
 			continue
 		}
-		var detail textbuf.Buffer
-		issues = append(issues, Issue{
-			File:    path,
-			Message: "the generated per-command surface has a malformed operator availability group",
-			Detail: detail.Str("command ").Quoted(command.Path).
-				Str(" has unknown direct definition term ").Quoted(term).String(),
-		})
+		issues = append(issues,
+			unknownCommandOperatorGroupLabelIssue(path, command.Path, term))
 	}
 	return issues
 }
@@ -4510,10 +4620,14 @@ func validateEquivalentCommandContract(
 				path, identity,
 				"command-equivalent Ze HTML article identity absent from the live command catalog",
 			))
+			continue
 		}
+		issues = append(issues, generatedCommandExtraIssue(
+			path, identity, "nested command-equivalent Ze HTML article",
+		))
 	}
 	commandNode, containerCount, containerClosed := equivalentHTMLCommandContent(
-		document, command.Path,
+		document,
 	)
 	switch {
 	case containerCount != 1:
@@ -4526,6 +4640,24 @@ func validateEquivalentCommandContract(
 			path, command.Path, "command-equivalent Ze HTML article",
 		))
 		return issues
+	}
+	registryPath, registryPresent, registryValid := htmlDefinitionCodeValue(
+		document, commandNode, "Registry path",
+	)
+	switch {
+	case !registryPresent:
+		issues = append(issues, generatedCommandContractIssue(
+			path, command.Path, "registry path",
+		))
+	case !registryValid:
+		issues = append(issues, generatedCommandSurfaceValueIssue(
+			path, command.Path, "registry path structure",
+			"one direct code value", "malformed Registry path definition",
+		))
+	case registryPath != command.Path:
+		issues = append(issues, generatedCommandSurfaceValueIssue(
+			path, command.Path, "registry path", command.Path, registryPath,
+		))
 	}
 	if !equivalentHTMLDefinitionList(document, commandNode) {
 		issues = append(issues, generatedCommandSurfaceValueIssue(
@@ -4550,22 +4682,19 @@ func validateEquivalentCommandContract(
 		normalizeRenderedHTMLText(strings.Join(command.AddressFields, ", ")),
 		htmlLabeledValues(document, commandNode, "dt", "Address fields", "dd"),
 	)...)
-	for _, group := range []struct {
-		availability string
-		label        string
-	}{
-		{availability: "always", label: "Pipes, always"},
-		{
-			availability: "with-rows",
-			label:        equivalentAvailabilityLabel("with-rows", command.AnswerShape != ""),
-		},
-		{availability: "when-streaming", label: "Pipes, while streaming"},
-		{availability: "local-only", label: "Pipes, local process only"},
-	} {
-		scan := equivalentHTMLGroups(document, commandNode, group.label)
+	for _, availability := range commandOperatorAvailabilities {
+		scan := equivalentHTMLGroups(
+			document,
+			commandNode,
+			commandOperatorGroupLabel(
+				equivalentHTMLOperatorGroupSurface,
+				availability,
+				command.AnswerShape != "",
+			),
+		)
 		issues = append(issues, compareScannedCommandOperatorGroups(
-			path, command.Path, group.availability,
-			commandOperatorNames(command, group.availability), scan,
+			path, command.Path, availability,
+			commandOperatorNames(command, availability), scan,
 		)...)
 	}
 	expectedFilters := make([]renderedCommandFilterDetail, 0, len(command.Pipes))
@@ -4908,19 +5037,25 @@ func validateEquivalentMarkdownContract(
 		path, command.Path, "address field", command.AddressFields,
 		equivalentMarkdownGroups(content, "Address fields"),
 	)...)
-	for _, group := range []struct {
-		availability string
-		label        string
-	}{
-		{availability: "always", label: "Pipes, always"},
-		{availability: "with-rows", label: "Pipes, on rows"},
-		{availability: "when-streaming", label: "Pipes, while streaming"},
-		{availability: "local-only", label: "Pipes, local process only"},
-	} {
+	labelIssues := validateEquivalentMarkdownOperatorGroupLabels(
+		path, content, command,
+	)
+	issues = append(issues, labelIssues...)
+	if len(labelIssues) != 0 {
+		return issues
+	}
+	for _, availability := range commandOperatorAvailabilities {
 		issues = append(issues, compareCommandOperatorGroups(
-			path, command.Path, group.availability,
-			commandOperatorNames(command, group.availability),
-			equivalentMarkdownGroups(content, group.label),
+			path, command.Path, availability,
+			commandOperatorNames(command, availability),
+			equivalentMarkdownGroups(
+				content,
+				commandOperatorGroupLabel(
+					equivalentMarkdownOperatorGroupSurface,
+					availability,
+					command.AnswerShape != "",
+				),
+			),
 		)...)
 	}
 	expectedFilters := make([]renderedCommandFilterDetail, 0, len(command.Pipes))
@@ -4961,6 +5096,72 @@ func validateEquivalentMarkdownContract(
 		1, aliasGroups, aliasesValid,
 	)...)
 	return issues
+}
+
+func validateEquivalentMarkdownOperatorGroupLabels(
+	path, content string,
+	command publishedCommand,
+) []Issue {
+	counts := make(map[string]int, len(commandOperatorAvailabilities))
+	var issues []Issue
+	for _, line := range scanMarkdownLines(content) {
+		if !line.active {
+			continue
+		}
+		label, candidate := markdownListEntryLabel(line.text)
+		if !candidate {
+			continue
+		}
+		availability, operatorLabel := classifyCommandOperatorGroupLabel(
+			label, equivalentMarkdownOperatorGroupSurface,
+			command.AnswerShape != "",
+		)
+		if !operatorLabel {
+			continue
+		}
+		if availability == "" {
+			issues = append(issues,
+				unknownCommandOperatorGroupLabelIssue(path, command.Path, label))
+			continue
+		}
+		counts[availability]++
+	}
+	for _, availability := range commandOperatorAvailabilities {
+		if counts[availability] > 1 {
+			issues = append(issues, duplicateCommandOperatorGroupIssue(
+				path, command.Path, availability, counts[availability],
+			))
+		}
+	}
+	return issues
+}
+
+func markdownListEntryLabel(line string) (string, bool) {
+	trimmed := strings.TrimLeft(line, " ")
+	if len(line)-len(trimmed) > 3 || len(trimmed) < 2 {
+		return "", false
+	}
+	markerEnd := 0
+	if strings.ContainsRune("-*+", rune(trimmed[0])) {
+		markerEnd = 1
+	} else {
+		for markerEnd < len(trimmed) && markerEnd < 9 &&
+			trimmed[markerEnd] >= '0' && trimmed[markerEnd] <= '9' {
+			markerEnd++
+		}
+		if markerEnd == 0 || markerEnd >= len(trimmed) ||
+			(trimmed[markerEnd] != '.' && trimmed[markerEnd] != ')') {
+			return "", false
+		}
+		markerEnd++
+	}
+	if markerEnd >= len(trimmed) ||
+		(trimmed[markerEnd] != ' ' && trimmed[markerEnd] != '\t') {
+		return "", false
+	}
+	item := strings.TrimLeft(trimmed[markerEnd:], " \t")
+	label, _ := markdownLabeledSegmentLabel(item)
+	return label, label != ""
 }
 
 func equivalentMarkdownVisibleGroups(content, label string) [][]string {

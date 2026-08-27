@@ -1095,6 +1095,18 @@ An owner-authorized independent context reviewed the committed Round-17 fixes.
 
 **Independent round 18: 3 BLOCKER, 0 ISSUE, 0 outstanding.** All three findings are fixed.
 
+### Independent review, round 19 (2026-08-27)
+
+An owner-authorized independent context reviewed the committed Round-18 fixes.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR19-1 | BLOCKER | Equivalent Markdown accepts unknown `Pipes, ...` groups | FIXED |
+| IR19-2 | BLOCKER | Equivalent HTML ignores extra top-level Ze command articles | FIXED |
+| IR19-3 | BLOCKER | Primary HTML and Markdown accept unknown pipe-group labels | FIXED |
+
+**Independent round 19: 3 BLOCKER, 0 ISSUE, 0 outstanding.** All three findings are fixed.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and
