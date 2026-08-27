@@ -57,6 +57,7 @@ func (c *checker) run() []Issue {
 	issues = append(issues, c.checkMakefileHelp(releaseGateSuites)...)
 	issues = append(issues, c.checkForbiddenDocClaims()...)
 	issues = append(issues, c.checkPipeOperatorReference()...)
+	issues = append(issues, c.checkPublishedCommandSurfaces("")...)
 	issues = append(issues, c.unreadable...)
 
 	return issues

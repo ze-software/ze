@@ -868,6 +868,27 @@ commit changed no security surface.
 findings are fixed. `review_gate.py` still requires owner authorization to
 record round 6 or run the final clean pass.
 
+### Independent review, round 7 (2026-08-27)
+
+Three owner-authorized contexts reviewed fix commit `44a167a09` through
+semantics, coverage, and rendered-contract lenses. The main session verified
+all findings against their producers.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR7-1 | BLOCKER | Folded command filters can remove `count` before count-follower validation, allowing source work before AC-3 refusal (`internal/component/command/pipe.go` `foldFilters`) | FIXED |
+| IR7-2 | BLOCKER | AC-10 does not require the top-level `OK:` marker to be observed, so exit-only or assertion-free scenarios can pass without executing AST-counted calls | FIXED |
+| IR7-3 | BLOCKER | AC-10 accepts malformed expectation fields validated only during runner execution | FIXED |
+| IR7-4 | BLOCKER | The isolated candidate path can satisfy `needs-path` when the real repository would skip the scenario | FIXED |
+| IR7-5 | BLOCKER | Equivalent HTML ignores malformed same-path Ze articles whose Registry-path markup is noncanonical (`scripts/docvalid/doc_drift.go`) | FIXED |
+| IR7-6 | BLOCKER | Markdown command identity parsers assume one-backtick code-span delimiters and ignore valid matching multi-backtick spans | FIXED |
+| IR7-7 | BLOCKER | Invalid backtick fence openers can hide active command containers | FIXED |
+| IR7-8 | BLOCKER | Equivalent Markdown ignores duplicate Ze headings with inline comments or other non-space suffixes | FIXED |
+| IR7-9 | ISSUE | HTML capture treats valid nested rows or articles as peer-container starts and rejects valid postprocessed markup | FIXED |
+
+**Independent round 7: 8 BLOCKER, 1 ISSUE, 0 outstanding.** All nine
+findings are fixed. The next authorized review covers their exact commits.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and
