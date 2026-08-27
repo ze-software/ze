@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -388,31 +389,55 @@ func validatePublishedCommand(source string, entry publishedCommand, seen map[st
 		return fmt.Errorf("parse %s: command %q has unknown answer shape %q",
 			source, entry.Path, entry.AnswerShape)
 	}
+	seenArgs := make(map[string]bool, len(entry.Args))
 	for _, arg := range entry.Args {
 		if arg.Name == "" {
 			return fmt.Errorf("parse %s: command %q has an argument without a name", source, entry.Path)
 		}
+		if seenArgs[arg.Name] {
+			return duplicatePublishedCommandIdentity(source, entry.Path, "args", arg.Name)
+		}
+		seenArgs[arg.Name] = true
 		if arg.Type == "" {
 			return fmt.Errorf("parse %s: command %q argument %q has no kind", source, entry.Path, arg.Name)
 		}
 	}
+	seenPipes := make(map[string]bool, len(entry.Pipes))
 	for _, pipe := range entry.Pipes {
 		if pipe.Name == "" {
 			return fmt.Errorf("parse %s: command %q has a filter without a name", source, entry.Path)
 		}
+		if seenPipes[pipe.Name] {
+			return duplicatePublishedCommandIdentity(source, entry.Path, "pipes", pipe.Name)
+		}
+		seenPipes[pipe.Name] = true
 		if pipe.Description == "" {
 			return fmt.Errorf("parse %s: command %q filter %q has no description", source, entry.Path, pipe.Name)
 		}
 	}
+	seenAddressFields := make(map[string]bool, len(entry.AddressFields))
 	for _, field := range entry.AddressFields {
 		if field == "" {
 			return fmt.Errorf("parse %s: command %q has an empty address field", source, entry.Path)
 		}
+		if seenAddressFields[field] {
+			return duplicatePublishedCommandIdentity(
+				source, entry.Path, "address-fields", field,
+			)
+		}
+		seenAddressFields[field] = true
 	}
+	seenOperators := make(map[string]bool, len(entry.Operators))
 	for _, op := range entry.Operators {
 		if op.Name == "" {
 			return fmt.Errorf("parse %s: command %q has an operator without a name", source, entry.Path)
 		}
+		if seenOperators[op.Name] {
+			return duplicatePublishedCommandIdentity(
+				source, entry.Path, "operators", op.Name,
+			)
+		}
+		seenOperators[op.Name] = true
 		if op.Class == "" {
 			return fmt.Errorf("parse %s: command %q operator %q has no class", source, entry.Path, op.Name)
 		}
@@ -426,10 +451,17 @@ func validatePublishedCommand(source string, entry publishedCommand, seen map[st
 				source, entry.Path, op.Name, op.Available)
 		}
 	}
+	seenAliases := make(map[string]bool, len(entry.Aliases))
 	for _, alias := range entry.Aliases {
 		if alias.Name == "" {
 			return fmt.Errorf("parse %s: command %q has an alias without a name", source, entry.Path)
 		}
+		if seenAliases[alias.Name] {
+			return duplicatePublishedCommandIdentity(
+				source, entry.Path, "pipe-aliases", alias.Name,
+			)
+		}
+		seenAliases[alias.Name] = true
 		if alias.Description == "" {
 			return fmt.Errorf("parse %s: command %q alias %q has no description", source, entry.Path, alias.Name)
 		}
@@ -437,6 +469,26 @@ func validatePublishedCommand(source string, entry publishedCommand, seen map[st
 			return fmt.Errorf("parse %s: command %q alias %q has no expansion", source, entry.Path, alias.Name)
 		}
 	}
+	seenSubcommands := make(map[string]bool, len(entry.Subcommands))
+	for _, subcommand := range entry.Subcommands {
+		if subcommand == "" {
+			return fmt.Errorf("parse %s: command %q has an empty subcommand", source, entry.Path)
+		}
+		if seenSubcommands[subcommand] {
+			return duplicatePublishedCommandIdentity(
+				source, entry.Path, "subcommands", subcommand,
+			)
+		}
+		seenSubcommands[subcommand] = true
+	}
+	return nil
+}
+
+func duplicatePublishedCommandIdentity(source, path, list, identity string) error {
+	return fmt.Errorf(
+		"parse %s: command %q has duplicate identity %q in its %s list",
+		source, path, identity, list,
+	)
 	return nil
 }
 
@@ -527,6 +579,9 @@ func validateGeneratedWikiCommandSurface(
 			expectedDetailPaths = append(expectedDetailPaths, command.Path)
 		}
 	}
+	issues = append(issues, validateWikiCatalogStructure(
+		surface, content, live,
+	)...)
 	issues = append(issues, compareCommandNamedGroup(
 		surface, "<wiki catalog>", "command", expectedPaths,
 		wikiCommandSummaryPaths(content),
@@ -541,7 +596,7 @@ func validateGeneratedWikiCommandSurface(
 			description = line
 		}
 		wantRow := rendered.Reset().Str("| ").
-			Str(markdownCodeLiteral(commandMarkdownValue(command.Path))).Str(" | ").
+			Str(markdownCodeLiteral(commandMarkdownTableValue(command.Path))).Str(" | ").
 			Str(command.Mode).Str(" | ").
 			Str(markdownLiteralProse(description)).Str(" |").String()
 		row, rowCount, rowMalformed := commandSurfaceMarkdownRow(content, command.Path)
@@ -626,8 +681,8 @@ func validateGeneratedWikiCommandSurface(
 				required = "yes"
 			}
 			rendered.Reset().Str("| ").
-				Str(markdownCodeLiteral(commandMarkdownValue(arg.Name))).Str(" | ").
-				Str(markdownCodeLiteral(commandMarkdownValue(arg.Type))).
+				Str(markdownCodeLiteral(commandMarkdownTableValue(arg.Name))).Str(" | ").
+				Str(markdownCodeLiteral(commandMarkdownTableValue(arg.Type))).
 				Str(" | ").Str(required).Str(" | ").
 				Str(wikiTableCodeList(arg.Values)).Str(" |")
 			expectedArgs = append(expectedArgs, rendered.String())
@@ -687,6 +742,219 @@ func validateGeneratedWikiCommandSurface(
 		)...)
 	}
 	return issues
+}
+
+type wikiVerbGroup struct {
+	verb   string
+	anchor string
+	count  int
+}
+
+type wikiContentsEntry struct {
+	label  string
+	anchor string
+	count  int
+}
+
+func validateWikiCatalogStructure(
+	surface, content string,
+	live []publishedCommand,
+) []Issue {
+	expected := wikiExpectedVerbGroups(live)
+	var issues []Issue
+
+	contents, contentsValid := wikiContentsEntries(content)
+	if !contentsValid || len(contents) != len(expected) {
+		issues = append(issues, generatedCommandContractIssue(
+			surface, "<wiki catalog>", "wiki contents",
+		))
+	} else {
+		for index := range expected {
+			if contents[index].label != expected[index].verb ||
+				contents[index].anchor != expected[index].anchor ||
+				contents[index].count != expected[index].count {
+				issues = append(issues, generatedCommandContractIssue(
+					surface, "<wiki catalog>", "wiki contents",
+				))
+				break
+			}
+		}
+	}
+
+	headings := wikiVerbHeadings(content)
+	if len(headings) != len(expected) {
+		issues = append(issues, generatedCommandContractIssue(
+			surface, "<wiki catalog>", "wiki verb headings",
+		))
+	} else {
+		for index, group := range expected {
+			want := "## " + markdownLiteralProse(group.verb)
+			if headings[index] != want {
+				issues = append(issues, generatedCommandContractIssue(
+					surface, "<wiki catalog>", "wiki verb headings",
+				))
+				break
+			}
+		}
+	}
+
+	wantTotal := fmt.Sprintf("*%d commands total.*", len(live))
+	totalLines, totalValid := wikiTotalLines(content)
+	if !totalValid || len(totalLines) != 1 || totalLines[0] != wantTotal ||
+		!strings.HasSuffix(content, wantTotal+"\n") {
+		issues = append(issues, generatedCommandContractIssue(
+			surface, "<wiki catalog>", "wiki command total",
+		))
+	}
+	return issues
+}
+
+func wikiExpectedVerbGroups(live []publishedCommand) []wikiVerbGroup {
+	commands := make(map[string][]publishedCommand)
+	for _, command := range live {
+		words := strings.Fields(command.Path)
+		verb := command.Path
+		if len(words) != 0 {
+			verb = words[0]
+		}
+		commands[verb] = append(commands[verb], command)
+	}
+	verbs := make([]string, 0, len(commands))
+	for verb := range commands {
+		verbs = append(verbs, verb)
+	}
+	sort.Strings(verbs)
+	for _, verb := range verbs {
+		group := commands[verb]
+		sort.Slice(group, func(left, right int) bool {
+			return group[left].Path < group[right].Path
+		})
+		commands[verb] = group
+	}
+
+	usedAnchors := make(map[string]bool)
+	anchorSuffixes := make(map[string]int)
+	nextAnchor := func(heading string) string {
+		base := wikiHeadingAnchor(heading)
+		anchor := base
+		for usedAnchors[anchor] {
+			anchorSuffixes[base]++
+			anchor = base + "-" + strconv.Itoa(anchorSuffixes[base])
+		}
+		usedAnchors[anchor] = true
+		return anchor
+	}
+	nextAnchor("Command Catalog")
+	nextAnchor("Contents")
+
+	groups := make([]wikiVerbGroup, 0, len(verbs))
+	for _, verb := range verbs {
+		groups = append(groups, wikiVerbGroup{
+			verb: verb, anchor: nextAnchor(verb), count: len(commands[verb]),
+		})
+		for _, command := range commands[verb] {
+			if wikiCommandNeedsDetail(command) {
+				nextAnchor(command.Path)
+			}
+		}
+	}
+	return groups
+}
+
+func wikiHeadingAnchor(value string) string {
+	var anchor strings.Builder
+	for _, character := range strings.ToLower(value) {
+		switch {
+		case character == ' ' || character == '\t':
+			anchor.WriteByte('-')
+		case character <= unicode.MaxASCII:
+			if character >= 'a' && character <= 'z' ||
+				character >= '0' && character <= '9' ||
+				character == '-' || character == '_' {
+				anchor.WriteRune(character)
+			}
+		case !unicode.IsPunct(character) && !unicode.IsSpace(character):
+			anchor.WriteRune(character)
+		}
+	}
+	return anchor.String()
+}
+
+func wikiContentsEntries(content string) ([]wikiContentsEntry, bool) {
+	block, count := markdownHeadingContent(content, "## Contents")
+	if count != 1 {
+		return nil, false
+	}
+	var entries []wikiContentsEntry
+	for _, line := range scanMarkdownLines(block) {
+		if !line.active || strings.TrimSpace(line.text) == "" {
+			continue
+		}
+		entry, ok := wikiContentsLine(line.text)
+		if !ok {
+			return nil, false
+		}
+		entries = append(entries, entry)
+	}
+	return entries, true
+}
+
+func wikiContentsLine(line string) (wikiContentsEntry, bool) {
+	var entry wikiContentsEntry
+	if !strings.HasPrefix(line, "- [") {
+		return entry, false
+	}
+	labelEnd := markdownInlineClosingBracket(line, len("- ["))
+	if labelEnd == -1 {
+		return entry, false
+	}
+	suffix := line[labelEnd+1:]
+	anchorEnd := strings.Index(suffix, ") (")
+	if !strings.HasPrefix(suffix, "(#") || anchorEnd == -1 ||
+		!strings.HasSuffix(suffix, ")") {
+		return entry, false
+	}
+	count, err := strconv.Atoi(suffix[anchorEnd+3 : len(suffix)-1])
+	if err != nil || count < 0 {
+		return entry, false
+	}
+	entry.label = markdownInlineVisibleText(line[len("- ["):labelEnd])
+	entry.anchor = suffix[len("(#"):anchorEnd]
+	entry.count = count
+	return entry, true
+}
+
+func wikiVerbHeadings(content string) []string {
+	var headings []string
+	for _, line := range scanMarkdownLines(content) {
+		if !line.active || line.headingLevel != 2 || line.text == "## Contents" {
+			continue
+		}
+		headings = append(headings, line.text)
+	}
+	return headings
+}
+
+func wikiTotalLines(content string) ([]string, bool) {
+	var totals []string
+	footer := false
+	valid := true
+	for _, line := range scanMarkdownLines(content) {
+		if !line.active || strings.TrimSpace(line.text) == "" {
+			continue
+		}
+		if line.text == "---" {
+			if footer {
+				valid = false
+			}
+			footer = true
+			continue
+		}
+		if footer {
+			totals = append(totals, line.text)
+		}
+	}
+	return totals, footer && valid
 }
 
 func wikiCommandNeedsDetail(command publishedCommand) bool {
@@ -852,11 +1120,13 @@ func markdownATXHeading(line string) (int, string) {
 		return 0, ""
 	}
 	heading := strings.TrimSpace(trimmed[level:])
-	if end := strings.LastIndex(heading, " #"); end != -1 {
-		suffix := strings.TrimSpace(heading[end+1:])
-		if suffix != "" && strings.Trim(suffix, "#") == "" {
-			heading = strings.TrimSpace(heading[:end])
-		}
+	hashAt := len(heading)
+	for hashAt > 0 && heading[hashAt-1] == '#' {
+		hashAt--
+	}
+	if hashAt > 0 && hashAt < len(heading) &&
+		(heading[hashAt-1] == ' ' || heading[hashAt-1] == '\t') {
+		heading = strings.TrimSpace(heading[:hashAt-1])
 	}
 	return level, heading
 }
@@ -1051,6 +1321,7 @@ type markdownEmphasisDelimiter struct {
 	start, end          int
 	leftUsed, rightUsed int
 	canOpen, canClose   bool
+	eligible            bool
 }
 
 func markdownEmphasisMarkers(value string) []bool {
@@ -1109,7 +1380,7 @@ func markdownEmphasisMarkers(value string) []bool {
 		)
 		delimiters = append(delimiters, markdownEmphasisDelimiter{
 			marker: value[index], start: index, end: end,
-			canOpen: canOpen, canClose: canClose,
+			canOpen: canOpen, canClose: canClose, eligible: true,
 		})
 		index = end
 	}
@@ -1117,7 +1388,8 @@ func markdownEmphasisMarkers(value string) []bool {
 	matched := make([]bool, len(value))
 	for closerAt := range delimiters {
 		closer := &delimiters[closerAt]
-		for closer.end-closer.start-closer.leftUsed-closer.rightUsed > 0 &&
+		for closer.eligible &&
+			closer.end-closer.start-closer.leftUsed-closer.rightUsed > 0 &&
 			closer.canClose {
 			openerAt := -1
 			for candidateAt := closerAt - 1; candidateAt >= 0; candidateAt-- {
@@ -1126,8 +1398,8 @@ func markdownEmphasisMarkers(value string) []bool {
 					opener.leftUsed - opener.rightUsed
 				closeWidth := closer.end - closer.start -
 					closer.leftUsed - closer.rightUsed
-				if opener.marker != closer.marker || !opener.canOpen ||
-					openWidth == 0 {
+				if !opener.eligible || opener.marker != closer.marker ||
+					!opener.canOpen || openWidth == 0 {
 					continue
 				}
 				ruleOfThreeBlocks := (opener.canClose || closer.canOpen) &&
@@ -1158,6 +1430,9 @@ func markdownEmphasisMarkers(value string) []bool {
 			}
 			opener.rightUsed += used
 			closer.leftUsed += used
+			for delimiterAt := openerAt + 1; delimiterAt < closerAt; delimiterAt++ {
+				delimiters[delimiterAt].eligible = false
+			}
 		}
 	}
 	return matched
@@ -1422,7 +1697,7 @@ func wikiTableCodeList(values []string) string {
 	quoted := make([]string, 0, len(values))
 	for _, value := range values {
 		quoted = append(quoted,
-			markdownCodeLiteral(commandMarkdownValue(value)))
+			markdownCodeLiteral(commandMarkdownTableValue(value)))
 	}
 	return strings.Join(quoted, ", ")
 }
@@ -2875,7 +3150,7 @@ func markdownTableCodeCell(line string) (string, bool, bool) {
 	}
 	cell := strings.TrimLeft(trimmed[1:], " ")
 	path, suffix, _, closed := markdownCodeSpanPrefix(cell)
-	path = strings.ReplaceAll(path, `\|`, "|")
+	path = decodeCommandMarkdownTableValue(path)
 	if !closed {
 		return path, false, false
 	}
@@ -2909,7 +3184,7 @@ func markdownTableCells(line string) ([]string, bool) {
 			index = end
 			continue
 		}
-		if trimmed[index] == '|' && codeWidth == 0 {
+		if trimmed[index] == '|' {
 			cells = append(cells, strings.TrimSpace(trimmed[cellAt:index]))
 			cellAt = index + 1
 		}
@@ -2949,7 +3224,7 @@ func splitMarkdownOutsideCode(value, delimiter string) ([]string, bool) {
 func markdownInlineValue(value string) string {
 	value = strings.TrimSpace(value)
 	if code, ok := markdownCodeSpan(value); ok {
-		return code
+		return decodeCommandMarkdownTableValue(code)
 	}
 	return markdownInlineVisibleText(value)
 }
@@ -2964,7 +3239,9 @@ func primaryMarkdownCommandValues(row string) ([3]string, bool) {
 	if !ok {
 		return values, false
 	}
-	values[0] = strings.Join(strings.Fields(path), " ")
+	values[0] = strings.Join(strings.Fields(
+		decodeCommandMarkdownTableValue(path),
+	), " ")
 	values[1] = markdownInlineVisibleText(cells[1])
 	values[2] = markdownInlineVisibleText(cells[2])
 	return values, true
@@ -2975,6 +3252,35 @@ func markdownUnclosedPath(candidate, path string) bool {
 	return candidate == path ||
 		strings.HasPrefix(candidate, rendered.Str(path).Str(" |").String())
 }
+func commandMarkdownTableValue(value string) string {
+	var encoded strings.Builder
+	encoded.Grow(len(value))
+	for index := range len(value) {
+		switch value[index] {
+		case '\\':
+			encoded.WriteString(`\\`)
+		case '|':
+			encoded.WriteString(`\|`)
+		default:
+			encoded.WriteByte(value[index])
+		}
+	}
+	return encoded.String()
+}
+
+func decodeCommandMarkdownTableValue(value string) string {
+	var decoded strings.Builder
+	decoded.Grow(len(value))
+	for index := 0; index < len(value); index++ {
+		if value[index] == '\\' && index+1 < len(value) &&
+			(value[index+1] == '\\' || value[index+1] == '|') {
+			index++
+		}
+		decoded.WriteByte(value[index])
+	}
+	return decoded.String()
+}
+
 func commandMarkdownValue(value string) string {
 	return strings.ReplaceAll(value, "|", `\|`)
 }

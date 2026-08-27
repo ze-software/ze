@@ -49,6 +49,17 @@ func TestRenderGoldenCatalogs(t *testing.T) {
 			},
 			golden: "multi.md",
 		},
+		{
+			name: "literal verb labels and anchors",
+			entries: []Entry{
+				{Path: "`show` route", Mode: "read-only", Description: "Backtick"},
+				{Path: "contents route", Mode: "read-only", Description: "Reserved"},
+				{Path: "show! route", Mode: "read-only", Description: "Punctuation"},
+				{Path: "show? route", Mode: "read-only", Description: "Collision"},
+				{Path: "表示 route", Mode: "read-only", Description: "Unicode"},
+			},
+			golden: "literal-verbs.md",
+		},
 	}
 
 	for _, test := range tests {
@@ -145,6 +156,39 @@ func TestRenderAliasOnlyEntryIncludesDetail(t *testing.T) {
 	} {
 		if !strings.Contains(content, want) {
 			t.Errorf("alias-only catalog omitted %q:\n%s", want, content)
+		}
+	}
+}
+
+func TestRenderLiteralVerbLabelsAndHeadingAnchors(t *testing.T) {
+	rendered, err := Render([]Entry{
+		{Path: "`show` route", Mode: "read-only", Description: "Backtick"},
+		{Path: "contents route", Mode: "read-only", Description: "Reserved"},
+		{Path: "show! route", Mode: "read-only", Description: "Punctuation"},
+		{Path: "show? route", Mode: "read-only", Description: "Collision"},
+		{Path: "show-1 route", Mode: "read-only", Description: "Slug collision"},
+		{Path: "表示 route", Mode: "read-only", Description: "Unicode"},
+	})
+	if err != nil {
+		t.Fatalf("Render() error: %v", err)
+	}
+	content := string(rendered)
+	for _, want := range []string{
+		"- [\\`show\\`](#show) (1)",
+		"- [contents](#contents-1) (1)",
+		"- [show\\!](#show-1) (1)",
+		"- [show\\?](#show-2) (1)",
+		"- [show\\-1](#show-1-1) (1)",
+		"## show\\-1",
+		"- [表示](#表示) (1)",
+		"## \\`show\\`",
+		"## contents",
+		"## show\\!",
+		"## show\\?",
+		"## 表示",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("literal-verb catalog omitted %q:\n%s", want, content)
 		}
 	}
 }

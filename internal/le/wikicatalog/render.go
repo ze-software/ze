@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // Render produces the command catalog's canonical Markdown bytes, including
@@ -26,6 +27,12 @@ func Render(entries []Entry) ([]byte, error) {
 		verbs = append(verbs, verb)
 	}
 	slices.Sort(verbs)
+	for _, verb := range verbs {
+		slices.SortFunc(groups[verb], func(left, right Entry) int {
+			return strings.Compare(left.Path, right.Path)
+		})
+	}
+	anchors := catalogHeadingAnchors(verbs, groups)
 
 	var out bytes.Buffer
 	line(&out, "> **Pre-Alpha.** This page is auto-generated from `ze help command --json`.")
@@ -36,9 +43,9 @@ func Render(entries []Entry) ([]byte, error) {
 	line(&out, "")
 	for _, verb := range verbs {
 		out.WriteString("- [")
-		out.WriteString(verb)
+		out.WriteString(markdownLiteralProse(verb))
 		out.WriteString("](#")
-		out.WriteString(verb)
+		out.WriteString(anchors[verb])
 		out.WriteString(") (")
 		writeInt(&out, len(groups[verb]))
 		line(&out, ")")
@@ -47,18 +54,15 @@ func Render(entries []Entry) ([]byte, error) {
 
 	for _, verb := range verbs {
 		group := groups[verb]
-		slices.SortFunc(group, func(left, right Entry) int {
-			return strings.Compare(left.Path, right.Path)
-		})
 
 		out.WriteString("## ")
-		line(&out, verb)
+		line(&out, markdownLiteralProse(verb))
 		line(&out, "")
 		line(&out, "| Command | Mode | Description |")
 		line(&out, "|---------|------|-------------|")
 		for _, entry := range group {
 			out.WriteString("| ")
-			writeCodeSpan(&out, strings.ReplaceAll(entry.Path, "|", `\|`))
+			writeCodeSpan(&out, tableCodeValue(entry.Path))
 			out.WriteString(" | ")
 			out.WriteString(entry.Mode)
 			out.WriteString(" | ")
@@ -148,9 +152,9 @@ func renderDetail(out *bytes.Buffer, entry Entry) error {
 		line(out, "|------|------|----------|--------|")
 		for _, argument := range entry.Args {
 			out.WriteString("| ")
-			writeCodeSpan(out, strings.ReplaceAll(argument.Name, "|", `\|`))
+			writeCodeSpan(out, tableCodeValue(argument.Name))
 			out.WriteString(" | ")
-			writeCodeSpan(out, strings.ReplaceAll(argument.Type, "|", `\|`))
+			writeCodeSpan(out, tableCodeValue(argument.Type))
 			out.WriteString(" | ")
 			if argument.Mandatory {
 				out.WriteString("yes")
@@ -288,8 +292,24 @@ func writeTableCodeList(out *bytes.Buffer, values []string) {
 		if index > 0 {
 			out.WriteString(", ")
 		}
-		writeCodeSpan(out, strings.ReplaceAll(value, "|", `\|`))
+		writeCodeSpan(out, tableCodeValue(value))
 	}
+}
+
+func tableCodeValue(value string) string {
+	var encoded strings.Builder
+	encoded.Grow(len(value))
+	for index := range len(value) {
+		switch value[index] {
+		case '\\':
+			encoded.WriteString(`\\`)
+		case '|':
+			encoded.WriteString(`\|`)
+		default:
+			encoded.WriteByte(value[index])
+		}
+	}
+	return encoded.String()
 }
 
 func writeCodeSpan(out *bytes.Buffer, value string) {
@@ -318,6 +338,55 @@ func writeCodeSpan(out *bytes.Buffer, value string) {
 	out.WriteString(value)
 	out.WriteString(padding)
 	out.WriteString(delimiter)
+}
+
+func catalogHeadingAnchors(
+	verbs []string,
+	groups map[string][]Entry,
+) map[string]string {
+	anchors := make(map[string]string, len(verbs))
+	used := make(map[string]bool)
+	suffixes := make(map[string]int)
+	next := func(heading string) string {
+		base := headingAnchor(heading)
+		anchor := base
+		for used[anchor] {
+			suffixes[base]++
+			anchor = base + "-" + strconv.Itoa(suffixes[base])
+		}
+		used[anchor] = true
+		return anchor
+	}
+	next("Command Catalog")
+	next("Contents")
+	for _, verb := range verbs {
+		anchors[verb] = next(verb)
+		for _, entry := range groups[verb] {
+			if needsDetail(entry) {
+				next(entry.Path)
+			}
+		}
+	}
+	return anchors
+}
+
+func headingAnchor(value string) string {
+	var anchor strings.Builder
+	for _, character := range strings.ToLower(value) {
+		switch {
+		case character == ' ' || character == '\t':
+			anchor.WriteByte('-')
+		case character <= unicode.MaxASCII:
+			if character >= 'a' && character <= 'z' ||
+				character >= '0' && character <= '9' ||
+				character == '-' || character == '_' {
+				anchor.WriteRune(character)
+			}
+		case !unicode.IsPunct(character) && !unicode.IsSpace(character):
+			anchor.WriteRune(character)
+		}
+	}
+	return anchor.String()
 }
 
 func markdownLiteralProse(value string) string {

@@ -1666,7 +1666,11 @@ func TestCommandSurfacesRejectContractsPresentOnlyInNestedCards(t *testing.T) {
 // in addition to inline HTML rendering.
 // PREVENTS: a visibly duplicate heading escaping through non-HTML inline syntax.
 func TestCommandSurfacesRejectCommonMarkRenderedZeHeadings(t *testing.T) {
-	for _, heading := range []string{"## *Ze* command", "## [Ze](https://example.invalid/) command"} {
+	for _, heading := range []string{
+		"## *Ze* command",
+		"## [Ze](https://example.invalid/) command",
+		"## Ze command\t##",
+	} {
 		t.Run(heading, func(t *testing.T) {
 			root := t.TempDir()
 			livePath := writeRenderedCommandCatalogFixture(t, root)
@@ -2355,6 +2359,177 @@ func TestNestedCommonMarkEmphasisCannotImpersonateLiteralMarkers(t *testing.T) {
 		"index.md", row, command,
 	); len(issues) == 0 {
 		t.Fatalf("nested emphasis impersonated literal marker text:\n%s", drifted)
+	}
+}
+
+// VALIDATES: resolving an emphasis pair removes every intervening delimiter
+// from the CommonMark delimiter stack before a later closer is considered.
+// PREVENTS: crossing emphasis delimiters impersonating catalog prose.
+func TestCrossingCommonMarkEmphasisCannotImpersonatePlainText(t *testing.T) {
+	const mutation = "*foo _bar* baz_"
+	const visible = "foo _bar baz_"
+	if got := markdownInlineVisibleText(mutation); got != visible {
+		t.Fatalf("markdownInlineVisibleText(%q) = %q; want %q",
+			mutation, got, visible)
+	}
+
+	command := publishedCommand{
+		Path:        "show emphasis",
+		Mode:        "read-only",
+		Description: "foo bar baz",
+	}
+	row := "| `show emphasis` | read-only | " + mutation + " |  |"
+	if issues := validatePrimaryMarkdownContract(
+		"index.md", row, command,
+	); len(issues) == 0 {
+		t.Fatalf("crossing emphasis rendered as %q and passed as plain text", visible)
+	}
+}
+
+// VALIDATES: every command-owned identity list is unique before any rendered
+// surface is generated.
+// PREVENTS: duplicate live identities rendering into self-consistent drift.
+func TestParseCommandCatalogRejectsDuplicateOwnedIdentities(t *testing.T) {
+	const catalog = `[{
+  "path": "show unique",
+  "description": "show unique values",
+  "mode": "read-only",
+  "args": [{"name": "family", "type": "enum"}],
+  "pipes": [{"name": "family", "description": "family filter"}],
+  "operators": [{"name": "json", "class": "global", "available": "always", "description": "JSON"}],
+  "address-fields": ["address"],
+  "pipe-aliases": [{"name": "quick", "description": "quick view", "expansion": "family ipv4"}],
+  "subcommands": ["brief"]
+}]`
+	tests := []struct {
+		list, old, replacement string
+	}{
+		{
+			list: "args",
+			old:  `{"name": "family", "type": "enum"}`,
+			replacement: `{"name": "family", "type": "enum"}, ` +
+				`{"name": "family", "type": "enum"}`,
+		},
+		{
+			list: "pipes",
+			old:  `{"name": "family", "description": "family filter"}`,
+			replacement: `{"name": "family", "description": "family filter"}, ` +
+				`{"name": "family", "description": "family filter"}`,
+		},
+		{
+			list: "operators",
+			old: `{"name": "json", "class": "global", ` +
+				`"available": "always", "description": "JSON"}`,
+			replacement: `{"name": "json", "class": "global", ` +
+				`"available": "always", "description": "JSON"}, ` +
+				`{"name": "json", "class": "global", ` +
+				`"available": "always", "description": "JSON"}`,
+		},
+		{
+			list:        "address-fields",
+			old:         `"address-fields": ["address"]`,
+			replacement: `"address-fields": ["address", "address"]`,
+		},
+		{
+			list: "pipe-aliases",
+			old: `{"name": "quick", "description": "quick view", ` +
+				`"expansion": "family ipv4"}`,
+			replacement: `{"name": "quick", "description": "quick view", ` +
+				`"expansion": "family ipv4"}, ` +
+				`{"name": "quick", "description": "quick view", ` +
+				`"expansion": "family ipv4"}`,
+		},
+		{
+			list:        "subcommands",
+			old:         `"subcommands": ["brief"]`,
+			replacement: `"subcommands": ["brief", "brief"]`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.list, func(t *testing.T) {
+			mutated := strings.Replace(catalog, test.old, test.replacement, 1)
+			if mutated == catalog {
+				t.Fatalf("%s mutation did not apply", test.list)
+			}
+			_, err := parseCommandCatalog("duplicate fixture", []byte(mutated))
+			if err == nil || !strings.Contains(err.Error(), `"show unique"`) ||
+				!strings.Contains(err.Error(), test.list+" list") {
+				t.Fatalf("%s duplicate error = %v", test.list, err)
+			}
+		})
+	}
+}
+
+// VALIDATES: the wiki's Contents block, group headings, and final total are
+// exact structural projections of the live command inventory.
+// PREVENTS: duplicate, missing, renamed, or stale navigation surviving while
+// every per-command row remains current.
+func TestWikiValidatorRejectsCatalogStructureMutations(t *testing.T) {
+	const entry = "- [show](#show) (1)"
+	tests := []struct {
+		name, old, replacement string
+	}{
+		{name: "contents count", old: entry, replacement: "- [show](#show) (2)"},
+		{name: "contents anchor", old: entry, replacement: "- [show](#stale) (1)"},
+		{name: "contents label", old: entry, replacement: "- [stale](#show) (1)"},
+		{name: "contents missing", old: entry, replacement: ""},
+		{name: "contents duplicate", old: entry, replacement: entry + "\n" + entry},
+		{name: "contents block duplicate", old: "## Contents", replacement: "## Contents\n\n## Contents"},
+		{name: "verb heading missing", old: "## show", replacement: ""},
+		{name: "verb heading changed", old: "## show", replacement: "## stale"},
+		{name: "verb heading duplicate", old: "## show", replacement: "## show\n\n## show"},
+		{name: "total changed", old: "*1 commands total.*", replacement: "*2 commands total.*"},
+		{name: "total missing", old: "*1 commands total.*", replacement: ""},
+		{name: "total duplicate", old: "*1 commands total.*", replacement: "*1 commands total.*\n*1 commands total.*"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			out, err := runRenderedWikiMutationFixture(
+				t, test.old, test.replacement,
+			)
+			if err == nil {
+				t.Fatalf("wiki %s mutation passed validation:\n%s", test.name, out)
+			}
+		})
+	}
+}
+
+// VALIDATES: wiki navigation and headings preserve literal backtick and Unicode
+// verbs while both sides derive the same rendered heading anchor.
+// PREVENTS: raw Markdown syntax changing the visible verb or breaking its link.
+func TestWikiValidatorAcceptsLiteralVerbAnchors(t *testing.T) {
+	const catalog = `[
+  {"path": "` + "`show`" + ` route", "description": "backtick", "mode": "read-only"},
+  {"path": "contents route", "description": "reserved", "mode": "read-only"},
+  {"path": "show! route", "description": "punctuation", "mode": "read-only"},
+  {"path": "show-1 route", "description": "slug collision", "mode": "read-only"},
+  {"path": "show? route", "description": "collision", "mode": "read-only"},
+  {"path": "表示 route", "description": "unicode", "mode": "read-only"}
+]`
+	live, err := parseCommandCatalog("literal verb fixture", []byte(catalog))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered, err := renderExpectedWikiCommandSurface("", "", []byte(catalog))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if issues := validateGeneratedWikiCommandSurface(rendered, live); len(issues) != 0 {
+		t.Fatalf("literal verb wiki did not validate: %#v\n%s", issues, rendered)
+	}
+	for _, mutation := range []struct{ old, replacement string }{
+		{old: `](#show)`, replacement: `](#stale)`},
+		{old: `](#表示)`, replacement: `](#stale)`},
+		{old: `](#contents-1)`, replacement: `](#stale)`},
+		{old: `](#show-1-1)`, replacement: `](#stale)`},
+	} {
+		changed := []byte(strings.Replace(
+			string(rendered), mutation.old, mutation.replacement, 1,
+		))
+		if issues := validateGeneratedWikiCommandSurface(changed, live); len(issues) == 0 {
+			t.Fatalf("stale wiki anchor %q passed validation:\n%s",
+				mutation.replacement, changed)
+		}
 	}
 }
 

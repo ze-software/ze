@@ -159,14 +159,17 @@ func renderPrimaryCommandMarkdown(commands []publishedCommand) []byte {
 	for _, command := range commands {
 		metadata := make([]string, 0, 8)
 		if command.AnswerShape != "" {
-			metadata = append(metadata, "Answer shape: "+markdownCodeLiteral(command.AnswerShape))
+			metadata = append(metadata,
+				"Answer shape: "+markdownTableCodeLiteral(command.AnswerShape))
 		}
 		if len(command.AddressFields) != 0 {
-			metadata = append(metadata, "Address fields: "+markdownCodeList(command.AddressFields))
+			metadata = append(metadata,
+				"Address fields: "+markdownTableCodeList(command.AddressFields))
 		}
 		for _, group := range []struct{ availability, label string }{{"always", "Always"}, {"with-rows", "With rows"}, {"when-streaming", "While streaming"}, {"local-only", "Local process only"}} {
 			if names := commandOperatorNames(command, group.availability); len(names) != 0 {
-				metadata = append(metadata, group.label+": "+markdownCodeList(names))
+				metadata = append(metadata,
+					group.label+": "+markdownTableCodeList(names))
 			}
 		}
 		if len(command.Pipes) != 0 {
@@ -174,17 +177,17 @@ func renderPrimaryCommandMarkdown(commands []publishedCommand) []byte {
 			for _, pipe := range command.Pipes {
 				names = append(names, commandPipeDisplayName(pipe))
 			}
-			metadata = append(metadata, "Command: "+markdownCodeList(names))
+			metadata = append(metadata, "Command: "+markdownTableCodeList(names))
 		}
 		if len(command.Aliases) != 0 {
 			aliases := make([]string, 0, len(command.Aliases))
 			for _, alias := range command.Aliases {
 				aliases = append(aliases, alias.Name+" -> "+alias.Expansion)
 			}
-			metadata = append(metadata, "Aliases: "+markdownCodeList(aliases))
+			metadata = append(metadata, "Aliases: "+markdownTableCodeList(aliases))
 		}
 		out.WriteString("| ")
-		out.WriteString(markdownCodeLiteral(commandMarkdownValue(command.Path)))
+		out.WriteString(markdownTableCodeLiteral(command.Path))
 		out.WriteString(" | ")
 		out.WriteString(commandMarkdownValue(command.Mode))
 		out.WriteString(" | ")
@@ -282,6 +285,18 @@ func markdownCodeLiteral(value string) string {
 		padding = " "
 	}
 	return delimiter + padding + value + padding + delimiter
+}
+
+func markdownTableCodeLiteral(value string) string {
+	return markdownCodeLiteral(commandMarkdownTableValue(value))
+}
+
+func markdownTableCodeList(values []string) string {
+	quoted := make([]string, len(values))
+	for index, value := range values {
+		quoted[index] = markdownTableCodeLiteral(value)
+	}
+	return strings.Join(quoted, ", ")
 }
 
 func markdownLiteralProse(value string) string {

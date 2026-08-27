@@ -370,3 +370,69 @@ func TestRenderUnicodeBacktickCommandIdentityRoundTrips(t *testing.T) {
 		t.Fatalf("Unicode/backtick identity did not round-trip: %#v", issues)
 	}
 }
+
+// VALIDATES: every pipe inside primary Markdown metadata code is escaped before
+// the code span enters a GFM table, then decoded back to its catalog value.
+// PREVENTS: an alias expansion pipe splitting one command into extra cells.
+func TestRenderPrimaryMarkdownEscapesAliasExpansionTablePipe(t *testing.T) {
+	command := publishedCommand{
+		Path:          "show aliases",
+		Mode:          "read-only",
+		Description:   "Show aliases",
+		AnswerShape:   "tab|map",
+		AddressFields: []string{`peer\|address`},
+		Pipes: []publishedCommandPipe{{
+			Name:        "match|up",
+			Description: "Match rows",
+		}},
+		Operators: []publishedCommandOperator{{
+			Name:        "json|lines",
+			Class:       "global",
+			Available:   "always",
+			Description: "JSON lines",
+		}},
+		Aliases: []publishedCommandAlias{{
+			Name:        "quick",
+			Description: "Quick view",
+			Expansion:   "match up | count",
+		}},
+	}
+	rendered := string(renderPrimaryCommandMarkdown([]publishedCommand{command}))
+	const encoded = "Aliases: `quick -> match up \\| count`"
+	if !strings.Contains(rendered, encoded) {
+		t.Fatalf("primary Markdown omitted encoded alias metadata %q:\n%s",
+			encoded, rendered)
+	}
+	row, count, malformed := commandSurfaceMarkdownRow(rendered, command.Path)
+	if count != 1 || malformed {
+		t.Fatalf("rendered row count = %d, malformed = %t:\n%s",
+			count, malformed, rendered)
+	}
+	cells, valid := markdownTableCells(row)
+	if !valid || len(cells) != 4 {
+		t.Fatalf("rendered alias row has %d cells, valid = %t:\n%s",
+			len(cells), valid, row)
+	}
+	if issues := validatePrimaryMarkdownContract(
+		"index.md", row, command,
+	); len(issues) != 0 {
+		t.Fatalf("encoded alias metadata did not round-trip: %#v", issues)
+	}
+
+	unescaped := strings.Replace(
+		rendered,
+		"quick -> match up \\| count",
+		"quick -> match up | count",
+		1,
+	)
+	row, count, malformed = commandSurfaceMarkdownRow(unescaped, command.Path)
+	if count != 1 || malformed {
+		t.Fatalf("unescaped row identity was not recovered: count = %d, malformed = %t",
+			count, malformed)
+	}
+	if issues := validatePrimaryMarkdownContract(
+		"index.md", row, command,
+	); len(issues) == 0 {
+		t.Fatalf("unescaped alias table pipe passed validation:\n%s", unescaped)
+	}
+}

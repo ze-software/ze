@@ -1054,6 +1054,21 @@ structural drift validators after Round 14.
 
 **Independent round 15: 9 BLOCKER, 2 ISSUE, 0 outstanding.** All eleven findings are fixed.
 
+### Independent review, round 16 (2026-08-27)
+
+An owner-authorized independent context reviewed the committed Round-15 fixes.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR16-1 | BLOCKER | CommonMark emphasis parsing permits crossing delimiter pairs removed by the delimiter stack | FIXED |
+| IR16-2 | BLOCKER | Primary Markdown leaves table pipes active inside metadata code spans | FIXED |
+| IR16-3 | BLOCKER | Live command catalog validation accepts duplicate per-command identities | FIXED |
+| IR16-4 | ISSUE | Wiki validation ignores contents entries, group counts, headings, and the final total | FIXED |
+| IR16-5 | BLOCKER | ATX headings with tab-delimited closing hashes evade duplicate-section detection | FIXED |
+| IR16-6 | ISSUE | Wiki verb labels and anchors render active punctuation without a stable matching fragment | FIXED |
+
+**Independent round 16: 4 BLOCKER, 2 ISSUE, 0 outstanding.** All six findings are fixed.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and
