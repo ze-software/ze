@@ -1,11 +1,11 @@
-$ ssh ze-demo
+$ sshpass -e ssh ze-demo
 Warning: stale-prefix-data has stale prefix data (updated 2024-01-01)
-ze# run show health
+$ sshpass -e ssh ze-demo 'show health'
 ipsec  down  ike engine not running
-ze# run show warnings source bgp
+$ sshpass -e ssh ze-demo 'show warnings source bgp'
 bgp  prefix-stale  warning  127.0.0.2  ... 2024-01-01
-ze# run request peer 127.0.0.2 teardown 4
-ze# run show errors source bgp
+$ sshpass -e ssh ze-demo 'request peer 127.0.0.2 teardown 4'
+$ sshpass -e ssh ze-demo 'show errors source bgp'
 bgp  notification-sent  error  127.0.0.2  direction sent  code 6  subcode 4
 
 Health reports aggregate component state. Warnings describe conditions that remain active and disappear when resolved. Errors retain discrete events. The login banner and filtered commands use the same report bus.

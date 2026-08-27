@@ -803,19 +803,40 @@ class HealthReportsDemoSourceContractTest(unittest.TestCase):
         )
         self.assertNotIn("Wait+Screen /Ze Editor/", teardown_flow)
 
-    # VALIDATES: every transcript command is a visible shell-level SSH exec.
-    # PREVENTS: claiming full-screen TUI input that the recorder never paints.
-    def test_transcript_commands_use_visible_ssh_exec(self):
+    # VALIDATES: an interactive SSH login exposes the banner, then every
+    # transcript operation is a visible shell-level SSH exec.
+    # PREVENTS: asking SSH exec for a login banner or claiming hidden TUI input.
+    def test_banner_login_precedes_visible_ssh_exec_commands(self):
         source = (HERE / "health-reports" / "demo.tape").read_text(encoding="utf-8")
         transcript = (HERE / "health-reports" / "transcript.txt").read_text(
             encoding="utf-8"
         )
+        interactive = "sshpass -e ssh ze-demo"
         invocations = (
             "sshpass -e ssh ze-demo 'show health'",
             "sshpass -e ssh ze-demo 'show warnings source bgp'",
             "sshpass -e ssh ze-demo 'request peer 127.0.0.2 teardown 4'",
             "sshpass -e ssh ze-demo 'show errors source bgp'",
         )
+        login_flow = source[
+            source.index(f'Type "{interactive}"')
+            : source.index(f'Type "{invocations[0]}"')
+        ]
+
+        banner_wait = "Wait+Screen /stale prefix data/"
+        editor_exit = 'Type "exit"\nEnter\n'
+        launcher_wait = "Wait+Screen /ze>/"
+        shell_wait = r"Wait+Screen /\$ /"
+        first_exit = login_flow.index(editor_exit)
+        second_exit = login_flow.index(editor_exit, first_exit + len(editor_exit))
+        positions = (
+            login_flow.index(banner_wait),
+            first_exit,
+            login_flow.index(launcher_wait),
+            second_exit,
+            login_flow.index(shell_wait),
+        )
+        self.assertEqual(positions, tuple(sorted(positions)))
 
         for invocation in invocations:
             with self.subTest(invocation=invocation):
@@ -826,8 +847,10 @@ class HealthReportsDemoSourceContractTest(unittest.TestCase):
             for line in transcript.splitlines()
             if line.startswith("$ ")
         ]
-        self.assertEqual(transcript_commands, list(invocations))
-        self.assertNotIn('Type "sshpass -e ssh ze-demo"\n', source)
+        self.assertEqual(transcript_commands, [interactive, *invocations])
+        banner = "Warning: stale-prefix-data has stale prefix data (updated 2024-01-01)"
+        self.assertLess(transcript.index(f"$ {interactive}"), transcript.index(banner))
+        self.assertLess(transcript.index(banner), transcript.index(f"$ {invocations[0]}"))
         self.assertNotIn('Type "run ', source)
         self.assertNotIn("Escape\n", source)
         self.assertNotIn("ze# run ", transcript)

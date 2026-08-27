@@ -58,3 +58,4 @@ is open.
 | 2026-08-27 | 8cb04dea | fix(le): probe committed tree with le basename | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-27 | 8cb04dea | fix(le): probe committed tree with le basename | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
 | 2026-08-27 | 8cb04dea | fix(le): probe committed tree with le basename | independent critical review | Independent review will cover the final committed le cutover and this inventory fix together. | open |
+| 2026-08-27 | 8cb04dea | fix(demo): show health banner and visible commands | ze-precommit-verify (not FRESH-green) | Focused source tests and an isolated health-reports render pass; no fresh repository-wide verify status exists. | open |
