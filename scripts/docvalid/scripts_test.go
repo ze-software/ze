@@ -711,6 +711,7 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 <tr><td><code>log</code></td><td>Streaming</td><td>While streaming</td><td>Append updates</td></tr>
 </tbody></table>
 </section>
+<tr id="cmd-show-test-extra"><td><p><span>Always</span><code>catalog-absent</code></p></td></tr>
 <tr id="cmd-show-test"><td><code>show test</code></td><td>
 <p><span>Answer shape</span><code>tab</code></p>
 <p><span>Address fields</span><code>address</code></p>
@@ -739,6 +740,7 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 			"| Command | Mode | Description | Pipes |",
 			"| --- | --- | --- | --- |",
 			"| `show test` | Read-only | Show test rows | Answer shape: `tab`<br>Address fields: `address`<br>Command: `family <value>`<br>Aliases: `summary -> display address`<br>Always: `json`, `save`<br>With rows: `match`<br>While streaming: `log`<br>Local process only: `save` |",
+			"| `show test extra` | Read-only | Prefix collision | Always: `catalog-absent` |",
 			"",
 		}, "\n"))
 	writeTempDoc(t, root, "website/reference/command-equivalents/index.html",
@@ -750,7 +752,9 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 		"website/reference/command-equivalents/show-test/index.html",
 		`<html data-site-postprocessed="true"><body>
 <aside><dt>Pipes, always</dt><dd>catalog-absent</dd></aside>
+<article class="cmd-detail-card cmd-detail-ze"><div><dt>Registry path</dt><dd><code>show test extra</code></dd></div><div><dt>Pipes, always</dt><dd>catalog-absent</dd></div></article>
 <article class="cmd-detail-card cmd-detail-ze">
+<div><dt>Registry path</dt><dd><code>show test</code></dd></div>
 <div><dt>Pipes, always</dt><dd>json, save</dd></div>
 <div><dt>Pipes, on its rows</dt><dd>match</dd></div>
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
@@ -782,6 +786,11 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 			"",
 			"- Pipes, always: catalog-absent",
 			"",
+			"## Other command",
+			"",
+			"- Registry path: `show test extra`",
+			"- Pipes, always: catalog-absent",
+			"",
 			"",
 		}, "\n"))
 	writeTempDoc(t, root, "website/llms.txt",
@@ -793,6 +802,7 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 			"",
 			"",
 			"- `show test` (read-only; wire ze-show:test; pipes always: json save, with-rows: match, when-streaming: log, local-only: save; shape tab; address-fields address; filters family; aliases summary=display address; args family:enum): Show test rows",
+			"- `show test extra` (read-only; pipes always: catalog-absent): Prefix collision",
 			"",
 		}, "\n"))
 }
@@ -1292,7 +1302,7 @@ func TestDocDriftRejectsDuplicateCommandContainersOnEverySurface(t *testing.T) {
 			path: "reference/command-equivalents/show-test/index.html",
 			old:  "</article>\n</body>",
 			new: "</article>\n" +
-				`<article class="cmd-detail-card cmd-detail-ze"><dt>Pipes, always</dt><dd>catalog-absent</dd></article>` +
+				`<article class="cmd-detail-card cmd-detail-ze"><dt>Registry path</dt><dd><code>show test</code></dd><dt>Pipes, always</dt><dd>catalog-absent</dd></article>` +
 				"\n</body>",
 		},
 		{
@@ -1462,6 +1472,235 @@ func TestDocDriftRejectsStaleRenderedOperatorMetadata(t *testing.T) {
 			}
 		})
 	}
+}
+
+// VALIDATES: HTML containers are tokenizer-built trees bound by exact row id or
+// Ze article class plus exact Registry path, and close before the next peer.
+// PREVENTS: a later row/article close repairing the expected command's opener.
+func TestDocDriftRejectsMalformedStructuredHTMLContainers(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		old  string
+		new  string
+	}{
+		{
+			name: "primary row missing close before next row",
+			path: "reference/cli/index.html",
+			old:  "</td></tr>\n<footer>",
+			new: "</td>\n" +
+				`<tr id="cmd-next"><td>next</td></tr>` + "\n<footer>",
+		},
+		{
+			name: "Ze article missing close before next article",
+			path: "reference/command-equivalents/show-test/index.html",
+			old:  "<div><dt>Address fields</dt><dd>address</dd></div>\n</article>",
+			new: "<div><dt>Address fields</dt><dd>address</dd></div>\n" +
+				`<article class="cmd-detail-card"><p>next</p></article>`,
+		},
+		{
+			name: "partial primary row opener",
+			path: "reference/cli/index.html",
+			old:  `<tr id="cmd-show-test"><td><code>show test</code>`,
+			new:  `<tr id="cmd-show-test"<td><code>show test</code>`,
+		},
+		{
+			name: "partial Ze article opener",
+			path: "reference/command-equivalents/show-test/index.html",
+			old: "<article class=\"cmd-detail-card cmd-detail-ze\">\n" +
+				"<div><dt>Registry path</dt><dd><code>show test</code></dd></div>",
+			new: "<article class=\"cmd-detail-card cmd-detail-ze\"\n" +
+				"<div><dt>Registry path</dt><dd><code>show test</code></dd></div>",
+		},
+		{
+			name: "wrong Registry path",
+			path: "reference/command-equivalents/show-test/index.html",
+			old:  "<dt>Registry path</dt><dd><code>show test</code></dd>",
+			new:  "<dt>Registry path</dt><dd><code>show test wrong</code></dd>",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(t, root, tc.path, tc.old, tc.new)
+
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil {
+				t.Fatalf("doc drift accepted malformed %s:\n%s", tc.name, out)
+			}
+			if !strings.Contains(out, filepath.ToSlash(tc.path)) ||
+				!strings.Contains(out, `command "show test"`) {
+				t.Fatalf("doc drift did not bind malformed %s to show test:\n%s", tc.name, out)
+			}
+		})
+	}
+}
+
+// VALIDATES: primary rows, Ze sections, and llms rows accept only their exact
+// opening grammar, even when a canonical container also exists.
+// PREVENTS: malformed same-command prefixes being ignored before or after the
+// valid container.
+func TestDocDriftRejectsMalformedMarkdownCommandOpeners(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		old  string
+		new  string
+	}{
+		{
+			name: "primary row before canonical",
+			path: "reference/cli/index.md",
+			old:  "| `show test` | Read-only | Show test rows |",
+			new:  "  | `show test` malformed row\n| `show test` | Read-only | Show test rows |",
+		},
+		{
+			name: "primary row after canonical",
+			path: "reference/cli/index.md",
+			old:  "| `show test extra` | Read-only | Prefix collision |",
+			new:  "| `show test | malformed row\n| `show test extra` | Read-only | Prefix collision |",
+		},
+		{
+			name: "Ze heading before canonical",
+			path: "reference/command-equivalents/show-test/index.md",
+			old:  "## Ze command",
+			new:  "## Ze command malformed\n\n## Ze command",
+		},
+		{
+			name: "Ze heading after canonical",
+			path: "reference/command-equivalents/show-test/index.md",
+			old:  "## Mapping intents",
+			new:  "## Ze command malformed\n\n## Mapping intents",
+		},
+		{
+			name: "llms malformed row",
+			path: "llms.txt",
+			old:  "- `show test` (read-only;",
+			new:  "  - `show test` read-only; malformed\n- `show test` (read-only;",
+		},
+		{
+			name: "llms unclosed code span",
+			path: "llms.txt",
+			old:  "- `show test` (read-only;",
+			new:  "- `show test (read-only; malformed\n- `show test` (read-only;",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(t, root, tc.path, tc.old, tc.new)
+
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil {
+				t.Fatalf("doc drift accepted malformed %s:\n%s", tc.name, out)
+			}
+			if !strings.Contains(out, filepath.ToSlash(tc.path)) {
+				t.Fatalf("doc drift did not identify malformed %s:\n%s", tc.name, out)
+			}
+		})
+	}
+}
+
+// VALIDATES: fenced examples and path-prefix collisions are unrelated content,
+// while the canonical containers outside each fence remain uniquely selected.
+// PREVENTS: examples or a longer command path becoming a duplicate for show test.
+func TestDocDriftIgnoresFencedAndPrefixCollisionExamples(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	mutatePublishedCommandSurface(
+		t, root, "reference/cli/index.md",
+		"| Command | Mode | Description | Pipes |",
+		"```markdown\n| `show test` | fenced duplicate |\n```\n"+
+			"| Command | Mode | Description | Pipes |",
+	)
+	mutatePublishedCommandSurface(
+		t, root, "reference/command-equivalents/show-test/index.md",
+		"## Ze command",
+		"~~~markdown\n## Ze command\n- Registry path: `show test`\n~~~\n## Ze command",
+	)
+	mutatePublishedCommandSurface(
+		t, root, "llms.txt",
+		"## CLI command surface",
+		"## CLI command surface\n\n```\n"+
+			"- `show test` (read-only; pipes always: catalog-absent): fenced\n```",
+	)
+
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err != nil {
+		t.Fatalf("doc drift counted fenced or prefix-collision examples:\n%s", out)
+	}
+}
+
+// VALIDATES: wiki detail headings are exact, fence-aware structural headings.
+// PREVENTS: malformed same-command headings being ignored or fenced examples
+// being counted as a second command detail.
+func TestDocDriftWikiHeadingGrammarIsExactAndFenceAware(t *testing.T) {
+	const canonical = "                print(f\"### `{entry['path']}`\")"
+	for _, tc := range []struct {
+		name        string
+		replacement string
+		accept      bool
+	}{
+		{
+			name: "malformed before",
+			replacement: "                print(f\"### `{entry['path']}` malformed\")" +
+				"\n" + canonical,
+		},
+		{
+			name: "malformed after",
+			replacement: canonical + "\n" +
+				"                print(f\"### `{entry['path']}` malformed\")",
+		},
+		{
+			name: "fenced heading",
+			replacement: `                print("~~~markdown")` + "\n" +
+				"                print(f\"### `{entry['path']}`\")" + "\n" +
+				`                print("~~~")` + "\n" + canonical,
+			accept: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutateWikiCommandGenerator(t, root, canonical, tc.replacement)
+
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if tc.accept {
+				if err != nil {
+					t.Fatalf("doc drift counted a fenced wiki heading:\n%s", out)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("doc drift accepted %s wiki heading:\n%s", tc.name, out)
+			}
+			if !strings.Contains(out, "wiki command detail section") {
+				t.Fatalf("doc drift did not identify %s wiki heading:\n%s", tc.name, out)
+			}
+		})
+	}
+}
+
+func mutateWikiCommandGenerator(
+	t *testing.T,
+	root, old, replacement string,
+) {
+	t.Helper()
+	sourcePath := filepath.Join(repoRoot(t), "scripts", "dev", "gen_wiki_commands.py")
+	source, err := os.ReadFile(sourcePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mutated := strings.Replace(string(source), old, replacement, 1)
+	if mutated == string(source) {
+		t.Fatalf("wiki generator mutation %q did not apply", old)
+	}
+	writeTempDoc(t, root, "scripts/dev/gen_wiki_commands.py", mutated)
 }
 
 func mutatePublishedCommandSurface(

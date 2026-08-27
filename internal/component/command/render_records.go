@@ -76,8 +76,14 @@ func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []strin
 	}
 
 	answered := chainAnswersItsOwnDocument(chain)
+	explicitNDJSON := false
+	for _, op := range chain {
+		if op.kind == pipeNDJSON {
+			explicitNDJSON = true
+			break
+		}
+	}
 	ops = renderOps(chain, sessionFormat)
-
 	// The chain runs over the records BEFORE the threshold is measured, so the
 	// threshold is measured over what the operator receives. `| first 10` and
 	// `| count` are therefore bounded answers however long the walk behind them
@@ -86,13 +92,6 @@ func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []strin
 	records, fields, msg := applyPipesRecords(input, fields, rows)
 	if msg != "" {
 		return RecordAnswer{}, errors.New(msg)
-	}
-
-	// A chain that answers a document of its own has replaced the command's
-	// rows, so the command's column schema describes nothing the answer still
-	// carries. The source schema remains available while earlier operators run.
-	if answered {
-		fields = nil
 	}
 
 	// NDJSON followed by a line transform stays record-shaped. Positional rows
@@ -127,7 +126,7 @@ func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []strin
 		}
 
 		if writing {
-			if err := writeRecordJSON(w, record); err != nil {
+			if err := writeRecordJSON(w, record, explicitNDJSON); err != nil {
 				return answer, err
 			}
 			continue
@@ -146,7 +145,7 @@ func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []strin
 			continue
 		}
 		for i := range held {
-			if err := writeRecordJSON(w, held[i]); err != nil {
+			if err := writeRecordJSON(w, held[i], explicitNDJSON); err != nil {
 				return answer, err
 			}
 		}
@@ -159,7 +158,7 @@ func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []strin
 	}
 	if lineTransformedNDJSON {
 		for i := range held {
-			if err := writeRecordJSON(w, held[i]); err != nil {
+			if err := writeRecordJSON(w, held[i], explicitNDJSON); err != nil {
 				return answer, err
 			}
 		}
@@ -354,24 +353,32 @@ func answerDocument(held []rpc.Record, key string, fields []string, answered boo
 
 // writeRecordJSON writes one record as one line of newline-delimited JSON.
 //
-// The payload is decoded and re-encoded rather than copied, because that is
-// what `| ndjson` does to every element of a document (marshalNDJSON, pipe.go).
-// A copy would keep the producer's key order and the string path's would be
-// alphabetical, so the same answer would read differently depending on how many
-// records it turned out to hold.
-//
-// A rejected row is written as its own line whenever NDJSON line semantics keep
-// the record path, on both sides of the buffering threshold. The terminator's
-// fault count states how many there were.
-func writeRecordJSON(w io.Writer, record rpc.Record) error {
-	line, err := marshalRecordJSON(record)
+// An explicit NDJSON chain has already decoded and canonically encoded every
+// payload in recordsNDJSONRendered before a line transform saw it. Writing
+// those exact bytes preserves metadata field order shared with ApplyPipes. A
+// configured NDJSON default did not pass through that wrapper, so it is
+// canonicalized here instead.
+func writeRecordJSON(w io.Writer, record rpc.Record, alreadyRendered bool) error {
+	line := recordPayload(record)
+	if len(line) == 0 {
+		return errEmptyRenderedRecord
+	}
+	if !alreadyRendered {
+		var err error
+		line, err = marshalRecordJSON(record)
+		if err != nil {
+			return err
+		}
+	}
+	n, err := w.Write(line)
 	if err != nil {
 		return err
 	}
-	if _, err := w.Write(append(line, '\n')); err != nil {
-		return err
+	if n != len(line) {
+		return io.ErrShortWrite
 	}
-	return nil
+	_, err = io.WriteString(w, "\n")
+	return err
 }
 
 // streamsPerRecord reports whether the chain can be rendered one record at a

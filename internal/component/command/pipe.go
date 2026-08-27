@@ -417,12 +417,16 @@ func ApplyPipes(output string, ops []pipeOp, meta pipeChainMeta, columns []Colum
 	if formatCount > 1 {
 		return "", multipleFormatsError
 	}
+	if msg := validateCountDocumentFollowers(ops); msg != "" {
+		return "", msg
+	}
 	if msg := validateFormatTransformCompatibility(ops); msg != "" {
 		return "", msg
 	}
 
 	result := output
 	metaInjected := false
+	lineFormatExecuted := false
 	for i, op := range ops {
 		if !metaInjected {
 			if isFormatOp(op.kind) {
@@ -441,12 +445,20 @@ func ApplyPipes(output string, ops []pipeOp, meta pipeChainMeta, columns []Colum
 			if op.arg == "" {
 				return "", "match requires a pattern"
 			}
+			if lineFormatExecuted {
+				result = applyMatchLines(result, op.arg)
+				continue
+			}
 			matched, msg := applyMatch(result, op.arg)
 			if msg != "" {
 				return "", msg
 			}
 			result = matched
 		case pipeCount:
+			if lineFormatExecuted {
+				result = applyCountLines(result)
+				continue
+			}
 			counted, msg := applyCount(result)
 			if msg != "" {
 				return "", msg
@@ -458,12 +470,16 @@ func ApplyPipes(output string, ops []pipeOp, meta pipeChainMeta, columns []Colum
 			result = applyJSON(result, op.arg)
 		case pipeNDJSON:
 			result = applyNDJSON(result)
+			lineFormatExecuted = true
 		case pipeTable:
 			result = applyTableStyled(result, tableStyle{orders: columns, request: request})
+			lineFormatExecuted = true
 		case pipeText:
 			result = applyTableStyled(result, tableStyle{plain: true, orders: columns, request: request})
+			lineFormatExecuted = true
 		case pipeYAML:
 			result = applyYAML(result)
+			lineFormatExecuted = true
 		case pipeRaw:
 			// Identity: the dispatcher's JSON is already the answer.
 		case pipeResolve:
@@ -477,12 +493,20 @@ func ApplyPipes(output string, ops []pipeOp, meta pipeChainMeta, columns []Colum
 			}
 			result = applyOrigin(result, op.addressFields, op.allAddressFields)
 		case pipeFirst:
+			if lineFormatExecuted {
+				result = applyTakeLines(result, op.arg, false)
+				continue
+			}
 			taken, msg := applyFirst(result, op.arg)
 			if msg != "" {
 				return "", msg
 			}
 			result = taken
 		case pipeLast:
+			if lineFormatExecuted {
+				result = applyTakeLines(result, op.arg, true)
+				continue
+			}
 			taken, msg := applyLast(result, op.arg)
 			if msg != "" {
 				return "", msg
@@ -514,10 +538,14 @@ func ApplyPipes(output string, ops []pipeOp, meta pipeChainMeta, columns []Colum
 		}
 	}
 	if !metaInjected {
+		trailingRenderedNewline := lineFormatExecuted && strings.HasSuffix(result, "\n")
 		var msg string
 		result, msg = injectPipeMeta(result, meta)
 		if msg != "" {
 			return "", msg
+		}
+		if trailingRenderedNewline && result != "" && !strings.HasSuffix(result, "\n") {
+			result += "\n"
 		}
 	}
 	if paths := savePathsInChain(ops); len(paths) > 0 {
@@ -596,6 +624,9 @@ func validatePipeLanguage(ops []pipeOp) string {
 	if formatCount > 1 {
 		return multipleFormatsError
 	}
+	if msg := validateCountDocumentFollowers(ops); msg != "" {
+		return msg
+	}
 	if msg := validateFormatTransformCompatibility(ops); msg != "" {
 		return msg
 	}
@@ -636,6 +667,47 @@ func validateFormatTransformCompatibility(ops []pipeOp) string {
 		var tb textbuf.Buffer
 		return tb.Str(transformEntry.Name).Str(" cannot apply after ").
 			Str(formatEntry.Name).Str(" format").String()
+	}
+	return ""
+}
+
+// validateCountDocumentFollowers protects count's document before source work.
+// Line-oriented formats let later line operators consume the rendering.
+// JSON, raw, and structured operators still require a document shape.
+func validateCountDocumentFollowers(ops []pipeOp) string {
+	countDocument := false
+	rendered := false
+	for _, op := range ops {
+		if op.kind == pipeCount {
+			if !countDocument {
+				countDocument = true
+				rendered = false
+			}
+			continue
+		}
+		if !countDocument {
+			continue
+		}
+		if isFormatOp(op.kind) {
+			rendered = formatForcesLineTransforms(op.kind)
+			continue
+		}
+		if isLineTransformOp(op.kind) && rendered {
+			continue
+		}
+		if !isDataTransformOp(op.kind) && !isStructuredTransformOp(op.kind) {
+			continue
+		}
+		entry, known := lookupPipeOperatorByKind(op.kind)
+		if !known {
+			continue
+		}
+		var tb textbuf.Buffer
+		tb.Str(entry.Name).Str(" cannot apply after count: count produces one document")
+		if isLineTransformOp(op.kind) {
+			return tb.Str(", not rendered lines; add a format before ").Str(entry.Name).String()
+		}
+		return tb.Str(" with no row or address shape").String()
 	}
 	return ""
 }
@@ -955,13 +1027,18 @@ func applyMatch(input, pattern string) (string, string) {
 		return string(out), ""
 	}
 
+	return applyMatchLines(input, pattern), ""
+}
+
+func applyMatchLines(input, pattern string) string {
+	lower := strings.ToLower(pattern)
 	var b textbuf.Buffer
 	for line := range strings.SplitSeq(input, "\n") {
 		if strings.Contains(strings.ToLower(line), lower) {
 			b.Str(line).Byte('\n')
 		}
 	}
-	return b.String(), ""
+	return b.String()
 }
 
 // appendValueText writes a row's VALUES, lowercased, for matching against.
@@ -1009,16 +1086,17 @@ func applyCount(input string) (string, string) {
 	if isJSON {
 		return textbuf.StrIntStr("{\"count\":", int64(len(rows)), "}\n"), ""
 	}
-	// The answer has already been rendered by a format operator upstream, so
-	// its rows are lines and counting them is what was asked:
-	// `show bgp | text | count`.
+	return applyCountLines(input), ""
+}
+
+func applyCountLines(input string) string {
 	n := 0
 	for line := range strings.SplitSeq(input, "\n") {
 		if line != "" {
 			n++
 		}
 	}
-	return textbuf.StrIntStr("{\"count\":", int64(n), "}\n"), ""
+	return textbuf.StrIntStr("{\"count\":", int64(n), "}\n")
 }
 
 // rowsForOperator finds the rows a row operator acts on, and refuses by name
@@ -1066,6 +1144,12 @@ func rowOperatorRefusal(operator string, data any) string {
 // the shape, which is a choice like any other.
 func isFormatOp(k pipeKind) bool {
 	return k == pipeJSON || k == pipeNDJSON || k == pipeTable || k == pipeText || k == pipeYAML || k == pipeRaw
+}
+
+// formatForcesLineTransforms reports whether rendered lines become the input.
+// JSON and raw instead preserve structured row semantics.
+func formatForcesLineTransforms(k pipeKind) bool {
+	return k == pipeNDJSON || k == pipeTable || k == pipeText || k == pipeYAML
 }
 
 // isDataTransformOp reports whether an operator changes or selects the answer
@@ -1150,10 +1234,7 @@ func applyTake(input, arg, operator string, fromEnd bool) (string, string) {
 	}
 	var data any
 	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err != nil {
-		if fromEnd {
-			return applyLastLines(input, n), ""
-		}
-		return applyFirstLines(input, n), ""
+		return applyTakeLines(input, arg, fromEnd), ""
 	}
 	rows, keys, key, ok := rowsInKeyed(data)
 	if !ok {
@@ -1172,6 +1253,17 @@ func applyTake(input, arg, operator string, fromEnd bool) (string, string) {
 	return string(out), ""
 }
 
+func applyTakeLines(input, arg string, fromEnd bool) string {
+	n, err := strconv.Atoi(arg)
+	if err != nil || n <= 0 {
+		return input
+	}
+	if fromEnd {
+		return applyLastLines(input, n)
+	}
+	return applyFirstLines(input, n)
+}
+
 // sliceInts takes N row indices from one end, which is what `first` and `last`
 // each ask for.
 func sliceInts(idx []int, n int, fromEnd bool) []int {
@@ -1185,6 +1277,9 @@ func sliceInts(idx []int, n int, fromEnd bool) []int {
 }
 
 func applyFirstLines(input string, n int) string {
+	if input == "" {
+		return ""
+	}
 	var b textbuf.Buffer
 	i := 0
 	for line := range strings.SplitSeq(input, "\n") {

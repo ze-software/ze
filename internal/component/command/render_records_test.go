@@ -88,12 +88,17 @@ func withRejection(records iter.Seq[rpc.Record]) iter.Seq[rpc.Record] {
 // comparison every case below is judged against, built by a different route.
 func renderedDocument(t *testing.T, chain, key string, count int) string {
 	t.Helper()
+	return strings.TrimRight(renderedDocumentBytes(t, chain, key, count), "\n")
+}
+
+func renderedDocumentBytes(t *testing.T, chain, key string, count int) string {
+	t.Helper()
 	document := collapseForTest(t, key, count)
 	_, format, errMsg := ProcessPipesDefaultFormatChecked(chain, "")
 	if errMsg != "" {
 		t.Fatalf("ProcessPipesDefaultFormatChecked(%q): %s", chain, errMsg)
 	}
-	return strings.TrimRight(format(document), "\n")
+	return format(document)
 }
 
 // collapseForTest builds the one document the rows collapse to, by hand rather
@@ -316,105 +321,154 @@ func TestABoundedChainStopsTheWalkAndAnswersOneDocument(t *testing.T) {
 	}
 }
 
-// TestPositionalCountThenNDJSONDropsTheSourceSchema checks that count replaces
-// positional rows with its own self-describing document before NDJSON sees it.
-func TestPositionalCountThenNDJSONDropsTheSourceSchema(t *testing.T) {
-	const countNDJSON = "system command list | count | ndjson"
-	tests := []struct {
-		name         string
-		chain        string
-		available    int
-		wantCount    int
-		wantProduced int
-	}{
-		{name: "zero rows", chain: countNDJSON},
-		{name: "one row", chain: countNDJSON, available: 1, wantCount: 1, wantProduced: 1},
-		{
-			name:         "past the streaming threshold",
-			chain:        countNDJSON,
-			available:    rpc.AnswerBufferThreshold + 1,
-			wantCount:    rpc.AnswerBufferThreshold + 1,
-			wantProduced: rpc.AnswerBufferThreshold + 1,
-		},
-		{
-			name:         "positional display runs before count",
-			chain:        "system command list | display value | count | ndjson",
-			available:    2,
-			wantCount:    2,
-			wantProduced: 2,
-		},
+// TestCountThenNDJSONMatchesTheDocumentRunner checks that count replaces either
+// record representation with the same top-level document the whole-payload
+// runner produces. The four sizes cross both sides of the framing threshold.
+func TestCountThenNDJSONMatchesTheDocumentRunner(t *testing.T) {
+	const chain = "system command list | count | ndjson"
+	for _, count := range []int{0, 1, rpc.AnswerBufferThreshold, rpc.AnswerBufferThreshold + 1} {
+		t.Run(textbuf.StringInt(int64(count))+" rows", func(t *testing.T) {
+			want := renderedDocumentBytes(t, chain, recordEnvelope, count)
+			var exact textbuf.Buffer
+			exact.Str(`{"count":`).Int(int64(count)).Str(`,"pipe":[{"op":"count"}]}`).Byte('\n')
+			if want != exact.String() {
+				t.Fatalf("document runner = %q, want exact top-level count and pipe metadata %q", want, exact.String())
+			}
+
+			forms := []struct {
+				name    string
+				fields  []string
+				records iter.Seq[rpc.Record]
+			}{
+				{name: "self-describing", records: commandRecords(count, nil)},
+				{name: "positional", fields: commandColumns, records: commandColumnRecords(count, nil)},
+			}
+			for _, form := range forms {
+				t.Run(form.name, func(t *testing.T) {
+					var out bytes.Buffer
+					answer, err := RenderRecords(&out, chain, "", recordEnvelope, form.fields, form.records)
+					if err != nil {
+						t.Fatalf("RenderRecords: %v", err)
+					}
+					if out.String() != want {
+						t.Errorf("record runner = %q, whole-document runner = %q", out.String(), want)
+					}
+					if answer.Type != rpc.AnswerTypeDocument || answer.Count != 1 || answer.Faults != 0 {
+						t.Errorf("answer = %+v, want one count document", answer)
+					}
+					if answer.Fields != nil {
+						t.Errorf("count retained source fields %v, want nil", answer.Fields)
+					}
+				})
+			}
+		})
 	}
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+func TestCountDocumentFollowersRefuseBeforeRecords(t *testing.T) {
+	for _, follower := range []string{
+		"match show",
+		"first 1",
+		"last 1",
+		"display value",
+		"fill alpha",
+		"resolve",
+		"origin",
+		"ndjson | resolve",
+	} {
+		t.Run(follower, func(t *testing.T) {
+			chain := "system command list | count | " + follower
+			_, _, documentMsg := ProcessPipesDefaultFormatChecked(chain, "")
+			if documentMsg == "" {
+				t.Fatal("whole-document entry accepted a transform after count")
+			}
+			operator := strings.Fields(follower)
+			later := operator[0]
+			if follower == "ndjson | resolve" {
+				later = "resolve"
+			}
+			for _, part := range []string{later, "count", "document"} {
+				if !strings.Contains(documentMsg, part) {
+					t.Errorf("refusal %q does not name %q", documentMsg, part)
+				}
+			}
+
 			produced := 0
-			records, fields, msg := applyPipesRecords(
-				tt.chain,
-				commandColumns,
-				commandColumnRecords(tt.available, &produced),
-			)
-			if msg != "" {
-				t.Fatalf("applyPipesRecords: %s", msg)
-			}
-
-			var want textbuf.Buffer
-			want.Str(`{"count":`).Int(int64(tt.wantCount)).Str("}")
-			wantCount := want.String()
-			got := collectRecords(records)
-			if len(got) != 1 {
-				t.Fatalf("count produced %d records, want one", len(got))
-			}
-			if len(got[0].Fault) != 0 {
-				t.Errorf("count produced fault %q, want none", got[0].Fault)
-			}
-			if string(got[0].Item) != wantCount {
-				t.Errorf("count record = %q, want %q", got[0].Item, wantCount)
-			}
-			if fields != nil {
-				t.Errorf("count record retained positional fields %v, want nil", fields)
-			}
-			if produced != tt.wantProduced {
-				t.Errorf("source produced %d rows, want %d", produced, tt.wantProduced)
-			}
-
-			var positional bytes.Buffer
-			answer, err := RenderRecords(
-				&positional,
-				tt.chain,
-				"",
-				recordEnvelope,
-				commandColumns,
-				commandColumnRecords(tt.available, nil),
-			)
-			if err != nil {
-				t.Fatalf("RenderRecords over positional rows: %v", err)
-			}
-			var selfDescribing bytes.Buffer
-			wantAnswer, err := RenderRecords(
-				&selfDescribing,
-				tt.chain,
+			var out bytes.Buffer
+			_, err := RenderRecords(
+				&out,
+				chain,
 				"",
 				recordEnvelope,
 				nil,
-				commandRecords(tt.available, nil),
+				commandRecords(3, &produced),
 			)
-			if err != nil {
-				t.Fatalf("RenderRecords over self-describing rows: %v", err)
+			if err == nil {
+				t.Fatal("record entry accepted a transform after count")
 			}
-			if positional.String() != selfDescribing.String() {
-				t.Errorf("positional count rendered %q, want schema-less rendering %q",
-					positional.String(), selfDescribing.String())
+			if err.Error() != documentMsg {
+				t.Errorf("record refusal = %q, document refusal = %q", err, documentMsg)
 			}
-			if answer.Count != 1 || answer.Faults != 0 {
-				t.Errorf("answer counted %d records and %d faults, want 1 and 0", answer.Count, answer.Faults)
+			if produced != 0 {
+				t.Errorf("refused chain pulled %d records, want none", produced)
 			}
-			if answer.Fields != nil {
-				t.Errorf("answer retained positional fields %v, want nil", answer.Fields)
+			if out.Len() != 0 {
+				t.Errorf("refused chain wrote %q, want no partial answer", out.String())
 			}
-			if answer.Type != wantAnswer.Type || answer.Count != wantAnswer.Count || answer.Faults != wantAnswer.Faults {
-				t.Errorf("positional answer = {%q %d %d}, want schema-less {%q %d %d}",
-					answer.Type, answer.Count, answer.Faults,
-					wantAnswer.Type, wantAnswer.Count, wantAnswer.Faults)
+		})
+	}
+}
+
+func TestFormattedCountDocumentEnablesLineFollowers(t *testing.T) {
+	for _, follower := range []string{"match count", "first 1", "last 1"} {
+		t.Run(follower, func(t *testing.T) {
+			chain := "system command list | count | ndjson | " + follower
+			want := renderedDocumentBytes(t, chain, recordEnvelope, 3)
+			var out bytes.Buffer
+			if _, err := RenderRecords(
+				&out,
+				chain,
+				"",
+				recordEnvelope,
+				nil,
+				commandRecords(3, nil),
+			); err != nil {
+				t.Fatalf("RenderRecords: %v", err)
+			}
+			if out.String() != want {
+				t.Errorf("record runner = %q, whole-document runner = %q", out.String(), want)
+			}
+		})
+	}
+}
+
+func TestNDJSONLineTransformsMatchTheDocumentRunnerAtEveryCardinality(t *testing.T) {
+	chains := []string{
+		"system command list | ndjson | match show",
+		"system command list | ndjson | count",
+		"system command list | ndjson | first 1",
+		"system command list | ndjson | last 1",
+	}
+	for _, chain := range chains {
+		t.Run(chain, func(t *testing.T) {
+			for _, count := range []int{0, 1, rpc.AnswerBufferThreshold, rpc.AnswerBufferThreshold + 1} {
+				t.Run(textbuf.StringInt(int64(count))+" rows", func(t *testing.T) {
+					want := renderedDocumentBytes(t, chain, recordEnvelope, count)
+					var out bytes.Buffer
+					if _, err := RenderRecords(
+						&out,
+						chain,
+						"",
+						recordEnvelope,
+						nil,
+						commandRecords(count, nil),
+					); err != nil {
+						t.Fatalf("RenderRecords: %v", err)
+					}
+					if out.String() != want {
+						t.Errorf("record runner = %.300q, whole-document runner = %.300q", out.String(), want)
+					}
+				})
 			}
 		})
 	}
@@ -1216,6 +1270,13 @@ func TestNDJSONLineTransformsTreatFaultsAsRenderedLines(t *testing.T) {
 		wantFaults   uint64
 		wantText     string
 	}{
+		{
+			name:         "match cannot hide a fault line",
+			chain:        "system command list | ndjson | match absent",
+			wantProduced: 3,
+			wantFaults:   1,
+			wantText:     "first fault",
+		},
 		{
 			name:         "first stops on a fault line",
 			chain:        "system command list | ndjson | first 1",

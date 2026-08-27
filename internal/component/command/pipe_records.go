@@ -129,8 +129,6 @@ func applyRecordOp(records iter.Seq[rpc.Record], op pipeOp) iter.Seq[rpc.Record]
 	switch op.kind {
 	case pipeMatch:
 		return recordsMatching(records, op.arg)
-	case pipeCount:
-		return recordsCounted(records)
 	case pipeFirst:
 		return recordsFirst(records, op.arg)
 	case pipeLast:

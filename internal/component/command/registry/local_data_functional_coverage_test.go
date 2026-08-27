@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/test/runner"
 	"github.com/ze-software/ze/internal/test/tmpfs"
 )
 
@@ -250,11 +251,15 @@ func TestFunctionalLocalDataInvocationsRequireExecutedTopLevelAssignments(t *tes
 		},
 		{
 			name: "outside Python payload",
-			scenario: "payload = local_json('show before fake | json compact')\n" +
+			scenario: "tmpfs=before.txt:terminator=BEFORE\n" +
+				"payload = local_json('show before fake | json compact')\n" +
+				"BEFORE\n" +
 				"tmpfs=run.py:terminator=PY\n" +
 				"print('OK: fixture complete')\n" +
 				"PY\n" +
-				"payload = local_json('show after fake | json compact')\n",
+				"tmpfs=after.txt:terminator=AFTER\n" +
+				"payload = local_json('show after fake | json compact')\n" +
+				"AFTER\n",
 		},
 		{
 			name: "literal after successful completion",
@@ -328,8 +333,9 @@ func TestFunctionalLocalDataInvocationsRequireExecutedTopLevelAssignments(t *tes
 // TestFunctionalLocalDataInvocationsRequireLaunchedRunPayload proves AC-10
 // evidence comes from the one run.py payload the scenario actually executes.
 //
-// VALIDATES: IR5-2 -- one unambiguous runner command launches one run.py payload.
-// PREVENTS: an inert payload or alternate driver satisfying the coverage ratchet.
+// VALIDATES: IR5-2, IR6-4, IR6-5, IR6-6, IR6-7, IR6-17, IR6-18 --
+// production discovery accepts one non-skipped foreground run.py launch and no competing step.
+// PREVENTS: malformed runner grammar or preemptive orchestration satisfying the ratchet.
 func TestFunctionalLocalDataInvocationsRequireLaunchedRunPayload(t *testing.T) {
 	const runPayload = "tmpfs=run.py:terminator=PY\n" +
 		"payload = local_json('show live command | json compact')\n" +
@@ -343,9 +349,12 @@ func TestFunctionalLocalDataInvocationsRequireLaunchedRunPayload(t *testing.T) {
 		wantError bool
 	}{
 		{
-			name:     "valid launch",
-			scenario: runPayload + functionalRunCommandDirective,
-			want:     []string{"show live command | json compact"},
+			name: "valid launch with normal success expectations",
+			scenario: runPayload +
+				functionalRunCommandDirective +
+				"expect=exit:code=0\n" +
+				"expect=stdout:contains=OK: fixture complete\n",
+			want: []string{"show live command | json compact"},
 		},
 		{
 			name: "driver.py launch selects second payload",
@@ -404,6 +413,101 @@ func TestFunctionalLocalDataInvocationsRequireLaunchedRunPayload(t *testing.T) {
 				functionalRunCommandDirective,
 			wantError: true,
 		},
+		{
+			name: "malformed stop",
+			scenario: runPayload +
+				functionalRunCommandDirective +
+				"cmd=stop:seq=2\n",
+			wantError: true,
+		},
+		{
+			name: "malformed API command",
+			scenario: runPayload +
+				functionalRunCommandDirective +
+				"cmd=api:seq=2:text=shutdown\n",
+			wantError: true,
+		},
+		{
+			name: "malformed per-command exit",
+			scenario: runPayload +
+				"cmd=foreground:seq=1:exec=python3 run.py:exit=yes\n",
+			wantError: true,
+		},
+		{
+			name: "malformed stdout regex",
+			scenario: runPayload +
+				functionalRunCommandDirective +
+				"expect=stdout:pattern=[invalid\n",
+			wantError: true,
+		},
+		{
+			name: "unresolved stdin binding",
+			scenario: runPayload +
+				"cmd=foreground:seq=1:exec=python3 run.py:stdin=missing\n",
+			wantError: true,
+		},
+		{
+			name: "valid but preemptive stop",
+			scenario: runPayload +
+				"cmd=stop:seq=1:name=runner\n" +
+				"cmd=foreground:seq=2:exec=python3 run.py\n",
+			wantError: true,
+		},
+		{
+			name: "needs-path skip",
+			scenario: "option=needs-path:value=missing-functional-coverage-artifact\n" +
+				runPayload +
+				functionalRunCommandDirective,
+			wantError: true,
+		},
+		{
+			name: "extra API command",
+			scenario: runPayload +
+				functionalRunCommandDirective +
+				"cmd=api:conn=1:seq=2:text=shutdown\n",
+			wantError: true,
+		},
+		{
+			name: "extra runner message",
+			scenario: runPayload +
+				functionalRunCommandDirective +
+				"expect=json:conn=1:seq=2:json={}\n",
+			wantError: true,
+		},
+		{
+			name: "extra HTTP check",
+			scenario: runPayload +
+				functionalRunCommandDirective +
+				"http=get:seq=2:url=http://127.0.0.1/:status=200\n",
+			wantError: true,
+		},
+		{
+			name: "extra HTTP wait",
+			scenario: runPayload +
+				functionalRunCommandDirective +
+				"http=wait:seq=2:url=http://127.0.0.1/:status=200\n",
+			wantError: true,
+		},
+		{
+			name: "extra engine step",
+			scenario: runPayload +
+				functionalRunCommandDirective +
+				"command=show version\n",
+			wantError: true,
+		},
+		{
+			name: "extra file check",
+			scenario: runPayload +
+				functionalRunCommandDirective +
+				"expect=file:path=result.txt:exists=true\n",
+			wantError: true,
+		},
+		{
+			name: "named foreground launch",
+			scenario: runPayload +
+				"cmd=foreground:seq=1:exec=python3 run.py:name=runner\n",
+			wantError: true,
+		},
 	}
 
 	for _, test := range tests {
@@ -422,6 +526,25 @@ func TestFunctionalLocalDataInvocationsRequireLaunchedRunPayload(t *testing.T) {
 				t.Fatalf("invocations = %q, want %q", got, test.want)
 			}
 		})
+	}
+}
+
+// TestFunctionalLocalDataInvocationsAcceptLiveCanonicalScenario proves the
+// committed AC-10 evidence satisfies the same production-runner contract as
+// the rejection fixtures above.
+func TestFunctionalLocalDataInvocationsAcceptLiveCanonicalScenario(t *testing.T) {
+	root := repositoryRoot(t)
+	path := filepath.Join(root, "test", "ui", "pipe-local-command.ci")
+	content, err := os.ReadFile(path) //nolint:gosec // Repository-owned functional test.
+	if err != nil {
+		t.Fatalf("read canonical functional scenario: %v", err)
+	}
+	invocations, err := parseFunctionalLocalDataInvocations(content)
+	if err != nil {
+		t.Fatalf("parse canonical functional scenario: %v", err)
+	}
+	if len(invocations) == 0 {
+		t.Fatal("canonical functional scenario has no executable local_json invocation")
 	}
 }
 
@@ -546,11 +669,82 @@ const (
 )
 
 func parseFunctionalLocalDataInvocations(content []byte) ([]string, error) {
-	scenario, err := tmpfs.Parse(bytes.NewReader(content))
+	dir, err := os.MkdirTemp("", "ze-functional-local-data-")
 	if err != nil {
-		return nil, fmt.Errorf("parse functional scenario: %w", err)
+		return nil, fmt.Errorf("create isolated functional scenario directory: %w", err)
+	}
+	defer func() {
+		_ = os.RemoveAll(dir)
+	}()
+
+	// needs-path discovery searches upward from the candidate for go.mod.
+	// A standalone module makes the isolated directory the lookup root.
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module functional.coverage\n"), 0o600); err != nil {
+		return nil, fmt.Errorf("materialize isolated functional module: %w", err)
+	}
+	candidate := filepath.Join(dir, "candidate.ci")
+	if err := os.WriteFile(candidate, content, 0o600); err != nil {
+		return nil, fmt.Errorf("materialize functional scenario: %w", err)
 	}
 
+	discovered := runner.NewEncodingTests(dir)
+	if err := discovered.Discover(dir); err != nil {
+		return nil, fmt.Errorf("discover functional scenario with production runner: %w", err)
+	}
+	records := discovered.Registered()
+	if len(records) != 1 {
+		return nil, fmt.Errorf("production runner discovered %d functional scenarios, want exactly 1", len(records))
+	}
+	record := records[0]
+	if record.ParseFailed {
+		if record.Error != nil {
+			return nil, fmt.Errorf("production runner rejected functional scenario: %w", record.Error)
+		}
+		return nil, fmt.Errorf("production runner rejected functional scenario without an error")
+	}
+	if record.Error != nil {
+		return nil, fmt.Errorf("production runner recorded a functional scenario error: %w", record.Error)
+	}
+	if record.SkipReason != "" {
+		return nil, fmt.Errorf("production runner skipped functional scenario: %s", record.SkipReason)
+	}
+
+	if len(record.RunCommands) != 1 {
+		return nil, fmt.Errorf("functional scenario has %d run commands, want exactly 1", len(record.RunCommands))
+	}
+	runCommand := record.RunCommands[0]
+	if runCommand.Mode != "foreground" {
+		return nil, fmt.Errorf("functional scenario run command mode is %q, want foreground", runCommand.Mode)
+	}
+	if runCommand.Exec != functionalRunCommand {
+		return nil, fmt.Errorf("functional scenario launches %q, want %q", runCommand.Exec, functionalRunCommand)
+	}
+	if runCommand.Stdin != "" {
+		return nil, fmt.Errorf("functional scenario run command reads stdin block %q, want none", runCommand.Stdin)
+	}
+	if runCommand.Name != "" {
+		return nil, fmt.Errorf("functional scenario run command has background name %q, want none", runCommand.Name)
+	}
+	if runCommand.Signal != "" {
+		return nil, fmt.Errorf("functional scenario run command has signal %q, want none", runCommand.Signal)
+	}
+	if len(record.Messages) != 0 || len(record.Expects) != 0 {
+		return nil, fmt.Errorf("functional scenario has runner message or API steps")
+	}
+	if len(record.HTTPChecks) != 0 || len(record.HTTPWaits) != 0 {
+		return nil, fmt.Errorf("functional scenario has HTTP check or wait steps")
+	}
+	if len(record.EngineSteps) != 0 {
+		return nil, fmt.Errorf("functional scenario has engine steps")
+	}
+	if len(record.FileChecks) != 0 {
+		return nil, fmt.Errorf("functional scenario has file-check steps")
+	}
+
+	scenario, err := tmpfs.Parse(bytes.NewReader(content))
+	if err != nil {
+		return nil, fmt.Errorf("locate run.py in functional scenario: %w", err)
+	}
 	var payload []byte
 	runPayloads := 0
 	for _, file := range scenario.Files {
@@ -563,79 +757,7 @@ func parseFunctionalLocalDataInvocations(content []byte) ([]string, error) {
 	if runPayloads != 1 {
 		return nil, fmt.Errorf("functional scenario has %d tmpfs=run.py payloads, want exactly 1", runPayloads)
 	}
-
-	executableCommands := 0
-	runExec := ""
-	for _, line := range scenario.OtherLines {
-		directive, ok := strings.CutPrefix(line, "cmd=")
-		if !ok {
-			continue
-		}
-		execValue, executable, parseErr := functionalCommandExec(directive)
-		if parseErr != nil {
-			return nil, parseErr
-		}
-		if !executable {
-			continue
-		}
-		executableCommands++
-		runExec = execValue
-	}
-	if executableCommands != 1 {
-		return nil, fmt.Errorf("functional scenario has %d executable cmd= directives, want exactly 1", executableCommands)
-	}
-	if runExec != functionalRunCommand {
-		return nil, fmt.Errorf("functional scenario launches %q, want %q", runExec, functionalRunCommand)
-	}
-
 	return parsePythonLocalDataInvocations(payload)
-}
-
-func functionalCommandExec(directive string) (string, bool, error) {
-	mode, _, hasFields := strings.Cut(directive, ":")
-	if mode == "stop" || mode == "api" {
-		return "", false, nil
-	}
-	if !hasFields || (mode != "foreground" && mode != "background") {
-		return "", false, fmt.Errorf("malformed executable cmd= directive %q", directive)
-	}
-
-	const (
-		seqMarker  = ":seq="
-		execMarker = ":exec="
-	)
-	if strings.Count(directive, seqMarker) != 1 {
-		return "", false, fmt.Errorf("executable cmd= directive %q must have exactly one seq= field", directive)
-	}
-	if strings.Count(directive, execMarker) != 1 {
-		return "", false, fmt.Errorf("executable cmd= directive %q must have exactly one exec= field", directive)
-	}
-
-	seqStart := strings.Index(directive, seqMarker) + len(seqMarker)
-	seqEnd := nextFunctionalCommandMarker(directive, seqStart,
-		execMarker, ":stdin=", ":timeout=", ":exit=", ":name=")
-	sequence, err := strconv.Atoi(directive[seqStart:seqEnd])
-	if err != nil || sequence < 1 {
-		return "", false, fmt.Errorf("executable cmd= directive %q has an invalid seq= field", directive)
-	}
-
-	execStart := strings.Index(directive, execMarker) + len(execMarker)
-	execEnd := nextFunctionalCommandMarker(directive, execStart,
-		":stdin=", ":timeout=", ":exit=", ":name=")
-	if execStart == execEnd {
-		return "", false, fmt.Errorf("executable cmd= directive %q has an empty exec= field", directive)
-	}
-	return directive[execStart:execEnd], true, nil
-}
-
-func nextFunctionalCommandMarker(line string, start int, markers ...string) int {
-	end := len(line)
-	for _, marker := range markers {
-		if index := strings.Index(line[start:], marker); index >= 0 && start+index < end {
-			end = start + index
-		}
-	}
-	return end
 }
 
 func parsePythonLocalDataInvocations(payload []byte) ([]string, error) {

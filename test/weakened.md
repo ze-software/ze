@@ -89,4 +89,7 @@ that row is where you say which of the two happened.
 
 | Test | Reason |
 |------|--------|
-| parseFunctionalLocalDataInvocations | Replaced line-regex checks with Python AST validation. New cases reject fake calls in strings, nested code, syntax errors, dynamic commands, and invalid parser output. |
+| functionalCommandExec | Deleted the custom command grammar. Production `runner.EncodingTests` now validates every directive, skip, binding, and orchestration step before coverage is counted. |
+| nextFunctionalCommandMarker | Deleted the marker parser with the custom command grammar. Production runner discovery is the replacement. |
+| renderedDocument | Split document rendering into `renderedDocumentBytes`. The moved helper keeps the ProcessPipes refusal assertion and lets byte-exact newline tests reuse it. |
+| TestPositionalCountThenNDJSONDropsTheSourceSchema | Replaced record-to-record comparison with `TestCountThenNDJSONMatchesTheDocumentRunner` at 0, 1, 256, and 257 rows. New tests also cover count followers and both NDJSON operator orders. |

@@ -316,6 +316,64 @@ func TestApplyPipes(t *testing.T) {
 	}
 }
 
+func TestApplyPipesNDJSONForcesLineSemanticsForOneJSONLine(t *testing.T) {
+	input := `[{"value":"show"}]`
+	tests := []struct {
+		name string
+		op   pipeOp
+		want string
+	}{
+		{name: "match", op: pipeOp{kind: pipeMatch, arg: `"value"`}, want: "{\"value\":\"show\"}\n"},
+		{name: "count", op: pipeOp{kind: pipeCount}, want: "{\"count\":1}\n"},
+		{name: "first", op: pipeOp{kind: pipeFirst, arg: "1"}, want: "{\"value\":\"show\"}\n"},
+		{name: "last", op: pipeOp{kind: pipeLast, arg: "1"}, want: "{\"value\":\"show\"}\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, msg := ApplyPipes(input, []pipeOp{{kind: pipeNDJSON}, tt.op}, nil, nil)
+			if msg != "" {
+				t.Fatalf("ApplyPipes: %s", msg)
+			}
+			if got != tt.want {
+				t.Errorf("ndjson | %s = %q, want rendered-line result %q", tt.name, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestApplyPipesLineFormatsForceLineCount(t *testing.T) {
+	input := `[{"value":"one"},{"value":"two"}]`
+	formats := []pipeOp{
+		{kind: pipeNDJSON},
+		{kind: pipeTable},
+		{kind: pipeText},
+		{kind: pipeYAML},
+	}
+	for _, format := range formats {
+		entry, _ := lookupPipeOperatorByKind(format.kind)
+		t.Run(entry.Name, func(t *testing.T) {
+			rendered, msg := ApplyPipes(input, []pipeOp{format}, nil, nil)
+			if msg != "" {
+				t.Fatalf("format: %s", msg)
+			}
+			lines := 0
+			for line := range strings.SplitSeq(rendered, "\n") {
+				if line != "" {
+					lines++
+				}
+			}
+			got, msg := ApplyPipes(input, []pipeOp{format, {kind: pipeCount}}, nil, nil)
+			if msg != "" {
+				t.Fatalf("format | count: %s", msg)
+			}
+			want := textbuf.StrIntStr(`{"count":`, int64(lines), "}\n")
+			if got != want {
+				t.Errorf("%s | count = %q, want %q for %d rendered lines", entry.Name, got, want, lines)
+			}
+		})
+	}
+}
+
 // VALIDATES: unknown pipe operator returns error.
 // PREVENTS: silent swallowing of typos in pipe operators.
 func TestApplyPipesUnknown(t *testing.T) {

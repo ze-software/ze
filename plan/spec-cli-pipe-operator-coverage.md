@@ -835,6 +835,39 @@ verified the five remaining findings against their producers.
 **Independent round 5: 4 BLOCKER, 1 ISSUE, 0 outstanding.** All five
 findings are fixed. The next independent round reviews their exact commit.
 
+### Independent review, round 6 (2026-08-27)
+
+Two new contexts reviewed fix commit `2df4a4141` through logic and
+public-contract lenses. The main session verified all findings against their
+producers. The security lens did not rerun because round 5 was clean and this
+commit changed no security surface.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR6-1 | BLOCKER | Record-path row transforms after `count` succeed on the count document while the document path refuses them (`internal/component/command/pipe_records.go`) | FIXED |
+| IR6-2 | ISSUE | The count/NDJSON test compares two record paths and does not prove equivalence with the document runner (`internal/component/command/render_records_test.go`) | FIXED |
+| IR6-3 | BLOCKER | `ndjson \| count` over one valid JSON line is parsed as a document and refused on the document path, but counted as one line on the record path (`internal/component/command/pipe.go`) | FIXED |
+| IR6-4 | BLOCKER | The AC-10 ratchet accepts malformed `stop` and `api` directives that the real runner rejects | FIXED |
+| IR6-5 | BLOCKER | The AC-10 ratchet accepts invalid executable fields that the real runner rejects | FIXED |
+| IR6-6 | BLOCKER | The AC-10 ratchet accepts unresolved stdin bindings | FIXED |
+| IR6-7 | BLOCKER | The AC-10 ratchet ignores stop steps that can preempt the `run.py` launch | FIXED |
+| IR6-8 | BLOCKER | Wiki validation ignores malformed same-command detail headings | FIXED |
+| IR6-9 | BLOCKER | Primary HTML row scanning can pair a missing close with the next command row | FIXED |
+| IR6-10 | BLOCKER | Equivalent HTML scanning can pair a missing Ze close with the next article | FIXED |
+| IR6-11 | BLOCKER | Primary Markdown ignores malformed same-command rows | FIXED |
+| IR6-12 | BLOCKER | `llms.txt` validation ignores malformed same-command rows | FIXED |
+| IR6-13 | BLOCKER | Equivalent Markdown ignores malformed duplicate Ze headings | FIXED |
+| IR6-14 | BLOCKER | Primary HTML ignores partial same-command row openers | FIXED |
+| IR6-15 | BLOCKER | Equivalent HTML ignores partial Ze-article openers | FIXED |
+| IR6-16 | ISSUE | Markdown heading counting treats fenced-code examples as command containers | FIXED |
+| IR6-17 | BLOCKER | The AC-10 ratchet accepts skip directives that prevent `run.py` execution | FIXED |
+| IR6-18 | BLOCKER | The AC-10 ratchet ignores malformed non-command directives that make the runner refuse the scenario | FIXED |
+| IR6-19 | BLOCKER | Equivalent HTML does not bind the selected Ze article to the expected command path | FIXED |
+
+**Independent round 6: 17 BLOCKER, 2 ISSUE, 0 outstanding.** All 19
+findings are fixed. `review_gate.py` still requires owner authorization to
+record round 6 or run the final clean pass.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and

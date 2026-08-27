@@ -32,6 +32,8 @@ import (
 	"strings"
 	"time"
 
+	xhtml "golang.org/x/net/html"
+
 	"github.com/ze-software/ze/internal/component/command"
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -1733,7 +1735,8 @@ func validateGeneratedWikiCommandSurface(
 		description = strings.ReplaceAll(description, "|", `\|`)
 		wantRow := rendered.Reset().Str("| `").Str(command.Path).Str("` | ").
 			Str(command.Mode).Str(" | ").Str(description).Str(" |").String()
-		if strings.Count(content, wantRow) != 1 {
+		row, rowCount, rowMalformed := commandSurfaceMarkdownRow(content, command.Path)
+		if rowCount != 1 || rowMalformed || row != wantRow {
 			issues = append(issues, generatedCommandContractIssue(
 				surface, command.Path, "wiki command summary row",
 			))
@@ -1884,49 +1887,195 @@ func wikiCommandNeedsDetail(command publishedCommand) bool {
 		strings.Contains(command.Description, "\n")
 }
 
-func markdownHeadingContent(content, heading string) (string, int) {
-	count := 0
-	for line := range strings.SplitSeq(content, "\n") {
-		if line == heading {
-			count++
+type markdownLine struct {
+	text         string
+	active       bool
+	headingLevel int
+	heading      string
+}
+
+func scanMarkdownLines(content string) []markdownLine {
+	rawLines := strings.Split(content, "\n")
+	lines := make([]markdownLine, 0, len(rawLines))
+	var fence byte
+	fenceWidth := 0
+	for _, text := range rawLines {
+		marker, width, rest := markdownFence(text)
+		if fence != 0 {
+			lines = append(lines, markdownLine{text: text})
+			if marker == fence && width >= fenceWidth && strings.TrimSpace(rest) == "" {
+				fence = 0
+				fenceWidth = 0
+			}
+			continue
+		}
+		if marker != 0 && width >= 3 {
+			fence = marker
+			fenceWidth = width
+			lines = append(lines, markdownLine{text: text})
+			continue
+		}
+		level, heading := markdownATXHeading(text)
+		lines = append(lines, markdownLine{
+			text:         text,
+			active:       true,
+			headingLevel: level,
+			heading:      heading,
+		})
+	}
+	return lines
+}
+
+func markdownFence(line string) (byte, int, string) {
+	trimmed := line
+	spaces := 0
+	for spaces < len(trimmed) && spaces < 4 && trimmed[spaces] == ' ' {
+		spaces++
+	}
+	if spaces == 4 || spaces == len(trimmed) {
+		return 0, 0, ""
+	}
+	trimmed = trimmed[spaces:]
+	if trimmed[0] != '`' && trimmed[0] != '~' {
+		return 0, 0, ""
+	}
+	marker := trimmed[0]
+	width := 0
+	for width < len(trimmed) && trimmed[width] == marker {
+		width++
+	}
+	if width < 3 {
+		return 0, 0, ""
+	}
+	return marker, width, trimmed[width:]
+}
+
+func markdownATXHeading(line string) (int, string) {
+	trimmed := strings.TrimLeft(line, " ")
+	if len(line)-len(trimmed) > 3 || trimmed == "" || trimmed[0] != '#' {
+		return 0, ""
+	}
+	level := 0
+	for level < len(trimmed) && level < 7 && trimmed[level] == '#' {
+		level++
+	}
+	if level == 0 || level > 6 || level == len(trimmed) ||
+		(trimmed[level] != ' ' && trimmed[level] != '\t') {
+		return 0, ""
+	}
+	heading := strings.TrimSpace(trimmed[level:])
+	if end := strings.LastIndex(heading, " #"); end != -1 {
+		suffix := strings.TrimSpace(heading[end+1:])
+		if suffix != "" && strings.Trim(suffix, "#") == "" {
+			heading = strings.TrimSpace(heading[:end])
 		}
 	}
-	if count != 1 || content == heading {
-		return "", count
+	return level, heading
+}
+
+func markdownHeadingContent(content, canonical string) (string, int) {
+	level, heading := markdownATXHeading(canonical)
+	lines := scanMarkdownLines(content)
+	target := strings.Join(strings.Fields(heading), " ")
+	var rendered textbuf.Buffer
+	targetPrefix := rendered.Str(target).Byte(' ').String()
+	canonicalAt := -1
+	count := 0
+	malformed := 0
+	for index, line := range lines {
+		if !line.active || line.headingLevel == 0 {
+			continue
+		}
+		normalized := strings.Join(strings.Fields(line.heading), " ")
+		if normalized != target && !strings.HasPrefix(normalized, targetPrefix) {
+			continue
+		}
+		if line.text == canonical {
+			canonicalAt = index
+			count++
+		} else {
+			malformed++
+		}
 	}
-	var marker textbuf.Buffer
-	startMarker := marker.Str(heading).Byte('\n').String()
-	if strings.HasPrefix(content, startMarker) {
-		return content[len(startMarker):], count
+	if count == 0 {
+		return "", 0
 	}
-	start := strings.Index(content, marker.Reset().Byte('\n').Str(startMarker).String())
-	if start == -1 {
-		return "", count
+	if count != 1 || malformed != 0 {
+		return "", count + malformed
 	}
-	return content[start+1+len(startMarker):], count
+	end := len(lines)
+	for index := canonicalAt + 1; index < len(lines); index++ {
+		if lines[index].active && lines[index].headingLevel != 0 &&
+			lines[index].headingLevel <= level {
+			end = index
+			break
+		}
+	}
+	return markdownLineRange(lines, canonicalAt+1, end), count
+}
+
+func markdownLineRange(lines []markdownLine, start, end int) string {
+	text := make([]string, 0, end-start)
+	for _, line := range lines[start:end] {
+		text = append(text, line.text)
+	}
+	return strings.Join(text, "\n")
 }
 
 func wikiCommandDetail(content, path string) (string, int) {
 	var marker textbuf.Buffer
-	heading := marker.Str("### `").Str(path).Byte('`').String()
-	remaining, count := markdownHeadingContent(content, heading)
-	if count != 1 {
-		return "", count
-	}
-	end := len(remaining)
-	for _, next := range []string{"\n### `", "\n## ", "\n---"} {
-		if at := strings.Index(remaining, next); at != -1 {
-			end = min(end, at)
+	canonical := marker.Str("### `").Str(path).Byte('`').String()
+	target := marker.Reset().Byte('`').Str(path).String()
+	lines := scanMarkdownLines(content)
+	canonicalAt := -1
+	count := 0
+	malformed := 0
+	for index, line := range lines {
+		if !line.active || line.headingLevel == 0 ||
+			!markdownHeadingTargetsPath(line.heading, target) {
+			continue
+		}
+		if line.text == canonical {
+			canonicalAt = index
+			count++
+		} else {
+			malformed++
 		}
 	}
-	return remaining[:end], count
+	if count == 0 {
+		return "", 0
+	}
+	if count != 1 || malformed != 0 {
+		return "", count + malformed
+	}
+	end := len(lines)
+	for index := canonicalAt + 1; index < len(lines); index++ {
+		if lines[index].active && lines[index].headingLevel != 0 &&
+			lines[index].headingLevel <= 3 {
+			end = index
+			break
+		}
+	}
+	return markdownLineRange(lines, canonicalAt+1, end), count
+}
+
+func markdownHeadingTargetsPath(heading, opening string) bool {
+	if !strings.HasPrefix(heading, opening) {
+		return false
+	}
+	remaining := heading[len(opening):]
+	return remaining == "" || remaining[0] == '`'
 }
 
 func wikiCommandSummaryPaths(content string) []string {
 	var paths []string
 	inTable := false
 	pastSeparator := false
-	for line := range strings.SplitSeq(content, "\n") {
+	for _, scanned := range scanMarkdownLines(content) {
+		if !scanned.active {
+			continue
+		}
+		line := scanned.text
 		switch {
 		case line == "| Command | Mode | Description |":
 			inTable = true
@@ -1936,9 +2085,7 @@ func wikiCommandSummaryPaths(content string) []string {
 		case inTable && !strings.HasPrefix(line, "| "):
 			inTable = false
 		case inTable:
-			const prefix = "| `"
-			remaining := strings.TrimPrefix(line, prefix)
-			if path, _, found := strings.Cut(remaining, "` |"); found {
+			if path, ok := markdownFirstCodeCell(line); ok {
 				paths = append(paths, path)
 			}
 		}
@@ -1948,17 +2095,42 @@ func wikiCommandSummaryPaths(content string) []string {
 
 func wikiCommandDetailPaths(content string) []string {
 	var paths []string
-	for line := range strings.SplitSeq(content, "\n") {
-		if !strings.HasPrefix(line, "### `") || !strings.HasSuffix(line, "`") {
+	for _, line := range scanMarkdownLines(content) {
+		if !line.active || line.headingLevel != 3 {
 			continue
 		}
-		paths = append(paths, strings.TrimSuffix(strings.TrimPrefix(line, "### `"), "`"))
+		if path, ok := markdownCodeSpan(line.heading); ok {
+			paths = append(paths, path)
+		}
 	}
 	return paths
 }
 
+func markdownCodeSpan(value string) (string, bool) {
+	if len(value) < 2 || value[0] != '`' {
+		return "", false
+	}
+	end := strings.IndexByte(value[1:], '`')
+	if end == -1 || end+2 != len(value) {
+		return "", false
+	}
+	return value[1 : end+1], true
+}
+
+func markdownFirstCodeCell(line string) (string, bool) {
+	if !strings.HasPrefix(line, "| `") {
+		return "", false
+	}
+	remaining := line[len("| `"):]
+	end := strings.Index(remaining, "` |")
+	if end == -1 {
+		return "", false
+	}
+	return strings.ReplaceAll(remaining[:end], `\|`, "|"), true
+}
+
 func wikiArgumentRows(content string) []string {
-	lines := strings.Split(content, "\n")
+	lines := activeMarkdownLines(content)
 	for index, line := range lines {
 		if line != "| Name | Type | Required | Values |" {
 			continue
@@ -1976,7 +2148,7 @@ func wikiArgumentRows(content string) []string {
 }
 
 func wikiBulletGroup(content, heading string) []string {
-	lines := strings.Split(content, "\n")
+	lines := activeMarkdownLines(content)
 	for index, line := range lines {
 		if line != heading {
 			continue
@@ -1994,8 +2166,8 @@ func wikiBulletGroup(content, heading string) []string {
 }
 
 func wikiLineEquals(content, want string) bool {
-	for line := range strings.SplitSeq(content, "\n") {
-		if line == want {
+	for _, line := range scanMarkdownLines(content) {
+		if line.active && line.text == want {
 			return true
 		}
 	}
@@ -2007,9 +2179,9 @@ func compareWikiOptionalLine(
 ) []issue {
 	var rendered textbuf.Buffer
 	actual := ""
-	for line := range strings.SplitSeq(content, "\n") {
-		if strings.HasPrefix(line, prefix) {
-			actual = line
+	for _, line := range scanMarkdownLines(content) {
+		if line.active && strings.HasPrefix(line.text, prefix) {
+			actual = line.text
 			break
 		}
 	}
@@ -2036,11 +2208,11 @@ func wikiOperatorGroups(content, label string) [][]string {
 	var marker textbuf.Buffer
 	prefix := marker.Str(label).Str(": ").String()
 	var groups [][]string
-	for line := range strings.SplitSeq(content, "\n") {
-		if !strings.HasPrefix(line, prefix) {
+	for _, line := range scanMarkdownLines(content) {
+		if !line.active || !strings.HasPrefix(line.text, prefix) {
 			continue
 		}
-		values := strings.TrimPrefix(line, prefix)
+		values := strings.TrimPrefix(line.text, prefix)
 		if before, _, found := strings.Cut(values, " -- "); found {
 			values = before
 		}
@@ -2054,6 +2226,16 @@ func wikiOperatorGroups(content, label string) [][]string {
 		groups = append(groups, names)
 	}
 	return groups
+}
+
+func activeMarkdownLines(content string) []string {
+	var active []string
+	for _, line := range scanMarkdownLines(content) {
+		if line.active {
+			active = append(active, line.text)
+		}
+	}
+	return active
 }
 
 var commandSurfaceSlugSeparator = regexp.MustCompile(`[^a-z0-9]+`)
@@ -2092,6 +2274,8 @@ func validateGeneratedCommandSurfaces(
 		return []issue{generatedCommandSurfaceReadIssue(root, equivalentMarkdownPath, err)}
 	}
 
+	primaryHTMLDocument := parseRenderedHTML(string(primaryHTML))
+
 	var issues []issue
 	for _, command := range live {
 		slug := commandSurfaceSlug(command.Path)
@@ -2112,7 +2296,7 @@ func validateGeneratedCommandSurfaces(
 			))
 		}
 		primaryRow, rowCount, rowClosed := commandSurfaceHTMLRow(
-			string(primaryHTML), slug,
+			primaryHTMLDocument, slug,
 		)
 		switch {
 		case rowCount != 1:
@@ -2127,17 +2311,24 @@ func validateGeneratedCommandSurfaces(
 			))
 		default:
 			issues = append(issues, validatePrimaryCommandContract(
-				commandSurfacePath(root, primaryHTMLPath), primaryRow, command,
+				commandSurfacePath(root, primaryHTMLPath),
+				primaryRow,
+				primaryHTMLDocument,
+				command,
 			)...)
 		}
 
-		primaryMarkdownRow, markdownRowCount := commandSurfaceMarkdownRow(
-			string(primaryMarkdown), command.Path,
-		)
+		primaryMarkdownRow, markdownRowCount, markdownRowMalformed :=
+			commandSurfaceMarkdownRow(string(primaryMarkdown), command.Path)
 		if markdownRowCount != 1 {
 			issues = append(issues, commandContainerCountIssue(
 				commandSurfacePath(root, primaryMarkdownPath), command.Path,
 				"primary CLI Markdown command row", markdownRowCount,
+			))
+		} else if markdownRowMalformed {
+			issues = append(issues, malformedCommandContainerIssue(
+				commandSurfacePath(root, primaryMarkdownPath), command.Path,
+				"primary CLI Markdown command row",
 			))
 		} else {
 			issues = append(issues, validatePrimaryMarkdownContract(
@@ -2160,7 +2351,9 @@ func validateGeneratedCommandSurfaces(
 			))
 		} else {
 			issues = append(issues, validateEquivalentCommandContract(
-				commandSurfacePath(root, detailHTMLPath), string(detailHTML), command,
+				commandSurfacePath(root, detailHTMLPath),
+				parseRenderedHTML(string(detailHTML)),
+				command,
 			)...)
 		}
 		detailMarkdown, detailMarkdownErr := os.ReadFile(detailMarkdownPath) //nolint:gosec // isolated renderer output
@@ -2586,32 +2779,259 @@ func commandSurfaceSlug(path string) string {
 	return strings.Trim(slug, "-")
 }
 
-func commandSurfaceHTMLRow(content, slug string) (string, int, bool) {
-	var marker textbuf.Buffer
-	startMarker := marker.Str(`<tr id="cmd-`).Str(slug).Str(`">`).String()
-	count := strings.Count(content, startMarker)
-	if count != 1 {
-		return "", count, false
+type renderedHTMLDocument struct {
+	rows       map[string][]renderedHTMLContainer
+	zeArticles []renderedHTMLContainer
+	nodeClosed map[*xhtml.Node]bool
+	err        error
+}
+
+type renderedHTMLContainer struct {
+	root       *xhtml.Node
+	closed     bool
+	classValid bool
+}
+
+type renderedHTMLCapture struct {
+	kind       string
+	classValid bool
+	root       *xhtml.Node
+	stack      []*xhtml.Node
+}
+
+func parseRenderedHTML(content string) renderedHTMLDocument {
+	document := renderedHTMLDocument{
+		rows:       make(map[string][]renderedHTMLContainer),
+		nodeClosed: make(map[*xhtml.Node]bool),
 	}
-	start := strings.Index(content, startMarker)
-	remaining := content[start:]
-	end := strings.Index(remaining, "</tr>")
-	if end == -1 {
-		return "", count, false
+	tokenizer := xhtml.NewTokenizer(strings.NewReader(content))
+	var capture *renderedHTMLCapture
+	finish := func(closed bool) {
+		if capture == nil {
+			return
+		}
+		container := renderedHTMLContainer{
+			root:       capture.root,
+			closed:     closed,
+			classValid: capture.classValid,
+		}
+		switch capture.kind {
+		case "tr":
+			document.rows[htmlAttribute(capture.root, "id")] = append(
+				document.rows[htmlAttribute(capture.root, "id")], container,
+			)
+		case "article":
+			document.zeArticles = append(document.zeArticles, container)
+		}
+		capture = nil
 	}
-	return remaining[:end+len("</tr>")], count, true
+	for {
+		tokenType := tokenizer.Next()
+		if tokenType == xhtml.ErrorToken {
+			finish(false)
+			if err := tokenizer.Err(); err != io.EOF {
+				document.err = err
+			}
+			return document
+		}
+		raw := tokenizer.Raw()
+		token := tokenizer.Token()
+		switch tokenType {
+		case xhtml.StartTagToken, xhtml.SelfClosingTagToken:
+			if htmlStartTokenMalformed(raw) {
+				finish(false)
+				document.err = fmt.Errorf("malformed HTML start tag %q", raw)
+				return document
+			}
+			if capture != nil && token.Data == capture.kind {
+				finish(false)
+			}
+			if capture == nil {
+				switch token.Data {
+				case "tr":
+					if id := tokenAttribute(token, "id"); strings.HasPrefix(id, "cmd-") {
+						root := htmlTokenNode(token)
+						capture = &renderedHTMLCapture{
+							kind:  "tr",
+							root:  root,
+							stack: []*xhtml.Node{root},
+						}
+					}
+				case "article":
+					classValid, candidate := zeArticleClass(tokenAttribute(token, "class"))
+					if candidate {
+						root := htmlTokenNode(token)
+						capture = &renderedHTMLCapture{
+							kind:       "article",
+							classValid: classValid,
+							root:       root,
+							stack:      []*xhtml.Node{root},
+						}
+					}
+				}
+				if capture == nil {
+					continue
+				}
+				document.nodeClosed[capture.root] = tokenType == xhtml.SelfClosingTagToken
+				if tokenType == xhtml.SelfClosingTagToken {
+					finish(false)
+				}
+				continue
+			}
+			node := htmlTokenNode(token)
+			htmlAppendChild(capture.stack[len(capture.stack)-1], node)
+			closed := tokenType == xhtml.SelfClosingTagToken || htmlVoidElement(token.Data)
+			document.nodeClosed[node] = closed
+			if !closed {
+				capture.stack = append(capture.stack, node)
+			}
+		case xhtml.TextToken:
+			if capture != nil {
+				htmlAppendChild(capture.stack[len(capture.stack)-1], &xhtml.Node{
+					Type: xhtml.TextNode,
+					Data: token.Data,
+				})
+			}
+		case xhtml.CommentToken:
+			if capture != nil {
+				htmlAppendChild(capture.stack[len(capture.stack)-1], &xhtml.Node{
+					Type: xhtml.CommentNode,
+					Data: token.Data,
+				})
+			}
+		case xhtml.EndTagToken:
+			if capture == nil {
+				continue
+			}
+			match := -1
+			for index := len(capture.stack) - 1; index >= 0; index-- {
+				if capture.stack[index].Data == token.Data {
+					match = index
+					break
+				}
+			}
+			if match == -1 {
+				continue
+			}
+			for index := len(capture.stack) - 1; index > match; index-- {
+				document.nodeClosed[capture.stack[index]] = false
+			}
+			document.nodeClosed[capture.stack[match]] = true
+			capture.stack = capture.stack[:match]
+			if match == 0 {
+				finish(true)
+			}
+		}
+	}
+}
+func htmlStartTokenMalformed(raw []byte) bool {
+	if len(raw) < 3 || raw[0] != '<' || raw[len(raw)-1] != '>' {
+		return true
+	}
+	var quote byte
+	for _, current := range raw[1 : len(raw)-1] {
+		switch {
+		case quote != 0 && current == quote:
+			quote = 0
+		case quote == 0 && (current == '\'' || current == '"'):
+			quote = current
+		case quote == 0 && current == '<':
+			return true
+		}
+	}
+	return quote != 0
+}
+
+func htmlTokenNode(token xhtml.Token) *xhtml.Node {
+	return &xhtml.Node{
+		Type:     xhtml.ElementNode,
+		DataAtom: token.DataAtom,
+		Data:     token.Data,
+		Attr:     token.Attr,
+	}
+}
+
+func htmlAppendChild(parent, child *xhtml.Node) {
+	child.Parent = parent
+	if parent.LastChild == nil {
+		parent.FirstChild = child
+		parent.LastChild = child
+		return
+	}
+	child.PrevSibling = parent.LastChild
+	parent.LastChild.NextSibling = child
+	parent.LastChild = child
+}
+
+func tokenAttribute(token xhtml.Token, name string) string {
+	for _, attribute := range token.Attr {
+		if attribute.Key == name {
+			return attribute.Val
+		}
+	}
+	return ""
+}
+
+func htmlAttribute(node *xhtml.Node, name string) string {
+	for _, attribute := range node.Attr {
+		if attribute.Key == name {
+			return attribute.Val
+		}
+	}
+	return ""
+}
+
+func zeArticleClass(class string) (bool, bool) {
+	hasCard := false
+	hasZe := false
+	partialZe := false
+	for _, name := range strings.Fields(class) {
+		hasCard = hasCard || name == "cmd-detail-card"
+		hasZe = hasZe || name == "cmd-detail-ze"
+		partialZe = partialZe ||
+			(strings.HasPrefix(name, "cmd-detail-ze") && name != "cmd-detail-ze")
+	}
+	return hasCard && hasZe, hasCard && (hasZe || partialZe)
+}
+
+func htmlVoidElement(name string) bool {
+	switch name {
+	case "area", "base", "br", "col", "embed", "hr", "img", "input",
+		"link", "meta", "param", "source", "track", "wbr":
+		return true
+	default:
+		return false
+	}
+}
+
+func commandSurfaceHTMLRow(
+	document renderedHTMLDocument,
+	slug string,
+) (*xhtml.Node, int, bool) {
+	if document.err != nil {
+		return nil, 1, false
+	}
+	var rendered textbuf.Buffer
+	rows := document.rows[rendered.Str("cmd-").Str(slug).String()]
+	if len(rows) != 1 {
+		return nil, len(rows), false
+	}
+	return rows[0].root, len(rows), rows[0].closed
 }
 
 func validatePrimaryCommandContract(
-	path, row string,
+	path string,
+	row *xhtml.Node,
+	document renderedHTMLDocument,
 	command publishedCommand,
 ) []issue {
+	rowHTML := htmlNodeString(row)
 	var issues []issue
 	var marker textbuf.Buffer
 	if command.AnswerShape != "" {
 		want := marker.Str("<span>Answer shape</span><code>").
 			Str(html.EscapeString(command.AnswerShape)).Str("</code>").String()
-		if !strings.Contains(row, want) {
+		if !strings.Contains(rowHTML, want) {
 			issues = append(issues, generatedCommandContractIssue(
 				path, command.Path, "answer shape",
 			))
@@ -2622,7 +3042,7 @@ func validatePrimaryCommandContract(
 		want := marker.Str("<span>Address fields</span><code>").
 			Str(html.EscapeString(strings.Join(command.AddressFields, " · "))).
 			Str("</code>").String()
-		if !strings.Contains(row, want) {
+		if !strings.Contains(rowHTML, want) {
 			issues = append(issues, generatedCommandContractIssue(
 				path, command.Path, "address fields",
 			))
@@ -2637,18 +3057,14 @@ func validatePrimaryCommandContract(
 		{availability: "when-streaming", label: "While streaming"},
 		{availability: "local-only", label: "Local process only"},
 	} {
-		scan := commandHTMLGroups(row, group.label)
+		scan := commandHTMLGroups(document, row, group.label)
 		issues = append(issues, compareScannedCommandOperatorGroups(
 			path, command.Path, group.availability,
 			commandOperatorNames(command, group.availability), scan,
 		)...)
 	}
 
-	filterNames := htmlCodeNames(
-		row,
-		"<strong>Command pipes</strong><div class=\"cli-pipe-chips\">",
-		"</div>",
-	)
+	filterNames := htmlCodeNames(row, "Command pipes", "cli-pipe-chips")
 	expectedFilters := make([]string, 0, len(command.Pipes))
 	for _, filter := range command.Pipes {
 		marker.Reset().Str(filter.Name)
@@ -2660,7 +3076,7 @@ func validatePrimaryCommandContract(
 		marker.Reset().Str("<dt><code>").Str(html.EscapeString(name)).
 			Str("</code></dt><dd>").Str(html.EscapeString(filter.Description)).
 			Str("</dd>")
-		if !strings.Contains(row, marker.String()) {
+		if !strings.Contains(rowHTML, marker.String()) {
 			issues = append(issues, generatedCommandContractIssue(
 				path, command.Path, namedCommandDimension("command filter", filter.Name),
 			))
@@ -2670,7 +3086,7 @@ func validatePrimaryCommandContract(
 		path, command.Path, "command filter", expectedFilters, filterNames,
 	)...)
 
-	aliasNames := htmlDefinitionNames(row, "<strong>Aliases</strong><dl>", "</dl>")
+	aliasNames := htmlDefinitionNames(row, "Aliases")
 	expectedAliases := make([]string, 0, len(command.Aliases))
 	for _, alias := range command.Aliases {
 		expectedAliases = append(expectedAliases, alias.Name)
@@ -2678,7 +3094,7 @@ func validatePrimaryCommandContract(
 			Str("</code></dt><dd>").Str(html.EscapeString(alias.Description)).
 			Byte(' ').Str("<code>").Str(html.EscapeString(alias.Expansion)).
 			Str("</code></dd>")
-		if !strings.Contains(row, marker.String()) {
+		if !strings.Contains(rowHTML, marker.String()) {
 			issues = append(issues, generatedCommandContractIssue(
 				path, command.Path, namedCommandDimension("pipe alias", alias.Name),
 			))
@@ -2690,18 +3106,52 @@ func validatePrimaryCommandContract(
 	return issues
 }
 
-func commandSurfaceMarkdownRow(content, path string) (string, int) {
-	var marker textbuf.Buffer
-	prefix := marker.Str("| `").Str(commandMarkdownValue(path)).Str("` |").String()
+func commandSurfaceMarkdownRow(content, path string) (string, int, bool) {
 	var row string
 	count := 0
-	for line := range strings.SplitSeq(content, "\n") {
-		if strings.HasPrefix(line, prefix) {
-			row = line
+	malformed := false
+	for _, scanned := range scanMarkdownLines(content) {
+		if !scanned.active {
+			continue
+		}
+		candidate, closed, canonical := markdownTableCodeCell(scanned.text)
+		switch {
+		case closed && candidate == path && canonical:
+			row = scanned.text
 			count++
+		case closed && candidate == path:
+			malformed = true
+		case !closed && markdownUnclosedPath(candidate, path):
+			malformed = true
 		}
 	}
-	return row, count
+	return row, count, malformed
+}
+
+func markdownTableCodeCell(line string) (string, bool, bool) {
+	trimmed := strings.TrimLeft(line, " ")
+	if len(line)-len(trimmed) > 3 || !strings.HasPrefix(trimmed, "|") {
+		return "", true, false
+	}
+	cell := strings.TrimLeft(trimmed[1:], " ")
+	if !strings.HasPrefix(cell, "`") {
+		return "", true, false
+	}
+	remaining := cell[1:]
+	end := strings.IndexByte(remaining, '`')
+	if end == -1 {
+		return strings.ReplaceAll(remaining, `\|`, "|"), false, false
+	}
+	path := strings.ReplaceAll(remaining[:end], `\|`, "|")
+	canonical := strings.HasPrefix(line, "| `") &&
+		strings.HasPrefix(remaining[end+1:], " |")
+	return path, true, canonical
+}
+
+func markdownUnclosedPath(candidate, path string) bool {
+	var rendered textbuf.Buffer
+	return candidate == path ||
+		strings.HasPrefix(candidate, rendered.Str(path).Str(" |").String())
 }
 
 func commandMarkdownValue(value string) string {
@@ -2823,130 +3273,228 @@ type commandHTMLGroupScan struct {
 	malformed bool
 }
 
-func commandHTMLGroups(content, label string) commandHTMLGroupScan {
-	var marker textbuf.Buffer
-	startMarker := marker.Str("<span>").Str(html.EscapeString(label)).
-		Str("</span><code>").String()
+func commandHTMLGroups(
+	document renderedHTMLDocument,
+	root *xhtml.Node,
+	label string,
+) commandHTMLGroupScan {
 	var scan commandHTMLGroupScan
-	remaining := content
-	for {
-		start := strings.Index(remaining, startMarker)
-		if start == -1 {
-			return scan
+	htmlWalk(root, func(node *xhtml.Node) {
+		if node.Data != "span" || htmlText(node) != label {
+			return
 		}
-		values := remaining[start+len(startMarker):]
-		end := strings.Index(values, "</code>")
-		if end == -1 {
+		code := htmlNextElement(node)
+		if !document.nodeClosed[node] || code == nil || code.Data != "code" ||
+			!document.nodeClosed[code] {
 			scan.malformed = true
-			return scan
+			return
 		}
+		values := htmlText(code)
 		var parsed []string
-		if values := values[:end]; values != "" {
+		if values != "" {
 			parsed = strings.Split(values, " · ")
-			for i := range parsed {
-				parsed[i] = html.UnescapeString(parsed[i])
-			}
 		}
 		scan.groups = append(scan.groups, parsed)
-		remaining = values[end+len("</code>"):]
-	}
+	})
+	return scan
 }
 
-func htmlCodeNames(content, startMarker, endMarker string) []string {
-	start := strings.Index(content, startMarker)
-	if start == -1 {
-		return nil
-	}
-	remaining := content[start+len(startMarker):]
-	end := strings.Index(remaining, endMarker)
-	if end == -1 {
-		return nil
-	}
-	remaining = remaining[:end]
+func htmlCodeNames(root *xhtml.Node, label, class string) []string {
 	var names []string
-	for {
-		codeStart := strings.Index(remaining, "<code")
-		if codeStart == -1 {
-			return names
+	htmlWalk(root, func(node *xhtml.Node) {
+		if node.Data != "strong" || htmlText(node) != label {
+			return
 		}
-		remaining = remaining[codeStart:]
-		textStart := strings.IndexByte(remaining, '>')
-		if textStart == -1 {
-			return names
+		group := htmlNextElement(node)
+		if group == nil || !htmlHasClass(group, class) {
+			return
 		}
-		remaining = remaining[textStart+1:]
-		codeEnd := strings.Index(remaining, "</code>")
-		if codeEnd == -1 {
-			return names
-		}
-		names = append(names, html.UnescapeString(remaining[:codeEnd]))
-		remaining = remaining[codeEnd+len("</code>"):]
-	}
+		htmlWalk(group, func(child *xhtml.Node) {
+			if child.Data == "code" {
+				names = append(names, htmlText(child))
+			}
+		})
+	})
+	return names
 }
 
-func htmlDefinitionNames(content, startMarker, endMarker string) []string {
-	start := strings.Index(content, startMarker)
-	if start == -1 {
-		return nil
-	}
-	remaining := content[start+len(startMarker):]
-	end := strings.Index(remaining, endMarker)
-	if end == -1 {
-		return nil
-	}
-	remaining = remaining[:end]
+func htmlDefinitionNames(root *xhtml.Node, label string) []string {
 	var names []string
-	for {
-		nameStart := strings.Index(remaining, "<dt><code>")
-		if nameStart == -1 {
-			return names
+	htmlWalk(root, func(node *xhtml.Node) {
+		if node.Data != "strong" || htmlText(node) != label {
+			return
 		}
-		remaining = remaining[nameStart+len("<dt><code>"):]
-		nameEnd := strings.Index(remaining, "</code>")
-		if nameEnd == -1 {
-			return names
+		list := htmlNextElement(node)
+		if list == nil || list.Data != "dl" {
+			return
 		}
-		names = append(names, html.UnescapeString(remaining[:nameEnd]))
-		remaining = remaining[nameEnd+len("</code>"):]
+		htmlWalk(list, func(child *xhtml.Node) {
+			if child.Data != "dt" {
+				return
+			}
+			code := htmlFirstElement(child)
+			if code != nil && code.Data == "code" {
+				names = append(names, htmlText(code))
+			}
+		})
+	})
+	return names
+}
+
+func htmlDefinitionValue(root *xhtml.Node, label string) string {
+	value := ""
+	htmlWalk(root, func(node *xhtml.Node) {
+		if value != "" || node.Data != "dt" || htmlText(node) != label {
+			return
+		}
+		definition := htmlNextElement(node)
+		if definition != nil && definition.Data == "dd" {
+			value = htmlInnerString(definition)
+		}
+	})
+	return value
+}
+
+func htmlDefinitionCodeValue(root *xhtml.Node, label string) (string, bool) {
+	value := ""
+	count := 0
+	valid := true
+	htmlWalk(root, func(node *xhtml.Node) {
+		if node.Data != "dt" || htmlText(node) != label {
+			return
+		}
+		count++
+		definition := htmlNextElement(node)
+		if definition == nil || definition.Data != "dd" {
+			valid = false
+			return
+		}
+		code := htmlFirstElement(definition)
+		if code == nil || code.Data != "code" ||
+			htmlNextElement(code) != nil ||
+			strings.TrimSpace(htmlText(definition)) != htmlText(code) {
+			valid = false
+			return
+		}
+		value = htmlText(code)
+	})
+	return value, count == 1 && valid
+}
+
+func equivalentHTMLCommandContent(
+	document renderedHTMLDocument,
+	path string,
+) (*xhtml.Node, int, bool) {
+	if document.err != nil {
+		return nil, 1, false
+	}
+	var matches []renderedHTMLContainer
+	for _, article := range document.zeArticles {
+		registryPath, valid := htmlDefinitionCodeValue(article.root, "Registry path")
+		if valid && registryPath == path {
+			matches = append(matches, article)
+		}
+	}
+	if len(matches) != 1 {
+		return nil, len(matches), false
+	}
+	return matches[0].root, len(matches),
+		matches[0].closed && matches[0].classValid
+}
+
+func htmlWalk(root *xhtml.Node, visit func(*xhtml.Node)) {
+	for node := root; node != nil; {
+		if node.Type == xhtml.ElementNode {
+			visit(node)
+		}
+		if node.FirstChild != nil {
+			node = node.FirstChild
+			continue
+		}
+		for node != nil && node != root && node.NextSibling == nil {
+			node = node.Parent
+		}
+		if node == nil || node == root {
+			return
+		}
+		node = node.NextSibling
 	}
 }
 
-func htmlDefinitionValue(content, label string) string {
-	var marker textbuf.Buffer
-	startMarker := marker.Str("<dt>").Str(html.EscapeString(label)).
-		Str("</dt><dd>").String()
-	start := strings.Index(content, startMarker)
-	if start == -1 {
+func htmlText(root *xhtml.Node) string {
+	var text strings.Builder
+	var appendText func(*xhtml.Node)
+	appendText = func(node *xhtml.Node) {
+		if node.Type == xhtml.TextNode {
+			text.WriteString(node.Data)
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			appendText(child)
+		}
+	}
+	appendText(root)
+	return text.String()
+}
+
+func htmlNextElement(node *xhtml.Node) *xhtml.Node {
+	for sibling := node.NextSibling; sibling != nil; sibling = sibling.NextSibling {
+		if sibling.Type == xhtml.ElementNode {
+			return sibling
+		}
+		if sibling.Type == xhtml.TextNode && strings.TrimSpace(sibling.Data) != "" {
+			return nil
+		}
+	}
+	return nil
+}
+
+func htmlFirstElement(node *xhtml.Node) *xhtml.Node {
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		if child.Type == xhtml.ElementNode {
+			return child
+		}
+		if child.Type == xhtml.TextNode && strings.TrimSpace(child.Data) != "" {
+			return nil
+		}
+	}
+	return nil
+}
+
+func htmlHasClass(node *xhtml.Node, class string) bool {
+	for _, name := range strings.Fields(htmlAttribute(node, "class")) {
+		if name == class {
+			return true
+		}
+	}
+	return false
+}
+
+func htmlNodeString(node *xhtml.Node) string {
+	var rendered strings.Builder
+	if err := xhtml.Render(&rendered, node); err != nil {
 		return ""
 	}
-	values := content[start+len(startMarker):]
-	end := strings.Index(values, "</dd>")
-	if end == -1 {
-		return ""
-	}
-	return values[:end]
+	return rendered.String()
 }
 
-func equivalentHTMLCommandContent(content string) (string, int, bool) {
-	const startMarker = `<article class="cmd-detail-card cmd-detail-ze">`
-	count := strings.Count(content, startMarker)
-	if count != 1 {
-		return "", count, false
+func htmlInnerString(node *xhtml.Node) string {
+	var rendered strings.Builder
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		if err := xhtml.Render(&rendered, child); err != nil {
+			return ""
+		}
 	}
-	start := strings.Index(content, startMarker)
-	remaining := content[start+len(startMarker):]
-	end := strings.Index(remaining, "</article>")
-	if end == -1 {
-		return "", count, false
-	}
-	return remaining[:end], count, true
+	return strings.ReplaceAll(rendered.String(), "<br/>", "<br>")
 }
 
 func validateEquivalentCommandContract(
-	path, content string,
+	path string,
+	document renderedHTMLDocument,
 	command publishedCommand,
 ) []issue {
-	commandContent, containerCount, containerClosed := equivalentHTMLCommandContent(content)
+	commandNode, containerCount, containerClosed := equivalentHTMLCommandContent(
+		document, command.Path,
+	)
 	switch {
 	case containerCount != 1:
 		return []issue{commandContainerCountIssue(
@@ -2957,7 +3505,7 @@ func validateEquivalentCommandContract(
 			path, command.Path, "command-equivalent Ze HTML article",
 		)}
 	}
-	content = commandContent
+	content := htmlNodeString(commandNode)
 	var issues []issue
 	var marker textbuf.Buffer
 	if command.AnswerShape != "" {
@@ -2992,7 +3540,7 @@ func validateEquivalentCommandContract(
 		{availability: "when-streaming", label: "Pipes, while streaming"},
 		{availability: "local-only", label: "Pipes, local process only"},
 	} {
-		scan := equivalentHTMLGroups(content, group.label)
+		scan := equivalentHTMLGroups(document, commandNode, group.label)
 		issues = append(issues, compareScannedCommandOperatorGroups(
 			path, command.Path, group.availability,
 			commandOperatorNames(command, group.availability), scan,
@@ -3010,7 +3558,7 @@ func validateEquivalentCommandContract(
 		expectedFilters = append(expectedFilters, marker.String())
 	}
 	wantFilters := strings.Join(expectedFilters, "<br>")
-	if got := htmlDefinitionValue(content, "Command pipes"); got != wantFilters {
+	if got := htmlDefinitionValue(commandNode, "Command pipes"); got != wantFilters {
 		issues = append(issues, generatedCommandSurfaceValueIssue(
 			path, command.Path, "command filters", wantFilters, got,
 		))
@@ -3024,7 +3572,7 @@ func validateEquivalentCommandContract(
 		expectedAliases = append(expectedAliases, marker.String())
 	}
 	wantAliases := strings.Join(expectedAliases, "<br>")
-	if got := htmlDefinitionValue(content, "Pipe aliases"); got != wantAliases {
+	if got := htmlDefinitionValue(commandNode, "Pipe aliases"); got != wantAliases {
 		issues = append(issues, generatedCommandSurfaceValueIssue(
 			path, command.Path, "pipe aliases", wantAliases, got,
 		))
@@ -3033,14 +3581,7 @@ func validateEquivalentCommandContract(
 }
 
 func equivalentMarkdownCommandContent(content string) (string, int) {
-	remaining, count := markdownHeadingContent(content, "## Ze command")
-	if count != 1 {
-		return "", count
-	}
-	if end := strings.Index(remaining, "\n## "); end != -1 {
-		remaining = remaining[:end]
-	}
-	return remaining, count
+	return markdownHeadingContent(content, "## Ze command")
 }
 
 func validateEquivalentMarkdownContract(
@@ -3059,7 +3600,7 @@ func validateEquivalentMarkdownContract(
 	var marker textbuf.Buffer
 	registryPath := marker.Str("- Registry path: `").
 		Str(commandMarkdownValue(command.Path)).Byte('`').String()
-	if !strings.Contains(content, registryPath) {
+	if markdownLineCount(content, registryPath) != 1 {
 		issues = append(issues, generatedCommandContractIssue(
 			path, command.Path, "registry path",
 		))
@@ -3068,7 +3609,7 @@ func validateEquivalentMarkdownContract(
 		marker.Reset()
 		want := marker.Str("- Answer shape: ").
 			Str(commandMarkdownValue(command.AnswerShape)).String()
-		if !strings.Contains(content, want) {
+		if markdownLineCount(content, want) != 1 {
 			issues = append(issues, generatedCommandContractIssue(
 				path, command.Path, "answer shape",
 			))
@@ -3151,11 +3692,11 @@ func equivalentMarkdownGroups(content, label string) [][]string {
 	var marker textbuf.Buffer
 	prefix := marker.Str("- ").Str(label).Str(": ").String()
 	var groups [][]string
-	for line := range strings.SplitSeq(content, "\n") {
-		if !strings.HasPrefix(line, prefix) {
+	for _, line := range scanMarkdownLines(content) {
+		if !line.active || !strings.HasPrefix(line.text, prefix) {
 			continue
 		}
-		values := strings.TrimPrefix(line, prefix)
+		values := strings.TrimPrefix(line.text, prefix)
 		if values == "none" {
 			groups = append(groups, nil)
 			continue
@@ -3172,12 +3713,22 @@ func equivalentMarkdownGroups(content, label string) [][]string {
 func commandMarkdownLine(content, label string) string {
 	var marker textbuf.Buffer
 	prefix := marker.Str("- ").Str(label).Str(": ").String()
-	for line := range strings.SplitSeq(content, "\n") {
-		if strings.HasPrefix(line, prefix) {
-			return line
+	for _, line := range scanMarkdownLines(content) {
+		if line.active && strings.HasPrefix(line.text, prefix) {
+			return line.text
 		}
 	}
 	return ""
+}
+
+func markdownLineCount(content, want string) int {
+	count := 0
+	for _, line := range scanMarkdownLines(content) {
+		if line.active && line.text == want {
+			count++
+		}
+	}
+	return count
 }
 
 func equivalentAvailabilityLabel(availability string, declaredShape bool) string {
@@ -3196,55 +3747,83 @@ func equivalentAvailabilityLabel(availability string, declaredShape bool) string
 	}
 }
 
-func equivalentHTMLGroups(content, label string) commandHTMLGroupScan {
-	var marker textbuf.Buffer
-	startMarker := marker.Str("<dt>").Str(html.EscapeString(label)).
-		Str("</dt><dd>").String()
+func equivalentHTMLGroups(
+	document renderedHTMLDocument,
+	root *xhtml.Node,
+	label string,
+) commandHTMLGroupScan {
 	var scan commandHTMLGroupScan
-	remaining := content
-	for {
-		start := strings.Index(remaining, startMarker)
-		if start == -1 {
-			return scan
+	htmlWalk(root, func(node *xhtml.Node) {
+		if node.Data != "dt" || htmlText(node) != label {
+			return
 		}
-		values := remaining[start+len(startMarker):]
-		end := strings.Index(values, "</dd>")
-		if end == -1 {
+		definition := htmlNextElement(node)
+		if !document.nodeClosed[node] || definition == nil ||
+			definition.Data != "dd" || !document.nodeClosed[definition] {
 			scan.malformed = true
-			return scan
+			return
 		}
+		values := htmlText(definition)
 		var parsed []string
-		if values := values[:end]; values != "" {
+		if values != "" {
 			parsed = strings.Split(values, ", ")
-			for i := range parsed {
-				parsed[i] = html.UnescapeString(parsed[i])
-			}
 		}
 		scan.groups = append(scan.groups, parsed)
-		remaining = values[end+len("</dd>"):]
-	}
+	})
+	return scan
 }
 
 func llmsCommandMetadata(content, path string) (string, int, bool) {
-	var marker textbuf.Buffer
-	prefix := marker.Str("- `").Str(path).Str("` (").String()
 	var meta string
 	count := 0
-	closed := true
-	for line := range strings.SplitSeq(content, "\n") {
-		if !strings.HasPrefix(line, prefix) {
+	valid := true
+	for _, scanned := range scanMarkdownLines(content) {
+		if !scanned.active {
 			continue
 		}
-		count++
-		remaining := line[len(prefix):]
-		end := strings.Index(remaining, "): ")
-		if end == -1 {
-			closed = false
-			continue
+		candidate, remaining, closed, canonical := markdownListCodeSpan(scanned.text)
+		switch {
+		case closed && candidate == path && canonical:
+			count++
+			end := strings.Index(remaining, "): ")
+			if end == -1 {
+				valid = false
+				continue
+			}
+			meta = remaining[2:end]
+		case closed && candidate == path:
+			valid = false
+		case !closed && markdownUnclosedListPath(candidate, path):
+			valid = false
 		}
-		meta = remaining[:end]
 	}
-	return meta, count, closed
+	return meta, count, valid
+}
+
+func markdownUnclosedListPath(candidate, path string) bool {
+	var rendered textbuf.Buffer
+	return candidate == path ||
+		strings.HasPrefix(candidate, rendered.Str(path).Str(" (").String())
+}
+
+func markdownListCodeSpan(line string) (string, string, bool, bool) {
+	trimmed := strings.TrimLeft(line, " ")
+	if len(line)-len(trimmed) > 3 || !strings.HasPrefix(trimmed, "-") {
+		return "", "", true, false
+	}
+	item := strings.TrimLeft(trimmed[1:], " ")
+	if !strings.HasPrefix(item, "`") {
+		return "", "", true, false
+	}
+	remaining := item[1:]
+	end := strings.IndexByte(remaining, '`')
+	if end == -1 {
+		return remaining, "", false, false
+	}
+	path := remaining[:end]
+	suffix := remaining[end+1:]
+	canonical := strings.HasPrefix(line, "- `") && strings.HasPrefix(suffix, " (")
+	return path, suffix, true, canonical
 }
 
 func validateLLMSCommandContract(
