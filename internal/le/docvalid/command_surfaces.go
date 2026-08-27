@@ -629,12 +629,8 @@ func validateGeneratedWikiCommandSurface(
 	var issues []Issue
 	var rendered textbuf.Buffer
 	expectedPaths := make([]string, 0, len(live))
-	expectedDetailPaths := make([]string, 0, len(live))
 	for _, command := range live {
 		expectedPaths = append(expectedPaths, command.Path)
-		if wikiCommandNeedsDetail(command) {
-			expectedDetailPaths = append(expectedDetailPaths, command.Path)
-		}
 	}
 	issues = append(issues, validateWikiCatalogStructure(
 		surface, content, live,
@@ -644,7 +640,7 @@ func validateGeneratedWikiCommandSurface(
 		wikiCommandSummaryPaths(content),
 	)...)
 	issues = append(issues, compareCommandNamedGroup(
-		surface, "<wiki catalog>", "command detail", expectedDetailPaths,
+		surface, "<wiki catalog>", "command detail", expectedPaths,
 		wikiCommandDetailPaths(content),
 	)...)
 	for _, command := range live {
@@ -661,9 +657,6 @@ func validateGeneratedWikiCommandSurface(
 			))
 		}
 
-		if !wikiCommandNeedsDetail(command) {
-			continue
-		}
 		detail, detailCount := wikiCommandDetail(content, command.Path)
 		if detailCount != 1 {
 			issues = append(issues, commandContainerCountIssue(
@@ -747,19 +740,17 @@ func validateGeneratedWikiCommandSurface(
 			wikiArgumentRows(detail),
 		)...)
 
-		for _, group := range []struct {
-			availability string
-			label        string
-		}{
-			{availability: "always", label: "Always"},
-			{availability: "with-rows", label: "When the answer has rows"},
-			{availability: "when-streaming", label: "While the command keeps answering"},
-			{availability: "local-only", label: "Local process only"},
-		} {
-			actual := wikiOperatorGroups(detail, group.label)
-			expectedNames := commandOperatorNames(command, group.availability)
+		pipeScan := scanWikiPipeGroups(detail)
+		issues = append(issues, validateWikiPipeSupport(
+			surface, command.Path, pipeScan,
+			len(command.Operators) != 0 || len(command.Pipes) != 0 ||
+				len(command.Aliases) != 0,
+		)...)
+		for _, availability := range commandOperatorAvailabilities {
 			issues = append(issues, compareCommandOperatorGroups(
-				surface, command.Path, group.availability, expectedNames, actual,
+				surface, command.Path, availability,
+				commandOperatorNames(command, availability),
+				pipeScan.groups[availability],
 			)...)
 		}
 		expectedAliases := make([]string, 0, len(command.Aliases))
@@ -908,9 +899,7 @@ func wikiExpectedVerbGroups(live []publishedCommand) []wikiVerbGroup {
 			verb: verb, anchor: nextAnchor(verb), count: len(commands[verb]),
 		})
 		for _, command := range commands[verb] {
-			if wikiCommandNeedsDetail(command) {
-				nextAnchor(command.Path)
-			}
+			nextAnchor(command.Path)
 		}
 	}
 	return groups
@@ -1021,20 +1010,6 @@ func normalizeWikiDescription(value string) string {
 	}
 	value = strings.ReplaceAll(value, "\r\n", "\n")
 	return strings.ReplaceAll(value, "\r", "\n")
-}
-
-func wikiCommandNeedsDetail(command publishedCommand) bool {
-	return len(command.Args) != 0 ||
-		len(command.Pipes) != 0 ||
-		len(command.Aliases) != 0 ||
-		len(command.Subcommands) != 0 ||
-		len(command.Backend) != 0 ||
-		command.WireMethod != "" ||
-		command.TaskSupport != "" ||
-		len(command.Operators) != 0 ||
-		command.AnswerShape != "" ||
-		len(command.AddressFields) != 0 ||
-		strings.Contains(normalizeWikiDescription(command.Description), "\n")
 }
 
 type markdownLine struct {
@@ -1768,41 +1743,142 @@ func wikiTableCodeList(values []string) string {
 	return strings.Join(quoted, ", ")
 }
 
-func wikiOperatorGroups(content, label string) [][]string {
-	prefix := label + ": "
-	var groups [][]string
+type wikiPipeGroupScan struct {
+	groups        map[string][][]string
+	headers       int
+	noSupport     int
+	unknownLabels []string
+}
+
+func scanWikiPipeGroups(content string) wikiPipeGroupScan {
+	scan := wikiPipeGroupScan{
+		groups: make(map[string][][]string, len(commandOperatorAvailabilities)),
+	}
+	inCommandContract := false
 	for _, line := range scanMarkdownLines(content) {
-		if !line.active || !strings.HasPrefix(line.text, prefix) {
+		if !line.active {
 			continue
 		}
-		values := strings.TrimPrefix(line.text, prefix)
-		parts, valid := splitMarkdownOutsideCode(values, " -- ")
-		if valid && len(parts) <= 2 {
-			values = parts[0]
-		} else {
-			valid = false
+		if strings.HasPrefix(line.text, "Mode: ") {
+			inCommandContract = true
+			continue
 		}
-		var tokens []string
-		if valid {
-			tokens, valid = splitMarkdownOutsideCode(values, ", ")
+		if !inCommandContract {
+			continue
 		}
-		var names []string
-		if valid {
-			for _, token := range tokens {
-				name, suffix, _, closed := markdownCodeSpanPrefix(token)
-				if !closed || suffix != "" {
-					valid = false
-					break
-				}
-				names = append(names, name)
-			}
+		switch line.text {
+		case "**Pipes:**":
+			scan.headers++
+			continue
+		case "**Pipes:** not available":
+			scan.noSupport++
+			continue
 		}
-		if !valid {
-			names = []string{values}
+		label, candidate := wikiPipeGroupLabel(line.text)
+		if !candidate {
+			continue
 		}
-		groups = append(groups, names)
+		availability := wikiOperatorAvailability(label)
+		if availability == "" {
+			scan.unknownLabels = append(scan.unknownLabels, label)
+			continue
+		}
+		scan.groups[availability] = append(
+			scan.groups[availability],
+			wikiOperatorGroupNames(line.text, label),
+		)
 	}
-	return groups
+	return scan
+}
+
+func wikiPipeGroupLabel(line string) (string, bool) {
+	if strings.HasPrefix(line, "**") {
+		end := strings.Index(line[2:], "**")
+		if end < 0 {
+			return "", false
+		}
+		label := strings.Join(strings.Fields(strings.TrimSuffix(line[2:2+end], ":")), " ")
+		return label, commandOperatorLabelCandidate(label)
+	}
+	separator := strings.IndexByte(line, ':')
+	if separator < 0 {
+		return "", false
+	}
+	label := strings.Join(strings.Fields(line[:separator]), " ")
+	return label, commandOperatorLabelCandidate(label)
+}
+
+func wikiOperatorAvailability(label string) string {
+	switch label {
+	case "Always":
+		return "always"
+	case "When the answer has rows":
+		return "with-rows"
+	case "While the command keeps answering":
+		return "when-streaming"
+	case "Local process only":
+		return "local-only"
+	default:
+		return ""
+	}
+}
+
+func wikiOperatorGroupNames(line, label string) []string {
+	values := strings.TrimSpace(strings.TrimPrefix(line, label+":"))
+	parts, valid := splitMarkdownOutsideCode(values, " -- ")
+	if valid && len(parts) <= 2 {
+		values = parts[0]
+	} else {
+		valid = false
+	}
+	var tokens []string
+	if valid && values != "" {
+		tokens, valid = splitMarkdownOutsideCode(values, ", ")
+	}
+	var names []string
+	if valid {
+		for _, token := range tokens {
+			name, suffix, _, closed := markdownCodeSpanPrefix(token)
+			if !closed || suffix != "" {
+				valid = false
+				break
+			}
+			names = append(names, name)
+		}
+	}
+	if !valid || len(names) == 0 {
+		return []string{values}
+	}
+	return names
+}
+
+func validateWikiPipeSupport(
+	path, command string,
+	scan wikiPipeGroupScan,
+	hasSupport bool,
+) []Issue {
+	var issues []Issue
+	for _, label := range scan.unknownLabels {
+		issues = append(issues,
+			unknownCommandOperatorGroupLabelIssue(path, command, label))
+	}
+	expectedHeaders, expectedNoSupport := 0, 1
+	if hasSupport {
+		expectedHeaders, expectedNoSupport = 1, 0
+	}
+	if scan.headers != expectedHeaders {
+		issues = append(issues, generatedCommandSurfaceValueIssue(
+			path, command, "wiki pipe support header",
+			strconv.Itoa(expectedHeaders), strconv.Itoa(scan.headers),
+		))
+	}
+	if scan.noSupport != expectedNoSupport {
+		issues = append(issues, generatedCommandSurfaceValueIssue(
+			path, command, "wiki no-support verdict",
+			strconv.Itoa(expectedNoSupport), strconv.Itoa(scan.noSupport),
+		))
+	}
+	return issues
 }
 
 func activeMarkdownLines(content string) []string {
@@ -3574,6 +3650,18 @@ var commandOperatorAvailabilities = [...]string{
 	"local-only",
 }
 
+var commandOperatorLabelFamilyTokens = [...]string{
+	"Always",
+	"With rows",
+	"When the answer has rows",
+	"While streaming",
+	"Streaming",
+	"While the command keeps answering",
+	"Local process only",
+	"Local only",
+	"Pipes",
+}
+
 func commandOperatorGroupLabel(
 	surface commandOperatorGroupSurface,
 	availability string,
@@ -3608,12 +3696,36 @@ func classifyCommandOperatorGroupLabel(
 	surface commandOperatorGroupSurface,
 	declaredShape bool,
 ) (string, bool) {
+	label = strings.Join(strings.Fields(label), " ")
 	for _, availability := range commandOperatorAvailabilities {
 		if label == commandOperatorGroupLabel(surface, availability, declaredShape) {
 			return availability, true
 		}
 	}
-	return "", strings.HasPrefix(label, "Pipes,")
+	switch surface {
+	case primaryOperatorGroupSurface,
+		equivalentHTMLOperatorGroupSurface,
+		equivalentMarkdownOperatorGroupSurface:
+		return "", commandOperatorLabelCandidate(label)
+	default:
+		return "", false
+	}
+}
+
+func commandOperatorLabelCandidate(label string) bool {
+	for _, token := range commandOperatorLabelFamilyTokens {
+		if label == token {
+			return true
+		}
+		if !strings.HasPrefix(label, token) || len(label) == len(token) {
+			continue
+		}
+		next, _ := utf8.DecodeRuneInString(label[len(token):])
+		if unicode.IsPunct(next) || unicode.IsSpace(next) {
+			return true
+		}
+	}
+	return false
 }
 
 func unknownCommandOperatorGroupLabelIssue(path, command, label string) Issue {
@@ -3630,8 +3742,12 @@ func validatePrimaryHTMLOperatorGroupLabels(
 	path, command string,
 	root *xhtml.Node,
 ) []Issue {
+	contractCell := primaryHTMLContractCell(root)
+	if contractCell == nil {
+		return nil
+	}
 	var issues []Issue
-	htmlWalk(root, func(node *xhtml.Node) {
+	htmlWalk(contractCell, func(node *xhtml.Node) {
 		if node.Data != "span" {
 			return
 		}
@@ -3645,6 +3761,19 @@ func validatePrimaryHTMLOperatorGroupLabels(
 		}
 	})
 	return issues
+}
+
+func primaryHTMLContractCell(row *xhtml.Node) *xhtml.Node {
+	var cells []*xhtml.Node
+	for child := row.FirstChild; child != nil; child = child.NextSibling {
+		if child.Type == xhtml.ElementNode && child.Data == "td" {
+			cells = append(cells, child)
+		}
+	}
+	if len(cells) != 4 {
+		return nil
+	}
+	return cells[3]
 }
 
 func validatePrimaryMarkdownOperatorGroupLabels(

@@ -16,11 +16,23 @@
 |---------|------|-------------|
 | `` `show` route `` | read-only | Backtick |
 
+### `` `show` route ``
+
+Mode: read-only
+
+**Pipes:** not available
+
 ## contents
 
 | Command | Mode | Description |
 |---------|------|-------------|
 | `contents route` | read-only | Reserved |
+
+### `contents route`
+
+Mode: read-only
+
+**Pipes:** not available
 
 ## show\!
 
@@ -28,17 +40,35 @@
 |---------|------|-------------|
 | `show! route` | read-only | Punctuation |
 
+### `show! route`
+
+Mode: read-only
+
+**Pipes:** not available
+
 ## show\?
 
 | Command | Mode | Description |
 |---------|------|-------------|
 | `show? route` | read-only | Collision |
 
+### `show? route`
+
+Mode: read-only
+
+**Pipes:** not available
+
 ## 表示
 
 | Command | Mode | Description |
 |---------|------|-------------|
 | `表示 route` | read-only | Unicode |
+
+### `表示 route`
+
+Mode: read-only
+
+**Pipes:** not available
 
 ---
 

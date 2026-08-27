@@ -13,12 +13,26 @@
 |---------|------|-------------|
 | `clear beta` | offline | Clear \| beta |
 
+### `clear beta`
+
+Mode: offline
+
+**Pipes:** not available
+
+This command runs offline.
+
 ## show
 
 | Command | Mode | Description |
 |---------|------|-------------|
 | `show alpha` | daemon | Alpha |
 | `show zeta` | read-only | Zeta \| first |
+
+### `show alpha`
+
+Mode: daemon | Wire: `show_alpha`
+
+**Pipes:** not available
 
 ### `show zeta`
 

@@ -727,28 +727,61 @@ func TestDocDriftRejectsUnknownEquivalentMarkdownPipeLabel(t *testing.T) {
 	}
 }
 
+// VALIDATES: every active operator-like line in a wiki command detail is
+// classified before its expected availability groups are compared.
+// PREVENTS: an obsolete wiki pipe label surviving beside canonical groups.
+func TestDocDriftRejectsUnknownWikiPipeLabel(t *testing.T) {
+	out, err := runRenderedWikiMutationFixture(
+		t,
+		"- `family` `<value>` -- Filter by family",
+		"- `family` `<value>` -- Filter by family\n\n"+
+			"Pipes, legacy: `catalog-absent`",
+	)
+	if err == nil ||
+		!strings.Contains(out, "malformed operator availability group") ||
+		!strings.Contains(out, "Pipes, legacy") {
+		t.Fatalf("unknown wiki pipe label escaped validation:\n%s", out)
+	}
+}
+
 // VALIDATES: primary HTML and Markdown enumerate operator-like labels inside
 // the command-owned contract cell rather than querying only expected labels.
-// PREVENTS: an obsolete Pipes,* segment surviving beside all current groups.
+// PREVENTS: obsolete family variants surviving beside all current groups.
 func TestDocDriftRejectsUnknownPrimaryOperatorLabels(t *testing.T) {
 	tests := []struct {
-		name string
-		path string
-		old  string
-		new  string
+		name  string
+		path  string
+		old   string
+		new   string
+		label string
 	}{
 		{
-			name: "HTML",
-			path: "reference/cli/index.html",
-			old:  "<p><span>Local process only</span><code>save</code></p>",
-			new: "<p><span>Local process only</span><code>save</code></p>" +
-				"<p><span>Pipes, legacy</span><code>nosuchop</code></p>",
+			name:  "HTML Pipes family",
+			path:  "reference/cli/index.html",
+			old:   "<p><span>Local process only</span><code>save</code></p>",
+			new:   "<p><span>Local process only</span><code>save</code></p><p><span>Pipes, legacy</span><code>nosuchop</code></p>",
+			label: "Pipes, legacy",
 		},
 		{
-			name: "Markdown",
-			path: "reference/cli/index.md",
-			old:  "Local process only: `save`",
-			new:  "Local process only: `save`<br>Pipes, legacy: `nosuchop`",
+			name:  "Markdown Pipes family",
+			path:  "reference/cli/index.md",
+			old:   "Local process only: `save`",
+			new:   "Local process only: `save`<br>Pipes, legacy: `nosuchop`",
+			label: "Pipes, legacy",
+		},
+		{
+			name:  "HTML Always family",
+			path:  "reference/cli/index.html",
+			old:   "<p><span>Local process only</span><code>save</code></p>",
+			new:   "<p><span>Local process only</span><code>save</code></p><p><span>Always, legacy</span><code>nosuchop</code></p>",
+			label: "Always, legacy",
+		},
+		{
+			name:  "Markdown Always family",
+			path:  "reference/cli/index.md",
+			old:   "Local process only: `save`",
+			new:   "Local process only: `save`<br>Always, legacy: `nosuchop`",
+			label: "Always, legacy",
 		},
 	}
 	for _, tc := range tests {
@@ -761,11 +794,87 @@ func TestDocDriftRejectsUnknownPrimaryOperatorLabels(t *testing.T) {
 			out, err := runRenderedCommandDriftFixture(t, root, livePath)
 			if err == nil ||
 				!strings.Contains(out, "malformed operator availability group") ||
-				!strings.Contains(out, "Pipes, legacy") ||
+				!strings.Contains(out, tc.label) ||
 				!strings.Contains(out, filepath.ToSlash(tc.path)) {
 				t.Fatalf("unknown primary %s operator label escaped validation:\n%s", tc.name, out)
 			}
 		})
+	}
+}
+
+// VALIDATES: primary availability candidates are inspected only in the
+// command-owned pipe metadata position.
+// PREVENTS: operator-like prose in a command description becoming a false
+// unknown-label finding.
+func TestPrimaryOperatorLabelsIgnoreDescriptionMarkup(t *testing.T) {
+	command := publishedCommand{
+		Path:        "show prose",
+		Mode:        "read-only",
+		Description: "Always, legacy prose",
+	}
+	renderedHTML := string(renderPrimaryCommandHTML([]publishedCommand{command}))
+	mutatedHTML := strings.Replace(
+		renderedHTML,
+		"<td>Always, legacy prose</td>",
+		"<td><span>Always, legacy</span> prose</td>",
+		1,
+	)
+	if mutatedHTML == renderedHTML {
+		t.Fatal("primary HTML description mutation did not apply")
+	}
+	document := parseRenderedHTML(mutatedHTML)
+	row, count, closed := commandSurfaceHTMLRow(document, command.Path)
+	if count != 1 || !closed {
+		t.Fatalf("primary HTML command row count = %d, closed = %t", count, closed)
+	}
+	if issues := validatePrimaryCommandContract(
+		"reference/cli/index.html", row, document, command,
+	); len(issues) != 0 {
+		t.Fatalf("description span was treated as operator metadata: %#v", issues)
+	}
+
+	renderedMarkdown := string(renderPrimaryCommandMarkdown(
+		[]publishedCommand{command},
+	))
+	markdownRow, count, malformed := commandSurfaceMarkdownRow(
+		renderedMarkdown, command.Path,
+	)
+	if count != 1 || malformed {
+		t.Fatalf("primary Markdown command row count = %d, malformed = %t", count, malformed)
+	}
+	if issues := validatePrimaryMarkdownContract(
+		"reference/cli/index.md", markdownRow, command,
+	); len(issues) != 0 {
+		t.Fatalf("description text was treated as operator metadata: %#v", issues)
+	}
+}
+
+func TestOperatorLabelClassifierCoversEveryAvailabilityFamily(t *testing.T) {
+	for _, label := range []string{
+		"Always, legacy",
+		"With rows legacy",
+		"Streaming/legacy",
+		"Local only (legacy)",
+		"Pipes, legacy",
+	} {
+		if availability, candidate := classifyCommandOperatorGroupLabel(
+			label, primaryOperatorGroupSurface, false,
+		); !candidate || availability != "" {
+			t.Errorf("primary label %q classified as (%q, %t)",
+				label, availability, candidate)
+		}
+		if availability, candidate := classifyCommandOperatorGroupLabel(
+			label, equivalentHTMLOperatorGroupSurface, false,
+		); !candidate || availability != "" {
+			t.Errorf("equivalent label %q classified as (%q, %t)",
+				label, availability, candidate)
+		}
+	}
+	if availability, candidate := classifyCommandOperatorGroupLabel(
+		"Alwaysness", primaryOperatorGroupSurface, false,
+	); candidate || availability != "" {
+		t.Errorf("non-family label classified as (%q, %t)",
+			availability, candidate)
 	}
 }
 
@@ -2808,6 +2917,89 @@ func TestWikiValidatorRejectsCatalogStructureMutations(t *testing.T) {
 			)
 			if err == nil {
 				t.Fatalf("wiki %s mutation passed validation:\n%s", test.name, out)
+			}
+		})
+	}
+}
+
+// VALIDATES: commands with no operators, filters, or aliases round-trip through
+// the wiki renderer with one exact no-support verdict, whether local or wired.
+// PREVENTS: WireMethod suppressing the only per-command answer to pipe support.
+func TestWikiValidatorRoundTripsCanonicalEmptyPipeSupport(t *testing.T) {
+	live := []publishedCommand{
+		{
+			Path:        "clear minimal",
+			Mode:        "offline",
+			Description: "Minimal offline command",
+		},
+		{
+			Path:        "show wire-backed",
+			Mode:        "daemon",
+			Description: "Wire-backed command",
+			WireMethod:  "show_wire_backed",
+		},
+		{
+			Path:        "show supported",
+			Mode:        "read-only",
+			Description: "Supported command",
+			Operators: []publishedCommandOperator{{
+				Name: "json", Available: "always", Description: "JSON output",
+			}},
+		},
+	}
+	raw, err := json.Marshal(live)
+	if err != nil {
+		t.Fatalf("marshal command catalog: %v", err)
+	}
+	rendered, err := renderExpectedWikiCommandSurface("", "", raw)
+	if err != nil {
+		t.Fatalf("render wiki command catalog: %v", err)
+	}
+	if issues := validateGeneratedWikiCommandSurface(rendered, live); len(issues) != 0 {
+		t.Fatalf("validator rejected canonical empty support: %#v\n%s", issues, rendered)
+	}
+	content := string(rendered)
+	if count := strings.Count(content, "**Pipes:** not available"); count != 2 {
+		t.Fatalf("canonical no-support verdict count = %d, want 2:\n%s", count, content)
+	}
+	wireDetail, count := wikiCommandDetail(content, "show wire-backed")
+	if count != 1 || strings.Contains(wireDetail, "offline") {
+		t.Fatalf("wire-backed detail was missing or described as offline:\n%s", wireDetail)
+	}
+
+	for _, mutation := range []struct {
+		name, old, replacement string
+	}{
+		{
+			name:        "missing no-support verdict",
+			old:         "**Pipes:** not available\n\nThis command runs offline.",
+			replacement: "This command runs offline.",
+		},
+		{
+			name:        "duplicate no-support verdict",
+			old:         "**Pipes:** not available\n\nThis command runs offline.",
+			replacement: "**Pipes:** not available\n**Pipes:** not available\n\nThis command runs offline.",
+		},
+		{
+			name:        "unexpected no-support verdict",
+			old:         "**Pipes:**\nAlways: `json`",
+			replacement: "**Pipes:** not available\nAlways: `json`",
+		},
+		{
+			name:        "unknown no-support variant",
+			old:         "Mode: daemon | Wire: `show_wire_backed`\n\n**Pipes:** not available",
+			replacement: "Mode: daemon | Wire: `show_wire_backed`\n\n**Pipes:** unavailable",
+		},
+	} {
+		t.Run(mutation.name, func(t *testing.T) {
+			changed := strings.Replace(content, mutation.old, mutation.replacement, 1)
+			if changed == content {
+				t.Fatalf("wiki mutation %q did not apply", mutation.old)
+			}
+			if issues := validateGeneratedWikiCommandSurface(
+				[]byte(changed), live,
+			); len(issues) == 0 {
+				t.Fatalf("wiki %s mutation passed validation:\n%s", mutation.name, changed)
 			}
 		})
 	}

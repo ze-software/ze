@@ -1107,6 +1107,18 @@ An owner-authorized independent context reviewed the committed Round-18 fixes.
 
 **Independent round 19: 3 BLOCKER, 0 ISSUE, 0 outstanding.** All three findings are fixed.
 
+### Independent review, round 20 (2026-08-27)
+
+An owner-authorized independent context reviewed the committed Round-19 fixes.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR20-1 | BLOCKER | Wiki entries with empty support omit an explicit per-command pipe verdict | FIXED |
+| IR20-2 | BLOCKER | Wiki validation accepts unknown pipe availability groups | FIXED |
+| IR20-3 | BLOCKER | Primary label classification ignores unknown variants such as `Always, legacy` | FIXED |
+
+**Independent round 20: 3 BLOCKER, 0 ISSUE, 0 outstanding.** All three findings are fixed.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and

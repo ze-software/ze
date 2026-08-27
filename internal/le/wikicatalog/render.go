@@ -74,9 +74,6 @@ func Render(entries []Entry) ([]byte, error) {
 		line(&out, "")
 
 		for _, entry := range group {
-			if !needsDetail(entry) {
-				continue
-			}
 			out.WriteString("### ")
 			writeCodeSpan(&out, entry.Path)
 			out.WriteByte('\n')
@@ -106,14 +103,6 @@ func normalizeLineBreaks(value string) string {
 func firstLine(description string) string {
 	first, _, _ := strings.Cut(description, "\n")
 	return first
-}
-
-func needsDetail(entry Entry) bool {
-	return len(entry.Args) > 0 || len(entry.Pipes) > 0 || len(entry.Aliases) > 0 ||
-		len(entry.Subcommands) > 0 || len(entry.Backend) > 0 ||
-		entry.WireMethod != "" || entry.TaskSupport != "" ||
-		len(entry.Operators) > 0 || entry.AnswerShape != "" ||
-		len(entry.AddressFields) > 0 || strings.Contains(entry.Description, "\n")
 }
 
 func renderDetail(out *bytes.Buffer, entry Entry) error {
@@ -179,9 +168,13 @@ func renderDetail(out *bytes.Buffer, entry Entry) error {
 		if err := renderPipes(out, entry); err != nil {
 			return err
 		}
-	} else if entry.WireMethod == "" {
+	} else {
 		line(out, "")
-		line(out, "**Pipes:** not available (offline command)")
+		line(out, "**Pipes:** not available")
+		if entry.Mode == "offline" && entry.WireMethod == "" {
+			line(out, "")
+			line(out, "This command runs offline.")
+		}
 	}
 
 	if len(entry.Subcommands) > 0 {
@@ -372,9 +365,7 @@ func catalogHeadingAnchors(
 	for _, verb := range verbs {
 		anchors[verb] = next(verb)
 		for _, entry := range groups[verb] {
-			if needsDetail(entry) {
-				next(entry.Path)
-			}
+			next(entry.Path)
 		}
 	}
 	return anchors
