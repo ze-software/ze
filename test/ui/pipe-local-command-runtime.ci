@@ -1,0 +1,206 @@
+# Test: interpreted runtime evidence for every locally registered data command
+#
+# VALIDATES: AC-10 -- every production MustRegisterLocalData command runs through
+#   ze cli -c with a real pipe, without a daemon.
+# PREVENTS: source-only calls, spoofed markers, or a shorter registration prefix
+#   satisfying runtime local-data coverage.
+
+option=timeout:value=45s
+
+tmpfs=run.py:terminator=EOF_PY
+import json
+import os
+import stat
+import subprocess
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+
+def run(argv):
+    result = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True, env=os.environ.copy(), check=False)
+    return result.returncode, result.stdout, result.stderr
+
+
+def local_json(command, evidence):
+    require(evidence and command.startswith(evidence), 'invalid evidence')
+    require('| ' in command, 'local command has no real pipe')
+    code, out, err = run(['ze', 'cli', '-c', command])
+    require(code == 0, 'local command failed')
+    value = json.loads(out)
+    print('COVERED: ' + evidence + ' [done]')
+    return value
+
+
+def rows(payload, key):
+    selected = payload[key] if isinstance(payload, dict) else payload
+    require(isinstance(selected, list), '%s is not a row list: %r' % (key, selected))
+    return selected
+
+
+def tree_nodes(nodes):
+    for node in nodes:
+        yield node
+        yield from tree_nodes(node.get('children', []))
+
+
+work = os.getcwd()
+os.environ['ZE_CONFIG_DIR'] = work
+config_path = os.path.join(work, 'pipe-local.conf')
+with open(config_path, 'w') as handle:
+    handle.write('environment {\n'
+                 '    cli {\n'
+                 '        format {\n'
+                 '            default table;\n'
+                 '        }\n'
+                 '    }\n'
+                 '}\n'
+                 'bgp {\n'
+                 '}\n')
+with open(config_path + '.draft', 'w') as handle:
+    handle.write('set environment cli format default json\n')
+
+# History resolves its argument through the process runtime zefs store. Seed
+# the active config and its DraftPath key through the real data entry point.
+for key, source in (
+        ('file/active/pipe-local.conf', config_path),
+        ('file/active/pipe-local.conf.draft', config_path + '.draft')):
+    code, out, err = run(['ze', 'data', 'write', key, source])
+    require(code == 0, 'runtime-store fixture %s exit=%d: %s%s'
+            % (key, code, out, err))
+
+blob_input = os.path.join(work, 'router-name.txt')
+blob_path = os.path.join(work, 'pipe-local.zefs')
+with open(blob_input, 'w') as handle:
+    handle.write('router-a')
+code, out, err = run(['ze', 'data', '--path', blob_path, 'write',
+                      'meta/instance/name', blob_input])
+require(code == 0, 'blob fixture exit=%d: %s%s' % (code, out, err))
+
+# Config family: document content, draft-backed history, and filesystem source.
+payload = local_json('show config dump %s | json compact' % config_path, 'show config dump')
+require(payload.get('environment', {}).get('cli', {}).get('format', {}).get('default') == 'table',
+        'config dump lost environment cli format default table: %r' % payload)
+
+payload = local_json('show config history pipe-local.conf | json compact', 'show config history')
+revisions = rows(payload, 'revisions')
+require(any(row.get('revision') == 'draft' and row.get('state') == 'editing in progress'
+            for row in revisions), 'config history lost the draft row: %r' % revisions)
+
+payload = local_json('show config ls | json compact', 'show config ls')
+configs = rows(payload, 'configs')
+require(any(row.get('source') == 'fs' and row.get('path') == config_path
+            for row in configs), 'config ls lost its filesystem row: %r' % configs)
+
+# Schema family: assert command records and compare count output to live rows.
+payload = local_json('show schema list | json compact', 'show schema list')
+schemas = rows(payload, 'schemas')
+require(any(row.get('module') == 'ze-fib-conf' and row.get('namespace') == 'ze.fib.conf'
+            for row in schemas), 'schema list lost stripped-core ze-fib-conf: %r' % schemas[:5])
+
+payload = local_json('show schema methods | json compact', 'show schema methods')
+methods = rows(payload, 'methods')
+require(methods and all(row.get('method') and row.get('module') for row in methods),
+        'schema methods did not return method/module rows: %r' % methods[:5])
+
+events_payload = local_json('show schema events | json compact', 'show schema events')
+events = rows(events_payload, 'events')
+payload = local_json('show schema events | count | json compact', 'show schema events')
+require(payload == {'count': len(events), 'pipe': [{'op': 'count'}]},
+        'schema events count disagrees with live rows: %r versus %d' % (payload, len(events)))
+
+handlers_payload = local_json('show schema handlers | json compact', 'show schema handlers')
+handlers = rows(handlers_payload, 'handlers')
+payload = local_json('show schema handlers | count | json compact', 'show schema handlers')
+require(payload == {'count': len(handlers), 'pipe': [{'op': 'count'}]},
+        'schema handlers count disagrees with live rows: %r versus %d' % (payload, len(handlers)))
+
+payload = local_json('show schema protocol | json compact', 'show schema protocol')
+require(payload == {'protocol': 'Hub Architecture', 'version': '1.0'},
+        'schema protocol changed payload: %r' % payload)
+
+# Data family: use a real blob and the production key registry.
+payload = local_json('show data ls --path %s | json compact' % blob_path, 'show data ls')
+keys = rows(payload, 'keys')
+require(any(row.get('key') == 'meta/instance/name' for row in keys),
+        'data ls lost the written key: %r' % keys)
+
+payload = local_json('show data registered | json compact', 'show data registered')
+patterns = rows(payload, 'patterns')
+require(any(row.get('pattern') == 'meta/instance/name'
+            and row.get('description') == 'Router instance name' for row in patterns),
+        'data registered lost the instance-name contract: %r' % patterns[:5])
+
+# YANG family: both tree filters and a non-default completion prefix reach the
+# shared option parsers.
+command_tree = local_json('show yang tree --commands | json compact', 'show yang tree')
+command_nodes = list(tree_nodes(command_tree))
+require(command_nodes and all(node.get('source') != 'config' for node in command_nodes),
+        'yang --commands leaked a config-only node: %r' % command_nodes[:5])
+config_tree = local_json('show yang tree --config | json compact', 'show yang tree')
+config_nodes = list(tree_nodes(config_tree))
+require(config_nodes and all(node.get('source') != 'command' for node in config_nodes),
+        'yang --config leaked a command-only node: %r' % config_nodes[:5])
+require(command_tree != config_tree, 'the two YANG filters selected the same tree')
+
+payload = local_json('show yang completion --min-prefix 2 | json compact', 'show yang completion')
+collisions = rows(payload, 'collisions')
+summary = payload['summary']
+require(collisions and all(group.get('max-chars', 0) >= 2 for group in collisions),
+        'completion ignored --min-prefix 2: %r' % collisions[:5])
+require(summary.get('total-groups') == len(collisions)
+        and summary.get('total-affected') == sum(len(group['siblings']) for group in collisions),
+        'completion summary disagrees with its rows: %r' % payload)
+
+# Env family: effective list, one-key lookup, and declaration-only output.
+payload = local_json('show env list | json compact', 'show env list')
+variables = rows(payload, 'variables')
+require(any(row.get('key') == 'ze.cli.format' and 'current' in row for row in variables),
+        'env list lost ze.cli.format effective data: %r' % variables[:5])
+
+payload = local_json('show env get ze.cli.format | json compact', 'show env get')
+selected = rows(payload, 'variables')
+require(len(selected) == 1 and selected[0].get('key') == 'ze.cli.format'
+        and 'current' in selected[0], 'env get returned the wrong row: %r' % selected)
+
+payload = local_json('show env registered | json compact', 'show env registered')
+registered = rows(payload, 'variables')
+require(any(row.get('key') == 'ze.cli.format' and 'current' not in row
+            for row in registered), 'env registered leaked or lost declaration data: %r' % registered[:5])
+
+# Local one-shot save, with no daemon: displayed bytes equal committed bytes and
+# the answer is owner-only.
+save_path = os.path.join(work, 'local-save.ndjson')
+code, shown, err = run(['ze', 'cli', '-c',
+                        'show env get ze.cli.format | ndjson | save %s' % save_path])
+require(code == 0, 'local save exit=%d: %s%s' % (code, shown, err))
+with open(save_path, 'rb') as handle:
+    saved = handle.read()
+require(saved == shown.encode(), 'local save bytes differ: file=%r shown=%r' % (saved, shown.encode()))
+mode = stat.S_IMODE(os.stat(save_path).st_mode)
+require(mode == 0o600, 'local save mode=%04o, want 0600' % mode)
+
+print('OK: 15/15 local-data commands and local one-shot save')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=COVERED: show config dump [done]
+expect=stdout:contains=COVERED: show config history [done]
+expect=stdout:contains=COVERED: show config ls [done]
+expect=stdout:contains=COVERED: show data ls [done]
+expect=stdout:contains=COVERED: show data registered [done]
+expect=stdout:contains=COVERED: show env get [done]
+expect=stdout:contains=COVERED: show env list [done]
+expect=stdout:contains=COVERED: show env registered [done]
+expect=stdout:contains=COVERED: show schema events [done]
+expect=stdout:contains=COVERED: show schema handlers [done]
+expect=stdout:contains=COVERED: show schema list [done]
+expect=stdout:contains=COVERED: show schema methods [done]
+expect=stdout:contains=COVERED: show schema protocol [done]
+expect=stdout:contains=COVERED: show yang completion [done]
+expect=stdout:contains=COVERED: show yang tree [done]
+expect=stdout:contains=OK: 15/15 local-data commands and local one-shot save
