@@ -40,12 +40,14 @@ AVAILABILITY_LABELS = {
     "always": "Always",
     "with-rows": "With rows",
     "when-streaming": "While streaming",
+    "local-only": "Local process only",
 }
 
 AVAILABILITY_ORDER = {
     "always": 0,
     "with-rows": 1,
     "when-streaming": 2,
+    "local-only": 3,
 }
 
 PIPE_CLASS_LABELS = {
@@ -227,9 +229,15 @@ def pipe_summary(command):
 def operators_by_availability(command):
     grouped = {}
     for operator in pipe_items(command, "operators"):
-        grouped.setdefault(operator.get("available", "always"), []).append(
-            operator.get("name", "")
-        )
+        availability = operator.get("available")
+        if availability not in AVAILABILITY_LABELS:
+            raise ValueError(
+                "unknown operator availability for "
+                + operator.get("name", "<unnamed>")
+            )
+        if operator.get("local-only"):
+            availability = "local-only"
+        grouped.setdefault(availability, []).append(operator.get("name", ""))
     return grouped
 
 
@@ -306,7 +314,14 @@ def operator_catalog(commands):
                     "available": [],
                 },
             )
-            available = operator.get("available", "always")
+            available = operator.get("available")
+            if available not in AVAILABILITY_LABELS:
+                raise ValueError(
+                    "unknown operator availability for "
+                    + operator.get("name", "<unnamed>")
+                )
+            if operator.get("local-only"):
+                available = "local-only"
             if available not in entry["available"]:
                 entry["available"].append(available)
     return list(catalog.values())
@@ -322,8 +337,8 @@ def render_pipe_guide(commands):
         '<span class="tag">Pipes</span>',
         '<div><h2 id="cli-pipe-guide-title">Pipe operators</h2>',
         "<p>Each command row names the operators it accepts after <code>|</code>. "
-        "Availability comes from the live command registry: some operators need row "
-        "data or a streaming answer.</p></div>",
+        "Availability comes from the live command registry: operators may require row "
+        "data, a streaming answer, or expansion by the operator's local process.</p></div>",
         "</div>",
         "<details>",
         "<summary>Operator reference <span>%d</span></summary>" % len(operators),

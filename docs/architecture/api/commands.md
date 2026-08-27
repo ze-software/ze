@@ -1870,10 +1870,10 @@ table above records, for the same reason.
 ### The chain over a row generator
 
 A handler that answers with a row generator runs the same chain, one record at a
-time. `ApplyPipesRecords` is the record half of `ApplyPipes`. `| match`,
+time. `applyPipesRecords` is the record half of `ApplyPipes`. `| match`,
 `| count`, `| first`, `| last`, `| display`, `| resolve` and `| origin` each act
 per record, so `| count` holds nothing and `| last 8` holds eight records.
-<!-- source: internal/component/command/pipe_records.go -- ApplyPipesRecords, applyRecordOp, recordsCounted, recordsLast -->
+<!-- source: internal/component/command/pipe_records.go -- applyPipesRecords, applyRecordOp, recordsCounted, recordsLast -->
 
 A format operator changes no record. `RenderRecords` renders what the chain
 produced. It writes per record for one chain alone: `| ndjson`, over an answer

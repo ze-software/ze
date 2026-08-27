@@ -34,3 +34,6 @@ is open.
 | 2026-08-26 | 8cb04dea | fix(le): keep ze-le registrations committed | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
 | 2026-08-26 | 8cb04dea | fix(le): keep ze-le registrations committed | independent critical review | Independent reviewer requested a commit baseline before review; review will cover this repair commit. | open |
 | 2026-08-26 | 8cb04dea | fix(le): keep ze-le registrations committed | ze-repository-tracked-build-check (HEAD does not compile) | This commit removes ze_le composition-root imports for packages absent from HEAD. | open |
+| 2026-08-27 | 8cb04dea | fix(cli): make pipe contracts truthful across surfaces | ze-precommit-verify (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-27 | 8cb04dea | fix(cli): make pipe contracts truthful across surfaces | full ze-precommit-verify over this commit's Go | no full ze-precommit-verify recorded (tmp/ze-verify-full.json is missing) | open |
+| 2026-08-27 | 8cb04dea | fix(cli): make pipe contracts truthful across surfaces | discovery-index freshness | ai/PACKAGE-MAP.md includes unrelated in-flight letools packages and is excluded from this focused CLI commit. | open |

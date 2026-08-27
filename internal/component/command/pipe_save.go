@@ -26,6 +26,7 @@
 package command
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -36,6 +37,147 @@ import (
 // peer addresses, keys and topology, so it is readable by its owner alone
 // rather than by every account on the box.
 const saveFileMode = 0o600
+
+type streamSaveFile struct {
+	path    string
+	tmpName string
+	file    *os.File
+}
+
+// StreamSaves owns the temporary files for one streaming pipe chain.
+//
+// The caller MUST call Commit after the stream succeeds. The caller MUST call
+// Abort after the stream or its callback fails.
+type StreamSaves struct {
+	files    []streamSaveFile
+	finished bool
+}
+
+// openStreamSaves opens every destination before the first event can arrive.
+// Each temporary file is in its destination directory, so Commit can replace
+// the destination atomically.
+func openStreamSaves(paths []string) (*StreamSaves, string) {
+	if len(paths) == 0 {
+		return nil, ""
+	}
+
+	saves := &StreamSaves{files: make([]streamSaveFile, 0, len(paths))}
+	for _, path := range paths {
+		tmp, err := os.CreateTemp(filepath.Dir(path), ".ze-save-")
+		if err != nil {
+			cleanupErr := saves.Abort()
+			return nil, streamSaveError(path, err, cleanupErr)
+		}
+		saves.files = append(saves.files, streamSaveFile{
+			path:    path,
+			tmpName: tmp.Name(),
+			file:    tmp,
+		})
+		if err := tmp.Chmod(saveFileMode); err != nil {
+			cleanupErr := saves.Abort()
+			return nil, streamSaveError(path, err, cleanupErr)
+		}
+	}
+	return saves, ""
+}
+
+// Write appends displayed event bytes to every temporary file.
+func (s *StreamSaves) Write(displayed []byte) error {
+	if s == nil {
+		return nil
+	}
+	if s.finished {
+		return errors.New("save stream is already finished")
+	}
+	for i := range s.files {
+		target := &s.files[i]
+		if _, err := target.file.Write(displayed); err != nil {
+			cleanupErr := s.Abort()
+			return errors.New(streamSaveError(target.path, err, cleanupErr))
+		}
+	}
+	return nil
+}
+
+// WriteString appends displayed event bytes to every temporary file.
+func (s *StreamSaves) WriteString(displayed string) error {
+	if s == nil {
+		return nil
+	}
+	if s.finished {
+		return errors.New("save stream is already finished")
+	}
+	for i := range s.files {
+		target := &s.files[i]
+		if _, err := target.file.WriteString(displayed); err != nil {
+			cleanupErr := s.Abort()
+			return errors.New(streamSaveError(target.path, err, cleanupErr))
+		}
+	}
+	return nil
+}
+
+// Commit closes every temporary file and atomically replaces each destination.
+// It MUST be called only after the stream succeeds.
+func (s *StreamSaves) Commit() error {
+	if s == nil {
+		return nil
+	}
+	if s.finished {
+		return errors.New("save stream is already finished")
+	}
+	for i := range s.files {
+		target := &s.files[i]
+		if err := target.file.Close(); err != nil {
+			target.file = nil
+			cleanupErr := s.Abort()
+			return errors.New(streamSaveError(target.path, err, cleanupErr))
+		}
+		target.file = nil
+	}
+	for i := range s.files {
+		target := &s.files[i]
+		if err := os.Rename(target.tmpName, target.path); err != nil {
+			cleanupErr := s.Abort()
+			return errors.New(streamSaveError(target.path, err, cleanupErr))
+		}
+	}
+	s.finished = true
+	return nil
+}
+
+// Abort closes and removes every temporary file. It MUST be called after the
+// stream or its callback fails.
+func (s *StreamSaves) Abort() error {
+	if s == nil || s.finished {
+		return nil
+	}
+	s.finished = true
+	var cleanupErr error
+	for i := range s.files {
+		target := &s.files[i]
+		if target.file != nil {
+			if err := target.file.Close(); cleanupErr == nil && err != nil {
+				cleanupErr = err
+			}
+			target.file = nil
+		}
+		if err := os.Remove(target.tmpName); cleanupErr == nil && err != nil && !os.IsNotExist(err) {
+			cleanupErr = err
+		}
+	}
+	return cleanupErr
+}
+
+func streamSaveError(path string, cause, cleanupErr error) string {
+	msg := saveError(path, cause)
+	if cleanupErr == nil {
+		return msg
+	}
+	var tb textbuf.Buffer
+	return tb.Str(msg).Str(" (and a temporary file could not be removed: ").
+		Str(cleanupErr.Error()).Byte(')').String()
+}
 
 // savePathsInChain answers the paths a chain asks the answer to be written to.
 func savePathsInChain(ops []pipeOp) []string {

@@ -62,6 +62,20 @@ func TestPipeHelpNamesEveryOperator(t *testing.T) {
 	}
 }
 
+// VALIDATES: `ze pipe help` preserves the stream class instead of grouping it
+// with row operators.
+// PREVENTS: `log` being presented as a row operator or as unconditional on a
+// command that answers only once.
+func TestPipeHelpSeparatesStreamingOperators(t *testing.T) {
+	out := captureStderr(t, pipeUsage)
+	if !strings.Contains(out, "Streaming Operators") {
+		t.Fatalf("ze pipe help has no streaming-operator section:\n%s", out)
+	}
+	if !strings.Contains(out, "where the command keeps answering") {
+		t.Fatalf("ze pipe help drops the streaming availability qualifier:\n%s", out)
+	}
+}
+
 // TestPipeRootSubsNamesEveryOperator holds the one-line summary in root help,
 // which `ze help ai --json` also publishes, to the same set.
 func TestPipeRootSubsNamesEveryOperator(t *testing.T) {
@@ -123,6 +137,48 @@ func TestVerboseHelpNamesTheGlobalOperators(t *testing.T) {
 	if !strings.Contains(out, "when the answer has rows:") {
 		t.Errorf("verbose help does not say which operators depend on the answer: %q", out)
 	}
+	if !strings.Contains(out, "while the command keeps answering:") {
+		t.Errorf("verbose help drops the streaming qualifier: %q", out)
+	}
+	if !strings.Contains(out, "local process only:") {
+		t.Errorf("verbose help presents save as available on remote surfaces: %q", out)
+	}
+}
+
+// VALIDATES: A local printing shortcut does not suppress a separately
+// registered daemon handler's reachable pipe layer.
+// PREVENTS: `show version` publishing no operators because its local shortcut
+// is inspected before its daemon RPC registration.
+func TestDualRegisteredDaemonCommandPublishesOperators(t *testing.T) {
+	ensureLocalCommandsRegistered()
+	if !registry.HasLocal("show version") {
+		t.Fatal("show version has no local shortcut; this test no longer covers the dual-registration case")
+	}
+	if command.HasLocalData("show version") {
+		t.Fatal("show version now has a local data handler; this test no longer covers a plain local shortcut")
+	}
+	if !daemonHandlesPath("show version") {
+		t.Fatal("show version has no daemon handler; this test no longer covers dual registration")
+	}
+	ops, _ := operatorsFor("show version")
+	if len(ops) == 0 {
+		t.Fatal("show version publishes no operators although its daemon handler reaches the pipe layer")
+	}
+	var saveLocal, logStreaming bool
+	for _, op := range ops {
+		switch op.Name {
+		case "save":
+			saveLocal = op.LocalOnly
+		case "log":
+			logStreaming = op.Available == "when-streaming"
+		}
+	}
+	if !saveLocal {
+		t.Fatal("show version does not publish save's local-only surface restriction")
+	}
+	if !logStreaming {
+		t.Fatal("show version does not publish log's streaming qualifier")
+	}
 }
 
 // TestPipeCatalogJSONPublishesEveryContract holds the machine surface a tool
@@ -158,6 +214,9 @@ func TestPipeCatalogJSONPublishesEveryContract(t *testing.T) {
 		if published.Description != op.Description {
 			t.Errorf("%s: description published %q, catalog says %q", op.Name, published.Description, op.Description)
 		}
+		if published.LocalOnly != op.LocalOnly {
+			t.Errorf("%s: local-only published %v, catalog says %v", op.Name, published.LocalOnly, op.LocalOnly)
+		}
 		if len(published.Shapes) != len(op.Shapes()) {
 			t.Errorf("%s: publishes shapes %v, catalog says %v", op.Name, published.Shapes, op.Shapes())
 		}
@@ -169,14 +228,37 @@ func TestPipeCatalogJSONPublishesEveryContract(t *testing.T) {
 	}
 }
 
+// VALIDATES: Machine-readable operator contracts publish the catalog's surface
+// restriction rather than describing save as available on remote surfaces.
+// PREVENTS: SSH and web callers learning `save` is unconditional even though
+// the daemon effect-boundary guard refuses it.
+func TestPipeCatalogJSONPublishesLocalOnlySave(t *testing.T) {
+	var buf bytes.Buffer
+	if code := printPipeCatalogJSON(&buf); code != 0 {
+		t.Fatalf("printPipeCatalogJSON returned %d", code)
+	}
+	var got []pipeOperatorJSON
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("catalog JSON does not parse: %v", err)
+	}
+	for _, op := range got {
+		if op.Name == "save" {
+			if !op.LocalOnly {
+				t.Fatal("save is not published as local-only")
+			}
+			return
+		}
+	}
+	t.Fatal("save is absent from the published operator catalog")
+}
+
 // TestACommandServedWithoutDataPublishesNoOperators holds the catalog to what
-// the product can honor. A command the CLIENT serves in its own process reaches
-// the pipe layer only if it answers with DATA: one that keeps a plain printing
-// handler reaches none, whatever YANG declares for it, because the local
-// handler wins over the daemon dispatch.
+// the product can honor. A command served only by a plain local handler reaches
+// no pipe layer. A dual-registered path is covered separately because its
+// daemon surface can still pipe.
 //
-// `show data cat` and `show yang doc` are those by design, and they published
-// fifteen operators each before this.
+// `show data cat` and `show yang doc` are local-only plain handlers by design,
+// and they published fifteen operators each before this.
 func TestACommandServedWithoutDataPublishesNoOperators(t *testing.T) {
 	ensureLocalCommandsRegistered()
 
@@ -186,6 +268,9 @@ func TestACommandServedWithoutDataPublishesNoOperators(t *testing.T) {
 		}
 		if command.HasLocalData(path) {
 			t.Fatalf("%s answers with data now; move it out of this test rather than deleting the check", path)
+		}
+		if daemonHandlesPath(path) {
+			t.Fatalf("%s has a daemon handler now; move it to the dual-registration test", path)
 		}
 		ops, shape := operatorsFor(path)
 		if len(ops) != 0 {

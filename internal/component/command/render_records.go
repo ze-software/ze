@@ -68,21 +68,23 @@ func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []strin
 	answered := chainAnswersItsOwnDocument(chain)
 	ops = renderOps(chain, sessionFormat)
 
-	// A chain that answers a document of its own has replaced the command's
-	// rows, so the command's column schema describes nothing the answer still
-	// carries. `system command list | count` answers {"count":N}, which is not
-	// a positional row and would be refused as one by the collapse that zips
-	// them (rpc.CollapseRecords). The schema is dropped once, here, so the
-	// threshold, the item type and the collapse all read the same answer.
-	if answered {
-		fields = nil
-	}
-
 	// The chain runs over the records BEFORE the threshold is measured, so the
 	// threshold is measured over what the operator receives. `| first 10` and
 	// `| count` are therefore bounded answers however long the walk behind them
-	// is, which is what makes them cost ten rows and one integer.
-	records := ApplyPipesRecords(input, rows)
+	// is, which is what makes them cost ten rows and one integer. Display also
+	// narrows a positional head schema beside each row's values.
+	records, fields, msg := applyPipesRecords(input, fields, rows)
+	if msg != "" {
+		return RecordAnswer{}, errors.New(msg)
+	}
+
+	// A chain that answers a document of its own has replaced the command's
+	// rows, so the command's column schema describes nothing the answer still
+	// carries. The source schema remains available while earlier operators run,
+	// then is dropped before the threshold, item type and collapse read output.
+	if answered {
+		fields = nil
+	}
 
 	answer := RecordAnswer{Type: rpc.AnswerTypeDocument}
 	streamed := streamsPerRecord(ops, fields, meta)
@@ -156,7 +158,7 @@ func chainAnswersItsOwnDocument(ops []pipeOp) bool {
 // writeDocument collapses the records the walk held into the one document a
 // buffered rendering needs, renders it through the format the chain named, and
 // writes it.
-func writeDocument(w io.Writer, held []rpc.Record, key string, fields []string, answered bool, ops []pipeOp, meta PipeChainMeta, columns []ColumnOrder) error {
+func writeDocument(w io.Writer, held []rpc.Record, key string, fields []string, answered bool, ops []pipeOp, meta pipeChainMeta, columns []ColumnOrder) error {
 	document, err := answerDocument(held, key, fields, answered)
 	if err != nil {
 		return err
@@ -249,7 +251,7 @@ func writeRecordJSON(w io.Writer, record rpc.Record) error {
 // envelope beside the rows (injectPipeMeta, pipe.go), and a stream has no
 // envelope, so `| first 10 | ndjson` renders its document rather than dropping
 // the `first` the operator asked to be told about.
-func streamsPerRecord(ops []pipeOp, fields []string, meta PipeChainMeta) bool {
+func streamsPerRecord(ops []pipeOp, fields []string, meta pipeChainMeta) bool {
 	if len(fields) > 0 || len(meta) > 0 {
 		return false
 	}
@@ -265,16 +267,18 @@ func streamsPerRecord(ops []pipeOp, fields []string, meta PipeChainMeta) bool {
 // have passed through the chain, with the configured format appended when the
 // chain named none.
 //
-// The data-shaping operators are dropped, because ApplyPipesRecords has already
-// applied each of them to every record. Running `| count` twice would count the
-// count, and running `| first 10` twice would keep the first ten of ten. What is
-// left is the format, plus the two operators a renderer reads rather than
-// applies: `| display` names the columns and `| fill` names the rest of them,
-// and both are read out of the chain by columnsInChain.
+// Data-shaping operators are dropped because applyPipesRecords already applied
+// them. Display and fill remain because the renderer reads their requested
+// column order. A display that selected record data is marked, so ApplyPipes
+// reads its order without selecting the collapsed rows and faults a second time.
 func renderOps(ops []pipeOp, sessionFormat string) []pipeOp {
 	kept := make([]pipeOp, 0, len(ops)+1)
+	selectionApplied := columnsInChain(ops).selects()
 	for _, op := range ops {
-		if isFormatOp(op.kind) || op.kind == pipeDisplay || op.kind == pipeFill {
+		if op.kind == pipeDisplay {
+			op.selectionApplied = selectionApplied
+		}
+		if recordRendererKeeps(op.kind) {
 			kept = append(kept, op)
 		}
 	}
@@ -282,6 +286,15 @@ func renderOps(ops []pipeOp, sessionFormat string) []pipeOp {
 		kept = append(kept, pipeOp{kind: configuredDefault(sessionFormat)})
 	}
 	return kept
+}
+
+func recordRendererKeeps(kind pipeKind) bool {
+	switch kind {
+	case pipeDisplay, pipeFill:
+		return true
+	default:
+		return isFormatOp(kind)
+	}
 }
 
 // errEmptyRenderedRecord is what a record carrying neither a result nor a

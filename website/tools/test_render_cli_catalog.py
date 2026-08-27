@@ -73,6 +73,60 @@ def test_render_row_includes_command_pipes_aliases_and_operators():
     assert "json" in rendered
     assert "match" in rendered
 
+def test_render_row_preserves_stream_and_local_surface_qualifiers():
+    rendered = render_cli_catalog.render_row(
+        command(
+            operators=[
+                {
+                    "name": "log",
+                    "class": "stream",
+                    "available": "when-streaming",
+                    "description": "Append updates",
+                },
+                {
+                    "name": "save",
+                    "class": "global",
+                    "available": "always",
+                    "local-only": True,
+                    "description": "Write the answer",
+                },
+            ]
+        )
+    )
+
+    assert "While streaming" in rendered
+    assert "Local process only" in rendered
+    assert "log" in rendered
+    assert "save" in rendered
+    markdown = render_cli_catalog.markdown_pipe_details(
+        command(
+            operators=[
+                {
+                    "name": "save",
+                    "available": "always",
+                    "local-only": True,
+                }
+            ]
+        )
+    )
+    assert "Local process only: `save`" in markdown
+    guide = render_cli_catalog.render_pipe_guide(
+        [
+            command(
+                operators=[
+                    {
+                        "name": "save",
+                        "class": "global",
+                        "available": "always",
+                        "local-only": True,
+                        "description": "Write the answer",
+                    }
+                ]
+            )
+        ]
+    )
+    assert "Local process only" in guide
+
 
 def test_render_row_marks_commands_without_pipe_support():
     rendered = render_cli_catalog.render_row(command())

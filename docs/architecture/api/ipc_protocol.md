@@ -574,7 +574,7 @@ two shapes carry the same data, so there is nothing to prefer.
 `| first 10` never reaches the decision point. The chain runs before the
 threshold is measured, so ten records is a bounded answer however long the walk
 behind it is. The consumer stops the generator inside the buffering window.
-<!-- source: internal/component/command/pipe_records.go -- ApplyPipesRecords, recordsFirst -->
+<!-- source: internal/component/command/pipe_records.go -- applyPipesRecords, recordsFirst -->
 
 ### Not understood against understood-then-failed
 

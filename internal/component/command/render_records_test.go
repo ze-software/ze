@@ -583,3 +583,35 @@ func TestAnEmptyWalkAnswersTheEmptyCollection(t *testing.T) {
 		t.Errorf("an empty walk rendered %q, want %q", got, `{"commands":[]}`)
 	}
 }
+
+// TestPositionalDisplayTypoRefusesBeforeWalking drives a field miss against the
+// schema that gives positional values their names.
+//
+// VALIDATES: IR-5 on positional record answers -- a display field absent from
+// the head schema is refused before any row is pulled.
+// PREVENTS: bypassing fail-closed selection for arrays, which would restore the
+// complete-row leak on the positional path.
+func TestPositionalDisplayTypoRefusesBeforeWalking(t *testing.T) {
+	produced := 0
+	var out bytes.Buffer
+	_, err := RenderRecords(
+		&out,
+		"system command list | display typo | json",
+		"",
+		recordEnvelope,
+		commandColumns,
+		commandColumnRecords(3, &produced),
+	)
+	if err == nil {
+		t.Fatal("positional display typo was accepted")
+	}
+	if !strings.Contains(err.Error(), "typo") {
+		t.Errorf("refusal %q does not name the requested field", err)
+	}
+	if produced != 0 {
+		t.Errorf("refused positional display pulled %d rows, want none", produced)
+	}
+	if out.Len() != 0 {
+		t.Errorf("refused positional display wrote %q, want no partial answer", out.String())
+	}
+}

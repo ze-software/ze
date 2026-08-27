@@ -10,7 +10,26 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/command"
 )
+
+// TestPingMonitorDeclaresItsStreamShape verifies the owning registration admits
+// enrichment only for the event's target field.
+func TestPingMonitorDeclaresItsStreamShape(t *testing.T) {
+	shape, declared := command.ShapeForCommand("monitor ping 192.0.2.1 count 2")
+	require.True(t, declared)
+	assert.Equal(t, command.ShapeTab, shape)
+	assert.Equal(t, []string{"target"}, command.AddressFieldsForCommand("monitor ping 192.0.2.1"))
+
+	_, _, flags, saves, errMsg := command.ProcessStreamPipes(
+		"monitor ping 192.0.2.1 | resolve | origin | log", "",
+	)
+	t.Cleanup(func() { _ = saves.Abort() })
+	require.Empty(t, errMsg)
+	assert.True(t, flags.Resolve)
+	assert.True(t, flags.Origin)
+}
 
 func TestParsePingMonitorArgs(t *testing.T) {
 	mp, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4")

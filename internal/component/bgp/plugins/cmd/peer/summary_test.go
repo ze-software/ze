@@ -683,13 +683,12 @@ func firstPeerRow(t *testing.T, resp *plugin.Response) plugin.Map {
 // for each matched peer.
 type peerRowHandler func(*pluginserver.CommandContext, []string) (*plugin.Response, error)
 
-// answerSpelling describes the SHAPE of an answer, so two answers can be
-// compared on shape alone: the shape the pipe layer derives from it, its sorted
-// top-level keys, and the number of rows `| count` finds in it.
+// answerSpelling describes the externally visible spelling of an answer: its
+// sorted top-level keys and the number of rows `| count` finds in its encoded
+// form.
 type answerSpelling struct {
-	shape command.AnswerShape
-	keys  []string
-	rows  int
+	keys []string
+	rows int
 }
 
 // testPeers builds count peers at 192.0.2.1 upwards, each established with a
@@ -742,7 +741,7 @@ func spellingOf(t *testing.T, handler peerRowHandler, peers []plugin.PeerInfo, s
 	}
 	require.NoError(t, json.Unmarshal([]byte(counted), &counter))
 
-	spelling := answerSpelling{shape: command.ShapeOfAnswer(decoded), rows: counter.Count}
+	spelling := answerSpelling{rows: counter.Count}
 	envelope, isMap := decoded.(map[string]any)
 	require.True(t, isMap, "the answer is not an envelope: %s", encoded)
 	for key := range envelope {
@@ -764,16 +763,13 @@ func assertOneShapeWhateverTheInput(t *testing.T, handler peerRowHandler) {
 
 	// The several-peer answer is pinned too. Without it, a later change that
 	// moved the many-peer branch to the one-peer spelling would leave the
-	// equalities below green while both shapes changed together.
-	assert.Equal(t, command.ShapeMap, severalMatched.shape)
+	// equalities below green while both spellings changed together.
 	assert.Equal(t, []string{"peers"}, severalMatched.keys)
 	assert.Equal(t, 3, severalMatched.rows)
 
-	assert.Equal(t, severalMatched.shape, oneOfSeveral.shape)
 	assert.Equal(t, severalMatched.keys, oneOfSeveral.keys)
 	assert.Equal(t, 1, oneOfSeveral.rows)
 
-	assert.Equal(t, severalMatched.shape, oneConfigured.shape)
 	assert.Equal(t, severalMatched.keys, oneConfigured.keys)
 	assert.Equal(t, 1, oneConfigured.rows)
 }

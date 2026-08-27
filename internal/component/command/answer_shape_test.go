@@ -56,6 +56,11 @@ func TestRowsInFindsTheRows(t *testing.T) {
 			payload: `{"peers":[]}`,
 			want:    0, wantKey: "peers", wantOK: true,
 		},
+		{
+			name:    "an empty identity map under its envelope is zero rows",
+			payload: `{"peers":{}}`,
+			want:    0, wantKey: "peers", wantOK: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -79,10 +84,10 @@ func TestRowsInFindsTheRows(t *testing.T) {
 // TestShapeOfAnswerSeparatesRowsFromOneValue is what makes a refusal possible
 // on a command that declared nothing.
 func TestShapeOfAnswerSeparatesRowsFromOneValue(t *testing.T) {
-	if got := ShapeOfAnswer(decode(t, `{"peers":[{"a":1}]}`)); got != ShapeMap {
+	if got := shapeOfAnswer(decode(t, `{"peers":[{"a":1}]}`)); got != ShapeMap {
 		t.Errorf("an envelope of rows has shape %v, want map", got)
 	}
-	if got := ShapeOfAnswer(decode(t, `{"version":"ze dev"}`)); got != ShapeDoc {
+	if got := shapeOfAnswer(decode(t, `{"version":"ze dev"}`)); got != ShapeDoc {
 		t.Errorf("one value has shape %v, want doc", got)
 	}
 }
@@ -270,10 +275,42 @@ func TestDeclaredShapeRefusesTheAddressOperators(t *testing.T) {
 	RegisterAddressFields([]string{"show rows withfields"}, "address")
 
 	ops := []pipeOp{{kind: pipeOrigin}}
+
+	// An address list without a shape declaration is not a declaration of an
+	// answer. Both operators must be refused before they can guess from data.
+	RegisterAddressFields([]string{"show undeclared"}, "address")
+	if msg := validateDeclaredShape("show undeclared", ops); msg == "" {
+		t.Error("origin was accepted on an undeclared command")
+	}
 	if msg := validateDeclaredShape("show rows nofields", ops); msg == "" {
 		t.Error("origin was accepted on a command declaring no address field")
 	}
 	if msg := validateDeclaredShape("show rows withfields", ops); msg != "" {
 		t.Errorf("origin was refused on a command that declares one: %s", msg)
+	}
+}
+
+// TestEmptyKeyedEnvelopeStaysZeroRows drives the exact reviewed payload through
+// both row operators that previously reinterpreted its envelope as a row.
+//
+// VALIDATES: IR-8 -- {"peers":{}} is a keyed row set containing zero rows.
+// PREVENTS: count answering one, or first replacing the envelope with one empty
+// row.
+func TestEmptyKeyedEnvelopeStaysZeroRows(t *testing.T) {
+	const input = `{"peers":{}}`
+	counted, msg := applyCount(input)
+	if msg != "" {
+		t.Fatalf("count refused the empty keyed answer: %s", msg)
+	}
+	if counted != "{\"count\":0}\n" {
+		t.Errorf("count = %q, want %q", counted, "{\"count\":0}\n")
+	}
+
+	taken, msg := applyFirst(input, "1")
+	if msg != "" {
+		t.Fatalf("first refused the empty keyed answer: %s", msg)
+	}
+	if taken != input {
+		t.Errorf("first changed the empty keyed answer: got %s, want %s", taken, input)
 	}
 }

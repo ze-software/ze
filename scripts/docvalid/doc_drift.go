@@ -15,15 +15,15 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	osexec "os/exec"
-
-	"github.com/ze-software/ze/internal/component/command"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -31,8 +31,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
-
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/stringsx"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -43,6 +43,8 @@ func main() {
 	rootFlag := flag.String("root", "", "repository root to check")
 	writeGenerated := flag.Bool("write-generated", false,
 		"rewrite the generated documentation this tool checks, instead of checking it")
+	commandCatalogPath := flag.String("command-catalog", "",
+		"read the live command catalog from this JSON file instead of generating it")
 	flag.Parse()
 
 	root := *rootFlag
@@ -64,7 +66,7 @@ func main() {
 		return
 	}
 
-	issues := runChecks(root)
+	issues := runChecks(root, *commandCatalogPath)
 
 	if len(issues) == 0 {
 		fmt.Println("No documentation drift detected.")
@@ -93,7 +95,7 @@ type issue struct {
 	Detail  string
 }
 
-func runChecks(root string) []issue {
+func runChecks(root, commandCatalogPath string) []issue {
 	var issues []issue
 
 	pluginNames := registryPluginNames()
@@ -112,7 +114,7 @@ func runChecks(root string) []issue {
 	issues = append(issues, checkFunctionalTestsMD(root, releaseGateSuites)...)
 	issues = append(issues, checkMakefileHelp(root, releaseGateSuites)...)
 	issues = append(issues, checkForbiddenDocClaims(root)...)
-	issues = append(issues, checkPipeOperatorReference(root)...)
+	issues = append(issues, checkPipeOperatorReference(root, commandCatalogPath)...)
 	issues = append(issues, unreadableFiles...)
 
 	return issues
@@ -947,25 +949,27 @@ func findModuleRoot() (string, error) {
 // page links to instead of listing the operators itself.
 const pipeOperatorReferencePath = "docs/features/pipe-operators.generated.md"
 
-// checkPipeOperatorReference fails when the published operator table and the
-// operator catalog disagree.
-//
-// This is the gate the whole surface needed. The set used to be hand-copied
-// into five places and no two agreed: Tab completion had all sixteen, two
-// different pages had two different tens, and `display` and `fill` appeared in
-// none of the lists a user or a tool could reach. Nothing could see that,
-// because no check compared a published list against the product.
-//
-// The comparison is exact rather than a name-by-name search, so a description
-// or an argument kind that changes in the catalog and not on the page is caught
-// as well as a missing operator.
-func checkPipeOperatorReference(root string) []issue {
-	// This tool is also run with --root pointing at a fixture tree holding one
-	// or two documents, to check a single claim. Such a tree owes no generated
-	// operator table, and reporting one missing there is a finding about the
-	// fixture rather than about the documentation. The directory the table
-	// lives in is the sentinel: absent, there is nothing here to judge.
-	if info, statErr := os.Stat(filepath.Join(root, "docs", "features")); statErr != nil || !info.IsDir() {
+// checkPipeOperatorReference fails when either the global operator table or a
+// generated per-command surface disagrees with its live catalog.
+func checkPipeOperatorReference(root, commandCatalogPath string) []issue {
+	issues := checkGlobalPipeOperatorReference(root)
+
+	return append(issues, checkPublishedCommandSurfaces(root, commandCatalogPath)...)
+}
+func checkGlobalPipeOperatorReference(root string) []issue {
+	featuresDir := filepath.Join(root, "docs", "features")
+	info, err := os.Stat(featuresDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return []issue{{
+			File:    pipeOperatorReferencePath,
+			Message: "could not inspect the generated pipe operator reference",
+			Detail:  err.Error(),
+		}}
+	}
+	if !info.IsDir() {
 		return nil
 	}
 
@@ -978,8 +982,7 @@ func checkPipeOperatorReference(root string) []issue {
 			Detail:  "run `make ze-docs-pipe-operators-update`",
 		}}
 	}
-	want := command.RenderOperatorReference()
-	if string(published) == want {
+	if string(published) == command.RenderOperatorReference() {
 		return nil
 	}
 	return []issue{{
@@ -988,6 +991,378 @@ func checkPipeOperatorReference(root string) []issue {
 		Detail: "the catalog in internal/component/command/pipe_catalog.go is the source; " +
 			"run `make ze-docs-pipe-operators-update`",
 	}}
+}
+
+type publishedCommandArg struct {
+	Name      string   `json:"name"`
+	Type      string   `json:"type"`
+	Values    []string `json:"values,omitempty"`
+	Mandatory bool     `json:"mandatory,omitempty"`
+}
+
+type publishedCommandPipe struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	TakesArg    bool   `json:"takes-arg,omitempty"`
+}
+
+type publishedCommandOperator struct {
+	Name        string `json:"name"`
+	Class       string `json:"class"`
+	Available   string `json:"available"`
+	LocalOnly   bool   `json:"local-only,omitempty"`
+	Description string `json:"description"`
+}
+
+type publishedCommandAlias struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Expansion   string `json:"expansion"`
+}
+
+type publishedCommand struct {
+	Path          string                     `json:"path"`
+	Description   string                     `json:"description,omitempty"`
+	Mode          string                     `json:"mode"`
+	WireMethod    string                     `json:"wire-method,omitempty"`
+	Backend       []string                   `json:"backend,omitempty"`
+	TaskSupport   string                     `json:"task-support,omitempty"`
+	Args          []publishedCommandArg      `json:"args,omitempty"`
+	Pipes         []publishedCommandPipe     `json:"pipes,omitempty"`
+	Operators     []publishedCommandOperator `json:"operators,omitempty"`
+	AnswerShape   string                     `json:"answer-shape,omitempty"`
+	AddressFields []string                   `json:"address-fields,omitempty"`
+	Aliases       []publishedCommandAlias    `json:"pipe-aliases,omitempty"`
+	Syntax        string                     `json:"syntax,omitempty"`
+	Subcommands   []string                   `json:"subcommands,omitempty"`
+}
+
+const commandCatalogGenerationTimeout = 2 * time.Minute
+
+func checkPublishedCommandSurfaces(root, commandCatalogPath string) []issue {
+	websiteCandidates := []string{
+		filepath.Join(filepath.Dir(root), "gh-pages", "data", "cli-commands.json"),
+	}
+	wikiCandidates := []string{
+		filepath.Join(filepath.Dir(root), "wiki", "command-catalog.md"),
+	}
+	if commandCatalogPath != "" {
+		websiteCandidates = []string{
+			filepath.Join(root, "website", "data", "cli-commands.json"),
+		}
+		wikiCandidates = []string{
+			filepath.Join(root, "wiki", "command-catalog.md"),
+		}
+	}
+	websitePaths, websitePathErr := existingPaths(websiteCandidates...)
+	wikiPaths, wikiPathErr := existingPaths(wikiCandidates...)
+	if websitePathErr != nil {
+		return []issue{commandSurfaceReadIssue("website command catalog", websitePathErr)}
+	}
+	if wikiPathErr != nil {
+		return []issue{commandSurfaceReadIssue("wiki command catalog", wikiPathErr)}
+	}
+	if len(websitePaths) == 0 {
+		if len(wikiPaths) == 0 {
+			return nil
+		}
+	}
+
+	liveRaw, live, err := loadLiveCommandCatalog(root, commandCatalogPath)
+	if err != nil {
+		return []issue{{
+			File:    "cmd/ze/help_command.go",
+			Message: "could not generate or parse the live per-command catalog",
+			Detail:  err.Error(),
+		}}
+	}
+
+	var issues []issue
+	for _, path := range websitePaths {
+		issues = append(issues, compareWebsiteCommandCatalog(root, path, live)...)
+	}
+	for _, path := range wikiPaths {
+		issues = append(issues, compareWikiCommandCatalog(root, path, liveRaw)...)
+	}
+	return issues
+}
+
+func existingPaths(paths ...string) ([]string, error) {
+	var existing []string
+	for _, path := range paths {
+		info, err := os.Stat(path)
+		if err == nil {
+			if info.IsDir() {
+				return nil, fmt.Errorf("%s is a directory", path)
+			}
+			existing = append(existing, path)
+			continue
+		}
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("read %s: %w", path, err)
+		}
+		parent, parentErr := os.Stat(filepath.Dir(path))
+		if parentErr == nil {
+			if !parent.IsDir() {
+				return nil, fmt.Errorf("%s is not a directory", filepath.Dir(path))
+			}
+			return nil, fmt.Errorf("%s is missing", path)
+		}
+		if !os.IsNotExist(parentErr) {
+			return nil, fmt.Errorf("inspect %s: %w", filepath.Dir(path), parentErr)
+		}
+	}
+	return existing, nil
+}
+
+func commandSurfaceReadIssue(surface string, err error) issue {
+	return issue{
+		File:    surface,
+		Message: "could not read the published per-command surface",
+		Detail:  err.Error(),
+	}
+}
+
+func loadLiveCommandCatalog(root, commandCatalogPath string) ([]byte, []publishedCommand, error) {
+	if commandCatalogPath != "" {
+		data, err := os.ReadFile(commandCatalogPath) //nolint:gosec // caller-selected fixture or repository artifact
+		if err != nil {
+			return nil, nil, fmt.Errorf("read command catalog %s: %w", commandCatalogPath, err)
+		}
+		commands, err := parseCommandCatalog(commandCatalogPath, data)
+		return data, commands, err
+	}
+
+	tags, err := shippedCommandCatalogTags(root)
+	if err != nil {
+		return nil, nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), commandCatalogGenerationTimeout)
+	defer cancel()
+	args := []string{"run", "-tags", strings.Join(tags, ","), "./cmd/ze", "help", "command", "--json"}
+	cmd := osexec.CommandContext(ctx, "go", args...)
+	cmd.Dir = root
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	data, err := cmd.Output()
+	if err != nil {
+		return nil, nil, fmt.Errorf("generate `ze help command --json`: %w: %s",
+			err, strings.TrimSpace(stderr.String()))
+	}
+	commands, err := parseCommandCatalog("ze help command --json", data)
+	return data, commands, err
+}
+
+func shippedCommandCatalogTags(root string) ([]string, error) {
+	data, err := os.ReadFile(filepath.Join(root, "feature-gates.txt"))
+	if err != nil {
+		return nil, fmt.Errorf("read feature-gates.txt for command generation: %w", err)
+	}
+	tags := []string{"ze_core"}
+	seen := map[string]bool{"ze_core": true}
+	for line := range strings.SplitSeq(string(data), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		if strings.HasPrefix(fields[0], "#") {
+			continue
+		}
+		if !seen[fields[0]] {
+			seen[fields[0]] = true
+			tags = append(tags, fields[0])
+		}
+	}
+	return tags, nil
+}
+
+func parseCommandCatalog(source string, data []byte) ([]publishedCommand, error) {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	var commands []publishedCommand
+	if err := decoder.Decode(&commands); err != nil {
+		return nil, fmt.Errorf("parse %s: %w", source, err)
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return nil, fmt.Errorf("parse %s: content follows the command array", source)
+		}
+		return nil, fmt.Errorf("parse %s after command array: %w", source, err)
+	}
+	if len(commands) == 0 {
+		return nil, fmt.Errorf("parse %s: command array is empty", source)
+	}
+	seen := make(map[string]bool, len(commands))
+	for _, entry := range commands {
+		if err := validatePublishedCommand(source, entry, seen); err != nil {
+			return nil, err
+		}
+		seen[entry.Path] = true
+	}
+	return commands, nil
+}
+
+func validatePublishedCommand(source string, entry publishedCommand, seen map[string]bool) error {
+	if entry.Path == "" {
+		return fmt.Errorf("parse %s: command has an empty path", source)
+	}
+	if seen[entry.Path] {
+		return fmt.Errorf("parse %s: command path %q appears twice", source, entry.Path)
+	}
+	if entry.Mode == "" {
+		return fmt.Errorf("parse %s: command %q has no mode", source, entry.Path)
+	}
+	switch entry.AnswerShape {
+	case "", "doc", "map", "tab":
+	default:
+		return fmt.Errorf("parse %s: command %q has unknown answer shape %q",
+			source, entry.Path, entry.AnswerShape)
+	}
+	for _, arg := range entry.Args {
+		if arg.Name == "" {
+			return fmt.Errorf("parse %s: command %q has an argument without a name", source, entry.Path)
+		}
+		if arg.Type == "" {
+			return fmt.Errorf("parse %s: command %q argument %q has no kind", source, entry.Path, arg.Name)
+		}
+	}
+	for _, pipe := range entry.Pipes {
+		if pipe.Name == "" {
+			return fmt.Errorf("parse %s: command %q has a filter without a name", source, entry.Path)
+		}
+		if pipe.Description == "" {
+			return fmt.Errorf("parse %s: command %q filter %q has no description", source, entry.Path, pipe.Name)
+		}
+	}
+	for _, field := range entry.AddressFields {
+		if field == "" {
+			return fmt.Errorf("parse %s: command %q has an empty address field", source, entry.Path)
+		}
+	}
+	for _, op := range entry.Operators {
+		if op.Name == "" {
+			return fmt.Errorf("parse %s: command %q has an operator without a name", source, entry.Path)
+		}
+		if op.Class == "" {
+			return fmt.Errorf("parse %s: command %q operator %q has no class", source, entry.Path, op.Name)
+		}
+		if op.Description == "" {
+			return fmt.Errorf("parse %s: command %q operator %q has no description", source, entry.Path, op.Name)
+		}
+		switch op.Available {
+		case "always", "with-rows", "when-streaming":
+		default:
+			return fmt.Errorf("parse %s: command %q operator %q has unknown availability %q",
+				source, entry.Path, op.Name, op.Available)
+		}
+	}
+	for _, alias := range entry.Aliases {
+		if alias.Name == "" {
+			return fmt.Errorf("parse %s: command %q has an alias without a name", source, entry.Path)
+		}
+		if alias.Description == "" {
+			return fmt.Errorf("parse %s: command %q alias %q has no description", source, entry.Path, alias.Name)
+		}
+		if alias.Expansion == "" {
+			return fmt.Errorf("parse %s: command %q alias %q has no expansion", source, entry.Path, alias.Name)
+		}
+	}
+	return nil
+}
+
+func compareWebsiteCommandCatalog(root, path string, live []publishedCommand) []issue {
+	publishedRaw, err := os.ReadFile(path) //nolint:gosec // generated sibling checkout artifact
+	if err != nil {
+		return []issue{commandSurfaceReadIssue(commandSurfacePath(root, path), err)}
+	}
+	published, err := parseCommandCatalog(commandSurfacePath(root, path), publishedRaw)
+	if err != nil {
+		return []issue{{
+			File:    commandSurfacePath(root, path),
+			Message: "could not parse the published website command catalog",
+			Detail:  err.Error(),
+		}}
+	}
+	for i := range published {
+		// The website derives display syntax from the canonical description.
+		// It is not part of `ze help command --json`.
+		published[i].Syntax = ""
+	}
+	liveJSON, err := json.Marshal(live)
+	if err != nil {
+		return []issue{{
+			File:    commandSurfacePath(root, path),
+			Message: "could not encode the live website command catalog",
+			Detail:  err.Error(),
+		}}
+	}
+	publishedJSON, err := json.Marshal(published)
+	if err != nil {
+		return []issue{{
+			File:    commandSurfacePath(root, path),
+			Message: "could not encode the published website command catalog",
+			Detail:  err.Error(),
+		}}
+	}
+	if bytes.Equal(liveJSON, publishedJSON) {
+		return nil
+	}
+	return []issue{{
+		File:    commandSurfacePath(root, path),
+		Message: "the published website command catalog and the live command catalog disagree",
+		Detail: "regenerate the website CLI surface; every command's operators, qualifiers, aliases, " +
+			"filters, shape, address fields, descriptions, and argument kinds must match",
+	}}
+}
+
+func compareWikiCommandCatalog(root, path string, liveRaw []byte) []issue {
+	moduleRoot, err := findModuleRoot()
+	if err != nil {
+		return []issue{{
+			File:    commandSurfacePath(root, path),
+			Message: "could not locate the wiki command generator",
+			Detail:  err.Error(),
+		}}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), commandCatalogGenerationTimeout)
+	defer cancel()
+	cmd := osexec.CommandContext(ctx, "python3",
+		filepath.Join(moduleRoot, "scripts", "dev", "gen_wiki_commands.py"))
+	cmd.Dir = moduleRoot
+	cmd.Stdin = bytes.NewReader(liveRaw)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	want, err := cmd.Output()
+	if err != nil {
+		var detail textbuf.Buffer
+		return []issue{{
+			File:    commandSurfacePath(root, path),
+			Message: "could not generate the expected wiki command catalog",
+			Detail: detail.Err(err).Str(": ").
+				Str(strings.TrimSpace(stderr.String())).String(),
+		}}
+	}
+	published, err := os.ReadFile(path) //nolint:gosec // generated sibling checkout artifact
+	if err != nil {
+		return []issue{commandSurfaceReadIssue(commandSurfacePath(root, path), err)}
+	}
+	if bytes.Equal(published, want) {
+		return nil
+	}
+	return []issue{{
+		File:    commandSurfacePath(root, path),
+		Message: "the published wiki command catalog and the live command catalog disagree",
+		Detail:  "run `make ze-wiki-commands-update`; the wiki must preserve every per-command contract field",
+	}}
+}
+
+func commandSurfacePath(root, path string) string {
+	relative, err := filepath.Rel(root, path)
+	if err != nil {
+		return filepath.ToSlash(path)
+	}
+	return filepath.ToSlash(relative)
 }
 
 // writeGeneratedDocs rewrites the generated documentation this tool checks, so

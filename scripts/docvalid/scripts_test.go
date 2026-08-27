@@ -535,3 +535,126 @@ func TestDocDriftOperatorTableIgnoresFixtureRoots(t *testing.T) {
 		t.Fatalf("the operator-table check did not fire on a tree that owes one:\n%s", out)
 	}
 }
+
+// VALIDATES: The per-command website catalog is compared structurally with the
+// live `ze help command --json` contract.
+// PREVENTS: AC-15 passing after one command loses an operator, an availability
+// qualifier, or an alias while the global operator table remains unchanged.
+func TestDocDriftRejectsPerCommandCatalogMutations(t *testing.T) {
+	readToolSource(t, "doc_drift.go", "checkPublishedCommandSurfaces")
+	const liveCatalog = `[{
+  "path": "show test",
+  "description": "Show test rows",
+  "mode": "read-only",
+  "wire-method": "ze-show:test",
+  "args": [{"name": "family", "type": "enum", "values": ["ipv4"], "mandatory": true}],
+  "pipes": [{"name": "family", "description": "Filter by family", "takes-arg": true}],
+  "operators": [
+    {"name": "json", "class": "global", "available": "always", "description": "JSON output"},
+    {"name": "match", "class": "data", "available": "with-rows", "description": "Keep matching rows"},
+    {"name": "log", "class": "stream", "available": "when-streaming", "description": "Append updates"}
+  ],
+  "answer-shape": "tab",
+  "address-fields": ["address"],
+  "pipe-aliases": [{"name": "summary", "description": "Show a summary", "expansion": "display address"}]
+}]`
+
+	for _, tc := range []struct {
+		name      string
+		published string
+	}{
+		{
+			name: "one operator",
+			published: strings.Replace(
+				liveCatalog, `"name": "match"`, `"name": "count"`, 1),
+		},
+		{
+			name: "one qualifier",
+			published: strings.Replace(
+				liveCatalog, `"available": "when-streaming"`, `"available": "always"`, 1),
+		},
+		{
+			name: "one alias",
+			published: strings.Replace(
+				liveCatalog, `"name": "summary"`, `"name": "brief"`, 1),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := filepath.Join(root, "live.json")
+			writeTempDoc(t, root, "live.json", liveCatalog)
+			writeTempDoc(t, root, "website/data/cli-commands.json", tc.published)
+
+			ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
+			defer cancel()
+			cmd := osexec.CommandContext(ctx, "go", goRunScript(t,
+				"scripts/docvalid/doc_drift.go",
+				"--root", root,
+				"--command-catalog", livePath,
+			)...)
+			cmd.Dir = repoRoot(t)
+			out, err := cmd.CombinedOutput()
+			if err == nil {
+				t.Fatalf("doc drift accepted a per-command %s mutation:\n%s", tc.name, out)
+			}
+			if !strings.Contains(string(out),
+				"the published website command catalog and the live command catalog disagree") {
+				t.Fatalf("doc drift did not report the per-command %s mutation:\n%s", tc.name, out)
+			}
+		})
+	}
+}
+
+// VALIDATES: Per-command catalog read and parse failures are findings, never a
+// skipped comparison.
+// PREVENTS: AC-15 passing vacuously when command generation or a published
+// catalog cannot be consumed.
+func TestDocDriftCommandCatalogErrorsFailClosed(t *testing.T) {
+	readToolSource(t, "doc_drift.go", "loadLiveCommandCatalog")
+
+	t.Run("malformed published catalog", func(t *testing.T) {
+		root := t.TempDir()
+		livePath := filepath.Join(root, "live.json")
+		writeTempDoc(t, root, "live.json", `[{"path":"show test","mode":"read-only"}]`)
+		writeTempDoc(t, root, "website/data/cli-commands.json", `{`)
+
+		ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
+		defer cancel()
+		cmd := osexec.CommandContext(ctx, "go", goRunScript(t,
+			"scripts/docvalid/doc_drift.go",
+			"--root", root,
+			"--command-catalog", livePath,
+		)...)
+		cmd.Dir = repoRoot(t)
+		out, err := cmd.CombinedOutput()
+		if err == nil {
+			t.Fatalf("doc drift accepted malformed published JSON:\n%s", out)
+		}
+		if !strings.Contains(string(out), "could not parse the published website command catalog") {
+			t.Fatalf("doc drift did not report the published parse error:\n%s", out)
+		}
+	})
+
+	t.Run("unreadable live catalog", func(t *testing.T) {
+		root := t.TempDir()
+		missing := filepath.Join(root, "missing.json")
+		writeTempDoc(t, root, "website/data/cli-commands.json",
+			`[{"path":"show test","mode":"read-only"}]`)
+
+		ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
+		defer cancel()
+		cmd := osexec.CommandContext(ctx, "go", goRunScript(t,
+			"scripts/docvalid/doc_drift.go",
+			"--root", root,
+			"--command-catalog", missing,
+		)...)
+		cmd.Dir = repoRoot(t)
+		out, err := cmd.CombinedOutput()
+		if err == nil {
+			t.Fatalf("doc drift accepted an unreadable live catalog:\n%s", out)
+		}
+		if !strings.Contains(string(out), "could not generate or parse the live per-command catalog") {
+			t.Fatalf("doc drift did not report the live read error:\n%s", out)
+		}
+	})
+}

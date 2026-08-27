@@ -3,9 +3,8 @@
 // Detail: pipe_records.go — the same chain over a streamed answer, one record at a time
 // Related: format.go — YAML and number formatting
 //
-// pipe.go implements VyOS-style pipe operators for command output.
-// Users can append | match <pattern>, | count, | no-more, | json [compact|pretty],
-// | table, | yaml to any command.
+// pipe.go parses and applies the operators declared by pipeCatalog. The catalog
+// owns their names and argument contracts; this file carries no second list.
 //
 // The DAEMON runs the chain, not the client. A client sends the operator's text
 // with its pipes intact and prints the answer (cliClient.Execute,
@@ -56,11 +55,30 @@ const (
 	jsonCompact = "compact"
 )
 
-// pipeOp represents a single pipe operator with its argument.
+// pipeOp represents one parsed operator. Address declarations are bound when
+// the command is parsed, so both document and record paths transform the same
+// fields even after command-owned filters are folded into the command text.
+// selectionApplied marks display data already selected on the record path; the
+// renderer still reads its argument for column order.
 type pipeOp struct {
-	kind pipeKind
-	arg  string
+	kind             pipeKind
+	arg              string
+	addressFields    []string
+	selectionApplied bool
 }
+
+// pipeSurface says whether a caller receives one answer or a sequence.
+// ClassStream operators are accepted only on pipeSurfaceStream.
+type pipeSurface uint8
+
+const (
+	// pipeSurfaceUnspecified is not a valid execution surface.
+	pipeSurfaceUnspecified pipeSurface = iota
+	// pipeSurfaceOneShot receives one answer.
+	pipeSurfaceOneShot
+	// pipeSurfaceStream receives a sequence of answers.
+	pipeSurfaceStream
+)
 
 // ParsePipe splits user input into the command and a chain of pipe operators.
 // Input "show bgp peer list | match established | count" returns ("show bgp peer list", [{match,"established"}, {count,""}]).
@@ -95,20 +113,14 @@ func parsePipeOps(rest string) []pipeOp {
 		}
 
 		op := pipeOp{kind: kind}
-		switch kind { //nolint:exhaustive // only some operators take arguments
-		case pipeMatch, pipeDisplay, pipeFill, pipeSave:
-			if len(fields) > 1 {
-				op.arg = textbuf.Join(fields[1:], " ")
-			}
-		case pipeJSON:
+		if len(fields) > 1 {
+			// Validation reads the catalog's argument contract. Keeping every
+			// token here is what lets it reject surplus words instead of
+			// silently executing a shorter chain than the operator typed.
+			op.arg = textbuf.Join(fields[1:], " ")
+		}
+		if kind == pipeJSON && op.arg == "" {
 			op.arg = jsonPretty
-			if len(fields) > 1 && fields[1] == jsonCompact {
-				op.arg = jsonCompact
-			}
-		case pipeFirst, pipeLast:
-			if len(fields) > 1 {
-				op.arg = fields[1]
-			}
 		}
 		ops = append(ops, op)
 	}
@@ -124,7 +136,22 @@ func parsePipeOps(rest string) []pipeOp {
 // The ops that reach classification are therefore ops the parser already knows.
 func parsePipeChain(input string) (command string, ops []pipeOp) {
 	command, ops = ParsePipe(input)
-	return command, expandAliases(command, ops)
+	ops = expandAliases(command, ops)
+	return command, bindAddressFields(command, ops)
+}
+
+// bindAddressFields fixes the declaration onto each address operator before
+// command-owned filters change the command text. The declaration is copied so
+// a later registry withdrawal cannot change an in-flight chain.
+func bindAddressFields(command string, ops []pipeOp) []pipeOp {
+	fields := AddressFieldsForCommand(command)
+	for i := range ops {
+		if ops[i].kind != pipeResolve && ops[i].kind != pipeOrigin {
+			continue
+		}
+		ops[i].addressFields = append([]string(nil), fields...)
+	}
+	return ops
 }
 
 // expandAliases replaces each alias in a chain with the operators it names.
@@ -176,7 +203,7 @@ func expandAliases(command string, ops []pipeOp) []pipeOp {
 // Every other operator stays in the chain ApplyPipes runs over the answer.
 // Returns pipe metadata recording all data-shaping modifiers (both folded
 // and remaining). Display-only pipes are excluded from metadata.
-func foldFilters(command string, ops []pipeOp) (string, []pipeOp, PipeChainMeta) {
+func foldFilters(command string, ops []pipeOp) (string, []pipeOp, pipeChainMeta) {
 	meta := collectPipeMeta(ops)
 
 	trimmed := strings.TrimSpace(command)
@@ -252,47 +279,47 @@ func foldFilters(command string, ops []pipeOp) (string, []pipeOp, PipeChainMeta)
 	return command, chainOps, meta
 }
 
-// PipeChainStep is one operator that shaped an answer.
-type PipeChainStep struct {
+// pipeChainStep is one operator that shaped an answer.
+type pipeChainStep struct {
 	Op  string `json:"op"`
 	Arg string `json:"arg,omitempty"`
 }
 
-// PipeChainMeta records the operators that shaped an answer, IN CHAIN ORDER.
+// pipeChainMeta records the operators that shaped an answer, IN CHAIN ORDER.
 //
 // It was a map keyed by operator name, which could not record a chain that
 // repeats one: `match idle | match 192` wrote meta["match"] twice and published
 // only "192", so the key a tool author parses under-reported the chain that
 // actually ran. A map has no order either, and order is what a chain is.
-type PipeChainMeta []PipeChainStep
+type pipeChainMeta []pipeChainStep
 
-// collectPipeMeta records the data-shaping pipe ops, in chain order.
-// Display-only pipes (json, ndjson, table, text, yaml, resolve, origin, log, no-more)
-// are excluded: they change no data, so they shaped nothing to report.
-func collectPipeMeta(ops []pipeOp) PipeChainMeta {
-	var meta PipeChainMeta
+// collectPipeMeta records row-selection operators in chain order. Output
+// formats, enrichment, display modes and paging are excluded: they remain
+// visible in the command text but do not explain why a row was kept or removed.
+func collectPipeMeta(ops []pipeOp) pipeChainMeta {
+	var meta pipeChainMeta
 	for _, op := range ops {
 		switch op.kind { //nolint:exhaustive // only data-shaping ops
 		case pipeMatch:
-			meta = append(meta, PipeChainStep{Op: "match", Arg: op.arg})
+			meta = append(meta, pipeChainStep{Op: "match", Arg: op.arg})
 		case pipeCount:
-			meta = append(meta, PipeChainStep{Op: "count"})
+			meta = append(meta, pipeChainStep{Op: "count"})
 		case pipeFirst:
 			if _, err := strconv.Atoi(op.arg); err == nil {
-				meta = append(meta, PipeChainStep{Op: "first", Arg: op.arg})
+				meta = append(meta, pipeChainStep{Op: "first", Arg: op.arg})
 			}
 		case pipeLast:
 			if _, err := strconv.Atoi(op.arg); err == nil {
-				meta = append(meta, PipeChainStep{Op: "last", Arg: op.arg})
+				meta = append(meta, pipeChainStep{Op: "last", Arg: op.arg})
 			}
 		case pipeUnknown:
 			// A command-owned filter or an alias the fold left behind, which
 			// shaped the answer as much as a generic operator did.
 			fields := strings.Fields(op.arg)
 			if len(fields) == 1 {
-				meta = append(meta, PipeChainStep{Op: fields[0]})
+				meta = append(meta, pipeChainStep{Op: fields[0]})
 			} else if len(fields) >= 2 {
-				meta = append(meta, PipeChainStep{Op: fields[0], Arg: textbuf.Join(fields[1:], " ")})
+				meta = append(meta, pipeChainStep{Op: fields[0], Arg: textbuf.Join(fields[1:], " ")})
 			}
 		}
 	}
@@ -351,8 +378,8 @@ func appendFilter(args []string, filter PipeFilter, value string) []string {
 // Returns the filtered output and an error message (empty on success).
 // Rejects a chain that names more than one format operator. isFormatOp states
 // which operators those are, and it is the only place that set is written.
-// If meta is non-nil, injects a "pipe" key into JSON output before formatting.
-//
+// Metadata is injected only after the last data transform, so infrastructure
+// never becomes a row set a later operator can select, count, match, or truncate.
 // columns carries the column order the command declared, which reaches the
 // table and text renderers only. A program reads json, ndjson and yaml, and
 // column order carries no meaning for a program (owner directive, 2026-08-19).
@@ -362,12 +389,16 @@ func appendFilter(args []string, filter PipeFilter, value string) []string {
 // so does the sequence an `| fill` asks for. SELECTION reaches every format,
 // because which fields to answer with is a question the operator asked out
 // loud rather than a rendering choice.
-func ApplyPipes(output string, ops []pipeOp, meta PipeChainMeta, columns []ColumnOrder) (string, string) {
+func ApplyPipes(output string, ops []pipeOp, meta pipeChainMeta, columns []ColumnOrder) (string, string) {
 	request := columnsInChain(ops)
 	formatCount := 0
-	for _, op := range ops {
+	lastTransform := -1
+	for i, op := range ops {
 		if isFormatOp(op.kind) {
 			formatCount++
+		}
+		if isDataTransformOp(op.kind) {
+			lastTransform = i
 		}
 		if op.kind == pipeRaw {
 			// raw answers a program, not a reader. Pipe metadata is display
@@ -382,10 +413,18 @@ func ApplyPipes(output string, ops []pipeOp, meta PipeChainMeta, columns []Colum
 
 	result := output
 	metaInjected := false
-	for _, op := range ops {
-		if !metaInjected && isFormatOp(op.kind) {
-			result = injectPipeMeta(result, meta)
-			metaInjected = true
+	for i, op := range ops {
+		if !metaInjected {
+			if isFormatOp(op.kind) {
+				if i > lastTransform {
+					var msg string
+					result, msg = injectPipeMeta(result, meta)
+					if msg != "" {
+						return "", msg
+					}
+					metaInjected = true
+				}
+			}
 		}
 		switch op.kind {
 		case pipeMatch:
@@ -406,7 +445,7 @@ func ApplyPipes(output string, ops []pipeOp, meta PipeChainMeta, columns []Colum
 		case pipeNoMore:
 			// No-op: paging not yet implemented
 		case pipeJSON:
-			result = ApplyJSON(result, op.arg)
+			result = applyJSON(result, op.arg)
 		case pipeNDJSON:
 			result = applyNDJSON(result)
 		case pipeTable:
@@ -418,9 +457,15 @@ func ApplyPipes(output string, ops []pipeOp, meta PipeChainMeta, columns []Colum
 		case pipeRaw:
 			// Identity: the dispatcher's JSON is already the answer.
 		case pipeResolve:
-			result = applyResolve(result)
+			if len(op.addressFields) == 0 {
+				return "", addressOperatorRefusal("resolve")
+			}
+			result = applyResolve(result, op.addressFields)
 		case pipeOrigin:
-			result = applyOrigin(result)
+			if len(op.addressFields) == 0 {
+				return "", addressOperatorRefusal("origin")
+			}
+			result = applyOrigin(result, op.addressFields)
 		case pipeFirst:
 			taken, msg := applyFirst(result, op.arg)
 			if msg != "" {
@@ -434,7 +479,14 @@ func ApplyPipes(output string, ops []pipeOp, meta PipeChainMeta, columns []Colum
 			}
 			result = taken
 		case pipeDisplay:
-			result = applyDisplaySelect(result, request)
+			if op.selectionApplied {
+				continue
+			}
+			selected, msg := applyDisplaySelect(result, request)
+			if msg != "" {
+				return "", msg
+			}
+			result = selected
 		case pipeFill:
 			// A sequence for the remaining fields, which changes no data. The
 			// renderers read it from tableStyle.
@@ -452,7 +504,11 @@ func ApplyPipes(output string, ops []pipeOp, meta PipeChainMeta, columns []Colum
 		}
 	}
 	if !metaInjected {
-		result = injectPipeMeta(result, meta)
+		var msg string
+		result, msg = injectPipeMeta(result, meta)
+		if msg != "" {
+			return "", msg
+		}
 	}
 	if paths := savePathsInChain(ops); len(paths) > 0 {
 		if msg := applySaves(result, paths); msg != "" {
@@ -481,9 +537,8 @@ func hasFormatOp(ops []pipeOp) bool {
 // (json, ndjson, table, text, yaml).
 //
 // A caller that carries a default format of its own uses this to step aside:
-// what the operator typed outranks a default. ProcessPipesDetectLog already
-// applies that precedence internally, by appending the configured default only
-// when the chain names no format. A caller that goes through
+// what the operator typed outranks a default. ProcessStreamPipes already
+// applies that precedence internally. A caller that goes through
 // ProcessPipesChecked has to apply it itself, and this is what it asks.
 func HasFormatPipe(input string) bool {
 	command, ops := parsePipeChain(input)
@@ -491,11 +546,21 @@ func HasFormatPipe(input string) bool {
 	return hasFormatOp(ops)
 }
 
-// ValidatePipes checks a pipe chain for errors without running it.
-// Returns an error message if invalid, empty string if OK.
+// ValidatePipes validates a one-shot pipe chain. ClassStream operators are
+// refused because this API has no streaming lifecycle to honor them.
 func ValidatePipes(ops []pipeOp) string {
+	if msg := validatePipeLanguage(ops); msg != "" {
+		return msg
+	}
+	return validateStreamOps(ops, pipeSurfaceOneShot)
+}
+
+func validatePipeLanguage(ops []pipeOp) string {
 	formatCount := 0
 	for _, op := range ops {
+		if msg := validatePipeArgument(op); msg != "" {
+			return msg
+		}
 		if op.kind == pipeInvalid {
 			return op.arg
 		}
@@ -506,37 +571,22 @@ func ValidatePipes(ops []pipeOp) string {
 		if isFormatOp(op.kind) {
 			formatCount++
 		}
-		if op.kind == pipeMatch && op.arg == "" {
-			return "match requires a pattern"
-		}
 		if op.kind == pipeDisplay {
-			// A display that names no field selects nothing. Saying so beats
-			// an answer the operator cannot tell from a command that produced
-			// no data.
 			if msg := displayError(op.arg); msg != "" {
 				return msg
 			}
 		}
 		if op.kind == pipeFill {
-			// A word nobody reads is a request nobody answered, so an
-			// unrecognized way is refused by name rather than ignored.
 			if msg := fillError(op.arg); msg != "" {
 				return msg
 			}
 		}
-		if op.kind == pipeFirst || op.kind == pipeLast {
-			name := "first"
-			if op.kind == pipeLast {
-				name = "last"
-			}
-			if op.arg == "" {
-				var tb textbuf.Buffer
-				return tb.Str(name).Str(" requires a numeric argument").String()
-			}
+		if op.kind == pipeLast {
 			n, err := strconv.Atoi(op.arg)
-			if err != nil || n <= 0 {
-				var tb textbuf.Buffer
-				return tb.Str(name).Str(" requires a positive number").String()
+			if err == nil {
+				if n > recordsLastLimit {
+					return lastRetentionCountError(op.arg)
+				}
 			}
 		}
 	}
@@ -549,25 +599,106 @@ func ValidatePipes(ops []pipeOp) string {
 	if msg := validateDisplayNarrowing(ops); msg != "" {
 		return msg
 	}
-	// The surface half of the save rules is checked by the entry point, which
-	// is the only place that knows whose filesystem the write would land on.
-	if msg := validateSaveOps(ops, true); msg != "" {
-		return msg
-	}
+	// The entry point checks the surface-dependent stream and save rules.
 	return ""
 }
 
-// validatePipesForSurface is ValidatePipes plus the rule that depends on WHICH
-// process expands the chain: `| save` writes a file, so it is refused when the
-// daemon is expanding the chain for a remote caller.
-func validatePipesForSurface(command string, ops []pipeOp, saveAllowed bool) string {
-	if msg := ValidatePipes(ops); msg != "" {
+// validatePipeArgument applies the catalog's argument contract to the complete
+// argument text the parser preserved.
+func validatePipeArgument(op pipeOp) string {
+	entry, known := lookupPipeOperatorByKind(op.kind)
+	if !known {
+		return ""
+	}
+	fields := strings.Fields(op.arg)
+	switch entry.Arg {
+	case ArgNone:
+		if len(fields) == 0 {
+			return ""
+		}
+		var tb textbuf.Buffer
+		return tb.Str(entry.Name).Str(" does not accept an argument").String()
+	case ArgOptional:
+		if op.kind != pipeJSON {
+			return ""
+		}
+		if len(fields) != 1 {
+			return "json accepts one optional argument: pretty or compact"
+		}
+		if fields[0] == jsonPretty {
+			return ""
+		}
+		if fields[0] == jsonCompact {
+			return ""
+		}
+		return "json accepts one optional argument: pretty or compact"
+	case ArgText:
+		if len(fields) > 0 {
+			return ""
+		}
+		if op.kind == pipeMatch {
+			return "match requires a pattern"
+		}
+		var tb textbuf.Buffer
+		return tb.Str(entry.Name).Str(" requires text").String()
+	case ArgCount:
+		if len(fields) == 0 {
+			var tb textbuf.Buffer
+			return tb.Str(entry.Name).Str(" requires a numeric argument").String()
+		}
+		if len(fields) > 1 {
+			var tb textbuf.Buffer
+			return tb.Str(entry.Name).Str(" accepts one numeric argument").String()
+		}
+		n, err := strconv.Atoi(fields[0])
+		if err != nil {
+			var tb textbuf.Buffer
+			return tb.Str(entry.Name).Str(" requires a positive number").String()
+		}
+		if n <= 0 {
+			var tb textbuf.Buffer
+			return tb.Str(entry.Name).Str(" requires a positive number").String()
+		}
+		return ""
+	case ArgPath:
+		if strings.TrimSpace(op.arg) != "" {
+			return ""
+		}
+		var tb textbuf.Buffer
+		return tb.Str(entry.Name).Str(" requires a path to write to").String()
+	default:
+		return ""
+	}
+}
+
+// validatePipesForSurface validates the operator language and the two
+// properties that only an entry point knows: whether the command streams, and
+// whether filesystem effects belong to the local operator.
+func validatePipesForSurface(command string, ops []pipeOp, surface pipeSurface, saveAllowed bool) string {
+	if msg := validatePipeLanguage(ops); msg != "" {
+		return msg
+	}
+	if msg := validateStreamOps(ops, surface); msg != "" {
 		return msg
 	}
 	if msg := validateSaveOps(ops, saveAllowed); msg != "" {
 		return msg
 	}
 	return validateDeclaredShape(command, ops)
+}
+
+func validateStreamOps(ops []pipeOp, surface pipeSurface) string {
+	for _, op := range ops {
+		entry, known := lookupPipeOperatorByKind(op.kind)
+		if !known || entry.Class != ClassStream {
+			continue
+		}
+		if surface != pipeSurfaceStream {
+			var tb textbuf.Buffer
+			return tb.Str(entry.Name).Str(" requires a streaming command").String()
+		}
+	}
+	return ""
 }
 
 // validateDisplayNarrowing refuses a chain whose `| display` requests have no
@@ -607,20 +738,23 @@ func validateDisplayNarrowing(ops []pipeOp) string {
 // fifteen.
 func validateDeclaredShape(command string, ops []pipeOp) string {
 	shape, declared := ShapeForCommand(command)
-	if !declared {
-		return ""
-	}
-	addressFields := len(AddressFieldsForCommand(command)) > 0
+	addressFields := AddressFieldsForCommand(command)
 
 	for _, op := range ops {
 		entry, known := lookupPipeOperatorByKind(op.kind)
 		if !known {
 			continue
 		}
-		if entry.NeedsAddressField && !addressFields {
-			var tb textbuf.Buffer
-			return tb.Str(entry.Name).Str(" cannot apply here: no field of this ").
-				Str("command's answer is declared to hold an IP address").String()
+		if entry.NeedsAddressField {
+			if !declared {
+				return addressOperatorRefusal(entry.Name)
+			}
+			if len(addressFields) == 0 {
+				return addressOperatorRefusal(entry.Name)
+			}
+		}
+		if !declared {
+			continue
 		}
 		if entry.Applies(shape) {
 			continue
@@ -634,6 +768,12 @@ func validateDeclaredShape(command string, ops []pipeOp) string {
 			Str(" acts on ").Str(operatorNeeds(entry)).String()
 	}
 	return ""
+}
+
+func addressOperatorRefusal(name string) string {
+	var tb textbuf.Buffer
+	return tb.Str(name).Str(" cannot apply here: no field of this ").
+		Str("command's answer is declared to hold an IP address").String()
 }
 
 // shapeDescription says what a shape holds, in the words a refusal reads best
@@ -867,32 +1007,47 @@ func isFormatOp(k pipeKind) bool {
 	return k == pipeJSON || k == pipeNDJSON || k == pipeTable || k == pipeText || k == pipeYAML || k == pipeRaw
 }
 
-func injectPipeMeta(input string, meta PipeChainMeta) string {
+// isDataTransformOp reports whether an operator changes or selects the answer
+// in hand. Metadata can be injected before a later format only after the last
+// such operator, or it would become input to that operator.
+func isDataTransformOp(k pipeKind) bool {
+	switch k {
+	case pipeMatch, pipeCount, pipeResolve, pipeOrigin, pipeFirst, pipeLast, pipeDisplay:
+		return true
+	default:
+		return false
+	}
+}
+
+func injectPipeMeta(input string, meta pipeChainMeta) (string, string) {
 	if len(meta) == 0 {
-		return input
+		return input, ""
 	}
 	trimmed := strings.TrimSpace(input)
 	var data any
 	if err := json.Unmarshal([]byte(trimmed), &data); err != nil {
-		return input
+		return input, ""
 	}
 	switch val := data.(type) {
 	case map[string]any:
+		if _, exists := val[pipeMetaKey]; exists {
+			return input, `pipe metadata cannot be added: answer already has field "pipe"; use | raw to preserve the unmodified answer`
+		}
 		val[pipeMetaKey] = meta
 		out, err := json.Marshal(val)
 		if err != nil {
-			return input
+			return input, ""
 		}
-		return string(out)
+		return string(out), ""
 	case []any:
 		wrapped := map[string]any{"data": val, pipeMetaKey: meta}
 		out, err := json.Marshal(wrapped)
 		if err != nil {
-			return input
+			return input, ""
 		}
-		return string(out)
+		return string(out), ""
 	}
-	return input
+	return input, ""
 }
 
 func applyFirst(input, arg string) (string, string) {
@@ -978,9 +1133,9 @@ func applyLastLines(input string, n int) string {
 	return b.String()
 }
 
-// ApplyJSON reformats JSON output as valid JSON. Single-key wrapper maps
+// applyJSON reformats JSON output as valid JSON. Single-key wrapper maps
 // containing arrays are unwrapped. "pretty" indents, "compact" produces one line.
-func ApplyJSON(input, mode string) string {
+func applyJSON(input, mode string) string {
 	var data any
 	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err != nil {
 		return input
@@ -1090,12 +1245,18 @@ func ProcessPipesChecked(input string) (command string, format func(string) stri
 	command, ops := parsePipeChain(input)
 	columns := ColumnsForCommand(command)
 	command, ops, meta := foldFilters(command, ops)
-	if msg := ValidatePipes(ops); msg != "" {
+	if msg := validatePipesForSurface(command, ops, pipeSurfaceOneShot, true); msg != "" {
 		return command, nil, msg
 	}
 
 	if len(ops) == 0 {
-		return command, func(s string) string { return injectPipeMeta(s, meta) }, ""
+		return command, func(s string) string {
+			result, msg := injectPipeMeta(s, meta)
+			if msg != "" {
+				return pipeError(msg)
+			}
+			return result
+		}, ""
 	}
 
 	return command, func(rawJSON string) string {
@@ -1115,19 +1276,19 @@ type PipeFlags struct {
 	HasFormat bool
 }
 
-// ProcessPipesDetectLog is like ProcessPipesDefaultFormatChecked but also reports
-// pipe flags (log, resolve, origin) and validates the pipe chain upfront.
-// Returns a non-empty errMsg if the pipe chain is invalid.
+// ProcessStreamPipes prepares a local streaming chain and reports its display
+// flags. The returned StreamSaves owns any `| save` temporary files. The caller
+// MUST write displayed event bytes to it, then call Commit after stream success
+// or Abort after any failure.
 //
-// sessionFormat is the caller's per-session format override; pass "" for none.
-// See configuredDefault.
-func ProcessPipesDetectLog(input, sessionFormat string) (cmd string, format func(string) string, flags PipeFlags, errMsg string) {
+// sessionFormat is the caller's per-session format override. Pass "" for none.
+func ProcessStreamPipes(input, sessionFormat string) (cmd string, format func(string) string, flags PipeFlags, saves *StreamSaves, errMsg string) {
 	cmd, ops := parsePipeChain(input)
 	columns := ColumnsForCommand(cmd)
 	cmd, ops, meta := foldFilters(cmd, ops)
 
-	if msg := ValidatePipes(ops); msg != "" {
-		return cmd, nil, PipeFlags{}, msg
+	if msg := validatePipesForSurface(cmd, ops, pipeSurfaceStream, true); msg != "" {
+		return cmd, nil, PipeFlags{}, nil, msg
 	}
 
 	flags.Log = hasLogOp(ops)
@@ -1140,17 +1301,22 @@ func ProcessPipesDetectLog(input, sessionFormat string) (cmd string, format func
 		}
 	}
 
-	// Strip log ops from the pipeline (display-mode, not a data transform).
+	saves, errMsg = openStreamSaves(savePathsInChain(ops))
+	if errMsg != "" {
+		return cmd, nil, PipeFlags{}, nil, errMsg
+	}
+
+	// The caller owns stream display mode and save lifecycle. ApplyPipes owns
+	// every operator that acts on one event.
 	filtered := ops[:0]
 	for _, op := range ops {
-		if op.kind != pipeLog {
+		if op.kind != pipeLog && op.kind != pipeSave {
 			filtered = append(filtered, op)
 		}
 	}
 	ops = filtered
 
 	flags.HasFormat = hasFormatOp(ops)
-
 	if !flags.HasFormat {
 		ops = append(ops, pipeOp{kind: configuredDefault(sessionFormat)})
 	}
@@ -1161,7 +1327,7 @@ func ProcessPipesDetectLog(input, sessionFormat string) (cmd string, format func
 			return pipeError(pipeErr)
 		}
 		return result
-	}, flags, ""
+	}, flags, saves, ""
 }
 
 var _ = env.MustRegister(env.EnvEntry{Key: "ze.cli.format", Type: "string", Default: "text", Description: "Default CLI output format (text, table, json, yaml, ndjson)"})
@@ -1229,7 +1395,7 @@ func processPipesDefaultFormat(input, sessionFormat string, saveAllowed bool) (c
 	command, ops := parsePipeChain(input)
 	columns := ColumnsForCommand(command)
 	command, ops, meta := foldFilters(command, ops)
-	if msg := validatePipesForSurface(command, ops, saveAllowed); msg != "" {
+	if msg := validatePipesForSurface(command, ops, pipeSurfaceOneShot, saveAllowed); msg != "" {
 		return command, nil, msg
 	}
 
@@ -1246,34 +1412,55 @@ func processPipesDefaultFormat(input, sessionFormat string, saveAllowed bool) (c
 	}, ""
 }
 
-// ProcessPipesDefaultFunc is like ProcessPipesChecked but applies defaultFn as the
-// formatter when no explicit format pipe (json, table, yaml, text) is specified.
-// This allows callers to provide a domain-specific formatter (e.g., compact
-// one-liner for streaming monitors) while still respecting explicit pipes.
-func ProcessPipesDefaultFunc(input string, defaultFn func(string) string) (command string, format func(string) string) {
+// ProcessStreamPipesDefaultFunc prepares a streaming chain and applies
+// defaultFn when the chain names no explicit format. The returned StreamSaves
+// owns any `| save` temporary files. The caller MUST write exactly the displayed
+// bytes to it, then call Commit after stream success or Abort after any failure.
+func ProcessStreamPipesDefaultFunc(input string, defaultFn func(string) string) (command string, format func(string) string, saves *StreamSaves, errMsg string) {
 	command, ops := parsePipeChain(input)
 	columns := ColumnsForCommand(command)
 	command, ops, meta := foldFilters(command, ops)
+	if msg := validatePipesForSurface(command, ops, pipeSurfaceStream, true); msg != "" {
+		return command, nil, nil, msg
+	}
+
+	saves, errMsg = openStreamSaves(savePathsInChain(ops))
+	if errMsg != "" {
+		return command, nil, nil, errMsg
+	}
+	filtered := ops[:0]
+	for _, op := range ops {
+		if op.kind != pipeSave {
+			filtered = append(filtered, op)
+		}
+	}
+	ops = filtered
 
 	if !hasFormatOp(ops) {
 		if len(ops) == 0 {
-			return command, func(s string) string { return defaultFn(injectPipeMeta(s, meta)) }
+			return command, func(s string) string {
+				result, msg := injectPipeMeta(s, meta)
+				if msg != "" {
+					return pipeError(msg)
+				}
+				return defaultFn(result)
+			}, saves, ""
 		}
-		// Non-format ops (match, count) still apply before the default formatter.
+		// Non-format ops still apply before the default formatter.
 		return command, func(rawJSON string) string {
-			result, errMsg := ApplyPipes(rawJSON, ops, meta, columns)
-			if errMsg != "" {
-				return pipeError(errMsg)
+			result, pipeErr := ApplyPipes(rawJSON, ops, meta, columns)
+			if pipeErr != "" {
+				return pipeError(pipeErr)
 			}
 			return defaultFn(result)
-		}
+		}, saves, ""
 	}
 
 	return command, func(rawJSON string) string {
-		result, errMsg := ApplyPipes(rawJSON, ops, meta, columns)
-		if errMsg != "" {
-			return pipeError(errMsg)
+		result, pipeErr := ApplyPipes(rawJSON, ops, meta, columns)
+		if pipeErr != "" {
+			return pipeError(pipeErr)
 		}
 		return result
-	}
+	}, saves, ""
 }

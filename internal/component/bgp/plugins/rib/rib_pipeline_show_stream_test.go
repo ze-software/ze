@@ -105,38 +105,18 @@ func TestShowPipelineNoLockAcrossWrite(t *testing.T) {
 	assert.Equal(t, rows+2, w.lines, "the walk must stream for this to have been tested")
 }
 
-// TestShowPipelineOrdersTheSameWithAndWithoutATerminal pins that one command
-// has ONE row order.
-//
-// `show bgp rib` streams; `show bgp rib | json` builds a document through
-// jsonTerminal. The terminal used to re-sort its rows by peer, direction,
-// family and prefix, which gave the same command two orderings depending only
-// on whether the operator typed `| json`. The streaming path cannot match a
-// global sort, because sorting a stream means holding every row.
-//
-// VALIDATES: both paths yield the sources' own order, which is deterministic
-// because each source sorts its peer list at construction.
-// PREVENTS: a re-sort returning to either path and splitting the order again.
-func TestShowPipelineOrdersTheSameWithAndWithoutATerminal(t *testing.T) {
-	r := newTestRIBManager(t)
-	fam := family.IPv4Unicast
-	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001)
-	for _, peer := range []string{"198.51.100.7", "192.0.2.1", "203.0.113.9"} {
-		peerRIB := storage.NewPeerRIB(peer)
-		peerRIB.Insert(fam, attrBytes, []byte{24, 10, 0, 0}, true)
-		peerRIB.Insert(fam, attrBytes, []byte{24, 10, 0, 1}, true)
-		r.bgpPeers[netip.MustParseAddr(peer)] = peerRIB
-	}
-
-	streamed := showRowKeys(t, r)
+// showTerminalRowKeys answers the row keys produced by the buffering JSON
+// terminal.
+func showTerminalRowKeys(t *testing.T, r *RIBManager) []string {
+	t.Helper()
 
 	var document map[string]any
 	require.NoError(t, json.Unmarshal(
-		mustMarshal(t, r.showPipeline("*", []string{"received", "json"})), &document))
+		mustMarshal(t, r.showPipeline("*", []string{"json"})), &document))
 	rows, ok := document["routes"].([]any)
 	require.True(t, ok, "the json terminal answers a routes list, got %v", document)
 
-	fromTerminal := make([]string, 0, len(rows))
+	keys := make([]string, 0, len(rows))
 	for _, raw := range rows {
 		row, isRow := raw.(map[string]any)
 		require.True(t, isRow)
@@ -145,10 +125,65 @@ func TestShowPipelineOrdersTheSameWithAndWithoutATerminal(t *testing.T) {
 		famName, _ := row["family"].(string)
 		prefix, _ := row["prefix"].(string)
 		var key textbuf.Buffer
-		fromTerminal = append(fromTerminal, key.Str(peer).Byte('|').Str(direction).
+		keys = append(keys, key.Str(peer).Byte('|').Str(direction).
 			Byte('|').Str(famName).Byte('|').Str(prefix).String())
 	}
+	return keys
+}
 
-	assert.Equal(t, streamed, fromTerminal,
-		"the streamed and buffered answers order the same rows differently")
+// TestShowPipelineOrdersTheSameWithAndWithoutATerminal pins one deterministic
+// source order for both streamed and buffered answers.
+//
+// The source walks all received rows before advertised rows. That deliberately
+// differs from the removed whole-answer peer/direction/family/prefix sort,
+// which grouped every row for the first peer before visiting the second peer.
+// The advertised fixture also spans unordered family and route maps, so an
+// outbound source that yields raw map iteration cannot satisfy the exact order
+// repeatedly.
+//
+// VALIDATES: both paths yield the sources' deterministic bounded-buffer order.
+// PREVENTS: raw advertised map iteration and a whole-answer terminal re-sort.
+func TestShowPipelineOrdersTheSameWithAndWithoutATerminal(t *testing.T) {
+	r := newTestRIBManager(t)
+	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001)
+	for _, fixture := range []struct {
+		peer string
+		nlri []byte
+	}{
+		{peer: "198.51.100.7", nlri: []byte{24, 10, 7, 0}},
+		{peer: "192.0.2.1", nlri: []byte{24, 10, 1, 0}},
+	} {
+		peerRIB := storage.NewPeerRIB(fixture.peer)
+		peerRIB.Insert(family.IPv4Unicast, attrBytes, fixture.nlri, true)
+		r.bgpPeers[netip.MustParseAddr(fixture.peer)] = peerRIB
+	}
+
+	r.ribOut[netip.MustParseAddr("192.0.2.1")] = testRibOutFamilyMap(
+		map[family.Family]map[string]*Route{
+			family.IPv6Unicast: {
+				"2001:db8:2::/48": {Family: family.IPv6Unicast, Prefix: "2001:db8:2::/48"},
+				"2001:db8:1::/48": {Family: family.IPv6Unicast, Prefix: "2001:db8:1::/48"},
+			},
+			family.IPv4Unicast: {
+				"10.0.3.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.3.0/24"},
+				"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24"},
+				"10.0.2.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.2.0/24"},
+			},
+		})
+
+	expected := []string{
+		"192.0.2.1|received|ipv4/unicast|10.1.0.0/24",
+		"198.51.100.7|received|ipv4/unicast|10.7.0.0/24",
+		"192.0.2.1|sent|ipv4/unicast|10.0.0.0/24",
+		"192.0.2.1|sent|ipv4/unicast|10.0.2.0/24",
+		"192.0.2.1|sent|ipv4/unicast|10.0.3.0/24",
+		"192.0.2.1|sent|ipv6/unicast|2001:db8:1::/48",
+		"192.0.2.1|sent|ipv6/unicast|2001:db8:2::/48",
+	}
+
+	for run := range 16 {
+		assert.Equal(t, expected, showRowKeys(t, r), "streamed source order changed on run %d", run)
+		assert.Equal(t, expected, showTerminalRowKeys(t, r),
+			"buffered terminal changed source order on run %d", run)
+	}
 }

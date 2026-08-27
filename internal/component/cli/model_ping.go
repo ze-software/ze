@@ -94,6 +94,10 @@ func (v *pingPipedView) release() {
 	if v.st != nil && v.st.cancel != nil {
 		v.st.cancel()
 	}
+	if v.st != nil {
+		_ = v.st.saves.Abort()
+		v.st.saves = nil
+	}
 }
 
 // activePing / activePingPiped return the active ping session state, or nil
@@ -176,6 +180,7 @@ type pingPipedState struct {
 	pipeOrigin    bool
 	replyCh       <-chan map[string]any
 	cancel        context.CancelFunc
+	saves         *command.StreamSaves
 }
 
 // Monitor-ping argument bounds.
@@ -369,7 +374,7 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 		return nil
 	}
 
-	cmdStr, formatFn, pipeFlags, pipeErr := command.ProcessPipesDetectLog(input, m.cliFormat)
+	cmdStr, formatFn, pipeFlags, saves, pipeErr := command.ProcessStreamPipes(input, m.cliFormat)
 	if pipeErr != "" {
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("pipe error: ").Str(pipeErr).String()
@@ -377,17 +382,20 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 	}
 	mp, argErr := parsePingMonitorArgs(cmdStr)
 	if argErr != "" {
+		_ = saves.Abort()
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("monitor ping: ").Str(argErr).String()
 		return nil
 	}
 	if mp.Target == "" {
+		_ = saves.Abort()
 		m.statusMessage = "monitor ping: missing target address"
 		return nil
 	}
 
 	ch, cancel, err := factory(context.Background(), mp.Target, mp.Interval, mp.Timeout, mp.Count, mp.Size)
 	if err != nil {
+		_ = saves.Abort()
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("monitor ping: ").Err(err).String()
 		return nil
@@ -406,6 +414,7 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 		pipeOrigin:    pipeFlags.Origin,
 		replyCh:       ch,
 		cancel:        cancel,
+		saves:         saves,
 	}}
 
 	if pipeFlags.Log {
@@ -455,6 +464,8 @@ func (m *Model) stopPingMonitorPiped() {
 	if ps.cancel != nil {
 		ps.cancel()
 	}
+	saveErr := ps.saves.Commit()
+	ps.saves = nil
 
 	lastOutput := renderPingStatsPlain(ps.target, &ps.stats)
 	isLog := ps.logMode
@@ -471,7 +482,12 @@ func (m *Model) stopPingMonitorPiped() {
 		m.setViewportText(m.outputBuf.String())
 		m.viewport.GotoBottom()
 	}
-	m.statusMessage = "ping monitor stopped"
+	if saveErr != nil {
+		var status textbuf.Buffer
+		m.statusMessage = status.Str("ping save: ").Err(saveErr).String()
+	} else {
+		m.statusMessage = "ping monitor stopped"
+	}
 }
 
 func drainPingReplies(ch <-chan map[string]any) (replies []map[string]any, closed bool) {
@@ -540,8 +556,8 @@ func (m Model) handlePingPipedPoll() (tea.Model, tea.Cmd) {
 	for _, reply := range replies {
 		applyPingReply(&ps.stats, reply)
 
+		var line string
 		if ps.logMode {
-			var line string
 			if ps.hasFormatPipe {
 				line = strings.TrimRight(ps.formatFn(pingReplyToJSON(ps.target, reply)), "\n")
 			} else {
@@ -562,6 +578,25 @@ func (m Model) handlePingPipedPoll() (tea.Model, tea.Cmd) {
 			}
 			m.outputBuf.WriteString(line)
 			m.outputBuf.WriteString("\n")
+		}
+		if ps.saves != nil {
+			if line == "" {
+				line = strings.TrimRight(ps.formatFn(pingReplyToJSON(ps.target, reply)), "\n")
+			}
+			saveErr := ps.saves.WriteString(line)
+			if saveErr == nil {
+				saveErr = ps.saves.WriteString("\n")
+			}
+			if saveErr != nil {
+				ps.saves = nil
+				if ps.cancel != nil {
+					ps.cancel()
+				}
+				m.activeView = nil
+				var status textbuf.Buffer
+				m.statusMessage = status.Str("ping save: ").Err(saveErr).String()
+				return m, nil
+			}
 		}
 	}
 

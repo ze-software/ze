@@ -86,6 +86,7 @@ type pipeOperatorJSON struct {
 	Shapes            []string `json:"shapes"`
 	Description       string   `json:"description"`
 	NeedsAddressField bool     `json:"needs-address-field,omitempty"`
+	LocalOnly         bool     `json:"local-only,omitempty"`
 }
 
 // printPipeCatalogJSON writes the operator catalog for `ze pipe help --json`.
@@ -106,6 +107,7 @@ func printPipeCatalogJSON(w io.Writer) int {
 			Shapes:            shapes,
 			Description:       op.Description,
 			NeedsAddressField: op.NeedsAddressField,
+			LocalOnly:         op.LocalOnly,
 		})
 	}
 	enc := json.NewEncoder(w)
@@ -118,22 +120,31 @@ func printPipeCatalogJSON(w io.Writer) int {
 }
 
 func pipeUsage() {
-	// Both sections are derived from the operator catalog
+	// All three sections are derived from the operator catalog
 	// (internal/component/command/pipe_catalog.go). This page used to hold its
 	// own list of ten, one of five hand-copied lists that had drifted apart.
-	var global, data []helpfmt.HelpEntry
+	var global, data, stream []helpfmt.HelpEntry
 	for _, op := range command.PipeOperatorCatalog() {
 		var nb textbuf.Buffer
 		nb.Str(op.Name)
 		if hint := op.ArgHint(); hint != "" {
 			nb.Str(" ").Str(hint)
 		}
-		entry := helpfmt.HelpEntry{Name: nb.String(), Desc: op.Description}
-		if op.Class == command.ClassGlobal {
-			global = append(global, entry)
-			continue
+		name := nb.String()
+		description := op.Description
+		if op.LocalOnly {
+			description = nb.Reset().Str(op.Description).
+				Str(" (local process only; daemon-expanded remote chains refuse it)").String()
 		}
-		data = append(data, entry)
+		entry := helpfmt.HelpEntry{Name: name, Desc: description}
+		switch op.Class {
+		case command.ClassGlobal:
+			global = append(global, entry)
+		case command.ClassStream:
+			stream = append(stream, entry)
+		default:
+			data = append(data, entry)
+		}
 	}
 
 	p := helpfmt.Page{
@@ -143,6 +154,7 @@ func pipeUsage() {
 		Sections: []helpfmt.HelpSection{
 			{Title: "Global Operators (act on any answer)", Entries: global},
 			{Title: "Row Operators (act where the answer has rows)", Entries: data},
+			{Title: "Streaming Operators (act where the command keeps answering)", Entries: stream},
 		},
 		Examples: []string{
 			"ze show bgp peer list | ze pipe json compact",

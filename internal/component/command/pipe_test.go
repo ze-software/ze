@@ -1,6 +1,7 @@
 package command
 
 import (
+	"context"
 	"encoding/json"
 	"iter"
 	"runtime"
@@ -261,7 +262,7 @@ func TestApplyTakeRefusesOneValue(t *testing.T) {
 // PREVENTS: multi-line JSON output when compact is requested.
 func TestApplyJSONCompact(t *testing.T) {
 	input := "{\n  \"address\": \"1.2.3.4\",\n  \"state\": \"established\"\n}"
-	result := ApplyJSON(input, jsonCompact)
+	result := applyJSON(input, jsonCompact)
 
 	if strings.Contains(result, "\n") {
 		t.Errorf("compact JSON should be single line, got: %q", result)
@@ -275,7 +276,7 @@ func TestApplyJSONCompact(t *testing.T) {
 // PREVENTS: unreadable JSON output in default mode.
 func TestApplyJSONPretty(t *testing.T) {
 	input := `{"address":"1.2.3.4","state":"established"}`
-	result := ApplyJSON(input, jsonPretty)
+	result := applyJSON(input, jsonPretty)
 
 	lines := strings.Split(result, "\n")
 	if len(lines) < 3 {
@@ -287,7 +288,7 @@ func TestApplyJSONPretty(t *testing.T) {
 // PREVENTS: error when piping non-JSON output through json filter.
 func TestApplyJSONNonJSON(t *testing.T) {
 	input := "this is not json"
-	result := ApplyJSON(input, jsonCompact)
+	result := applyJSON(input, jsonCompact)
 
 	if result != input {
 		t.Errorf("non-JSON should pass through, got %q", result)
@@ -347,7 +348,7 @@ func TestParsePipeMatchNoArg(t *testing.T) {
 // PREVENTS: double-formatting artifacts.
 func TestApplyJSONPrettyIdempotent(t *testing.T) {
 	input := "{\n  \"address\": \"1.2.3.4\",\n  \"state\": \"established\"\n}"
-	result := ApplyJSON(input, jsonPretty)
+	result := applyJSON(input, jsonPretty)
 	if result != input {
 		t.Errorf("pretty→pretty should be idempotent:\ngot:  %q\nwant: %q", result, input)
 	}
@@ -387,7 +388,7 @@ func TestApplyMatchWithSpaces(t *testing.T) {
 func TestApplyJSONANSIPassthrough(t *testing.T) {
 	// Simulate lipgloss-styled error output containing ANSI escape codes.
 	input := "\x1b[38;5;196mError: unknown command\x1b[0m"
-	result := ApplyJSON(input, jsonCompact)
+	result := applyJSON(input, jsonCompact)
 	if result != input {
 		t.Errorf("ANSI-styled text should pass through, got %q", result)
 	}
@@ -877,18 +878,15 @@ func TestProcessPipesDefaultFormat_Configured(t *testing.T) {
 	}
 }
 
-// TestProcessPipesDefaultFunc verifies custom default formatter is used when no format pipe present.
-//
-// VALIDATES: ProcessPipesDefaultFunc applies the provided default function.
-// PREVENTS: Monitor streaming showing raw JSON or table instead of compact one-liner.
-func TestProcessPipesDefaultFunc(t *testing.T) {
+// TestProcessStreamPipesDefaultFunc verifies a stream uses its custom default.
+func TestProcessStreamPipesDefaultFunc(t *testing.T) {
 	customFmt := func(s string) string { return "CUSTOM:" + s }
 
 	tests := []struct {
 		name       string
 		input      string
 		wantCmd    string
-		wantCustom bool // true if result should use custom formatter
+		wantCustom bool
 	}{
 		{"no pipe uses custom", "monitor event", "monitor event", true},
 		{"explicit json overrides custom", "monitor event | json", "monitor event", false},
@@ -898,15 +896,16 @@ func TestProcessPipesDefaultFunc(t *testing.T) {
 		{"match only uses custom", "monitor event | match state", "monitor event", true},
 	}
 
-	// Rows, because `| match` acts on rows: a rowless answer is refused, and
-	// this table is about which FORMATTER runs, not about match.
 	jsonInput := `{"items":[{"key":"value"}]}`
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd, format := ProcessPipesDefaultFunc(tt.input, customFmt)
-			if cmd != tt.wantCmd {
-				t.Errorf("command = %q, want %q", cmd, tt.wantCmd)
+			command, format, saves, errMsg := ProcessStreamPipesDefaultFunc(tt.input, customFmt)
+			if errMsg != "" {
+				t.Fatalf("stream chain was refused: %s", errMsg)
+			}
+			t.Cleanup(func() { _ = saves.Abort() })
+			if command != tt.wantCmd {
+				t.Errorf("command = %q, want %q", command, tt.wantCmd)
 			}
 			result := format(jsonInput)
 			hasCustom := strings.HasPrefix(result, "CUSTOM:")
@@ -914,6 +913,29 @@ func TestProcessPipesDefaultFunc(t *testing.T) {
 				t.Errorf("hasCustom = %v, want %v; result: %q", hasCustom, tt.wantCustom, result)
 			}
 		})
+	}
+}
+
+// TestOneShotRefusesLogAndStreamAcceptsIt drives the same catalog operator
+// through every one-shot wrapper and the explicit stream wrapper.
+func TestOneShotRefusesLogAndStreamAcceptsIt(t *testing.T) {
+	if _, _, errMsg := ProcessPipesChecked("show version | log"); !strings.Contains(errMsg, "log requires a streaming command") {
+		t.Fatalf("one-shot log refusal = %q", errMsg)
+	}
+	if _, _, errMsg := ProcessPipesDefaultFormatLocal("show version | log", ""); !strings.Contains(errMsg, "log requires a streaming command") {
+		t.Fatalf("local one-shot log refusal = %q", errMsg)
+	}
+	if _, _, errMsg := ProcessPipesDefaultFormatChecked("show version | log", ""); !strings.Contains(errMsg, "log requires a streaming command") {
+		t.Fatalf("remote one-shot log refusal = %q", errMsg)
+	}
+
+	_, _, flags, saves, errMsg := ProcessStreamPipes("monitor event | log", "")
+	if errMsg != "" {
+		t.Fatalf("stream log was refused: %s", errMsg)
+	}
+	t.Cleanup(func() { _ = saves.Abort() })
+	if !flags.Log {
+		t.Error("stream log flag is false")
 	}
 }
 
@@ -939,7 +961,7 @@ func TestParsePipe_ResolveAndJSON(t *testing.T) {
 
 func TestApplyJSON_UnwrapsSingleKeyArray(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"10.0.0.1","rtt-ms":1.5},{"ttl":2,"addr":"10.0.0.2","rtt-ms":2.5}]}`
-	result := ApplyJSON(input, "compact")
+	result := applyJSON(input, "compact")
 	if !strings.HasPrefix(result, "[") {
 		t.Errorf("compact JSON should be a valid array: %s", result)
 	}
@@ -950,7 +972,7 @@ func TestApplyJSON_UnwrapsSingleKeyArray(t *testing.T) {
 
 func TestApplyJSON_PrettyIsValidJSON(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"10.0.0.1"},{"ttl":2,"addr":"10.0.0.2"}]}`
-	result := ApplyJSON(input, "pretty")
+	result := applyJSON(input, "pretty")
 	if !strings.HasPrefix(strings.TrimSpace(result), "[") {
 		t.Errorf("pretty JSON should be a valid array: %s", result)
 	}
@@ -991,7 +1013,7 @@ func TestApplyResolve_UsesSystemResolver(t *testing.T) {
 	defer SetPTRResolver(nil)
 
 	input := `{"hops":[{"ttl":1,"addr":"10.0.0.1","rtt-ms":1.0},{"ttl":2,"addr":"154.54.74.6","rtt-ms":5.0}]}`
-	result := applyResolve(input)
+	result := applyResolve(input, []string{"addr"})
 	if !strings.Contains(result, "gw.example.com") {
 		t.Errorf("expected gw.example.com in result: %s", result)
 	}
@@ -1003,7 +1025,7 @@ func TestApplyResolve_UsesSystemResolver(t *testing.T) {
 func TestApplyResolve_FallbackReverseLookup(t *testing.T) {
 	SetPTRResolver(nil)
 	input := `{"addr":"127.0.0.1"}`
-	result := applyResolve(input)
+	result := applyResolve(input, []string{"addr"})
 	t.Logf("fallback result: %s", result)
 	if !strings.Contains(result, "addr-name") {
 		t.Errorf("should add addr-name field: %s", result)
@@ -1012,7 +1034,7 @@ func TestApplyResolve_FallbackReverseLookup(t *testing.T) {
 
 func TestApplyResolve_AddsNameField(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1}]}`
-	result := applyResolve(input)
+	result := applyResolve(input, []string{"addr"})
 	if !strings.Contains(result, "addr-name") {
 		t.Errorf("resolve should add addr-name field: %s", result)
 	}
@@ -1020,7 +1042,7 @@ func TestApplyResolve_AddsNameField(t *testing.T) {
 
 func TestApplyResolve_SkipsStar(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"*","rtt-ms":null}]}`
-	result := applyResolve(input)
+	result := applyResolve(input, []string{"addr"})
 	if strings.Contains(result, "addr-name") {
 		t.Errorf("resolve should skip '*' addresses: %s", result)
 	}
@@ -1028,7 +1050,7 @@ func TestApplyResolve_SkipsStar(t *testing.T) {
 
 func TestApplyPipes_ResolveThenJSON(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1}]}`
-	ops := []pipeOp{{kind: pipeResolve}, {kind: pipeJSON, arg: "compact"}}
+	ops := []pipeOp{{kind: pipeResolve, addressFields: []string{"addr"}}, {kind: pipeJSON, arg: "compact"}}
 	result, errMsg := ApplyPipes(input, ops, nil, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
@@ -1043,7 +1065,7 @@ func TestApplyPipes_ResolveThenJSON(t *testing.T) {
 
 func TestApplyPipes_JSONThenResolve(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1},{"ttl":2,"addr":"127.0.0.1","rtt-ms":0.2}]}`
-	ops := []pipeOp{{kind: pipeJSON, arg: "compact"}, {kind: pipeResolve}}
+	ops := []pipeOp{{kind: pipeJSON, arg: "compact"}, {kind: pipeResolve, addressFields: []string{"addr"}}}
 	result, errMsg := ApplyPipes(input, ops, nil, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
@@ -1053,8 +1075,9 @@ func TestApplyPipes_JSONThenResolve(t *testing.T) {
 	}
 }
 
-func TestProcessPipesDetectLog_HasFormat(t *testing.T) {
-	_, _, flags, errMsg := ProcessPipesDetectLog("monitor ping 1.1.1.1 | log | json", "")
+func TestProcessStreamPipes_HasFormat(t *testing.T) {
+	_, _, flags, saves, errMsg := ProcessStreamPipes("monitor ping 1.1.1.1 | log | json", "")
+	t.Cleanup(func() { _ = saves.Abort() })
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -1066,8 +1089,9 @@ func TestProcessPipesDetectLog_HasFormat(t *testing.T) {
 	}
 }
 
-func TestProcessPipesDetectLog_NoExplicitFormat(t *testing.T) {
-	_, _, flags, errMsg := ProcessPipesDetectLog("monitor ping 1.1.1.1 | log", "")
+func TestProcessStreamPipes_NoExplicitFormat(t *testing.T) {
+	_, _, flags, saves, errMsg := ProcessStreamPipes("monitor ping 1.1.1.1 | log", "")
+	t.Cleanup(func() { _ = saves.Abort() })
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -1079,8 +1103,9 @@ func TestProcessPipesDetectLog_NoExplicitFormat(t *testing.T) {
 	}
 }
 
-func TestProcessPipesDetectLog_NDJSON(t *testing.T) {
-	_, formatFn, flags, errMsg := ProcessPipesDetectLog("monitor ping 1.1.1.1 | log | ndjson", "")
+func TestProcessStreamPipes_NDJSON(t *testing.T) {
+	_, formatFn, flags, saves, errMsg := ProcessStreamPipes("monitor ping 1.1.1.1 | log | ndjson", "")
+	t.Cleanup(func() { _ = saves.Abort() })
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -1095,7 +1120,7 @@ func TestProcessPipesDetectLog_NDJSON(t *testing.T) {
 
 func TestApplyPipes_NDJSONThenResolve(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1},{"ttl":2,"addr":"127.0.0.1","rtt-ms":0.2}]}`
-	ops := []pipeOp{{kind: pipeNDJSON}, {kind: pipeResolve}}
+	ops := []pipeOp{{kind: pipeNDJSON}, {kind: pipeResolve, addressFields: []string{"addr"}}}
 	result, errMsg := ApplyPipes(input, ops, nil, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
@@ -1240,7 +1265,7 @@ func TestFoldFiltersFirstNotRegistered(t *testing.T) {
 }
 
 func TestPipeMetadataInjected(t *testing.T) {
-	meta := PipeChainMeta{
+	meta := pipeChainMeta{
 		{Op: "received"},
 		{Op: "family", Arg: "ipv4-unicast"},
 		{Op: "first", Arg: "100"},
@@ -1298,7 +1323,7 @@ func TestPipeMetadataAbsentWhenNoPipes(t *testing.T) {
 
 func TestPipeMetadataTableSkipped(t *testing.T) {
 	input := `[{"name":"a","value":1},{"name":"b","value":2}]`
-	meta := PipeChainMeta{{Op: "first", Arg: "2"}}
+	meta := pipeChainMeta{{Op: "first", Arg: "2"}}
 	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeTable}}, meta, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
@@ -1634,7 +1659,7 @@ func TestFirstNStopsTheGenerator(t *testing.T) {
 	}
 
 	kept := 0
-	for range ApplyPipesRecords("show bgp rib | first 10", rows) {
+	for range applyRecordsForTest(t, "show bgp rib | first 10", rows) {
 		kept++
 	}
 
@@ -1719,6 +1744,19 @@ func collectRecords(records iter.Seq[rpc.Record]) []rpc.Record {
 	return collected
 }
 
+func applyRecordsForTest(
+	t *testing.T,
+	input string,
+	records iter.Seq[rpc.Record],
+) iter.Seq[rpc.Record] {
+	t.Helper()
+	selected, _, msg := applyPipesRecords(input, nil, records)
+	if msg != "" {
+		t.Fatalf("apply record pipes: %s", msg)
+	}
+	return selected
+}
+
 // TestCountConsumesWithoutBuffering checks that `| count` answers the number of
 // records without holding them. The method: a generator produces 32 MiB of
 // records and reads the live heap at the last one. A count that collected the
@@ -1731,7 +1769,7 @@ func collectRecords(records iter.Seq[rpc.Record]) []rpc.Record {
 // memory this protocol exists to save would still be paid.
 func TestCountConsumesWithoutBuffering(t *testing.T) {
 	var walk recordWalk
-	kept := collectRecords(ApplyPipesRecords("show test rows | count", walk.records(memoryWalkRecords, memoryWalkPayload)))
+	kept := collectRecords(applyRecordsForTest(t, "show test rows | count", walk.records(memoryWalkRecords, memoryWalkPayload)))
 
 	if len(kept) != 1 {
 		t.Fatalf("| count answered %d records, want 1", len(kept))
@@ -1760,7 +1798,7 @@ func TestLastNKeepsRingBufferOnly(t *testing.T) {
 	const wanted = 8
 
 	var walk recordWalk
-	kept := collectRecords(ApplyPipesRecords("show test rows | last 8", walk.records(memoryWalkRecords, memoryWalkPayload)))
+	kept := collectRecords(applyRecordsForTest(t, "show test rows | last 8", walk.records(memoryWalkRecords, memoryWalkPayload)))
 
 	if len(kept) != wanted {
 		t.Fatalf("| last 8 answered %d records, want %d", len(kept), wanted)
@@ -1805,7 +1843,7 @@ func TestRecordChainMatchesAndRefuses(t *testing.T) {
 		}
 	}
 
-	matched := collectRecords(ApplyPipesRecords("show test rows | match established", records))
+	matched := collectRecords(applyRecordsForTest(t, "show test rows | match established", records))
 	if len(matched) != 2 {
 		t.Fatalf("| match kept %d records, want 2", len(matched))
 	}
@@ -1816,7 +1854,7 @@ func TestRecordChainMatchesAndRefuses(t *testing.T) {
 	}
 
 	produced = 0
-	refused := collectRecords(ApplyPipesRecords("show test rows | first zero", records))
+	refused := collectRecords(applyRecordsForTest(t, "show test rows | first zero", records))
 	if len(refused) != 1 {
 		t.Fatalf("a refused chain answered %d records, want one fault", len(refused))
 	}
@@ -1855,7 +1893,7 @@ func TestRecordChainStopsThroughEveryStage(t *testing.T) {
 		}
 	}
 
-	kept := collectRecords(ApplyPipesRecords("show test rows | match established | first 1", records))
+	kept := collectRecords(applyRecordsForTest(t, "show test rows | match established | first 1", records))
 	if len(kept) != 1 {
 		t.Fatalf("the chain kept %d records, want 1", len(kept))
 	}
@@ -2053,5 +2091,230 @@ func TestPipeMetadataRecordsTheWholeChain(t *testing.T) {
 	}
 	if meta[0].Arg != "idle" || meta[1].Arg != "192" {
 		t.Errorf("the chain is out of order or incomplete: %+v", meta)
+	}
+}
+
+// TestPipeArgumentsFollowTheCatalog drives malformed and multi-word arguments
+// through the parser and validator.
+//
+// VALIDATES: IR-2 -- every parsed token is validated against PipeOperator.Arg.
+// PREVENTS: no-argument and count operators silently dropping surplus words,
+// while text and field arguments still keep every permitted word.
+func TestPipeArgumentsFollowTheCatalog(t *testing.T) {
+	refused := []struct {
+		input string
+		name  string
+	}{
+		{"show test rows | count extra", "count"},
+		{"show test rows | first 1 extra", "first"},
+		{"show test rows | no-more now", "no-more"},
+		{"show test rows | json compact extra", "json"},
+	}
+	for _, tt := range refused {
+		t.Run(tt.name, func(t *testing.T) {
+			_, ops := ParsePipe(tt.input)
+			if len(ops) != 1 {
+				t.Fatalf("parsed %d operators, want one", len(ops))
+			}
+			if !strings.Contains(ops[0].arg, "extra") && tt.name != "no-more" {
+				t.Errorf("parser discarded the surplus tokens: %+v", ops[0])
+			}
+			if msg := ValidatePipes(ops); !strings.Contains(msg, tt.name) {
+				t.Errorf("validation = %q, want a refusal naming %q", msg, tt.name)
+			}
+		})
+	}
+
+	for _, input := range []string{
+		"show test rows | match established peer",
+		"show test rows | display address state",
+		"show test rows | save directory with spaces/answer.json",
+	} {
+		_, ops := ParsePipe(input)
+		if msg := ValidatePipes(ops); msg != "" {
+			t.Errorf("catalog-permitted multi-word argument %q was refused: %s", input, msg)
+		}
+	}
+}
+
+// TestLastRetentionLimitBoundaries fixes the exact accepted edge of the record
+// retention window.
+//
+// VALIDATES: IR-1 -- recordsLastLimit is accepted and its successor is refused
+// by operator name before a record sequence is built.
+// PREVENTS: a user-controlled last count becoming the daemon's allocation
+// bound, or an off-by-one refusing the final safe value.
+func TestLastRetentionLimitBoundaries(t *testing.T) {
+	lastValid := textbuf.StringInt(int64(recordsLastLimit))
+	_, ops := ParsePipe("show test rows | last " + lastValid)
+	if msg := ValidatePipes(ops); msg != "" {
+		t.Fatalf("last %s was refused: %s", lastValid, msg)
+	}
+
+	firstInvalid := textbuf.StringInt(int64(recordsLastLimit + 1))
+	_, ops = ParsePipe("show test rows | last " + firstInvalid)
+	msg := ValidatePipes(ops)
+	if !strings.Contains(msg, "last") || !strings.Contains(msg, lastValid) || !strings.Contains(msg, firstInvalid) {
+		t.Errorf("last %s refusal = %q, want operator, limit, and supplied value", firstInvalid, msg)
+	}
+
+	produced := 0
+	records := func(yield func(rpc.Record) bool) {
+		produced++
+		yield(rpc.Record{Item: json.RawMessage(`{"row":1}`)})
+	}
+	refused := collectRecords(applyRecordsForTest(t, "show test rows | last "+firstInvalid, records))
+	if len(refused) != 1 || len(refused[0].Fault) == 0 {
+		t.Fatalf("first-invalid chain answered %+v, want one fault", refused)
+	}
+	if produced != 0 {
+		t.Errorf("first-invalid chain pulled %d records, want rejection before the walk", produced)
+	}
+}
+
+// TestLastRetentionByteBudgetBoundaries fixes the byte-budget edge separately
+// from the count edge.
+//
+// VALIDATES: IR-1 -- exactly one wire-message worth of retained payload is
+// accepted and the next byte is refused by last.
+// PREVENTS: a finite row count still retaining an unbounded product of
+// attacker-sized rows.
+func TestLastRetentionByteBudgetBoundaries(t *testing.T) {
+	atLimit := rpc.Record{Item: make(json.RawMessage, recordsLastBytesLimit)}
+	kept := collectRecords(recordsLast(func(yield func(rpc.Record) bool) {
+		yield(atLimit)
+	}, "1"))
+	if len(kept) != 1 {
+		t.Fatalf("at-limit result has %d records, want one", len(kept))
+	}
+	if len(kept[0].Item) != recordsLastBytesLimit || len(kept[0].Fault) > 0 {
+		t.Fatalf("at-limit result has item-bytes=%d fault-bytes=%d",
+			len(kept[0].Item), len(kept[0].Fault))
+	}
+
+	overLimit := rpc.Record{Item: make(json.RawMessage, recordsLastBytesLimit+1)}
+	refused := collectRecords(recordsLast(func(yield func(rpc.Record) bool) {
+		yield(overLimit)
+	}, "1"))
+	if len(refused) != 1 {
+		t.Fatalf("over-limit result has %d records, want one fault", len(refused))
+	}
+	if len(refused[0].Item) > 0 || !strings.Contains(string(refused[0].Fault), "last retention") {
+		t.Fatalf("over-limit result has item-bytes=%d fault=%q",
+			len(refused[0].Item), refused[0].Fault)
+	}
+}
+
+// TestPipeMetadataRefusesAUserPipeField drives the collision through ApplyPipes
+// and the raw escape hatch.
+//
+// VALIDATES: IR-4 -- user data named pipe is never overwritten.
+// PREVENTS: chain metadata silently replacing a legitimate answer field before
+// the caller can observe it.
+func TestPipeMetadataRefusesAUserPipeField(t *testing.T) {
+	const input = `{"pipe":{"owner":"user"},"rows":[{"state":"up"}]}`
+	meta := pipeChainMeta{{Op: "first", Arg: "1"}}
+	if output, msg := ApplyPipes(input, nil, meta, nil); output != "" || !strings.Contains(msg, `field "pipe"`) {
+		t.Fatalf("metadata collision answered output=%q refusal=%q", output, msg)
+	}
+
+	output, msg := ApplyPipes(input, []pipeOp{{kind: pipeRaw}}, meta, nil)
+	if msg != "" {
+		t.Fatalf("raw refused the user field: %s", msg)
+	}
+	if output != input {
+		t.Errorf("raw changed the user's pipe field: got %s, want %s", output, input)
+	}
+}
+
+// TestJSONThenFirstKeepsRowsAheadOfMetadata exercises the reviewed early-format
+// chain in its observable JSON form.
+//
+// VALIDATES: IR-14 and AC-6 -- `json | first` truncates data and records the
+// ordered chain metadata after every operator has run.
+// PREVENTS: the metadata slice becoming a second candidate row set that makes
+// first refuse or truncate infrastructure instead of data.
+func TestJSONThenFirstKeepsRowsAheadOfMetadata(t *testing.T) {
+	meta := pipeChainMeta{{Op: "first", Arg: "1"}}
+	ops := []pipeOp{{kind: pipeJSON, arg: jsonCompact}, {kind: pipeFirst, arg: "1"}}
+	got, msg := ApplyPipes(`[{"row":1},{"row":2}]`, ops, meta, nil)
+	if msg != "" {
+		t.Fatalf("json | first was refused: %s", msg)
+	}
+	var answer struct {
+		Data []map[string]int `json:"data"`
+		Pipe pipeChainMeta    `json:"pipe"`
+	}
+	if err := json.Unmarshal([]byte(got), &answer); err != nil {
+		t.Fatalf("answer is not JSON: %v: %s", err, got)
+	}
+	if len(answer.Data) != 1 || answer.Data[0]["row"] != 1 {
+		t.Errorf("data = %+v, want only row 1", answer.Data)
+	}
+	if len(answer.Pipe) != 1 || answer.Pipe[0].Op != "first" || answer.Pipe[0].Arg != "1" {
+		t.Errorf("pipe metadata = %+v, want ordered first 1", answer.Pipe)
+	}
+}
+
+type declaredFieldOriginResolver struct{}
+
+func (declaredFieldOriginResolver) LookupOrigin(_ context.Context, ip string) (OriginResult, error) {
+	return OriginResult{ASN: 64500, Prefix: ip + "/32", Name: "declared"}, nil
+}
+
+// TestAddressOperatorsTransformOnlyDeclaredFields drives both enrichers over
+// the document and record producers.
+//
+// VALIDATES: IR-13 -- a declared address field is enriched on both paths and
+// an undeclared IP-looking field is untouched; an undeclared command is refused.
+// PREVENTS: admission-only declarations allowing resolve/origin to guess from
+// every string value in an answer.
+func TestAddressOperatorsTransformOnlyDeclaredFields(t *testing.T) {
+	ResetShapesForTest()
+	ResetAddressFieldsForTest()
+	t.Cleanup(ResetShapesForTest)
+	t.Cleanup(ResetAddressFieldsForTest)
+	RegisterShape([]string{"show test addresses"}, ShapeTab)
+	RegisterAddressFields([]string{"show test addresses"}, "address")
+
+	SetPTRResolver(&mockPTRResolver{results: map[string][]string{"192.0.2.1": {"peer.example."}}})
+	SetOriginResolver(declaredFieldOriginResolver{})
+	t.Cleanup(func() {
+		SetPTRResolver(nil)
+		SetOriginResolver(nil)
+	})
+
+	const item = `{"address":"192.0.2.1","router-id":"192.0.2.254"}`
+	_, format, errMsg := ProcessPipesChecked("show test addresses | resolve | origin")
+	if errMsg != "" {
+		t.Fatalf("declared chain was refused: %s", errMsg)
+	}
+	assertDeclaredAddressFields(t, format(item))
+
+	records := func(yield func(rpc.Record) bool) {
+		yield(rpc.Record{Item: json.RawMessage(item)})
+	}
+	got := collectRecords(applyRecordsForTest(t, "show test addresses | resolve | origin", records))
+	if len(got) != 1 || len(got[0].Fault) > 0 {
+		t.Fatalf("record path answered %+v, want one result", got)
+	}
+	assertDeclaredAddressFields(t, string(got[0].Item))
+
+	if _, _, msg := ProcessPipesChecked("show undeclared | resolve"); !strings.Contains(msg, "resolve") {
+		t.Errorf("undeclared command refusal = %q, want resolve named", msg)
+	}
+}
+
+func assertDeclaredAddressFields(t *testing.T, answer string) {
+	t.Helper()
+	for _, field := range []string{"address-name", "address-asn", "address-prefix"} {
+		if !strings.Contains(answer, `"`+field+`"`) {
+			t.Errorf("declared field enrichment %q is absent: %s", field, answer)
+		}
+	}
+	for _, field := range []string{"router-id-name", "router-id-asn", "router-id-prefix"} {
+		if strings.Contains(answer, `"`+field+`"`) {
+			t.Errorf("undeclared field enrichment %q leaked into the answer: %s", field, answer)
+		}
 	}
 }

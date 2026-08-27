@@ -121,3 +121,45 @@ func TestSaveFileIsOwnerOnly(t *testing.T) {
 		t.Errorf("the saved answer is mode %04o, want %04o", mode, saveFileMode)
 	}
 }
+
+// TestStreamSaveWriteFailureRemovesEveryTemp closes one staged file to force
+// the callback write path to fail after all destinations were opened.
+func TestStreamSaveWriteFailureRemovesEveryTemp(t *testing.T) {
+	dir := t.TempDir()
+	firstPath := filepath.Join(dir, "first.out")
+	secondPath := filepath.Join(dir, "second.out")
+	if err := os.WriteFile(firstPath, []byte("previous"), saveFileMode); err != nil {
+		t.Fatalf("seed destination: %v", err)
+	}
+
+	saves, errMsg := openStreamSaves([]string{firstPath, secondPath})
+	if errMsg != "" {
+		t.Fatalf("open stream saves: %s", errMsg)
+	}
+	if err := saves.files[0].file.Close(); err != nil {
+		t.Fatalf("close temporary file: %v", err)
+	}
+	if err := saves.WriteString("event\n"); err == nil {
+		t.Fatal("write to a closed temporary file succeeded")
+	}
+
+	saved, err := os.ReadFile(firstPath) //nolint:gosec // test-owned temp path
+	if err != nil {
+		t.Fatalf("read destination: %v", err)
+	}
+	if string(saved) != "previous" {
+		t.Errorf("failed write replaced destination with %q", saved)
+	}
+	if _, err := os.Stat(secondPath); !os.IsNotExist(err) {
+		t.Errorf("failed write created second destination: %v", err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read temp directory: %v", err)
+	}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".ze-save-") {
+			t.Errorf("failed write left temporary file %s", entry.Name())
+		}
+	}
+}

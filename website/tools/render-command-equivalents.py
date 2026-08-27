@@ -39,18 +39,40 @@ MODE_LABELS = {
 
 
 def split_operators(command):
-    """Split a command's operators into the ones that always apply and the ones
-    that apply only to an answer carrying rows.
-
-    The page said `Global pipes: yes` and named no operator, so a tool author
-    reading it learned that SOME pipeline existed and nothing about which words
-    it accepted. The names come from the command catalog, which derives them
-    from the operator catalog and the shape each command declared.
-    """
+    """Group operators without flattening answer, stream, or surface qualifiers."""
     operators = command.get("operators", [])
-    always = [o["name"] for o in operators if o.get("available") == "always"]
-    with_rows = [o["name"] for o in operators if o.get("available") == "with-rows"]
-    return always, with_rows
+    known_availability = {"always", "with-rows", "when-streaming"}
+    unknown = [
+        operator
+        for operator in operators
+        if operator.get("available") not in known_availability
+    ]
+    if unknown:
+        raise ValueError(
+            "unknown operator availability for "
+            + ", ".join(operator.get("name", "<unnamed>") for operator in unknown)
+        )
+    always = [
+        operator["name"]
+        for operator in operators
+        if operator.get("available") == "always" and not operator.get("local-only")
+    ]
+    with_rows = [
+        operator["name"]
+        for operator in operators
+        if operator.get("available") == "with-rows"
+        and not operator.get("local-only")
+    ]
+    streaming = [
+        operator["name"]
+        for operator in operators
+        if operator.get("available") == "when-streaming"
+        and not operator.get("local-only")
+    ]
+    local_only = [
+        operator["name"] for operator in operators if operator.get("local-only")
+    ]
+    return always, with_rows, streaming, local_only
 
 
 def slugify(prefix, text):
@@ -563,14 +585,22 @@ def render_ze_detail(command):
     out.append('<div><dt>Registry path</dt><dd><code>%s</code></dd></div>' % html.escape(command["path"]))
     out.append('<div><dt>Mode</dt><dd>%s</dd></div>' % html.escape(mode or "not listed"))
     out.append('<div><dt>Wire method</dt><dd><code>%s</code></dd></div>' % html.escape(command.get("wire-method", "not listed")))
-    always, with_rows = split_operators(command)
+    always, with_rows, streaming, local_only = split_operators(command)
     if always:
         out.append('<div><dt>Pipes, always</dt><dd>%s</dd></div>' % ", ".join(always))
     if with_rows:
         label = "Pipes, on its rows" if command.get("answer-shape") else "Pipes, when the answer has rows"
         out.append('<div><dt>%s</dt><dd>%s</dd></div>' % (label, ", ".join(with_rows)))
-    if not always and not with_rows:
+    if streaming:
+        out.append('<div><dt>Pipes, while streaming</dt><dd>%s</dd></div>' % ", ".join(streaming))
+    if local_only:
+        out.append('<div><dt>Pipes, local process only</dt><dd>%s</dd></div>' % ", ".join(local_only))
+    if not always and not with_rows and not streaming and not local_only:
         out.append('<div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>')
+    if command.get("answer-shape"):
+        out.append('<div><dt>Answer shape</dt><dd>%s</dd></div>' % html.escape(command["answer-shape"]))
+    if command.get("address-fields"):
+        out.append('<div><dt>Address fields</dt><dd>%s</dd></div>' % ", ".join(command["address-fields"]))
     out.append("</dl>")
     out.append('<h3>Description</h3><p>%s</p>' % html.escape(command.get("description", "No description listed.")).replace("\n", "<br>"))
     out.append("<h3>Arguments</h3>")
@@ -717,6 +747,7 @@ def render_index_markdown(rows, groups, vendor_only, vendor_ids, vendor_labels, 
 
 def render_detail_markdown(row, mapping, vendor_ids, vendor_labels):
     command = row["command"]
+    always, with_rows, streaming, local_only = split_operators(command)
     lines = [
         "# `%s`" % command_display_path(command),
         "",
@@ -726,8 +757,12 @@ def render_detail_markdown(row, mapping, vendor_ids, vendor_labels):
         "- Registry path: `%s`" % md_cell(command["path"]),
         "- Mode: %s" % md_cell(MODE_LABELS.get(command.get("mode", ""), command.get("mode", ""))),
         "- Wire method: `%s`" % md_cell(command.get("wire-method", "not listed")),
-        "- Pipes, always: %s" % (", ".join(split_operators(command)[0]) or "none"),
-        "- Pipes, on rows: %s" % (", ".join(split_operators(command)[1]) or "none"),
+        "- Answer shape: %s" % md_cell(command.get("answer-shape", "not declared")),
+        "- Address fields: %s" % (", ".join(command.get("address-fields", [])) or "none"),
+        "- Pipes, always: %s" % (", ".join(always) or "none"),
+        "- Pipes, on rows: %s" % (", ".join(with_rows) or "none"),
+        "- Pipes, while streaming: %s" % (", ".join(streaming) or "none"),
+        "- Pipes, local process only: %s" % (", ".join(local_only) or "none"),
         "",
         one_line(command.get("description", "No description listed.")),
         "",

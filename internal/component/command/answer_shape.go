@@ -76,30 +76,20 @@ func ResetShapesForTest() {
 }
 
 // addressFieldRegistry holds the fields each command declares to hold an IP
-// address. A declaration ADMITS `| resolve` and `| origin` on that command; it
-// does not narrow what they act on. See RegisterAddressFields.
+// address. A declaration admits `| resolve` and `| origin` and is also the
+// complete set of field names those operators may transform.
 var addressFieldRegistry = newDeclarationRegistry("address field list",
 	func(fields []string) bool { return len(fields) == 0 })
 
 // RegisterAddressFields declares which of a command's fields hold an IP
 // address.
 //
-// The declaration is an ADMISSION gate and nothing more. AddressFieldsForCommand
-// has one non-test caller, validateDeclaredShape (pipe.go), which asks only
-// whether the list is EMPTY: a command declaring none refuses `| resolve` and
-// `| origin` by name, and a command declaring any admits them. Which fields the
-// operators then decorate is not read from here. resolveJSON and originJSON
-// (pipe_resolve.go, pipe_origin.go) walk every key of the answer and decorate
-// each string that parses as an address, so a field this list does not name is
-// decorated anyway.
-//
-// That gap is why `show bgp peer detail | resolve` does a PTR lookup on
-// router-id, which RFC 6286 Section 2.1 makes a 4-octet identifier rather than
-// an address. It is recorded in plan/journal/declared-format-contradicts-payload.md.
-// An earlier version of this comment said the list is "what `| resolve` and
-// `| origin` need to know" and that a command declaring none "refuses both
-// operators rather than guessing". The first half was never true and the second
-// describes the refusal alone, so both are corrected here rather than repeated.
+// Both enforcement points read this declaration. validateDeclaredShape
+// (pipe.go) refuses the operators when the command or its address fields are
+// undeclared. parsePipeChain binds the names onto each operator, and
+// resolveJSON/originJSON transform only matching keys on document and record
+// paths. A string in any other field remains data even when it parses as an IP
+// address, which keeps identifiers such as router-id untouched.
 //
 // Two packages declaring two DIFFERENT field lists for one command path is a Ze
 // defect and panics, and declaring none never overrides a declared list
@@ -134,10 +124,9 @@ func ResetAddressFieldsForTest() {
 // repository declares it.
 //
 // The three fields travel together because they describe one answer. Columns and
-// AddressFields are read against the rows Shape says the answer has, so a field
-// list with no shape declares nothing that can act: validateDeclaredShape
-// (pipe.go) returns before it reads the address fields when no shape is
-// declared.
+// AddressFields are read against the rows Shape says the answer has, so an
+// address-field list with no shape still admits nothing: validateDeclaredShape
+// refuses the operator because the command itself is undeclared.
 type PluginShape struct {
 	// Command is the command path whose answer this describes.
 	Command string
@@ -259,8 +248,11 @@ func rowSet(v any) (rows []any, keys []string, ok bool) {
 	case []any:
 		return typed, nil, true
 	case map[string]any:
+		// An empty identity map is a known row set with zero rows. Its keys are
+		// a non-nil empty slice so selectRows preserves map spelling; nil means
+		// the row set was an array.
 		if len(typed) == 0 {
-			return nil, nil, false
+			return nil, []string{}, true
 		}
 		names := make([]string, 0, len(typed))
 		for name, value := range typed {
@@ -385,9 +377,9 @@ func placeRows(data any, envelopeKey string, rows any) any {
 	return rows
 }
 
-// ShapeOfAnswer derives the shape of a decoded answer. Every answer has one,
+// shapeOfAnswer derives the shape of a decoded answer. Every answer has one,
 // which is what lets an operator be refused on a command that declared nothing.
-func ShapeOfAnswer(v any) AnswerShape {
+func shapeOfAnswer(v any) AnswerShape {
 	if _, _, ok := rowsIn(v); ok {
 		return ShapeMap
 	}

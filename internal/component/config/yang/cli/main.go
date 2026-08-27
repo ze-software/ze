@@ -7,8 +7,10 @@
 package cli
 
 import (
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/ze-software/ze/internal/core/helpfmt"
@@ -72,30 +74,9 @@ func usage() {
 }
 
 func cmdCompletion(args []string) int {
-	fs := flag.NewFlagSet("yang completion", flag.ExitOnError)
-	jsonOutput := fs.Bool("json", false, "output as JSON")
-	minPrefix := fs.Int("min-prefix", 1, "minimum disambiguation depth to report (1-10)")
-	fs.Usage = func() {
-		p := helpfmt.Page{
-			Command: "ze yang completion",
-			Summary: "Detect prefix collisions in config and command trees",
-			Usage:   []string{"ze yang completion [--json] [--min-prefix N]"},
-			Sections: []helpfmt.HelpSection{
-				{Title: "Options", Entries: []helpfmt.HelpEntry{
-					{Name: "--json", Desc: "Output as JSON"},
-					{Name: "--min-prefix N", Desc: "Minimum disambiguation depth to report (1-10)"},
-				}},
-			},
-		}
-		p.WriteErr()
-	}
-	if err := fs.Parse(args); err != nil {
-		return 1
-	}
-
-	if *minPrefix < 1 || *minPrefix > 10 {
-		fmt.Fprintf(os.Stderr, "error: --min-prefix must be 1-10, got %d\n", *minPrefix)
-		return 1
+	options, err := parseCompletionOptions(args)
+	if err != nil {
+		return writeOptionError(err)
 	}
 
 	root, err := buildUnifiedTree()
@@ -104,9 +85,8 @@ func cmdCompletion(args []string) int {
 		return 1
 	}
 
-	groups := collectCollisions(root, *minPrefix)
-
-	if *jsonOutput {
+	groups := collectCollisions(root, options.minPrefix)
+	if options.jsonOutput {
 		if err := formatCollisionsJSON(os.Stdout, groups); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return 1
@@ -121,41 +101,55 @@ func cmdCompletion(args []string) int {
 	return 0
 }
 
-func cmdTree(args []string) int {
-	fs := flag.NewFlagSet("yang tree", flag.ExitOnError)
-	jsonOutput := fs.Bool("json", false, "output as JSON")
-	commands := fs.Bool(FilterCommands, false, "show command nodes only")
-	config := fs.Bool("config", false, "show config nodes only")
-	fs.Usage = func() {
-		p := helpfmt.Page{
-			Command: "ze yang tree",
-			Summary: "Print unified config + command tree",
-			Usage:   []string{"ze yang tree [--json] [--commands] [--config]"},
-			Sections: []helpfmt.HelpSection{
-				{Title: "Options", Entries: []helpfmt.HelpEntry{
-					{Name: "--json", Desc: "Output as JSON"},
-					{Name: "--commands", Desc: "Show command nodes only"},
-					{Name: "--config", Desc: "Show config nodes only"},
-				}},
-			},
-		}
-		p.WriteErr()
-	}
+type completionOptions struct {
+	jsonOutput bool
+	minPrefix  int
+}
+
+func parseCompletionOptions(args []string) (completionOptions, error) {
+	options := completionOptions{minPrefix: 1}
+	fs := flag.NewFlagSet("yang completion", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.BoolVar(&options.jsonOutput, "json", false, "output as JSON")
+	fs.IntVar(&options.minPrefix, "min-prefix", 1,
+		"minimum disambiguation depth to report (1-10)")
+	fs.Usage = completionUsage
 	if err := fs.Parse(args); err != nil {
-		return 1
+		return completionOptions{}, err
 	}
+	if fs.NArg() > 0 {
+		return completionOptions{}, fmt.Errorf("unexpected argument %q", fs.Arg(0))
+	}
+	if options.minPrefix < 1 {
+		return completionOptions{},
+			fmt.Errorf("--min-prefix must be 1-10, got %d", options.minPrefix)
+	}
+	if options.minPrefix > 10 {
+		return completionOptions{},
+			fmt.Errorf("--min-prefix must be 1-10, got %d", options.minPrefix)
+	}
+	return options, nil
+}
 
-	if *commands && *config {
-		fmt.Fprintf(os.Stderr, "error: --commands and --config are mutually exclusive\n")
-		return 1
+func completionUsage() {
+	p := helpfmt.Page{
+		Command: "ze yang completion",
+		Summary: "Detect prefix collisions in config and command trees",
+		Usage:   []string{"ze yang completion [--json] [--min-prefix N]"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Options", Entries: []helpfmt.HelpEntry{
+				{Name: "--json", Desc: "Output as JSON"},
+				{Name: "--min-prefix N", Desc: "Minimum disambiguation depth to report (1-10)"},
+			}},
+		},
 	}
+	p.WriteErr()
+}
 
-	filter := ""
-	if *commands {
-		filter = FilterCommands
-	}
-	if *config {
-		filter = SourceConfig
+func cmdTree(args []string) int {
+	options, err := parseTreeOptions(args)
+	if err != nil {
+		return writeOptionError(err)
 	}
 
 	root, err := buildUnifiedTree()
@@ -164,19 +158,79 @@ func cmdTree(args []string) int {
 		return 1
 	}
 
-	if *jsonOutput {
-		if err := formatTreeJSON(os.Stdout, root, filter); err != nil {
+	if options.jsonOutput {
+		if err := formatTreeJSON(os.Stdout, root, options.filter); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return 1
 		}
 		return 0
 	}
 
-	if err := formatTreeText(os.Stdout, root, filter); err != nil {
+	if err := formatTreeText(os.Stdout, root, options.filter); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 	return 0
+}
+
+type treeOptions struct {
+	filter     string
+	jsonOutput bool
+}
+
+func parseTreeOptions(args []string) (treeOptions, error) {
+	var options treeOptions
+	var commands bool
+	var config bool
+
+	fs := flag.NewFlagSet("yang tree", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.BoolVar(&options.jsonOutput, "json", false, "output as JSON")
+	fs.BoolVar(&commands, FilterCommands, false, "show command nodes only")
+	fs.BoolVar(&config, "config", false, "show config nodes only")
+	fs.Usage = treeUsage
+	if err := fs.Parse(args); err != nil {
+		return treeOptions{}, err
+	}
+	if fs.NArg() > 0 {
+		return treeOptions{}, fmt.Errorf("unexpected argument %q", fs.Arg(0))
+	}
+
+	if commands {
+		if config {
+			return treeOptions{},
+				errors.New("--commands and --config are mutually exclusive")
+		}
+		options.filter = FilterCommands
+	}
+	if config {
+		options.filter = SourceConfig
+	}
+	return options, nil
+}
+
+func treeUsage() {
+	p := helpfmt.Page{
+		Command: "ze yang tree",
+		Summary: "Print unified config + command tree",
+		Usage:   []string{"ze yang tree [--json] [--commands] [--config]"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Options", Entries: []helpfmt.HelpEntry{
+				{Name: "--json", Desc: "Output as JSON"},
+				{Name: "--commands", Desc: "Show command nodes only"},
+				{Name: "--config", Desc: "Show config nodes only"},
+			}},
+		},
+	}
+	p.WriteErr()
+}
+
+func writeOptionError(err error) int {
+	if errors.Is(err, flag.ErrHelp) {
+		return 0
+	}
+	fmt.Fprintf(os.Stderr, "error: %v\n", err)
+	return 1
 }
 
 func cmdDoc(args []string) int {

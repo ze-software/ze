@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | verification |
+| Status | in-progress |
 | Scope | cli |
 | Depends | `plan/audit-pipe-operator-coverage.md`, `plan/audit-presentation-pipes.md`, `plan/audit-command-pipe-vs-subcommand.md` |
-| Phase | 6 of 6 (all phases implemented 2026-08-23) |
+| Phase | 2/6 |
 | Deferral shard | `plan/deferrals/cli-pipe-operator-coverage.md` |
 | Handoff | `plan/handoff-cli-remaining.md` |
-| Updated | 2026-08-23 |
+| Updated | 2026-08-26 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

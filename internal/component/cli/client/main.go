@@ -63,27 +63,21 @@ func Run(args []string) int {
 }
 
 func usage() {
+	sections := []helpfmt.HelpSection{
+		{Title: "Subsystems", Entries: []helpfmt.HelpEntry{
+			{Name: "bgp", Desc: "BGP daemon (default)"},
+		}},
+		{Title: "Options", Entries: []helpfmt.HelpEntry{
+			{Name: "-c <command>", Desc: "Execute single command and exit (like ssh -c)"},
+			{Name: "--format <format>", Desc: "Output format: text, table, json, yaml, ndjson. Default: the daemon's environment cli format default"},
+		}},
+	}
+	sections = append(sections, pipeHelpSections()...)
 	p := helpfmt.Page{
-		Command: "ze cli",
-		Summary: "Interactive CLI for Ze daemons",
-		Usage:   []string{"ze cli [subsystem] [options]"},
-		Sections: []helpfmt.HelpSection{
-			{Title: "Subsystems", Entries: []helpfmt.HelpEntry{
-				{Name: "bgp", Desc: "BGP daemon (default)"},
-			}},
-			{Title: "Options", Entries: []helpfmt.HelpEntry{
-				{Name: "-c <command>", Desc: "Execute single command and exit (like ssh -c)"},
-				{Name: "--format <format>", Desc: "Output format: text, table, json, yaml, ndjson. Default: the daemon's environment cli format default"},
-			}},
-			{Title: "Pipe operators (Tab completes after |)", Entries: []helpfmt.HelpEntry{
-				{Name: "<command> | match <pattern>", Desc: "Filter lines matching pattern"},
-				{Name: "<command> | count", Desc: "Count output lines"},
-				{Name: "<command> | table", Desc: "Render as nushell-style table"},
-				{Name: "<command> | json", Desc: "Pretty-print JSON"},
-				{Name: "<command> | json compact", Desc: "Single-line JSON"},
-				{Name: "<command> | no-more", Desc: "Disable paging"},
-			}},
-		},
+		Command:  "ze cli",
+		Summary:  "Interactive CLI for Ze daemons",
+		Usage:    []string{"ze cli [subsystem] [options]"},
+		Sections: sections,
 		Examples: []string{
 			"ze cli                           Interactive BGP CLI",
 			"ze cli bgp                       Interactive BGP CLI (explicit)",
@@ -92,6 +86,42 @@ func usage() {
 		},
 	}
 	p.WriteErr()
+}
+
+func pipeHelpSections() []helpfmt.HelpSection {
+	classes := []struct {
+		class cmd.PipeClass
+		title string
+	}{
+		{class: cmd.ClassGlobal, title: "Global pipe operators"},
+		{class: cmd.ClassData, title: "Data pipe operators (when the answer has rows)"},
+		{class: cmd.ClassStream, title: "Stream pipe operators (when the command keeps answering)"},
+	}
+	sections := make([]helpfmt.HelpSection, 0, len(classes))
+	var label textbuf.Buffer
+	for _, group := range classes {
+		entries := make([]helpfmt.HelpEntry, 0)
+		for _, op := range cmd.PipeOperatorCatalog() {
+			if op.Class != group.class {
+				continue
+			}
+			label.Reset(64)
+			label.Str("<command> | ").Str(op.Name)
+			if hint := op.ArgHint(); hint != "" {
+				label.Byte(' ').Str(hint)
+			}
+			name := label.String()
+
+			label.Reset(64)
+			label.Str(op.Description)
+			if op.LocalOnly {
+				label.Str(" (local process only)")
+			}
+			entries = append(entries, helpfmt.HelpEntry{Name: name, Desc: label.String()})
+		}
+		sections = append(sections, helpfmt.HelpSection{Title: group.title, Entries: entries})
+	}
+	return sections
 }
 
 // CommandFunc dispatches a CLI command and carries completion to the UI writer.
@@ -354,10 +384,16 @@ type cliClient struct {
 	// parses it, and stream writes the answer to a terminal and returns what
 	// the answer turned out to be. A test substitutes either one.
 	stream func(sshclient.Credentials, string, io.Writer) (sshclient.Answer, error)
+	// monitorStream owns a monitor's callback lifecycle. A test substitutes it
+	// to drive event and transport failures without a daemon.
+	monitorStream func(sshclient.Credentials, string, func(string) error) error
 }
 
 func newCLIClient(creds sshclient.Credentials) *cliClient {
-	return &cliClient{creds: creds, send: sshclient.ExecCommand, stream: sshclient.ExecCommandStream}
+	return &cliClient{
+		creds: creds, send: sshclient.ExecCommand, stream: sshclient.ExecCommandStream,
+		monitorStream: sshclient.StreamCommand,
+	}
 }
 
 // Execute sends a command to the daemon and prints the answer.
@@ -459,10 +495,10 @@ func (c *cliClient) SendCommand(command string) (string, error) {
 	return c.send(c.creds, command)
 }
 
-// SendCommandRaw sends a command and returns the dispatcher's JSON, whatever
+// sendCommandRaw sends a command and returns the dispatcher's JSON, whatever
 // format the operator configured. Every caller in this package that PARSES the
 // answer uses this. See sshclient.ExecCommandRaw for why.
-func (c *cliClient) SendCommandRaw(command string) (string, error) {
+func (c *cliClient) sendCommandRaw(command string) (string, error) {
 	return c.send(c.creds, sshclient.RawCommand(command))
 }
 
@@ -476,7 +512,7 @@ func (c *cliClient) SendCommandRaw(command string) (string, error) {
 // again. And `| json` typed in a session would answer the configured default.
 func (c *cliClient) modelExecutor() unicli.CommandExecutor {
 	return func(input string) (unicli.CommandOutput, error) {
-		output, err := c.SendCommandRaw(input)
+		output, err := c.sendCommandRaw(input)
 		return unicli.CommandOutput{Text: output}, err
 	}
 }
@@ -485,7 +521,7 @@ func (c *cliClient) modelExecutor() unicli.CommandExecutor {
 // unmarshals what it returns, so it asks for the dispatcher's JSON.
 func (c *cliClient) dashboardPoller() (func() (string, error), error) {
 	return func() (string, error) {
-		return c.SendCommandRaw("show bgp")
+		return c.sendCommandRaw("show bgp")
 	}, nil
 }
 
@@ -494,30 +530,41 @@ func isMonitorCommand(command string) bool {
 	return pluginserver.IsStreamingCommand(command)
 }
 
-// StreamMonitor runs a streaming monitor command, printing each event line.
-// Default output is a compact one-liner per event (registered monitor formatter).
-// Users can override with explicit pipes: "monitor event | json", "| table", etc.
+// StreamMonitor runs a streaming monitor command and prints each event.
 func (c *cliClient) StreamMonitor(command string) int {
-	// Pipe operators are extracted before streaming.
-	// Default to the registered compact one-liner formatter instead of table
-	// because table produces multi-line output per event, unsuitable for streaming.
-	// The formatter is registered by the monitor plugin's init() via pluginserver.
 	defaultFmt := pluginserver.MonitorEventFormatter()
 	if defaultFmt == nil {
-		// Fallback: pass through raw JSON if no formatter registered.
 		defaultFmt = func(s string) string { return s }
 	}
-	cmdStr, formatFn := cmd.ProcessPipesDefaultFunc(command, defaultFmt)
+	cmdStr, formatFn, saves, pipeErr := cmd.ProcessStreamPipesDefaultFunc(command, defaultFmt)
+	if pipeErr != "" {
+		fmt.Fprintf(os.Stderr, "error: %s\n", pipeErr)
+		return 1
+	}
 
-	err := sshclient.StreamCommand(c.creds, cmdStr, func(line string) error {
-		// Apply formatting (pipe operators or default text rendering).
+	err := c.monitorStream(c.creds, cmdStr, func(line string) error {
 		formatted := formatFn(line)
-		if formatted != "" {
-			fmt.Println(formatted)
+		if formatted == "" {
+			return nil
 		}
-		return nil
+		if _, err := fmt.Fprintln(os.Stdout, formatted); err != nil {
+			return err
+		}
+		if err := saves.WriteString(formatted); err != nil {
+			return err
+		}
+		return saves.WriteString("\n")
 	})
 	if err != nil {
+		cleanupErr := saves.Abort()
+		if cleanupErr != nil {
+			fmt.Fprintf(os.Stderr, "error: %v (and save cleanup failed: %v)\n", err, cleanupErr)
+		} else {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		}
+		return 1
+	}
+	if err := saves.Commit(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
@@ -712,7 +759,7 @@ var commandTree = BuildCommandTree(false)
 // Falls back to the static commandTree on any error.
 func buildRuntimeTree(client *cliClient) *Command {
 	// Query daemon for runtime command list
-	output, err := client.SendCommandRaw("system command list")
+	output, err := client.sendCommandRaw("system command list")
 	if err != nil {
 		return commandTree
 	}
@@ -915,7 +962,7 @@ func fetchPeerSelectors(client *cliClient) []cmd.Suggestion {
 	}
 
 	// See fetchPeerSelectorsFromDispatch: `show bgp peer list`, no `*`.
-	output, err := client.SendCommandRaw("show bgp peer list")
+	output, err := client.sendCommandRaw("show bgp peer list")
 	if err != nil {
 		return nil
 	}

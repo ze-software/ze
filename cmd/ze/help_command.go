@@ -48,13 +48,16 @@ type commandOperator struct {
 	Name  string `json:"name"`
 	Class string `json:"class"`
 	// Available is "always" when the operator applies whatever the answer
-	// holds, and "with-rows" when it applies only to an answer that carries
-	// rows. A command that has declared its shape reports "always" for every
-	// operator that shape supports, because then it is known before the command
-	// runs. An undeclared command reports "with-rows" for the row operators:
-	// they are applied to the answer in hand and refused by name when it has
-	// none, so the answer decides.
-	Available   string `json:"available"`
+	// holds, "with-rows" when it applies only to an answer that carries rows,
+	// and "when-streaming" when it acts on a sequence of answers. A command
+	// that has declared its shape reports "always" for every operator that
+	// shape supports, because then it is known before the command runs. An
+	// undeclared command reports "with-rows" for the row operators: they are
+	// applied to the answer in hand and refused by name when it has none.
+	Available string `json:"available"`
+	// LocalOnly means the operator MUST be expanded by the process the operator
+	// started. Daemon-expanded SSH and web chains refuse it.
+	LocalOnly   bool   `json:"local-only,omitempty"`
 	Description string `json:"description"`
 }
 
@@ -72,14 +75,14 @@ type commandAlias struct {
 // contract, the command states its own shape, and this is the join.
 func operatorsFor(cliPath string) ([]commandOperator, string) {
 	// A command the CLIENT serves in its own process reaches the pipe layer
-	// only if it answers with DATA. One that keeps a plain printing handler
-	// reaches none, whatever YANG declares for it: the local handler wins over
-	// the daemon dispatch, and it prints and returns an exit code.
+	// only if it answers with DATA. A plain local handler suppresses operators
+	// only when the path has no daemon handler: a daemon surface reaches that
+	// registered handler independently of the local shortcut.
 	//
-	// `show data cat` is the case. It answers the bytes of one stored file
-	// deliberately, and publishing operators for it would assert support
-	// nothing can honor, which is the falsehood this surface exists to end.
-	if registry.HasLocal(cliPath) && !command.HasLocalData(cliPath) {
+	// `show data cat` has no daemon handler and answers the bytes of one stored
+	// file deliberately. `show version` is the opposite case: its local
+	// shortcut prints, while its separately registered daemon handler pipes.
+	if pathHasOnlyPlainLocalHandler(cliPath) {
 		return nil, ""
 	}
 
@@ -101,26 +104,26 @@ func operatorsFor(cliPath string) ([]commandOperator, string) {
 			// available asserted support a command that answers once cannot
 			// have: there is no second update to append.
 			out = append(out, commandOperator{
-				Name: op.Name, Class: op.Class.String(),
-				Available: "when-streaming", Description: op.Description,
+				Name: op.Name, Class: op.Class.String(), Available: "when-streaming",
+				LocalOnly: op.LocalOnly, Description: op.Description,
 			})
 		case op.Class == command.ClassGlobal:
 			out = append(out, commandOperator{
-				Name: op.Name, Class: op.Class.String(),
-				Available: "always", Description: op.Description,
+				Name: op.Name, Class: op.Class.String(), Available: "always",
+				LocalOnly: op.LocalOnly, Description: op.Description,
 			})
 		case declared && op.Applies(shape):
 			out = append(out, commandOperator{
-				Name: op.Name, Class: op.Class.String(),
-				Available: "always", Description: op.Description,
+				Name: op.Name, Class: op.Class.String(), Available: "always",
+				LocalOnly: op.LocalOnly, Description: op.Description,
 			})
 		case declared:
 			// The declared shape cannot support it, so it is refused before the
 			// command runs and is not published as supported at all.
 		default:
 			out = append(out, commandOperator{
-				Name: op.Name, Class: op.Class.String(),
-				Available: "with-rows", Description: op.Description,
+				Name: op.Name, Class: op.Class.String(), Available: "with-rows",
+				LocalOnly: op.LocalOnly, Description: op.Description,
 			})
 		}
 	}
@@ -128,6 +131,37 @@ func operatorsFor(cliPath string) ([]commandOperator, string) {
 		return out, ""
 	}
 	return out, shape.String()
+}
+
+// pathHasOnlyPlainLocalHandler answers whether no surface for the path reaches
+// the pipe layer.
+func pathHasOnlyPlainLocalHandler(cliPath string) bool {
+	if !registry.HasLocal(cliPath) {
+		return false
+	}
+	if command.HasLocalData(cliPath) {
+		return false
+	}
+	if daemonHandlesPath(cliPath) {
+		return false
+	}
+	return true
+}
+
+// daemonHandlesPath answers whether the daemon registers a non-nil handler for
+// this exact YANG path. The local and daemon surfaces are independent, so a
+// plain local shortcut must not hide a reachable daemon handler.
+func daemonHandlesPath(cliPath string) bool {
+	wireToPaths := cli.WireToPaths()
+	for _, registration := range pluginserver.AllBuiltinRPCs() {
+		if registration.Handler == nil {
+			continue
+		}
+		if slices.Contains(wireToPaths[registration.WireMethod], cliPath) {
+			return true
+		}
+	}
+	return false
 }
 
 // aliasesFor answers the chains a command names.
@@ -143,28 +177,43 @@ func aliasesFor(cliPath string) []commandAlias {
 	return out
 }
 
-// splitOperators separates what a command always supports from what it supports
-// only when its answer carries rows.
+// splitOperators separates operators that are unconditional on their allowed
+// surfaces from operators that require rows. Stream and local-only operators
+// are reported by their own helpers.
 func splitOperators(ops []commandOperator) (always, withRows []string) {
 	for _, op := range ops {
+		if op.LocalOnly {
+			continue
+		}
 		switch op.Available {
 		case "always":
 			always = append(always, op.Name)
-		case "when-streaming":
-			// Reported separately by the callers that show it; it belongs to
-			// neither half, because it depends on the command answering more
-			// than once rather than on what any one answer holds.
-		default:
+		case "with-rows":
 			withRows = append(withRows, op.Name)
 		}
 	}
 	return always, withRows
 }
 
+// localOperators answers operators restricted to the process the operator
+// started, independent of answer-shape availability.
+func localOperators(ops []commandOperator) []string {
+	var out []string
+	for _, op := range ops {
+		if op.LocalOnly {
+			out = append(out, op.Name)
+		}
+	}
+	return out
+}
+
 // streamingOperators answers the operators that act on a sequence of answers.
 func streamingOperators(ops []commandOperator) []string {
 	var out []string
 	for _, op := range ops {
+		if op.LocalOnly {
+			continue
+		}
 		if op.Available == "when-streaming" {
 			out = append(out, op.Name)
 		}
@@ -190,6 +239,10 @@ type commandEntry struct {
 	// AnswerShape is the shape the command DECLARED, absent when it declared
 	// none. It decides which operators are always available.
 	AnswerShape string `json:"answer-shape,omitempty"`
+	// AddressFields names the fields the command declares as IP addresses.
+	// Their presence gates resolve and origin and is part of the published
+	// contract checked against the wiki and website.
+	AddressFields []string `json:"address-fields,omitempty"`
 	// Aliases are the chains this command names. `ze help command --json` never
 	// read them before, so they published on `show command help` alone.
 	Aliases     []commandAlias `json:"pipe-aliases,omitempty"`
@@ -269,6 +322,7 @@ func collectCommands() []commandEntry {
 				WireMethod:  wireMethod,
 			}
 			e.Operators, e.AnswerShape = operatorsFor(cliPath)
+			e.AddressFields = command.AddressFieldsForCommand(cliPath)
 			e.Aliases = aliasesFor(cliPath)
 			if node != nil {
 				e.Args = extractArgs(node)
@@ -471,11 +525,9 @@ func printCommandVerbose(rw *helpfmt.RenderWriter, entries []commandEntry) {
 		// Pipes
 		if len(e.Operators) > 0 || len(e.Pipes) > 0 || len(e.Aliases) > 0 {
 			tb.Reset().Str("  ").Colored(c.BrightYellow).Str("pipes:").Colored(c.Reset)
-			rw.Line(tb.Slice())
-			// Split by availability, because the difference is what a caller
-			// acts on: one set works whatever the answer holds, the other
-			// works when the answer has rows and is refused by name when it
-			// does not.
+			// Keep answer, stream, and surface qualifiers separate. Flattening
+			// any one of them tells a caller an operator is unconditional when
+			// it is not.
 			always, withRows := splitOperators(e.Operators)
 			if len(always) > 0 {
 				tb.Reset().Str("    always: ").Colored(c.Dim).Join(always, ", ").Colored(c.Reset)
@@ -492,6 +544,11 @@ func printCommandVerbose(rw *helpfmt.RenderWriter, entries []commandEntry) {
 			if streaming := streamingOperators(e.Operators); len(streaming) > 0 {
 				tb.Reset().Str("    while the command keeps answering: ").Colored(c.Dim).
 					Join(streaming, ", ").Colored(c.Reset)
+				rw.Line(tb.Slice())
+			}
+			if local := localOperators(e.Operators); len(local) > 0 {
+				tb.Reset().Str("    local process only: ").Colored(c.Dim).
+					Join(local, ", ").Colored(c.Reset)
 				rw.Line(tb.Slice())
 			}
 			for _, a := range e.Aliases {

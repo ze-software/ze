@@ -6,7 +6,11 @@
 
 package cli
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/ze-software/ze/internal/component/command"
+)
 
 // tracerouteView / traceroutePipedView are the activeView instances for monitor
 // traceroute. Render/update/state stay in model_traceroute.go (Design 1).
@@ -66,6 +70,10 @@ func (v *traceroutePipedView) release() {
 	if v.st != nil && v.st.cancelRound != nil {
 		v.st.cancelRound()
 	}
+	if v.st != nil {
+		_ = v.st.saves.Abort()
+		v.st.saves = nil
+	}
 }
 
 // activeTraceroute / activeTraceroutePiped return the active traceroute session
@@ -105,6 +113,9 @@ func (m *Model) tracerouteFactory() TracerouteFactory {
 }
 
 func init() {
+	command.RegisterShape([]string{"monitor traceroute"}, command.ShapeTab)
+	command.RegisterAddressFields([]string{"monitor traceroute"}, "addr")
+
 	RegisterView(viewSpec{
 		key:    ViewKeyTraceroute,
 		prefix: "monitor traceroute",

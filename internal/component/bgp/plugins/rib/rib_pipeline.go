@@ -372,6 +372,22 @@ func (s *outboundSource) Next() (RouteItem, bool) {
 			}
 		}
 		s.r.peerMu.RUnlock()
+
+		// The source has already materialized this peer's bounded route
+		// population, so order it here before yielding. Sorting the complete
+		// answer at a terminal would make streamed and buffered paths disagree
+		// and would require retaining every peer's routes.
+		sort.Slice(s.items, func(i, j int) bool {
+			left := &s.items[i]
+			right := &s.items[j]
+			if left.Family != right.Family {
+				return family.FamilyLess(left.Family, right.Family)
+			}
+			if left.Prefix != right.Prefix {
+				return left.Prefix < right.Prefix
+			}
+			return left.OutRoute.PathID < right.OutRoute.PathID
+		})
 	}
 }
 

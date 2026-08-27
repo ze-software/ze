@@ -18,6 +18,42 @@ SPEC.loader.exec_module(render_llms)
 import page_registry  # noqa: E402
 
 
+class CommandContractTest(unittest.TestCase):
+    def test_command_meta_preserves_operator_availability_and_surface(self):
+        meta = render_llms.command_meta(
+            {
+                "mode": "read-only",
+                "answer-shape": "tab",
+                "address-fields": ["address"],
+                "pipes": [{"name": "family"}],
+                "pipe-aliases": [
+                    {"name": "summary", "expansion": "display address"}
+                ],
+                "args": [{"name": "family", "type": "enum"}],
+                "operators": [
+                    {"name": "json", "available": "always"},
+                    {"name": "match", "available": "with-rows"},
+                    {"name": "log", "available": "when-streaming"},
+                    {
+                        "name": "save",
+                        "available": "always",
+                        "local-only": True,
+                    },
+                ],
+            }
+        )
+
+        self.assertIn("always: json", meta)
+        self.assertIn("with-rows: match", meta)
+        self.assertIn("when-streaming: log", meta)
+        self.assertIn("local-only: save", meta)
+        self.assertIn("shape tab", meta)
+        self.assertIn("address-fields address", meta)
+        self.assertIn("filters family", meta)
+        self.assertIn("aliases summary=display address", meta)
+        self.assertIn("args family:enum", meta)
+
+
 class PublishedDocumentationTest(unittest.TestCase):
     def summary_for(self, content):
         with tempfile.TemporaryDirectory() as raw_root:

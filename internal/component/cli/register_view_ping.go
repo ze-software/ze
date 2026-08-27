@@ -6,9 +6,16 @@
 
 package cli
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/ze-software/ze/internal/component/command"
+)
 
 func init() {
+	command.RegisterShape([]string{"monitor ping"}, command.ShapeTab)
+	command.RegisterAddressFields([]string{"monitor ping"}, "target")
+
 	RegisterView(viewSpec{
 		key:    ViewKeyPing,
 		prefix: "monitor ping",

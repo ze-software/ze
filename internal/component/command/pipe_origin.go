@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // OriginResult holds the ASN origin data for an IP address.
@@ -59,7 +60,7 @@ func LookupOrigin(ip string) OriginResult {
 	return result
 }
 
-func originJSON(v any) any {
+func originJSON(v any, fields []string) any {
 	stack := []any{v}
 	for len(stack) > 0 {
 		cur := stack[len(stack)-1]
@@ -74,24 +75,34 @@ func originJSON(v any) any {
 				}
 			}
 		case map[string]any:
+			var derivedKey textbuf.Buffer
 			for key, value := range val {
-				s, ok := value.(string)
-				if ok && s != "*" && isIPAddress(s) {
-					o := LookupOrigin(s)
-					if o.ASN > 0 {
-						val[key+"-asn"] = o.ASN
-						if o.Name != "" {
-							val[key+"-as-name"] = o.Name
-						}
-						if o.Prefix != "" {
-							val[key+"-prefix"] = o.Prefix
+				s, isString := value.(string)
+				if isString {
+					if declaredAddressField(fields, key) {
+						if s != "*" {
+							if isIPAddress(s) {
+								o := LookupOrigin(s)
+								if o.ASN > 0 {
+									asnKey := derivedKey.Reset().Str(key).Str("-asn").String()
+									val[asnKey] = o.ASN
+									if o.Name != "" {
+										nameKey := derivedKey.Reset().Str(key).Str("-as-name").String()
+										val[nameKey] = o.Name
+									}
+									if o.Prefix != "" {
+										prefixKey := derivedKey.Reset().Str(key).Str("-prefix").String()
+										val[prefixKey] = o.Prefix
+									}
+								}
+							}
 						}
 					}
-				} else {
-					switch value.(type) {
-					case []any, map[string]any:
-						stack = append(stack, value)
-					}
+					continue
+				}
+				switch value.(type) {
+				case []any, map[string]any:
+					stack = append(stack, value)
 				}
 			}
 		}
@@ -99,9 +110,11 @@ func originJSON(v any) any {
 	return v
 }
 
-// applyOrigin adds ASN origin data for IP address string values in JSON.
-// For each string value that parses as an IP, sibling fields are added:
-// "<key>-asn" (uint32), "<key>-as-name" (string), "<key>-prefix" (string).
-func applyOrigin(input string) string {
-	return applyJSONTransform(input, originJSON)
+// applyOrigin adds ASN origin data for declared IP address fields in JSON.
+// For each matching string value, sibling fields are added: "<key>-asn"
+// (uint32), "<key>-as-name" (string), and "<key>-prefix" (string).
+func applyOrigin(input string, fields []string) string {
+	return applyJSONTransform(input, func(v any) any {
+		return originJSON(v, fields)
+	})
 }

@@ -159,6 +159,7 @@ type traceroutePipedState struct {
 	lastOutput    string
 	hopChan       <-chan map[string]any
 	cancelRound   context.CancelFunc
+	saves         *command.StreamSaves
 }
 
 func isTracerouteMonitorCommand(input string) bool {
@@ -271,7 +272,7 @@ func (m *Model) startTraceroutePiped(input string) tea.Cmd {
 		return nil
 	}
 
-	cmdStr, formatFn, pipeFlags, pipeErr := command.ProcessPipesDetectLog(input, m.cliFormat)
+	cmdStr, formatFn, pipeFlags, saves, pipeErr := command.ProcessStreamPipes(input, m.cliFormat)
 	if pipeErr != "" {
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("pipe error: ").Str(pipeErr).String()
@@ -279,11 +280,13 @@ func (m *Model) startTraceroutePiped(input string) tea.Cmd {
 	}
 	target, maxHops, argErr := parseTracerouteMonitorArgs(cmdStr)
 	if argErr != "" {
+		_ = saves.Abort()
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("monitor traceroute: ").Str(argErr).String()
 		return nil
 	}
 	if target == "" {
+		_ = saves.Abort()
 		m.statusMessage = "monitor traceroute: missing target address"
 		return nil
 	}
@@ -297,6 +300,7 @@ func (m *Model) startTraceroutePiped(input string) tea.Cmd {
 		hasFormatPipe: pipeFlags.HasFormat,
 		pipeResolve:   pipeFlags.Resolve,
 		pipeOrigin:    pipeFlags.Origin,
+		saves:         saves,
 	}}
 
 	if pipeFlags.Log {
@@ -334,6 +338,8 @@ func (m *Model) startTraceroutePipedRound() tea.Cmd {
 
 	ch, cancel, err := ps.poller(context.Background(), ps.target, ps.maxHops)
 	if err != nil {
+		_ = ps.saves.Abort()
+		ps.saves = nil
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("traceroute error: ").Err(err).String()
 		return nil
@@ -381,6 +387,8 @@ func (m *Model) stopTraceroutePiped() {
 	if ps.cancelRound != nil {
 		ps.cancelRound()
 	}
+	saveErr := ps.saves.Commit()
+	ps.saves = nil
 
 	lastOutput := ps.lastOutput
 	isLog := ps.logMode
@@ -404,7 +412,12 @@ func (m *Model) stopTraceroutePiped() {
 		m.setViewportText(m.outputBuf.String())
 		m.viewport.GotoBottom()
 	}
-	m.statusMessage = "traceroute stopped"
+	if saveErr != nil {
+		var status textbuf.Buffer
+		m.statusMessage = status.Str("traceroute save: ").Err(saveErr).String()
+	} else {
+		m.statusMessage = "traceroute stopped"
+	}
 }
 
 func drainTracerouteHops(ch <-chan map[string]any) (hops []map[string]any, closed bool) {
@@ -521,22 +534,40 @@ func (m Model) handleTraceroutePipedPoll() (tea.Model, tea.Cmd) {
 		formatted := ps.formatFn(rawJSON)
 		ps.lastOutput = formatted
 
+		var event textbuf.Buffer
+		event.Reset(len(formatted) + 1)
+		event.Str(strings.TrimRight(formatted, "\n")).Byte('\n')
+		shown := event.String()
 		if ps.logMode {
 			if ps.hasFormatPipe {
-				m.outputBuf.WriteString(strings.TrimRight(formatted, "\n"))
-				m.outputBuf.WriteString("\n")
+				m.outputBuf.WriteString(shown)
 			} else {
+				event.Reset(512)
 				if ps.rounds == 1 || (ps.rounds-1)%tracerouteLogMapEveryN == 0 {
 					if m.outputBuf.Len() > 0 {
-						m.outputBuf.WriteString("\n")
+						event.WriteString("\n")
 					}
-					m.outputBuf.WriteString(formatTracerouteLogMap(ps.hops, ps.pipeResolve, ps.pipeOrigin))
-					m.outputBuf.WriteString(formatTracerouteLogHeader(ps.hops))
+					event.WriteString(formatTracerouteLogMap(ps.hops, ps.pipeResolve, ps.pipeOrigin))
+					event.WriteString(formatTracerouteLogHeader(ps.hops))
 				}
-				m.outputBuf.WriteString("\n")
-				m.outputBuf.WriteString(formatTracerouteLogLine(ps.hops, ps.rounds))
+				event.WriteString("\n")
+				event.WriteString(formatTracerouteLogLine(ps.hops, ps.rounds))
+				shown = event.String()
+				m.outputBuf.WriteString(shown)
 			}
 			m.setViewportTextBottom(m.outputBuf.String())
+		}
+		if ps.saves != nil {
+			if saveErr := ps.saves.WriteString(shown); saveErr != nil {
+				ps.saves = nil
+				if ps.cancelRound != nil {
+					ps.cancelRound()
+				}
+				m.activeView = nil
+				event.Reset(64)
+				m.statusMessage = event.Str("traceroute save: ").Err(saveErr).String()
+				return m, nil
+			}
 		}
 
 		cmd := m.startTraceroutePipedRound()

@@ -365,14 +365,68 @@ def command_meta(command):
         meta.append("wire %s" % method)
     operators = command.get("operators", [])
     if operators:
-        # The names, not a flag. This page is what an AI tool reads, and a bare
-        # `pipes` marker told it a pipeline existed without naming one operator.
-        meta.append("pipes: " + " ".join(o["name"] for o in operators))
+        known_availability = {"always", "with-rows", "when-streaming"}
+        unknown = [
+            operator
+            for operator in operators
+            if operator.get("available") not in known_availability
+        ]
+        if unknown:
+            raise ValueError(
+                "unknown operator availability for "
+                + ", ".join(
+                    operator.get("name", "<unnamed>") for operator in unknown
+                )
+            )
+        pipe_groups = []
+        for availability in ("always", "with-rows", "when-streaming"):
+            names = [
+                operator["name"]
+                for operator in operators
+                if operator.get("available") == availability
+                and not operator.get("local-only")
+            ]
+            if names:
+                pipe_groups.append("%s: %s" % (availability, " ".join(names)))
+        local_only = [
+            operator["name"]
+            for operator in operators
+            if operator.get("local-only")
+        ]
+        if local_only:
+            pipe_groups.append("local-only: " + " ".join(local_only))
+        meta.append("pipes " + ", ".join(pipe_groups))
+    shape = clean(command.get("answer-shape"))
+    if shape:
+        meta.append("shape " + shape)
+    address_fields = command.get("address-fields") or []
+    if address_fields:
+        meta.append("address-fields " + " ".join(clean(field) for field in address_fields))
+    filters = command.get("pipes") or []
+    if filters:
+        meta.append(
+            "filters "
+            + " ".join(clean(pipe.get("name")) for pipe in filters if pipe.get("name"))
+        )
+    aliases = command.get("pipe-aliases") or []
+    if aliases:
+        meta.append(
+            "aliases "
+            + ", ".join(
+                "%s=%s" % (clean(alias.get("name")), clean(alias.get("expansion")))
+                for alias in aliases
+                if alias.get("name")
+            )
+        )
     args = command.get("args") or []
     if args:
         meta.append(
             "args %s"
-            % ", ".join(clean(arg.get("name")) for arg in args if arg.get("name"))
+            % ", ".join(
+                "%s:%s" % (clean(arg.get("name")), clean(arg.get("type")))
+                for arg in args
+                if arg.get("name")
+            )
         )
     return "; ".join(meta)
 
@@ -389,7 +443,7 @@ def render_cli_inventory():
         % ", ".join("%s %s" % (count, mode) for mode, count in sorted(modes.items()))
     )
     lines.append(
-        "`daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes:` lists the operators the command accepts after a `|`. An operator absent from that list is refused by name."
+        "`daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes` groups operators as `always`, `with-rows`, `when-streaming`, or `local-only`; these qualifiers are part of the contract. An operator absent from those groups is refused by name."
     )
     lines.append("")
     for root in sorted(roots):

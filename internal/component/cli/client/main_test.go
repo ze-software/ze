@@ -2,8 +2,10 @@ package client
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -11,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	unicli "github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/env"
 	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -856,5 +859,144 @@ func TestExecuteKeepsTheOperatorSurface(t *testing.T) {
 	}
 	if len(*sent) != 1 || (*sent)[0] != "show version" {
 		t.Errorf("Execute sent %q, want [\"show version\"]", *sent)
+	}
+}
+
+// TestPipeHelpSectionsComeFromCatalog compares every rendered entry with its
+// catalog class and local-process contract.
+func TestPipeHelpSectionsComeFromCatalog(t *testing.T) {
+	sections := pipeHelpSections()
+	if len(sections) != 3 {
+		t.Fatalf("pipe help sections = %d, want global, data, stream", len(sections))
+	}
+
+	catalog := command.PipeOperatorCatalog()
+	entryCount := 0
+	for _, section := range sections {
+		entryCount += len(section.Entries)
+	}
+	if entryCount != len(catalog) {
+		t.Fatalf("pipe help entries = %d, catalog = %d", entryCount, len(catalog))
+	}
+	for _, op := range catalog {
+		var desc, title string
+		for _, section := range sections {
+			for _, entry := range section.Entries {
+				if strings.Contains(entry.Name, "| "+op.Name) {
+					desc = entry.Desc
+					title = section.Title
+				}
+			}
+		}
+		if desc == "" {
+			t.Errorf("help omits catalog operator %q", op.Name)
+			continue
+		}
+		className := map[command.PipeClass]string{
+			command.ClassGlobal: "Global",
+			command.ClassData:   "Data",
+			command.ClassStream: "Stream",
+		}[op.Class]
+		if !strings.HasPrefix(title, className) {
+			t.Errorf("%s appears under %q, want %s class", op.Name, title, className)
+		}
+		hasLocalWording := strings.Contains(desc, "local process only")
+		if hasLocalWording != op.LocalOnly {
+			t.Errorf("%s local-only wording = %v, want %v", op.Name, hasLocalWording, op.LocalOnly)
+		}
+	}
+}
+
+func monitorTestClient(events []string, streamErr error) *cliClient {
+	return &cliClient{
+		monitorStream: func(_ sshclient.Credentials, _ string, callback func(string) error) error {
+			for _, event := range events {
+				if err := callback(event); err != nil {
+					return err
+				}
+			}
+			return streamErr
+		},
+	}
+}
+
+// TestStreamMonitorSavesDisplayedEventsInOrder drives two events through the
+// default renderer and compares both atomic destinations with stdout.
+func TestStreamMonitorSavesDisplayedEventsInOrder(t *testing.T) {
+	dir := t.TempDir()
+	firstPath := filepath.Join(dir, "first.out")
+	secondPath := filepath.Join(dir, "second.out")
+	events := []string{
+		`{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"remote":{"address":"192.0.2.1","as":65001}},"state":"established"}}`,
+		`{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"remote":{"address":"192.0.2.2","as":65002}},"state":"down"}}`,
+	}
+	client := monitorTestClient(events, nil)
+	commandLine := "monitor event | save " + firstPath + " | save " + secondPath
+
+	var code int
+	shown := captureOutput(t, false, func() { code = client.StreamMonitor(commandLine) })
+	if code != 0 {
+		t.Fatalf("StreamMonitor exit = %d, want 0", code)
+	}
+	if shown == "" || shown == strings.Join(events, "\n")+"\n" {
+		t.Fatalf("default renderer did not run before save: %q", shown)
+	}
+	firstOffset := strings.Index(shown, "192.0.2.1")
+	secondOffset := strings.Index(shown, "192.0.2.2")
+	if firstOffset < 0 || secondOffset <= firstOffset {
+		t.Fatalf("displayed event order = %q", shown)
+	}
+	for _, path := range []string{firstPath, secondPath} {
+		saved, err := os.ReadFile(path) //nolint:gosec // test-owned temp path
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		if string(saved) != shown {
+			t.Errorf("%s saved %q, terminal showed %q", path, saved, shown)
+		}
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("stat %s: %v", path, err)
+		}
+		if info.Mode().Perm() != 0o600 {
+			t.Errorf("%s mode = %o, want 600", path, info.Mode().Perm())
+		}
+	}
+}
+
+// TestStreamMonitorFailureKeepsDestinationAndRemovesTemp ends the transport
+// after one event and inspects the destination directory.
+func TestStreamMonitorFailureKeepsDestinationAndRemovesTemp(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "answer.out")
+	if err := os.WriteFile(path, []byte("previous"), 0o600); err != nil {
+		t.Fatalf("seed destination: %v", err)
+	}
+	client := monitorTestClient([]string{`{"seq":1}`}, errors.New("transport failed"))
+
+	var code int
+	captureOutput(t, true, func() {
+		captureOutput(t, false, func() {
+			code = client.StreamMonitor("monitor event | raw | save " + path)
+		})
+	})
+	if code != 1 {
+		t.Fatalf("StreamMonitor exit = %d, want 1", code)
+	}
+	saved, err := os.ReadFile(path) //nolint:gosec // test-owned temp path
+	if err != nil {
+		t.Fatalf("read destination: %v", err)
+	}
+	if string(saved) != "previous" {
+		t.Errorf("failed stream replaced destination with %q", saved)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read temp directory: %v", err)
+	}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".ze-save-") {
+			t.Errorf("failed stream left temporary file %s", entry.Name())
+		}
 	}
 }

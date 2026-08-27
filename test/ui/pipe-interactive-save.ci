@@ -1,0 +1,54 @@
+# Test: interactive monitor save displays and atomically saves the same rendered events
+#
+# VALIDATES: IR-18 and AC-7 -- the interactive model accepts local save, shows
+#   the answer, commits the same bytes, and creates the file mode 0600.
+# PREVENTS: save remaining covered only below the interactive entry point, or
+#   the stream writer saving raw events that differ from the viewport.
+
+option=timeout:value=30s
+
+# ze-test editor roots its base dir at the first go.mod above the working
+# directory, so --dir . runs the embedded interaction in this test's temp dir.
+tmpfs=go.mod:terminator=EOF_MOD
+module ze-ui-pipe-interactive-save-fixture
+EOF_MOD
+
+tmpfs=pipe-interactive-save.et:terminator=EOF_ET
+# Test: type an interactive streaming command with local save
+option=mode:value=operational
+option=monitor:ping=fake
+
+input=type:text=monitor ping 192.0.2.1 | ndjson | log | save interactive-save.ndjson
+input=enter
+expect=error:none
+expect=viewport:contains=rtt-ms
+expect=viewport:contains=1.234
+expect=viewport:contains=2.345
+expect=viewport:contains=timeout
+expect=viewport:contains=192.0.2.1
+EOF_ET
+
+tmpfs=check.py:terminator=EOF_PY
+import os
+import stat
+
+expected = (
+    b'{"rtt-ms":1.234,"seq":0,"status":"ok","target":"192.0.2.1"}\n'
+    b'{"rtt-ms":2.345,"seq":1,"status":"ok","target":"192.0.2.1"}\n'
+    b'{"seq":2,"status":"timeout","target":"192.0.2.1"}\n'
+)
+with open('interactive-save.ndjson', 'rb') as handle:
+    saved = handle.read()
+if saved != expected:
+    raise SystemExit('saved bytes differ from the three displayed lines: %r' % saved)
+mode = stat.S_IMODE(os.stat('interactive-save.ndjson').st_mode)
+if mode != 0o600:
+    raise SystemExit('interactive save mode=%04o, want 0600' % mode)
+print('OK: interactive save bytes and mode')
+EOF_PY
+
+cmd=foreground:seq=1:exec=ze-test editor --dir . --all
+expect=exit:code=0
+cmd=foreground:seq=2:exec=python3 check.py
+expect=exit:code=0
+expect=stdout:contains=OK: interactive save bytes and mode

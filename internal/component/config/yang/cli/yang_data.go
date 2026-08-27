@@ -55,33 +55,45 @@ func decodeWritten(write func(w *bytes.Buffer) error) (any, int) {
 // that is what formatTreeJSON emits. `| first 1` therefore answers one subtree
 // whole, and `| match` keeps the roots holding the text.
 func dataTree(args []string) (any, int) {
-	// The flag spellings are listed rather than built, because the repository
-	// forbids string concatenation and a two-entry table is clearer anyway.
-	filter := ""
-	for _, arg := range args {
-		switch arg {
-		case flagCommands, FilterCommands:
-			filter = FilterCommands
-		case flagConfig, SourceConfig:
-			filter = SourceConfig
-		}
+	options, err := parseTreeOptions(args)
+	if err != nil {
+		return nil, writeOptionError(err)
 	}
+	if options.jsonOutput {
+		writeLocalJSONFlagError()
+		return nil, 1
+	}
+
 	root, err := buildUnifiedTree()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return nil, 1
 	}
-	return decodeWritten(func(w *bytes.Buffer) error { return formatTreeJSON(w, root, filter) })
+	return decodeWritten(
+		func(w *bytes.Buffer) error { return formatTreeJSON(w, root, options.filter) })
 }
 
 // dataCompletion answers `show yang completion`: the prefix collisions in the
 // config and command trees, as rows.
-func dataCompletion(_ []string) (any, int) {
+func dataCompletion(args []string) (any, int) {
+	options, err := parseCompletionOptions(args)
+	if err != nil {
+		return nil, writeOptionError(err)
+	}
+	if options.jsonOutput {
+		writeLocalJSONFlagError()
+		return nil, 1
+	}
+
 	root, err := buildUnifiedTree()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return nil, 1
 	}
-	groups := collectCollisions(root, 1)
+	groups := collectCollisions(root, options.minPrefix)
 	return decodeWritten(func(w *bytes.Buffer) error { return formatCollisionsJSON(w, groups) })
+}
+
+func writeLocalJSONFlagError() {
+	fmt.Fprintln(os.Stderr, "error: --json is a ze yang rendering option; use | json")
 }

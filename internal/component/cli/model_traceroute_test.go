@@ -10,8 +10,26 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// TestTracerouteMonitorDeclaresItsStreamShape verifies the owning registration
+// admits enrichment only for each hop's addr field.
+func TestTracerouteMonitorDeclaresItsStreamShape(t *testing.T) {
+	shape, declared := command.ShapeForCommand("monitor traceroute 192.0.2.1 max-hops 8")
+	require.True(t, declared)
+	assert.Equal(t, command.ShapeTab, shape)
+	assert.Equal(t, []string{"addr"}, command.AddressFieldsForCommand("monitor traceroute 192.0.2.1"))
+
+	_, _, flags, saves, errMsg := command.ProcessStreamPipes(
+		"monitor traceroute 192.0.2.1 | resolve | origin | log", "",
+	)
+	t.Cleanup(func() { _ = saves.Abort() })
+	require.Empty(t, errMsg)
+	assert.True(t, flags.Resolve)
+	assert.True(t, flags.Origin)
+}
 
 func TestIsTracerouteMonitorCommand(t *testing.T) {
 	assert.True(t, isTracerouteMonitorCommand("monitor traceroute 8.8.8.8"))

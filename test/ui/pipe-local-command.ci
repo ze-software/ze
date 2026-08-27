@@ -1,150 +1,189 @@
-# Test: a command served in the CLI's own process reaches the pipe layer
+# Test: every locally registered data command reaches the pipe layer
 #
-# VALIDATES: docs/architecture/api/commands.md -- the 38 commands
-#   that reached no pipe layer on any surface reach one.
-# PREVENTS: `ze cli -c "show env list | json"` answering `unknown command`
-#   again, which is what it did while YANG declared a wire method for the
-#   command and no daemon handler implemented it. `ze help command --json`
-#   published `global-pipes: true` for it at the same time, so the
-#   machine-readable surface asserted support the daemon did not have.
+# VALIDATES: AC-10 -- every production MustRegisterLocalData command runs through
+#   ze cli -c with a real pipe, without a daemon.
+# PREVENTS: a converted local handler remaining unreachable from the client, or
+#   a new registration landing without functional entry-to-pipe coverage.
 #
-# No daemon runs here on purpose: these commands are answered in the client's
-# own process, so every chain below must work with nothing listening. That is
-# also why the driver is Python: the chain has to reach `-c` as ONE argument,
-# and a `|` on an exec= line does not survive as one.
+# The local_json calls are the executable functional population. The registry
+# population unit test derives production registrations from Go AST and derives
+# coverage from these calls, so neither side is a hand-maintained command list.
+
+option=timeout:value=45s
 
 tmpfs=run.py:terminator=EOF_PY
 import json
 import os
+import stat
 import subprocess
-import sys
+
 
 def require(condition, message):
     if not condition:
         raise SystemExit(message)
 
-def count_of(text):
-    # `| count` answers {"count": N}. With no format operator the default
-    # rendering unwraps a single-key answer to its value, so the text is the
-    # bare number. Both spellings are the same answer.
-    parsed = json.loads(text)
-    if isinstance(parsed, dict):
-        return int(parsed['count'])
-    return int(parsed)
 
 def run(argv):
-    r = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                       text=True, env=os.environ.copy(), check=False)
-    return r.returncode, r.stdout, r.stderr
+    result = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True, env=os.environ.copy(), check=False)
+    return result.returncode, result.stdout, result.stderr
 
-# 1. A format operator. The answer is structured data now, not the text the
-#    command used to print, so it parses.
-code, out, err = run(['ze', 'cli', '-c', 'show env list | json compact'])
-require(code == 0, '| json exit=%d: %s%s' % (code, out, err))
-payload = json.loads(out)
-rows = payload['variables'] if isinstance(payload, dict) else payload
-require(len(rows) > 10, 'the answer carries %d rows' % len(rows))
-require(any(r['key'] == 'ze.cli.format' for r in rows), 'no ze.cli.format row: %r' % out[:200])
 
-# 2. A row operator over the same answer. It could not run at all before.
-code, out, err = run(['ze', 'cli', '-c', 'show env list | count'])
-require(code == 0, '| count exit=%d: %s%s' % (code, out, err))
-total = count_of(out)
-require(total == len(rows), '| count answered %d, the answer has %d rows' % (total, len(rows)))
+def local_json(command):
+    require('| ' in command, 'local command has no real pipe: %s' % command)
+    code, out, err = run(['ze', 'cli', '-c', command])
+    require(code == 0, '%s exit=%d: %s%s' % (command, code, out, err))
+    try:
+        return json.loads(out)
+    except json.JSONDecodeError as exc:
+        raise SystemExit('%s did not answer JSON: %s\n%s%s' % (command, exc, out, err))
 
-# 3. Nesting, which the owner requires: each match narrows the one before it.
-code, out, err = run(['ze', 'cli', '-c', 'show env list | match ze.log | count'])
-require(code == 0, 'one match exit=%d: %s%s' % (code, out, err))
-one = count_of(out)
-code, out, err = run(['ze', 'cli', '-c', 'show env list | match ze.log | match level | count'])
-require(code == 0, 'two matches exit=%d: %s%s' % (code, out, err))
-two = count_of(out)
-require(0 < two < one < total,
-        'match did not narrow twice: all=%d one=%d two=%d' % (total, one, two))
 
-# 4. `| display` names the fields, so a tool can ask for a stable set and the
-#    fields it did not name are gone.
-code, out, err = run(['ze', 'cli', '-c',
-                      'show env list | match ze.cli.format | display key | json compact'])
-require(code == 0, '| display exit=%d: %s%s' % (code, out, err))
-require('ze.cli.format' in out, 'display dropped the field it named: %r' % out)
-require('description' not in out, 'display kept a field it did not name: %r' % out)
+def rows(payload, key):
+    selected = payload[key] if isinstance(payload, dict) else payload
+    require(isinstance(selected, list), '%s is not a row list: %r' % (key, selected))
+    return selected
 
-# 5. An unusable argument is refused rather than ignored.
-code, out, err = run(['ze', 'cli', '-c', 'show env list | fill nosuchway'])
-require(code == 1, 'a bad fill argument exit=%d, want 1: %s%s' % (code, out, err))
+def tree_nodes(nodes):
+    for node in nodes:
+        yield node
+        yield from tree_nodes(node.get('children', []))
 
-# 6. A second family, and the case a declared shape decides BEFORE the command
-#    runs: `show schema protocol` answers one document, so every row operator
-#    is refused over it by name. The refusal exits non-zero, so a script can
-#    tell it from an answer.
-code, out, err = run(['ze', 'cli', '-c', 'show schema protocol | json compact'])
-require(code == 0, 'schema protocol exit=%d: %s%s' % (code, out, err))
-require('version' in json.loads(out), 'schema protocol lost its payload: %r' % out)
 
-code, out, err = run(['ze', 'cli', '-c', 'show schema protocol | first 1'])
-require(code == 1, 'a row operator over a document exit=%d, want 1: %s%s' % (code, out, err))
-combined = out + err
-require('first' in combined, 'the refusal does not name the operator: %r' % combined)
-require('rows' in combined, 'the refusal does not say why: %r' % combined)
+work = os.getcwd()
+os.environ['ZE_CONFIG_DIR'] = work
+config_path = os.path.join(work, 'pipe-local.conf')
+with open(config_path, 'w') as handle:
+    handle.write('environment {\n'
+                 '    cli {\n'
+                 '        format {\n'
+                 '            default table;\n'
+                 '        }\n'
+                 '    }\n'
+                 '}\n')
+with open(config_path + '.draft', 'w') as handle:
+    handle.write('set environment cli format default json\n')
 
-# 7. The same family, where the answer DOES have rows.
-code, out, err = run(['ze', 'cli', '-c', 'show schema list | count'])
-require(code == 0, 'schema list count exit=%d: %s%s' % (code, out, err))
-require(count_of(out) > 0, 'schema list counted nothing: %r' % out)
+# History resolves its argument through the process runtime zefs store. Seed
+# the active config and its DraftPath key through the real data entry point,
+# rather than placing lookalike files only on the filesystem.
+for key, source in (
+        ('file/active/pipe-local.conf', config_path),
+        ('file/active/pipe-local.conf.draft', config_path + '.draft')):
+    code, out, err = run(['ze', 'data', 'write', key, source])
+    require(code == 0, 'runtime-store fixture %s exit=%d: %s%s'
+            % (key, code, out, err))
 
-# 8. The config family, and the case only a DECLARED shape can decide.
-#    `show config dump` answers a nested configuration tree. A tree whose one
-#    top-level key holds a map of maps is indistinguishable from rows keyed by
-#    identity, so the answer alone says "rows" and `| first 1` returned a
-#    fragment of the config. The command declares `doc`, and the chain is
-#    refused before it runs.
-conf = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'ze-pipe-local-dump.conf')
-with open(conf, 'w') as fh:
-    fh.write('bgp {\n\tpeer p1 {\n\t\tconnection {\n\t\t\tremote {\n\t\t\t\tip 10.0.0.1\n'
-             '\t\t\t}\n\t\t}\n\t\tsession {\n\t\t\tasn {\n\t\t\t\tlocal 65000\n'
-             '\t\t\t\tremote 65001\n\t\t\t}\n\t\t}\n\t}\n}\n')
+blob_input = os.path.join(work, 'router-name.txt')
+blob_path = os.path.join(work, 'pipe-local.zefs')
+with open(blob_input, 'w') as handle:
+    handle.write('router-a')
+code, out, err = run(['ze', 'data', '--path', blob_path, 'write',
+                      'meta/instance/name', blob_input])
+require(code == 0, 'blob fixture exit=%d: %s%s' % (code, out, err))
 
-code, out, err = run(['ze', 'cli', '-c', 'show config dump %s | json compact' % conf])
-require(code == 0, 'config dump exit=%d: %s%s' % (code, out, err))
-require('10.0.0.1' in out, 'config dump lost its payload: %r' % out[:200])
+# Config family: document content, draft-backed history, and filesystem source.
+payload = local_json('show config dump %s | json compact' % config_path)
+require(payload.get('environment', {}).get('cli', {}).get('format', {}).get('default') == 'table',
+        'config dump lost environment cli format default table: %r' % payload)
 
-code, out, err = run(['ze', 'cli', '-c', 'show config dump %s | first 1' % conf])
-require(code == 1, 'a row operator over a declared document exit=%d, want 1: %s%s' % (code, out, err))
-combined = out + err
-require('one document' in combined, 'the refusal does not say why: %r' % combined)
-require(conf not in combined, 'the refusal echoes the file path back: %r' % combined)
+payload = local_json('show config history pipe-local.conf | json compact')
+revisions = rows(payload, 'revisions')
+require(any(row.get('revision') == 'draft' and row.get('state') == 'editing in progress'
+            for row in revisions), 'config history lost the draft row: %r' % revisions)
 
-# 9. The two surfaces answer the same BYTES.
-#
-#    A dual-registered command is reachable as `ze show env list` and as
-#    `ze cli -c "show env list"`, and those are two different call sites in two
-#    different packages. `ze <verb>` renders through command.RenderLocalAnswer,
-#    which ends an answer with exactly one newline. `ze cli -c` used
-#    fmt.Println over the same rendered string, which added a second one when
-#    the rendering already ended in a newline, and every table rendering does.
-#
-#    A trailing blank line is not cosmetic on this surface. It is one surface
-#    of a pair that a tool author is told answer alike, so `wc -l` disagreed by
-#    one between two spellings of one command, and a `tail -1` read the blank
-#    instead of the last row.
-code_a, out_a, err_a = run(['ze', 'show', 'env', 'list'])
-require(code_a == 0, 'ze show env list exit=%d: %s%s' % (code_a, out_a, err_a))
-code_b, out_b, err_b = run(['ze', 'cli', '-c', 'show env list'])
-require(code_b == 0, 'cli -c exit=%d: %s%s' % (code_b, out_b, err_b))
-require(out_a == out_b,
-        'the two surfaces answer different bytes: verb ends %r, cli -c ends %r'
-        % (out_a[-40:], out_b[-40:]))
+payload = local_json('show config ls | json compact')
+configs = rows(payload, 'configs')
+require(any(row.get('source') == 'fs' and row.get('path') == config_path
+            for row in configs), 'config ls lost its filesystem row: %r' % configs)
 
-print('OK')
+# Schema family: assert the command-specific record shape and stable registry data.
+payload = local_json('show schema list | json compact')
+schemas = rows(payload, 'schemas')
+require(any(row.get('module') == 'ze-fib-conf' and row.get('namespace') == 'ze.fib.conf'
+            for row in schemas), 'schema list lost stripped-core ze-fib-conf: %r' % schemas[:5])
+
+payload = local_json('show schema methods | json compact')
+methods = rows(payload, 'methods')
+require(methods and all(row.get('method') and row.get('module') for row in methods),
+        'schema methods did not return method/module rows: %r' % methods[:5])
+
+payload = local_json('show schema events | count | json compact')
+require(payload == {'count': 0, 'pipe': [{'op': 'count'}]},
+        'stripped schema events count metadata changed: %r' % payload)
+
+payload = local_json('show schema handlers | count | json compact')
+require(payload == {'count': 0, 'pipe': [{'op': 'count'}]},
+        'stripped schema handlers count metadata changed: %r' % payload)
+
+payload = local_json('show schema protocol | json compact')
+require(payload == {'protocol': 'Hub Architecture', 'version': '1.0'},
+        'schema protocol changed payload: %r' % payload)
+
+# Data family: use a real blob and the production key registry.
+payload = local_json('show data ls --path %s | json compact' % blob_path)
+keys = rows(payload, 'keys')
+require(any(row.get('key') == 'meta/instance/name' for row in keys),
+        'data ls lost the written key: %r' % keys)
+
+payload = local_json('show data registered | json compact')
+patterns = rows(payload, 'patterns')
+require(any(row.get('pattern') == 'meta/instance/name'
+            and row.get('description') == 'Router instance name' for row in patterns),
+        'data registered lost the instance-name contract: %r' % patterns[:5])
+
+# YANG family: both tree filters and a non-default completion prefix reach the
+# shared option parsers fixed for IR-6.
+command_tree = local_json('show yang tree --commands | json compact')
+command_nodes = list(tree_nodes(command_tree))
+require(command_nodes and all(node.get('source') != 'config' for node in command_nodes),
+        'yang --commands leaked a config-only node: %r' % command_nodes[:5])
+config_tree = local_json('show yang tree --config | json compact')
+config_nodes = list(tree_nodes(config_tree))
+require(config_nodes and all(node.get('source') != 'command' for node in config_nodes),
+        'yang --config leaked a command-only node: %r' % config_nodes[:5])
+require(command_tree != config_tree, 'the two YANG filters selected the same tree')
+
+payload = local_json('show yang completion --min-prefix 2 | json compact')
+collisions = rows(payload, 'collisions')
+summary = payload['summary']
+require(collisions and all(group.get('max-chars', 0) >= 2 for group in collisions),
+        'completion ignored --min-prefix 2: %r' % collisions[:5])
+require(summary.get('total-groups') == len(collisions)
+        and summary.get('total-affected') == sum(len(group['siblings']) for group in collisions),
+        'completion summary disagrees with its rows: %r' % payload)
+
+# Env family: effective list, one-key lookup, and declaration-only output.
+payload = local_json('show env list | json compact')
+variables = rows(payload, 'variables')
+require(any(row.get('key') == 'ze.cli.format' and 'current' in row for row in variables),
+        'env list lost ze.cli.format effective data: %r' % variables[:5])
+
+payload = local_json('show env get ze.cli.format | json compact')
+selected = rows(payload, 'variables')
+require(len(selected) == 1 and selected[0].get('key') == 'ze.cli.format'
+        and 'current' in selected[0], 'env get returned the wrong row: %r' % selected)
+
+payload = local_json('show env registered | json compact')
+registered = rows(payload, 'variables')
+require(any(row.get('key') == 'ze.cli.format' and 'current' not in row
+            for row in registered), 'env registered leaked or lost declaration data: %r' % registered[:5])
+
+# Local one-shot save, with no daemon: the process displays the same rendered
+# bytes it commits and creates the answer owner-only.
+save_path = os.path.join(work, 'local-save.ndjson')
+code, shown, err = run(['ze', 'cli', '-c',
+                        'show env get ze.cli.format | ndjson | save %s' % save_path])
+require(code == 0, 'local save exit=%d: %s%s' % (code, shown, err))
+with open(save_path, 'rb') as handle:
+    saved = handle.read()
+require(saved == shown.encode(), 'local save bytes differ: file=%r shown=%r' % (saved, shown.encode()))
+mode = stat.S_IMODE(os.stat(save_path).st_mode)
+require(mode == 0o600, 'local save mode=%04o, want 0600' % mode)
+
+print('OK: 15/15 local-data commands and local one-shot save')
 EOF_PY
 
 cmd=foreground:seq=1:exec=python3 run.py
 expect=exit:code=0
-expect=stdout:contains=OK
-
-# The `ze <verb>` form answers the same command through the same renderer, so
-# its columns come out in the order the command declared: key first.
-cmd=foreground:seq=2:exec=ze show env list
-expect=exit:code=0
-expect=stdout:contains=ze.log
+expect=stdout:contains=OK: 15/15 local-data commands and local one-shot save

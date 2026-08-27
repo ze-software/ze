@@ -96,7 +96,7 @@ func isIPAddress(s string) bool {
 	return err == nil
 }
 
-func resolveJSON(v any) any {
+func resolveJSON(v any, fields []string) any {
 	stack := []any{v}
 	for len(stack) > 0 {
 		cur := stack[len(stack)-1]
@@ -104,24 +104,30 @@ func resolveJSON(v any) any {
 
 		switch val := cur.(type) {
 		case []any:
-			for i, item := range val {
+			for _, item := range val {
 				switch item.(type) {
 				case []any, map[string]any:
 					stack = append(stack, item)
-				default:
-					val[i] = item
 				}
 			}
 		case map[string]any:
+			var derivedKey textbuf.Buffer
 			for key, value := range val {
-				s, ok := value.(string)
-				if ok && s != "*" && isIPAddress(s) {
-					val[key+"-name"] = ReverseLookup(s)
-				} else {
-					switch value.(type) {
-					case []any, map[string]any:
-						stack = append(stack, value)
+				s, isString := value.(string)
+				if isString {
+					if declaredAddressField(fields, key) {
+						if s != "*" {
+							if isIPAddress(s) {
+								nameKey := derivedKey.Reset().Str(key).Str("-name").String()
+								val[nameKey] = ReverseLookup(s)
+							}
+						}
 					}
+					continue
+				}
+				switch value.(type) {
+				case []any, map[string]any:
+					stack = append(stack, value)
 				}
 			}
 		}
@@ -129,12 +135,23 @@ func resolveJSON(v any) any {
 	return v
 }
 
-// applyResolve adds reverse DNS names for IP address string values in JSON.
-// For each string value that parses as an IP, a sibling "<key>-name" field
-// is added with the PTR result. Results are cached across invocations.
-// Handles both single JSON values and NDJSON (one object per line).
-func applyResolve(input string) string {
-	return applyJSONTransform(input, resolveJSON)
+// applyResolve adds reverse DNS names for declared IP address fields in JSON.
+// For each declared string value that parses as an IP, a sibling
+// "<key>-name" field is added with the PTR result. Results are cached across
+// invocations. Handles both single JSON values and NDJSON.
+func applyResolve(input string, fields []string) string {
+	return applyJSONTransform(input, func(v any) any {
+		return resolveJSON(v, fields)
+	})
+}
+
+func declaredAddressField(fields []string, key string) bool {
+	for _, field := range fields {
+		if strings.EqualFold(field, key) {
+			return true
+		}
+	}
+	return false
 }
 
 // applyJSONTransform applies a transform function to parsed JSON data.

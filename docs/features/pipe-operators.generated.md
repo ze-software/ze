@@ -2,25 +2,25 @@
      internal/component/command/pipe_catalog.go. Do not edit by hand:
      ze-doc-verify fails when this file and the catalog disagree. -->
 
-| Operator | Class | Argument | Repeated | What it does |
-|----------|-------|----------|----------|--------------|
-| `json` | acts on any answer | [<option>] | refused | JSON output |
-| `ndjson` | acts on any answer | none | refused | One JSON object per line |
-| `table` | acts on any answer | none | refused | Render as table |
-| `text` | acts on any answer | none | refused | Space-aligned columns |
-| `yaml` | acts on any answer | none | refused | YAML output |
-| `raw` | acts on any answer | none | refused | Dispatcher JSON, unformatted |
-| `no-more` | acts on any answer | none | no effect | Disable paging |
-| `log` | acts on a stream of updates | none | no effect | Append each update instead of replacing it, where the command keeps answering |
-| `save` | acts on any answer | <path> | applies again, in order | Write the answer to a file |
-| `match` | acts on rows | <text> | applies again, in order | Keep the rows holding this text |
-| `count` | acts on rows | none | refused | Count the rows |
-| `first` | acts on rows | <n> | applies again, in order | Take first N rows |
-| `last` | acts on rows | <n> | applies again, in order | Take last N rows |
-| `display` | acts on rows | <field>... | applies again, in order | Answer with these fields, in this order |
-| `fill` | acts on rows | [<option>] | refused | Bring the remaining columns back, in the command's order or a named one |
-| `resolve` | acts on rows | none | no effect | Reverse DNS for IP addresses |
-| `origin` | acts on rows | none | no effect | ASN and network for IP addresses |
+| Operator | Class | Surface | Argument | Repeated | What it does |
+|----------|-------|---------|----------|----------|--------------|
+| `json` | acts on any answer | all | [<option>] | refused | JSON output |
+| `ndjson` | acts on any answer | all | none | refused | One JSON object per line |
+| `table` | acts on any answer | all | none | refused | Render as table |
+| `text` | acts on any answer | all | none | refused | Space-aligned columns |
+| `yaml` | acts on any answer | all | none | refused | YAML output |
+| `raw` | acts on any answer | all | none | refused | Dispatcher JSON, unformatted |
+| `no-more` | acts on any answer | all | none | no effect | Disable paging |
+| `log` | acts on a stream of updates | all | none | no effect | Append each update instead of replacing it, where the command keeps answering |
+| `save` | acts on any answer | local process only | <path> | applies again, in order | Write the answer to a file |
+| `match` | acts on rows | all | <text> | applies again, in order | Keep the rows holding this text |
+| `count` | acts on rows | all | none | refused | Count the rows |
+| `first` | acts on rows | all | <n> | applies again, in order | Take first N rows |
+| `last` | acts on rows | all | <n> | applies again, in order | Take last N rows |
+| `display` | acts on rows | all | <field>... | applies again, in order | Answer with these fields, in this order |
+| `fill` | acts on rows | all | [<option>] | refused | Bring the remaining columns back, in the command's order or a named one |
+| `resolve` | acts on rows | all | none | no effect | Reverse DNS for IP addresses |
+| `origin` | acts on rows | all | none | no effect | ASN and network for IP addresses |
 
 An operator that acts on rows is refused BY NAME over an answer that has
 none, rather than answering something plausible. `resolve` and `origin` act

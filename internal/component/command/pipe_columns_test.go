@@ -311,6 +311,37 @@ func TestDisplayUnknownFieldIsInert(t *testing.T) {
 	}
 }
 
+// TestDisplayTypoIsRefused drives the producer with a field name no row carries.
+//
+// VALIDATES: IR-5 -- a display request matching no selectable top-level field
+// is refused by name.
+// PREVENTS: a typo returning the complete record and exposing every field the
+// operator intended to remove.
+func TestDisplayTypoIsRefused(t *testing.T) {
+	_, format, errMsg := ProcessPipesChecked("show test peers | display routes-snet | json")
+	if errMsg != "" {
+		t.Fatalf("build display formatter: %s", errMsg)
+	}
+	got := format(columnsPayload)
+	if !IsPipeError(got) {
+		t.Fatalf("unknown display field answered data: %s", got)
+	}
+	if !strings.Contains(got, "routes-snet") {
+		t.Errorf("refusal does not name the requested field: %s", got)
+	}
+	if strings.Contains(got, "192.0.2.1") || strings.Contains(got, "transit") {
+		t.Errorf("refusal leaked the unselected row: %s", got)
+	}
+
+	records := func(yield func(rpc.Record) bool) {
+		yield(rpc.Record{Item: json.RawMessage(`{"address":"192.0.2.1","state":"up"}`)})
+	}
+	streamed := collectRecords(applyRecordsForTest(t, "show test peers | display routes-snet", records))
+	if len(streamed) != 1 || len(streamed[0].Item) > 0 || !strings.Contains(string(streamed[0].Fault), "routes-snet") {
+		t.Errorf("record path did not fail closed by field name: %+v", streamed)
+	}
+}
+
 // VALIDATES: selection keeps the parent key column of a map-of-maps, so the
 // rows stay identifiable (AC-10, R-1).
 // PREVENTS: `| display state` on peers indexed by address answering with a
@@ -394,7 +425,7 @@ func TestColumnOpsAbsentLeavesOutputUnchanged(t *testing.T) {
 	}{
 		{"show test peers | text", applyTableStyled(columnsPayload, tableStyle{plain: true, orders: columns})},
 		{"show test peers | table", applyTableStyled(columnsPayload, tableStyle{orders: columns})},
-		{"show test peers | json", ApplyJSON(columnsPayload, jsonPretty)},
+		{"show test peers | json", applyJSON(columnsPayload, jsonPretty)},
 		{"show test peers | yaml", applyYAML(columnsPayload)},
 		{"show test peers | raw", columnsPayload},
 	}
@@ -587,7 +618,7 @@ func TestDisplaySelectsPerRecord(t *testing.T) {
 		}
 	}
 
-	for record := range ApplyPipesRecords("show test peers | display state", records) {
+	for record := range applyRecordsForTest(t, "show test peers | display state", records) {
 		consumed++
 		if produced != consumed {
 			t.Errorf("the chain had produced %d records when it answered record %d: selection read more than the record in hand", produced, consumed)
@@ -611,12 +642,21 @@ func TestDisplaySelectsPerRecord(t *testing.T) {
 		// writes the key itself, so it has its own chance to escape differently.
 		`{"peers<&>":[{"state":"a&b<c","address":"192.0.2.1"}]}`,
 	} {
-		streamed, ok := selectSequence(payload, keep)
+		streamed, matched, empty, ok := selectSequence(payload, keep)
 		if !ok {
 			t.Errorf("%q was not read as a sequence, so the whole payload was decoded to select it", payload)
 			continue
 		}
-		if got := applyDisplaySelect(payload, request); got != streamed {
+		if !matched && !empty {
+			t.Errorf("%q matched no field", payload)
+			continue
+		}
+		got, msg := applyDisplaySelect(payload, request)
+		if msg != "" {
+			t.Errorf("| display refused %q: %s", payload, msg)
+			continue
+		}
+		if got != streamed {
 			t.Errorf("| display answered %q, and the sequence it streamed is %q", got, streamed)
 		}
 		if want := selectWholePayload(t, payload, keep); streamed != want {
@@ -636,7 +676,8 @@ func selectWholePayload(t *testing.T, payload string, keep map[string]struct{}) 
 	if err := decoder.Decode(&data); err != nil {
 		t.Fatalf("decode %q: %v", payload, err)
 	}
-	out, err := json.Marshal(selectFields(data, keep))
+	selected, _ := selectFields(data, keep)
+	out, err := json.Marshal(selected)
 	if err != nil {
 		t.Fatalf("marshal the selection of %q: %v", payload, err)
 	}

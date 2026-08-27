@@ -2,6 +2,7 @@ package command
 
 import (
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -37,7 +38,7 @@ func TestCompletionDerivesFromCatalog(t *testing.T) {
 			t.Errorf("completion %q has type %q, want pipe", s.Text, s.Type)
 		}
 	}
-	want := PipeOperatorNames()
+	want := pipeOperatorNames()
 	sortedEqual(t, "completion", got, want)
 
 	for _, op := range pipeCatalog {
@@ -81,6 +82,35 @@ func TestEveryOperatorStatesItsContract(t *testing.T) {
 			t.Errorf("operator %q acts on a stream but applies to %v; the shape of one answer does not decide it",
 				op.Name, op.Shapes())
 		}
+	}
+}
+
+// VALIDATES: The catalog states that save is available only where the
+// operator's own process expands the chain.
+// PREVENTS: Published help claiming save is available on daemon-expanded SSH
+// and web chains, where the effect-boundary guard refuses it.
+func TestSaveIsTheOnlyLocalOnlyOperator(t *testing.T) {
+	localOnly := make([]string, 0, 1)
+	for _, op := range pipeCatalog {
+		if op.LocalOnly {
+			localOnly = append(localOnly, op.Name)
+		}
+	}
+	if len(localOnly) != 1 {
+		t.Fatalf("local-only operators = %v, want one entry", localOnly)
+	}
+	if localOnly[0] != "save" {
+		t.Fatalf("local-only operators = %v, want [save]", localOnly)
+	}
+}
+
+// VALIDATES: The generated operator reference publishes save's surface
+// restriction from the catalog.
+// PREVENTS: A global table calling save available on remote daemon surfaces.
+func TestOperatorReferencePublishesLocalOnlySave(t *testing.T) {
+	reference := RenderOperatorReference()
+	if !strings.Contains(reference, "| `save` | acts on any answer | local process only |") {
+		t.Fatalf("operator reference drops save's local-only surface:\n%s", reference)
 	}
 }
 
