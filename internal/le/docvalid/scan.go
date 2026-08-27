@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/wikicatalog"
 )
 
 // checker is one run of the drift gate over one tree.
@@ -33,8 +34,9 @@ import (
 // because the check never reached the drift, so it is reported as drift of its
 // own.
 type checker struct {
-	root       string
-	unreadable []Issue
+	root               string
+	unreadable         []Issue
+	wikiCatalogCollect func() []wikicatalog.Entry
 }
 
 // noteUnreadable records a file whose scan stopped before the end.
@@ -162,9 +164,8 @@ func (c *checker) countCITests(testDir string) (int, map[string]int) {
 // countInteropScenarios answers how many scenario directories scenariosDir
 // holds.
 //
-// A dotfile-prefixed directory (a Python linter's cache left behind by a
-// scenario's check.py) is never a scenario, and counting one inflated the
-// doc-claimed count by one per cache directory.
+// A dotfile-prefixed cache directory beside a scenario is never a scenario,
+// and counting one inflated the doc-claimed count by one per cache directory.
 func (c *checker) countInteropScenarios(scenariosDir string) int {
 	entries, err := os.ReadDir(scenariosDir)
 	if err != nil {

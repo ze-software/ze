@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/wikicatalog"
 )
 
 const renderedCommandCatalogFixture = `[{
@@ -31,11 +33,26 @@ const renderedCommandCatalogFixture = `[{
 
 func runRenderedCommandDriftFixture(t *testing.T, root, livePath string) (string, error) {
 	t.Helper()
-	report := DriftReport{Issues: (&checker{root: root}).checkPublishedCommandSurfaces(livePath)}
+	entries := renderedWikiCatalogEntries(t)
+	report := DriftReport{Issues: (&checker{
+		root: root,
+		wikiCatalogCollect: func() []wikicatalog.Entry {
+			return entries
+		},
+	}).checkPublishedCommandSurfaces(livePath)}
 	if len(report.Issues) == 0 {
 		return report.Text(), nil
 	}
 	return report.Text(), errors.New("documentation drift")
+}
+
+func renderedWikiCatalogEntries(t *testing.T) []wikicatalog.Entry {
+	t.Helper()
+	var entries []wikicatalog.Entry
+	if err := json.Unmarshal([]byte(renderedCommandCatalogFixture), &entries); err != nil {
+		t.Fatalf("decode rendered wiki catalog fixture: %v", err)
+	}
+	return entries
 }
 
 func writeRenderedCommandCatalogFixture(t *testing.T, root string) string {
@@ -262,6 +279,60 @@ func TestDocDriftNoSiblingsStillValidatesRenderedCommands(t *testing.T) {
 	out, err := runRenderedCommandDriftFixture(t, root, livePath)
 	if err != nil {
 		t.Fatalf("a complete no-sibling renderer fixture failed:\n%s", out)
+	}
+}
+
+// VALIDATES: the drift gate compares wikicatalog.Collect's complete inventory
+// with the live command catalog before passing those entries to Render.
+// PREVENTS: a collector that drops renderer-owned fields agreeing with its own
+// output and masking updater drift.
+func TestDocDriftRejectsWikiCatalogProducerFieldLossBeforeRendering(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*wikicatalog.Entry)
+	}{
+		{
+			name: "address fields",
+			mutate: func(entry *wikicatalog.Entry) {
+				entry.AddressFields = nil
+			},
+		},
+		{
+			name: "operators",
+			mutate: func(entry *wikicatalog.Entry) {
+				entry.Operators = nil
+			},
+		},
+		{
+			name: "aliases",
+			mutate: func(entry *wikicatalog.Entry) {
+				entry.Aliases = nil
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			entries := renderedWikiCatalogEntries(t)
+			test.mutate(&entries[0])
+			calls := 0
+			issues := (&checker{
+				root: root,
+				wikiCatalogCollect: func() []wikicatalog.Entry {
+					calls++
+					return entries
+				},
+			}).checkPublishedCommandSurfaces(livePath)
+
+			if calls != 1 {
+				t.Fatalf("wiki catalog collector called %d times; want once", calls)
+			}
+			if len(issues) != 1 ||
+				issues[0].Message != "the shipping wiki catalog producer and the live command catalog disagree" {
+				t.Fatalf("producer %s loss did not fail before rendering: %+v", test.name, issues)
+			}
+		})
 	}
 }
 
@@ -612,6 +683,46 @@ func TestDocDriftRejectsDuplicateOperatorGroupsOnEveryRenderedSurface(t *testing
 	})
 }
 
+// VALIDATES: every direct Pipes,* term in the command-owned definition list is
+// one of the command renderer's exact availability labels.
+// PREVENTS: an obsolete pipe group surviving beside all current groups.
+func TestDocDriftRejectsUnknownEquivalentHTMLPipeTerm(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	mutatePublishedCommandSurface(
+		t, root, "reference/command-equivalents/show-test/index.html",
+		"<div><dt>Address fields</dt><dd>address</dd></div>",
+		"<div><dt>Address fields</dt><dd>address</dd></div>"+
+			"<div><dt>Pipes, legacy</dt><dd>nosuchop</dd></div>",
+	)
+
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err == nil ||
+		!strings.Contains(out, "malformed operator availability group") ||
+		!strings.Contains(out, "Pipes, legacy") {
+		t.Fatalf("unknown equivalent HTML pipe term escaped validation:\n%s", out)
+	}
+}
+
+// VALIDATES: direct non-pipe definition terms remain publication metadata and
+// are not mistaken for operator availability groups.
+func TestDocDriftAllowsEquivalentHTMLNonPipeTerm(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	mutatePublishedCommandSurface(
+		t, root, "reference/command-equivalents/show-test/index.html",
+		"<div><dt>Address fields</dt><dd>address</dd></div>",
+		"<div><dt>Address fields</dt><dd>address</dd></div>"+
+			"<div><dt>Publication note</dt><dd>postprocessed</dd></div>",
+	)
+
+	if out, err := runRenderedCommandDriftFixture(t, root, livePath); err != nil {
+		t.Fatalf("non-pipe equivalent HTML term was rejected:\n%s", out)
+	}
+}
+
 // VALIDATES: every command is parsed from exactly one command-owned container
 // before any operator groups are inspected.
 // PREVENTS: a valid first container hiding a catalog-absent operator in a
@@ -823,6 +934,31 @@ func TestDocDriftRejectsCatalogAbsentPrimaryRowWithoutID(t *testing.T) {
 		!strings.Contains(out, "show removed") ||
 		!strings.Contains(out, "absent from the live command catalog") {
 		t.Fatalf("catalog-absent no-id primary row escaped identity validation:\n%s", out)
+	}
+}
+
+// VALIDATES: a no-ID row with a visible command identity remains a candidate
+// even when an extra cell makes its table shape noncanonical.
+// PREVENTS: a stale command escaping both malformed-container and extra-identity
+// accounting by changing its cell count.
+func TestDocDriftRejectsFiveCellPrimaryRowWithoutID(t *testing.T) {
+	root := t.TempDir()
+	livePath := writeRenderedCommandCatalogFixture(t, root)
+	writePublishedCommandSurfaceFixture(t, root, false)
+	mutatePublishedCommandSurface(
+		t, root, "reference/cli/index.html",
+		`<tr id="cmd-show-test"><td><code>show test</code>`,
+		`<tr><td><code>show removed</code></td><td>Read-only</td>`+
+			`<td>Removed</td><td></td><td>unexpected</td></tr>`+
+			`<tr id="cmd-show-test"><td><code>show test</code>`,
+	)
+
+	out, err := runRenderedCommandDriftFixture(t, root, livePath)
+	if err == nil ||
+		!strings.Contains(out, "malformed command container") ||
+		!strings.Contains(out, "show removed") ||
+		!strings.Contains(out, "absent from the live command catalog") {
+		t.Fatalf("five-cell no-ID primary row escaped closed validation:\n%s", out)
 	}
 }
 

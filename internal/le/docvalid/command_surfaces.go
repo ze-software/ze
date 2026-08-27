@@ -124,7 +124,11 @@ func (c *checker) checkPublishedCommandSurfaces(commandCatalogPath string) []Iss
 			Detail:  err.Error(),
 		}}
 	}
-	expectedWiki, err := renderExpectedWikiCommandSurface(root, commandCatalogPath, liveRaw)
+	wikiEntries := c.collectWikiCatalogEntries()
+	if producerIssues := compareWikiCatalogProducer(live, wikiEntries); len(producerIssues) != 0 {
+		return producerIssues
+	}
+	expectedWiki, err := wikicatalog.Render(wikiEntries)
 	if err != nil {
 		return []Issue{{
 			File:    "internal/le/wikicatalog/render.go",
@@ -534,6 +538,60 @@ func compareWebsiteCommandCatalog(root, path string, live []publishedCommand) []
 		Message: "the published website command catalog and the live command catalog disagree",
 		Detail: "run `./le site build`; every command's operators, qualifiers, aliases, " +
 			"filters, shape, address fields, descriptions, and argument kinds must match",
+	}}
+}
+
+func (c *checker) collectWikiCatalogEntries() []wikicatalog.Entry {
+	if c.wikiCatalogCollect != nil {
+		return c.wikiCatalogCollect()
+	}
+	return wikicatalog.Collect()
+}
+
+func compareWikiCatalogProducer(
+	live []publishedCommand,
+	entries []wikicatalog.Entry,
+) []Issue {
+	producedRaw, err := json.Marshal(entries)
+	if err != nil {
+		return []Issue{{
+			File:    "internal/le/wikicatalog/catalog.go",
+			Message: "could not normalize the shipping wiki command catalog producer",
+			Detail:  err.Error(),
+		}}
+	}
+	produced, err := parseCommandCatalog("wikicatalog.Collect", producedRaw)
+	if err != nil {
+		return []Issue{{
+			File:    "internal/le/wikicatalog/catalog.go",
+			Message: "could not normalize the shipping wiki command catalog producer",
+			Detail:  err.Error(),
+		}}
+	}
+	liveNormalized, err := json.Marshal(live)
+	if err != nil {
+		return []Issue{{
+			File:    "cmd/ze/help_command.go",
+			Message: "could not normalize the live per-command catalog",
+			Detail:  err.Error(),
+		}}
+	}
+	producedNormalized, err := json.Marshal(produced)
+	if err != nil {
+		return []Issue{{
+			File:    "internal/le/wikicatalog/catalog.go",
+			Message: "could not normalize the shipping wiki command catalog producer",
+			Detail:  err.Error(),
+		}}
+	}
+	if bytes.Equal(liveNormalized, producedNormalized) {
+		return nil
+	}
+	return []Issue{{
+		File:    "internal/le/wikicatalog/catalog.go",
+		Message: "the shipping wiki catalog producer and the live command catalog disagree",
+		Detail: "wikicatalog.Collect must preserve every command field before " +
+			"wikicatalog.Render publishes the catalog",
 	}}
 }
 
@@ -1970,22 +2028,17 @@ func primaryHTMLCanonicalID(row *xhtml.Node, expected string) bool {
 }
 
 func primaryHTMLRowIdentity(row *xhtml.Node) (string, bool, bool) {
-	idCandidate := strings.HasPrefix(htmlAttribute(row, "id"), "cmd-")
-	if !idCandidate {
-		for parent := row.Parent; parent != nil; parent = parent.Parent {
-			if parent.Data == "section" && htmlHasClass(parent, "cli-pipe-guide") {
-				return "", false, false
-			}
+	for parent := row.Parent; parent != nil; parent = parent.Parent {
+		if parent.Data == "section" && htmlHasClass(parent, "cli-pipe-guide") {
+			return "", false, false
 		}
 	}
+	idCandidate := strings.HasPrefix(htmlAttribute(row, "id"), "cmd-")
 	var cells []*xhtml.Node
 	for child := row.FirstChild; child != nil; child = child.NextSibling {
 		if child.Type == xhtml.ElementNode && child.Data == "td" {
 			cells = append(cells, child)
 		}
-	}
-	if !idCandidate && len(cells) != 4 {
-		return "", false, false
 	}
 	if len(cells) == 0 {
 		return "", idCandidate, false
@@ -2000,9 +2053,9 @@ func primaryHTMLRowIdentity(row *xhtml.Node) (string, bool, bool) {
 		return "", idCandidate, false
 	}
 	identity := normalizeRenderedHTMLText(htmlText(codes[0]))
-	valid := len(codes) == 1 && identity != "" &&
+	valid := len(cells) == 4 && len(codes) == 1 && identity != "" &&
 		normalizeRenderedHTMLText(htmlText(cells[0])) == identity
-	return identity, idCandidate || len(cells) == 4, valid
+	return identity, true, valid
 }
 
 func primaryMarkdownCommandIdentities(content string) []string {
@@ -4260,6 +4313,60 @@ func equivalentHTMLDefinitionList(
 		htmlVisibleSubtreeClosed(document, lists[0])
 }
 
+func equivalentHTMLDirectDefinitionTerms(article *xhtml.Node) []string {
+	var lists []*xhtml.Node
+	for child := article.FirstChild; child != nil; child = child.NextSibling {
+		if child.Type == xhtml.ElementNode && child.Data == "dl" {
+			lists = append(lists, child)
+		}
+	}
+	var terms []string
+	for _, list := range lists {
+		htmlWalk(list, func(node *xhtml.Node) {
+			if node.Data != "dt" {
+				return
+			}
+			for parent := node.Parent; parent != nil && parent != article; parent = parent.Parent {
+				if parent.Data != "dl" {
+					continue
+				}
+				if parent == list {
+					terms = append(terms, normalizeRenderedHTMLText(htmlText(node)))
+				}
+				return
+			}
+		})
+	}
+	return terms
+}
+
+func validateEquivalentHTMLPipeTerms(
+	path string,
+	article *xhtml.Node,
+	command publishedCommand,
+) []Issue {
+	expected := map[string]bool{
+		"Pipes, always":             true,
+		"Pipes, while streaming":    true,
+		"Pipes, local process only": true,
+		equivalentAvailabilityLabel("with-rows", command.AnswerShape != ""): true,
+	}
+	var issues []Issue
+	for _, term := range equivalentHTMLDirectDefinitionTerms(article) {
+		if !strings.HasPrefix(term, "Pipes,") || expected[term] {
+			continue
+		}
+		var detail textbuf.Buffer
+		issues = append(issues, Issue{
+			File:    path,
+			Message: "the generated per-command surface has a malformed operator availability group",
+			Detail: detail.Str("command ").Quoted(command.Path).
+				Str(" has unknown direct definition term ").Quoted(term).String(),
+		})
+	}
+	return issues
+}
+
 func htmlEquivalentFilterDetails(
 	document renderedHTMLDocument,
 	root *xhtml.Node,
@@ -4426,6 +4533,8 @@ func validateEquivalentCommandContract(
 			"one command-owned dl", "malformed term ownership",
 		))
 	}
+	issues = append(issues,
+		validateEquivalentHTMLPipeTerms(path, commandNode, command)...)
 	var marker textbuf.Buffer
 	issues = append(issues, compareHTMLLabeledValue(
 		path,

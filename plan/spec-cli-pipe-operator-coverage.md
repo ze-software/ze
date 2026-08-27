@@ -1083,6 +1083,18 @@ An owner-authorized independent context reviewed the committed Round-16 fixes.
 
 **Independent round 17: 2 BLOCKER, 3 ISSUE, 0 outstanding.** All five findings are fixed.
 
+### Independent review, round 18 (2026-08-27)
+
+An owner-authorized independent context reviewed the committed Round-17 fixes.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR18-1 | BLOCKER | No-ID command rows with a noncanonical cell count evade candidate accounting | FIXED |
+| IR18-2 | BLOCKER | Equivalent command details accept unknown `Pipes, ...` groups | FIXED |
+| IR18-3 | BLOCKER | The drift gate bypasses the shipping wiki catalog collector | FIXED |
+
+**Independent round 18: 3 BLOCKER, 0 ISSUE, 0 outstanding.** All three findings are fixed.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and
