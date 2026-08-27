@@ -703,9 +703,20 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 		renderedCommandCatalogFixture)
 	primaryHTML := `<html data-site-postprocessed="true"><body>
 <header>Injected site header</header>
+<section class="cli-pipe-guide">
+<table><tbody>
+<tr><td><code>json</code></td><td>Output and control</td><td>Always</td><td>JSON output</td></tr>
+<tr><td><code>save</code></td><td>Output and control</td><td>Always, Local process only</td><td>Save output</td></tr>
+<tr><td><code>match</code></td><td>Row data</td><td>With rows</td><td>Keep matching rows</td></tr>
+<tr><td><code>log</code></td><td>Streaming</td><td>While streaming</td><td>Append updates</td></tr>
+</tbody></table>
+</section>
 <tr id="cmd-show-test"><td><code>show test</code></td><td>
 <p><span>Answer shape</span><code>tab</code></p>
 <p><span>Address fields</span><code>address</code></p>
+<strong>Command pipes</strong><div class="cli-pipe-chips"><code title="Filter by family">family &lt;value&gt;</code></div>
+<details class="cli-pipe-descriptions"><summary>Command pipe descriptions</summary><dl><dt><code>family &lt;value&gt;</code></dt><dd>Filter by family</dd></dl></details>
+<strong>Aliases</strong><dl><dt><code>summary</code></dt><dd>Show a summary <code>display address</code></dd></dl>
 <p><span>Always</span><code>json · save</code></p>
 <p><span>With rows</span><code>match</code></p>
 <p><span>While streaming</span><code>log</code></p>
@@ -958,5 +969,244 @@ func TestDocDriftRejectsStaleRenderedCommandSurfaces(t *testing.T) {
 	}
 	if !strings.Contains(out, "the published per-command surface is missing or unreadable") {
 		t.Fatalf("doc drift did not fail closed on missing published surfaces:\n%s", out)
+	}
+}
+
+// VALIDATES: the wiki generator runs and its Markdown is checked structurally
+// even when no sibling wiki checkout exists.
+// PREVENTS: a missing sibling turning generator failure or a hard-coded operator
+// into a clean documentation gate.
+func TestDocDriftNoSiblingWikiFailsClosed(t *testing.T) {
+	t.Run("generator failure", func(t *testing.T) {
+		root := t.TempDir()
+		livePath := writeRenderedCommandCatalogFixture(t, root)
+		writeTempDoc(t, root, "scripts/dev/gen_wiki_commands.py",
+			"raise SystemExit(\"wiki fixture failure\")\n")
+
+		out, err := runRenderedCommandDriftFixture(t, root, livePath)
+		if err == nil {
+			t.Fatalf("doc drift accepted a failing wiki generator without a sibling:\n%s", out)
+		}
+		if !strings.Contains(out, "could not generate the expected wiki command catalog") ||
+			!strings.Contains(out, "wiki fixture failure") {
+			t.Fatalf("doc drift hid the no-sibling wiki generator failure:\n%s", out)
+		}
+	})
+
+	t.Run("generator syntax error", func(t *testing.T) {
+		root := t.TempDir()
+		livePath := writeRenderedCommandCatalogFixture(t, root)
+		writeTempDoc(t, root, "scripts/dev/gen_wiki_commands.py", "def broken(:\n")
+
+		out, err := runRenderedCommandDriftFixture(t, root, livePath)
+		if err == nil {
+			t.Fatalf("doc drift accepted invalid wiki generator syntax:\n%s", out)
+		}
+		if !strings.Contains(out, "could not generate the expected wiki command catalog") ||
+			!strings.Contains(out, "SyntaxError") {
+			t.Fatalf("doc drift hid the wiki generator syntax error:\n%s", out)
+		}
+	})
+
+	t.Run("empty output", func(t *testing.T) {
+		root := t.TempDir()
+		livePath := writeRenderedCommandCatalogFixture(t, root)
+		writeTempDoc(t, root, "scripts/dev/gen_wiki_commands.py", "pass\n")
+
+		out, err := runRenderedCommandDriftFixture(t, root, livePath)
+		if err == nil {
+			t.Fatalf("doc drift accepted empty wiki generator output:\n%s", out)
+		}
+		if !strings.Contains(out, "could not generate the expected wiki command catalog") ||
+			!strings.Contains(out, "empty output") {
+			t.Fatalf("doc drift hid the empty wiki generator output:\n%s", out)
+		}
+	})
+
+	t.Run("catalog-absent operator", func(t *testing.T) {
+		root := t.TempDir()
+		livePath := writeRenderedCommandCatalogFixture(t, root)
+		source, err := os.ReadFile(filepath.Join(
+			repoRoot(t), "scripts", "dev", "gen_wiki_commands.py",
+		))
+		if err != nil {
+			t.Fatal(err)
+		}
+		old := `lines.append(f"Always: {names}")`
+		replacement := "lines.append(f\"Always: {names}, `catalog-absent`\")"
+		mutated := strings.Replace(string(source), old, replacement, 1)
+		if mutated == string(source) {
+			t.Fatal("the wiki operator mutation did not apply")
+		}
+		writeTempDoc(t, root, "scripts/dev/gen_wiki_commands.py", mutated)
+
+		out, err := runRenderedCommandDriftFixture(t, root, livePath)
+		if err == nil {
+			t.Fatalf("doc drift accepted a catalog-absent wiki operator:\n%s", out)
+		}
+		if !strings.Contains(out, "catalog-absent operator") ||
+			!strings.Contains(out, "scripts/dev/gen_wiki_commands.py") {
+			t.Fatalf("doc drift did not identify the extra wiki operator:\n%s", out)
+		}
+	})
+}
+
+// VALIDATES: primary HTML and Markdown publish the exact command-owned filter
+// and alias sets from the live catalog.
+// PREVENTS: the global operator checks masking a dropped command-specific pipe.
+func TestDocDriftRejectsDroppedPrimaryFiltersAndAliases(t *testing.T) {
+	tests := []struct {
+		name        string
+		path        string
+		old         string
+		replacement string
+	}{
+		{
+			name: "HTML filter",
+			path: "reference/cli/index.html",
+			old:  `<code title="Filter by family">family &lt;value&gt;</code>`,
+		},
+		{
+			name: "HTML alias",
+			path: "reference/cli/index.html",
+			old:  `<strong>Aliases</strong><dl><dt><code>summary</code></dt><dd>Show a summary <code>display address</code></dd></dl>`,
+		},
+		{
+			name: "Markdown filter",
+			path: "reference/cli/index.md",
+			old:  "Command: `family <value>`<br>",
+		},
+		{
+			name: "Markdown alias",
+			path: "reference/cli/index.md",
+			old:  "Aliases: `summary -> display address`<br>",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(t, root, tc.path, tc.old, tc.replacement)
+
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil {
+				t.Fatalf("doc drift accepted a dropped primary %s:\n%s", tc.name, out)
+			}
+			if !strings.Contains(out, filepath.ToSlash(tc.path)) {
+				t.Fatalf("doc drift did not identify the mutated primary surface:\n%s", out)
+			}
+		})
+	}
+}
+
+// VALIDATES: every rendered command operator group is an exact set projection,
+// not a one-way expected-name search.
+// PREVENTS: a stale hard-coded operator surviving after catalog removal.
+func TestDocDriftRejectsExtraOperatorsOnEveryRenderedSurface(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		old  string
+		new  string
+	}{
+		{
+			name: "primary HTML",
+			path: "reference/cli/index.html",
+			old:  "<span>Always</span><code>json · save</code>",
+			new:  "<span>Always</span><code>json · save · catalog-absent</code>",
+		},
+		{
+			name: "primary Markdown",
+			path: "reference/cli/index.md",
+			old:  "Always: `json`, `save`",
+			new:  "Always: `json`, `save`, `catalog-absent`",
+		},
+		{
+			name: "command-equivalent HTML",
+			path: "reference/command-equivalents/show-test/index.html",
+			old:  "<dt>Pipes, always</dt><dd>json, save</dd>",
+			new:  "<dt>Pipes, always</dt><dd>json, save, catalog-absent</dd>",
+		},
+		{
+			name: "command-equivalent Markdown",
+			path: "reference/command-equivalents/show-test/index.md",
+			old:  "- Pipes, always: json, save",
+			new:  "- Pipes, always: json, save, catalog-absent",
+		},
+		{
+			name: "llms",
+			path: "llms.txt",
+			old:  "pipes always: json save,",
+			new:  "pipes always: json save catalog-absent,",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(t, root, tc.path, tc.old, tc.new)
+
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil {
+				t.Fatalf("doc drift accepted an extra operator on %s:\n%s", tc.name, out)
+			}
+			if !strings.Contains(out, "catalog-absent operator") ||
+				!strings.Contains(out, filepath.ToSlash(tc.path)) {
+				t.Fatalf("doc drift did not identify the extra %s operator:\n%s", tc.name, out)
+			}
+		})
+	}
+}
+
+// VALIDATES: the primary HTML operator reference preserves catalog-owned class
+// and description, with unrelated site postprocessing still allowed.
+// PREVENTS: operator names remaining current while their explanatory metadata drifts.
+func TestDocDriftRejectsStaleRenderedOperatorMetadata(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		old  string
+		new  string
+	}{
+		{name: "class", old: "Output and control", new: "Stale class"},
+		{name: "description", old: "JSON output", new: "Stale description"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			livePath := writeRenderedCommandCatalogFixture(t, root)
+			writePublishedCommandSurfaceFixture(t, root, false)
+			mutatePublishedCommandSurface(
+				t, root, "reference/cli/index.html", tc.old, tc.new,
+			)
+
+			out, err := runRenderedCommandDriftFixture(t, root, livePath)
+			if err == nil {
+				t.Fatalf("doc drift accepted a stale operator %s:\n%s", tc.name, out)
+			}
+			if !strings.Contains(out, "generated operator metadata disagrees") ||
+				!strings.Contains(out, tc.name) {
+				t.Fatalf("doc drift did not identify stale operator %s:\n%s", tc.name, out)
+			}
+		})
+	}
+}
+
+func mutatePublishedCommandSurface(
+	t *testing.T,
+	root, relative, old, replacement string,
+) {
+	t.Helper()
+	path := filepath.Join(root, "website", filepath.FromSlash(relative))
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mutated := strings.Replace(string(content), old, replacement, 1)
+	if mutated == string(content) {
+		t.Fatalf("surface mutation %q did not apply to %s", old, relative)
+	}
+	if err := os.WriteFile(path, []byte(mutated), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"iter"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -940,6 +942,54 @@ func TestOneShotRefusesLogAndStreamAcceptsIt(t *testing.T) {
 	}
 }
 
+// TestRemoteStreamPipesRefusesSaveWithoutTouchingTheFilesystem pins the
+// authority boundary for stream chains. A refusal must happen before the save
+// lifecycle creates its temporary destination.
+func TestRemoteStreamPipesRefusesSaveWithoutTouchingTheFilesystem(t *testing.T) {
+	dir := t.TempDir()
+	destination := filepath.Join(dir, "answer.json")
+
+	command, format, flags, errMsg := ProcessRemoteStreamPipes(
+		"monitor event | log | save "+destination+" | json",
+		"",
+	)
+	if command != "monitor event" {
+		t.Errorf("command = %q, want monitor event", command)
+	}
+	if format != nil {
+		t.Error("remote save refusal returned a formatter")
+	}
+	if flags != (PipeFlags{}) {
+		t.Errorf("remote save refusal returned flags %+v, want zero", flags)
+	}
+	if !strings.Contains(errMsg, "save") || !strings.Contains(errMsg, "daemon") {
+		t.Fatalf("remote save refusal = %q, want save and daemon authority named", errMsg)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read temporary directory: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("remote save created filesystem entries: %v", entries)
+	}
+}
+
+func TestRemoteStreamPipesReturnsDisplayFlagsAndStripsLog(t *testing.T) {
+	command, format, flags, errMsg := ProcessRemoteStreamPipes("monitor event | log | json", "")
+	if errMsg != "" {
+		t.Fatalf("remote stream chain was refused: %s", errMsg)
+	}
+	if command != "monitor event" {
+		t.Errorf("command = %q, want monitor event", command)
+	}
+	if !flags.Log || !flags.HasFormat {
+		t.Errorf("flags = %+v, want Log and HasFormat", flags)
+	}
+	if got := format(`{"state":"up"}`); strings.Contains(got, "unknown pipe operator") || !strings.Contains(got, `"state"`) {
+		t.Errorf("formatter did not strip log before applying the event chain: %q", got)
+	}
+}
+
 func TestParsePipe_Resolve(t *testing.T) {
 	cmd, ops := ParsePipe("show traceroute 1.1.1.1 | resolve")
 	if cmd != "show traceroute 1.1.1.1" {
@@ -1119,19 +1169,15 @@ func TestProcessStreamPipes_NDJSON(t *testing.T) {
 	}
 }
 
-func TestApplyPipes_NDJSONThenResolve(t *testing.T) {
+func TestApplyPipes_NDJSONThenResolveIsRefused(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1},{"ttl":2,"addr":"127.0.0.1","rtt-ms":0.2}]}`
 	ops := []pipeOp{{kind: pipeNDJSON}, {kind: pipeResolve, addressFields: []string{"addr"}}}
 	result, errMsg := ApplyPipes(input, ops, nil, nil)
-	if errMsg != "" {
-		t.Fatalf("unexpected error: %s", errMsg)
+	if result != "" {
+		t.Errorf("incompatible chain returned %q, want no result", result)
 	}
-	if !strings.Contains(result, "addr-name") {
-		t.Errorf("result should contain addr-name: %s", result)
-	}
-	lines := strings.Split(strings.TrimSpace(result), "\n")
-	if len(lines) != 2 {
-		t.Errorf("expected 2 NDJSON lines, got %d: %q", len(lines), result)
+	if !strings.Contains(errMsg, "resolve") || !strings.Contains(errMsg, "ndjson") {
+		t.Errorf("refusal = %q, want resolve and ndjson named", errMsg)
 	}
 }
 
@@ -2450,5 +2496,82 @@ func assertDeclaredAddressFields(t *testing.T, answer string) {
 		if strings.Contains(answer, `"`+field+`"`) {
 			t.Errorf("undeclared field enrichment %q leaked into the answer: %s", field, answer)
 		}
+	}
+}
+
+// TestAddressEnrichmentPreservesExistingDerivedSiblings covers both the
+// document and record producers because they share resolveJSON and originJSON.
+func TestAddressEnrichmentPreservesExistingDerivedSiblings(t *testing.T) {
+	SetPTRResolver(&mockPTRResolver{results: map[string][]string{
+		"192.0.2.1": {"replacement.example."},
+	}})
+	SetOriginResolver(declaredFieldOriginResolver{})
+	t.Cleanup(func() {
+		SetPTRResolver(nil)
+		SetOriginResolver(nil)
+	})
+
+	const input = `{"address":"192.0.2.1","address-name":"keep-name","address-asn":"keep-asn","address-as-name":{"keep":true},"address-prefix":["keep","prefix"]}`
+	resolved := applyResolve(input, []string{"address"}, false)
+	enriched := applyOrigin(resolved, []string{"address"}, false)
+
+	var before map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(input), &before); err != nil {
+		t.Fatalf("decode input: %v", err)
+	}
+	var after map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(enriched), &after); err != nil {
+		t.Fatalf("decode enriched output: %v", err)
+	}
+	for _, field := range []string{"address-name", "address-asn", "address-as-name", "address-prefix"} {
+		if !bytes.Equal(after[field], before[field]) {
+			t.Errorf("%s changed from %s to %s", field, before[field], after[field])
+		}
+	}
+}
+
+type recordingPTRResolver struct {
+	addresses []string
+}
+
+func (r *recordingPTRResolver) ResolvePTR(address string) ([]string, error) {
+	r.addresses = append(r.addresses, address)
+	return []string{"resolved.example."}, nil
+}
+
+type recordingOriginResolver struct {
+	addresses []string
+}
+
+func (r *recordingOriginResolver) LookupOrigin(_ context.Context, address string) (OriginResult, error) {
+	r.addresses = append(r.addresses, address)
+	return OriginResult{ASN: 64500}, nil
+}
+
+func TestAddressEnrichmentVisitsObjectKeysDeterministically(t *testing.T) {
+	ptr := &recordingPTRResolver{}
+	origin := &recordingOriginResolver{}
+	SetPTRResolver(ptr)
+	SetOriginResolver(origin)
+	t.Cleanup(func() {
+		SetPTRResolver(nil)
+		SetOriginResolver(nil)
+	})
+
+	resolveJSON(map[string]any{
+		"z-address": "192.0.2.2",
+		"a-address": "192.0.2.1",
+	}, nil, true)
+	originJSON(map[string]any{
+		"z-address": "192.0.2.2",
+		"a-address": "192.0.2.1",
+	}, nil, true)
+
+	const want = "192.0.2.1,192.0.2.2"
+	if got := strings.Join(ptr.addresses, ","); got != want {
+		t.Errorf("resolve lookup order = %q, want %q", got, want)
+	}
+	if got := strings.Join(origin.addresses, ","); got != want {
+		t.Errorf("origin lookup order = %q, want %q", got, want)
 	}
 }

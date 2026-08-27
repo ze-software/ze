@@ -499,23 +499,25 @@ func TestDisplaySelectsANestedRecordTheSameWay(t *testing.T) {
 	}
 }
 
-// VALIDATES: the two operators answer the same whichever side of the format
-// operator they are written on.
-// PREVENTS: `| table | display state address` rendering the whole table, which
-// is what happens when only the payload transform carries the selection and the
-// renderer has already run by the time it does.
-func TestColumnOpsAfterTheFormatOperator(t *testing.T) {
+// VALIDATES: structured column transforms can follow json/raw while renderers
+// that no longer hold JSON refuse them by operator and chosen format.
+// PREVENTS: post-format display being accepted as an inert success.
+func TestColumnOpsAfterTheFormatOperatorFollowCompatibilityMatrix(t *testing.T) {
 	ResetColumnsForTest()
 	t.Cleanup(ResetColumnsForTest)
 
-	for _, format := range []string{"text", "table"} {
+	for _, format := range []string{"json compact", "raw"} {
 		before := renderThroughPipes(t, "show test peers | display state address | "+format, columnsPayload)
 		after := renderThroughPipes(t, "show test peers | "+format+" | display state address", columnsPayload)
 		if before != after {
-			t.Errorf("| %s answered differently by where the display was written:\nbefore = %q\nafter  = %q", format, before, after)
+			t.Errorf("| %s answered differently by where display was written:\nbefore = %q\nafter  = %q", format, before, after)
 		}
-		if got := headerFields(t, after); !slices.Equal(got, []string{"state", "address"}) {
-			t.Errorf("| %s | display header = %v, want [state address]", format, got)
+	}
+
+	for _, format := range []string{"ndjson", "yaml", "table", "text"} {
+		_, _, errMsg := processPipesChecked("show test peers | " + format + " | display state address")
+		if !strings.Contains(errMsg, "display") || !strings.Contains(errMsg, format) {
+			t.Errorf("| %s | display refusal = %q, want display and %s named", format, errMsg, format)
 		}
 	}
 }

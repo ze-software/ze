@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -61,6 +63,93 @@ func TestSSHExecRefusesSaveAtTheEntryPoint(t *testing.T) {
 	assert.Contains(t, err.Error(), "refused")
 	assert.Empty(t, output)
 	assert.False(t, dispatched.Load(), "a refused save must not reach the command dispatcher")
+	_, statErr := os.Stat(path)
+	assert.ErrorIs(t, statErr, os.ErrNotExist)
+}
+
+func runRawSSHExec(t *testing.T, server *Server, command string) (stdout, stderr string, runErr error) {
+	t.Helper()
+	client, err := gossh.Dial("tcp", server.Address(), &gossh.ClientConfig{
+		User:            "operator",
+		Auth:            []gossh.AuthMethod{gossh.Password("read-pass")},
+		HostKeyCallback: gossh.InsecureIgnoreHostKey(), //nolint:gosec // test server key is generated per run.
+		Timeout:         5 * time.Second,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = client.Close() })
+
+	session, err := client.NewSession()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = session.Close() })
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	session.Stdout = &out
+	session.Stderr = &errOut
+	runErr = session.Run(command)
+	return out.String(), errOut.String(), runErr
+}
+
+// TestSSHRawExecFormatsStreamEventsAndConsumesLog drives an authenticated exec
+// channel with a registered streaming base command. Pipe tokens must be removed
+// before the production-shaped stream executor receives its handler input, and
+// the requested renderer must run once for every newline-delimited event.
+func TestSSHRawExecFormatsStreamEventsAndConsumesLog(t *testing.T) {
+	const streamCommand = "monitor ssh-pipe-test"
+	pluginserver.RegisterStreamingHandler(streamCommand, func(context.Context, *pluginserver.Server, io.Writer, string, []string) error {
+		return nil
+	})
+
+	server := answerServer(t, func(string) (*plugin.Response, error) {
+		return plugin.NewResponse(plugin.StatusDone, nil), nil
+	})
+	var received []string
+	var dispatched atomic.Bool
+	server.SetStreamingExecutorFactory(func(_, _ string, _ plugin.Authorizer) StreamingExecutor {
+		return func(_ context.Context, output io.Writer, args []string) error {
+			dispatched.Store(true)
+			received = append(received, args...)
+			if _, err := io.WriteString(output, `{"event":"fir`); err != nil {
+				return err
+			}
+			_, err := io.WriteString(output, "st\"}\n{\"event\":\"second\"}")
+			return err
+		}
+	})
+
+	stdout, stderr, err := runRawSSHExec(t, server, streamCommand+" peer Blue | json | log")
+
+	require.NoError(t, err)
+	assert.Empty(t, stderr)
+	assert.True(t, dispatched.Load(), "| log must retain streaming dispatch")
+	assert.Equal(t, []string{streamCommand + " peer Blue"}, received)
+	assert.Equal(t, "{\n  \"event\": \"first\"\n}\n{\n  \"event\": \"second\"\n}\n", stdout)
+}
+
+// TestSSHRawExecRefusesStreamSaveBeforeDispatch proves the stream branch uses
+// the remote pipe boundary before it constructs or invokes a handler executor.
+func TestSSHRawExecRefusesStreamSaveBeforeDispatch(t *testing.T) {
+	const streamCommand = "monitor ssh-save-test"
+	pluginserver.RegisterStreamingHandler(streamCommand, func(context.Context, *pluginserver.Server, io.Writer, string, []string) error {
+		return nil
+	})
+
+	server := answerServer(t, func(string) (*plugin.Response, error) {
+		return plugin.NewResponse(plugin.StatusDone, nil), nil
+	})
+	var dispatched atomic.Bool
+	server.SetStreamingExecutorFactory(func(_, _ string, _ plugin.Authorizer) StreamingExecutor {
+		dispatched.Store(true)
+		return func(context.Context, io.Writer, []string) error { return nil }
+	})
+	path := filepath.Join(t.TempDir(), "raw-stream-save.json")
+
+	stdout, stderr, err := runRawSSHExec(t, server, streamCommand+" | save "+path)
+
+	require.Error(t, err)
+	assert.Empty(t, stdout)
+	assert.Contains(t, stderr, "save")
+	assert.Contains(t, stderr, "refused")
+	assert.False(t, dispatched.Load(), "a refused save must not construct the stream executor")
 	_, statErr := os.Stat(path)
 	assert.ErrorIs(t, statErr, os.ErrNotExist)
 }

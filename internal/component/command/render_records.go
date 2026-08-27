@@ -11,8 +11,8 @@
 // The first is what the answer IS. A walk that ends within
 // rpc.AnswerBufferThreshold records is one document. A walk that passes the
 // threshold is a stream unless operator order requires a rendered document.
-// A format followed by a row transform requires that document at every row
-// count.
+// A format followed by a row transform usually requires that document at every
+// row count. NDJSON line transforms retain the record path and its bounds.
 //
 // The second is how the answer is RENDERED, and it is read from the chain. Only
 // `| ndjson` names one JSON value per line, so only `| ndjson` can be written as
@@ -90,10 +90,24 @@ func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []strin
 
 	// A chain that answers a document of its own has replaced the command's
 	// rows, so the command's column schema describes nothing the answer still
-	// carries. The source schema remains available while earlier operators run,
-	// then is dropped before the threshold, item type and collapse read output.
+	// carries. The source schema remains available while earlier operators run.
 	if answered {
 		fields = nil
+	}
+
+	// NDJSON followed by a line transform stays record-shaped. Positional rows
+	// become self-describing NDJSON objects before the threshold check.
+	// Singleton metadata preserves document-path output. The wrapper retains at
+	// most one transformed record.
+	if ndjsonBeforeLineTransform(chain) {
+		if len(fields) > 0 {
+			records = recordsPositionalRendered(records, fields)
+			fields = nil
+		}
+		if len(meta) > 0 {
+			records = recordsWithSingletonMetadata(records, meta)
+			meta = nil
+		}
 	}
 
 	answer := RecordAnswer{
@@ -151,20 +165,38 @@ func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []strin
 	return answer, writeDocument(w, held, key, fields, answered, ops, meta, columns)
 }
 
-// formatBeforeDataTransform reports the chains whose later operator must read
-// the rendered document. Running their transforms on records first changes the
-// operator order and makes the answer depend on the streaming threshold.
+// formatBeforeDataTransform reports whether a later operator needs the rendered
+// document. NDJSON is the exception. Each record is one rendered line. Match,
+// count, first and last keep their record wrappers and their bounds.
 func formatBeforeDataTransform(ops []pipeOp) bool {
+	var format pipeKind
 	formatSeen := false
 	for _, op := range ops {
 		if isFormatOp(op.kind) {
+			format = op.kind
 			formatSeen = true
 			continue
 		}
-		if formatSeen {
-			if isDataTransformOp(op.kind) {
-				return true
-			}
+		if !formatSeen || !isDataTransformOp(op.kind) {
+			continue
+		}
+		if format == pipeNDJSON && isLineTransformOp(op.kind) {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+func ndjsonBeforeLineTransform(ops []pipeOp) bool {
+	ndjsonSeen := false
+	for _, op := range ops {
+		if isFormatOp(op.kind) {
+			ndjsonSeen = op.kind == pipeNDJSON
+			continue
+		}
+		if ndjsonSeen && isLineTransformOp(op.kind) {
+			return true
 		}
 	}
 	return false
@@ -329,15 +361,7 @@ func answerDocument(held []rpc.Record, key string, fields []string, answered boo
 // them under, which is where a buffered rendering puts them, and the
 // terminator's fault count states how many there were either way.
 func writeRecordJSON(w io.Writer, record rpc.Record) error {
-	payload := record.Item
-	if len(record.Fault) > 0 {
-		payload = record.Fault
-	}
-	var value any
-	if err := json.Unmarshal(payload, &value); err != nil {
-		return err
-	}
-	line, err := json.Marshal(value)
+	line, err := marshalRecordJSON(record)
 	if err != nil {
 		return err
 	}

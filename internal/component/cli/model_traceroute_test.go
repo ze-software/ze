@@ -3,6 +3,8 @@ package cli
 import (
 	"context"
 	"math"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -29,6 +31,29 @@ func TestTracerouteMonitorDeclaresItsStreamShape(t *testing.T) {
 	require.Empty(t, errMsg)
 	assert.True(t, flags.Resolve)
 	assert.True(t, flags.Origin)
+}
+
+// TestStartTraceroutePipedRemoteSaveRefusesBeforeFactory holds the
+// daemon-hosted PTY boundary at the registered traceroute view. A refused
+// destination cannot start a traceroute round or create a daemon-side file.
+func TestStartTraceroutePipedRemoteSaveRefusesBeforeFactory(t *testing.T) {
+	called := false
+	m := NewCommandModel(FilesystemAuthorityUnknown)
+	m.setTracerouteFactory(func(_ context.Context, _ string, _ int) (<-chan map[string]any, context.CancelFunc, error) {
+		called = true
+		return nil, nil, nil
+	})
+	path := filepath.Join(t.TempDir(), "remote-traceroute-save.json")
+
+	cmd := m.startTraceroutePiped("monitor traceroute 192.0.2.1 | save " + path)
+
+	assert.Nil(t, cmd)
+	assert.Contains(t, m.statusMessage, "save")
+	assert.Contains(t, m.statusMessage, "refused")
+	assert.False(t, called, "a refused save must not start the traceroute factory")
+	assert.Nil(t, m.activeTraceroutePiped())
+	_, err := os.Stat(path)
+	assert.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func TestIsTracerouteMonitorCommand(t *testing.T) {

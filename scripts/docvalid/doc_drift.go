@@ -1072,30 +1072,6 @@ func checkPublishedCommandSurfaces(root, commandCatalogPath string) []issue {
 		wikiCandidate = filepath.Join(root, "wiki", "command-catalog.md")
 	}
 
-	websitePaths, websitePathErr := existingPaths(websiteCandidate)
-	if websitePathErr != nil {
-		return []issue{commandSurfaceReadIssue("website command catalog", websitePathErr)}
-	}
-	if len(websitePaths) == 0 {
-		hasPublishedWebsite, err := publishedWebsiteRootExists(
-			filepath.Dir(filepath.Dir(websiteCandidate)), commandCatalogPath != "",
-		)
-		if err != nil {
-			return []issue{commandSurfaceReadIssue("website command surfaces", err)}
-		}
-		if hasPublishedWebsite {
-			return []issue{{
-				File:    commandSurfacePath(root, websiteCandidate),
-				Message: "the published website command catalog is missing",
-				Detail:  "regenerate the website command surfaces before running ze-doc-verify",
-			}}
-		}
-	}
-	wikiPaths, wikiPathErr := existingPaths(wikiCandidate)
-	if wikiPathErr != nil {
-		return []issue{commandSurfaceReadIssue("wiki command catalog", wikiPathErr)}
-	}
-
 	liveRaw, live, err := loadLiveCommandCatalog(root, commandCatalogPath)
 	if err != nil {
 		return []issue{{
@@ -1103,6 +1079,45 @@ func checkPublishedCommandSurfaces(root, commandCatalogPath string) []issue {
 			Message: "could not generate or parse the live per-command catalog",
 			Detail:  err.Error(),
 		}}
+	}
+	expectedWiki, err := renderExpectedWikiCommandSurface(root, commandCatalogPath, liveRaw)
+	if err != nil {
+		return []issue{{
+			File:    "scripts/dev/gen_wiki_commands.py",
+			Message: "could not generate the expected wiki command catalog",
+			Detail:  err.Error(),
+		}}
+	}
+	issues := validateGeneratedWikiCommandSurface(expectedWiki, live)
+	wikiPaths, wikiPathErr := existingPaths(wikiCandidate)
+	if wikiPathErr != nil {
+		issues = append(issues,
+			commandSurfaceReadIssue("wiki command catalog", wikiPathErr))
+	}
+	for _, path := range wikiPaths {
+		issues = append(issues, compareWikiCommandCatalog(root, path, expectedWiki)...)
+	}
+
+	websitePaths, websitePathErr := existingPaths(websiteCandidate)
+	if websitePathErr != nil {
+		return append(issues,
+			commandSurfaceReadIssue("website command catalog", websitePathErr))
+	}
+	if len(websitePaths) == 0 {
+		hasPublishedWebsite, inspectErr := publishedWebsiteRootExists(
+			filepath.Dir(filepath.Dir(websiteCandidate)), commandCatalogPath != "",
+		)
+		if inspectErr != nil {
+			return append(issues,
+				commandSurfaceReadIssue("website command surfaces", inspectErr))
+		}
+		if hasPublishedWebsite {
+			return append(issues, issue{
+				File:    commandSurfacePath(root, websiteCandidate),
+				Message: "the published website command catalog is missing",
+				Detail:  "regenerate the website command surfaces before running ze-doc-verify",
+			})
+		}
 	}
 
 	publicWebsiteRoot := ""
@@ -1113,22 +1128,18 @@ func checkPublishedCommandSurfaces(root, commandCatalogPath string) []issue {
 		root, commandCatalogPath, publicWebsiteRoot, liveRaw, len(live),
 	)
 	if err != nil {
-		return []issue{{
+		return append(issues, issue{
 			File:    "website/tools",
 			Message: "could not generate the expected per-command surfaces",
 			Detail:  err.Error(),
-		}}
+		})
 	}
-
-	issues := validateGeneratedCommandSurfaces(root, expectedRoot, live)
+	issues = append(issues, validateGeneratedCommandSurfaces(root, expectedRoot, live)...)
 	if publicWebsiteRoot != "" {
 		issues = append(issues,
 			compareWebsiteCommandCatalog(root, websitePaths[0], live)...)
 		issues = append(issues,
 			compareRenderedCommandSurfaces(root, publicWebsiteRoot, expectedRoot, live)...)
-	}
-	for _, path := range wikiPaths {
-		issues = append(issues, compareWikiCommandCatalog(root, path, liveRaw)...)
 	}
 	if err := os.RemoveAll(expectedRoot); err != nil {
 		issues = append(issues, issue{
@@ -1636,33 +1647,46 @@ func compareWebsiteCommandCatalog(root, path string, live []publishedCommand) []
 	}}
 }
 
-func compareWikiCommandCatalog(root, path string, liveRaw []byte) []issue {
+func renderExpectedWikiCommandSurface(
+	root, commandCatalogPath string,
+	liveRaw []byte,
+) ([]byte, error) {
 	moduleRoot, err := findModuleRoot()
 	if err != nil {
-		return []issue{{
-			File:    commandSurfacePath(root, path),
-			Message: "could not locate the wiki command generator",
-			Detail:  err.Error(),
-		}}
+		return nil, fmt.Errorf("locate wiki command generator: %w", err)
 	}
+	generator := filepath.Join(moduleRoot, "scripts", "dev", "gen_wiki_commands.py")
+	if commandCatalogPath != "" {
+		override := filepath.Join(root, "scripts", "dev", "gen_wiki_commands.py")
+		exists, inspectErr := optionalCommandSurfacePath(override)
+		if inspectErr != nil {
+			return nil, fmt.Errorf("inspect wiki command generator override %s: %w",
+				override, inspectErr)
+		}
+		if exists {
+			generator = override
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), commandCatalogGenerationTimeout)
 	defer cancel()
-	cmd := osexec.CommandContext(ctx, "python3",
-		filepath.Join(moduleRoot, "scripts", "dev", "gen_wiki_commands.py"))
+	cmd := osexec.CommandContext(ctx, "python3", generator)
 	cmd.Dir = moduleRoot
 	cmd.Stdin = bytes.NewReader(liveRaw)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	want, err := cmd.Output()
+	generated, err := cmd.Output()
 	if err != nil {
-		var detail textbuf.Buffer
-		return []issue{{
-			File:    commandSurfacePath(root, path),
-			Message: "could not generate the expected wiki command catalog",
-			Detail: detail.Err(err).Str(": ").
-				Str(strings.TrimSpace(stderr.String())).String(),
-		}}
+		return nil, fmt.Errorf("run wiki command generator: %w: %s",
+			err, strings.TrimSpace(stderr.String()))
 	}
+	if len(generated) == 0 {
+		return nil, fmt.Errorf("run wiki command generator: empty output")
+	}
+	return generated, nil
+}
+
+func compareWikiCommandCatalog(root, path string, want []byte) []issue {
 	published, err := os.ReadFile(path) //nolint:gosec // generated sibling checkout artifact
 	if err != nil {
 		return []issue{commandSurfaceReadIssue(commandSurfacePath(root, path), err)}
@@ -1675,6 +1699,339 @@ func compareWikiCommandCatalog(root, path string, liveRaw []byte) []issue {
 		Message: "the published wiki command catalog and the live command catalog disagree",
 		Detail:  "run `make ze-wiki-commands-update`; the wiki must preserve every per-command contract field",
 	}}
+}
+
+func validateGeneratedWikiCommandSurface(
+	generated []byte,
+	live []publishedCommand,
+) []issue {
+	const surface = "scripts/dev/gen_wiki_commands.py"
+	content := string(generated)
+	var issues []issue
+	var rendered textbuf.Buffer
+	expectedPaths := make([]string, 0, len(live))
+	expectedDetailPaths := make([]string, 0, len(live))
+	for _, command := range live {
+		expectedPaths = append(expectedPaths, command.Path)
+		if wikiCommandNeedsDetail(command) {
+			expectedDetailPaths = append(expectedDetailPaths, command.Path)
+		}
+	}
+	issues = append(issues, compareCommandNamedGroup(
+		surface, "<wiki catalog>", "command", expectedPaths,
+		wikiCommandSummaryPaths(content),
+	)...)
+	issues = append(issues, compareCommandNamedGroup(
+		surface, "<wiki catalog>", "command detail", expectedDetailPaths,
+		wikiCommandDetailPaths(content),
+	)...)
+	for _, command := range live {
+		description := command.Description
+		if line, _, found := strings.Cut(description, "\n"); found {
+			description = line
+		}
+		description = strings.ReplaceAll(description, "|", `\|`)
+		wantRow := rendered.Reset().Str("| `").Str(command.Path).Str("` | ").
+			Str(command.Mode).Str(" | ").Str(description).Str(" |").String()
+		if strings.Count(content, wantRow) != 1 {
+			issues = append(issues, generatedCommandContractIssue(
+				surface, command.Path, "wiki command summary row",
+			))
+		}
+
+		detail, hasDetail := wikiCommandDetail(content, command.Path)
+		if !wikiCommandNeedsDetail(command) {
+			continue
+		}
+		if !hasDetail {
+			issues = append(issues, generatedCommandContractIssue(
+				surface, command.Path, "wiki command detail",
+			))
+			continue
+		}
+		if strings.Contains(command.Description, "\n") {
+			wantDescription := rendered.Reset().Byte('\n').Str(command.Description).
+				Str("\n\n").String()
+			if !strings.HasPrefix(detail, wantDescription) {
+				issues = append(issues, generatedCommandContractIssue(
+					surface, command.Path, "wiki command description",
+				))
+			}
+		}
+		rendered.Reset().Str("Mode: ").Str(command.Mode)
+		if command.WireMethod != "" {
+			rendered.Str(" | Wire: `").Str(command.WireMethod).Byte('`')
+		}
+		if !wikiLineEquals(detail, rendered.String()) {
+			issues = append(issues, generatedCommandContractIssue(
+				surface, command.Path, "wiki mode and wire metadata",
+			))
+		}
+		wantShape := ""
+		if command.AnswerShape != "" {
+			wantShape = rendered.Reset().Str("Answer shape: `").
+				Str(command.AnswerShape).Byte('`').String()
+		}
+		issues = append(issues, compareWikiOptionalLine(
+			surface, command.Path, detail, "Answer shape: ",
+			"answer shape", wantShape,
+		)...)
+		wantAddressFields := ""
+		if len(command.AddressFields) != 0 {
+			wantAddressFields = rendered.Reset().Str("Address fields: ").
+				Str(wikiCodeList(command.AddressFields)).String()
+		}
+		issues = append(issues, compareWikiOptionalLine(
+			surface, command.Path, detail, "Address fields: ",
+			"address fields", wantAddressFields,
+		)...)
+		wantBackend := ""
+		if len(command.Backend) != 0 {
+			wantBackend = rendered.Reset().Str("**Requires backend:** ").
+				Str(wikiCodeList(command.Backend)).String()
+		}
+		issues = append(issues, compareWikiOptionalLine(
+			surface, command.Path, detail, "**Requires backend:** ",
+			"backend requirements", wantBackend,
+		)...)
+		wantTaskSupport := ""
+		if command.TaskSupport != "" {
+			wantTaskSupport = rendered.Reset().Str("**Task support:** ").
+				Str(command.TaskSupport).String()
+		}
+		issues = append(issues, compareWikiOptionalLine(
+			surface, command.Path, detail, "**Task support:** ",
+			"task support", wantTaskSupport,
+		)...)
+		expectedArgs := make([]string, 0, len(command.Args))
+		for _, arg := range command.Args {
+			required := ""
+			if arg.Mandatory {
+				required = "yes"
+			}
+			rendered.Reset().Str("| `").Str(arg.Name).Str("` | ").Str(arg.Type).
+				Str(" | ").Str(required).Str(" | ").
+				Str(strings.Join(arg.Values, ", ")).Str(" |")
+			expectedArgs = append(expectedArgs, rendered.String())
+		}
+		issues = append(issues, compareCommandNamedGroup(
+			surface, command.Path, "wiki argument", expectedArgs,
+			wikiArgumentRows(detail),
+		)...)
+
+		for _, group := range []struct {
+			availability string
+			label        string
+		}{
+			{availability: "always", label: "Always"},
+			{availability: "with-rows", label: "When the answer has rows"},
+			{availability: "when-streaming", label: "While the command keeps answering"},
+			{availability: "local-only", label: "Local process only"},
+		} {
+			actual := wikiOperatorGroup(detail, group.label)
+			expectedNames := commandOperatorNames(command, group.availability)
+			issues = append(issues, compareCommandOperatorGroup(
+				surface, command.Path, group.availability, expectedNames, actual,
+			)...)
+		}
+		expectedAliases := make([]string, 0, len(command.Aliases))
+		for _, alias := range command.Aliases {
+			rendered.Reset().Str("- `").Str(alias.Name).Str("` -- ").
+				Str(alias.Description).Str(" (`").Str(alias.Expansion).Str("`)")
+			expectedAliases = append(expectedAliases, rendered.String())
+		}
+		issues = append(issues, compareCommandNamedGroup(
+			surface, command.Path, "wiki pipe alias", expectedAliases,
+			wikiBulletGroup(detail, "Named chains:"),
+		)...)
+		expectedFilters := make([]string, 0, len(command.Pipes))
+		for _, filter := range command.Pipes {
+			rendered.Reset().Str("- `").Str(filter.Name).Byte('`')
+			if filter.TakesArg {
+				rendered.Str(" `<value>`")
+			}
+			rendered.Str(" -- ").Str(filter.Description)
+			expectedFilters = append(expectedFilters, rendered.String())
+		}
+		issues = append(issues, compareCommandNamedGroup(
+			surface, command.Path, "wiki command filter", expectedFilters,
+			wikiBulletGroup(detail, "Command-specific:"),
+		)...)
+		wantSubcommands := ""
+		if len(command.Subcommands) != 0 {
+			wantSubcommands = rendered.Reset().Str("**Subcommands:** ").
+				Str(wikiCodeList(command.Subcommands)).String()
+		}
+		issues = append(issues, compareWikiOptionalLine(
+			surface, command.Path, detail, "**Subcommands:** ",
+			"subcommands", wantSubcommands,
+		)...)
+	}
+	return issues
+}
+
+func wikiCommandNeedsDetail(command publishedCommand) bool {
+	return len(command.Args) != 0 ||
+		len(command.Pipes) != 0 ||
+		len(command.Aliases) != 0 ||
+		len(command.Subcommands) != 0 ||
+		len(command.Backend) != 0 ||
+		command.WireMethod != "" ||
+		command.TaskSupport != "" ||
+		len(command.Operators) != 0 ||
+		command.AnswerShape != "" ||
+		len(command.AddressFields) != 0 ||
+		strings.Contains(command.Description, "\n")
+}
+
+func wikiCommandDetail(content, path string) (string, bool) {
+	var marker textbuf.Buffer
+	startMarker := marker.Str("### `").Str(path).Str("`\n").String()
+	start := strings.Index(content, startMarker)
+	if start == -1 {
+		return "", false
+	}
+	remaining := content[start+len(startMarker):]
+	end := len(remaining)
+	for _, next := range []string{"\n### `", "\n## ", "\n---"} {
+		if at := strings.Index(remaining, next); at != -1 {
+			end = min(end, at)
+		}
+	}
+	return remaining[:end], true
+}
+
+func wikiCommandSummaryPaths(content string) []string {
+	var paths []string
+	inTable := false
+	pastSeparator := false
+	for line := range strings.SplitSeq(content, "\n") {
+		switch {
+		case line == "| Command | Mode | Description |":
+			inTable = true
+			pastSeparator = false
+		case inTable && !pastSeparator:
+			pastSeparator = strings.HasPrefix(line, "|---")
+		case inTable && !strings.HasPrefix(line, "| "):
+			inTable = false
+		case inTable:
+			const prefix = "| `"
+			remaining := strings.TrimPrefix(line, prefix)
+			if path, _, found := strings.Cut(remaining, "` |"); found {
+				paths = append(paths, path)
+			}
+		}
+	}
+	return paths
+}
+
+func wikiCommandDetailPaths(content string) []string {
+	var paths []string
+	for line := range strings.SplitSeq(content, "\n") {
+		if !strings.HasPrefix(line, "### `") || !strings.HasSuffix(line, "`") {
+			continue
+		}
+		paths = append(paths, strings.TrimSuffix(strings.TrimPrefix(line, "### `"), "`"))
+	}
+	return paths
+}
+
+func wikiArgumentRows(content string) []string {
+	lines := strings.Split(content, "\n")
+	for index, line := range lines {
+		if line != "| Name | Type | Required | Values |" {
+			continue
+		}
+		var rows []string
+		for _, row := range lines[index+2:] {
+			if !strings.HasPrefix(row, "| ") {
+				break
+			}
+			rows = append(rows, row)
+		}
+		return rows
+	}
+	return nil
+}
+
+func wikiBulletGroup(content, heading string) []string {
+	lines := strings.Split(content, "\n")
+	for index, line := range lines {
+		if line != heading {
+			continue
+		}
+		var rows []string
+		for _, row := range lines[index+1:] {
+			if !strings.HasPrefix(row, "- ") {
+				break
+			}
+			rows = append(rows, row)
+		}
+		return rows
+	}
+	return nil
+}
+
+func wikiLineEquals(content, want string) bool {
+	for line := range strings.SplitSeq(content, "\n") {
+		if line == want {
+			return true
+		}
+	}
+	return false
+}
+
+func compareWikiOptionalLine(
+	path, command, content, prefix, field, expected string,
+) []issue {
+	var rendered textbuf.Buffer
+	actual := ""
+	for line := range strings.SplitSeq(content, "\n") {
+		if strings.HasPrefix(line, prefix) {
+			actual = line
+			break
+		}
+	}
+	if actual == expected {
+		return nil
+	}
+	fieldName := rendered.Str("wiki ").Str(field).String()
+	return []issue{generatedCommandSurfaceValueIssue(
+		path, command, fieldName, expected, actual,
+	)}
+}
+
+func wikiCodeList(values []string) string {
+	quoted := make([]string, 0, len(values))
+	var rendered textbuf.Buffer
+	for _, value := range values {
+		quoted = append(quoted,
+			rendered.Reset().Byte('`').Str(value).Byte('`').String())
+	}
+	return strings.Join(quoted, ", ")
+}
+
+func wikiOperatorGroup(content, label string) []string {
+	var marker textbuf.Buffer
+	prefix := marker.Str(label).Str(": ").String()
+	for line := range strings.SplitSeq(content, "\n") {
+		if !strings.HasPrefix(line, prefix) {
+			continue
+		}
+		values := strings.TrimPrefix(line, prefix)
+		if before, _, found := strings.Cut(values, " -- "); found {
+			values = before
+		}
+		var names []string
+		for _, value := range strings.Split(values, ", ") {
+			value = strings.Trim(value, "`")
+			if value != "" {
+				names = append(names, value)
+			}
+		}
+		return names
+	}
+	return nil
 }
 
 var commandSurfaceSlugSeparator = regexp.MustCompile(`[^a-z0-9]+`)
@@ -1799,6 +2156,9 @@ func validateGeneratedCommandSurfaces(
 		issues = append(issues,
 			validateLLMSCommandContract(commandSurfacePath(root, llmsPath), meta, command)...)
 	}
+	issues = append(issues, validatePrimaryOperatorCatalog(
+		commandSurfacePath(root, primaryHTMLPath), string(primaryHTML), live,
+	)...)
 	return issues
 }
 
@@ -1832,6 +2192,266 @@ func availabilityCommandDimension(availability, name string) string {
 func namedCommandDimension(kind, name string) string {
 	var dimension textbuf.Buffer
 	return dimension.Str(kind).Byte(' ').Quoted(name).String()
+}
+
+func commandOperatorNames(command publishedCommand, availability string) []string {
+	names := make([]string, 0, len(command.Operators))
+	for _, operator := range command.Operators {
+		if availability == "local-only" {
+			if operator.LocalOnly {
+				names = append(names, operator.Name)
+			}
+			continue
+		}
+		if operator.Available == availability {
+			names = append(names, operator.Name)
+		}
+	}
+	return names
+}
+
+func compareCommandOperatorGroup(
+	path, command, availability string,
+	expected, actual []string,
+) []issue {
+	var issues []issue
+	var rendered textbuf.Buffer
+	missing, extra := commandNameDifferences(expected, actual)
+	for _, name := range missing {
+		dimension := availabilityCommandDimension(availability, name)
+		if availability == "local-only" {
+			dimension = namedCommandDimension(
+				"local-only surface qualifier for operator", name,
+			)
+		}
+		issues = append(issues, generatedCommandContractIssue(path, command, dimension))
+	}
+	for _, name := range extra {
+		dimension := rendered.Reset().Str("catalog-absent operator in ").
+			Str(availability).Str(" group").String()
+		issues = append(issues, generatedCommandExtraIssue(
+			path, command, namedCommandDimension(dimension, name),
+		))
+	}
+	return issues
+}
+
+func compareCommandNamedGroup(
+	path, command, kind string,
+	expected, actual []string,
+) []issue {
+	var issues []issue
+	var rendered textbuf.Buffer
+	missing, extra := commandNameDifferences(expected, actual)
+	for _, name := range missing {
+		issues = append(issues, generatedCommandContractIssue(
+			path, command, namedCommandDimension(kind, name),
+		))
+	}
+	for _, name := range extra {
+		dimension := rendered.Reset().Str("catalog-absent ").Str(kind).String()
+		issues = append(issues, generatedCommandExtraIssue(
+			path, command, namedCommandDimension(dimension, name),
+		))
+	}
+	return issues
+}
+
+func commandNameDifferences(expected, actual []string) (missing, extra []string) {
+	expectedCounts := make(map[string]int, len(expected))
+	actualCounts := make(map[string]int, len(actual))
+	for _, name := range expected {
+		expectedCounts[name]++
+	}
+	for _, name := range actual {
+		actualCounts[name]++
+	}
+	for name, count := range expectedCounts {
+		difference := count - actualCounts[name]
+		if difference <= 0 {
+			continue
+		}
+		for range difference {
+			missing = append(missing, name)
+		}
+	}
+	for name, count := range actualCounts {
+		difference := count - expectedCounts[name]
+		if difference <= 0 {
+			continue
+		}
+		for range difference {
+			extra = append(extra, name)
+		}
+	}
+	sort.Strings(missing)
+	sort.Strings(extra)
+	return missing, extra
+}
+
+func generatedCommandExtraIssue(path, command, dimension string) issue {
+	var detail textbuf.Buffer
+	return issue{
+		File:    path,
+		Message: "the generated per-command surface publishes data absent from the live command contract",
+		Detail: detail.Str("command ").Quoted(command).Str(" has extra ").
+			Str(dimension).String(),
+	}
+}
+
+type renderedOperatorMetadata struct {
+	class       string
+	description string
+	available   []string
+}
+
+var primaryOperatorRowPattern = regexp.MustCompile(
+	`<tr><td><code>([^<]*)</code></td><td>([^<]*)</td><td>([^<]*)</td><td>([^<]*)</td></tr>`,
+)
+
+func validatePrimaryOperatorCatalog(
+	path, content string,
+	live []publishedCommand,
+) []issue {
+	expected := make(map[string]renderedOperatorMetadata)
+	for _, command := range live {
+		for _, operator := range command.Operators {
+			meta, exists := expected[operator.Name]
+			if !exists {
+				meta.class = primaryOperatorClassLabel(operator.Class)
+				meta.description = operator.Description
+			}
+			availability := commandAvailabilityLabel(operator.Available)
+			if !containsString(meta.available, availability) {
+				meta.available = append(meta.available, availability)
+			}
+			if operator.LocalOnly && !containsString(meta.available, "Local process only") {
+				meta.available = append(meta.available, "Local process only")
+			}
+			expected[operator.Name] = meta
+		}
+	}
+
+	guide := ""
+	if start := strings.Index(content, `<section class="cli-pipe-guide"`); start != -1 {
+		remaining := content[start:]
+		if end := strings.Index(remaining, "</section>"); end != -1 {
+			guide = remaining[:end+len("</section>")]
+		}
+	}
+	actual := make(map[string]renderedOperatorMetadata)
+	var duplicate []string
+	for _, match := range primaryOperatorRowPattern.FindAllStringSubmatch(guide, -1) {
+		name := html.UnescapeString(match[1])
+		if _, exists := actual[name]; exists {
+			duplicate = append(duplicate, name)
+			continue
+		}
+		actual[name] = renderedOperatorMetadata{
+			class:       html.UnescapeString(match[2]),
+			available:   splitNonEmpty(html.UnescapeString(match[3]), ", "),
+			description: html.UnescapeString(match[4]),
+		}
+	}
+
+	expectedNames := make([]string, 0, len(expected))
+	actualNames := make([]string, 0, len(actual)+len(duplicate))
+	for name := range expected {
+		expectedNames = append(expectedNames, name)
+	}
+	for name := range actual {
+		actualNames = append(actualNames, name)
+	}
+	actualNames = append(actualNames, duplicate...)
+	var issues []issue
+	missing, extra := commandNameDifferences(expectedNames, actualNames)
+	for _, name := range missing {
+		issues = append(issues, generatedCommandContractIssue(
+			path, "<operator catalog>", namedCommandDimension("operator metadata", name),
+		))
+	}
+	for _, name := range extra {
+		issues = append(issues, generatedCommandExtraIssue(
+			path, "<operator catalog>", namedCommandDimension("catalog-absent operator", name),
+		))
+	}
+	for name, want := range expected {
+		got, exists := actual[name]
+		if !exists {
+			continue
+		}
+		if got.class != want.class {
+			issues = append(issues, generatedCommandValueIssue(
+				path, name, "class", want.class, got.class,
+			))
+		}
+		if got.description != want.description {
+			issues = append(issues, generatedCommandValueIssue(
+				path, name, "description", want.description, got.description,
+			))
+		}
+		missingAvailability, extraAvailability := commandNameDifferences(
+			want.available, got.available,
+		)
+		if len(missingAvailability) != 0 || len(extraAvailability) != 0 {
+			issues = append(issues, generatedCommandValueIssue(
+				path, name, "availability",
+				strings.Join(want.available, ", "), strings.Join(got.available, ", "),
+			))
+		}
+	}
+	return issues
+}
+
+func primaryOperatorClassLabel(class string) string {
+	switch class {
+	case "global":
+		return "Output and control"
+	case "stream":
+		return "Streaming"
+	case "data":
+		return "Row data"
+	default:
+		return class
+	}
+}
+
+func generatedCommandValueIssue(path, operator, field, expected, actual string) issue {
+	var detail textbuf.Buffer
+	return issue{
+		File:    path,
+		Message: "the generated operator metadata disagrees with the live command catalog",
+		Detail: detail.Str("operator ").Quoted(operator).Byte(' ').Str(field).
+			Str(" is ").Quoted(actual).Str("; expected ").Quoted(expected).String(),
+	}
+}
+
+func generatedCommandSurfaceValueIssue(
+	path, command, field, expected, actual string,
+) issue {
+	var detail textbuf.Buffer
+	return issue{
+		File:    path,
+		Message: "the generated per-command surface disagrees with the live command contract",
+		Detail: detail.Str("command ").Quoted(command).Byte(' ').Str(field).
+			Str(" is ").Quoted(actual).Str("; expected ").Quoted(expected).String(),
+	}
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func splitNonEmpty(value, separator string) []string {
+	if value == "" {
+		return nil
+	}
+	return strings.Split(value, separator)
 }
 
 func commandSurfaceSlug(path string) string {
@@ -1880,23 +2500,65 @@ func validatePrimaryCommandContract(
 			))
 		}
 	}
-	for _, operator := range command.Operators {
-		label := commandAvailabilityLabel(operator.Available)
-		if !commandHTMLGroupContains(row, label, operator.Name) {
+	for _, group := range []struct {
+		availability string
+		label        string
+	}{
+		{availability: "always", label: "Always"},
+		{availability: "with-rows", label: "With rows"},
+		{availability: "when-streaming", label: "While streaming"},
+		{availability: "local-only", label: "Local process only"},
+	} {
+		issues = append(issues, compareCommandOperatorGroup(
+			path, command.Path, group.availability,
+			commandOperatorNames(command, group.availability),
+			commandHTMLGroupValues(row, group.label),
+		)...)
+	}
+
+	filterNames := htmlCodeNames(
+		row,
+		"<strong>Command pipes</strong><div class=\"cli-pipe-chips\">",
+		"</div>",
+	)
+	expectedFilters := make([]string, 0, len(command.Pipes))
+	for _, filter := range command.Pipes {
+		marker.Reset().Str(filter.Name)
+		if filter.TakesArg {
+			marker.Str(" <value>")
+		}
+		name := marker.String()
+		expectedFilters = append(expectedFilters, name)
+		marker.Reset().Str("<dt><code>").Str(html.EscapeString(name)).
+			Str("</code></dt><dd>").Str(html.EscapeString(filter.Description)).
+			Str("</dd>")
+		if !strings.Contains(row, marker.String()) {
 			issues = append(issues, generatedCommandContractIssue(
-				path, command.Path,
-				availabilityCommandDimension(operator.Available, operator.Name),
+				path, command.Path, namedCommandDimension("command filter", filter.Name),
 			))
 		}
-		if operator.LocalOnly {
-			if !commandHTMLGroupContains(row, "Local process only", operator.Name) {
-				issues = append(issues, generatedCommandContractIssue(
-					path, command.Path,
-					namedCommandDimension("local-only surface qualifier for operator", operator.Name),
-				))
-			}
+	}
+	issues = append(issues, compareCommandNamedGroup(
+		path, command.Path, "command filter", expectedFilters, filterNames,
+	)...)
+
+	aliasNames := htmlDefinitionNames(row, "<strong>Aliases</strong><dl>", "</dl>")
+	expectedAliases := make([]string, 0, len(command.Aliases))
+	for _, alias := range command.Aliases {
+		expectedAliases = append(expectedAliases, alias.Name)
+		marker.Reset().Str("<dt><code>").Str(html.EscapeString(alias.Name)).
+			Str("</code></dt><dd>").Str(html.EscapeString(alias.Description)).
+			Byte(' ').Str("<code>").Str(html.EscapeString(alias.Expansion)).
+			Str("</code></dd>")
+		if !strings.Contains(row, marker.String()) {
+			issues = append(issues, generatedCommandContractIssue(
+				path, command.Path, namedCommandDimension("pipe alias", alias.Name),
+			))
 		}
 	}
+	issues = append(issues, compareCommandNamedGroup(
+		path, command.Path, "pipe alias", expectedAliases, aliasNames,
+	)...)
 	return issues
 }
 
@@ -1930,39 +2592,55 @@ func validatePrimaryMarkdownContract(
 			))
 		}
 	}
-	for _, field := range command.AddressFields {
-		if !commandMarkdownGroupContains(row, "Address fields", field) {
-			issues = append(issues, generatedCommandContractIssue(
-				path, command.Path, namedCommandDimension("address field", field),
-			))
-		}
+	issues = append(issues, compareCommandNamedGroup(
+		path, command.Path, "address field", command.AddressFields,
+		commandMarkdownGroupValues(row, "Address fields"),
+	)...)
+	for _, group := range []struct {
+		availability string
+		label        string
+	}{
+		{availability: "always", label: "Always"},
+		{availability: "with-rows", label: "With rows"},
+		{availability: "when-streaming", label: "While streaming"},
+		{availability: "local-only", label: "Local process only"},
+	} {
+		issues = append(issues, compareCommandOperatorGroup(
+			path, command.Path, group.availability,
+			commandOperatorNames(command, group.availability),
+			commandMarkdownGroupValues(row, group.label),
+		)...)
 	}
-	for _, operator := range command.Operators {
-		label := commandAvailabilityLabel(operator.Available)
-		if !commandMarkdownGroupContains(row, label, operator.Name) {
-			issues = append(issues, generatedCommandContractIssue(
-				path, command.Path,
-				availabilityCommandDimension(operator.Available, operator.Name),
-			))
+	expectedFilters := make([]string, 0, len(command.Pipes))
+	for _, filter := range command.Pipes {
+		marker.Reset().Str(filter.Name)
+		if filter.TakesArg {
+			marker.Str(" <value>")
 		}
-		if operator.LocalOnly {
-			if !commandMarkdownGroupContains(row, "Local process only", operator.Name) {
-				issues = append(issues, generatedCommandContractIssue(
-					path, command.Path,
-					namedCommandDimension("local-only surface qualifier for operator", operator.Name),
-				))
-			}
-		}
+		expectedFilters = append(expectedFilters, marker.String())
 	}
+	issues = append(issues, compareCommandNamedGroup(
+		path, command.Path, "command filter", expectedFilters,
+		commandMarkdownGroupValues(row, "Command"),
+	)...)
+	expectedAliases := make([]string, 0, len(command.Aliases))
+	for _, alias := range command.Aliases {
+		expectedAliases = append(expectedAliases,
+			marker.Reset().Str(alias.Name).Str(" -> ").Str(alias.Expansion).String())
+	}
+	issues = append(issues, compareCommandNamedGroup(
+		path, command.Path, "pipe alias", expectedAliases,
+		commandMarkdownGroupValues(row, "Aliases"),
+	)...)
 	return issues
 }
 
-func commandMarkdownGroupContains(content, label, name string) bool {
+func commandMarkdownGroupValues(content, label string) []string {
 	var marker textbuf.Buffer
 	startMarker := marker.Str(label).Str(": ").String()
 	start := strings.Index(content, startMarker)
 	if start == -1 {
-		return false
+		return nil
 	}
 	values := content[start+len(startMarker):]
 	end := len(values)
@@ -1973,12 +2651,14 @@ func commandMarkdownGroupContains(content, label, name string) bool {
 		end = min(end, cellEnd)
 	}
 	values = values[:end]
+	parsed := make([]string, 0, strings.Count(values, ", ")+1)
 	for _, value := range strings.Split(values, ", ") {
-		if strings.Trim(value, "`") == commandMarkdownValue(name) {
-			return true
+		value = strings.Trim(value, "`")
+		if value != "" {
+			parsed = append(parsed, strings.ReplaceAll(value, `\|`, "|"))
 		}
 	}
-	return false
+	return parsed
 }
 
 func commandAvailabilityLabel(availability string) string {
@@ -1994,25 +2674,99 @@ func commandAvailabilityLabel(availability string) string {
 	}
 }
 
-func commandHTMLGroupContains(content, label, name string) bool {
+func commandHTMLGroupValues(content, label string) []string {
 	var marker textbuf.Buffer
 	startMarker := marker.Str("<span>").Str(html.EscapeString(label)).
 		Str("</span><code>").String()
 	start := strings.Index(content, startMarker)
 	if start == -1 {
-		return false
+		return nil
 	}
 	values := content[start+len(startMarker):]
 	end := strings.Index(values, "</code>")
 	if end == -1 {
-		return false
+		return nil
 	}
-	for _, value := range strings.Split(values[:end], " · ") {
-		if html.UnescapeString(value) == name {
-			return true
+	parsed := strings.Split(values[:end], " · ")
+	for i := range parsed {
+		parsed[i] = html.UnescapeString(parsed[i])
+	}
+	return parsed
+}
+
+func htmlCodeNames(content, startMarker, endMarker string) []string {
+	start := strings.Index(content, startMarker)
+	if start == -1 {
+		return nil
+	}
+	remaining := content[start+len(startMarker):]
+	end := strings.Index(remaining, endMarker)
+	if end == -1 {
+		return nil
+	}
+	remaining = remaining[:end]
+	var names []string
+	for {
+		codeStart := strings.Index(remaining, "<code")
+		if codeStart == -1 {
+			return names
 		}
+		remaining = remaining[codeStart:]
+		textStart := strings.IndexByte(remaining, '>')
+		if textStart == -1 {
+			return names
+		}
+		remaining = remaining[textStart+1:]
+		codeEnd := strings.Index(remaining, "</code>")
+		if codeEnd == -1 {
+			return names
+		}
+		names = append(names, html.UnescapeString(remaining[:codeEnd]))
+		remaining = remaining[codeEnd+len("</code>"):]
 	}
-	return false
+}
+
+func htmlDefinitionNames(content, startMarker, endMarker string) []string {
+	start := strings.Index(content, startMarker)
+	if start == -1 {
+		return nil
+	}
+	remaining := content[start+len(startMarker):]
+	end := strings.Index(remaining, endMarker)
+	if end == -1 {
+		return nil
+	}
+	remaining = remaining[:end]
+	var names []string
+	for {
+		nameStart := strings.Index(remaining, "<dt><code>")
+		if nameStart == -1 {
+			return names
+		}
+		remaining = remaining[nameStart+len("<dt><code>"):]
+		nameEnd := strings.Index(remaining, "</code>")
+		if nameEnd == -1 {
+			return names
+		}
+		names = append(names, html.UnescapeString(remaining[:nameEnd]))
+		remaining = remaining[nameEnd+len("</code>"):]
+	}
+}
+
+func htmlDefinitionValue(content, label string) string {
+	var marker textbuf.Buffer
+	startMarker := marker.Str("<dt>").Str(html.EscapeString(label)).
+		Str("</dt><dd>").String()
+	start := strings.Index(content, startMarker)
+	if start == -1 {
+		return ""
+	}
+	values := content[start+len(startMarker):]
+	end := strings.Index(values, "</dd>")
+	if end == -1 {
+		return ""
+	}
+	return values[:end]
 }
 
 func validateEquivalentCommandContract(
@@ -2041,49 +2795,54 @@ func validateEquivalentCommandContract(
 			))
 		}
 	}
-	for _, operator := range command.Operators {
-		label := equivalentAvailabilityLabel(operator.Available, command.AnswerShape != "")
-		if !equivalentHTMLGroupContains(content, label, operator.Name) {
-			issues = append(issues, generatedCommandContractIssue(
-				path, command.Path,
-				availabilityCommandDimension(operator.Available, operator.Name),
-			))
-		}
-		if operator.LocalOnly {
-			if !equivalentHTMLGroupContains(
-				content, "Pipes, local process only", operator.Name,
-			) {
-				issues = append(issues, generatedCommandContractIssue(
-					path, command.Path,
-					namedCommandDimension("local-only surface qualifier for operator", operator.Name),
-				))
-			}
-		}
+	for _, group := range []struct {
+		availability string
+		label        string
+	}{
+		{availability: "always", label: "Pipes, always"},
+		{
+			availability: "with-rows",
+			label:        equivalentAvailabilityLabel("with-rows", command.AnswerShape != ""),
+		},
+		{availability: "when-streaming", label: "Pipes, while streaming"},
+		{availability: "local-only", label: "Pipes, local process only"},
+	} {
+		issues = append(issues, compareCommandOperatorGroup(
+			path, command.Path, group.availability,
+			commandOperatorNames(command, group.availability),
+			equivalentHTMLGroupValues(content, group.label),
+		)...)
 	}
+	expectedFilters := make([]string, 0, len(command.Pipes))
 	for _, filter := range command.Pipes {
-		marker.Reset().Str("<code>").Str(html.EscapeString(filter.Name))
+		marker.Reset().Str(filter.Name)
 		if filter.TakesArg {
-			marker.Str(" &lt;value&gt;")
+			marker.Str(" <value>")
 		}
-		want := marker.Str("</code>: ").
-			Str(html.EscapeString(filter.Description)).String()
-		if !strings.Contains(content, want) {
-			issues = append(issues, generatedCommandContractIssue(
-				path, command.Path, namedCommandDimension("command filter", filter.Name),
-			))
-		}
+		name := marker.String()
+		marker.Reset().Str("<code>").Str(html.EscapeString(name)).
+			Str("</code>: ").Str(html.EscapeString(filter.Description))
+		expectedFilters = append(expectedFilters, marker.String())
 	}
+	wantFilters := strings.Join(expectedFilters, "<br>")
+	if got := htmlDefinitionValue(content, "Command pipes"); got != wantFilters {
+		issues = append(issues, generatedCommandSurfaceValueIssue(
+			path, command.Path, "command filters", wantFilters, got,
+		))
+	}
+	expectedAliases := make([]string, 0, len(command.Aliases))
 	for _, alias := range command.Aliases {
-		marker.Reset()
-		want := marker.Str("<code>").Str(html.EscapeString(alias.Name)).
+		marker.Reset().Str("<code>").Str(html.EscapeString(alias.Name)).
 			Str("</code>: ").Str(html.EscapeString(alias.Description)).
 			Str(" (<code>").Str(html.EscapeString(alias.Expansion)).
-			Str("</code>)").String()
-		if !strings.Contains(content, want) {
-			issues = append(issues, generatedCommandContractIssue(
-				path, command.Path, namedCommandDimension("pipe alias", alias.Name),
-			))
-		}
+			Str("</code>)")
+		expectedAliases = append(expectedAliases, marker.String())
+	}
+	wantAliases := strings.Join(expectedAliases, "<br>")
+	if got := htmlDefinitionValue(content, "Pipe aliases"); got != wantAliases {
+		issues = append(issues, generatedCommandSurfaceValueIssue(
+			path, command.Path, "pipe aliases", wantAliases, got,
+		))
 	}
 	return issues
 }
@@ -2110,32 +2869,26 @@ func validateEquivalentMarkdownContract(
 			))
 		}
 	}
-	for _, field := range command.AddressFields {
-		if !equivalentMarkdownGroupContains(content, "Address fields", field) {
-			issues = append(issues, generatedCommandContractIssue(
-				path, command.Path, namedCommandDimension("address field", field),
-			))
-		}
+	issues = append(issues, compareCommandNamedGroup(
+		path, command.Path, "address field", command.AddressFields,
+		equivalentMarkdownGroupValues(content, "Address fields"),
+	)...)
+	for _, group := range []struct {
+		availability string
+		label        string
+	}{
+		{availability: "always", label: "Pipes, always"},
+		{availability: "with-rows", label: "Pipes, on rows"},
+		{availability: "when-streaming", label: "Pipes, while streaming"},
+		{availability: "local-only", label: "Pipes, local process only"},
+	} {
+		issues = append(issues, compareCommandOperatorGroup(
+			path, command.Path, group.availability,
+			commandOperatorNames(command, group.availability),
+			equivalentMarkdownGroupValues(content, group.label),
+		)...)
 	}
-	for _, operator := range command.Operators {
-		label := equivalentMarkdownAvailabilityLabel(operator.Available)
-		if !equivalentMarkdownGroupContains(content, label, operator.Name) {
-			issues = append(issues, generatedCommandContractIssue(
-				path, command.Path,
-				availabilityCommandDimension(operator.Available, operator.Name),
-			))
-		}
-		if operator.LocalOnly {
-			if !equivalentMarkdownGroupContains(
-				content, "Pipes, local process only", operator.Name,
-			) {
-				issues = append(issues, generatedCommandContractIssue(
-					path, command.Path,
-					namedCommandDimension("local-only surface qualifier for operator", operator.Name),
-				))
-			}
-		}
-	}
+	expectedFilters := make([]string, 0, len(command.Pipes))
 	for _, filter := range command.Pipes {
 		marker.Reset().Byte('`').Str(commandMarkdownValue(filter.Name))
 		if filter.TakesArg {
@@ -2145,15 +2898,19 @@ func validateEquivalentMarkdownContract(
 		if filter.Description != "" {
 			marker.Str(": ").Str(commandMarkdownValue(filter.Description))
 		}
-		want := marker.String()
-		if !strings.Contains(
-			commandMarkdownLine(content, "Command pipes"), want,
-		) {
-			issues = append(issues, generatedCommandContractIssue(
-				path, command.Path, namedCommandDimension("command filter", filter.Name),
-			))
-		}
+		expectedFilters = append(expectedFilters, marker.String())
 	}
+	wantFilterLine := "- Command pipes: none"
+	if len(expectedFilters) != 0 {
+		wantFilterLine = marker.Reset().Str("- Command pipes: ").
+			Str(strings.Join(expectedFilters, "; ")).String()
+	}
+	if got := commandMarkdownLine(content, "Command pipes"); got != wantFilterLine {
+		issues = append(issues, generatedCommandSurfaceValueIssue(
+			path, command.Path, "command filters", wantFilterLine, got,
+		))
+	}
+	expectedAliases := make([]string, 0, len(command.Aliases))
 	for _, alias := range command.Aliases {
 		marker.Reset().Byte('`').Str(commandMarkdownValue(alias.Name)).Byte('`')
 		if alias.Description != "" {
@@ -2162,45 +2919,37 @@ func validateEquivalentMarkdownContract(
 		if alias.Expansion != "" {
 			marker.Str(" (`").Str(commandMarkdownValue(alias.Expansion)).Str("`)")
 		}
-		want := marker.String()
-		if !strings.Contains(
-			commandMarkdownLine(content, "Pipe aliases"), want,
-		) {
-			issues = append(issues, generatedCommandContractIssue(
-				path, command.Path, namedCommandDimension("pipe alias", alias.Name),
-			))
-		}
+		expectedAliases = append(expectedAliases, marker.String())
+	}
+	wantAliasLine := "- Pipe aliases: none"
+	if len(expectedAliases) != 0 {
+		wantAliasLine = marker.Reset().Str("- Pipe aliases: ").
+			Str(strings.Join(expectedAliases, "; ")).String()
+	}
+	if got := commandMarkdownLine(content, "Pipe aliases"); got != wantAliasLine {
+		issues = append(issues, generatedCommandSurfaceValueIssue(
+			path, command.Path, "pipe aliases", wantAliasLine, got,
+		))
 	}
 	return issues
 }
 
-func equivalentMarkdownAvailabilityLabel(availability string) string {
-	switch availability {
-	case "always":
-		return "Pipes, always"
-	case "with-rows":
-		return "Pipes, on rows"
-	case "when-streaming":
-		return "Pipes, while streaming"
-	default:
-		return availability
-	}
-}
-
-func equivalentMarkdownGroupContains(content, label, want string) bool {
+func equivalentMarkdownGroupValues(content, label string) []string {
 	line := commandMarkdownLine(content, label)
 	if line == "" {
-		return false
+		return nil
 	}
 	var marker textbuf.Buffer
 	values := strings.TrimPrefix(line,
 		marker.Str("- ").Str(label).Str(": ").String())
-	for _, value := range strings.Split(values, ", ") {
-		if value == commandMarkdownValue(want) {
-			return true
-		}
+	if values == "none" {
+		return nil
 	}
-	return false
+	parsed := strings.Split(values, ", ")
+	for i := range parsed {
+		parsed[i] = strings.ReplaceAll(parsed[i], `\|`, "|")
+	}
+	return parsed
 }
 
 func commandMarkdownLine(content, label string) string {
@@ -2230,25 +2979,24 @@ func equivalentAvailabilityLabel(availability string, declaredShape bool) string
 	}
 }
 
-func equivalentHTMLGroupContains(content, label, name string) bool {
+func equivalentHTMLGroupValues(content, label string) []string {
 	var marker textbuf.Buffer
 	startMarker := marker.Str("<dt>").Str(html.EscapeString(label)).
 		Str("</dt><dd>").String()
 	start := strings.Index(content, startMarker)
 	if start == -1 {
-		return false
+		return nil
 	}
 	values := content[start+len(startMarker):]
 	end := strings.Index(values, "</dd>")
 	if end == -1 {
-		return false
+		return nil
 	}
-	for _, value := range strings.Split(values[:end], ", ") {
-		if html.UnescapeString(value) == name {
-			return true
-		}
+	parsed := strings.Split(values[:end], ", ")
+	for i := range parsed {
+		parsed[i] = html.UnescapeString(parsed[i])
 	}
-	return false
+	return parsed
 }
 
 func llmsCommandMetadata(content, path string) (string, bool) {
@@ -2273,83 +3021,74 @@ func validateLLMSCommandContract(
 	command publishedCommand,
 ) []issue {
 	var issues []issue
-	var marker textbuf.Buffer
-	for _, operator := range command.Operators {
-		if !commandMetaPipeGroupContains(meta, operator.Available, operator.Name) {
-			issues = append(issues, generatedCommandContractIssue(
-				path, command.Path,
-				availabilityCommandDimension(operator.Available, operator.Name),
-			))
-		}
-		if operator.LocalOnly {
-			if !commandMetaPipeGroupContains(meta, "local-only", operator.Name) {
-				issues = append(issues, generatedCommandContractIssue(
-					path, command.Path,
-					namedCommandDimension("local-only surface qualifier for operator", operator.Name),
-				))
-			}
-		}
+	var rendered textbuf.Buffer
+	mode, _, _ := strings.Cut(meta, "; ")
+	if mode != command.Mode {
+		issues = append(issues, generatedCommandValueIssue(
+			path, command.Path, "mode", command.Mode, mode,
+		))
 	}
-	if command.AnswerShape != "" {
-		if commandMetaValue(meta, "shape") != command.AnswerShape {
-			issues = append(issues, generatedCommandContractIssue(
-				path, command.Path, "answer shape",
-			))
-		}
+	if wire := commandMetaValue(meta, "wire"); wire != command.WireMethod {
+		issues = append(issues, generatedCommandValueIssue(
+			path, command.Path, "wire method", command.WireMethod, wire,
+		))
 	}
-	for _, field := range command.AddressFields {
-		if !commandMetaListContains(meta, "address-fields", field) {
-			issues = append(issues, generatedCommandContractIssue(
-				path, command.Path, namedCommandDimension("address field", field),
-			))
-		}
+	for _, availability := range []string{
+		"always", "with-rows", "when-streaming", "local-only",
+	} {
+		issues = append(issues, compareCommandOperatorGroup(
+			path, command.Path, availability,
+			commandOperatorNames(command, availability),
+			commandMetaPipeGroupValues(meta, availability),
+		)...)
 	}
+	if shape := commandMetaValue(meta, "shape"); shape != command.AnswerShape {
+		issues = append(issues, generatedCommandValueIssue(
+			path, command.Path, "answer shape", command.AnswerShape, shape,
+		))
+	}
+	issues = append(issues, compareCommandNamedGroup(
+		path, command.Path, "address field", command.AddressFields,
+		strings.Fields(commandMetaValue(meta, "address-fields")),
+	)...)
+	expectedFilters := make([]string, 0, len(command.Pipes))
 	for _, filter := range command.Pipes {
-		if !commandMetaListContains(meta, "filters", filter.Name) {
-			issues = append(issues, generatedCommandContractIssue(
-				path, command.Path, namedCommandDimension("command filter", filter.Name),
-			))
-		}
+		expectedFilters = append(expectedFilters, filter.Name)
 	}
-	aliases := commandMetaValue(meta, "aliases")
+	issues = append(issues, compareCommandNamedGroup(
+		path, command.Path, "command filter", expectedFilters,
+		strings.Fields(commandMetaValue(meta, "filters")),
+	)...)
+	expectedAliases := make([]string, 0, len(command.Aliases))
 	for _, alias := range command.Aliases {
-		marker.Reset()
-		want := marker.Str(alias.Name).Byte('=').Str(alias.Expansion).String()
-		if !strings.Contains(aliases, want) {
-			issues = append(issues, generatedCommandContractIssue(
-				path, command.Path, namedCommandDimension("pipe alias", alias.Name),
-			))
-		}
+		expectedAliases = append(expectedAliases,
+			rendered.Reset().Str(alias.Name).Byte('=').Str(alias.Expansion).String())
 	}
+	issues = append(issues, compareCommandNamedGroup(
+		path, command.Path, "pipe alias", expectedAliases,
+		splitNonEmpty(commandMetaValue(meta, "aliases"), ", "),
+	)...)
+	expectedArgs := make([]string, 0, len(command.Args))
+	for _, arg := range command.Args {
+		expectedArgs = append(expectedArgs,
+			rendered.Reset().Str(arg.Name).Byte(':').Str(arg.Type).String())
+	}
+	issues = append(issues, compareCommandNamedGroup(
+		path, command.Path, "argument", expectedArgs,
+		splitNonEmpty(commandMetaValue(meta, "args"), ", "),
+	)...)
 	return issues
 }
 
-func commandMetaPipeGroupContains(meta, availability, name string) bool {
+func commandMetaPipeGroupValues(meta, availability string) []string {
 	pipes := commandMetaValue(meta, "pipes")
 	for group := range strings.SplitSeq(pipes, ", ") {
 		label, values, ok := strings.Cut(group, ": ")
-		if !ok {
-			continue
-		}
-		if label != availability {
-			continue
-		}
-		for value := range strings.FieldsSeq(values) {
-			if value == name {
-				return true
-			}
+		if ok && label == availability {
+			return strings.Fields(values)
 		}
 	}
-	return false
-}
-
-func commandMetaListContains(meta, label, want string) bool {
-	for value := range strings.FieldsSeq(commandMetaValue(meta, label)) {
-		if value == want {
-			return true
-		}
-	}
-	return false
+	return nil
 }
 
 func commandMetaValue(meta, label string) string {

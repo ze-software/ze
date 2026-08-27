@@ -114,6 +114,66 @@ func TestCLIFormatFlagBecomesAPipe(t *testing.T) {
 	}
 }
 
+// TestCLIFormatFlagRendersLocalRaw proves the explicit flag uses the same pipe
+// grammar for an in-process data command as it does for daemon dispatch.
+func TestCLIFormatFlagRendersLocalRaw(t *testing.T) {
+	var code int
+	stdout := captureOutput(t, false, func() {
+		code = Run([]string{"-c", "show schema protocol", "--format", "raw"})
+	})
+
+	if code != 0 {
+		t.Fatalf("Run(--format raw) code = %d, want 0", code)
+	}
+	const want = "{\"protocol\":\"Hub Architecture\",\"version\":\"1.0\"}\n"
+	if stdout != want {
+		t.Fatalf("Run(--format raw) stdout = %q, want byte-exact %q", stdout, want)
+	}
+}
+
+// TestCLIFormatFlagRejectsUnknownLocalFormat holds an explicit format typo to
+// the pipe validator instead of allowing the local renderer to fall back.
+func TestCLIFormatFlagRejectsUnknownLocalFormat(t *testing.T) {
+	const unknown = "definitely-not-a-format"
+	var code int
+	var stdout string
+	stderr := captureOutput(t, true, func() {
+		stdout = captureOutput(t, false, func() {
+			code = Run([]string{"-c", "show schema protocol", "--format", unknown})
+		})
+	})
+
+	if code == 0 {
+		t.Fatal("Run(unknown --format) code = 0, want nonzero")
+	}
+	if stdout != "" {
+		t.Fatalf("Run(unknown --format) stdout = %q, want no answer", stdout)
+	}
+	if !strings.Contains(stderr, unknown) {
+		t.Fatalf("Run(unknown --format) stderr = %q, want format name %q", stderr, unknown)
+	}
+}
+
+// TestCLICommandFormatPrecedesFlag executes the local path and proves an
+// operator in the command wins even when the flag itself would be invalid.
+func TestCLICommandFormatPrecedesFlag(t *testing.T) {
+	var code int
+	stdout := captureOutput(t, false, func() {
+		code = Run([]string{
+			"-c", "show schema protocol | raw",
+			"--format", "definitely-not-a-format",
+		})
+	})
+
+	if code != 0 {
+		t.Fatalf("Run(command raw plus unknown --format) code = %d, want 0", code)
+	}
+	const want = "{\"protocol\":\"Hub Architecture\",\"version\":\"1.0\"}\n"
+	if stdout != want {
+		t.Fatalf("Run(command raw plus unknown --format) stdout = %q, want byte-exact %q", stdout, want)
+	}
+}
+
 // TestTheOperatorSeesTheDaemonRenderingWhileItArrives holds the other half of
 // the client's job: it prints, and it does not format.
 //

@@ -4,6 +4,7 @@
 package ssh
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -693,6 +694,66 @@ func truncateForLog(cmd string) string {
 	return b.Reset().Str(cmd[:cut]).Str("...(").Int(int64(len(cmd))).Str(" bytes total)").String()
 }
 
+// streamPipeWriter applies a stream pipe chain to each newline-delimited event
+// before it reaches an SSH exec channel. Handlers may split one event across
+// writes, so pending bytes are retained until the delimiter arrives.
+type streamPipeWriter struct {
+	output  io.Writer
+	format  func(string) string
+	pending bytes.Buffer
+}
+
+func (w *streamPipeWriter) Write(p []byte) (int, error) {
+	originalLen := len(p)
+	consumed := 0
+	for len(p) > 0 {
+		newline := bytes.IndexByte(p, '\n')
+		if newline < 0 {
+			w.pending.Write(p) //nolint:errcheck // bytes.Buffer.Write cannot fail
+			return originalLen, nil
+		}
+		w.pending.Write(p[:newline]) //nolint:errcheck // bytes.Buffer.Write cannot fail
+		consumed += newline + 1
+		if err := w.writeEvent(); err != nil {
+			return consumed, err
+		}
+		p = p[newline+1:]
+	}
+	return originalLen, nil
+}
+
+// finish emits a final event from a handler that omitted its trailing newline.
+func (w *streamPipeWriter) finish() error {
+	if w.pending.Len() == 0 {
+		return nil
+	}
+	return w.writeEvent()
+}
+
+func (w *streamPipeWriter) writeEvent() error {
+	raw := strings.TrimSuffix(w.pending.String(), "\r")
+	formatted := strings.TrimRight(w.format(raw), "\r\n")
+	w.pending.Reset()
+	if formatted == "" {
+		return nil
+	}
+	if err := writeStreamText(w.output, formatted); err != nil {
+		return err
+	}
+	return writeStreamText(w.output, "\n")
+}
+
+func writeStreamText(w io.Writer, text string) error {
+	n, err := io.WriteString(w, text)
+	if err != nil {
+		return err
+	}
+	if n != len(text) {
+		return io.ErrShortWrite
+	}
+	return nil
+}
+
 // execMiddleware handles non-interactive SSH exec commands (e.g., "ssh daemon stop").
 // If the session has a command, it dispatches through the executor and renders the
 // answer with the command's pipe chain, or with the configured default format
@@ -801,18 +862,33 @@ func (s *Server) execMiddleware() wish.Middleware {
 				return
 			}
 
-			// Check for streaming commands (e.g., "monitor event ...").
-			// Pass the full input to the executor; the executor does handler lookup.
-			if streamFactory != nil && pluginserver.IsStreamingCommand(input) {
+			// Parse the stream surface before handler lookup or dispatch. Streaming
+			// is determined from the base command so pipe tokens can neither hide
+			// a stream nor reach its handler arguments. The remote entry point
+			// refuses save before any daemon-side destination exists.
+			streamCommand, formatStreamEvent, _, streamPipeErr := command.ProcessRemoteStreamPipes(input, "")
+			if streamPipeErr != "" {
+				fmt.Fprintln(sess.Stderr(), "error:", streamPipeErr) //nolint:errcheck // best-effort
+				sess.Exit(1)                                         //nolint:errcheck // best-effort
+				return
+			}
+
+			isStreaming := pluginserver.IsStreamingCommand(streamCommand)
+			if streamFactory != nil && isStreaming {
 				streamExec := streamFactory(sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
-				if err := streamExec(sess.Context(), sess, []string{input}); err != nil {
-					fmt.Fprintf(sess.Stderr(), "error: %v\n", err) //nolint:errcheck // best-effort
-					sess.Exit(1)                                   //nolint:errcheck // best-effort
+				output := &streamPipeWriter{output: sess, format: formatStreamEvent}
+				streamErr := streamExec(sess.Context(), output, []string{streamCommand})
+				if streamErr == nil {
+					streamErr = output.finish()
+				}
+				if streamErr != nil {
+					writeExecError(sess, streamErr)
+					sess.Exit(1) //nolint:errcheck // best-effort
 				}
 				return
 			}
 
-			if streamFactory == nil && pluginserver.IsStreamingCommand(input) {
+			if streamFactory == nil && isStreaming {
 				fmt.Fprintln(sess.Stderr(), "error: streaming not available (daemon still starting)") //nolint:errcheck // best-effort
 				sess.Exit(1)                                                                          //nolint:errcheck // best-effort
 				return

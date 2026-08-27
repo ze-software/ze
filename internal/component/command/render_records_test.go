@@ -791,3 +791,321 @@ func TestTransformBeforeFormatStillStreams(t *testing.T) {
 			writer.firstAt, rpc.AnswerBufferThreshold+1)
 	}
 }
+
+func TestFormatTransformCompatibilityMatrix(t *testing.T) {
+	formats := []struct {
+		kind pipeKind
+		name string
+		ok   bool
+	}{
+		{pipeJSON, "json", true},
+		{pipeRaw, "raw", true},
+		{pipeNDJSON, "ndjson", false},
+		{pipeYAML, "yaml", false},
+		{pipeTable, "table", false},
+		{pipeText, "text", false},
+	}
+	transforms := []struct {
+		kind pipeKind
+		name string
+		arg  string
+	}{
+		{pipeDisplay, "display", "address"},
+		{pipeFill, "fill", "address"},
+		{pipeResolve, "resolve", ""},
+		{pipeOrigin, "origin", ""},
+	}
+
+	for _, format := range formats {
+		for _, transform := range transforms {
+			t.Run(format.name+"/"+transform.name, func(t *testing.T) {
+				ops := []pipeOp{
+					{kind: format.kind},
+					{kind: transform.kind, arg: transform.arg, allAddressFields: true},
+				}
+				msg := validateFormatTransformCompatibility(ops)
+				if format.ok {
+					if msg != "" {
+						t.Fatalf("compatible chain was refused: %s", msg)
+					}
+					return
+				}
+				if !strings.Contains(msg, format.name) || !strings.Contains(msg, transform.name) {
+					t.Errorf("refusal = %q, want %s and %s named", msg, format.name, transform.name)
+				}
+			})
+		}
+	}
+}
+
+// TestIncompatiblePostFormatTransformRefusesBeforeWalking proves that the
+// compatibility matrix is checked at the record boundary, not after a source
+// has been collected or rendered.
+func TestIncompatiblePostFormatTransformRefusesBeforeWalking(t *testing.T) {
+	ResetShapesForTest()
+	ResetAddressFieldsForTest()
+	t.Cleanup(ResetShapesForTest)
+	t.Cleanup(ResetAddressFieldsForTest)
+	RegisterShape([]string{"show test addresses"}, ShapeTab)
+	RegisterAddressFields([]string{"show test addresses"}, "address")
+
+	formats := []string{"ndjson", "yaml", "table", "text"}
+	transforms := []string{"display address", "fill alpha", "resolve", "origin"}
+	for _, format := range formats {
+		for _, transform := range transforms {
+			t.Run(format+"/"+transform, func(t *testing.T) {
+				produced := 0
+				var out bytes.Buffer
+				_, err := RenderRecords(
+					&out,
+					"show test addresses | "+format+" | "+transform,
+					"",
+					"addresses",
+					nil,
+					commandRecords(3, &produced),
+				)
+				if err == nil {
+					t.Fatal("incompatible post-format transform was accepted")
+				}
+				operator := strings.Fields(transform)[0]
+				if !strings.Contains(err.Error(), format) || !strings.Contains(err.Error(), operator) {
+					t.Errorf("refusal = %q, want %s and %s named", err, format, operator)
+				}
+				if produced != 0 {
+					t.Errorf("refused chain pulled %d records, want none", produced)
+				}
+				if out.Len() != 0 {
+					t.Errorf("refused chain wrote %q, want no partial answer", out.String())
+				}
+			})
+		}
+	}
+}
+
+// TestNDJSONLineTransformsStayOnTheRecordPath exercises each transform on one
+// NDJSON line. The source document stays on the record path.
+func TestNDJSONLineTransformsStayOnTheRecordPath(t *testing.T) {
+	const available = 1000
+	tests := []struct {
+		name          string
+		chain         string
+		wantProduced  int
+		wantCount     uint64
+		wantLines     int
+		wantMetadata  bool
+		wantStreaming bool
+	}{
+		{
+			name:         "first stops the source",
+			chain:        "system command list | ndjson | first 1",
+			wantProduced: 1,
+			wantCount:    1,
+			wantLines:    1,
+			wantMetadata: true,
+		},
+		{
+			name:         "count retains only its counter",
+			chain:        "system command list | ndjson | count",
+			wantProduced: available,
+			wantCount:    1,
+			wantLines:    1,
+			wantMetadata: true,
+		},
+		{
+			name:         "last retains its bound",
+			chain:        "system command list | ndjson | last 3",
+			wantProduced: available,
+			wantCount:    3,
+			wantLines:    3,
+		},
+		{
+			name:          "match writes before the source ends",
+			chain:         "system command list | ndjson | match show",
+			wantProduced:  available,
+			wantCount:     available,
+			wantLines:     available,
+			wantStreaming: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			produced := 0
+			writer := &witnessWriter{produced: &produced}
+			answer, err := RenderRecords(
+				writer,
+				tt.chain,
+				"",
+				recordEnvelope,
+				nil,
+				commandRecords(available, &produced),
+			)
+			if err != nil {
+				t.Fatalf("RenderRecords: %v", err)
+			}
+			if produced != tt.wantProduced {
+				t.Errorf("source pulled %d records, want %d", produced, tt.wantProduced)
+			}
+			if answer.Count != tt.wantCount {
+				t.Errorf("answer count = %d, want %d", answer.Count, tt.wantCount)
+			}
+			if lines := strings.Count(strings.TrimRight(writer.body.String(), "\n"), "\n") + 1; lines != tt.wantLines {
+				t.Errorf("rendered %d lines, want %d", lines, tt.wantLines)
+			}
+			hasMetadata := strings.Contains(writer.body.String(), `"pipe"`)
+			if hasMetadata != tt.wantMetadata {
+				t.Errorf("metadata present = %v, want %v: %s", hasMetadata, tt.wantMetadata, writer.body.String())
+			}
+			if tt.wantStreaming && writer.firstAt >= available {
+				t.Errorf("first write followed %d source records, want before all %d", writer.firstAt, available)
+			}
+		})
+	}
+}
+
+func TestNDJSONMatchReadsTheRenderedLine(t *testing.T) {
+	produced := 0
+	records := func(yield func(rpc.Record) bool) {
+		produced++
+		yield(rpc.Record{Item: json.RawMessage(`{"value": "show cmd"}`)})
+	}
+	var out bytes.Buffer
+	answer, err := RenderRecords(
+		&out,
+		`system command list | ndjson | match "value":"show cmd"`,
+		"",
+		recordEnvelope,
+		nil,
+		records,
+	)
+	if err != nil {
+		t.Fatalf("RenderRecords: %v", err)
+	}
+	if produced != 1 || answer.Count != 1 {
+		t.Errorf("source produced %d and answer counted %d, want one matched line", produced, answer.Count)
+	}
+	if !strings.Contains(out.String(), `"value":"show cmd"`) {
+		t.Errorf("canonical NDJSON line did not match: %q", out.String())
+	}
+}
+
+func TestNDJSONMatchReadsRenderedPositionalFields(t *testing.T) {
+	const rows = rpc.AnswerBufferThreshold + 10
+	produced := 0
+	writer := &witnessWriter{produced: &produced}
+	answer, err := RenderRecords(
+		writer,
+		`system command list | ndjson | match "value":"show cmd`,
+		"",
+		recordEnvelope,
+		commandColumns,
+		commandColumnRecords(rows, &produced),
+	)
+	if err != nil {
+		t.Fatalf("RenderRecords: %v", err)
+	}
+	if produced != rows || answer.Count != rows {
+		t.Errorf("source produced %d and answer counted %d, want %d positional matches", produced, answer.Count, rows)
+	}
+	if writer.firstAt != rpc.AnswerBufferThreshold+1 {
+		t.Errorf("first positional write followed %d source records, want %d", writer.firstAt, rpc.AnswerBufferThreshold+1)
+	}
+	if !strings.Contains(writer.body.String(), `"value":"show cmd-0"`) {
+		t.Errorf("rendered positional NDJSON line did not match: %q", writer.body.String())
+	}
+}
+
+func TestNDJSONLineTransformsTreatFaultsAsRenderedLines(t *testing.T) {
+	source := []rpc.Record{
+		{Fault: json.RawMessage(`{"message":"first fault"}`)},
+		{Item: json.RawMessage(`{"value":"middle"}`)},
+		{Item: json.RawMessage(`{"value":"last"}`)},
+	}
+	tests := []struct {
+		name         string
+		chain        string
+		wantProduced int
+		wantCount    uint64
+		wantFaults   uint64
+		wantText     string
+	}{
+		{
+			name:         "first stops on a fault line",
+			chain:        "system command list | ndjson | first 1",
+			wantProduced: 1,
+			wantFaults:   1,
+			wantText:     "first fault",
+		},
+		{
+			name:         "count includes fault lines",
+			chain:        "system command list | ndjson | count",
+			wantProduced: 3,
+			wantCount:    1,
+			wantText:     `"count":3`,
+		},
+		{
+			name:         "last can discard a fault line",
+			chain:        "system command list | ndjson | last 1",
+			wantProduced: 3,
+			wantCount:    1,
+			wantText:     `"value":"last"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			produced := 0
+			records := func(yield func(rpc.Record) bool) {
+				for _, record := range source {
+					produced++
+					if !yield(record) {
+						return
+					}
+				}
+			}
+			var out bytes.Buffer
+			answer, err := RenderRecords(&out, tt.chain, "", recordEnvelope, nil, records)
+			if err != nil {
+				t.Fatalf("RenderRecords: %v", err)
+			}
+			if produced != tt.wantProduced {
+				t.Errorf("source produced %d lines, want %d", produced, tt.wantProduced)
+			}
+			if answer.Count != tt.wantCount || answer.Faults != tt.wantFaults {
+				t.Errorf("answer = %+v, want count %d faults %d", answer, tt.wantCount, tt.wantFaults)
+			}
+			if !strings.Contains(out.String(), tt.wantText) {
+				t.Errorf("rendering %q does not contain %q", out.String(), tt.wantText)
+			}
+		})
+	}
+}
+
+// TestNDJSONCountAndLastKeepBoundedMemory extends the record wrappers' memory
+// contract through RenderRecords when ndjson precedes the transform.
+func TestNDJSONCountAndLastKeepBoundedMemory(t *testing.T) {
+	for _, chain := range []string{
+		"show test rows | ndjson | count",
+		"show test rows | ndjson | last 8",
+	} {
+		t.Run(chain, func(t *testing.T) {
+			var walk recordWalk
+			if _, err := RenderRecords(
+				io.Discard,
+				chain,
+				"",
+				"rows",
+				nil,
+				walk.records(memoryWalkRecords, memoryWalkPayload),
+			); err != nil {
+				t.Fatalf("RenderRecords: %v", err)
+			}
+			if walk.produced != memoryWalkRecords {
+				t.Errorf("source pulled %d records, want %d", walk.produced, memoryWalkRecords)
+			}
+			if held := walk.heldAtLastRecord(); held > memoryWalkBudget {
+				t.Errorf("%s held %d bytes at the last record, want under %d of the %d walked",
+					chain, held, uint64(memoryWalkBudget), uint64(memoryWalkTotal))
+			}
+		})
+	}
+}

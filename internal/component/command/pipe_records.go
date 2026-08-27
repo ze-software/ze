@@ -10,8 +10,8 @@
 // The memory shape is the reason this half exists. An operator that reads a
 // record and forgets it costs one record whatever the answer holds, and
 // `| last N` costs at most the declared record and byte ceilings. RenderRecords
-// keeps this path when transforms precede rendering. A format followed by a row
-// transform instead needs the rendered document and is collected there.
+// keeps this path when transforms precede rendering and when NDJSON precedes a
+// line transform. Other format-before-transform chains use a collapsed document.
 // ChainBuffersRecords is what a consumer asks before it decides to render as it
 // reads.
 //
@@ -25,6 +25,7 @@ package command
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"iter"
 	"strconv"
 	"strings"
@@ -53,8 +54,8 @@ const (
 // returns a message before pulling a record.
 //
 // A format operator changes no record when it follows the data transforms.
-// RenderRecords detects a format before a later transform and runs that whole
-// chain over one collapsed document instead of calling this path.
+// RenderRecords runs most format-before-transform chains over one collapsed
+// document. NDJSON plus line transforms deliberately stays on this path.
 func applyPipesRecords(
 	input string,
 	fields []string,
@@ -70,7 +71,28 @@ func applyPipesRecords(
 	}
 
 	request := columnsInChain(ops)
+	ndjsonRendered := false
 	for _, op := range ops {
+		if op.kind == pipeNDJSON {
+			ndjsonRendered = true
+			continue
+		}
+		if ndjsonRendered {
+			switch op.kind { //nolint:exhaustive // only operators whose NDJSON line semantics differ.
+			case pipeMatch:
+				records = recordsMatchingRenderedJSON(records, fields, op.arg)
+				continue
+			case pipeCount:
+				records = recordsLinesCounted(records)
+				continue
+			case pipeFirst:
+				records = recordsLinesFirst(records, op.arg)
+				continue
+			case pipeLast:
+				records = recordsLinesLast(records, op.arg)
+				continue
+			}
+		}
 		if op.kind == pipeDisplay {
 			var msg string
 			records, fields, msg = recordsSelected(records, request, fields)
@@ -153,6 +175,45 @@ func recordsMatching(records iter.Seq[rpc.Record], pattern string) iter.Seq[rpc.
 	}
 }
 
+// recordsMatchingRenderedJSON compares against the canonical line `| ndjson`
+// produces rather than the producer's original JSON spelling.
+func recordsMatchingRenderedJSON(records iter.Seq[rpc.Record], fields []string, pattern string) iter.Seq[rpc.Record] {
+	lower := strings.ToLower(pattern)
+	return func(yield func(rpc.Record) bool) {
+		for record := range records {
+			line, err := marshalRecordJSONFields(record, fields)
+			if err != nil {
+				line = recordPayload(record)
+			}
+			if !strings.Contains(strings.ToLower(string(line)), lower) {
+				continue
+			}
+			if !yield(record) {
+				return
+			}
+		}
+	}
+}
+
+func recordsPositionalRendered(records iter.Seq[rpc.Record], fields []string) iter.Seq[rpc.Record] {
+	return func(yield func(rpc.Record) bool) {
+		for record := range records {
+			if len(record.Item) > 0 {
+				rendered, err := marshalRecordJSONFields(record, fields)
+				if err != nil {
+					var tb textbuf.Buffer
+					yield(pipeFault(tb.Str("NDJSON cannot render positional row: ").Err(err).String()))
+					return
+				}
+				record.Item = rendered
+			}
+			if !yield(record) {
+				return
+			}
+		}
+	}
+}
+
 // recordsCounted answers one record carrying the number of results, in the
 // {"count":N} spelling applyCount writes.
 //
@@ -161,10 +222,18 @@ func recordsMatching(records iter.Seq[rpc.Record], pattern string) iter.Seq[rpc.
 // the terminator counts results and faults apart and `| count` must not answer
 // a number that disagrees with it.
 func recordsCounted(records iter.Seq[rpc.Record]) iter.Seq[rpc.Record] {
+	return recordsCountedByLine(records, false)
+}
+
+func recordsLinesCounted(records iter.Seq[rpc.Record]) iter.Seq[rpc.Record] {
+	return recordsCountedByLine(records, true)
+}
+
+func recordsCountedByLine(records iter.Seq[rpc.Record], faultsAreLines bool) iter.Seq[rpc.Record] {
 	return func(yield func(rpc.Record) bool) {
 		results := 0
 		for record := range records {
-			if len(record.Fault) > 0 {
+			if len(record.Fault) > 0 && !faultsAreLines {
 				if !yield(record) {
 					return
 				}
@@ -188,6 +257,14 @@ func recordsCounted(records iter.Seq[rpc.Record]) iter.Seq[rpc.Record] {
 // chain whose argument is not a positive number, and an argument that reaches
 // here anyway is ignored, which is the tolerance applyFirst carries.
 func recordsFirst(records iter.Seq[rpc.Record], arg string) iter.Seq[rpc.Record] {
+	return recordsFirstByLine(records, arg, false)
+}
+
+func recordsLinesFirst(records iter.Seq[rpc.Record], arg string) iter.Seq[rpc.Record] {
+	return recordsFirstByLine(records, arg, true)
+}
+
+func recordsFirstByLine(records iter.Seq[rpc.Record], arg string, faultsAreLines bool) iter.Seq[rpc.Record] {
 	n, err := strconv.Atoi(arg)
 	if err != nil || n <= 0 {
 		return records
@@ -198,7 +275,7 @@ func recordsFirst(records iter.Seq[rpc.Record], arg string) iter.Seq[rpc.Record]
 			if !yield(record) {
 				return
 			}
-			if len(record.Fault) > 0 {
+			if len(record.Fault) > 0 && !faultsAreLines {
 				continue
 			}
 			taken++
@@ -221,6 +298,14 @@ func recordsFirst(records iter.Seq[rpc.Record], arg string) iter.Seq[rpc.Record]
 // The ring grows only as records arrive, so an allowed request over a short
 // answer allocates only for that short answer rather than n slots eagerly.
 func recordsLast(records iter.Seq[rpc.Record], arg string) iter.Seq[rpc.Record] {
+	return recordsLastByLine(records, arg, false)
+}
+
+func recordsLinesLast(records iter.Seq[rpc.Record], arg string) iter.Seq[rpc.Record] {
+	return recordsLastByLine(records, arg, true)
+}
+
+func recordsLastByLine(records iter.Seq[rpc.Record], arg string, faultsAreLines bool) iter.Seq[rpc.Record] {
 	n, err := strconv.Atoi(arg)
 	if err != nil {
 		return records
@@ -236,13 +321,13 @@ func recordsLast(records iter.Seq[rpc.Record], arg string) iter.Seq[rpc.Record] 
 		oldest := 0
 		retainedBytes := 0
 		for record := range records {
-			if len(record.Fault) > 0 {
+			if len(record.Fault) > 0 && !faultsAreLines {
 				if !yield(record) {
 					return
 				}
 				continue
 			}
-			recordBytes := len(record.Item)
+			recordBytes := len(recordPayload(record))
 			if len(ring) < n {
 				if retainedBytes+recordBytes > recordsLastBytesLimit {
 					yield(pipeFault(lastRetentionBytesError()))
@@ -252,7 +337,7 @@ func recordsLast(records iter.Seq[rpc.Record], arg string) iter.Seq[rpc.Record] 
 				retainedBytes += recordBytes
 				continue
 			}
-			nextBytes := retainedBytes - len(ring[oldest].Item) + recordBytes
+			nextBytes := retainedBytes - len(recordPayload(ring[oldest])) + recordBytes
 			if nextBytes > recordsLastBytesLimit {
 				yield(pipeFault(lastRetentionBytesError()))
 				return
@@ -549,6 +634,50 @@ func transformItem(item json.RawMessage, transform func(any) any) json.RawMessag
 	return transformed
 }
 
+// recordsWithSingletonMetadata preserves the document path's observable
+// metadata contract for NDJSON. A one-line result can carry metadata in that
+// JSON object. Two or more lines cannot. The wrapper retains only the first
+// record until it knows which shape it has.
+func recordsWithSingletonMetadata(records iter.Seq[rpc.Record], meta pipeChainMeta) iter.Seq[rpc.Record] {
+	return func(yield func(rpc.Record) bool) {
+		var first rpc.Record
+		seen := false
+		emitted := false
+		for record := range records {
+			if !seen {
+				first = record
+				seen = true
+				continue
+			}
+			if !emitted {
+				if !yield(first) {
+					return
+				}
+				emitted = true
+			}
+			if !yield(record) {
+				return
+			}
+		}
+		if seen && !emitted {
+			yield(recordWithPipeMeta(first, meta))
+		}
+	}
+}
+
+func recordWithPipeMeta(record rpc.Record, meta pipeChainMeta) rpc.Record {
+	rendered, msg := injectPipeMeta(string(recordPayload(record)), meta)
+	if msg != "" {
+		return pipeFault(msg)
+	}
+	if len(record.Item) > 0 {
+		record.Item = json.RawMessage(rendered)
+	} else {
+		record.Fault = json.RawMessage(rendered)
+	}
+	return record
+}
+
 // faultRecords answers one rejected record carrying message, and pulls nothing.
 //
 // It is what a chain the validator refuses produces. The message reaches the
@@ -577,4 +706,30 @@ func recordPayload(record rpc.Record) json.RawMessage {
 		return record.Item
 	}
 	return record.Fault
+}
+
+func marshalRecordJSON(record rpc.Record) ([]byte, error) {
+	var value any
+	if err := json.Unmarshal(recordPayload(record), &value); err != nil {
+		return nil, err
+	}
+	return json.Marshal(value)
+}
+
+func marshalRecordJSONFields(record rpc.Record, fields []string) ([]byte, error) {
+	if len(fields) == 0 || len(record.Fault) > 0 {
+		return marshalRecordJSON(record)
+	}
+	var values []any
+	if err := json.Unmarshal(record.Item, &values); err != nil {
+		return nil, err
+	}
+	if len(values) != len(fields) {
+		return nil, errors.New("positional row and schema have different field counts")
+	}
+	object := make(map[string]any, len(fields))
+	for index, field := range fields {
+		object[field] = values[index]
+	}
+	return json.Marshal(object)
 }

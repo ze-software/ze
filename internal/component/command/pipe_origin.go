@@ -80,22 +80,23 @@ func originJSON(v any, fields []string, allFields bool) any {
 				value := val[key]
 				s, isString := value.(string)
 				if isString {
-					if addressFieldSelected(fields, key, allFields) {
-						if s != "*" {
-							if isIPAddress(s) {
-								o := LookupOrigin(s)
-								if o.ASN > 0 {
-									asnKey := derivedKey.Reset().Str(key).Str("-asn").String()
-									val[asnKey] = o.ASN
-									if o.Name != "" {
-										nameKey := derivedKey.Reset().Str(key).Str("-as-name").String()
-										val[nameKey] = o.Name
-									}
-									if o.Prefix != "" {
-										prefixKey := derivedKey.Reset().Str(key).Str("-prefix").String()
-										val[prefixKey] = o.Prefix
-									}
-								}
+					if addressFieldSelected(fields, key, allFields) && s != "*" && isIPAddress(s) {
+						asnKey := derivedKey.Reset().Str(key).Str("-asn").String()
+						nameKey := derivedKey.Reset().Str(key).Str("-as-name").String()
+						prefixKey := derivedKey.Reset().Str(key).Str("-prefix").String()
+						_, hasASN := val[asnKey]
+						_, hasName := val[nameKey]
+						_, hasPrefix := val[prefixKey]
+						if !hasASN || !hasName || !hasPrefix {
+							o := LookupOrigin(s)
+							if o.ASN > 0 && !hasASN {
+								val[asnKey] = o.ASN
+							}
+							if o.Name != "" && !hasName {
+								val[nameKey] = o.Name
+							}
+							if o.Prefix != "" && !hasPrefix {
+								val[prefixKey] = o.Prefix
 							}
 						}
 					}

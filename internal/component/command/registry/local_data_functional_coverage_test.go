@@ -1,6 +1,9 @@
 package registry_test
 
 import (
+	"bufio"
+	"bytes"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -13,7 +16,12 @@ import (
 	"testing"
 )
 
-var localDataInvocation = regexp.MustCompile(`local_json\('([^']+)'`)
+var (
+	localDataAssignment = regexp.MustCompile(
+		`^[A-Za-z_][A-Za-z0-9_]*[ \t]*=[ \t]*local_json\([ \t]*(?:'([^']*)'|"([^"]*)")`,
+	)
+	localDataSuccessMarker = regexp.MustCompile(`^print\([ \t]*['"]OK:`)
+)
 
 // TestEveryLocalDataRegistrationHasAFunctionalCase derives both populations:
 // production calls from Go syntax, and functional cases from the local_json
@@ -67,7 +75,10 @@ func TestFunctionalLocalDataInvocationsIgnoreDrafts(t *testing.T) {
 	}
 
 	liveInvocation := "show env list | json compact"
-	live := []byte("local_json('show env list | json compact')\n")
+	live := []byte("tmpfs=run.py:terminator=PY\n" +
+		"payload = local_json('show env list | json compact')\n" +
+		"print('OK: live fixture')\n" +
+		"PY\n")
 	livePath := filepath.Join(liveDir, "pipe-local-command.ci")
 	if err := os.WriteFile(livePath, live, 0o600); err != nil {
 		t.Fatalf("write live functional population: %v", err)
@@ -87,6 +98,70 @@ func TestFunctionalLocalDataInvocationsIgnoreDrafts(t *testing.T) {
 	if invocations[0] != liveInvocation {
 		t.Fatalf("functional population read %q, want live invocation %q",
 			invocations[0], liveInvocation)
+	}
+}
+
+// TestFunctionalLocalDataInvocationsRequireExecutedTopLevelAssignments proves
+// the static live-scenario contract cannot be satisfied by inert text.
+//
+// VALIDATES: IR3-6 -- only top-level assignments executed before success count.
+// PREVENTS: comments, dead blocks, and unrelated scenario text faking coverage.
+func TestFunctionalLocalDataInvocationsRequireExecutedTopLevelAssignments(t *testing.T) {
+	tests := []struct {
+		name     string
+		scenario string
+		want     []string
+	}{
+		{
+			name: "top-level assignment",
+			scenario: "tmpfs=run.py:terminator=PY\n" +
+				"payload = local_json('show live command | json compact')\n" +
+				"print('OK: fixture complete')\n" +
+				"PY\n",
+			want: []string{"show live command | json compact"},
+		},
+		{
+			name: "comment",
+			scenario: "tmpfs=run.py:terminator=PY\n" +
+				"# payload = local_json('show comment fake | json compact')\n" +
+				"print('OK: fixture complete')\n" +
+				"PY\n",
+		},
+		{
+			name: "nested dead code",
+			scenario: "tmpfs=run.py:terminator=PY\n" +
+				"if False:\n" +
+				"    payload = local_json('show dead fake | json compact')\n" +
+				"print('OK: fixture complete')\n" +
+				"PY\n",
+		},
+		{
+			name: "outside Python payload",
+			scenario: "payload = local_json('show before fake | json compact')\n" +
+				"tmpfs=run.py:terminator=PY\n" +
+				"print('OK: fixture complete')\n" +
+				"PY\n" +
+				"payload = local_json('show after fake | json compact')\n",
+		},
+		{
+			name: "after successful completion",
+			scenario: "tmpfs=run.py:terminator=PY\n" +
+				"print('OK: fixture complete')\n" +
+				"payload = local_json('show late fake | json compact')\n" +
+				"PY\n",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := parseFunctionalLocalDataInvocations([]byte(test.scenario))
+			if err != nil {
+				t.Fatalf("parse fixture: %v", err)
+			}
+			if strings.Join(got, "\n") != strings.Join(test.want, "\n") {
+				t.Fatalf("invocations = %q, want %q", got, test.want)
+			}
+		})
 	}
 }
 
@@ -173,13 +248,64 @@ func functionalLocalDataInvocations(t *testing.T, root string) []string {
 	if err != nil {
 		t.Fatalf("read functional local-data population %s: %v", path, err)
 	}
-	matches := localDataInvocation.FindAllSubmatch(content, -1)
-	if len(matches) == 0 {
-		t.Fatalf("%s has no executable local_json cases", path)
+	invocations, err := parseFunctionalLocalDataInvocations(content)
+	if err != nil {
+		t.Fatalf("parse functional local-data population %s: %v", path, err)
 	}
-	invocations := make([]string, 0, len(matches))
-	for _, match := range matches {
-		invocations = append(invocations, string(match[1]))
+	if len(invocations) == 0 {
+		t.Fatalf("%s has no executable top-level local_json assignments", path)
 	}
 	return invocations
+}
+
+func parseFunctionalLocalDataInvocations(content []byte) ([]string, error) {
+	const payloadPrefix = "tmpfs=run.py:terminator="
+
+	scanner := bufio.NewScanner(bytes.NewReader(content))
+	var invocations []string
+	terminator := ""
+	inPayload := false
+	completed := false
+	for scanner.Scan() {
+		line := strings.TrimSuffix(scanner.Text(), "\r")
+		if !inPayload {
+			if payloadTerminator, ok := strings.CutPrefix(line, payloadPrefix); ok {
+				terminator = payloadTerminator
+				if terminator == "" {
+					return nil, fmt.Errorf("run.py payload has an empty terminator")
+				}
+				inPayload = true
+			}
+			continue
+		}
+		if line == terminator {
+			if !completed {
+				return nil, fmt.Errorf("run.py payload ends without a top-level OK completion marker")
+			}
+			return invocations, nil
+		}
+		if completed {
+			continue
+		}
+		if localDataSuccessMarker.MatchString(line) {
+			completed = true
+			continue
+		}
+		match := localDataAssignment.FindStringSubmatch(line)
+		if match == nil {
+			continue
+		}
+		command := match[1]
+		if command == "" {
+			command = match[2]
+		}
+		invocations = append(invocations, command)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scan functional scenario: %w", err)
+	}
+	if !inPayload {
+		return nil, fmt.Errorf("functional scenario has no tmpfs=run.py payload")
+	}
+	return nil, fmt.Errorf("run.py payload has no %q terminator", terminator)
 }

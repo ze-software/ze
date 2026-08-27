@@ -1,18 +1,26 @@
 # Test: reviewed folded-filter and remote-save contracts through the full binary
 #
-# VALIDATES: IR2-3 -- folded RIB arguments are validated before dispatch;
-# one-shot log is refused; and daemon-expanded SSH/web save cannot write a file.
+# VALIDATES: IR2-3 and IR3-7 -- folded RIB arguments are validated before
+# dispatch; one-shot log is refused; and daemon-expanded SSH exec, authenticated
+# production PTY, and web save cannot write a file.
 # PREVENTS: the stripped UI population hiding full-feature transport behavior.
 
-option=timeout:value=45s
+option=timeout:value=60s
 
 tmpfs=run.py:terminator=EOF_PY
 import base64
+import errno
+import fcntl
 import json
 import os
+import pty
 import re
+import select
 import ssl
+import struct
 import subprocess
+import termios
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -61,6 +69,98 @@ def require_refusal(result, operator, reason):
     require(result.stdout == '',
             '%s refusal produced an answer before failing: %r'
             % (operator, result.stdout))
+
+
+def drive_authenticated_hub_pty(ssh_port, cases):
+    for command, destination, forbidden_status in cases:
+        drive_authenticated_hub_command(
+            ssh_port, command, destination, forbidden_status)
+
+
+def drive_authenticated_hub_command(
+        ssh_port, command, destination, forbidden_status):
+    master, slave = pty.openpty()
+    fcntl.ioctl(slave, termios.TIOCSWINSZ,
+                struct.pack('HHHH', 24, 100, 0, 0))
+    child_env = os.environ.copy()
+    child_env['TERM'] = 'xterm-256color'
+
+    def attach_controlling_terminal():
+        os.setsid()
+        fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
+
+    child = subprocess.Popen(
+        ['ssh', '-tt', '-p', str(ssh_port),
+         '-o', 'StrictHostKeyChecking=no',
+         '-o', 'UserKnownHostsFile=/dev/null',
+         '-o', 'PreferredAuthentications=password',
+         '-o', 'PubkeyAuthentication=no',
+         '-o', 'NumberOfPasswordPrompts=1',
+         '-o', 'ConnectTimeout=5',
+         'operator@127.0.0.1'],
+        stdin=slave, stdout=slave, stderr=slave, env=child_env,
+        close_fds=True, preexec_fn=attach_controlling_terminal)
+    os.close(slave)
+    transcript = ''
+
+    def read_until(predicate, description):
+        nonlocal transcript
+        deadline = time.monotonic() + PROCESS_TIMEOUT_SECONDS
+        while time.monotonic() < deadline:
+            if predicate(transcript):
+                return
+            readable, _, _ = select.select([master], [], [], 0.1)
+            if readable:
+                try:
+                    chunk = os.read(master, 65536)
+                except OSError as exc:
+                    if exc.errno == errno.EIO:
+                        break
+                    raise
+                if not chunk:
+                    break
+                transcript += chunk.decode('utf-8', errors='replace')
+            if child.poll() is not None:
+                break
+        require(predicate(transcript),
+                '%s; PTY exit=%r transcript=%r'
+                % (description, child.poll(), transcript[-4000:]))
+
+    try:
+        read_until(lambda output: 'password:' in output.lower(),
+                   'OpenSSH did not request the configured operator password')
+        os.write(master, b'testpass\r')
+        read_until(lambda output: 'welcome to ze' in output.lower(),
+                   'authenticated production PTY did not render the hub model')
+        switch_at = len(transcript)
+        os.write(master, b'exit\r')
+        read_until(lambda output: 'ze> ' in output[switch_at:],
+                   'storage-backed hub model did not enter operational mode')
+
+        command_at = len(transcript)
+        os.write(master, (command + '\r').encode())
+        read_until(
+            lambda output: 'refused' in output[command_at:].lower(),
+            'PTY save did not render a refusal for %r' % command)
+        answer = transcript[command_at:].lower()
+        require('save' in answer and 'daemon' in answer,
+                'PTY refusal did not name save and daemon: %r' % answer)
+        require(not os.path.exists(destination),
+                'PTY refused save still created %s' % destination)
+        if forbidden_status:
+            require(forbidden_status not in answer,
+                    'PTY started a refused registered view (%s): %r'
+                    % (forbidden_status, answer))
+
+    finally:
+        if child.poll() is None:
+            child.terminate()
+            try:
+                child.wait(timeout=SHUTDOWN_TIMEOUT_SECONDS)
+            except subprocess.TimeoutExpired:
+                child.kill()
+                child.wait(timeout=SHUTDOWN_TIMEOUT_SECONDS)
+        os.close(master)
 
 
 work = os.getcwd()
@@ -160,6 +260,18 @@ try:
             'SSH save refusal did not state refusal: %r' % ssh_refusal.stderr)
     require(not os.path.exists(ssh_save),
             'SSH refused save still created %s' % ssh_save)
+
+    pty_save = os.path.join(work, 'pty-must-not-exist.json')
+    pty_ping_save = os.path.join(work, 'pty-ping-must-not-exist.json')
+    pty_traceroute_save = os.path.join(
+        work, 'pty-traceroute-must-not-exist.json')
+    drive_authenticated_hub_pty(ssh_port, [
+        ('show version | save ' + pty_save, pty_save, ''),
+        ('monitor ping 127.0.0.1 | save ' + pty_ping_save,
+         pty_ping_save, 'monitoring ping'),
+        ('monitor traceroute 127.0.0.1 | save ' + pty_traceroute_save,
+         pty_traceroute_save, 'monitoring traceroute'),
+    ])
 
     auth = 'Basic ' + base64.b64encode(b'operator:testpass').decode()
     tls = ssl._create_unverified_context()

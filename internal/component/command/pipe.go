@@ -417,6 +417,9 @@ func ApplyPipes(output string, ops []pipeOp, meta pipeChainMeta, columns []Colum
 	if formatCount > 1 {
 		return "", multipleFormatsError
 	}
+	if msg := validateFormatTransformCompatibility(ops); msg != "" {
+		return "", msg
+	}
 
 	result := output
 	metaInjected := false
@@ -593,6 +596,9 @@ func validatePipeLanguage(ops []pipeOp) string {
 	if formatCount > 1 {
 		return multipleFormatsError
 	}
+	if msg := validateFormatTransformCompatibility(ops); msg != "" {
+		return msg
+	}
 	if msg := validateRepeats(ops); msg != "" {
 		return msg
 	}
@@ -600,6 +606,37 @@ func validatePipeLanguage(ops []pipeOp) string {
 		return msg
 	}
 	// The entry point checks the surface-dependent stream and save rules.
+	return ""
+}
+
+// validateFormatTransformCompatibility refuses structured transforms after a
+// renderer whose output is no longer one JSON value. JSON and raw keep that
+// value. NDJSON, yaml, table and text do not. Line transforms remain meaningful
+// after every format and run in chain order on the document or record path.
+func validateFormatTransformCompatibility(ops []pipeOp) string {
+	var format pipeKind
+	formatSeen := false
+	for _, op := range ops {
+		if isFormatOp(op.kind) {
+			format = op.kind
+			formatSeen = true
+			continue
+		}
+		if !formatSeen || !isStructuredTransformOp(op.kind) {
+			continue
+		}
+		if format == pipeJSON || format == pipeRaw {
+			continue
+		}
+		formatEntry, formatKnown := lookupPipeOperatorByKind(format)
+		transformEntry, transformKnown := lookupPipeOperatorByKind(op.kind)
+		if !formatKnown || !transformKnown {
+			continue
+		}
+		var tb textbuf.Buffer
+		return tb.Str(transformEntry.Name).Str(" cannot apply after ").
+			Str(formatEntry.Name).Str(" format").String()
+	}
 	return ""
 }
 
@@ -1043,6 +1080,24 @@ func isDataTransformOp(k pipeKind) bool {
 	}
 }
 
+func isStructuredTransformOp(k pipeKind) bool {
+	switch k {
+	case pipeDisplay, pipeFill, pipeResolve, pipeOrigin:
+		return true
+	default:
+		return false
+	}
+}
+
+func isLineTransformOp(k pipeKind) bool {
+	switch k {
+	case pipeMatch, pipeCount, pipeFirst, pipeLast:
+		return true
+	default:
+		return false
+	}
+}
+
 func injectPipeMeta(input string, meta pipeChainMeta) (string, string) {
 	if len(meta) == 0 {
 		return input, ""
@@ -1336,11 +1391,23 @@ type PipeFlags struct {
 //
 // sessionFormat is the caller's per-session format override. Pass "" for none.
 func ProcessStreamPipes(input, sessionFormat string) (cmd string, format func(string) string, flags PipeFlags, saves *StreamSaves, errMsg string) {
+	return processStreamPipes(input, sessionFormat, true)
+}
+
+// ProcessRemoteStreamPipes prepares a stream on behalf of a remote operator.
+// It exposes the same stream surface as ProcessStreamPipes. Remote validation
+// refuses `| save`, opens no file, and gives this API no save lifecycle.
+func ProcessRemoteStreamPipes(input, sessionFormat string) (cmd string, format func(string) string, flags PipeFlags, errMsg string) {
+	cmd, format, flags, _, errMsg = processStreamPipes(input, sessionFormat, false)
+	return cmd, format, flags, errMsg
+}
+
+func processStreamPipes(input, sessionFormat string, saveAllowed bool) (cmd string, format func(string) string, flags PipeFlags, saves *StreamSaves, errMsg string) {
 	cmd, ops := parsePipeChain(input)
 	columns := ColumnsForCommand(cmd)
 	cmd, ops, meta := foldFilters(cmd, ops)
 
-	if msg := validatePipesForSurface(cmd, ops, pipeSurfaceStream, true); msg != "" {
+	if msg := validatePipesForSurface(cmd, ops, pipeSurfaceStream, saveAllowed); msg != "" {
 		return cmd, nil, PipeFlags{}, nil, msg
 	}
 
@@ -1354,13 +1421,15 @@ func ProcessStreamPipes(input, sessionFormat string) (cmd string, format func(st
 		}
 	}
 
-	saves, errMsg = openStreamSaves(savePathsInChain(ops))
-	if errMsg != "" {
-		return cmd, nil, PipeFlags{}, nil, errMsg
+	if saveAllowed {
+		saves, errMsg = openStreamSaves(savePathsInChain(ops))
+		if errMsg != "" {
+			return cmd, nil, PipeFlags{}, nil, errMsg
+		}
 	}
 
-	// The caller owns stream display mode and save lifecycle. ApplyPipes owns
-	// every operator that acts on one event.
+	// The caller owns stream display mode and, on the local surface, save
+	// lifecycle. ApplyPipes owns every operator that acts on one event.
 	filtered := ops[:0]
 	for _, op := range ops {
 		if op.kind != pipeLog && op.kind != pipeSave {

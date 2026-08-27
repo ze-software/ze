@@ -334,8 +334,9 @@ func runBGP(args []string) int {
 	// `unknown command`, because YANG declares a wire method for it that no
 	// daemon handler implements.
 	if *runCmd != "" {
-		if answer, code, served := cmd.ServeLocal(*runCmd, *format); served {
-			return emitLocalResult(*runCmd, answer, code, nil)
+		input := commandWithFormat(*runCmd, *format)
+		if answer, code, served := cmd.ServeLocal(input, ""); served {
+			return emitLocalResult(input, answer, code, nil)
 		}
 	}
 

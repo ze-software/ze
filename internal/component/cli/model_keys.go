@@ -10,9 +10,21 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// processStreamPipes selects the stream pipe boundary from the filesystem
+// authority carried by this model. A daemon-hosted model must never open save
+// destinations. The operator-local model owns the save lifecycle it receives.
+func (m *Model) processStreamPipes(input string) (cmd string, format func(string) string, flags command.PipeFlags, saves *command.StreamSaves, errMsg string) {
+	if m.filesystemAuthority == FilesystemAuthorityOperatorLocal {
+		return command.ProcessStreamPipes(input, m.cliFormat)
+	}
+	cmd, format, flags, errMsg = command.ProcessRemoteStreamPipes(input, m.cliFormat)
+	return cmd, format, flags, nil, errMsg
+}
 
 // handleKeyMsg dispatches keyboard input to the appropriate handler.
 func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {

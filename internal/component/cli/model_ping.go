@@ -94,7 +94,7 @@ func (v *pingPipedView) release() {
 	if v.st != nil && v.st.cancel != nil {
 		v.st.cancel()
 	}
-	if v.st != nil {
+	if v.st != nil && v.st.saves != nil {
 		_ = v.st.saves.Abort()
 		v.st.saves = nil
 	}
@@ -368,34 +368,43 @@ func (m *Model) startPingMonitor(input string) tea.Cmd {
 }
 
 func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
-	factory := m.pingFactory()
-	if factory == nil {
-		m.statusMessage = "ping monitor not available (no daemon connection)"
-		return nil
-	}
-
-	cmdStr, formatFn, pipeFlags, saves, pipeErr := command.ProcessStreamPipes(input, m.cliFormat)
+	cmdStr, formatFn, pipeFlags, saves, pipeErr := m.processStreamPipes(input)
 	if pipeErr != "" {
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("pipe error: ").Str(pipeErr).String()
 		return nil
 	}
+
+	factory := m.pingFactory()
+	if factory == nil {
+		if saves != nil {
+			_ = saves.Abort()
+		}
+		m.statusMessage = "ping monitor not available (no daemon connection)"
+		return nil
+	}
 	mp, argErr := parsePingMonitorArgs(cmdStr)
 	if argErr != "" {
-		_ = saves.Abort()
+		if saves != nil {
+			_ = saves.Abort()
+		}
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("monitor ping: ").Str(argErr).String()
 		return nil
 	}
 	if mp.Target == "" {
-		_ = saves.Abort()
+		if saves != nil {
+			_ = saves.Abort()
+		}
 		m.statusMessage = "monitor ping: missing target address"
 		return nil
 	}
 
 	ch, cancel, err := factory(context.Background(), mp.Target, mp.Interval, mp.Timeout, mp.Count, mp.Size)
 	if err != nil {
-		_ = saves.Abort()
+		if saves != nil {
+			_ = saves.Abort()
+		}
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("monitor ping: ").Err(err).String()
 		return nil
@@ -464,8 +473,11 @@ func (m *Model) stopPingMonitorPiped() {
 	if ps.cancel != nil {
 		ps.cancel()
 	}
-	saveErr := ps.saves.Commit()
-	ps.saves = nil
+	var saveErr error
+	if ps.saves != nil {
+		saveErr = ps.saves.Commit()
+		ps.saves = nil
+	}
 
 	lastOutput := renderPingStatsPlain(ps.target, &ps.stats)
 	isLog := ps.logMode

@@ -1,8 +1,9 @@
 # Test: reviewed local and published pipe contracts through the stripped UI binary
 #
-# VALIDATES: IR2-3 and IR2-7 -- standalone resolve remains usable; a display
-# typo refuses without an answer; show version publishes qualified operators;
-# CLI help is catalog-derived; and the primary website renders shape/address data.
+# VALIDATES: IR2-3, IR2-7, and IR3-5 -- standalone resolve remains usable; a
+# display typo refuses without an answer; an explicit local-data format uses
+# pipe grammar; show version publishes qualified operators; CLI help is
+# catalog-derived; and the primary website renders shape/address data.
 # PREVENTS: lower-layer coverage passing while the stripped process or a
 # published consumer drops its contract.
 
@@ -81,6 +82,23 @@ require(json.loads(standalone.stdout) == {'label': 'edge', 'metric': 7},
 # rows would expose every field the operator attempted to narrow away.
 display = run(['ze', 'cli', '-c', 'show env list | display tpyofield'])
 require_refusal(display, 'display', 'no field')
+
+# --format is an explicit operator choice on the shipped local-data surface. It
+# must use the same pipe grammar as daemon dispatch: raw is byte-exact, while an
+# unknown name is refused instead of silently falling back to text.
+local_raw = run(['ze', 'cli', '-c', 'show schema protocol', '--format', 'raw'])
+require(local_raw.returncode == 0,
+        'local --format raw exit=%d: %s%s'
+        % (local_raw.returncode, local_raw.stdout, local_raw.stderr))
+require(local_raw.stdout == '{"protocol":"Hub Architecture","version":"1.0"}\n',
+        'local --format raw changed bytes: %r' % local_raw.stdout)
+require(local_raw.stderr == '',
+        'local --format raw wrote stderr: %r' % local_raw.stderr)
+
+unknown_format = 'definitely-not-a-format'
+local_unknown = run([
+    'ze', 'cli', '-c', 'show schema protocol', '--format', unknown_format])
+require_refusal(local_unknown, unknown_format, 'unknown pipe operator')
 
 # The per-command machine contract is reached through the shipped help command.
 # `show version` is dual registered: its local shortcut must not suppress the

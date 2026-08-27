@@ -5,6 +5,8 @@ package cli
 import (
 	"context"
 	"math"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -269,6 +271,29 @@ func TestStartPingMonitorPiped_CapturesEnrichmentFlags(t *testing.T) {
 	assert.True(t, m.activePingPiped().pipeResolve)
 	assert.True(t, m.activePingPiped().pipeOrigin)
 	assert.False(t, m.activePingPiped().hasFormatPipe)
+}
+
+// TestStartPingMonitorPipedRemoteSaveRefusesBeforeFactory holds the
+// daemon-hosted PTY boundary at the registered ping view. Pipe validation must
+// happen before the factory can start probes or any destination can be opened.
+func TestStartPingMonitorPipedRemoteSaveRefusesBeforeFactory(t *testing.T) {
+	called := false
+	m := NewCommandModel(FilesystemAuthorityUnknown)
+	m.SetPingFactory(func(_ context.Context, _ string, _, _ time.Duration, _, _ int) (<-chan map[string]any, context.CancelFunc, error) {
+		called = true
+		return nil, nil, nil
+	})
+	path := filepath.Join(t.TempDir(), "remote-ping-save.json")
+
+	cmd := m.startPingMonitorPiped("monitor ping 192.0.2.1 | save " + path)
+
+	assert.Nil(t, cmd)
+	assert.Contains(t, m.statusMessage, "save")
+	assert.Contains(t, m.statusMessage, "refused")
+	assert.False(t, called, "a refused save must not start the ping factory")
+	assert.Nil(t, m.activePingPiped())
+	_, err := os.Stat(path)
+	assert.ErrorIs(t, err, os.ErrNotExist)
 }
 
 // VALIDATES: monitor ping | resolve | log enriches the target legend with the

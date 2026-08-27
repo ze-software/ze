@@ -716,28 +716,28 @@ boundary is unchecked.
 
 | # | Sev | Finding | Disposition |
 |---|-----|---------|-------------|
-| IR-1 | BLOCKER | `recordsLast` retains one copied record per result up to an unbounded user value. An SSH user can make daemon memory grow with the full RIB (`internal/component/command/pipe_records.go` `recordsLast`; `pkg/plugin/rpc/types.go` `HeldRecords`) | OUTSTANDING |
-| IR-2 | ISSUE | `parsePipeOps` discards surplus arguments for no-argument and single-argument operators, so malformed chains execute instead of failing (`internal/component/command/pipe.go` `parsePipeOps`) | OUTSTANDING |
-| IR-3 | ISSUE | `log` is accepted as a no-op on one-shot commands, although its contract says that it applies only to streams (`internal/component/command/pipe.go` `ApplyPipes`) | OUTSTANDING |
-| IR-4 | ISSUE | Pipe metadata overwrites a legitimate answer field named `pipe` (`internal/component/command/pipe.go` `injectPipeMeta`) | OUTSTANDING |
-| IR-5 | ISSUE | An unknown `display` field returns the complete record. A typo fails open and can expose fields that the operator meant to remove (`internal/component/command/pipe_columns.go` `selectRecord`) | OUTSTANDING |
-| IR-6 | ISSUE | The YANG local-data handlers bypass the existing argument parser. `dataTree` loses conflict and unknown-option errors, and `dataCompletion` ignores `--min-prefix` (`internal/component/config/yang/cli/yang_data.go` `dataTree`, `dataCompletion`) | OUTSTANDING |
-| IR-7 | BLOCKER | `TestShowPipelineOrdersTheSameWithAndWithoutATerminal` cannot detect the removed global sort. Its fixture is already ordered by the same keys (`internal/component/bgp/plugins/rib/rib_pipeline_show_stream_test.go` `TestShowPipelineOrdersTheSameWithAndWithoutATerminal`) | OUTSTANDING |
-| IR-8 | ISSUE | An empty keyed row set such as `{"peers":{}}` becomes one outer row, so a zero-peer answer counts as one (`internal/component/command/answer_shape.go` `rowSet`, `rowsInKeyed`; `internal/component/bgp/plugins/cmd/peer/peer.go` `handleBgpPeerList`) | OUTSTANDING |
-| IR-9 | BLOCKER | `operatorsFor` suppresses operators for a plain local handler even when the CLI reaches a daemon data handler. `show version` is published with no operators although its daemon path pipes (`cmd/ze/help_command.go` `operatorsFor`; `internal/component/cmd/show/show.go` `handleShowVersion`) | OUTSTANDING |
-| IR-10 | BLOCKER | The documentation drift gate compares only the global generated operator table. It does not verify per-command wiki or website output against `operatorsFor`, so AC-15 is not enforced (`scripts/docvalid/doc_drift.go` `checkPipeOperatorReference`) | OUTSTANDING |
-| IR-11 | ISSUE | `ClassStream` is dropped or mislabeled by `pipeUsage`, the wiki generator, the command-equivalents generator, and the CLI rule. The LLM catalog removes its qualifier (`cmd/ze/ze_core_pipe.go` `pipeUsage`; `scripts/dev/gen_wiki_commands.py` `render_detail`; `website/tools/render-command-equivalents.py` `split_operators`; `website/tools/render-llms-txt.py` `command_meta`) | OUTSTANDING |
-| IR-12 | ISSUE | `ze cli --help` keeps a second six-operator list, omits catalog entries, and still describes row operators as line operations (`internal/component/cli/client/main.go` `usage`) | OUTSTANDING |
-| IR-13 | BLOCKER | Address declarations neither gate undeclared commands nor constrain enrichment to declared fields. `show version \| origin` is accepted, while declared `show bgp \| resolve` also enriches `router-id` (`internal/component/command/pipe.go` `validateDeclaredShape`; `internal/component/command/pipe_resolve.go` `resolveJSON`; `internal/component/command/pipe_origin.go` `originJSON`) | OUTSTANDING |
-| IR-14 | ISSUE | Pipe metadata is injected before the first format operator. A later row operator treats the metadata slice as a second row set and refuses or truncates the wrong set (`internal/component/command/pipe.go` `ApplyPipes`; `internal/component/command/answer_shape.go` `rowsInKeyed`) | OUTSTANDING |
-| IR-15 | ISSUE | `outboundSource.Next` ranges nested family and route maps directly. Advertised RIB output and `first 1` are nondeterministic (`internal/component/bgp/plugins/rib/rib_pipeline.go` `outboundSource.Next`) | OUTSTANDING |
-| IR-16 | ISSUE | Streaming `save` writes each event before the default renderer and atomically overwrites the same path. A multi-event monitor leaves only the last raw event (`internal/component/cli/client/main.go` `cliClient.StreamMonitor`; `internal/component/command/pipe_save.go` `applySaves`) | OUTSTANDING |
-| IR-17 | ISSUE | `operatorsFor` publishes `save` as `always`, but remote daemon-expanded chains intentionally refuse it. The machine contract omits this surface restriction (`cmd/ze/help_command.go` `operatorsFor`; `internal/component/command/pipe_save.go` `validateSaveOps`) | OUTSTANDING |
-| IR-18 | BLOCKER | No functional test drives allowed interactive `save` or refused SSH/web `save`. The security guard is tested only below those entry points (`internal/component/command/pipe_save.go` `validateSaveOps`, `saveAnswer`) | OUTSTANDING |
-| IR-19 | BLOCKER | The tree has 15 `MustRegisterLocalData` commands, but functional pipe coverage drives only four. Eleven converted handlers have no entry-to-pipe proof, so AC-10 is not covered (`internal/component/command/local_data.go` `ServeLocal`; `test/ui/pipe-local-command.ci`) | OUTSTANDING |
+| IR-1 | BLOCKER | `recordsLast` retains one copied record per result up to an unbounded user value. An SSH user can make daemon memory grow with the full RIB (`internal/component/command/pipe_records.go` `recordsLast`; `pkg/plugin/rpc/types.go` `HeldRecords`) | FIXED |
+| IR-2 | ISSUE | `parsePipeOps` discards surplus arguments for no-argument and single-argument operators, so malformed chains execute instead of failing (`internal/component/command/pipe.go` `parsePipeOps`) | FIXED |
+| IR-3 | ISSUE | `log` is accepted as a no-op on one-shot commands, although its contract says that it applies only to streams (`internal/component/command/pipe.go` `ApplyPipes`) | FIXED |
+| IR-4 | ISSUE | Pipe metadata overwrites a legitimate answer field named `pipe` (`internal/component/command/pipe.go` `injectPipeMeta`) | FIXED |
+| IR-5 | ISSUE | An unknown `display` field returns the complete record. A typo fails open and can expose fields that the operator meant to remove (`internal/component/command/pipe_columns.go` `selectRecord`) | FIXED |
+| IR-6 | ISSUE | The YANG local-data handlers bypass the existing argument parser. `dataTree` loses conflict and unknown-option errors, and `dataCompletion` ignores `--min-prefix` (`internal/component/config/yang/cli/yang_data.go` `dataTree`, `dataCompletion`) | FIXED |
+| IR-7 | BLOCKER | `TestShowPipelineOrdersTheSameWithAndWithoutATerminal` cannot detect the removed global sort. Its fixture is already ordered by the same keys (`internal/component/bgp/plugins/rib/rib_pipeline_show_stream_test.go` `TestShowPipelineOrdersTheSameWithAndWithoutATerminal`) | FIXED |
+| IR-8 | ISSUE | An empty keyed row set such as `{"peers":{}}` becomes one outer row, so a zero-peer answer counts as one (`internal/component/command/answer_shape.go` `rowSet`, `rowsInKeyed`; `internal/component/bgp/plugins/cmd/peer/peer.go` `handleBgpPeerList`) | FIXED |
+| IR-9 | BLOCKER | `operatorsFor` suppresses operators for a plain local handler even when the CLI reaches a daemon data handler. `show version` is published with no operators although its daemon path pipes (`cmd/ze/help_command.go` `operatorsFor`; `internal/component/cmd/show/show.go` `handleShowVersion`) | FIXED |
+| IR-10 | BLOCKER | The documentation drift gate compares only the global generated operator table. It does not verify per-command wiki or website output against `operatorsFor`, so AC-15 is not enforced (`scripts/docvalid/doc_drift.go` `checkPipeOperatorReference`) | FIXED |
+| IR-11 | ISSUE | `ClassStream` is dropped or mislabeled by `pipeUsage`, the wiki generator, the command-equivalents generator, and the CLI rule. The LLM catalog removes its qualifier (`cmd/ze/ze_core_pipe.go` `pipeUsage`; `scripts/dev/gen_wiki_commands.py` `render_detail`; `website/tools/render-command-equivalents.py` `split_operators`; `website/tools/render-llms-txt.py` `command_meta`) | FIXED |
+| IR-12 | ISSUE | `ze cli --help` keeps a second six-operator list, omits catalog entries, and still describes row operators as line operations (`internal/component/cli/client/main.go` `usage`) | FIXED |
+| IR-13 | BLOCKER | Address declarations neither gate undeclared commands nor constrain enrichment to declared fields. `show version \| origin` is accepted, while declared `show bgp \| resolve` also enriches `router-id` (`internal/component/command/pipe.go` `validateDeclaredShape`; `internal/component/command/pipe_resolve.go` `resolveJSON`; `internal/component/command/pipe_origin.go` `originJSON`) | FIXED |
+| IR-14 | ISSUE | Pipe metadata is injected before the first format operator. A later row operator treats the metadata slice as a second row set and refuses or truncates the wrong set (`internal/component/command/pipe.go` `ApplyPipes`; `internal/component/command/answer_shape.go` `rowsInKeyed`) | FIXED |
+| IR-15 | ISSUE | `outboundSource.Next` ranges nested family and route maps directly. Advertised RIB output and `first 1` are nondeterministic (`internal/component/bgp/plugins/rib/rib_pipeline.go` `outboundSource.Next`) | FIXED |
+| IR-16 | ISSUE | Streaming `save` writes each event before the default renderer and atomically overwrites the same path. A multi-event monitor leaves only the last raw event (`internal/component/cli/client/main.go` `cliClient.StreamMonitor`; `internal/component/command/pipe_save.go` `applySaves`) | FIXED |
+| IR-17 | ISSUE | `operatorsFor` publishes `save` as `always`, but remote daemon-expanded chains intentionally refuse it. The machine contract omits this surface restriction (`cmd/ze/help_command.go` `operatorsFor`; `internal/component/command/pipe_save.go` `validateSaveOps`) | FIXED |
+| IR-18 | BLOCKER | No functional test drives allowed interactive `save` or refused SSH/web `save`. The security guard is tested only below those entry points (`internal/component/command/pipe_save.go` `validateSaveOps`, `saveAnswer`) | FIXED |
+| IR-19 | BLOCKER | The tree has 15 `MustRegisterLocalData` commands, but functional pipe coverage drives only four. Eleven converted handlers have no entry-to-pipe proof, so AC-10 is not covered (`internal/component/command/local_data.go` `ServeLocal`; `test/ui/pipe-local-command.ci`) | FIXED |
 
-**Independent round 1: 7 BLOCKER, 12 ISSUE, 19 outstanding.** The review
-artifact records verdict `findings`. The spec remains in verification.
+**Independent round 1: 7 BLOCKER, 12 ISSUE, 0 outstanding.** All 19
+findings were fixed before round 2.
 
 ### Independent review, round 2 (2026-08-27)
 
@@ -748,25 +748,53 @@ producer.
 
 | # | Sev | Finding | Disposition |
 |---|-----|---------|-------------|
-| IR2-1 | BLOCKER | Interactive SSH runs `cli.Model` inside the daemon, but `Model.executeOperationalCommand` uses the local save validator. An SSH PTY user can write any daemon-writable path (`internal/component/cli/model_mode.go` `Model.executeOperationalCommand`; `internal/component/ssh/ssh.go` `Server.teaHandler`) | OUTSTANDING |
-| IR2-2 | BLOCKER | `functionalLocalDataInvocations` prefers an ignored draft test when present, so the ratchet can report coverage that no normal suite runs (`internal/component/command/registry/local_data_functional_coverage_test.go` `functionalLocalDataInvocations`) | OUTSTANDING |
-| IR2-3 | BLOCKER | Committed functional tests do not drive the new bounds, one-shot stream refusal, display typo refusal, remote save, traceroute save, `show version` publication, or derived help through their user entry points | OUTSTANDING |
-| IR2-4 | BLOCKER | `checkPublishedCommandSurfaces` returns clean when no sibling website or wiki catalog exists, so CI can execute no per-command comparison (`scripts/docvalid/doc_drift.go` `checkPublishedCommandSurfaces`) | OUTSTANDING |
-| IR2-5 | BLOCKER | The drift gate compares only website command JSON. Stale or incorrect CLI HTML, Markdown, equivalents, and `llms.txt` can remain green (`scripts/docvalid/doc_drift.go` `compareWebsiteCommandCatalog`) | OUTSTANDING |
-| IR2-6 | ISSUE | Public renderers treat `always` and `local-only` as alternatives. `save` loses its independent `always` answer qualifier (`cmd/ze/help_command.go` `splitOperators`; website and wiki renderer equivalents) | OUTSTANDING |
-| IR2-7 | ISSUE | The primary website CLI page does not render `answer-shape` or `address-fields` (`website/tools/render-cli-catalog.py` `render_pipe_details`) | OUTSTANDING |
-| IR2-8 | ISSUE | `ze cli --help` still copies five format values and omits valid `raw` (`internal/component/cli/client/main.go` `usage`) | OUTSTANDING |
-| IR2-9 | ISSUE | Verbose command help builds the `pipes:` heading and resets the buffer without writing it (`cmd/ze/help_command.go` `printCommandVerbose`) | OUTSTANDING |
-| IR2-10 | ISSUE | Command-equivalent detail pages omit command-specific filters and pipe aliases (`website/tools/render-command-equivalents.py` `render_ze_detail`, `render_detail_markdown`) | OUTSTANDING |
-| IR2-11 | BLOCKER | `foldFilters` removes RIB `last` and `count` before catalog argument validation. Oversized counts and surplus arguments bypass the new guards (`internal/component/command/pipe.go` `foldFilters`, `processPipesDefaultFormat`) | OUTSTANDING |
-| IR2-12 | BLOCKER | The undeclared-address guard rejects standalone `ze pipe resolve` over stdin although the command still publishes and tests that operator (`cmd/ze/ze_core_pipe.go` `runPipe`; `internal/component/command/pipe.go` `validateDeclaredShape`) | OUTSTANDING |
-| IR2-13 | ISSUE | Address enrichment accepts positional table rows but transforms only map keys, so positional arrays remain unchanged (`internal/component/command/pipe_records.go` `applyRecordOp`; `pipe_resolve.go` `resolveJSON`; `pipe_origin.go` `originJSON`) | OUTSTANDING |
-| IR2-14 | BLOCKER | Positional display narrows row values but SSH writes the original field schema in the streamed answer head (`internal/component/command/render_records.go` `RenderRecords`; `internal/component/ssh/answer.go` `writeExecRecords`) | OUTSTANDING |
-| IR2-15 | ISSUE | The record path applies row operators before formats regardless of chain order. `text \| first 1` changes behavior at the streaming threshold (`internal/component/command/pipe_records.go` `applyPipesRecords`; `internal/component/command/render_records.go` `RenderRecords`) | OUTSTANDING |
-| IR2-16 | ISSUE | Command-equivalent detail pages carry generic operators but omit command-owned `pipes` and `pipe-aliases` (`website/tools/render-command-equivalents.py`) | OUTSTANDING |
+| IR2-1 | BLOCKER | Interactive SSH runs `cli.Model` inside the daemon, but `Model.executeOperationalCommand` uses the local save validator. An SSH PTY user can write any daemon-writable path (`internal/component/cli/model_mode.go` `Model.executeOperationalCommand`; `internal/component/ssh/ssh.go` `Server.teaHandler`) | FIXED |
+| IR2-2 | BLOCKER | `functionalLocalDataInvocations` prefers an ignored draft test when present, so the ratchet can report coverage that no normal suite runs (`internal/component/command/registry/local_data_functional_coverage_test.go` `functionalLocalDataInvocations`) | FIXED |
+| IR2-3 | BLOCKER | Committed functional tests do not drive the new bounds, one-shot stream refusal, display typo refusal, remote save, traceroute save, `show version` publication, or derived help through their user entry points | FIXED |
+| IR2-4 | BLOCKER | `checkPublishedCommandSurfaces` returns clean when no sibling website or wiki catalog exists, so CI can execute no per-command comparison (`scripts/docvalid/doc_drift.go` `checkPublishedCommandSurfaces`) | FIXED |
+| IR2-5 | BLOCKER | The drift gate compares only website command JSON. Stale or incorrect CLI HTML, Markdown, equivalents, and `llms.txt` can remain green (`scripts/docvalid/doc_drift.go` `compareWebsiteCommandCatalog`) | FIXED |
+| IR2-6 | ISSUE | Public renderers treat `always` and `local-only` as alternatives. `save` loses its independent `always` answer qualifier (`cmd/ze/help_command.go` `splitOperators`; website and wiki renderer equivalents) | FIXED |
+| IR2-7 | ISSUE | The primary website CLI page does not render `answer-shape` or `address-fields` (`website/tools/render-cli-catalog.py` `render_pipe_details`) | FIXED |
+| IR2-8 | ISSUE | `ze cli --help` still copies five format values and omits valid `raw` (`internal/component/cli/client/main.go` `usage`) | FIXED |
+| IR2-9 | ISSUE | Verbose command help builds the `pipes:` heading and resets the buffer without writing it (`cmd/ze/help_command.go` `printCommandVerbose`) | FIXED |
+| IR2-10 | ISSUE | Command-equivalent detail pages omit command-specific filters and pipe aliases (`website/tools/render-command-equivalents.py` `render_ze_detail`, `render_detail_markdown`) | FIXED |
+| IR2-11 | BLOCKER | `foldFilters` removes RIB `last` and `count` before catalog argument validation. Oversized counts and surplus arguments bypass the new guards (`internal/component/command/pipe.go` `foldFilters`, `processPipesDefaultFormat`) | FIXED |
+| IR2-12 | BLOCKER | The undeclared-address guard rejects standalone `ze pipe resolve` over stdin although the command still publishes and tests that operator (`cmd/ze/ze_core_pipe.go` `runPipe`; `internal/component/command/pipe.go` `validateDeclaredShape`) | FIXED |
+| IR2-13 | ISSUE | Address enrichment accepts positional table rows but transforms only map keys, so positional arrays remain unchanged (`internal/component/command/pipe_records.go` `applyRecordOp`; `pipe_resolve.go` `resolveJSON`; `pipe_origin.go` `originJSON`) | FIXED |
+| IR2-14 | BLOCKER | Positional display narrows row values but SSH writes the original field schema in the streamed answer head (`internal/component/command/render_records.go` `RenderRecords`; `internal/component/ssh/answer.go` `writeExecRecords`) | FIXED |
+| IR2-15 | ISSUE | The record path applies row operators before formats regardless of chain order. `text \| first 1` changes behavior at the streaming threshold (`internal/component/command/pipe_records.go` `applyPipesRecords`; `internal/component/command/render_records.go` `RenderRecords`) | FIXED |
+| IR2-16 | ISSUE | Command-equivalent detail pages carry generic operators but omit command-owned `pipes` and `pipe-aliases` (`website/tools/render-command-equivalents.py`) | FIXED |
 
-**Independent round 2: 8 BLOCKER, 8 ISSUE, 16 outstanding.** The review
-artifact records verdict `findings`. The spec remains in progress.
+**Independent round 2: 8 BLOCKER, 8 ISSUE, 0 outstanding.** All 16
+findings were fixed before round 3.
+
+### Independent review, round 3 (2026-08-27)
+
+Three new contexts reviewed fix commit `e112c1f67` through logic, security,
+and public-contract lenses. The main session verified each report against the
+named producer. One reported runtime defect was already fixed in the exact
+reviewed commit and is recorded as dismissed.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR3-1 | BLOCKER | SSH PTY monitor ping and traceroute start registered views before the model's filesystem-authority guard. Their local stream API can stage and commit `save` with daemon authority (`internal/component/cli/model_keys.go` `Model.handleEnter`; `model_ping.go` `Model.startPingMonitorPiped`; `model_traceroute.go` `Model.startTraceroutePiped`) | FIXED |
+| IR3-2 | BLOCKER | Raw SSH streaming exec dispatches the full pipe-bearing input before remote validation. `log` is not applied and `save` is not refused before handler dispatch (`internal/component/ssh/ssh.go` `Server.execMiddleware`) | FIXED |
+| IR3-3 | BLOCKER | The hub authority test reaches only the command-model fallback. No test discriminates the editor-capable production `NewModel` branch (`cmd/ze/hub/session_factory.go` `buildSessionModelFactory`) | FIXED |
+| IR3-4 | BLOCKER | Local-data `ze cli -c --format raw` passes `raw` as a default and falls back to text. Invalid explicit formats fail open to text on the same path (`internal/component/cli/client/main.go` `runBGP`) | FIXED |
+| IR3-5 | BLOCKER | Without a sibling wiki checkout, docvalid neither runs nor structurally validates `gen_wiki_commands.py` (`scripts/docvalid/doc_drift.go` `checkPublishedCommandSurfaces`) | FIXED |
+| IR3-6 | BLOCKER | The local-data functional ratchet scans comments and dead Python text, so a non-executed call can satisfy AC-10 (`internal/component/command/registry/local_data_functional_coverage_test.go` `functionalLocalDataInvocations`) | FIXED |
+| IR3-7 | BLOCKER | The live remote scenario does not drive an authenticated production SSH PTY, so the authority boundary remains functionally unproven (`test/plugin/pipe-review-remote-contracts.ci`) | FIXED |
+| IR3-8 | BLOCKER | Primary CLI HTML and Markdown drift validators omit command-owned filters and aliases (`scripts/docvalid/doc_drift.go` `validatePrimaryCommandContract`, `validatePrimaryMarkdownContract`) | FIXED |
+| IR3-9 | BLOCKER | Generated-surface validators require catalog operators but never reject extra names absent from the catalog (`scripts/docvalid/doc_drift.go` `validateGeneratedCommandSurfaces`) | FIXED |
+| IR3-10 | BLOCKER | Generated operator class and description are not compared with the catalog (`scripts/docvalid/doc_drift.go` `validatePrimaryCommandContract`) | FIXED |
+| IR3-11 | BLOCKER | A format-before-transform record chain always materializes every source record. `ndjson` followed by bounded line transforms loses record-path cancellation and bounded retention (`internal/component/command/render_records.go` `RenderRecords`) | FIXED |
+| IR3-12 | BLOCKER | Structured transforms after incompatible rendered formats are accepted as inert successes instead of refused by operator and format (`internal/component/command/pipe.go` `ApplyPipes`; `render_records.go` `formatBeforeDataTransform`) | FIXED |
+| IR3-13 | ISSUE | Address enrichment overwrites existing derived sibling fields and iterates unsorted source keys, so it can erase data or produce order-dependent derived fields (`internal/component/command/pipe_resolve.go` `resolveJSON`; `pipe_origin.go` `originJSON`) | FIXED |
+| IR3-D1 | DISMISSED | The report said standalone post-input refusals reached stdout with exit 0. Exact commit `e112c1f67` already checks `command.IsPipeError`, writes stderr, and exits 1 (`cmd/ze/ze_core_pipe.go` `runPipe`) | DISMISSED |
+
+**Independent round 3: 12 BLOCKER, 1 ISSUE, 0 outstanding; 1 reported
+finding dismissed against the producer.** All 13 verified findings are fixed.
+The next independent round reviews their exact committed population.
 
 ## Design Insights
 

@@ -266,27 +266,34 @@ func (m *Model) startTraceroute(input string) tea.Cmd {
 }
 
 func (m *Model) startTraceroutePiped(input string) tea.Cmd {
-	factory := m.tracerouteFactory()
-	if factory == nil {
-		m.statusMessage = "traceroute not available (no daemon connection)"
-		return nil
-	}
-
-	cmdStr, formatFn, pipeFlags, saves, pipeErr := command.ProcessStreamPipes(input, m.cliFormat)
+	cmdStr, formatFn, pipeFlags, saves, pipeErr := m.processStreamPipes(input)
 	if pipeErr != "" {
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("pipe error: ").Str(pipeErr).String()
 		return nil
 	}
+
+	factory := m.tracerouteFactory()
+	if factory == nil {
+		if saves != nil {
+			_ = saves.Abort()
+		}
+		m.statusMessage = "traceroute not available (no daemon connection)"
+		return nil
+	}
 	target, maxHops, argErr := parseTracerouteMonitorArgs(cmdStr)
 	if argErr != "" {
-		_ = saves.Abort()
+		if saves != nil {
+			_ = saves.Abort()
+		}
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("monitor traceroute: ").Str(argErr).String()
 		return nil
 	}
 	if target == "" {
-		_ = saves.Abort()
+		if saves != nil {
+			_ = saves.Abort()
+		}
 		m.statusMessage = "monitor traceroute: missing target address"
 		return nil
 	}
@@ -338,8 +345,10 @@ func (m *Model) startTraceroutePipedRound() tea.Cmd {
 
 	ch, cancel, err := ps.poller(context.Background(), ps.target, ps.maxHops)
 	if err != nil {
-		_ = ps.saves.Abort()
-		ps.saves = nil
+		if ps.saves != nil {
+			_ = ps.saves.Abort()
+			ps.saves = nil
+		}
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("traceroute error: ").Err(err).String()
 		return nil
@@ -387,8 +396,11 @@ func (m *Model) stopTraceroutePiped() {
 	if ps.cancelRound != nil {
 		ps.cancelRound()
 	}
-	saveErr := ps.saves.Commit()
-	ps.saves = nil
+	var saveErr error
+	if ps.saves != nil {
+		saveErr = ps.saves.Commit()
+		ps.saves = nil
+	}
 
 	lastOutput := ps.lastOutput
 	isLog := ps.logMode

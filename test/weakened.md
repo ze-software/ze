@@ -89,5 +89,5 @@ that row is where you say which of the two happened.
 
 | Test | Reason |
 |------|--------|
-| gen_wiki_commands_test | Consolidated six substring assertions into one exact rendered-line assertion that checks the full wiki command detail contract. |
-| test_render_llms | Consolidated overlapping command metadata assertions into one exact assertion that checks availability, locality, shape, address fields, filters, and aliases together. |
+| TestColumnOpsAfterTheFormatOperator | Replaced universal post-format acceptance with the compatibility matrix. `json` and `raw` preserve selection. Other formats refuse before record iteration. |
+| TestApplyPipes_NDJSONThenResolve | The old test pinned an inert structured transform after NDJSON. The replacement requires a refusal that names both `resolve` and `ndjson`, with record-boundary tests proving the refusal happens before source iteration. |

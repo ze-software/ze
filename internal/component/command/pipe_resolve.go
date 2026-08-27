@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -116,12 +117,10 @@ func resolveJSON(v any, fields []string, allFields bool) any {
 				value := val[key]
 				s, isString := value.(string)
 				if isString {
-					if addressFieldSelected(fields, key, allFields) {
-						if s != "*" {
-							if isIPAddress(s) {
-								nameKey := derivedKey.Reset().Str(key).Str("-name").String()
-								val[nameKey] = ReverseLookup(s)
-							}
+					if addressFieldSelected(fields, key, allFields) && s != "*" && isIPAddress(s) {
+						nameKey := derivedKey.Reset().Str(key).Str("-name").String()
+						if _, exists := val[nameKey]; !exists {
+							val[nameKey] = ReverseLookup(s)
 						}
 					}
 					continue
@@ -158,6 +157,7 @@ func addressObjectFields(object map[string]any) []string {
 	for field := range object {
 		fields = append(fields, field)
 	}
+	sort.Strings(fields)
 	return fields
 }
 
