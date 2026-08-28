@@ -1911,10 +1911,6 @@ func markdownInlineHTMLTagEnd(value string, start int) (int, bool) {
 	var quote byte
 	for index < len(value) {
 		if quote != 0 {
-			if value[index] == '\\' {
-				index += min(2, len(value)-index)
-				continue
-			}
 			if value[index] == quote {
 				quote = 0
 			}

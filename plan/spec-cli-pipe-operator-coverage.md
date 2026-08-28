@@ -1149,6 +1149,16 @@ An owner-authorized independent context reviewed the committed Round-22 fix.
 
 **Independent round 23: 1 BLOCKER, 0 ISSUE, 0 outstanding.** The finding is fixed.
 
+### Independent review, round 24 (2026-08-27)
+
+An owner-authorized independent context reviewed the committed Round-23 fix.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR24-1 | BLOCKER | Inline HTML scanning gives backslashes escape semantics inside quoted attributes | FIXED |
+
+**Independent round 24: 1 BLOCKER, 0 ISSUE, 0 outstanding.** The finding is fixed.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and
