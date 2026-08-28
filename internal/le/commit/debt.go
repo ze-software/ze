@@ -19,13 +19,13 @@ var debtGates = []struct {
 	Key  string
 	Name string
 }{
-	{"unverified", "full native verification (not FRESH-green)"},
-	{"structural-red-ok", "native structural checks (red)"},
-	{"missing-full-verify-ok", "full native verification over this commit's Go"},
-	{"stale-index-ok", "discovery-index freshness"},
-	{"review-override", "independent critical review"},
-	{"broken-head-fix", "repository-tracked-build/check (HEAD does not compile)"},
-	{"rfc-change-ok", "owner approval for an RFC-tagged test change"},
+	{gateUnverified, "full native verification (not FRESH-green)"},
+	{gateStructuralRedOK, "native structural checks (red)"},
+	{gateMissingFullVerifyOK, "full native verification over this commit's Go"},
+	{gateStaleIndexOK, "discovery-index freshness"},
+	{gateReviewOverride, "independent critical review"},
+	{gateBrokenHeadFix, "repository-tracked-build/check (HEAD does not compile)"},
+	{gateRFCChangeOK, "owner approval for an RFC-tagged test change"},
 }
 
 // Debt is one open or cleared verification obligation.
@@ -51,7 +51,7 @@ func recordDebt(root, session, subject string, owed []Debt) (string, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return "", err
 	}
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 	if err != nil {
 		return "", err
 	}
@@ -60,14 +60,14 @@ func recordDebt(root, session, subject string, owed []Debt) (string, error) {
 		return "", err
 	}
 	defer syscall.Flock(int(file.Fd()), syscall.LOCK_UN) //nolint:errcheck // process exit releases the advisory lock
-	content, err := os.ReadFile(path)
+	content, err := os.ReadFile(path)                    //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 	if err != nil {
 		return "", err
 	}
 	held := make(map[string]bool)
 	for line := range strings.SplitSeq(string(content), "\n") {
 		cells := strings.Split(line, "|")
-		if len(cells) == 8 && strings.EqualFold(strings.TrimSpace(cells[6]), "open") {
+		if len(cells) == 8 && strings.EqualFold(strings.TrimSpace(cells[6]), statusOpen) {
 			held[strings.TrimSpace(line)] = true
 		}
 	}
@@ -129,7 +129,7 @@ func ListDebt(root string) ([]Debt, error) {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
 			continue
 		}
-		file, err := os.Open(filepath.Join(dir, entry.Name()))
+		file, err := os.Open(filepath.Join(dir, entry.Name())) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 		if err != nil {
 			return nil, err
 		}
@@ -168,7 +168,7 @@ func parseDebtRow(shard string, line int, text string) (Debt, bool) {
 		cells[index] = strings.TrimSpace(cells[index])
 	}
 	status := strings.ToLower(cells[6])
-	if status != "open" && status != "cleared" {
+	if status != statusOpen && status != "cleared" {
 		return Debt{}, false
 	}
 	return Debt{
@@ -184,7 +184,7 @@ func openDebt(root string) ([]Debt, error) {
 	}
 	open := make([]Debt, 0)
 	for _, row := range rows {
-		if row.Status == "open" {
+		if row.Status == statusOpen {
 			open = append(open, row)
 		}
 	}
@@ -208,7 +208,7 @@ func clearDebtRows(root string, passed map[string]bool) (int, error) {
 	cleared := 0
 	for shard, selected := range byShard {
 		path := filepath.Join(root, filepath.FromSlash(debtDir), shard)
-		file, err := os.OpenFile(path, os.O_RDWR, 0)
+		file, err := os.OpenFile(path, os.O_RDWR, 0) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 		if err != nil {
 			return cleared, err
 		}
@@ -216,7 +216,7 @@ func clearDebtRows(root string, passed map[string]bool) (int, error) {
 			_ = file.Close()
 			return cleared, err
 		}
-		content, err := os.ReadFile(path)
+		content, err := os.ReadFile(path) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 		if err != nil {
 			_ = syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
 			_ = file.Close()
@@ -261,3 +261,19 @@ func clearDebtRows(root string, passed map[string]bool) (int, error) {
 	}
 	return cleared, nil
 }
+
+// The verification-debt gate names, the debt row status, the freshness state,
+// and the two command keywords this package repeats.
+const (
+	statusOpen              = "open"
+	keywordSession          = "session"
+	actionReviewCheck       = "review-check"
+	verifyFresh             = "fresh"
+	gateUnverified          = "unverified"
+	gateStructuralRedOK     = "structural-red-ok"
+	gateMissingFullVerifyOK = "missing-full-verify-ok"
+	gateStaleIndexOK        = "stale-index-ok"
+	gateReviewOverride      = "review-override"
+	gateBrokenHeadFix       = "broken-head-fix"
+	gateRFCChangeOK         = "rfc-change-ok"
+)

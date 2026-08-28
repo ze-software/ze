@@ -10,6 +10,7 @@ import (
 	"html"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -28,7 +29,8 @@ func RenderCommandSurfaces(root string, catalogJSON []byte) error {
 
 func renderNativeCommandSurfaces(root string, commands []publishedCommand) error {
 	slugs := make(map[string]string, len(commands))
-	for _, command := range commands {
+	for index := range commands {
+		command := &commands[index]
 		slug := commandSurfaceSlug(command.Path)
 		if slug == "" {
 			return fmt.Errorf("command surface slug is empty for %q", command.Path)
@@ -47,19 +49,20 @@ func renderNativeCommandSurfaces(root string, commands []publishedCommand) error
 		"reference/cli/index.md":                   renderPrimaryCommandMarkdown(commands),
 		"reference/command-equivalents/index.html": renderEquivalentIndexHTML(commands),
 		"reference/command-equivalents/index.md":   renderEquivalentIndexMarkdown(commands),
-		"llms.txt":                                 renderCommandLLMS(commands),
+		llmsSurfaceName:                            renderCommandLLMS(commands),
 	}
-	for _, command := range commands {
+	for index := range commands {
+		command := &commands[index]
 		slug := commandSurfaceSlug(command.Path)
-		files[filepath.Join("reference", "command-equivalents", slug, "index.html")] = renderEquivalentHTML(command)
-		files[filepath.Join("reference", "command-equivalents", slug, "index.md")] = renderEquivalentMarkdown(command)
+		files[filepath.Join("reference", "command-equivalents", slug, "index.html")] = renderEquivalentHTML(*command)
+		files[filepath.Join("reference", "command-equivalents", slug, "index.md")] = renderEquivalentMarkdown(*command)
 	}
 	for name, content := range files {
 		path := filepath.Join(root, name)
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 			return fmt.Errorf("create command surface directory %s: %w", filepath.Dir(path), err)
 		}
-		if err := os.WriteFile(path, content, 0o644); err != nil {
+		if err := os.WriteFile(path, content, 0o600); err != nil {
 			return fmt.Errorf("write command surface %s: %w", path, err)
 		}
 	}
@@ -75,7 +78,8 @@ func renderPrimaryCommandHTML(commands []publishedCommand) []byte {
 	var out strings.Builder
 	out.WriteString("<!doctype html><html><body>\n<section class=\"cli-pipe-guide\"><table><tbody>\n")
 	rows := make(map[string]*operatorCatalogRow)
-	for _, command := range commands {
+	for index := range commands {
+		command := &commands[index]
 		for _, operator := range command.Operators {
 			row := rows[operator.Name]
 			if row == nil {
@@ -83,11 +87,11 @@ func renderPrimaryCommandHTML(commands []publishedCommand) []byte {
 				rows[operator.Name] = row
 			}
 			label := commandAvailabilityLabel(operator.Available)
-			if !containsString(row.availability, label) {
+			if !slices.Contains(row.availability, label) {
 				row.availability = append(row.availability, label)
 			}
-			if operator.LocalOnly && !containsString(row.availability, "Local process only") {
-				row.availability = append(row.availability, "Local process only")
+			if operator.LocalOnly && !slices.Contains(row.availability, localOnlyLabel) {
+				row.availability = append(row.availability, localOnlyLabel)
 			}
 		}
 	}
@@ -102,7 +106,8 @@ func renderPrimaryCommandHTML(commands []publishedCommand) []byte {
 			html.EscapeString(row.name), html.EscapeString(row.class), html.EscapeString(strings.Join(row.availability, ", ")), html.EscapeString(row.description))
 	}
 	out.WriteString("</tbody></table></section>\n<table><tbody>\n")
-	for _, command := range commands {
+	for index := range commands {
+		command := &commands[index]
 		fmt.Fprintf(
 			&out,
 			"<tr id=\"cmd-%s\"><td><code>%s</code></td><td>%s</td><td>%s</td><td>",
@@ -117,7 +122,7 @@ func renderPrimaryCommandHTML(commands []publishedCommand) []byte {
 		if len(command.AddressFields) != 0 {
 			fmt.Fprintf(&out, "<span>Address fields</span><code>%s</code>", html.EscapeString(strings.Join(command.AddressFields, " · ")))
 		}
-		writePrimaryOperatorGroups(&out, command)
+		writePrimaryOperatorGroups(&out, *command)
 		if len(command.Pipes) != 0 {
 			out.WriteString("<strong>Command pipes</strong><div class=\"cli-pipe-chips\">")
 			for _, pipe := range command.Pipes {
@@ -144,7 +149,7 @@ func renderPrimaryCommandHTML(commands []publishedCommand) []byte {
 
 func writePrimaryOperatorGroups(out *strings.Builder, command publishedCommand) {
 	for _, group := range []struct{ availability, label string }{
-		{"always", "Always"}, {"with-rows", "With rows"}, {"when-streaming", "While streaming"}, {"local-only", "Local process only"},
+		{availabilityAlways, alwaysLabel}, {availabilityWithRows, withRowsLabel}, {availabilityWhenStreaming, whileStreamingLabel}, {availabilityLocalOnly, localOnlyLabel},
 	} {
 		names := commandOperatorNames(command, group.availability)
 		if len(names) != 0 {
@@ -156,7 +161,8 @@ func writePrimaryOperatorGroups(out *strings.Builder, command publishedCommand) 
 func renderPrimaryCommandMarkdown(commands []publishedCommand) []byte {
 	var out strings.Builder
 	out.WriteString("# CLI command catalog\n\n| Command | Mode | Description | Contract |\n|---|---|---|---|\n")
-	for _, command := range commands {
+	for index := range commands {
+		command := &commands[index]
 		metadata := make([]string, 0, 8)
 		if command.AnswerShape != "" {
 			metadata = append(metadata,
@@ -166,8 +172,8 @@ func renderPrimaryCommandMarkdown(commands []publishedCommand) []byte {
 			metadata = append(metadata,
 				"Address fields: "+markdownTableCodeList(command.AddressFields))
 		}
-		for _, group := range []struct{ availability, label string }{{"always", "Always"}, {"with-rows", "With rows"}, {"when-streaming", "While streaming"}, {"local-only", "Local process only"}} {
-			if names := commandOperatorNames(command, group.availability); len(names) != 0 {
+		for _, group := range []struct{ availability, label string }{{availabilityAlways, alwaysLabel}, {availabilityWithRows, withRowsLabel}, {availabilityWhenStreaming, whileStreamingLabel}, {availabilityLocalOnly, localOnlyLabel}} {
+			if names := commandOperatorNames(*command, group.availability); len(names) != 0 {
 				metadata = append(metadata,
 					group.label+": "+markdownTableCodeList(names))
 			}
@@ -202,7 +208,8 @@ func renderPrimaryCommandMarkdown(commands []publishedCommand) []byte {
 func renderEquivalentIndexHTML(commands []publishedCommand) []byte {
 	var out strings.Builder
 	out.WriteString("<!doctype html><html><body><table><tbody>\n")
-	for _, command := range commands {
+	for index := range commands {
+		command := &commands[index]
 		fmt.Fprintf(&out, "<tr id=\"cmd-eq-%s\"><td><code>%s</code></td></tr>\n", commandSurfaceSlug(command.Path), html.EscapeString(command.Path))
 	}
 	out.WriteString("</tbody></table></body></html>\n")
@@ -212,7 +219,8 @@ func renderEquivalentIndexHTML(commands []publishedCommand) []byte {
 func renderEquivalentIndexMarkdown(commands []publishedCommand) []byte {
 	var out strings.Builder
 	out.WriteString("# Command Equivalents\n\n")
-	for _, command := range commands {
+	for index := range commands {
+		command := &commands[index]
 		fmt.Fprintf(&out, "- [%s](%s/)\n", markdownCodeLiteral(command.Path), commandSurfaceSlug(command.Path))
 	}
 	return []byte(out.String())
@@ -229,10 +237,10 @@ func renderEquivalentHTML(command publishedCommand) []byte {
 		fmt.Fprintf(&out, "<div><dt>Address fields</dt><dd>%s</dd></div>", html.EscapeString(strings.Join(command.AddressFields, ", ")))
 	}
 	for _, group := range []struct{ availability, label string }{
-		{"always", "Pipes, always"},
-		{"with-rows", equivalentAvailabilityLabel("with-rows", command.AnswerShape != "")},
-		{"when-streaming", "Pipes, while streaming"},
-		{"local-only", "Pipes, local process only"},
+		{availabilityAlways, pipesAlwaysLabel},
+		{availabilityWithRows, equivalentAvailabilityLabel(availabilityWithRows, command.AnswerShape != "")},
+		{availabilityWhenStreaming, pipesWhileStreamingLabel},
+		{availabilityLocalOnly, pipesLocalOnlyLabel},
 	} {
 		if names := commandOperatorNames(command, group.availability); len(names) != 0 {
 			fmt.Fprintf(&out, "<div><dt>%s</dt><dd>%s</dd></div>", group.label, html.EscapeString(strings.Join(names, ", ")))
@@ -307,7 +315,7 @@ func markdownLiteralProse(value string) string {
 	).Replace(value)
 	var escaped strings.Builder
 	escaped.Grow(len(value))
-	for index := 0; index < len(value); index++ {
+	for index := range len(value) {
 		character := value[index]
 		if character == '\\' {
 			escaped.WriteString(`\\`)
@@ -331,7 +339,7 @@ func renderEquivalentMarkdown(command publishedCommand) []byte {
 	if len(command.AddressFields) != 0 {
 		fmt.Fprintf(&out, "- Address fields: %s\n", strings.Join(command.AddressFields, ", "))
 	}
-	for _, group := range []struct{ availability, label string }{{"always", "Pipes, always"}, {"with-rows", "Pipes, on rows"}, {"when-streaming", "Pipes, while streaming"}, {"local-only", "Pipes, local process only"}} {
+	for _, group := range []struct{ availability, label string }{{availabilityAlways, pipesAlwaysLabel}, {availabilityWithRows, pipesOnRowsLabel}, {availabilityWhenStreaming, pipesWhileStreamingLabel}, {availabilityLocalOnly, pipesLocalOnlyLabel}} {
 		if names := commandOperatorNames(command, group.availability); len(names) != 0 {
 			fmt.Fprintf(&out, "- %s: %s\n", group.label, strings.Join(names, ", "))
 		}
@@ -372,14 +380,15 @@ func renderEquivalentMarkdown(command publishedCommand) []byte {
 func renderCommandLLMS(commands []publishedCommand) []byte {
 	var out strings.Builder
 	out.WriteString("# Ze\n\n## CLI command surface\n\n")
-	for _, command := range commands {
+	for index := range commands {
+		command := &commands[index]
 		meta := []string{command.Mode}
 		if command.WireMethod != "" {
 			meta = append(meta, "wire "+command.WireMethod)
 		}
 		pipeGroups := make([]string, 0, 4)
-		for _, availability := range []string{"always", "with-rows", "when-streaming", "local-only"} {
-			if names := commandOperatorNames(command, availability); len(names) != 0 {
+		for _, availability := range []string{availabilityAlways, availabilityWithRows, availabilityWhenStreaming, availabilityLocalOnly} {
+			if names := commandOperatorNames(*command, availability); len(names) != 0 {
 				pipeGroups = append(pipeGroups, availability+": "+strings.Join(names, " "))
 			}
 		}
@@ -424,12 +433,4 @@ func commandPipeDisplayName(pipe publishedCommandPipe) string {
 		return pipe.Name + " <value>"
 	}
 	return pipe.Name
-}
-
-func markdownCodeList(values []string) string {
-	quoted := make([]string, len(values))
-	for index, value := range values {
-		quoted[index] = markdownCodeLiteral(value)
-	}
-	return strings.Join(quoted, ", ")
 }
