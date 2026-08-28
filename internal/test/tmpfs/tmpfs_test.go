@@ -522,26 +522,6 @@ func TestTmpfsResolve(t *testing.T) {
 	assert.Equal(t, "cmd:ze bgp run test/fixtures/plugin.py", resolved[1])
 }
 
-// TestCleanup verifies temp directory removal.
-//
-// VALIDATES: WriteToTemp cleanup function removes directory.
-// PREVENTS: Temp directory leaks.
-func TestCleanup(t *testing.T) {
-	input := `tmpfs=test.txt:terminator=EOF
-content
-EOF
-`
-	v, err := Parse(strings.NewReader(input))
-	require.NoError(t, err)
-
-	dir, cleanup, err := v.WriteToTemp()
-	require.NoError(t, err)
-	require.DirExists(t, dir)
-
-	cleanup()
-	require.NoDirExists(t, dir)
-}
-
 // TestReadFrom verifies reading Tmpfs from file path.
 //
 // VALIDATES: ReadFrom opens file and parses content.

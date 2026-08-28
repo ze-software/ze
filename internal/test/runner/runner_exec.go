@@ -75,8 +75,29 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	defer portLease.Release()
 	rec.Port = portLease.Start
 
-	// Set up Tmpfs temp directory if there are Tmpfs files (needed by both paths)
-	var tmpfsCleanup func()
+	// Every test runs its children in a directory of its own, whether or not it
+	// declares tmpfs files. A child given no directory inherits the runner's,
+	// which is the repository root `./le` runs from, and a ze daemon started
+	// there writes database.zefs, daemon.log, its rendered config, its host keys
+	// and its rollback/ and crash/ trees into the checkout. 1503 of 1789 .ci
+	// files declare no tmpfs block, so that was the common case rather than the
+	// rare one. See plan/journal/test-artifacts-land-in-the-repository-root.md.
+	//
+	// TmpfsTempDir keeps its narrower meaning and is still set only when the
+	// record declares files. Consumers read it as that question: whether to arm
+	// the daemon readiness file, where a sendfile lives, which directory a
+	// file= check is rooted at. A directory that is always present would answer
+	// a different question and change all three.
+	workDir, err := os.MkdirTemp(sessionpath.DefaultScratchRoot(), workDirPrefix+"*")
+	if err != nil {
+		rec.Error = fmt.Errorf("create test work directory: %w", err)
+		return false
+	}
+	defer func() { _ = os.RemoveAll(workDir) }()
+	rec.WorkDir = workDir
+
+	// Set up Tmpfs files in that same directory when the record declares any
+	// (needed by both paths).
 	if len(rec.TmpfsFiles) > 0 || len(rec.EngineSteps) > 0 {
 		v := tmpfs.New()
 		for path, content := range rec.TmpfsFiles {
@@ -96,16 +117,11 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 			}
 			v.AddFile(EngineStepsFileName, stepsJSON)
 		}
-		tmpfsTempDir, cleanup, err := v.WriteToTemp()
-		if err != nil {
+		if err := v.WriteTo(workDir); err != nil {
 			rec.Error = fmt.Errorf("write Tmpfs files: %w", err)
 			return false
 		}
-		tmpfsCleanup = cleanup
-		rec.TmpfsTempDir = tmpfsTempDir
-	}
-	if tmpfsCleanup != nil {
-		defer tmpfsCleanup()
+		rec.TmpfsTempDir = workDir
 	}
 
 	// Use new orchestration if RunCommands present
@@ -156,6 +172,8 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	)
 	peerCmd := exec.CommandContext(testCtx, r.testPath, peerArgs...) //nolint:gosec // test runner, paths from temp dir
 	peerCmd.Env = peerEnv
+	// Every child runs in this test's own directory. See Record.WorkDir.
+	peerCmd.Dir = rec.WorkDir
 
 	// Use syncWriter to wait for "listening on" before starting client
 	peerStdout := newSyncWriter()
@@ -211,6 +229,14 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 			configPath = filepath.Join(rec.TmpfsTempDir, configBase)
 		}
 	}
+	// parseOption builds the config path by joining the .ci file's directory,
+	// and discovery walks a relative tree, so the result carries whatever
+	// spelling the walk used. The child runs in this test's own directory now
+	// rather than in the repository root, so anchor the path before handing it
+	// over.
+	if configPath != "" && !filepath.IsAbs(configPath) {
+		configPath = filepath.Join(r.baseDir, configPath)
+	}
 
 	// Put the bare-name shim dir on PATH so child processes (like "ze bgp
 	// persist") resolve THIS run's ze, not a stale or wrong-architecture one
@@ -255,6 +281,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	}
 	clientCmd := exec.CommandContext(testCtx, r.zePath, clientArgs...) //nolint:gosec // test runner, paths from temp dir
 	clientCmd.Env = clientEnv
+	clientCmd.Dir = rec.WorkDir
 
 	clientStdout := &strings.Builder{}
 	clientStderr := &strings.Builder{}
@@ -465,11 +492,14 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			rec.FailureType = stateUnknown
 			return false
 		}
-		// The ze daemon is dropped to a normal user; make it own its tmpfs workdir
-		// so it can chdir in, read config, and write daemon.ready (see chownTree).
-		if netnsHasUID && rec.TmpfsTempDir != "" {
-			if chErr := chownTree(rec.TmpfsTempDir, netnsUID, netnsGID); chErr != nil {
-				rec.Error = fmt.Errorf("prepare tmpfs dir for netns child: %w", chErr)
+		// The ze daemon is dropped to a normal user; make it own the directory it
+		// runs in so it can chdir in, read config, and write daemon.ready (see
+		// chownTree). The work directory rather than the tmpfs one: every child
+		// runs there now, and a test that declares no tmpfs files still has a
+		// daemon that must write into it.
+		if netnsHasUID && rec.WorkDir != "" {
+			if chErr := chownTree(rec.WorkDir, netnsUID, netnsGID); chErr != nil {
+				rec.Error = fmt.Errorf("prepare work dir for netns child: %w", chErr)
 				rec.FailureType = stateUnknown
 				return false
 			}
@@ -830,10 +860,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				"ZE_READY_FILE="+filepath.Join(rec.TmpfsTempDir, "daemon.ready"))
 		}
 
-		// Set working directory to tmpfs temp dir if available (for finding tmpfs files)
-		if rec.TmpfsTempDir != "" {
-			proc.Dir = rec.TmpfsTempDir
-		}
+		// Run the child in this test's own directory, so its tmpfs files resolve
+		// by bare name and its runtime files land beside the test rather than in
+		// the repository root.
+		proc.Dir = r.childWorkingDirectory(binName, rec)
 
 		// Set up stdin if specified (for ze and other commands)
 		if stdinContent != nil {

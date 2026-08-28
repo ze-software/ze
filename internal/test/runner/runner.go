@@ -316,6 +316,32 @@ func (r *Runner) childPathEnv() string {
 	return tb.Str("PATH=").Join(parts, string(os.PathListSeparator)).String()
 }
 
+// workDirPrefix names every per-test working directory under the session
+// scratch root, so a directory left behind by a killed run says what made it.
+const workDirPrefix = "ze-work-"
+
+// repositoryAnchoredBinary answers whether a .ci step's binary resolves its
+// arguments against the repository rather than against the test. `go test`
+// takes ./... package patterns that mean nothing outside the module, and `./le`
+// IS a relative path to the script in the repository root. Every other binary a
+// .ci step names is given the test's own directory, so its runtime files land
+// beside the test.
+func repositoryAnchoredBinary(binName string) bool {
+	return binName == "go" || binName == "le" || binName == "./le"
+}
+
+// childWorkingDirectory answers the directory one .ci step's child runs in.
+//
+// A child given no directory inherits the runner's, which is the repository
+// root, and a ze daemon started there writes its runtime state into the
+// checkout (see Record.WorkDir).
+func (r *Runner) childWorkingDirectory(binName string, rec *Record) string {
+	if repositoryAnchoredBinary(binName) {
+		return r.baseDir
+	}
+	return rec.WorkDir
+}
+
 // Build compiles the test binaries.
 //
 // ZE_TEST_NO_BUILD=1 skips the in-process `go build` and uses pre-built binaries

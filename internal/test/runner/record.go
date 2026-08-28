@@ -197,7 +197,16 @@ type Record struct {
 
 	// Tmpfs embedded files
 	TmpfsFiles   map[string][]byte // path -> content from tmpfs= blocks
-	TmpfsTempDir string            // temp directory for tmpfs files (set during execution)
+	TmpfsTempDir string            // temp directory for tmpfs files, empty when the record declares none (set during execution)
+
+	// WorkDir is the directory every child of this test runs in, set during
+	// execution and removed when the test ends. It exists for every record,
+	// including one that declares no tmpfs files, because a child with no
+	// directory of its own inherits the runner's, which is the repository root.
+	// TmpfsTempDir answers a different question and keeps its narrower meaning:
+	// whether the record DECLARED files. When it did, the two are the same
+	// directory.
+	WorkDir string
 
 	// Stdin blocks for process orchestration
 	StdinBlocks map[string][]byte // name -> content from stdin= blocks

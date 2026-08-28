@@ -30,8 +30,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/ze-software/ze/internal/test/sessionpath"
 )
 
 var (
@@ -496,23 +494,4 @@ func (v *Tmpfs) WriteTo(baseDir string) error {
 		}
 	}
 	return nil
-}
-
-// WriteToTemp creates temp dir, writes files, returns path and cleanup.
-func (v *Tmpfs) WriteToTemp() (dir string, cleanup func(), err error) {
-	dir, err = os.MkdirTemp(sessionpath.DefaultScratchRoot(), "ze-tmpfs-*")
-	if err != nil {
-		return "", nil, err
-	}
-
-	cleanup = func() {
-		_ = os.RemoveAll(dir)
-	}
-
-	if err := v.WriteTo(dir); err != nil {
-		cleanup()
-		return "", nil, err
-	}
-
-	return dir, cleanup, nil
 }
