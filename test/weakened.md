@@ -1,4 +1,3 @@
 | Test | Reason |
 |------|--------|
-| TestReviewRoundSixNeedsAProductDefectAndOwnerAuthorisation | Not removed: renamed to `TestReviewRoundSixNeedsAProductDefectAndOwnerAuthorization` in the same file, `internal/le/specsession/review_test.go`, by a misspell fix. Every assertion is unchanged, and the detector reads a rename as a deletion because it matches on the function name |
-| TestModelCommandUsesPayloadTranscriptInsteadOfANewerNeighbour | Not removed: renamed to `TestModelCommandUsesPayloadTranscriptInsteadOfANewerNeighbor` in the same file, `internal/le/specsession/review_test.go`, by the same misspell fix. Every assertion is unchanged |
+| TestEveryCommandIsFoundAtThePathItsNamePredicts | Not weakened: one assertion MOVED, none removed. The reverse-direction walk became the helper `registeringDirectories`, which now carries the `t.Fatalf` for an unreadable `internal/le`, so the count inside the test body falls from four to three while the same four conditions are still asserted. The helper walks two levels instead of one, so the test covers strictly more than before |

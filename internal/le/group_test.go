@@ -99,9 +99,42 @@ func TestReportAreasWriteNothing(t *testing.T) {
 	}
 }
 
+// directoryFor answers the path a command name predicts, relative to
+// internal/le. A space is a level, and a hyphen inside a level joins words
+// naming one thing: `verify lint` predicts verify/lint, and
+// `repository tracked-build` predicts repository/trackedbuild.
+//
+// This is the whole naming rule, and it is one function so the test and the
+// reader read the same statement of it.
+func directoryFor(name string) string {
+	words := strings.Fields(name)
+	for index, word := range words {
+		words[index] = strings.ReplaceAll(word, "-", "")
+	}
+	return filepath.Join(words...)
+}
+
+// TestDirectoryForReadsBothHalvesOfTheNamingRule pins the rule itself. Until a
+// family is split, every registered name is one word, so the nested branch
+// would go unexercised by the tree and the structural test would pass without
+// ever reading it.
+func TestDirectoryForReadsBothHalvesOfTheNamingRule(t *testing.T) {
+	for _, row := range []struct{ name, want string }{
+		{"verify", "verify"},
+		{"verify lint", "verify/lint"},
+		{"dash-stdio", "dashstdio"},
+		{"repository tracked-build", "repository/trackedbuild"},
+		{"yang leaf-mentions", "yang/leafmentions"},
+	} {
+		if got := directoryFor(row.name); got != row.want {
+			t.Errorf("directoryFor(%q) = %q, want %q", row.name, got, row.want)
+		}
+	}
+}
+
 // TestEveryCommandIsFoundAtThePathItsNamePredicts is the structural rule. It
-// holds in both directions. `le spec-session` lives at
-// internal/le/specsession, and every directory that registers a command is
+// holds in both directions. `le spec session` lives at
+// internal/le/spec/session, and every directory that registers a command is
 // reached by some command name.
 //
 // The rule is mechanical on purpose. A reader who knows the command knows the
@@ -117,7 +150,7 @@ func TestEveryCommandIsFoundAtThePathItsNamePredicts(t *testing.T) {
 
 	claimed := make(map[string]string, len(commandsAtStart))
 	for _, tool := range commandsAtStart {
-		directory := strings.ReplaceAll(tool.Name, "-", "")
+		directory := directoryFor(tool.Name)
 		claimed[directory] = tool.Name
 		if _, statErr := os.Stat(filepath.Join(tools, directory, "register.go")); statErr != nil {
 			t.Errorf("command %q predicts internal/le/%s, which registers nothing: %v",
@@ -125,19 +158,118 @@ func TestEveryCommandIsFoundAtThePathItsNamePredicts(t *testing.T) {
 		}
 	}
 
-	entries, err := os.ReadDir(tools)
+	for _, held := range registeringDirectories(t, tools) {
+		if _, ok := claimed[held]; !ok {
+			t.Errorf("internal/le/%s registers a command that no command name predicts", held)
+		}
+	}
+}
+
+// registeringDirectories answers every directory under internal/le holding a
+// register.go, as a path relative to internal/le.
+//
+// It walks two levels, because a namespace member sits one level below its
+// object and two words is the whole grammar. A library package registers
+// nothing, so it is not walked into and names nothing.
+func registeringDirectories(t *testing.T, tools string) []string {
+	t.Helper()
+
+	registers := func(dir string) bool {
+		_, err := os.Stat(filepath.Join(dir, "register.go"))
+		return err == nil
+	}
+
+	found := make([]string, 0, len(commandsAtStart))
+	outer, err := os.ReadDir(tools)
 	if err != nil {
 		t.Fatalf("read internal/le: %v", err)
 	}
-	for _, entry := range entries {
-		if !entry.IsDir() {
+	for _, object := range outer {
+		if !object.IsDir() {
 			continue
 		}
-		if _, statErr := os.Stat(filepath.Join(tools, entry.Name(), "register.go")); statErr != nil {
-			continue // A library package registers nothing and names nothing.
+		if registers(filepath.Join(tools, object.Name())) {
+			found = append(found, object.Name())
 		}
-		if _, ok := claimed[entry.Name()]; !ok {
-			t.Errorf("internal/le/%s registers a command that no command name predicts", entry.Name())
+		inner, readErr := os.ReadDir(filepath.Join(tools, object.Name()))
+		if readErr != nil {
+			continue
+		}
+		for _, member := range inner {
+			if !member.IsDir() {
+				continue
+			}
+			if registers(filepath.Join(tools, object.Name(), member.Name())) {
+				found = append(found, filepath.Join(object.Name(), member.Name()))
+			}
+		}
+	}
+	return found
+}
+
+// TestNoRegisteredLeCommandExceedsTwoWords holds the bound Dispatch enforces.
+// A three-word command would register at a path the resolver never offers the
+// matcher, so it would be unreachable from argv while looking registered.
+func TestNoRegisteredLeCommandExceedsTwoWords(t *testing.T) {
+	for _, tool := range commandsAtStart {
+		if words := len(strings.Fields(tool.Name)); words > 2 {
+			t.Errorf("command %q is %d words; dispatch offers the matcher two", tool.Name, words)
+		}
+	}
+}
+
+// TestNoMemberShadowsItsNamespaceRootVerb keeps one word from meaning two
+// things in one position. `le verify list` is a verb of the verify command; a
+// member named list would occupy the same slot, and the longer path wins, so
+// the verb would silently stop running.
+func TestNoMemberShadowsItsNamespaceRootVerb(t *testing.T) {
+	verbs := make(map[string]map[string]bool, len(commandsAtStart))
+	for _, tool := range commandsAtStart {
+		if strings.ContainsRune(tool.Name, ' ') {
+			continue
+		}
+		held := make(map[string]bool)
+		for verb := range strings.SplitSeq(tool.Meta.ResolveSubs(), "|") {
+			verb = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(verb), writesMarker))
+			if verb != "" {
+				held[strings.TrimSpace(verb)] = true
+			}
+		}
+		verbs[tool.Name] = held
+	}
+
+	for _, tool := range commandsAtStart {
+		object, member, found := strings.Cut(tool.Name, " ")
+		if !found {
+			continue
+		}
+		if verbs[object][member] {
+			t.Errorf("member %q shadows the verb %q of the %q command, and the longer path wins",
+				tool.Name, member, object)
+		}
+	}
+}
+
+// TestEveryCommandRegistersItsOwnAnswerShape is not the same claim as asking
+// the registry whether a shape resolves. ShapeForCommand answers by the
+// longest registered PREFIX, so a member that declares none inherits its
+// namespace root's shape and reports one. The declaration is what this checks,
+// at its source, where inheritance cannot hide the omission.
+func TestEveryCommandRegistersItsOwnAnswerShape(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("find checkout: %v", err)
+	}
+	tools := filepath.Join(root, "internal", "le")
+
+	for _, held := range registeringDirectories(t, tools) {
+		source, readErr := os.ReadFile(filepath.Join(tools, held, "register.go")) //nolint:gosec // a test reads the checkout it runs in
+		if readErr != nil {
+			t.Errorf("read internal/le/%s/register.go: %v", held, readErr)
+			continue
+		}
+		if !strings.Contains(string(source), "leroot.RegisterShape(") {
+			t.Errorf("internal/le/%s declares no answer shape of its own, so it inherits one", held)
 		}
 	}
 }
