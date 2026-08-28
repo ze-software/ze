@@ -56,6 +56,13 @@ type Prose interface {
 
 const pathPrefix = "le "
 
+// pipeWord separates a tool's own arguments from the operator chain. Dispatch
+// and splitChain both need to know where the command ends, so the word is
+// spelled once: two readers of one contract cannot drift apart, and a second
+// place that decides where a chain begins is how a lookup and a split come to
+// disagree.
+const pipeWord = "|"
+
 // Owned answers every le command name from the shared local-data registry.
 func Owned() []string {
 	commands := registry.ListLocal()
@@ -105,6 +112,25 @@ func Register(name string, group Group, answer Answer, meta registry.Meta) {
 func CommandPath(name string) string {
 	var tb textbuf.Buffer
 	return tb.Str(pathPrefix).Str(name).String()
+}
+
+// LookupCommand answers the handler registered for one whole command name.
+//
+// A name may hold a space once a family is a namespace, so the name is split
+// into path words rather than passed as one. Trailing words mean the name is a
+// prefix of a registered command rather than a command, and that is not a
+// match.
+//
+// This is the only resolver. Dispatch reaches it from argv through resolve,
+// and the verification dispatcher reaches it from a stage Identity here, so no
+// second place decides what a registered name means. A lookup and its refusal
+// spelled twice is how the two come to disagree.
+func LookupCommand(name string) registry.LocalDataHandler {
+	handler, trailing := registry.LookupLocalData(strings.Fields(CommandPath(name)))
+	if len(trailing) != 0 {
+		return nil
+	}
+	return handler
 }
 
 // RegisterShape declares the answer shape at the same full path as Register.
@@ -194,7 +220,7 @@ func Run(name string, answer Answer, args []string, out, errOut io.Writer) int {
 // `le parity | json` is typed as `le parity '|' json`.
 func splitChain(args []string) (toolArgs []string, pipeStr string) {
 	for i, arg := range args {
-		if arg != "|" {
+		if arg != pipeWord {
 			continue
 		}
 		var tb textbuf.Buffer

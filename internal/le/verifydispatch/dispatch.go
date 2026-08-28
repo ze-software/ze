@@ -24,16 +24,7 @@ var rootOverrideMu sync.Mutex
 
 // RunAction runs one registered le action inside the requested checkout root.
 func RunAction(ctx context.Context, root string, identity verifyengine.Identity) verifyengine.ActionResult {
-	return dispatch(ctx, root, identity, leroot.Owns, lookupTool, lepath.Root)
-}
-
-func lookupTool(name string) registry.LocalDataHandler {
-	words := [2]string{"le", name}
-	handler, trailing := registry.LookupLocalData(words[:])
-	if len(trailing) != 0 {
-		return nil
-	}
-	return handler
+	return dispatch(ctx, root, identity, leroot.Owns, leroot.LookupCommand, lepath.Root)
 }
 
 func dispatch(

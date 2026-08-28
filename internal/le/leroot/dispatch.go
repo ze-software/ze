@@ -14,6 +14,7 @@ package leroot
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/helpfmt"
@@ -94,6 +95,66 @@ func usageSections(roots []registry.RootCommand) []helpfmt.HelpSection {
 	return sections
 }
 
+// commandWordsMax bounds how many argv words the lookup may consume. le's
+// deepest registered path is one namespace and one member, so two words after
+// `le` is the whole grammar.
+//
+// The bound is load-bearing. LookupLocalData matches the longest registered
+// prefix of whatever it is handed, so an unbounded span would let a value
+// further along the line be read as a command word: `le job run label x
+// command le verify lint` offers nine.
+const commandWordsMax = 2
+
+// resolve answers the registered command among the leading words of argv: the
+// name as it was typed, its handler, and the words the tool itself receives.
+//
+// The pipe word ends the candidate span, so `le verify list | json` offers the
+// matcher `verify list` and never the chain.
+func resolve(args []string) (string, registry.LocalDataHandler, []string) {
+	span := min(len(args), commandWordsMax)
+	for index := range args[:span] {
+		if args[index] == pipeWord {
+			span = index
+			break
+		}
+	}
+	if span == 0 {
+		return "", nil, nil
+	}
+
+	words := make([]string, 0, span+1)
+	words = append(words, "le")
+	words = append(words, args[:span]...)
+
+	handler, trailing := registry.LookupLocalData(words)
+	if handler == nil {
+		return "", nil, nil
+	}
+	consumed := span - len(trailing)
+
+	var tb textbuf.Buffer
+	return tb.Join(args[:consumed], " ").String(), handler, args[consumed:]
+}
+
+// members answers the commands registered under a namespace token, with the
+// token stripped: `spec` answers citation, session and status.
+//
+// The listing is derived from the registry rather than declared, so the help
+// page, a bare token's answer and a refusal cannot disagree about what a
+// namespace holds.
+func members(token string) []string {
+	var tb textbuf.Buffer
+	prefix := tb.Str(token).Byte(' ').String()
+
+	found := make([]string, 0, 4)
+	for _, command := range Commands() {
+		if name, ok := strings.CutPrefix(command.Name, prefix); ok {
+			found = append(found, name)
+		}
+	}
+	return found
+}
+
 // Dispatch resolves argv through the canonical local-data path and answers the
 // tool's exit code. It calls Run directly so a nonzero verdict can still carry
 // a structured payload to stdout.
@@ -110,13 +171,24 @@ func Dispatch(program string, args []string) int {
 		return 0
 	}
 
-	words := [2]string{"le", args[0]}
-	handler, trailing := registry.LookupLocalData(words[:])
-	if handler != nil && len(trailing) == 0 {
-		return Run(args[0], Answer(handler), args[1:], os.Stdout, os.Stderr)
+	name, handler, toolArgs := resolve(args)
+	if handler != nil {
+		return Run(name, Answer(handler), toolArgs, os.Stdout, os.Stderr)
 	}
 
-	fmt.Fprintf(os.Stderr, "unknown command: %s\n", args[0]) //nolint:errcheck // CLI output
+	// A namespace token is not an unknown command, it is an incomplete one.
+	// Naming the members it holds is the difference between a typo and a
+	// command the reader has half typed.
+	if held := members(args[0]); len(held) != 0 {
+		var tb textbuf.Buffer
+		message := tb.Str("error: ").Str(args[0]).
+			Str(" is a namespace; it needs one of: ").Join(held, " | ").String()
+		fmt.Fprintln(os.Stderr, message) //nolint:errcheck // CLI output
+		return 1
+	}
+
+	var tb textbuf.Buffer
+	fmt.Fprintln(os.Stderr, tb.Str("unknown command: ").Str(args[0]).String()) //nolint:errcheck // CLI output
 	Usage(program)
 	return 1
 }
