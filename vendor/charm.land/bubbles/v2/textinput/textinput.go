@@ -925,7 +925,7 @@ func (m Model) Cursor() *tea.Cursor {
 	// cursor must use the SCROLL-ADJUSTED position, the same one View() draws
 	// with. m.Position() is absolute, so once the text is longer than the
 	// input width the cursor is placed past the viewport and every column
-	// after it is reported one place out. See scripts/dev/patches/.
+	// after it is reported one place out. See internal/le/vendorpatch/patches/.
 	xOffset := max(0, m.pos-m.offset) +
 		promptWidth
 	if m.width > 0 {

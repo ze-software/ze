@@ -1,0 +1,884 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package server
+
+// This file defines server methods related to initialization,
+// options, shutdown, and exit.
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"go/build"
+	"os"
+	"path"
+	"path/filepath"
+	runtimedebug "runtime/debug"
+	"slices"
+	"sort"
+	"strings"
+	"sync"
+
+	"golang.org/x/telemetry/counter"
+	"golang.org/x/tools/gopls/internal/cache"
+	"golang.org/x/tools/gopls/internal/debug"
+	debuglog "golang.org/x/tools/gopls/internal/debug/log"
+	"golang.org/x/tools/gopls/internal/file"
+	"golang.org/x/tools/gopls/internal/filecache"
+	"golang.org/x/tools/gopls/internal/filewatcher"
+	"golang.org/x/tools/gopls/internal/protocol"
+	"golang.org/x/tools/gopls/internal/protocol/semtok"
+	"golang.org/x/tools/gopls/internal/settings"
+	"golang.org/x/tools/gopls/internal/telemetry"
+	"golang.org/x/tools/gopls/internal/util/bug"
+	"golang.org/x/tools/gopls/internal/util/goversion"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/jsonrpc2"
+	"golang.org/x/tools/internal/moremaps"
+	"golang.org/x/tools/internal/moreslices"
+)
+
+func (s *server) Initialize(ctx context.Context, params *protocol.ParamInitialize) (*protocol.InitializeResult, error) {
+	ctx, done := event.Start(ctx, "server.Initialize")
+	defer done()
+
+	var clientName string
+	if params != nil && params.ClientInfo != nil {
+		clientName = params.ClientInfo.Name
+	}
+	recordClientInfo(clientName)
+
+	s.stateMu.Lock()
+	if s.state >= serverInitializing {
+		defer s.stateMu.Unlock()
+		return nil, fmt.Errorf("%w: initialize called while server in %v state", jsonrpc2.ErrInvalidRequest, s.state)
+	}
+	s.state = serverInitializing
+	s.stateMu.Unlock()
+
+	s.progress.SetSupportsWorkDoneProgress(params.Capabilities.Window.WorkDoneProgress)
+
+	options := s.Options().Clone()
+	// TODO(rfindley): eliminate this defer.
+	defer func() { s.SetOptions(options) }()
+
+	// Process initialization options.
+	{
+		res, errs := options.Set(params.InitializationOptions)
+		s.handleOptionResult(ctx, res, errs)
+	}
+	options.ForClientCapabilities(params.ClientInfo, params.Capabilities)
+
+	updateGlobalOptions(options)
+
+	if options.ShowBugReports {
+		// Report the next bug that occurs on the server.
+		bug.Handle(func(b bug.Bug) {
+			msg := &protocol.ShowMessageParams{
+				Type:    protocol.Error,
+				Message: fmt.Sprintf("A bug occurred on the server: %s\nLocation:%s", b.Description, b.Key),
+			}
+			go s.eventuallyShowMessage(context.Background(), msg)
+		})
+	}
+
+	folders := params.WorkspaceFolders
+	if len(folders) == 0 {
+		if params.RootURI != "" {
+			folders = []protocol.WorkspaceFolder{{
+				URI:  string(params.RootURI),
+				Name: path.Base(params.RootURI.Path()),
+			}}
+		}
+	}
+	s.pendingFolders = append(s.pendingFolders, folders...)
+
+	var codeActionProvider any = true
+	if ca := params.Capabilities.TextDocument.CodeAction; len(ca.CodeActionLiteralSupport.CodeActionKind.ValueSet) > 0 {
+		// If the client has specified CodeActionLiteralSupport,
+		// send the code actions we support.
+		//
+		// Using CodeActionOptions is only valid if codeActionLiteralSupport is set.
+		codeActionProvider = &protocol.CodeActionOptions{
+			CodeActionKinds: s.getSupportedCodeActions(),
+			ResolveProvider: true,
+		}
+	}
+
+	var diagnosticProvider *protocol.Or_ServerCapabilities_diagnosticProvider
+	if options.PullDiagnostics {
+		diagnosticProvider = &protocol.Or_ServerCapabilities_diagnosticProvider{
+			Value: protocol.DiagnosticOptions{
+				InterFileDependencies: true,
+				WorkspaceDiagnostics:  false, // we don't support workspace/diagnostic
+			},
+		}
+	}
+
+	var renameOpts any = true
+	if r := params.Capabilities.TextDocument.Rename; r != nil && r.PrepareSupport {
+		renameOpts = protocol.RenameOptions{
+			PrepareProvider: r.PrepareSupport,
+		}
+	}
+
+	var semanticTokenProvider any
+	if options.SemanticTokens || options.ConfigurationSupported {
+		// Also provide the semantic token provider if the client supports
+		// Configuration calls. Reasoning:
+		//
+		// There are two ways to tell the client that this LSP server supports
+		// semantic token calls:
+		//   1. Return the semanticTokenProvider here in the `InitializeResult`
+		//   2. Anytime after Initialize() finishes, call
+		//    client.register("textDocument/semanticTokens") with the
+		//    semanticTokenProvider. Doing it this way would have many
+		//    specific requirements:
+		//    * The client must have set
+		//      `SemanticTokensClientCapabilities.dynamicRegistration = true`.
+		//    * The server must maintain the state of what it has actively
+		//      registered on the client, as the LSP doesn't allow the same
+		//      capability to be registered multiple times.
+		//    * As most clients don't support dynamic registration, we wouldn't
+		//      be able to just support that route, we would have to maintain
+		//      both static and dynamic registration paths.
+		//
+		// For all these reasons, we choose not to support the dynamic
+		// registration and fully rely on option 1.
+		//
+		// The only way the server would ever change to start/stop supporting
+		// semantic tokens is on a user's change of setting: `semanticTokens`.
+		// gopls only *retrieves* updated user configuration by sending
+		// `workspace/configuration` requests to the client.
+		// `options.ConfigurationSupported` indicates whether the client
+		// supports those calls and gopls doesn't send the `configuration`
+		// requests if not.
+		//
+		// gopls also will only send `workspace/configuration` requests after
+		// it receives a `workspace/didChangeConfiguration` request or if a new
+		// directory is added to the current session. We can't determine
+		// through the `ClientCapabilities` whether the either of these things
+		// can happen, so we have to always assume that they will.
+		//
+		// To conclude, the only signal to guarantee that gopls will never see
+		// updated user configs is if the client has
+		// `options.ConfigurationSupported = false`. So if the user currently
+		// has semanticTokens disabled AND their client doesn't support
+		// configuration calls, we know we never need to support semantic
+		// tokens and can inform the client by *not* returning a
+		// semanticTokenProvider. In any other case (the current scope) we need
+		// to return a semanticTokenProvider here so that the client will try
+		// to send `semanticToken` requests in the possibility that the user's
+		// gopls settings at that point allow us to return them.
+		semanticTokenProvider = protocol.SemanticTokensOptions{
+			Range: &protocol.Or_SemanticTokensOptions_range{Value: true},
+			Full:  &protocol.Or_SemanticTokensOptions_full{Value: true},
+			Legend: protocol.SemanticTokensLegend{
+				TokenTypes:     moreslices.ConvertStrings[string](semtok.Types),
+				TokenModifiers: moreslices.ConvertStrings[string](semtok.Modifiers),
+			},
+		}
+		// Note: If we ever get to a point that the performance of
+		// semanticTokens isn't significantly different from other file level
+		// LSP methods, we should remove this option alltogether and always
+		// return the semanticTokenProvider. At that point users can configure
+		// whether their client will send calls for the semantic tokens. This
+		// is a setting that should ideally live on the front-end.
+	}
+
+	versionInfo := debug.VersionInfo()
+
+	goplsVersion, err := json.Marshal(versionInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocol.InitializeResult{
+		Capabilities: protocol.ServerCapabilities{
+			CallHierarchyProvider: &protocol.Or_ServerCapabilities_callHierarchyProvider{Value: true},
+			CodeActionProvider:    codeActionProvider,
+			CodeLensProvider:      &protocol.CodeLensOptions{}, // must be non-nil to enable the code lens capability
+			CompletionProvider: &protocol.CompletionOptions{
+				TriggerCharacters: []string{"."},
+			},
+			DefinitionProvider:         &protocol.Or_ServerCapabilities_definitionProvider{Value: true},
+			TypeDefinitionProvider:     &protocol.Or_ServerCapabilities_typeDefinitionProvider{Value: true},
+			ImplementationProvider:     &protocol.Or_ServerCapabilities_implementationProvider{Value: true},
+			DocumentFormattingProvider: &protocol.Or_ServerCapabilities_documentFormattingProvider{Value: true},
+			DocumentSymbolProvider:     &protocol.Or_ServerCapabilities_documentSymbolProvider{Value: true},
+			WorkspaceSymbolProvider:    &protocol.Or_ServerCapabilities_workspaceSymbolProvider{Value: true},
+			ExecuteCommandProvider: &protocol.ExecuteCommandOptions{
+				Commands: protocol.NonNilSlice(options.SupportedCommands),
+			},
+			FoldingRangeProvider:      &protocol.Or_ServerCapabilities_foldingRangeProvider{Value: true},
+			HoverProvider:             &protocol.Or_ServerCapabilities_hoverProvider{Value: true},
+			DocumentHighlightProvider: &protocol.Or_ServerCapabilities_documentHighlightProvider{Value: true},
+			DocumentLinkProvider:      &protocol.DocumentLinkOptions{},
+			InlayHintProvider:         protocol.InlayHintOptions{},
+			DiagnosticProvider:        diagnosticProvider,
+			ReferencesProvider:        &protocol.Or_ServerCapabilities_referencesProvider{Value: true},
+			RenameProvider:            renameOpts,
+			SelectionRangeProvider:    &protocol.Or_ServerCapabilities_selectionRangeProvider{Value: true},
+			SemanticTokensProvider:    semanticTokenProvider,
+			SignatureHelpProvider: &protocol.SignatureHelpOptions{
+				TriggerCharacters: []string{"(", ","},
+				// Used to update or dismiss signature help when it's already active,
+				// typically after a call expression is closed.
+				RetriggerCharacters: []string{")"},
+			},
+			TextDocumentSync: &protocol.TextDocumentSyncOptions{
+				Change:    protocol.Incremental,
+				OpenClose: true,
+				Save: &protocol.SaveOptions{
+					IncludeText: false,
+				},
+			},
+			TypeHierarchyProvider: &protocol.Or_ServerCapabilities_typeHierarchyProvider{Value: true},
+			Workspace: &protocol.WorkspaceOptions{
+				WorkspaceFolders: &protocol.WorkspaceFolders5Gn{
+					Supported:           true,
+					ChangeNotifications: "workspace/didChangeWorkspaceFolders",
+				},
+				FileOperations: &protocol.FileOperationOptions{
+					DidCreate: &protocol.FileOperationRegistrationOptions{
+						Filters: []protocol.FileOperationFilter{{
+							Scheme: "file",
+							// gopls is only interested with files in .go extension.
+							Pattern: protocol.FileOperationPattern{Glob: "**/*.go"},
+						}},
+					},
+				},
+			},
+			Experimental: map[string]any{
+				// interactiveResolveProvider lists the LSP objects that support
+				// an interactive resolution stage. For instance, the presence of
+				// "command" indicates that the server handles "command/resolve"
+				// requests.
+				//
+				// Due to the existence of "codeAction/resolve" and language
+				// clients that resolve code action eagerly, "codeAction" can
+				// never be interactively resolved.
+				//
+				// TODO(hxjiang): experiment with interactively resolving
+				// "RenameParams". See golang/go#69107.
+				"interactiveResolveProvider": protocol.InteractiveResolveOptions{
+					Kinds: []string{"command"},
+				},
+			},
+		},
+		ServerInfo: &protocol.ServerInfo{
+			Name:    "gopls",
+			Version: string(goplsVersion),
+		},
+	}, nil
+}
+
+// updateGlobalOptions updates process-wide settings
+// received by a DidChangeConfiguration or Initialize request.
+func updateGlobalOptions(options *settings.Options) {
+	if options.MaxFileCacheBytes > 0 {
+		filecache.SetBudget(options.MaxFileCacheBytes)
+	}
+	if options.MemoryLimit > 0 {
+		runtimedebug.SetMemoryLimit(options.MemoryLimit)
+	}
+}
+
+func (s *server) Initialized(ctx context.Context, params *protocol.InitializedParams) error {
+	ctx, done := event.Start(ctx, "server.Initialized")
+	defer done()
+
+	s.stateMu.Lock()
+	if s.state >= serverInitialized {
+		defer s.stateMu.Unlock()
+		return fmt.Errorf("%w: initialized called while server in %v state", jsonrpc2.ErrInvalidRequest, s.state)
+	}
+	s.state = serverInitialized
+	s.stateMu.Unlock()
+
+	for _, not := range s.notifications {
+		s.client.ShowMessage(ctx, not) // ignore error
+	}
+	s.notifications = nil
+
+	s.addFolders(ctx, s.pendingFolders)
+
+	s.pendingFolders = nil
+	s.checkViewGoVersions()
+
+	var registrations []protocol.Registration
+	options := s.Options()
+	if options.ConfigurationSupported && options.DynamicConfigurationSupported {
+		// Even though we are registering `didChangeConfiguration` based on the
+		// client capabilities, clients can and do still send requests to it
+		// even if it's not registered.
+		registrations = append(registrations, protocol.Registration{
+			ID:     "workspace/didChangeConfiguration",
+			Method: "workspace/didChangeConfiguration",
+		})
+	}
+	if len(registrations) > 0 {
+		if err := s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
+			Registrations: registrations,
+		}); err != nil {
+			return err
+		}
+	}
+
+	// Ask (maybe) about enabling telemetry. Do this asynchronously, as it's OK
+	// for users to ignore or dismiss the question.
+	go s.maybePromptForTelemetry(ctx, options.TelemetryPrompt)
+
+	return nil
+}
+
+// checkViewGoVersions checks whether any Go version used by a view is too old,
+// raising a showMessage notification if so.
+//
+// It should be called after views change.
+func (s *server) checkViewGoVersions() {
+	oldestVersion, fromBuild := go1Point(), true
+	for _, view := range s.session.Views() {
+		viewVersion := view.GoVersion()
+		if oldestVersion == -1 || viewVersion < oldestVersion {
+			oldestVersion, fromBuild = viewVersion, false
+		}
+		if viewVersion >= 0 {
+			counter.Inc(fmt.Sprintf("gopls/goversion:1.%d", viewVersion))
+		}
+	}
+
+	if msg, isError := goversion.Message(oldestVersion, fromBuild); msg != "" {
+		mType := protocol.Warning
+		if isError {
+			mType = protocol.Error
+		}
+		s.eventuallyShowMessage(context.Background(), &protocol.ShowMessageParams{
+			Type:    mType,
+			Message: msg,
+		})
+	}
+}
+
+// go1Point returns the x in Go 1.x. If an error occurs extracting the go
+// version, it returns -1.
+//
+// Copied from the testenv package.
+func go1Point() int {
+	for _, tag := range slices.Backward(build.Default.ReleaseTags) {
+		var version int
+		if _, err := fmt.Sscanf(tag, "go1.%d", &version); err != nil {
+			continue
+		}
+		return version
+	}
+	return -1
+}
+
+// addFolders adds the specified list of "folders" (that's Windows for
+// directories) to the session. It does not return an error, though it
+// may report an error to the client over LSP if one or more folders
+// had problems, for example, folders with unsupported file system.
+func (s *server) addFolders(ctx context.Context, folders []protocol.WorkspaceFolder) {
+	originalViews := len(s.session.Views())
+	viewErrors := make(map[protocol.URI]error)
+
+	// Skip non-'file' scheme, or invalid workspace folders,
+	// and log them form error reports.
+	// VS Code's file system API
+	// (https://code.visualstudio.com/api/references/vscode-api#FileSystem)
+	// allows extension to define their own schemes and register
+	// them with the workspace. We've seen gitlens://, decompileFs://, etc
+	// but the list can grow over time.
+	var filtered []protocol.WorkspaceFolder
+	for _, f := range folders {
+		uri, err := protocol.ParseDocumentURI(f.URI)
+		if err != nil {
+			debuglog.Warning.Logf(ctx, "skip adding virtual folder %q - invalid folder URI: %v", f.Name, err)
+			continue
+		}
+		if s.session.HasView(uri) {
+			debuglog.Warning.Logf(ctx, "skip adding the already added folder %q - its view has been created before", f.Name)
+			continue
+		}
+		filtered = append(filtered, f)
+	}
+	folders = filtered
+
+	var ndiagnose sync.WaitGroup // number of unfinished diagnose calls
+	if s.Options().VerboseWorkDoneProgress {
+		work := s.progress.Start(ctx, DiagnosticWorkTitle(FromInitialWorkspaceLoad), "Calculating diagnostics for initial workspace load...", nil, nil)
+		defer func() {
+			go func() {
+				ndiagnose.Wait()
+				work.End(ctx, "Done.")
+			}()
+		}()
+	}
+	// Only one view gets to have a workspace.
+	var nsnapshots sync.WaitGroup // number of unfinished snapshot initializations
+	for _, folder := range folders {
+		uri, err := protocol.ParseDocumentURI(folder.URI)
+		if err != nil {
+			viewErrors[folder.URI] = fmt.Errorf("invalid folder URI: %v", err)
+			continue
+		}
+		work := s.progress.Start(ctx, "Setting up workspace", "Loading packages...", nil, nil)
+		snapshot, release, err := s.addView(ctx, folder.Name, uri)
+		if err != nil {
+			if err == cache.ErrViewExists {
+				continue
+			}
+			viewErrors[folder.URI] = err
+			work.End(ctx, fmt.Sprintf("Error loading packages: %s", err))
+			continue
+		}
+		// Inv: release() must be called once.
+
+		// Initialize snapshot asynchronously.
+		initialized := make(chan struct{})
+		nsnapshots.Add(1)
+		go func() {
+			snapshot.AwaitInitialized(ctx)
+			work.End(ctx, "Finished loading packages.")
+			nsnapshots.Done()
+			close(initialized) // signal
+		}()
+
+		// Diagnose the newly created view asynchronously.
+		ndiagnose.Go(func() {
+			s.diagnoseSnapshot(snapshot.BackgroundContext(), snapshot, nil, 0)
+			<-initialized
+			release()
+		})
+	}
+
+	// Wait for snapshots to be initialized so that all files are known.
+	// (We don't need to wait for diagnosis to finish.)
+	nsnapshots.Wait()
+
+	// Register for file watching notifications, if they are supported.
+	if err := s.updateWatchedDirectories(ctx); err != nil {
+		event.Error(ctx, "failed to register for file watching notifications", err)
+	}
+
+	// Report any errors using the protocol.
+	if len(viewErrors) > 0 {
+		var errMsg strings.Builder
+		fmt.Fprintf(&errMsg, "Error loading workspace folders (expected %v, got %v)\n", len(folders), len(s.session.Views())-originalViews)
+		for uri, err := range viewErrors {
+			fmt.Fprintf(&errMsg, "failed to load view for %s: %v\n", uri, err)
+		}
+		showMessage(ctx, s.client, protocol.Error, errMsg.String())
+	}
+}
+
+// updateWatchedDirectories syncs the server-side file watcher and client-side
+// registrations with the current workspace patterns. If the directories to
+// watch have changed, it unregisters and re-registers client notifications.
+func (s *server) updateWatchedDirectories(ctx context.Context) error {
+	patterns := s.session.FileWatchingGlobPatterns(ctx)
+
+	// Note: Currently, the server-side watcher acts as a complement to the
+	// client-side watcher (which is registered below). This dual-watching
+	// setup is safe, though it means gopls may receive redundant file
+	// events (one from the client, one from the server-side watcher).
+	//
+	// TODO(hxjiang): If the user enables the server-side file watcher, the
+	// server can eventually skip the client-side registration entirely and
+	// rely solely on the server-side watcher to avoid this redundancy.
+	if err := s.updateServerSideWatcher(ctx, patterns); err != nil {
+		return fmt.Errorf("failed to update server-side file watcher: %w", err)
+	}
+
+	s.watchedGlobPatternsMu.Lock()
+	defer s.watchedGlobPatternsMu.Unlock()
+
+	// Nothing to do if the set of workspace directories is unchanged.
+	if moremaps.SameKeys(s.watchedGlobPatterns, patterns) {
+		return nil
+	}
+
+	// If the set of directories to watch has changed, register the updates and
+	// unregister the previously watched directories. This ordering avoids a
+	// period where no files are being watched. Still, if a user makes on-disk
+	// changes before these updates are complete, we may miss them for the new
+	// directories.
+	prevID := s.watchRegistrationCount - 1
+	if err := s.registerWatchedDirectoriesLocked(ctx, patterns); err != nil {
+		return err
+	}
+	if prevID >= 0 {
+		return s.client.UnregisterCapability(ctx, &protocol.UnregistrationParams{
+			Unregisterations: []protocol.Unregistration{{
+				ID:     watchedFilesCapabilityID(prevID),
+				Method: "workspace/didChangeWatchedFiles",
+			}},
+		})
+	}
+	return nil
+}
+
+// updateServerSideWatcher synchronizes the file watcher's lifecycle with the
+// current session settings (creating, replacing, or closing it as needed)
+// and updates the directories it monitors based on the provided patterns.
+func (s *server) updateServerSideWatcher(ctx context.Context, patterns map[protocol.RelativePattern]unit) error {
+	wantMode := s.Options().FileWatcher
+	s.fileWatcherMu.Lock()
+	defer s.fileWatcherMu.Unlock()
+
+	// Close file watcher if the file watcher is not the desired mode.
+	if s.fileWatcher != nil && s.fileWatcher.Mode() != wantMode {
+		if err := s.fileWatcher.Close(); err != nil {
+			event.Error(ctx, "failed to close the file watcher", err)
+		}
+		s.fileWatcher = nil
+	}
+
+	if wantMode == settings.FileWatcherOff {
+		return nil
+	}
+
+	// Create new file watcher based on the desired mode.
+	if s.fileWatcher == nil {
+		// TODO(hxjiang): ensure gopls don't process events after shutdown.
+		watcherCtx := context.WithoutCancel(ctx)
+		onChange := func(events []protocol.FileEvent) {
+			modifications := make([]file.Modification, len(events))
+			for i, e := range events {
+				modifications[i] = file.Modification{
+					URI:    e.URI,
+					Action: changeTypeToFileAction(e.Type),
+					OnDisk: true,
+				}
+			}
+			if err := s.didModifyFiles(watcherCtx, FromDidChangeWatchedFiles, modifications...); err != nil {
+				event.Error(watcherCtx, "failed to process file changes", err)
+			}
+		}
+		onErr := func(err error) {
+			event.Error(watcherCtx, "file watcher error", err)
+		}
+
+		w, err := filewatcher.New(wantMode, nil, onChange, onErr)
+		if err != nil {
+			return err
+		}
+		s.fileWatcher = w
+	}
+
+	// Inv: s.fileWatcher.Mode() == want
+	dirs := make(map[string]struct{})
+	for pattern := range patterns {
+		if pattern.BaseURI != "" {
+			dirs[pattern.BaseURI.Path()] = struct{}{}
+		}
+	}
+	for dir := range dirs {
+		if err := s.fileWatcher.WatchDir(dir); err != nil {
+			// Log warning but continue watching other directories.
+			event.Log(ctx, fmt.Sprintf("failed to watch directory %s: %v", dir, err))
+		}
+	}
+	return nil
+}
+
+func watchedFilesCapabilityID(id int) string {
+	return fmt.Sprintf("workspace/didChangeWatchedFiles-%d", id)
+}
+
+// registerWatchedDirectoriesLocked sends the workspace/didChangeWatchedFiles
+// registrations to the client and updates s.watchedDirectories.
+// The caller must not subsequently mutate patterns.
+func (s *server) registerWatchedDirectoriesLocked(ctx context.Context, patterns map[protocol.RelativePattern]unit) error {
+	if !s.Options().DynamicWatchedFilesSupported {
+		return nil
+	}
+
+	supportsRelativePatterns := s.Options().RelativePatternsSupported
+
+	s.watchedGlobPatterns = patterns
+	watchers := make([]protocol.FileSystemWatcher, 0, len(patterns)) // must be a slice
+	val := protocol.WatchChange | protocol.WatchDelete | protocol.WatchCreate
+	for pattern := range patterns {
+		var value any
+		if supportsRelativePatterns && pattern.BaseURI != "" {
+			value = pattern
+		} else {
+			p := pattern.Pattern
+			if pattern.BaseURI != "" {
+				p = path.Join(filepath.ToSlash(pattern.BaseURI.Path()), p)
+			}
+			value = p
+		}
+		watchers = append(watchers, protocol.FileSystemWatcher{
+			GlobPattern: protocol.GlobPattern{Value: value},
+			Kind:        &val,
+		})
+	}
+
+	if err := s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
+		Registrations: []protocol.Registration{{
+			ID:     watchedFilesCapabilityID(s.watchRegistrationCount),
+			Method: "workspace/didChangeWatchedFiles",
+			RegisterOptions: protocol.DidChangeWatchedFilesRegistrationOptions{
+				Watchers: watchers,
+			},
+		}},
+	}); err != nil {
+		return err
+	}
+	s.watchRegistrationCount++
+	return nil
+}
+
+// Options returns the current server options.
+//
+// The caller must not modify the result.
+func (s *server) Options() *settings.Options {
+	s.optionsMu.Lock()
+	defer s.optionsMu.Unlock()
+	return s.options
+}
+
+// SetOptions sets the current server options.
+//
+// The caller must not subsequently modify the options.
+func (s *server) SetOptions(opts *settings.Options) {
+	s.optionsMu.Lock()
+	defer s.optionsMu.Unlock()
+	s.options = opts
+}
+
+func (s *server) newFolder(ctx context.Context, folder protocol.DocumentURI, name string, opts *settings.Options) (*cache.Folder, error) {
+	env, err := cache.FetchGoEnv(ctx, folder, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Increment folder counters.
+	switch {
+	case env.GOTOOLCHAIN == "auto" || strings.Contains(env.GOTOOLCHAIN, "+auto"):
+		counter.Inc("gopls/gotoolchain:auto")
+	case env.GOTOOLCHAIN == "path" || strings.Contains(env.GOTOOLCHAIN, "+path"):
+		counter.Inc("gopls/gotoolchain:path")
+	case env.GOTOOLCHAIN == "local": // local+auto and local+path handled above
+		counter.Inc("gopls/gotoolchain:local")
+	default:
+		counter.Inc("gopls/gotoolchain:other")
+	}
+
+	// Record whether a driver is in use so that it appears in the
+	// user's telemetry upload. Although we can't correlate the
+	// driver information with the crash or bug.Report at the
+	// granularity of the process instance, users that use a
+	// driver tend to do so most of the time, so we'll get a
+	// strong clue. See #60890 for an example of an issue where
+	// this information would have been helpful.
+	if env.EffectiveGOPACKAGESDRIVER != "" {
+		counter.Inc("gopls/gopackagesdriver")
+	}
+
+	return &cache.Folder{
+		Dir:     folder,
+		Name:    name,
+		Options: opts,
+		Env:     *env,
+	}, nil
+}
+
+// fetchFolderOptions makes a workspace/configuration request for the given
+// folder, and populates options with the result.
+//
+// If folder is "", fetchFolderOptions makes an unscoped request.
+func (s *server) fetchFolderOptions(ctx context.Context, folder protocol.DocumentURI) (*settings.Options, error) {
+	opts := s.Options()
+	if !opts.ConfigurationSupported {
+		return opts, nil
+	}
+	var scopeURI *string
+	if folder != "" {
+		scope := string(folder)
+		scopeURI = &scope
+	}
+	configs, err := s.client.Configuration(ctx, &protocol.ParamConfiguration{
+		Items: []protocol.ConfigurationItem{{
+			ScopeURI: scopeURI,
+			Section:  "gopls",
+		}},
+	},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get workspace configuration from client (%s): %v", folder, err)
+	}
+
+	opts = opts.Clone()
+	for _, config := range configs {
+		res, errs := opts.Set(config)
+		s.handleOptionResult(ctx, res, errs)
+	}
+	return opts, nil
+}
+
+func (s *server) eventuallyShowMessage(ctx context.Context, msg *protocol.ShowMessageParams) {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+	if s.state == serverInitialized {
+		_ = s.client.ShowMessage(ctx, msg) // ignore error
+	}
+	s.notifications = append(s.notifications, msg)
+}
+
+func (s *server) handleOptionResult(ctx context.Context, applied []telemetry.CounterPath, optionErrors []error) {
+	for _, path := range applied {
+		path = append(settings.CounterPath{"gopls", "setting"}, path...)
+		counter.Inc(path.FullName())
+	}
+
+	var warnings, errs []string
+	for _, err := range optionErrors {
+		if err == nil {
+			panic("nil error passed to handleOptionErrors")
+		}
+		if errors.Is(err, new(settings.SoftError)) {
+			warnings = append(warnings, err.Error())
+		} else {
+			errs = append(errs, err.Error())
+		}
+	}
+
+	// Sort messages, but put errors first.
+	//
+	// Having stable content for the message allows clients to de-duplicate. This
+	// matters because we may send duplicate warnings for clients that support
+	// dynamic configuration: one for the initial settings, and then more for the
+	// individual viewsettings.
+	var msgs []string
+	msgType := protocol.Warning
+	if len(errs) > 0 {
+		msgType = protocol.Error
+		sort.Strings(errs)
+		msgs = append(msgs, errs...)
+	}
+	if len(warnings) > 0 {
+		sort.Strings(warnings)
+		msgs = append(msgs, warnings...)
+	}
+
+	if len(msgs) > 0 {
+		// Settings
+		combined := "Invalid settings: " + strings.Join(msgs, "; ")
+		params := &protocol.ShowMessageParams{
+			Type:    msgType,
+			Message: combined,
+		}
+		s.eventuallyShowMessage(ctx, params)
+	}
+}
+
+// Shutdown implements the 'shutdown' LSP handler. It releases resources
+// associated with the server and waits for all ongoing work to complete.
+func (s *server) Shutdown(ctx context.Context) error {
+	ctx, done := event.Start(ctx, "server.Shutdown")
+	defer done()
+
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+	if s.state < serverInitialized {
+		event.Log(ctx, "server shutdown without initialization")
+	}
+	if s.state != serverShutDown {
+		// Wait for the webserver (if any) to finish.
+		if s.web != nil {
+			s.web.server.Shutdown(ctx) // ignore error
+		}
+
+		// drop all the active views
+		s.session.Shutdown(ctx)
+		s.state = serverShutDown
+	}
+	return nil
+}
+
+func (s *server) Exit(ctx context.Context) error {
+	ctx, done := event.Start(ctx, "server.Exit")
+	defer done()
+
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+
+	s.client.Close() // ignore error
+
+	if s.state != serverShutDown {
+		// TODO: We should be able to do better than this.
+		os.Exit(1)
+	}
+	// We don't terminate the process on a normal exit, we just allow it to
+	// close naturally if needed after the connection is closed.
+	return nil
+}
+
+// recordClientInfo records gopls client info.
+func recordClientInfo(clientName string) {
+	// This table maps LSP (not MCP) clientInfo.Name prefixes to Go telemetry counters.
+	// Where authoritative source is available, we link to it.
+	for _, cli := range [...]struct {
+		clientNamePrefix, telemetryKey string
+	}{
+		{"Visual Studio Code - Insiders", "gopls/client:vscode-insiders"},
+		{"Visual Studio Code", "gopls/client:vscode"},
+
+		{"VSCodium", "gopls/client:vscodium"},
+
+		// https://github.com/coder/code-server/blob/3cb92edc76ecc2cfa5809205897d93d4379b16a6/ci/build/build-vscode.sh#L19
+		{"code-server", "gopls/client:code-server"},
+
+		// https://lists.gnu.org/archive/html/bug-gnu-emacs/2023-03/msg00954.html
+		{"Eglot", "gopls/client:eglot"},
+
+		// https://github.com/govim/govim/pull/1189
+		{"govim", "gopls/client:govim"},
+
+		// https://github.com/helix-editor/helix/blob/d0218f7e78bc0c3af4b0995ab8bda66b9c542cf3/helix-lsp/src/client.rs#L714
+		{"helix", "gopls/client:helix"},
+
+		// https://github.com/neovim/neovim/blob/42333ea98dfcd2994ee128a3467dfe68205154cd/runtime/lua/vim/lsp.lua#L1361
+		// https://github.com/neovim/neovim/blob/fe6026825883b44b09a8d3a03f2d49bfc8ed4725/runtime/lua/vim/lsp/client.lua#564
+		{"Neovim", "gopls/client:neovim"},
+
+		// https://github.com/neoclide/coc.nvim/blob/3dc6153a85ed0f185abec1deb972a66af3fbbfb4/src/language-client/client.ts#L994
+		{"coc.nvim", "gopls/client:coc.nvim"},
+
+		// https://github.com/sublimelsp/LSP/blob/e608f878e7e9dd34aabe4ff0462540fadcd88fcc/plugin/core/sessions.py#L493
+		{"Sublime Text LSP", "gopls/client:sublimetext"},
+
+		{"Cursor", "gopls/client:cursor"},
+
+		// https: //github.com/zed-industries/zed/blob/0ac17526687bf11007f0fbb5c3b2ff463ce47293/crates/release_channel/src/lib.rs#L147
+		{"Zed", "gopls/client:zed"}, // incl. "Zed Dev", "Zed Nightly", "Zed Preview"
+
+		// (Observed empirically.)
+		{"Claude Code", "gopls/client:claude"},
+
+		// (Observed empirically.)
+		{"Antigravity", "gopls/client:antigravity"},
+		{"Jetski", "gopls/client:antigravity"},
+		{"Windsurf", "gopls/client:windsurf"},
+	} {
+		if strings.HasPrefix(clientName, cli.clientNamePrefix) {
+			counter.Inc(cli.telemetryKey)
+			return
+		}
+	}
+
+	// Accumulate at least a local counter for an unknown
+	// client name, but also fall through to count it as
+	// ":other" for collection.
+	if clientName != "" {
+		counter.New(fmt.Sprintf("gopls/client-other:%s", clientName)).Inc()
+	}
+	counter.Inc("gopls/client:other")
+}
