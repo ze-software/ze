@@ -1,3 +1,2 @@
 | Test | Reason |
 |------|--------|
-| TestActionsCarryTheSixActionContracts | Renamed to `TestActionsCarryTheSevenActionContracts`, and strictly stronger. The name said six actions where the area now declares seven, so the population it asserts is raised rather than lowered, and the writes-metadata and why-text checks it makes over that population are unchanged. The seventh action, `render`, is the first argument-aware one in this area, and three new tests cover what the rename does not: `TestRenderOneRecordsTheNamedDemoAndKeepsTheRest`, `TestRenderOneRefusesAnIdTheManifestDoesNotDeclare` and `TestRenderWithoutADemoIdIsRefused`. |

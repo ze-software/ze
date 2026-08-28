@@ -48,8 +48,8 @@ its aliases.
 |---------------|--------------|
 | `./le inventory` | Reports plugins, YANG modules, RPCs, families, tests, and packages |
 | `./le command-list` | Reads every CLI command from the compiled registries |
-| `./le docvalid command-contract-check` | Cross-checks YANG commands and handlers |
-| `./le docvalid doc-drift-check` | Detects documentation drift |
+| `./le docvalid command-contract` | Cross-checks YANG commands and handlers |
+| `./le docvalid doc-drift` | Detects documentation drift |
 
 ## Design Principle
 

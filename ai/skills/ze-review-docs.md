@@ -130,7 +130,7 @@ Compare documentation against the actual codebase to find gaps.
 
 **5a. Feature coverage**
 
-Run `./le inventory` (or `./le inventory-json` for structured data). For each item in the inventory:
+Run `./le inventory` (or `./le inventory | json` for structured data). For each item in the inventory:
 
 | Inventory item | Expected documentation |
 |----------------|----------------------|

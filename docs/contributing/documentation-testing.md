@@ -24,8 +24,8 @@ checks needed for the current diff and is included in `./le verify current mode 
 
 | Native action | What it validates |
 |---------------|-------------------|
-| `./le docvalid doc-drift-check` | Published counts and lists agree with live registries and the tree |
-| `./le docvalid command-contract-check` | Every YANG `ze:command` has a registered handler |
+| `./le docvalid doc-drift` | Published counts and lists agree with live registries and the tree |
+| `./le docvalid command-contract` | Every YANG `ze:command` has a registered handler |
 | `./le docs-to-code check` | Documentation source paths and claimed symbols resolve |
 | `./le doc-check links` | Tracked path citations resolve |
 | `./le digest` | Every `file:line` anchor in `ai/digests/*.md` resolves |
@@ -53,7 +53,7 @@ pre-commit gate.
 | After editing any file under `docs/` | `./le doc-check verify` |
 | After adding or removing a plugin | `./le doc-check verify` |
 | After writing a path reference in ANY tracked file | `./le doc-check links` (`./le doc-check verify` does not cover it) |
-| After adding or renaming a YANG `ze:command` | `./le docvalid command-contract-check` |
+| After adding or renaming a YANG `ze:command` | `./le docvalid command-contract` |
 | After adding a doc validator, inventory source, command source, or exported Go API | `./le doc-wiring` |
 | Before opening a documentation PR | `./le doc-check verify` |
 
@@ -66,7 +66,7 @@ command, inventory, and wiring checks for changed files.
 
 ## How to interpret output
 
-### `./le docvalid doc-drift-check`
+### `./le docvalid doc-drift`
 
 ```
   Documentation drift detected (N issues)
@@ -80,7 +80,7 @@ Each issue points at a file, a line number (0 = file-level), and a
 description. Most fixes are mechanical: update a count, add a missing
 table row, remove a stale entry.
 
-### `./le docvalid command-contract-check`
+### `./le docvalid command-contract`
 
 ```
 # Command Validation

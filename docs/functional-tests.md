@@ -123,8 +123,8 @@ run. Queue a runner selection with
 <!-- source: internal/le/functional/actions.go -- Actions -->
 <!-- source: internal/le/integration/actions.go -- Actions -->
 
-Clean release-candidate evidence can be run with `./le evidence release-candidate-check`.
-The target refuses a dirty worktree, clones the repository into an ephemeral
+Clean release-candidate evidence can be run with `./le evidence release-candidate`.
+The action refuses a dirty worktree, clones the repository into an ephemeral
 Docker container, mirrors the CI dependency setup, and runs
 `./le verify current mode full` there.
 
@@ -412,11 +412,17 @@ component-group targets to test only the area you changed:
 | `./le test-unit plugins` | `./internal/plugins/...` | about 40 seconds |
 | `./le test-unit config` | `./internal/component/config/...` | about 20 seconds |
 | `./le test-unit cli` | `./internal/component/cli/...` | about 10 seconds |
+| `./le test-unit installer` | `./internal/install/...` behind the `ze_installer` tag | about 10 seconds |
 | `./le verify current mode full` | Every unit group plus repository gates | about 5 minutes |
 
-All groups run with the test-only `CGO_ENABLED=1 go test -race` path on Linux
-and Darwin. These race-built test executables never ship or serve as
+The first five groups run with the test-only `CGO_ENABLED=1 go test -race` path
+on Linux and Darwin. These race-built test executables never ship or serve as
 release/build evidence.
+
+The `installer` group carries no `-race` flag and targets Linux. On another
+host `go test` cross-compiles a Linux binary it cannot start, so the group runs
+`go vet` over the same files. `./le qemu all-tests` runs them for real inside
+the Alpine virtual machine.
 
 ### Property-based tests (stdlib `testing/quick`)
 
@@ -2599,7 +2605,7 @@ guest with the registered integration population.
 ### Deployment Evidence
 
 ```bash
-./le evidence release-candidate-check
+./le evidence release-candidate
 ./le deployment vpp-test
 ./le deployment l2tp-test
 ./le deployment l2tp-ppp-test

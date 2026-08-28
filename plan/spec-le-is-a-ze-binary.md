@@ -5,10 +5,9 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 2/14 |
-| Deferral shard | `plan/deferrals/le-is-a-ze-binary.md` |
+| Phase | 15 of 15 steps landed, the swap in `eae282592` |
 | Handoff | - |
-| Updated | 2026-08-26 |
+| Updated | 2026-08-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -276,7 +275,7 @@ is roughly 180 seconds of linker time per full run, buying nothing.
 
 | Boundary | How | Verified |
 |----------|-----|----------|
-| `./le` ↔ native area action | argv, structured answer, exit code | `TestEveryProducerHasANamedNativeAction` |
+| `./le` ↔ native area action | argv, structured answer, exit code | `TestEveryMakeProducerHasAReachableNativeAction` |
 | `le` ↔ registry | `MustRegisterRootHandler` at init, `LookupRoot` at dispatch | No |
 | Dev tooling ↔ the compiled module | tool packages join `go build ./...`, `go vet`, the tier check | No |
 | `le` ↔ `ze` | a blank import in either composition root | No |
@@ -317,7 +316,7 @@ is roughly 180 seconds of linker time per full run, buying nothing.
 | R-2 | The two sides drifted during the port: a gate changed in Python and not in Go | Historical parity went red | The migration-time parity gate caught drift before the clean cutover. `TestNoPythonLeRemains` now prevents a second producer from returning |
 | R-3 | `le` and `ze` diverge in CLI behaviour despite the shared registry | A pipe operator works on a `ze` command and not an `le` one | The wiring test drives a pipe operator through an `le` command |
 | R-4 | Stale binary: `le` is built, so an old binary can run an old gate | A gate passes on code that should fail it | The repository launcher owns the build-before-dispatch decision; no Make prerequisite or compatibility route participates |
-| R-5 | A producer is migrated but omitted from the native action surface | Its package exists without a reachable area/action pair | `TestEveryProducerHasANamedNativeAction` enumerates producers and native actions |
+| R-5 | A producer is migrated but omitted from the native action surface | Its package exists without a reachable area/action pair | `TestEveryMakeProducerHasAReachableNativeAction` enumerates producers and native actions |
 | R-6 | A retired Make identity survives as a Go compatibility verb | An action table contains a historical `ze-*` target spelling instead of its area-local verb | Action tables declare native verbs such as `./le test-unit bgp`; no Make target namespace is retained |
 | R-7 | A tool's output is prose, and making it structured changes what operators read | A ported tool's output diff is large in step 2 | Treat output shape as behaviour: the parity test diffs it, and a deliberate change needs its own row here. **Step 2 measured the diff at THREE deliberate changes and nothing else** (2026-08-26): the palette, the walk error, and the ordering, each set out under "What A-6 Measured". **Step 4 measured the retired `scripts/vendor` (current producer: `internal/le/`) at TWO, and stdout is byte-identical on both halves** (2026-08-26): the failure PREFIX on stderr (`check_web: ` and `sync_web: ` name files the swap deletes, so the port writes `error: ` like every other ported tool), and the sync's fail-open, which is the defect row in `plan/journal/guard-added-to-one-half-of-a-pair.md` and is fixed in the direction of the fix. the retired `scripts/vendor/parity_test.go` (current producer: `internal/le/vendorweb/`) normalizes the first and pins the second. **Step 7 measured the retired `scripts/codegen` (current producer: `internal/le/`) at THREE, all of them normalized rather than argued** (2026-08-26): the failure prefix (four script names become `error: `), the PATH FORM (the scripts print an absolute path for one file and a bare base name for another; the commands name every file relative to the tree, because one payload cannot answer two path forms without leaving `\| json` and the default rendering disagreeing about what the value is), and the STREAM a verdict lands on (three of the four scripts print staleness to stderr because each models it as an error; a verdict is the payload in a command, so it reaches stdout where `\| json` can carry it, and only a genuine failure reaches stderr). **Step 10 measured the retired `scripts/evidence` (current producer: `internal/le/`) at ONE, and it is not about text at all** (2026-08-26): a proof that drives a real peer prints a progress LOG rather than a report, so what the port had to decide is which stream the log goes to. It goes to stderr, and the report is the payload on stdout, which is what lets `le deployment l2tp-test \| json` answer one document while the two daemons are still talking. Both ported scripts already wrote their progress to stderr, so the only visible change is the one line each printed on stdout at the end. **Step 13a measured the retired `scripts/dev/ze-run.sh` (current producer: `internal/le/lejob/lejob.go`) at TWO, and neither touches what a wrapped job prints** (2026-08-26): the banners carry ANSI sequences only when stderr is a terminal, because a follower REPLAYS a holder's log and the script's unconditional escapes would land inside it; and the command's payload renders as nothing by default, so a wrapped recipe's stdout stays the child's output alone while `\| json` still answers the report. The second is a `leroot.Prose` implementation returning the empty string, which is the one shape that keeps a structured payload and adds no line. **Step 10b measured the two VPP evidence gates at SIX, four of them fail-closed repairs and two of them cosmetic** (2026-08-26): a FAILED vppctl no longer answers "the plugin is absent" and no longer contributes evidence to a probe, both journal rows; a wanted kernel argument must be a whole argument of the command line rather than a substring of a longer one, also a journal row; a size that is not a whole number of bytes is refused, where the Python's `int()` answered a negative page count for `-1gb` and ended the run in a traceback for `1.5gb`; the LCP scenario's Linux link listing moves from stderr into the payload's evidence, because it is the half of that proof VPP's own command line cannot show and an operator could not pipe it where it was; and the hugepage run narrates its three long steps on stderr, where the Python was silent for up to an hour |
 | R-8 | **The never-linked rule erodes and something quietly imports across the line.** It is the premise the shared engine rests on, and nothing about Go stops a developer adding one blank import. The day it happens, `ze` grows a dev-tool dependency, or `le` grows a product one, and the two plugin sets start sharing a binary | AC-2 or AC-3 goes red: a `le/` package appears in `ze`'s dependency list, or a product plugin in `le`'s | The invariant is CHECKED, not documented. `go list -deps` over each build flavour, in `ze-precommit-verify` from step 1. It discriminates: measured 2026-08-26, `internal/perf/cli` is absent from `ze`'s 630-package list with `ze_perf` off and present with it on, so the check can see the difference it exists to see |
@@ -348,8 +347,8 @@ changeover commit.
 | either binary's dispatch | → | the one `internal/component/command/registry`, with no second registry declared | `TestStandaloneLeAndZeLeHaveIdenticalSurface` |
 | `./le <name> \| json` | → | the tool's structured payload through `internal/component/command` pipe filters | `TestDispatchUsesSharedPipeRenderers` |
 | tab after `./le ` | → | the command tree built from the registry | `TestStandaloneLeAndZeLeHaveIdenticalSurface` |
-| every producer invoked as `./le <area> <verb>` | → | the named action in its `internal/le/<area>/actions.go` table | `TestEveryProducerHasANamedNativeAction` |
-| `go build ./...` over a `git archive HEAD` export | → | every registered tool package | `TestCommittedTreeBuilds` |
+| every producer invoked as `./le <area> <verb>` | → | the named action in its `internal/le/<area>/actions.go` table | `TestEveryMakeProducerHasAReachableNativeAction` |
+| `go build ./...` over a `git archive HEAD` export | → | every registered tool package | `TestTheCheckoutsOwnHeadIsClean` |
 | binary init, importing both composition roots | → | `registry.RegisterRootHandler`'s duplicate rejection | `TestNoLeNameCollidesWithZe` |
 | `./le <name>` from a shell, against the BUILT binary | → | the registered handler, end to end through the artifact a developer runs | `test/ui/le-binary-dispatches.ci` |
 
@@ -363,15 +362,15 @@ changeover commit.
 | AC-3b | Both binaries dispatch through the SAME engine: each links `internal/component/command/registry`, and neither declares a registry of its own | `TestStandaloneLeAndZeLeHaveIdenticalSurface` |
 | AC-4 | No ported tool file carries `//go:build ignore`; all are built by `go build ./...` and seen by `go vet` | `TestNoDevelopmentToolIsBuildIgnored` |
 | AC-5 | Every ported tool's test calls it as a function; no test invokes it via `go run` | `TestNoDevelopmentToolTestShellsOutToGoRun` |
-| AC-6 | Every first-party producer has one reachable native `./le <area> <verb>` action. No Go action preserves a retired Make target identity as a compatibility verb | `TestEveryProducerHasANamedNativeAction` |
+| AC-6 | Every first-party producer has one reachable native `./le <area> <verb>` action. No Go action preserves a retired Make target identity as a compatibility verb | `TestEveryMakeProducerHasAReachableNativeAction` |
 | AC-7 | Each ported tool answers structured data, so `\| json`, `\| yaml` and `\| table` render it | `TestDispatchUsesSharedPipeRenderers` |
 | AC-8 | A gate failure propagates its own exit code, never a flattened 1 | `TestFirstFailingGateExitCodeWins` |
-| AC-9 | Native action completeness is derived from current producer and action tables. The final tree has no Python parity census, retired producer, or unported count | `TestEveryProducerHasANamedNativeAction` and `TestNoPythonLeRemains` |
-| AC-10 | The committed tree builds and every registered tool loads from it | `TestCommittedTreeBuilds` |
+| AC-9 | Native action completeness is derived from current producer and action tables. The final tree has no Python parity census, retired producer, or unported count | `TestEveryMakeProducerHasAReachableNativeAction` and `TestNoPythonLeRemains` |
+| AC-10 | The committed tree builds and every registered tool loads from it | `TestTheCheckoutsOwnHeadIsClean` |
 | AC-11 | Each migrated producer's observable contract is defended by native unit or functional tests; no test depends on a deleted implementation | Per-package tests and the affected functional suites |
 | AC-12 | The final tree has no first-party Python, shell, or Make source, embedded interpreted helper, `//go:build ignore` tool, or retired tooling tree | `TestNoPythonLeRemains` |
 | AC-13 | A duplicate root name is rejected at init rather than shadowing | `TestDuplicateLeRootIsRejected` |
-| AC-14 | Every development-tool package lives under `internal/le/`; the final tree contains no former top-level tool path or import | `TestLePackagesLiveOnlyUnderInternal` |
+| AC-14 | Every development-tool package lives under `internal/le/`; the final tree contains no former top-level tool path or import | `staleLeReferences` in `internal/le/contract_test.go`, called from the corpus walk in the same file |
 | AC-15 | The standalone `le` binary is a `cmd/ze` personality, as `ze-test` is. A normal `ze` build links no `internal/le/` package | `TestStandaloneLeAndZeLeHaveIdenticalSurface` and `TestNormalZeLinksNoInternalLe` |
 | AC-16 | A `ze_le` build exposes `ze le`. Standalone `le` and `ze le` list and dispatch the exact same command surface, including structured pipe output | `TestStandaloneLeAndZeLeHaveIdenticalSurface` |
 
@@ -383,7 +382,7 @@ changeover commit.
 4. A developer builds the `le` personality from `cmd/ze` and runs `le <area> <verb>`.
 5. A developer builds `ze` with `ze_le` and runs the same command as `ze le <area> <verb>`. Both forms list and dispatch the same tools.
 6. A normal `ze` build contains no `internal/le/` package and no `le` command.
-7. A reviewer checks source-rewrite coverage, and `TestEveryProducerHasANamedNativeAction` proves that every current producer has a reachable native action.
+7. A reviewer checks native action coverage, and `TestEveryMakeProducerHasAReachableNativeAction` proves that every producer derived from the historical Make text has a reachable native action.
 
 ## 🧪 TDD Test Plan
 
@@ -394,7 +393,7 @@ changeover commit.
 | `TestRunReturnsToolExitCode` | `internal/le/<tool>/<tool>_test.go` | each ported tool's logic, called as a function | |
 | `TestCompositionEqualsLiveRegisteringPackagePopulation` | `internal/le/register_test.go` | one handler per package, Meta carries Description, Mode and Section | |
 | `TestDuplicateLeRootIsRejected` | `internal/le/register_test.go` | a duplicate root name panics at init rather than shadowing | |
-| `TestEveryProducerHasANamedNativeAction` | `internal/le/sourcerewrite/sourcerewrite_test.go` | every current producer has one named native area/action route | |
+| `TestEveryMakeProducerHasAReachableNativeAction` | `internal/le/completeness_test.go` | every current producer has one named native area/action route | |
 | `TestFirstFailingGateExitCodeWins` | `internal/le/leroot/dispatch_test.go` | the failing gate's own code propagates, never a flattened 1 | |
 | `TestNoDevelopmentToolIsBuildIgnored` | `internal/le/contract_test.go` | no ported file carries `//go:build ignore` | |
 | `TestNoDevelopmentToolTestShellsOutToGoRun` | `internal/le/contract_test.go` | no test invokes a tool via `go run` | |
@@ -416,8 +415,8 @@ changeover commit.
 | `TestStandaloneLeAndZeLeHaveIdenticalSurface` | `cmd/ze/ze_le_personality_test.go` | both link `internal/component/command/registry`, and neither declares a second one | |
 | `TestDispatchUsesSharedPipeRenderers` | `internal/le/leroot/dispatch_test.go` | `./le <name> \| json` renders without per-tool JSON code | |
 | `TestStandaloneLeAndZeLeHaveIdenticalSurface` | `cmd/ze/ze_le_personality_test.go` | tab completion offers the tool | |
-| `TestEveryProducerHasANamedNativeAction` | `internal/le/sourcerewrite/sourcerewrite_test.go` | every current producer is reachable without a Make compatibility identity | |
-| `TestCommittedTreeBuilds` | `cmd/ze/tracked_test.go` | the committed tree builds and every tool loads from it | |
+| `TestEveryMakeProducerHasAReachableNativeAction` | `internal/le/completeness_test.go` | every current producer is reachable without a Make compatibility identity | |
+| `TestTheCheckoutsOwnHeadIsClean` | `internal/le/letracked/letracked_test.go` | the committed tree builds and every tool loads from it | |
 | per-area native behavior test | `internal/le/<area>/` | native exit codes, payloads, and side effects match the area contract |
 | `le-binary-dispatches` | `test/ui/le-binary-dispatches.ci` | the BUILT `le` binary dispatches a registered command and renders `\| json` | |
 
@@ -452,10 +451,9 @@ specific trap of a duplicate-then-swap migration.
 - `internal/le/register.go` - composition root: blank imports
 - `internal/le/<tool>/<tool>.go` - one package per tool, exposing `Answer(args []string) (any, int)`
 - `internal/le/<tool>/register.go` - `init()` calling `leroot.Register`, which calls `registry.MustRegisterRootHandler`
-- `internal/le/sourcerewrite/` - producer-to-native-action completeness check
-- `plan/deferrals/le-is-a-ze-binary.md` - deferral shard
+- `internal/le/completeness_test.go` - producer-to-native-action completeness check
 
-## Historical implementation record
+## Implementation Steps
 
 The table below preserves the sequence and measurements used during the
 duplicate-then-swap migration. It is not an implementation queue. Current
@@ -702,14 +700,13 @@ N/A - this spec touches no protocol surface.
 - [ ] AC-1..AC-13 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
 - [ ] Feature code integrated (`internal/le/*`, `cmd/ze/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Deferral shard resolved: no live row without a destination
-- [ ] `TestEveryProducerHasANamedNativeAction` and `TestNoPythonLeRemains` pass
+- [ ] `TestEveryMakeProducerHasAReachableNativeAction` and `TestNoPythonLeRemains` pass
 
 ### TDD
 - [ ] Tests written
@@ -778,7 +775,7 @@ N/A - this spec touches no protocol surface.
 | Every registered tool dispatches | `TestStandaloneLeAndZeLeHaveIdenticalSurface` |
 | No ported tool is build-ignored | `TestNoDevelopmentToolIsBuildIgnored` |
 | No test shells out to `go run` | `TestNoDevelopmentToolTestShellsOutToGoRun` |
-| Every producer has a native action | `TestEveryProducerHasANamedNativeAction` |
+| Every producer has a native action | `TestEveryMakeProducerHasAReachableNativeAction` |
 | No retired Python producer remains | `TestNoPythonLeRemains` |
 | No Make compatibility identity remains | inspect the native action tables; every verb is area-local |
 
@@ -832,7 +829,6 @@ N/A - this spec touches no protocol surface.
 | `internal/le/<tool>/<tool>.go` | Unresolved | This is the live file pattern; closure-time inventory was not collected. |
 | `internal/le/<tool>/register.go` | Unresolved | This is the live file pattern; closure-time inventory was not collected. |
 | `internal/le/parity/` | Unresolved | Closure-time file evidence was not collected. |
-| `plan/deferrals/le-is-a-ze-binary.md` | Unresolved | Closure-time `ls` was not run. |
 | `test/ui/le-binary-dispatches.ci` | Unresolved | Closure-time `ls` was not run; earlier phase handoffs report this test, but that is not fresh file evidence. |
 
 ### AC Verified (grep/test)
@@ -846,11 +842,11 @@ N/A - this spec touches no protocol surface.
 | AC-3b | Both binaries use one command registry and neither declares another. | None. A phase handoff reports `TestStandaloneLeAndZeLeHaveIdenticalSurface`; closure-time verification was not run. |
 | AC-4 | No ported tool remains build-ignored. | None. Phase handoffs report `TestNoDevelopmentToolIsBuildIgnored`; the migration is incomplete and closure-time verification was not run. |
 | AC-5 | Ported tool tests call functions and do not invoke `go run`. | None. Phase handoffs report `TestNoDevelopmentToolTestShellsOutToGoRun`; the migration is incomplete and closure-time verification was not run. |
-| AC-6 | Every producer has a named native action and no action preserves a retired Make target identity. | Unresolved. Run `TestEveryProducerHasANamedNativeAction` for closure evidence. |
+| AC-6 | Every producer has a named native action and no action preserves a retired Make target identity. | Unresolved. Run `TestEveryMakeProducerHasAReachableNativeAction` for closure evidence. |
 | AC-7 | Every ported tool returns structured data for the pipe operators. | None fresh. Phase handoffs name package and `.ci` checks for individual ports; closure-time verification was not run. |
 | AC-8 | A gate preserves its first failing exit code. | None fresh. Phase handoffs record individual exit-code cases; the complete migration was not re-checked. |
-| AC-9 | Native action completeness comes from current producer and action tables; no Python parity census remains. | Unresolved. Run `TestEveryProducerHasANamedNativeAction` and `TestNoPythonLeRemains` for closure evidence. |
-| AC-10 | The committed tree builds and loads every registered tool. | Unresolved. `TestCommittedTreeBuilds` was not run for closure and the current handover says nothing is committed. |
+| AC-9 | Native action completeness comes from current producer and action tables; no Python parity census remains. | Unresolved. Run `TestEveryMakeProducerHasAReachableNativeAction` and `TestNoPythonLeRemains` for closure evidence. |
+| AC-10 | The committed tree builds and loads every registered tool. | Unresolved. `TestTheCheckoutsOwnHeadIsClean` was not run for closure and the current handover says nothing is committed. |
 | AC-11 | Every old and new tool pair agrees on exit code and output. | Unresolved. Phase handoffs record per-area parity results, but the current handover lists unported work. |
 | AC-12 | After the swap, no Python `le`, build-ignored tool, or reference remains. | Unresolved. The current handover lists the swap and the remaining Python tools as outstanding. |
 | AC-13 | Duplicate root names are rejected rather than shadowed. | None fresh. Phase handoffs report `TestDuplicateLeRootIsRejected`; closure-time verification was not run. |
@@ -866,8 +862,8 @@ N/A - this spec touches no protocol surface.
 | Either binary's dispatch | No `.ci` named for this row; plan names `TestStandaloneLeAndZeLeHaveIdenticalSurface` | Unresolved; closure-time test was not run. |
 | `./le <name> \| json` | No `.ci` named for this row; plan names `TestDispatchUsesSharedPipeRenderers` | Unresolved; closure-time test was not run. |
 | Tab after `./le ` | No `.ci` named for this row; plan names `TestStandaloneLeAndZeLeHaveIdenticalSurface` | Unresolved; closure-time test was not run. |
-| `./le <area> <verb>` for every current producer | No `.ci` named for this row; plan names `TestEveryProducerHasANamedNativeAction` | Unresolved; closure-time test was not run. |
-| `go build ./...` over a `git archive HEAD` export | No `.ci` named for this row; plan names `TestCommittedTreeBuilds` | Unresolved; the current handover says nothing is committed. |
+| `./le <area> <verb>` for every current producer | No `.ci` named for this row; plan names `TestEveryMakeProducerHasAReachableNativeAction` | Unresolved; closure-time test was not run. |
+| `go build ./...` over a `git archive HEAD` export | No `.ci` named for this row; plan names `TestTheCheckoutsOwnHeadIsClean` | Unresolved; the current handover says nothing is committed. |
 | Binary init importing both composition roots | No `.ci` named for this row; plan names `TestNoLeNameCollidesWithZe` | Unresolved; closure-time test was not run. |
 | `./le <name>` against the built binary | `test/ui/le-binary-dispatches.ci` | Unresolved. Earlier handoffs report the `.ci`, but it was not read or run for closure. |
 

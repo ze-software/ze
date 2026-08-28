@@ -181,7 +181,7 @@ var portedProducers = []portedProducer{
 	{Target: "ze-unit-cli-test", Area: "test-unit", Verb: "cli"},
 	{Target: "ze-unit-hook-test", Area: "hook-check", Verb: "unit"},
 	{Target: "ze-unit-test-changed", Area: "verify-deps", Verb: "unit-race-changed", Note: "the stage races the changed groups and the rest complement; `le changed packages` is the derivation the target shelled out for"},
-	{Target: "ze-unit-installer-test", Area: "verify-lint", Verb: "run", Note: "the installer and installer-nofault flavors type-check the ze_installer files under GOOS=linux, which is what the target did off Linux"},
+	{Target: "ze-unit-installer-test", Area: "test-unit", Verb: "installer", Note: "the group carries the target's own GOOS=linux and ze_core ze_installer tags, runs the tests on Linux and type-checks them elsewhere, and is in the bare sweep as the target was a prerequisite of ze-unit-test; `le qemu all-tests` runs them for real off Linux"},
 	{Target: "ze-unit-linux-test", Area: "qemu", Verb: "run", Note: "the packages and command keywords carry the Linux-only Go package the golang container ran"},
 
 	// Functional suites. The verb is the suite name; the area's own table is
@@ -248,7 +248,7 @@ var portedProducers = []portedProducer{
 
 	// The virtual machine proofs.
 	{Target: "ze-qemu-test-all", Area: "qemu", Verb: "all-tests"},
-	{Target: "ze-qemu-needs-linux-test", Area: "qemu", Verb: "all-tests", Note: "the target filtered the same in-VM driver to option=needs-linux; the action runs every suite, the unit pass and the integration-tagged tests"},
+	{Target: "ze-qemu-needs-linux-test", Area: "qemu", Verb: "all-tests", Note: "`only needs-linux` asks for the same population the target filtered to; the run exports ZE_QEMU_LINUX_ONLY to every child, where the filter lives (parseAndAdd, internal/test/runner/record_parse.go), and records the selection in its report"},
 	{Target: "ze-qemu-install-test", Area: "qemu", Verb: "install-test"},
 	{Target: "ze-qemu-install-iso-test", Area: "qemu", Verb: "install-iso-test"},
 	{Target: "ze-qemu-install-scenarios-test", Area: "qemu", Verb: "install-scenarios-test"},
@@ -283,12 +283,16 @@ var portedProducers = []portedProducer{
 	{Target: "ze-gokrazy-gosum-check", Area: "gokrazy-gosum"},
 	{Target: "ze-netlab-render-check", Area: "netlab", Verb: "render-check"},
 	{Target: "ze-perf-suggestion-report", Area: "perf-bench", Verb: "suggestion-report"},
+	{Target: "ze-perf-bench", Area: "perf-bench", Verb: "run", Note: "the action builds bin/ze-perf, drives the multi-DUT runner that test/perf/run.py was ported into (internal/test/perfrunner.Runner.RunCLI), and writes the suggestion marker the target ended on"},
+	{Target: "ze-perf-history-record", Area: "perf-bench", Verb: "history-record", Note: "the recipe's `ze-perf track --append` never existed, so the action appends each result as one compacted line of test/perf/history/<dut>.ndjson, which is what the Python did"},
+	{Target: "ze-evidence-perf-record", Area: "perf-bench", Verb: "evidence-record", Note: "run, append, then `ze-perf track --check` over the history, which is the regression gate the recipe ended on"},
 
 	// The published terminal demonstrations.
 	{Target: "ze-terminal-demo-check-all", Area: "terminal-demo", Verb: "check-all"},
 	{Target: "ze-terminal-demo-validation-check-all", Area: "terminal-demo", Verb: "validation-check-all"},
 	{Target: "ze-terminal-demo-release-check-all", Area: "terminal-demo", Verb: "release-check-all"},
 	{Target: "ze-terminal-demo-render-all", Area: "terminal-demo", Verb: "render-all"},
+	{Target: "ze-terminal-demo-render", Area: "terminal-demo", Verb: "render", Note: "`render name <id>` selects the one demo the target selected with DEMO=; RenderOne shares validateAndRender with RenderAll"},
 	{Target: "ze-terminal-demo-release-render-all", Area: "terminal-demo", Verb: "render-all", Note: "the target sequenced ze-terminal-demo-render-all alone"},
 	{Target: "ze-terminal-demo-binaries-build", Area: "terminal-demo", Verb: "binaries-build-ze", Note: "binaries-build-ze-test carries the second half the target ran"},
 	{Target: "ze-release-assets-update", Area: "terminal-demo", Verb: "render-all", Note: "the target sequenced ze-terminal-demo-release-render-all alone"},
@@ -492,28 +496,12 @@ var retiredProducers = []retiredProducer{
 		Reason: "a wrapper: the recipe was `docker build -f demos/terminal/Dockerfile demos/terminal` and added nothing. The tag it passed is the renderer image the manifest names, which internal/le/terminaldemo/render.go reads",
 	},
 	{
-		Target: "ze-terminal-demo-render",
-		Reason: "the subject is gone: the recipe ran demos/terminal/render.py for one demo, and that script is deleted. The native renderer (internal/le/terminaldemo/render.go) records every demo through `le terminal-demo render-all`",
-	},
-	{
 		Target: "ze-evidence-functional-test",
 		Reason: "Make itself: a shell loop that re-entered make for the static, traffic, vpp and l2tp-wire functional targets, each judged on its own row",
 	},
 	{
 		Target: "ze-evidence-release-verify",
 		Reason: "Make itself: a shell loop that re-entered make for twelve release categories behind docker and qemu guards, each judged on its own row",
-	},
-	{
-		Target: "ze-evidence-perf-record",
-		Reason: "the subject is gone: the recipe re-entered make for ze-perf-bench and then appended test/perf/results/ze.json to history, and that results directory is not in the tree",
-	},
-	{
-		Target: "ze-perf-bench",
-		Reason: "the subject is gone: the recipe ran test/perf/run.py and scripts/dev/perf-suggest.py, and neither file exists. The suggestion marker they wrote is `le perf-bench record`",
-	},
-	{
-		Target: "ze-perf-history-record",
-		Reason: "the subject is gone: the recipe looped over test/perf/results/*.json, a directory the tree no longer holds, and ended in the suggestion marker that is now `le perf-bench record`",
 	},
 	{
 		Target: "ze-functional-docker-exec-check",
