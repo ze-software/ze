@@ -40,21 +40,38 @@ that function directly, and repository workflows invoke
 `./le <area> <action>`. A package must return structured answers through the
 shared renderer rather than add a private JSON mode.
 
-Registration states which of five groups the area belongs to, and help prints
-one section for each group in that order. The group is a parameter of
+**The package sits at the path its command name predicts.** `le spec-session`
+lives at `internal/le/specsession`: the command name, hyphens removed. The rule
+holds in both directions, and
+`TestEveryCommandIsFoundAtThePathItsNamePredicts` refuses an exception. A
+reader who knows the command knows the directory. A long command name makes a
+long directory name, and the answer to that is to rename the command. A package
+that registers nothing is a library, and it names nothing.
+
+Registration also states which of five groups the area belongs to, and help
+prints one section for each group in that order. The group is a parameter of
 `leroot.Register`, so a new area cannot compile without one.
 
-| Group | What the area does |
-|-------|--------------------|
-| `leroot.GroupWorkflow` | A person types it to move their own work along |
-| `leroot.GroupGate` | It judges the tree and answers a verdict |
-| `leroot.GroupGenerate` | It owns a committed artifact and can rewrite it |
-| `leroot.GroupSuite` | It runs tests, proofs, or benchmarks by name |
-| `leroot.GroupReport` | It reads the tree and answers what it found, and gates nothing |
+Several commands answer to more than one group, so the choice is a ladder.
+Read from the top and stop at the first row that matches.
 
-An area a pre-commit stage invokes is a gate, a generator, or a suite. It is
-never workflow or report, and `TestGateStagesAreNotWorkflowOrReport` refuses
-that combination.
+| # | The area ... | Group |
+|---|--------------|-------|
+| 1 | exists to write a committed file, and checks that file against the tree | `leroot.GroupGenerate` |
+| 2 | runs tests, proofs, or benchmarks | `leroot.GroupSuite` |
+| 3 | acts on your working state: git, the session, job admission, scratch, a build | `leroot.GroupWorkflow` |
+| 4 | judges the tree and answers a verdict | `leroot.GroupGate` |
+| 5 | none of the above: it answers a question | `leroot.GroupReport` |
+
+Row 1 is about purpose, not about whether a verb writes. A gate's repair verb
+and its ratchet baseline write too, and `tier` and `rfc` are gates for that
+reason.
+
+Four invariants in `internal/le/group_test.go` hold the taxonomy to its
+promises. Every area declares a rendered group, and every group is populated. A
+generator can rewrite what it checks. A report writes nothing. An area a
+pre-commit stage invokes is a gate, a generator, or a suite, never workflow or
+report.
 
 The retired auxiliary tooling tree has no current role. Data fixtures live
 under the `testdata/` directory of the Go package that owns them.
