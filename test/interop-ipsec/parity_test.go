@@ -62,17 +62,13 @@ func TestNativeScenarioRegistryIsExact(t *testing.T) {
 // PREVENTS: Registering a checker whose independent peer or transition fixture was removed.
 func TestEveryNativeScenarioHasCompleteInputs(t *testing.T) {
 	extra := map[string][]string{
-		"clear-reestablish":              {"ze.conf.resolved"},
-		"delete-while-window-held":       {"ze.conf.resolved"},
-		"eap-mschapv2":                   {"ze.conf.resolved"},
-		"eap-tls":                        {"ze-env", "ze.conf.resolved"},
+		"eap-tls":                        {"ze-env"},
 		"eap-tls13":                      {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
 		"initiator-rekey-answer-narrows": {"ze-env"},
-		"invalid-ke-retry":               {"ze.conf.resolved"},
 		"ipsec-bgp-redistribute-frr":     {"frr.conf"},
-		"peer-reload-narrowing":          {"ze-narrowed.conf", "ze.conf.resolved"},
+		"peer-reload-narrowing":          {"ze-narrowed.conf"},
 		"responder-eap-mschapv2":         {"strongswan.conf"},
-		"responder-eap-tls13":            {"strongswan.conf", "ze.conf.resolved", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
+		"responder-eap-tls13":            {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
 	}
 	for _, name := range ipsec.ScenarioNames() {
 		required := append([]string{"ze.conf", "swanctl.conf"}, extra[name]...)
@@ -91,6 +87,13 @@ func TestEveryNativeScenarioHasCompleteInputs(t *testing.T) {
 		if strings.Contains(string(config), "user interop") ||
 			strings.Contains(string(config), "$2a$04$UlwuiuH82Unfsq") {
 			t.Errorf("%s source config contains native renderer boilerplate", name)
+		}
+		// renderZeConfig writes the resolved config into the run's scratch work
+		// directory, so a copy beside the source is a leftover dump. It carries
+		// the expanded PKI material and the renderer boilerplate the assertion
+		// above forbids, and a reader cannot tell it from an input.
+		if _, err := os.Stat(filepath.Join("scenarios", name, "ze.conf.resolved")); err == nil {
+			t.Errorf("%s holds a rendered ze.conf.resolved beside its source", name)
 		}
 	}
 }
