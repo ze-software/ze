@@ -13,6 +13,7 @@
 package leaction
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -113,6 +114,19 @@ func (a Area) Name() string { return a.name }
 // verbOf answers the word a developer types for one action.
 func (a Area) verbOf(act Action) string {
 	return act.Verb
+}
+
+// TakesArguments reports whether the named action declares a closed keyword
+// grammar. An area that sweeps several actions on one command line asks this
+// to tell an action's VALUES from the next action's NAME: `render name term`
+// is one action and two words of grammar, never three actions.
+func (a Area) TakesArguments(name string) bool {
+	for _, act := range a.actions {
+		if a.verbOf(act) == name {
+			return len(act.Parameters) != 0
+		}
+	}
+	return false
 }
 
 // Row is one row of the bare command's answer.
@@ -342,11 +356,22 @@ func (a Area) Sweep(args []string, policy SweepPolicy) (any, int) {
 	for _, name := range args {
 		found := false
 		for _, act := range a.actions {
-			if a.verbOf(act) == name {
-				chosen = append(chosen, act)
-				found = true
-				break
+			if a.verbOf(act) != name {
+				continue
 			}
+			// A sweep runs each action with no arguments, so an argument-aware
+			// action has nothing to run. Refusing by name is what keeps that a
+			// message rather than a call through a nil Answer.
+			if act.AnswerArgs != nil {
+				var tb textbuf.Buffer
+				ReportError(errors.New(tb.Str(a.name).Byte(' ').Str(name).
+					Str(" takes arguments, so it runs on its own: le ").
+					Str(a.name).Byte(' ').Str(name).Str(" <keyword> <value>").String()))
+				return nil, 2
+			}
+			chosen = append(chosen, act)
+			found = true
+			break
 		}
 		if !found {
 			return nil, a.refuseVerb(name)

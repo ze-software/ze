@@ -17,9 +17,9 @@ import (
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 )
 
-// VALIDATES: all six terminal-demo actions keep their names, reason text, and writes metadata.
-// PREVENTS: a port that claims a writing renderer as a read-only check, or drops one build action.
-func TestActionsCarryTheSixActionContracts(t *testing.T) {
+// VALIDATES: all seven terminal-demo actions keep their names, reason text, and writes metadata, and only the single-demo render takes a value.
+// PREVENTS: a port that claims a writing renderer as a read-only check, drops one build action, or lets a demo id sit in an untyped positional slot.
+func TestActionsCarryTheSevenActionContracts(t *testing.T) {
 	want := []struct {
 		verb   string
 		writes bool
@@ -31,6 +31,7 @@ func TestActionsCarryTheSixActionContracts(t *testing.T) {
 		{"binaries-build-ze", true, "the ze a demo drives, cross-built for the renderer container"},
 		{"binaries-build-ze-test", true, "the ze-test a demo drives, which carries ze_test alone and no version"},
 		{"render-all", true, "re-record every website demo from its checked-in tape"},
+		{"render", true, "re-record ONE website demo from its checked-in tape, for a developer iterating on that demo"},
 	}
 	got := Actions()
 	if got.Area != area {
@@ -43,6 +44,30 @@ func TestActionsCarryTheSixActionContracts(t *testing.T) {
 		row := got.Actions[index]
 		if row.Verb != expected.verb || row.Writes != expected.writes || row.Why != expected.why {
 			t.Errorf("action %d = %#v, want verb=%q writes=%t why=%q", index, row, expected.verb, expected.writes, expected.why)
+		}
+	}
+	// The demo id is typed by a keyword, and no other action consumes a value.
+	table := actionTable()
+	if !table.TakesArguments("render") {
+		t.Error("render declares no keyword grammar, so a demo id would sit in an untyped positional slot")
+	}
+	for _, verb := range []string{"check-all", "validation-check-all", "release-check-all", "binaries-build-ze", "binaries-build-ze-test", "render-all"} {
+		if table.TakesArguments(verb) {
+			t.Errorf("%s takes arguments, and a sweep of several actions can no longer name it", verb)
+		}
+	}
+}
+
+// VALIDATES: `le terminal-demo render` with no demo id is refused, and never falls through to the whole gallery.
+// PREVENTS: a typo re-recording every demo, which is the cost the single-demo action exists to avoid.
+func TestRenderWithoutADemoIdIsRefused(t *testing.T) {
+	for _, args := range [][]string{{"render"}, {"render", "name", ""}} {
+		payload, code := Answer(args)
+		if code != 2 {
+			t.Errorf("%v answered code %d, want 2", args, code)
+		}
+		if payload != nil {
+			t.Errorf("%v answered the payload %v", args, payload)
 		}
 	}
 }
@@ -273,6 +298,76 @@ func TestRenderAllRunsValidationAndPublishesExactArtifacts(t *testing.T) {
 	after := mustRead(t, filepath.Join(fixture.artifacts, "manifest.json"))
 	if before != after {
 		t.Error("a check rewrote the artifact manifest")
+	}
+}
+
+// VALIDATES: a single-demo render validates and records that demo alone, and publishes beside the demos it did not record.
+// PREVENTS: a developer iterating on one tape paying for every demo in the gallery, and a partial render dropping the others from the artifact manifest.
+func TestRenderOneRecordsTheNamedDemoAndKeepsTheRest(t *testing.T) {
+	fixture := newDemoFixture(t)
+	engine := fixture.engine(&bytes.Buffer{})
+	if _, err := engine.RenderAll("26.08.27"); err != nil {
+		t.Fatalf("RenderAll: %v", err)
+	}
+	fixture.commands = nil
+
+	report, err := engine.RenderOne("term", "26.08.28")
+	if err != nil {
+		t.Fatalf("RenderOne: %v", err)
+	}
+	if report.Mode != rendererRenderMode || !reflect.DeepEqual(report.Demos, []string{"term"}) {
+		t.Errorf("report = %#v, want mode %q over [term] alone", report, rendererRenderMode)
+	}
+	// One validation and one recording. RenderAll ran six commands for the two
+	// demos, and every one of the four this run did not repeat is the cost the
+	// action exists to remove.
+	if len(fixture.commands) != 2 {
+		t.Fatalf("commands = %d, want 2: %#v", len(fixture.commands), fixture.commands)
+	}
+	for _, command := range fixture.commands {
+		for _, argument := range command.Args {
+			if strings.Contains(argument, "browser") {
+				t.Errorf("a single-demo render of term ran %v", command.Args)
+			}
+		}
+	}
+
+	var published artifactManifest
+	if err := readJSON(fixture.artifacts, "manifest.json", &published); err != nil {
+		t.Fatalf("read published manifest: %v", err)
+	}
+	if published.Demos["term"].Release != "26.08.28" {
+		t.Errorf("term was published for release %q", published.Demos["term"].Release)
+	}
+	// The demo this run did not record keeps its entry and its release. A
+	// partial render that rewrote the manifest from its own selection would
+	// unpublish the rest of the gallery.
+	if published.Demos["browser"].Release != "26.08.27" {
+		t.Errorf("browser was published for release %q, want the release of the run that recorded it",
+			published.Demos["browser"].Release)
+	}
+	for _, name := range []string{"browser.webm", "browser.png", "browser.txt"} {
+		if _, statErr := os.Stat(filepath.Join(fixture.artifacts, name)); statErr != nil {
+			t.Errorf("a single-demo render removed %s: %v", name, statErr)
+		}
+	}
+}
+
+// VALIDATES: an id the manifest does not declare is refused by name, before any container runs.
+// PREVENTS: a typo reported an hour later as a missing artifact, or as a silent no-op render.
+func TestRenderOneRefusesAnIdTheManifestDoesNotDeclare(t *testing.T) {
+	fixture := newDemoFixture(t)
+	engine := fixture.engine(&bytes.Buffer{})
+
+	_, err := engine.RenderOne("termm", "26.08.27")
+	if err == nil {
+		t.Fatal("an unknown demo id was accepted")
+	}
+	if !strings.Contains(err.Error(), `"termm"`) || !strings.Contains(err.Error(), "term, browser") {
+		t.Errorf("the refusal is %q, want it to quote the id and name the declared ids", err)
+	}
+	if len(fixture.commands) != 0 {
+		t.Errorf("an unknown demo id ran %#v", fixture.commands)
 	}
 }
 

@@ -21,10 +21,13 @@ import (
 )
 
 const (
-	area       = "terminal-demo"
-	goarchEnv  = "TERMINAL_DEMO_GOARCH"
-	outputEnv  = "TERMINAL_DEMO_OUTPUT"
-	releaseEnv = "TERMINAL_DEMO_RELEASE"
+	area = "terminal-demo"
+	// demoKeyword types the value the render action selects one demo by, so a
+	// demo id can never sit in an untyped positional slot (ai/rules/cli.md).
+	demoKeyword = "name"
+	goarchEnv   = "TERMINAL_DEMO_GOARCH"
+	outputEnv   = "TERMINAL_DEMO_OUTPUT"
+	releaseEnv  = "TERMINAL_DEMO_RELEASE"
 )
 
 // BuildReport is the structured result of one staged binary build.
@@ -59,21 +62,30 @@ func actionTable() leaction.Area {
 		leaction.Action{Verb: "render-all", Why: "re-record every website demo from its checked-in tape",
 			Writes: true,
 			Answer: func() (any, int) { return runRenderer(rendererRenderMode, true) }},
+		leaction.Action{Verb: "render", Why: "re-record ONE website demo from its checked-in tape, for a developer iterating on that demo",
+			Writes:     true,
+			Parameters: []leaction.Parameter{{Keyword: demoKeyword, Value: "demo-id"}},
+			AnswerArgs: runRenderOne},
 	)
 }
 
-// Actions answers all six actions with their exact writes metadata.
+// Actions answers all seven actions with their exact writes metadata.
 func Actions() leaction.List { return actionTable().Actions() }
 
 // Subs answers the action hint from the same table.
 func Subs() string { return actionTable().Subs() }
 
 // Answer dispatches one action or sweeps several in command-line order.
+//
+// The words after an argument-aware action are its values, not more action
+// names, so that action routes to Answer whatever follows it. A sweep names
+// actions alone and carries no value.
 func Answer(args []string) (any, int) {
-	if len(args) <= 1 {
-		return actionTable().Answer(args)
+	table := actionTable()
+	if len(args) <= 1 || table.TakesArguments(args[0]) {
+		return table.Answer(args)
 	}
-	return actionTable().Sweep(args, leaction.RunEveryAction)
+	return table.Sweep(args, leaction.RunEveryAction)
 }
 
 func runBuild(testBinary bool) (any, int) {
@@ -180,15 +192,54 @@ func demoTags(toolchain gotoolchain.Toolchain) string {
 }
 
 func runRenderer(mode string, releaseRequired bool) (any, int) {
-	root, err := lepath.Root()
+	engine, release, err := renderEngine(releaseRequired)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	binDir := filepath.Join(root, "tmp", "terminal-demos", "bin")
-	if err := os.MkdirAll(binDir, 0o750); err != nil {
+	report, code, err := executeRenderer(engine, mode, release)
+	if err != nil {
+		leaction.ReportError(err)
+	}
+	return report, code
+}
+
+// runRenderOne records the one demo the invocation names.
+//
+// A missing name is refused rather than read as "every demo". The action that
+// records the whole gallery is render-all, and a developer who typed `render`
+// asked for one demo.
+func runRenderOne(args leaction.Arguments) (any, int) {
+	demoID := args[demoKeyword]
+	if demoID == "" {
+		leaction.ReportError(errors.New(
+			"terminal-demo render names one demo: le terminal-demo render name <demo-id>" +
+				" (the ids are in demos/terminal/manifest.json; render-all records every one)"))
+		return nil, 2
+	}
+	engine, release, err := renderEngine(true)
+	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
+	}
+	report, err := engine.RenderOne(demoID, release)
+	if err != nil {
+		leaction.ReportError(err)
+		return report, 1
+	}
+	return report, 0
+}
+
+// renderEngine builds the engine every renderer action runs, and answers the
+// release identity a recording stamps into its artifacts.
+func renderEngine(releaseRequired bool) (*Engine, string, error) {
+	root, err := lepath.Root()
+	if err != nil {
+		return nil, "", err
+	}
+	binDir := filepath.Join(root, "tmp", "terminal-demos", "bin")
+	if err := os.MkdirAll(binDir, 0o750); err != nil {
+		return nil, "", err
 	}
 	artifactRoot := os.Getenv(outputEnv)
 	if artifactRoot == "" {
@@ -200,18 +251,12 @@ func runRenderer(mode string, releaseRequired bool) (any, int) {
 		if release == "" {
 			toolchain, err := gotoolchain.New(root)
 			if err != nil {
-				leaction.ReportError(err)
-				return nil, 1
+				return nil, "", err
 			}
 			release = toolchain.Version
 		}
 	}
-	engine := New(Options{Root: root, ArtifactRoot: artifactRoot})
-	report, code, err := executeRenderer(engine, mode, release)
-	if err != nil {
-		leaction.ReportError(err)
-	}
-	return report, code
+	return New(Options{Root: root, ArtifactRoot: artifactRoot}), release, nil
 }
 
 func executeRenderer(engine *Engine, mode, release string) (Report, int, error) {

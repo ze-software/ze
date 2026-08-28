@@ -5,6 +5,9 @@ All `../gh-pages` content MUST be generated from this repository.
 `./le site build` writes the publishable artifact to `../gh-pages` and removes
 old source-only files there. It reuses matching demo artifacts. Run
 `./le terminal-demo render-all` first to force new demo artifacts.
+`./le terminal-demo render name <demo-id>` re-records one demo while you work on
+its tape, and publishes it beside the artifacts it did not record. The ids are in
+`demos/terminal/manifest.json`.
 See `website/AI.md` for the full reference: structure, tools, and how to add a talk.
 
 

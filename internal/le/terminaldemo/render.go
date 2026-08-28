@@ -115,29 +115,63 @@ func (e *Engine) validationCheckAll() (Report, error) {
 // manifest. Release must not be empty.
 func (e *Engine) RenderAll(release string) (Report, error) {
 	if release == "" {
-		return Report{}, errors.New("--release is required when rendering")
+		return Report{}, errors.New("a release identity is required when rendering")
 	}
 	manifest, indexed, err := e.loadManifest()
 	if err != nil {
 		return Report{}, err
 	}
-	selected := manifestIDs(manifest)
+	return e.validateAndRender(manifest, indexed, manifestIDs(manifest), release)
+}
+
+// RenderOne validates and renders the one demo the manifest declares under
+// demoID, then publishes the artifact manifest. Release must not be empty.
+//
+// It is the tight loop for a developer changing one tape. RenderAll runs the
+// validator and the recorder in a container for every demo the manifest holds,
+// so a one-line tape edit costs the whole gallery. The artifact manifest keeps
+// the entries this run did not record (loadArtifactManifest), so a single-demo
+// render publishes beside the others rather than replacing them.
+//
+// An unknown id is refused by name, with the ids the manifest declares. The
+// alternative is a run that records nothing and reports a missing artifact
+// much later.
+func (e *Engine) RenderOne(demoID, release string) (Report, error) {
+	if release == "" {
+		return Report{}, errors.New("a release identity is required when rendering")
+	}
+	manifest, indexed, err := e.loadManifest()
+	if err != nil {
+		return Report{}, err
+	}
+	if _, declared := indexed[demoID]; !declared {
+		var buffer textbuf.Buffer
+		return Report{}, fmt.Errorf("unknown demo id %q; demos/terminal/manifest.json declares: %s",
+			demoID, buffer.Join(manifestIDs(manifest), ", ").String())
+	}
+	return e.validateAndRender(manifest, indexed, []string{demoID}, release)
+}
+
+// validateAndRender is the body the whole-manifest and single-demo renders
+// share: refuse a missing demo binary, run each selected demo's validators,
+// then record the selection under the lock.
+func (e *Engine) validateAndRender(manifest Manifest, indexed map[string]Demo, selected []string, release string) (Report, error) {
+	report := Report{Mode: rendererRenderMode, Demos: selected}
 	if !regularFile(e.binaryPath) {
 		relative, relErr := filepath.Rel(e.root, e.binaryPath)
 		if relErr != nil {
 			relative = e.binaryPath
 		}
-		return Report{Mode: rendererRenderMode, Demos: selected}, fmt.Errorf("missing demo binary: %s", filepath.ToSlash(relative))
+		return report, fmt.Errorf("missing demo binary: %s", filepath.ToSlash(relative))
 	}
 	for _, demoID := range selected {
 		if err := e.runValidation(manifest, indexed[demoID]); err != nil {
-			return Report{Mode: rendererRenderMode, Demos: selected}, err
+			return report, err
 		}
 	}
-	err = e.withLock(func() error {
+	return report, e.withLock(func() error {
 		return e.renderSelected(manifest, indexed, selected, release)
 	})
-	return Report{Mode: rendererRenderMode, Demos: selected}, err
 }
 
 func manifestIDs(manifest Manifest) []string {

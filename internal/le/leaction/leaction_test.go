@@ -322,3 +322,54 @@ func TestSweepCarriesEachActionsOwnAnswer(t *testing.T) {
 		}
 	}
 }
+
+// TestTakesArgumentsSeparatesGrammarFromActionNames pins the answer an area
+// asks before it sweeps: the words after an argument-aware action are its
+// values, so `render name term` is one action, never three.
+func TestTakesArgumentsSeparatesGrammarFromActionNames(t *testing.T) {
+	area := New("probe",
+		Action{Verb: "plain", Why: "a probe", Answer: func() (any, int) { return nil, 0 }},
+		Action{
+			Verb: "typed", Why: "a probe that selects one member",
+			Parameters: []Parameter{{Keyword: "name", Value: "id"}},
+			AnswerArgs: func(Arguments) (any, int) { return nil, 0 },
+		},
+	)
+
+	if !area.TakesArguments("typed") {
+		t.Error("an action declaring a keyword grammar reports that it takes no arguments")
+	}
+	if area.TakesArguments("plain") {
+		t.Error("a zero-argument action reports that it takes arguments")
+	}
+	if area.TakesArguments("absent") {
+		t.Error("an action the area does not hold reports that it takes arguments")
+	}
+}
+
+// TestSweepRefusesAnArgumentAwareAction fails closed on the one shape a sweep
+// cannot run. A sweep calls each action with no arguments, and an
+// argument-aware action holds no such entry point, so running it would be a
+// call through a nil function rather than a refusal a caller can read.
+func TestSweepRefusesAnArgumentAwareAction(t *testing.T) {
+	ran := false
+	area := New("probe",
+		Action{Verb: "plain", Why: "a probe", Answer: func() (any, int) { ran = true; return nil, 0 }},
+		Action{
+			Verb: "typed", Why: "a probe that selects one member",
+			Parameters: []Parameter{{Keyword: "name", Value: "id"}},
+			AnswerArgs: func(Arguments) (any, int) { return nil, 0 },
+		},
+	)
+
+	answer, code := area.Sweep([]string{"plain", "typed"}, RunEveryAction)
+	if code != 2 {
+		t.Errorf("a swept argument-aware action answered %d, want 2", code)
+	}
+	if answer != nil {
+		t.Errorf("a refused sweep answered a payload: %v", answer)
+	}
+	if ran {
+		t.Error("the sweep ran an action before it refused the selection")
+	}
+}
