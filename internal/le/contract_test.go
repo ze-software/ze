@@ -180,7 +180,7 @@ func trackedExistingFiles(t *testing.T, root string) []string {
 		t.Fatalf("list tracked files: %v", err)
 	}
 	var files []string
-	for _, raw := range bytes.Split(out, []byte{0}) {
+	for raw := range bytes.SplitSeq(out, []byte{0}) {
 		if len(raw) == 0 {
 			continue
 		}
