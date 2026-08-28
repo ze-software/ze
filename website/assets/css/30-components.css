@@ -404,7 +404,7 @@
     }
 
     /*
-     * Homepage "What's new in Ze" band (internal/le/sitebuild), between the
+     * Homepage "What's new in Ze" band (internal/le/site), between the
      * hero and the proof strip. It is one shallow row on purpose: the KPI
      * cards below it stay on screen on a laptop-height viewport, so the
      * heading sits in the row rather than above it, and each slot is capped

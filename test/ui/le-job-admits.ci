@@ -6,7 +6,7 @@
 #            wrapper, against the artifact a developer runs rather than against
 #            a package.
 # PREVENTS: a green package suite over a binary that does not compose. The Go
-#           tests drive internal/le/lejob directly; between them and this file sit
+#           tests drive internal/le/job directly; between them and this file sit
 #           the build, the composition root, argv handling and the process
 #           boundary -- which is where a stale or mis-composed binary fails
 #           (R-4), and where an admission gate failing open costs the machine.
