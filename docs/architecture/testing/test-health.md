@@ -126,7 +126,8 @@ by construction.
 
 Until 2026-08-16 the justification was a `// test-relax:` comment in the test
 file, capped by a ceiling that a census counted at HEAD. Two properties of that
-corpus are why the storage moved, and both are recorded in `TEST-RELAX-AUDIT.md`.
+corpus are why the storage moved, and both are recorded in
+[`TEST-RELAX-AUDIT.md`](TEST-RELAX-AUDIT.md).
 
 Volume destroyed the mechanism. At 751 tokens across 466 files, reading them was
 no longer possible. So nobody read them, writing one cost nothing, and more got

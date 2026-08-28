@@ -197,7 +197,7 @@ the same function, still with nothing built for it.
 ## 6. Cross-session state
 
 The `system` session is **out of tokens** and has cancelled the hourly
-check-in cron. Its handover is `for-later.txt` in this directory — read it, it
+check-in cron. Its handover is `10-system-session-2026-08-23.md` in this directory — read it, it
 holds a `.ci` predicate checker never started and a
 `TestPrefixExceedTeardown` assertion waiting on Thomas. **Do not wait on
 `system` for the review pass this spec is owed.**
