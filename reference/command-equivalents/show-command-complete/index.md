@@ -6,8 +6,14 @@
 - Registry path: `show command complete`
 - Mode: Read-only
 - Wire method: `ze-bgp:command-complete`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Get tab-completion candidates for a partial command. Returns possible completions for the given input. Used internally by the CLI editor, but also callable for scripting.
 

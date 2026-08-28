@@ -6,8 +6,14 @@
 - Registry path: `show config graph`
 - Mode: Offline
 - Wire method: `not listed`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: none
 - Pipes, on rows: none
+- Pipes, while streaming: none
+- Pipes, local process only: none
+- Command pipes: none
+- Pipe aliases: none
 
 Show how components and peers depend on each other (DOT graph format).
 

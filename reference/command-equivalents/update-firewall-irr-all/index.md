@@ -6,8 +6,14 @@
 - Registry path: `update firewall irr all`
 - Mode: Daemon
 - Wire method: `ze-update:firewall-irr-all`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Refresh all cached IRR prefix-lists. Re-queries the IRR server for every cached ASN/AS-SET entry and updates the zefs cache on success. Failed refreshes preserve the existing cache and report an error.
 

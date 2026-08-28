@@ -6,8 +6,14 @@
 - Registry path: `request ospf graceful-restart`
 - Mode: Daemon
 - Wire method: `ze-ospf:graceful-restart-prepare`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1). Usage: request ospf graceful-restart. The engine originates one Grace-LSA per interface, persists the non-volatile restart fact, and suppresses route churn so the FIB is retained across the ensuing control-plane restart. Refused when graceful-restart is not configured.
 

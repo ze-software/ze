@@ -6,8 +6,14 @@
 - Registry path: `show event namespaces`
 - Mode: Read-only
 - Wire method: `ze-show:event-namespaces`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 List all event namespaces and how many events each has logged. Tells you which subsystems are generating events and how active they are.
 

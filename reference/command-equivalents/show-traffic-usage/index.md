@@ -6,8 +6,14 @@
 - Registry path: `show traffic usage`
 - Mode: Read-only
 - Wire method: `ze-show:traffic-usage`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show per-interface traffic byte counters captured by eBPF TCX. Per destination/source port and protocol counters are always present; per-IP top-talker counters appear when track-ip is enabled. Without arguments, lists all monitored interfaces. With 'name <interface>', shows that one interface.
 

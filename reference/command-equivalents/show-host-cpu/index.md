@@ -6,8 +6,14 @@
 - Registry path: `show host cpu`
 - Mode: Read-only
 - Wire method: `ze-show:host-cpu`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show what CPUs are in this box. Returns vendor, model, core/thread topology, hybrid layout, scaling driver, current/min/max frequencies, and throttle counts.
 

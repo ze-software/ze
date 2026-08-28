@@ -6,8 +6,14 @@
 - Registry path: `help ai`
 - Mode: Offline
 - Wire method: `not listed`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: none
 - Pipes, on rows: none
+- Pipes, while streaming: none
+- Pipes, local process only: none
+- Command pipes: none
+- Pipe aliases: none
 
 AI reference generated from the binary. Sections: cli, api, mcp, dispatch, all (add --json).
 

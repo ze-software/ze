@@ -6,8 +6,14 @@
 - Registry path: `show schema list`
 - Mode: Read-only
 - Wire method: `ze-show:schema-list`
+- Answer shape: tab
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
 - Pipes, on rows: none
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 List all YANG schemas loaded by the daemon. Shows module name, namespace, and revision for each schema.
 

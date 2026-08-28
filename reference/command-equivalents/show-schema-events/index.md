@@ -6,8 +6,14 @@
 - Registry path: `show schema events`
 - Mode: Read-only
 - Wire method: `ze-show:schema-events`
+- Answer shape: tab
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
 - Pipes, on rows: none
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 List all notification types defined in YANG API modules. Shows which events a plugin can subscribe to.
 

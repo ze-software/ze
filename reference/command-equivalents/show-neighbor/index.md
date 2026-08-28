@@ -6,8 +6,14 @@
 - Registry path: `show neighbor`
 - Mode: Read-only
 - Wire method: `ze-show:neighbor`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show the ARP and neighbor discovery table. Lists IPv4 ARP and IPv6 ND entries with MAC addresses and states. Pass ipv4 or ipv6 to filter by address family; no argument shows both. For the IPv4-only view, 'show arp' is a shortcut.
 

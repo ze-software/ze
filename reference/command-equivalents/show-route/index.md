@@ -6,8 +6,14 @@
 - Registry path: `show route`
 - Mode: Read-only
 - Wire method: `ze-show:route`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show the kernel routing table. Lists installed routes with next-hop, interface, protocol, and metric. Pass a CIDR prefix or 'default' to filter, or a route limit to cap the output.
 

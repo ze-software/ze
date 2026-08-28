@@ -6,8 +6,14 @@
 - Registry path: `show bgp rib status`
 - Mode: Read-only
 - Wire method: `ze-rib-api:status`
+- Answer shape: doc
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: none
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Get a quick RIB overview without dumping routes. Shows total peers, received/accepted/advertised route counts, and per-family breakdowns. Use this to confirm convergence after a peer comes up.
 

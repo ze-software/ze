@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" viewBox="0 0 1200 675">
+  <title id="title">The proof behind a public RFC claim</title>
+  <desc id="desc">A public RFC claim connects to the standard and requirement ID, executed positive and negative tests, a disclosed partial status and gap, and the exact verified change.</desc>
+  <defs>
+    <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#17141f"/>
+      <stop offset="0.5" stop-color="#172331"/>
+      <stop offset="1" stop-color="#162b28"/>
+    </linearGradient>
+    <linearGradient id="claim-rail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#b990ff"/>
+      <stop offset="0.55" stop-color="#5bc4f0"/>
+      <stop offset="1" stop-color="#42d8bd"/>
+    </linearGradient>
+    <filter id="shadow" x="-14%" y="-18%" width="128%" height="144%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000000" flood-opacity="0.22"/>
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.38"/>
+    </filter>
+    <marker id="arrow-sky" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#5bc4f0"/>
+    </marker>
+    <style>
+      text { font-family: Lato, "Avenir Next", sans-serif; fill: #f7f3fb; }
+      .headline { font-family: Poppins, "Avenir Next", sans-serif; font-size: 43px; font-weight: 800; letter-spacing: -1.1px; }
+      .eyebrow { font-family: Poppins, "Avenir Next", sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 1.7px; }
+      .claim { font-family: Poppins, "Avenir Next", sans-serif; font-size: 27px; font-weight: 800; }
+      .card-title { font-family: Poppins, "Avenir Next", sans-serif; font-size: 25px; font-weight: 800; letter-spacing: -0.35px; }
+      .body { font-size: 17px; font-weight: 700; }
+      .detail { font-size: 14px; font-weight: 700; fill: #d7cadd; }
+      .tiny { font-size: 12px; font-weight: 800; letter-spacing: 0.35px; }
+      .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 16px; font-weight: 800; }
+      .panel { fill: #1d1b29; stroke-width: 2; }
+      .trace { fill: none; stroke: #5bc4f0; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-sky); }
+    </style>
+  </defs>
+
+  <rect width="1200" height="675" rx="38" fill="url(#canvas)"/>
+
+  <text x="74" y="108" class="headline">A claim is only as strong as its trace.</text>
+
+  <g aria-label="Public RFC claim" filter="url(#shadow)">
+    <rect x="74" y="142" width="1052" height="90" rx="22" class="panel" stroke="#42d8bd"/>
+    <rect x="74" y="142" width="1052" height="7" rx="3.5" fill="url(#claim-rail)"/>
+    <text x="102" y="174" class="eyebrow" fill="#42d8bd">PUBLIC RFC CLAIM</text>
+    <text x="102" y="210" class="claim">RFC 7606 support</text>
+    <rect x="824" y="163" width="274" height="46" rx="23" fill="#ffda63" fill-opacity="0.11" stroke="#ffda63" stroke-width="2"/>
+    <path d="M850 176 L860 194 L840 194 Z" fill="none" stroke="#ffda63" stroke-width="2.5" stroke-linejoin="round"/>
+    <text x="874" y="192" class="eyebrow" fill="#ffda63">PARTIAL · GAP DISCLOSED</text>
+  </g>
+
+  <g aria-hidden="true">
+    <path d="M600 232 V255 H237 V284" class="trace"/>
+    <path d="M600 255 V284" class="trace"/>
+    <path d="M600 255 H963 V284" class="trace"/>
+    <rect x="559" y="242" width="82" height="25" rx="12.5" fill="#172331" stroke="#5bc4f0" stroke-width="1.5"/>
+    <text x="600" y="259" text-anchor="middle" class="tiny" fill="#5bc4f0">TRACE</text>
+  </g>
+
+  <g aria-label="Standard and requirement ID" filter="url(#shadow)">
+    <rect x="74" y="284" width="326" height="278" rx="24" class="panel" stroke="#b990ff"/>
+    <rect x="74" y="284" width="326" height="7" rx="3.5" fill="#b990ff"/>
+    <text x="98" y="322" class="eyebrow" fill="#b990ff">SOURCE / RULE</text>
+    <text x="98" y="362" class="card-title">RFC 7606</text>
+    <text x="98" y="389" class="body">Section 7.1</text>
+    <path d="M98 411 H376" stroke="#b990ff" stroke-opacity="0.3" stroke-width="2"/>
+    <text x="98" y="443" class="eyebrow" fill="#b990ff">REQUIREMENT ID</text>
+    <rect x="98" y="461" width="278" height="66" rx="14" fill="#b990ff" fill-opacity="0.09" stroke="#b990ff" stroke-width="2"/>
+    <path d="M116 478 H124 V510 H116" fill="none" stroke="#b990ff" stroke-width="3" stroke-linecap="round"/>
+    <text x="139" y="501" class="mono" fill="#b990ff">RFC7606-7.1-1</text>
+  </g>
+
+  <g aria-label="Executed positive and negative tests" filter="url(#shadow)">
+    <rect x="437" y="284" width="326" height="278" rx="24" class="panel" stroke="#5bc4f0"/>
+    <rect x="437" y="284" width="326" height="7" rx="3.5" fill="#5bc4f0"/>
+    <text x="461" y="322" class="eyebrow" fill="#5bc4f0">EXECUTED EVIDENCE</text>
+
+    <rect x="461" y="342" width="278" height="74" rx="16" fill="#42d8bd" fill-opacity="0.08" stroke="#42d8bd" stroke-width="2"/>
+    <circle cx="487" cy="379" r="13" fill="none" stroke="#42d8bd" stroke-width="3"/>
+    <path d="M480 379 L485 384 L494 373" fill="none" stroke="#42d8bd" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="512" y="369" class="eyebrow" fill="#42d8bd">POSITIVE TEST</text>
+    <text x="512" y="394" class="detail">legal packet accepted</text>
+
+    <rect x="461" y="428" width="278" height="74" rx="16" fill="#ff8a61" fill-opacity="0.07" stroke="#ff8a61" stroke-width="2" stroke-dasharray="7 5"/>
+    <path d="M487 451 L500 458 V471 L487 480 L474 471 V458 Z" fill="none" stroke="#ff8a61" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M481 459 L493 471 M493 459 L481 471" stroke="#ff8a61" stroke-width="2.5" stroke-linecap="round"/>
+    <text x="512" y="455" class="eyebrow" fill="#ff8a61">NEGATIVE TEST</text>
+    <text x="512" y="480" class="detail">bad attribute contained</text>
+
+    <path d="M461 527 H476 L483 520 L490 527 H505" fill="none" stroke="#5bc4f0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="519" y="533" class="tiny" fill="#5bc4f0">RUNNER CONFIRMED BOTH</text>
+  </g>
+
+  <g aria-label="Disclosed gap and verified change" filter="url(#shadow)">
+    <rect x="800" y="284" width="326" height="278" rx="24" class="panel" stroke="#ffda63"/>
+    <path d="M824 284 H963" stroke="#ffda63" stroke-width="7" stroke-linecap="round"/>
+    <path d="M963 284 H1102" stroke="#42d8bd" stroke-width="7" stroke-linecap="round"/>
+
+    <text x="824" y="322" class="eyebrow" fill="#ffda63">DISCLOSED STATUS</text>
+    <path d="M838 341 L852 366 H824 Z" fill="#ffda63" fill-opacity="0.12" stroke="#ffda63" stroke-width="2.5" stroke-linejoin="round"/>
+    <text x="870" y="356" class="card-title" fill="#ffda63">Partial</text>
+    <text x="824" y="389" class="detail">gap: semantic audit sampled</text>
+
+    <path d="M824 411 H1102" stroke="#ffda63" stroke-opacity="0.3" stroke-width="2"/>
+
+    <text x="824" y="443" class="eyebrow" fill="#42d8bd">VERIFIED CHANGE</text>
+    <rect x="824" y="461" width="48" height="48" rx="12" fill="#42d8bd" fill-opacity="0.1" stroke="#42d8bd" stroke-width="2"/>
+    <path d="M837 485 L846 494 L861 476" fill="none" stroke="#42d8bd" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="890" y="481" class="body">exact tree checked</text>
+    <text x="890" y="504" class="detail">commit carries evidence</text>
+    <rect x="824" y="527" width="278" height="18" rx="9" fill="#42d8bd" fill-opacity="0.12"/>
+    <rect x="824" y="527" width="226" height="18" rx="9" fill="#42d8bd"/>
+    <rect x="1055" y="527" width="47" height="18" rx="9" fill="#ffda63"/>
+  </g>
+</svg>

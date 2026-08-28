@@ -6,8 +6,14 @@
 - Registry path: `show host all`
 - Mode: Read-only
 - Wire method: `ze-show:host-all`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show the full hardware inventory in one shot. Returns every section (cpu, nic, dmi, memory, thermal, storage, kernel, platform) as a single JSON response. Ideal for support bundles or automated inventory collection.
 

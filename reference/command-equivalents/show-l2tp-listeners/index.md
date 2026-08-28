@@ -6,8 +6,14 @@
 - Registry path: `show l2tp listeners`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:listeners`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show which UDP sockets are listening for L2TP. Lists each bound address, port, and the number of tunnels on it.
 

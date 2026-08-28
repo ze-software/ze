@@ -6,8 +6,14 @@
 - Registry path: `monitor event`
 - Mode: Read-only
 - Wire method: `ze-event:monitor`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Stream live events as they happen. Shows a real-time feed of internal events. Filter with include <pattern> or exclude <pattern> to focus on what matters. Patterns match event type names.
 

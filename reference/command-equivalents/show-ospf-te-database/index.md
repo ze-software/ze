@@ -6,8 +6,14 @@
 - Registry path: `show ospf te-database`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-te-database`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show the OSPF Traffic Engineering Database (RFC 3630 / RFC 5392): router addresses plus TE links with their Link ID, local/remote address, link type, TE metric, bandwidths, admin group, and (for inter-AS links) remote AS and remote ASBR.
 

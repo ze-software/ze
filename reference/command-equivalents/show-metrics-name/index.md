@@ -6,8 +6,14 @@
 - Registry path: `show metrics name`
 - Mode: Read-only
 - Wire method: `ze-show:metrics-query`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show one Prometheus metric by name. Usage: show metrics name <name> [label=value ...]. Returns matching time series from the internal registry. Multiple label filters are ANDed. More targeted than the full metrics dump.
 

@@ -6,8 +6,14 @@
 - Registry path: `show gnmi`
 - Mode: Read-only
 - Wire method: `ze-show:gnmi`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show whether the gNMI server is running and how it is configured. Returns listen address, TLS details, authentication mode, and the number of active streaming subscribers.
 

@@ -59,6 +59,8 @@
 <div><dt>Wire method</dt><dd><code>ze-show:reload-status</code></dd></div>
 <div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
 <div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
+<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
+<div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
 <h3>Description</h3><p>Show how many config reloads the daemon has processed.<br>Returns a generation counter, the outcome of the most recent reload<br>(applied or failed), and when it finished. The counter advances on every<br>processed reload, including one that rejected or changed nothing, so you<br>can confirm a SIGHUP was acted on even when it deliberately left the<br>running config alone.</p>
 <h3>Arguments</h3>
@@ -125,7 +127,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 27 August 2026 02:57 UTC</span>
                 </div>
             </div>
         </footer>

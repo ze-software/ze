@@ -59,6 +59,8 @@
 <div><dt>Wire method</dt><dd><code>ze-show:vpn-ipsec-dataplane-policy</code></dd></div>
 <div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
 <div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
+<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
+<div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
 <h3>Description</h3><p>Show the Security Policy Database the kernel holds.<br>Lists each policy with its selector prefixes and ports, direction, priority,<br>upper-layer protocol, if_id, tunnel endpoints, and the peer that installed<br>it. A policy with no matching SA is the failure this command exists to show.<br>RFC 4301 Section 4.4 keeps the SPD and the SAD separate, and so does this<br>tree.</p>
 <h3>Arguments</h3>
@@ -125,7 +127,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 27 August 2026 02:57 UTC</span>
                 </div>
             </div>
         </footer>

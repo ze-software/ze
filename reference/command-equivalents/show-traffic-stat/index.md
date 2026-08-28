@@ -6,8 +6,14 @@
 - Registry path: `show traffic stat`
 - Mode: Read-only
 - Wire method: `ze-show:traffic-stat`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity). Without arguments, shows all interfaces. With 'name <interface>', filters to one interface.
 

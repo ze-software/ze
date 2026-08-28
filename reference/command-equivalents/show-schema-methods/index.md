@@ -6,8 +6,14 @@
 - Registry path: `show schema methods`
 - Mode: Read-only
 - Wire method: `ze-show:schema-methods`
+- Answer shape: tab
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
 - Pipes, on rows: none
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 List all RPC methods defined in YANG API modules. Useful for plugin developers to discover available operations.
 

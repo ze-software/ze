@@ -6,8 +6,14 @@
 - Registry path: `show traceroute`
 - Mode: Read-only
 - Wire method: `ze-show:traceroute`
-- Pipes, always: none
-- Pipes, on rows: none
+- Answer shape: not declared
+- Address fields: none
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Trace the network path from this router to a target. Shows each hop with its IP and round-trip time. Dest can be an IP or hostname. Defaults: 30 max hops, 3 probes per hop. Increase probes for more reliable RTT measurements.
 

@@ -6,8 +6,14 @@
 - Registry path: `show firewall irr prefix`
 - Mode: Read-only
 - Wire method: `ze-show:firewall-irr-prefix`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show IRR-resolved prefixes for a cached entry. Usage: show firewall irr prefix <asn-or-as-set>. Lists all IPv4 and IPv6 prefixes in the cached prefix-list for the given ASN or AS-SET.
 

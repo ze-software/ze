@@ -59,6 +59,8 @@
 <div><dt>Wire method</dt><dd><code>ze-as112:health</code></dd></div>
 <div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
 <div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
+<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
+<div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
 <h3>Description</h3><p>One-shot authoritative query against an anycast service<br>address (or the given target), exit 0 iff the expected<br>AS112 answer comes back. Finding M4: the tool a<br>healthcheck probe calls, since dig is not on the gokrazy<br>appliance and &#x27;ze resolve dns&#x27; cannot target a specific<br>server. Usage: request as112 healthcheck [target &lt;ip&gt;].</p>
 <h3>Arguments</h3>
@@ -127,7 +129,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 27 August 2026 02:57 UTC</span>
                 </div>
             </div>
         </footer>

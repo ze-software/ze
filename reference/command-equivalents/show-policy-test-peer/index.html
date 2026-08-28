@@ -59,6 +59,8 @@
 <div><dt>Wire method</dt><dd><code>ze-show:policy-test</code></dd></div>
 <div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
 <div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
+<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
+<div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
 <h3>Description</h3><p>Test what your policy does to a specific UPDATE.<br>Feed a hex-encoded BGP UPDATE through a peer&#x27;s filter chain and see<br>the accept/reject result plus attribute modifications at each stage.<br>Read-only: no routes are actually forwarded. Great for validating<br>policy changes before you commit.<br>Usage: show policy test peer &lt;selector&gt; import|export [filter &lt;name&gt;]<br>update &lt;hex&gt; [source-asn4 true|false]. The selector and the<br>import/export/filter/update/source-asn4 tokens are parsed by the<br>handler so the peer selector can be a free-form name or address.</p>
 <h3>Arguments</h3>
@@ -125,7 +127,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 27 August 2026 02:57 UTC</span>
                 </div>
             </div>
         </footer>

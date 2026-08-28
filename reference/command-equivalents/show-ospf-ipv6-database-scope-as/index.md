@@ -6,8 +6,14 @@
 - Registry path: `show ospf ipv6 database scope as`
 - Mode: Read-only
 - Wire method: `ze-show:ospfv3-database-scope-as`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show only AS-scope (S2/S1 = 10) LSAs.
 

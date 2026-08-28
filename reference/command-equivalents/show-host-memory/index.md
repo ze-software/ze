@@ -6,8 +6,14 @@
 - Registry path: `show host memory`
 - Mode: Read-only
 - Wire method: `ze-show:host-memory`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show installed memory and ECC health. Returns DIMM sizes and, when the edac driver is present, correctable and uncorrectable error counters. Non-zero ECC counts mean you should plan a DIMM replacement.
 

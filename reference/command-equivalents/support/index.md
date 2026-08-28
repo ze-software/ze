@@ -6,8 +6,14 @@
 - Registry path: `support`
 - Mode: Offline
 - Wire method: `not listed`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: none
 - Pipes, on rows: none
+- Pipes, while streaming: none
+- Pipes, local process only: none
+- Command pipes: none
+- Pipe aliases: none
 
 Bundle logs, config, state, and diagnostics into one archive file. Send the result to support when reporting an issue.
 

@@ -4,6 +4,10 @@
 
 AI coding has better models and better harnesses, but no shared convention for making a repository explain itself to an agent.
 
+![A recognised generated repository tree is compared with an arbitrary tree whose design, rules and tests sit apart; a shared convention joins project meaning to predictable locations.](../../assets/blog/ai-coding-has-not-had-its-rails-moment.svg)
+
+A convention lets people and programs understand and use a repository in the same way.
+
 An agent can locate and open any file in a large repository in under a second. Nothing it finds there tells it how to work with what it has just opened: which design document explains what that code implements, which rule it is about to break, or which test would catch it if it gets that wrong. That knowledge exists. It lives in a wiki nobody updates, in a handful of pull request comments, and in the maintainer's head.
 
 This is a problem about repository structure, and it is a good deal older than AI.
@@ -20,6 +24,8 @@ Rails faced the same problem twenty years ago, and it had to teach a whole commu
 
 ## Rails made the tree an interface
 
+<p class="blog-section-reveal">Rails made repository structure a shared interface that developers and tools could recognise immediately.</p>
+
 By 2009 this kind of layout was far more familiar, largely because Ruby on Rails had made project structure part of the framework and turned it into something people argued about. Its [official philosophy](https://guides.rubyonrails.org/getting_started.html#rails-philosophy) calls the idea Convention over Configuration, and running `rails new` creates recognised places for application code, configuration, database changes, libraries and tests.
 
 Rails was probably not the first project to lay a tree out like that. It was the first to make the idea popular, and twenty years later the same thing is starting to happen around the plain Markdown files an agent reads. I come back to that at the end.
@@ -33,6 +39,8 @@ What those commands generate is aimed at the compiler, the package manager and t
 An agent needs the same interface a new developer needs, with one extra difficulty: it starts every session knowing nothing at all.
 
 ## The tooling improved and the repositories did not
+
+<p class="blog-section-reveal">Better tools still fail when a repository leaves its decisions and evidence unwritten.</p>
 
 AI coding has concentrated on the tool side. Harnesses keep getting better at tool use, planning, context management and coordination between agents, and the models improve every few weeks. The tooling looks the part now, with its animated terminals and neat progress trees, but the machinery underneath is still immature.
 
@@ -62,6 +70,8 @@ In 1999 and 2000, working for an ISP felt like having a superpower, perhaps the 
 
 ## Other engineers are finding the same shape
 
+<p class="blog-section-reveal">Independent teams are encoding project rules where agents can find and verify them.</p>
+
 This problem is wider than one project. Ze, the network operating system I have been building, is where I met it, and much larger engineering organisations are meeting it too.
 
 Cloudflare published [How Cloudflare enforces engineering standards using AI](https://blog.cloudflare.com/engineering-standards-enforcement/) in August 2026. Before building what it calls the Cloudflare Codex, its engineering guidance lived in formal documentation, repository files, chat threads and the accumulated knowledge of individual engineers. Developers spent time searching and could not always tell whether an answer was current, authoritative or relevant. We found the same thing while building Ze.
@@ -75,6 +85,8 @@ Ze had a different starting point: the RFCs had already written the obligations 
 [The repository is half the AI harness](../the-repository-is-the-ai-harness/) goes through all of it, including what it costs to keep running. Cloudflare is applying this across a large engineering organisation and Ze is doing it inside an open-source project. Two efforts that different, converging on the same answer, is useful evidence.
 
 ## The convention will come from a project
+
+<p class="blog-section-reveal">A practical project will establish the repository convention that others choose to copy.</p>
 
 AI-assisted development is beginning to discover its Convention over Configuration, and we do not yet know which project will make it viral. The winning choices do not need to be perfect; they need to be good enough, easy to copy, and attached to one name people remember. The winner is likely to be a command which sets a repository up for an agent, the way `rails new` sets one up for a developer: a common pain, available tools, and several similar implementations.
 

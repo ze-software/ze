@@ -6,8 +6,14 @@
 - Registry path: `update system firmware apply`
 - Mode: Daemon
 - Wire method: `ze-update:system-firmware-apply`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Full upgrade: download, verify, stage, and restart. Runs the complete update cycle in one command. Only available on platforms where Ze owns the update lifecycle (e.g. gokrazy). The box will reboot into the new version.
 

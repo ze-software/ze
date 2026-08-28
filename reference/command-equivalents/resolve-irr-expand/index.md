@@ -6,8 +6,14 @@
 - Registry path: `resolve irr expand`
 - Mode: Read-only
 - Wire method: `ze-resolve:irr-expand`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Expand an AS-SET into its member AS numbers. Recursively resolves nested AS-SET objects via WHOIS into a flat list. Useful for building prefix filters from IRR data.
 

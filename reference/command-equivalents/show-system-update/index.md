@@ -6,8 +6,14 @@
 - Registry path: `show system update`
 - Mode: Read-only
 - Wire method: `ze-show:system-update`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Check if a firmware update is available. Shows the running version, latest available version, and when the last check ran. Use 'update system firmware check' to trigger an immediate re-check.
 

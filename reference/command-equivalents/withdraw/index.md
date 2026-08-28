@@ -6,8 +6,14 @@
 - Registry path: `withdraw`
 - Mode: Daemon
 - Wire method: `ze-bgp:withdraw`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Withdraw on-demand announcements. Usage: withdraw tag <key> <value|*> | withdraw tag * | withdraw id <N> | withdraw all
 

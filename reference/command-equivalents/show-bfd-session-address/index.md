@@ -6,8 +6,14 @@
 - Registry path: `show bfd session address`
 - Mode: Read-only
 - Wire method: `ze-bfd-api:show-session`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show full detail for one BFD session. Pass the peer address. Returns local/remote discriminators, negotiated timers, detection time, and packet counters.
 

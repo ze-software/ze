@@ -58,6 +58,11 @@
 <div><dt>Mode</dt><dd>Read-only</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-rib-api:best</code></dd></div>
 <div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin</dd></div>
+<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
+<div><dt>Pipes, local process only</dt><dd>save</dd></div>
+<div><dt>Command pipes</dt><dd><code>community &lt;value&gt;</code>: Filter by standard community<br><code>count</code>: Count matching best paths without serializing rows<br><code>family &lt;value&gt;</code>: Filter by AFI/SAFI<br><code>first &lt;value&gt;</code>: Take first N best paths<br><code>graph</code>: Render AS-path topology graph<br><code>histogram</code>: Count routes by family and prefix length<br><code>last &lt;value&gt;</code>: Take last N best paths<br><code>match &lt;value&gt;</code>: Cross-field structured match<br><code>path &lt;value&gt;</code>: Filter by AS path<br><code>peer &lt;value&gt;</code>: Filter by peer<br><code>prefix &lt;value&gt;</code>: Filter by prefix<br><code>reason</code>: Explain best-path selection</dd></div>
+<div><dt>Answer shape</dt><dd>tab</dd></div>
+<div><dt>Address fields</dt><dd>best-peer, next-hop</dd></div>
 </dl>
 <h3>Description</h3><p>Show the winning route for each prefix.<br>Same filters as &#x27;show bgp rib&#x27;. Use &#x27;| reason&#x27; to see why each<br>path was selected (local-pref, AS path length, MED, etc.).</p>
 <h3>Arguments</h3>
@@ -144,7 +149,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 27 August 2026 02:57 UTC</span>
                 </div>
             </div>
         </footer>

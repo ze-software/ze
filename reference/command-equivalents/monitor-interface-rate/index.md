@@ -6,8 +6,14 @@
 - Registry path: `monitor interface rate`
 - Mode: Read-only
 - Wire method: `ze-monitor:interface-rate`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Stream per-second traffic rates for your interfaces. Shows rx/tx bytes and packets per second, updating every second. Optionally pass an interface name to watch just one link.
 

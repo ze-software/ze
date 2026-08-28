@@ -6,8 +6,14 @@
 - Registry path: `validate config`
 - Mode: Offline
 - Wire method: `not listed`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: none
 - Pipes, on rows: none
+- Pipes, while streaming: none
+- Pipes, local process only: none
+- Command pipes: none
+- Pipe aliases: none
 
 Check your config for errors without applying anything. Reports syntax and semantic issues.
 

@@ -6,8 +6,14 @@
 - Registry path: `show bfd profile`
 - Mode: Read-only
 - Wire method: `ze-bfd-api:show-profile`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show BFD timer profiles with effective values. Returns min-tx, min-rx, and detect-multiplier after inheritance. Use 'show bfd profile' for every profile or 'show bfd profile name <name>' for one profile.
 

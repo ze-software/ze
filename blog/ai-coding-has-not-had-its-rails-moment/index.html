@@ -44,14 +44,14 @@
         </div>
 
         <main id="top" class="site-main-wide" tabindex="-1">
-            <section class="blog-article-shell" aria-labelledby="post-title">
+            <section class="blog-article-shell has-visual" aria-labelledby="post-title">
                 <div class="journey-hero blog-article-hero reveal">
                     <span class="journey-eyebrow">Article</span>
                     <h1 id="post-title">AI coding has not had its Rails moment</h1>
                     <p>AI coding has better models and better harnesses, but no shared convention for making a repository explain itself to an agent.</p>
                 </div>
                 <div class="blog-article-meta"><time datetime="2026-08-10">2026-08-10</time><span>by Thomas Mangin</span></div>
-
+<figure class="blog-theme-image has-dark blog-article-visual reveal" role="img" aria-label="A recognised generated repository tree is compared with an arbitrary tree whose design, rules and tests sit apart; a shared convention joins project meaning to predictable locations."><img class="blog-theme-image-light" src="../../assets/blog/ai-coding-has-not-had-its-rails-moment.svg" alt="" loading="eager" decoding="async" /><img class="blog-theme-image-dark" src="../../assets/blog/ai-coding-has-not-had-its-rails-moment-dark.svg" alt="" loading="eager" decoding="async" /></figure>
                 <p class="post-back"><a href="../">&larr; All articles</a></p>
             </section>
             <nav class="blog-article-toc reveal" aria-label="Article sections">
@@ -64,6 +64,7 @@
                 </ol>
             </nav>
             <section class="md-content blog-article-content reveal" data-table-columns="off" data-code-copy="off">
+<p>A convention lets people and programs understand and use a repository in the same way.</p>
 <p>An agent can locate and open any file in a large repository in under a second. Nothing it finds there tells it how to work with what it has just opened: which design document explains what that code implements, which rule it is about to break, or which test would catch it if it gets that wrong. That knowledge exists. It lives in a wiki nobody updates, in a handful of pull request comments, and in the maintainer's head.</p>
 <p>This is a problem about repository structure, and it is a good deal older than AI.</p>
 <p>At the start of the 2000s, project layouts were not standard. At Exa, our initial convention put each project's configuration in <code>etc/</code>, its working data in <code>data/</code>, the reusable code in <code>lib/</code> and the rest in <code>src/</code>. It was not a one to one match with the Filesystem Hierarchy Standard (FHS), but changing <code>$ETC</code> and <code>$DATA</code> was enough to point a project at the right place on an installed system. During development, the repository acted as the installed root, leaving only a code-test loop.</p>
@@ -72,6 +73,8 @@
 <p>Rails faced the same problem twenty years ago, and it had to teach a whole community to follow the structure the framework expected. That is where I want to start.</p>
 <p><em>This article was co-authored with Claude. The argument and the conclusions are mine. Claude helped organise the material and draft the text.</em></p>
 <h2 id="rails-made-the-tree-an-interface">Rails made the tree an interface</h2>
+<p class="blog-section-reveal">Rails made repository structure a shared interface that developers and tools could recognise immediately.</p>
+
 <p>By 2009 this kind of layout was far more familiar, largely because Ruby on Rails had made project structure part of the framework and turned it into something people argued about. Its <a href="https://guides.rubyonrails.org/getting_started.html#rails-philosophy" target="_blank" rel="noopener">official philosophy</a> calls the idea Convention over Configuration, and running <code>rails new</code> creates recognised places for application code, configuration, database changes, libraries and tests.</p>
 <p>Rails was probably not the first project to lay a tree out like that. It was the first to make the idea popular, and twenty years later the same thing is starting to happen around the plain Markdown files an agent reads. I come back to that at the end.</p>
 <p>What Rails did was make its conventions consistent, generate them automatically and teach them to a large community. A developer entering an unfamiliar Rails application already knew where to look, and so did the Rails tools. The directory tree had become an interface shared by people and programs, and nothing built on top of it ever had to rediscover an application's shape.</p>
@@ -79,6 +82,8 @@
 <p>What those commands generate is aimed at the compiler, the package manager and the human reader. Not one of them puts anything in the tree for an agent.</p>
 <p>An agent needs the same interface a new developer needs, with one extra difficulty: it starts every session knowing nothing at all.</p>
 <h2 id="the-tooling-improved-and-the-repositories-did-not">The tooling improved and the repositories did not</h2>
+<p class="blog-section-reveal">Better tools still fail when a repository leaves its decisions and evidence unwritten.</p>
+
 <p>AI coding has concentrated on the tool side. Harnesses keep getting better at tool use, planning, context management and coordination between agents, and the models improve every few weeks. The tooling looks the part now, with its animated terminals and neat progress trees, but the machinery underneath is still immature.</p>
 <p>Stencil's <a href="https://stencil.so/blog/the-harness-problem" target="_blank" rel="noopener">The harness problem</a> measured something far more basic than planning or context management: whether a model can apply the edit it has already decided to make. Grok 4 failed half of its patches on their benchmark, EDIT-Bench has a single model above sixty per cent on realistic editing tasks, and changing nothing except the format of the edit moved sixteen models by fifteen points on average. Stencil sells that format, so their own figures deserve the usual caution, and an effect of that size is hard to dismiss.</p>
 <p>A model which cannot reliably replace a line of text is not being held back by its understanding of the code. A model's ability is fixed the day it ships, and how much of that ability arrives in the repository depends on what we build around it. The edit format is the cheapest thing on that list, and a fair measure of how much better AI coding can get without waiting for new models.</p>
@@ -93,6 +98,8 @@
 <p>Most of that missing work is not intellectually difficult. Stencil's fifteen point improvement took no model training and around three hundred dollars of benchmarking, so it was there for anyone willing to run the experiment. An edit format that every harness agrees on still does not exist.</p>
 <p>In 1999 and 2000, working for an ISP felt like having a superpower, perhaps the way working for a frontier AI lab feels now, with unlimited tokens to spend on whatever you are trying to build.</p>
 <h2 id="other-engineers-are-finding-the-same-shape">Other engineers are finding the same shape</h2>
+<p class="blog-section-reveal">Independent teams are encoding project rules where agents can find and verify them.</p>
+
 <p>This problem is wider than one project. Ze, the network operating system I have been building, is where I met it, and much larger engineering organisations are meeting it too.</p>
 <p>Cloudflare published <a href="https://blog.cloudflare.com/engineering-standards-enforcement/" target="_blank" rel="noopener">How Cloudflare enforces engineering standards using AI</a> in August 2026. Before building what it calls the Cloudflare Codex, its engineering guidance lived in formal documentation, repository files, chat threads and the accumulated knowledge of individual engineers. Developers spent time searching and could not always tell whether an answer was current, authoritative or relevant. We found the same thing while building Ze.</p>
 <p>Cloudflare turned its standards into structured RFCs. Requirements use <code>MUST</code> and <code>SHOULD</code>. Each statement has a stable name which survives edits to the document around it. Agents receive a compact set of relevant statements first and load the complete RFC only when they need more. AI reviewers check code and technical designs, and rules which ordinary software can recognise are moving into fast linters.</p>
@@ -100,6 +107,8 @@
 <p>Ze had a different starting point: the RFCs had already written the obligations down. They say what the code has to do, section by section, in the same <code>MUST</code> and <code>SHOULD</code> terms (<a href="https://www.rfc-editor.org/rfc/rfc2119.html" target="_blank" rel="noopener">RFC 2119</a>). We put our own rules into that form as well. The hard part was checking them. For every <code>MUST</code>, Ze wants one test showing that valid data is handled correctly and one showing that invalid data is rejected, and a requirement with no test is listed as a gap. <a href="../the-proof-is-the-expensive-part/">The proof is the expensive part</a> explains how that list is built and kept honest.</p>
 <p><a href="../the-repository-is-the-ai-harness/">The repository is half the AI harness</a> goes through all of it, including what it costs to keep running. Cloudflare is applying this across a large engineering organisation and Ze is doing it inside an open-source project. Two efforts that different, converging on the same answer, is useful evidence.</p>
 <h2 id="the-convention-will-come-from-a-project">The convention will come from a project</h2>
+<p class="blog-section-reveal">A practical project will establish the repository convention that others choose to copy.</p>
+
 <p>AI-assisted development is beginning to discover its Convention over Configuration, and we do not yet know which project will make it viral. The winning choices do not need to be perfect; they need to be good enough, easy to copy, and attached to one name people remember. The winner is likely to be a command which sets a repository up for an agent, the way <code>rails new</code> sets one up for a developer: a common pain, available tools, and several similar implementations.</p>
 <p>Andrej Karpathy gave a small demonstration of that with his <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f" target="_blank" rel="noopener">LLM Wiki gist</a>. It describes an LLM maintaining a wiki made from ordinary Markdown files, with Obsidian as the editor. Raw sources stay separate, the agent maintains cross-linked pages, an <code>index.md</code> helps it find the right information, and an <code>AGENTS.md</code> or <code>CLAUDE.md</code> explains the structure. More complicated search can wait until the collection needs it.</p>
 <p>The idea became extremely popular the moment he shared it, and many people, including yours truly, had already reached the same answer independently. Ze was already using Markdown for its rules, designs and working memory, maintaining cross-links and generating indexes, all of it in the same text editors we write the code in. What Karpathy added was a clear explanation and a large audience, and for many people his version will become the version they know and copy.</p>
@@ -115,7 +124,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 27 August 2026 15:11 UTC</span>
                 </div>
             </div>
         </footer>

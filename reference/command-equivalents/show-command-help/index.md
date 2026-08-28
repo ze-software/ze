@@ -6,8 +6,14 @@
 - Registry path: `show command help`
 - Mode: Read-only
 - Wire method: `ze-bgp:command-help`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show usage and arguments for a specific command. Gives you the full description, expected arguments, and usage pattern for one command.
 

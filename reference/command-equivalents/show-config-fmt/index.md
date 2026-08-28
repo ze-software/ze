@@ -6,8 +6,14 @@
 - Registry path: `show config fmt`
 - Mode: Read-only
 - Wire method: `ze-show:config-fmt`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: none
 - Pipes, on rows: none
+- Pipes, while streaming: none
+- Pipes, local process only: none
+- Command pipes: none
+- Pipe aliases: none
 
 Pretty-print the configuration with consistent formatting. Normalizes indentation and ordering. Output goes to stdout (read-only). To rewrite the file in place, use 'ze config fmt -w' from the CLI.
 

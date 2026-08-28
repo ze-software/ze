@@ -44,14 +44,14 @@
         </div>
 
         <main id="top" class="site-main-wide" tabindex="-1">
-            <section class="blog-article-shell" aria-labelledby="post-title">
+            <section class="blog-article-shell has-visual" aria-labelledby="post-title">
                 <div class="journey-hero blog-article-hero reveal">
                     <span class="journey-eyebrow">Article</span>
                     <h1 id="post-title">AI slop is the wrong test</h1>
                     <p>Authorship says little about whether code belongs in a network operating system. Constraints, review, tests and measurements decide that.</p>
                 </div>
                 <div class="blog-article-meta"><time datetime="2026-08-03">2026-08-03</time><span>by Thomas Mangin</span></div>
-
+<figure class="blog-theme-image has-dark blog-article-visual reveal" role="img" aria-label="Fast generated output enters a narrowing evidence path through protocol checks, fuzzing, integration and benchmarking before it is accepted or rejected."><img class="blog-theme-image-light" src="../../assets/blog/ai-slop-is-the-wrong-test.svg" alt="" loading="eager" decoding="async" /><img class="blog-theme-image-dark" src="../../assets/blog/ai-slop-is-the-wrong-test-dark.svg" alt="" loading="eager" decoding="async" /></figure>
                 <p class="post-back"><a href="../">&larr; All articles</a></p>
             </section>
             <nav class="blog-article-toc reveal" aria-label="Article sections">
@@ -73,6 +73,8 @@
 <p>Manual code can be slop too. AI just removes the production cost.</p>
 <p><em>This article was drafted with OpenAI Codex. The ideas, experience and conclusions are mine.</em></p>
 <h2 id="i-have-heard-this-argument-before">I have heard this argument before</h2>
+<p class="blog-section-reveal">Expert judgement survives each new abstraction because it governs decisions automation cannot make.</p>
+
 <p>In 1983, Ed Post published <a href="https://www.pbm.com/~lindahl/real.programmers.html" target="_blank" rel="noopener">Real Programmers Don't Use Pascal</a>, a satire of the culture which treated FORTRAN and assembly as real programming and everything else as soft. It was funny because the attitude existed.</p>
 <p>The serious version of the argument was stronger than people now remember. Hand-written assembly was faster. It gave direct control over the machine. It avoided weak compilers, poor optimisers and unpredictable output. If you were writing the inner loop of a graphics engine or a codec, a good assembly programmer could beat the compiler.</p>
 <p>For a while, that was true.</p>
@@ -81,11 +83,15 @@
 <p>Assembly did not disappear. <a href="https://github.com/FFmpeg/FFmpeg/tree/master/libavcodec/x86" target="_blank" rel="noopener">FFmpeg still carries pages of x86 SIMD assembly</a>, because there are places where it still pays, but nobody sane writes a control plane in assembly anymore.</p>
 <p>It found its place.</p>
 <h2 id="generated-code-has-the-same-problem">Generated code has the same problem</h2>
+<p class="blog-section-reveal">Current evidence should determine which generated-code risks remain credible.</p>
+
 <p>Many objections to AI-written code are fair. Models hallucinate APIs. They miss context. They produce code which looks plausible and fails at the edge. Security is a real concern: Veracode's 2025 GenAI Code Security Report says <a href="https://www.veracode.com/blog/genai-code-security-report/" target="_blank" rel="noopener">45% of generated samples failed security tests</a>.</p>
 <p>Productivity is also less obvious than the marketing suggests. METR's early-2025 study found that experienced open-source developers working in familiar repositories were <a href="https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/" target="_blank" rel="noopener">19% slower with AI tools</a>, while believing they had been faster. METR then <a href="https://metr.org/blog/2026-02-24-uplift-update/" target="_blank" rel="noopener">updated the picture in 2026</a>, saying the early result no longer reflected current tools and that follow-up measurement had become difficult because many developers did not want to work without AI.</p>
 <p>That is a useful warning in both directions. The tools can waste time. The tools also move fast enough that confident claims expire quickly.</p>
 <p>I agree with the warning. I disagree with the conclusion some people attach to it.</p>
 <h2 id="ze-assumes-the-generator-is-untrusted">Ze assumes the generator is untrusted</h2>
+<p class="blog-section-reveal">Project rules and independent evidence determine whether generated output is safe to accept.</p>
+
 <p>Ze does not treat Claude as an engineer who understands the system. It treats Claude as a fast generator which can follow precise constraints and will sometimes fail to follow them. It can explore alternatives, write tests, run tools and revise code until the evidence matches the design.</p>
 <p>That distinction matters.</p>
 <p>A BGP encoder is not correct because Claude wrote it. It is correct when it emits legal wire bytes, rejects illegal inputs, preserves ownership rules, passes the protocol tests and still behaves correctly when a test starts Ze and talks to it as a peer, rather than calling a Go function directly. A memory optimisation is not correct because a benchmark got faster once. It is correct when the allocation contract is explicit, the benchmark is repeatable and the failure mode is safe.</p>
@@ -93,12 +99,16 @@
 <p>Claude can write a parser, a protocol encoder, a web page, a benchmark and a hundred test cases in the time a human would spend preparing the first patch. The output earns nothing by existing. It has to match the protocol, preserve the invariants, fit the ownership model, pass the narrow check, then pass the wider gate.</p>
 <p>If a piece of generated code cannot be explained, bounded, tested or measured, it does not belong in Ze.</p>
 <h2 id="the-skill-has-moved">The skill has moved</h2>
+<p class="blog-section-reveal">Expertise defines the constraints and recognises failures that generated code cannot explain.</p>
+
 <p>The uncomfortable part is that this does not remove expertise. It moves where the expertise is spent.</p>
 <p>I know BGP because I have operated it, implemented it, debugged it, broken it and been called to fix my own code late at night. That background matters when Claude proposes a route-selection shortcut, a peer-state transition, a capability rule or an error path. The same kind of knowledge carries across protocol work.</p>
 <p>I had not implemented IS-IS or OSPF before Ze. That does not mean starting from nothing. Link-state protocols still have a graph, a database, flooding rules, timers, sequence numbers, checksums, authentication, neighbour state and Dijkstra at the centre. If the implementation behaves strangely, the work is to reduce the failure to a packet, a state transition, a graph invariant or a route calculation.</p>
 <p>My maths is very rusty, but enough for that job. I understand Dijkstra's algorithm and enough set theory to reason about reachability, membership, shortest paths and convergence. My networking knowledge is low-level enough to know when the packet, socket or kernel behaviour is the suspect, and my debugging skills come from maintaining my own code in production and being the person called to fix it. That teaches a lot. I still use Wireshark to decode TCP when I need help. That is normal. The important part is knowing what question to ask and when the answer looks wrong.</p>
 <p>That is the skill I need when Claude is wrong. I must be able to stop it, inspect the packet, read the RFC, build the reproduction, write the narrow test and explain what rule it broke. If I cannot debug the problem without the model, I cannot safely ask the model to write the code.</p>
 <h2 id="the-useful-question">The useful question</h2>
+<p class="blog-section-reveal">Software quality rests on enforceable rules and evidence that exposes plausible defects.</p>
+
 <p>In my opinion, authorship is the least interesting part of the argument. What matters is whether the software practice is strong enough to produce good-quality software and surface the bugs which are inevitable. That is the same question a large team has to answer.</p>
 <p>For Ze, the useful questions are practical. Which rule must the code never break? Where is that checked? What input breaks it? What happens at capacity? Which test fails if this code is wrong? Which benchmark proves the optimisation? Which source of truth generates the documentation? Which human decision did the model make that it had no authority to make?</p>
 <p>Those questions matter for human-written code too. AI makes them harder to avoid because it produces so much code so quickly. It also makes responsibility easier to dodge if people allow it. Claude cannot be responsible for an outage, a route leak or a security hole. Users should not have to care how the code was written. Vendors are expected to have done their work properly. The authors who accept generated code and ship it are responsible, and they must not hide behind the model. I will not.</p>
@@ -106,6 +116,8 @@
 <p>This is where I think many AI projects will fail. They will use AI to create code volume without changing the verification model. That deserves the word slop.</p>
 <p>Ze is trying to do the opposite. The code is cheap. The proof is the expensive part.</p>
 <h2 id="where-i-think-this-goes">Where I think this goes</h2>
+<p class="blog-section-reveal">AI coding can improve while current risks still demand disciplined human control.</p>
+
 <p>AI coding is a young technology. The tooling is immature, the best practices supporting it are still being invented, and the training the models receive is imperfect. A model will still sometimes change a test to make bad code pass. It will still sometimes remove the assertion which was catching the bug, or produce the shape of a fix without understanding the failure. A lot remains to be done before vibe coding can be trusted for serious systems.</p>
 <p>That sounds very much like compilers looked to the assembly crowd.</p>
 <p>It worked, but good human output was often superior.</p>
@@ -126,7 +138,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 27 August 2026 15:11 UTC</span>
                 </div>
             </div>
         </footer>

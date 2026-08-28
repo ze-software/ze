@@ -6,8 +6,14 @@
 - Registry path: `create interface bridge name unit`
 - Mode: Daemon
 - Wire method: `ze-iface:interface-unit-add`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Add a VLAN sub-interface to the bridge. Usage: create interface bridge name <name> unit <vid>.
 

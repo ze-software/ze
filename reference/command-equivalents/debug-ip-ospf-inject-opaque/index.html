@@ -59,6 +59,8 @@
 <div><dt>Wire method</dt><dd><code>ze-debug:ospf-inject</code></dd></div>
 <div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
 <div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
+<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
+<div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
 <h3>Description</h3><p>Inject a crafted IPv4 opaque LSA into the local LSDB (RFC 5250).<br>Usage: debug ip ospf inject opaque scope &lt;link|area|as&gt; id &lt;opaque-id&gt;<br>[type &lt;128-255&gt;] [hex &lt;body&gt; | tlv &lt;type&gt; &lt;value-hex&gt; ...] [withdraw].<br>The default Opaque Type is Private-Use so a test LSA never collides with a<br>standards-track consumer. Requires `debug ospf inject enable`.</p>
 <h3>Arguments</h3>
@@ -125,7 +127,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 27 August 2026 02:57 UTC</span>
                 </div>
             </div>
         </footer>

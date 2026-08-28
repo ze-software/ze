@@ -6,8 +6,14 @@
 - Registry path: `request peer plugin session ready`
 - Mode: Daemon
 - Wire method: `ze-plugin:session-peer-ready`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Signal that per-peer plugin setup is complete. Usage: request peer <selector> plugin session ready.
 

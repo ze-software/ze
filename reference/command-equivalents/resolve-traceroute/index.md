@@ -6,8 +6,14 @@
 - Registry path: `resolve traceroute`
 - Mode: Read-only
 - Wire method: `ze-resolve:traceroute`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Traceroute from the router with optional source binding. Usage: resolve traceroute <target> [source <ip>] [max-hops N] [timeout D] [probes N].
 

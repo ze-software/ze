@@ -4,6 +4,8 @@
 
 Authorship says little about whether code belongs in a network operating system. Constraints, review, tests and measurements decide that.
 
+![Fast generated output enters a narrowing evidence path through protocol checks, fuzzing, integration and benchmarking before it is accepted or rejected.](../../assets/blog/ai-slop-is-the-wrong-test.svg)
+
 Ze is an AI-written NOS. I decide the architecture, the tradeoffs, what the code must never break and what gets rejected. Claude turns that into implementation.
 
 That is also how I use it for these articles. I am lazy, and my time is limited. I want the time I do have spent on the judgement, the corrections and the parts only I can supply.
@@ -17,6 +19,8 @@ Manual code can be slop too. AI just removes the production cost.
 *This article was drafted with OpenAI Codex. The ideas, experience and conclusions are mine.*
 
 ## I have heard this argument before
+
+<p class="blog-section-reveal">Expert judgement survives each new abstraction because it governs decisions automation cannot make.</p>
 
 In 1983, Ed Post published [Real Programmers Don't Use Pascal](https://www.pbm.com/~lindahl/real.programmers.html), a satire of the culture which treated FORTRAN and assembly as real programming and everything else as soft. It was funny because the attitude existed.
 
@@ -34,6 +38,8 @@ It found its place.
 
 ## Generated code has the same problem
 
+<p class="blog-section-reveal">Current evidence should determine which generated-code risks remain credible.</p>
+
 Many objections to AI-written code are fair. Models hallucinate APIs. They miss context. They produce code which looks plausible and fails at the edge. Security is a real concern: Veracode's 2025 GenAI Code Security Report says [45% of generated samples failed security tests](https://www.veracode.com/blog/genai-code-security-report/).
 
 Productivity is also less obvious than the marketing suggests. METR's early-2025 study found that experienced open-source developers working in familiar repositories were [19% slower with AI tools](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/), while believing they had been faster. METR then [updated the picture in 2026](https://metr.org/blog/2026-02-24-uplift-update/), saying the early result no longer reflected current tools and that follow-up measurement had become difficult because many developers did not want to work without AI.
@@ -43,6 +49,8 @@ That is a useful warning in both directions. The tools can waste time. The tools
 I agree with the warning. I disagree with the conclusion some people attach to it.
 
 ## Ze assumes the generator is untrusted
+
+<p class="blog-section-reveal">Project rules and independent evidence determine whether generated output is safe to accept.</p>
 
 Ze does not treat Claude as an engineer who understands the system. It treats Claude as a fast generator which can follow precise constraints and will sometimes fail to follow them. It can explore alternatives, write tests, run tools and revise code until the evidence matches the design.
 
@@ -58,6 +66,8 @@ If a piece of generated code cannot be explained, bounded, tested or measured, i
 
 ## The skill has moved
 
+<p class="blog-section-reveal">Expertise defines the constraints and recognises failures that generated code cannot explain.</p>
+
 The uncomfortable part is that this does not remove expertise. It moves where the expertise is spent.
 
 I know BGP because I have operated it, implemented it, debugged it, broken it and been called to fix my own code late at night. That background matters when Claude proposes a route-selection shortcut, a peer-state transition, a capability rule or an error path. The same kind of knowledge carries across protocol work.
@@ -69,6 +79,8 @@ My maths is very rusty, but enough for that job. I understand Dijkstra's algorit
 That is the skill I need when Claude is wrong. I must be able to stop it, inspect the packet, read the RFC, build the reproduction, write the narrow test and explain what rule it broke. If I cannot debug the problem without the model, I cannot safely ask the model to write the code.
 
 ## The useful question
+
+<p class="blog-section-reveal">Software quality rests on enforceable rules and evidence that exposes plausible defects.</p>
 
 In my opinion, authorship is the least interesting part of the argument. What matters is whether the software practice is strong enough to produce good-quality software and surface the bugs which are inevitable. That is the same question a large team has to answer.
 
@@ -83,6 +95,8 @@ This is where I think many AI projects will fail. They will use AI to create cod
 Ze is trying to do the opposite. The code is cheap. The proof is the expensive part.
 
 ## Where I think this goes
+
+<p class="blog-section-reveal">AI coding can improve while current risks still demand disciplined human control.</p>
 
 AI coding is a young technology. The tooling is immature, the best practices supporting it are still being invented, and the training the models receive is imperfect. A model will still sometimes change a test to make bad code pass. It will still sometimes remove the assertion which was catching the bug, or produce the shape of a fix without understanding the failure. A lot remains to be done before vibe coding can be trusted for serious systems.
 

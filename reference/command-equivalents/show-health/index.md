@@ -6,8 +6,14 @@
 - Registry path: `show health`
 - Mode: Read-only
 - Wire method: `ze-show:health`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Is this box healthy? One command to find out. Returns per-component health (bgp, fib, iface, plugins, l2tp, etc.) plus an overall status. Each component reports healthy, degraded, or unhealthy with a reason. Start here when troubleshooting.
 

@@ -6,8 +6,14 @@
 - Registry path: `show host kernel`
 - Mode: Read-only
 - Wire method: `ze-show:host-kernel`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show the running kernel version and boot parameters. Returns kernel release, command line, CPU microcode revision, boot time, and security-relevant CPU flags (spectre mitigations, etc.).
 

@@ -6,8 +6,14 @@
 - Registry path: `show vpn ipsec peer name`
 - Mode: Read-only
 - Wire method: `ze-show:vpn-ipsec-peer`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show full detail for one IPsec peer. Returns IKE SA state, all child SAs with traffic selectors, and byte counts. Usage: show vpn ipsec peer name <name>.
 

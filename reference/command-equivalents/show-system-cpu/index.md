@@ -6,8 +6,14 @@
 - Registry path: `show system cpu`
 - Mode: Read-only
 - Wire method: `ze-show:system-cpu`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show CPU utilization context for the daemon. Returns goroutine count, logical CPU count, and GOMAXPROCS setting. Useful when the box feels sluggish and you want to see if Ze is hogging threads.
 

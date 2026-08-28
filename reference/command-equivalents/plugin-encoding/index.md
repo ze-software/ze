@@ -6,8 +6,14 @@
 - Registry path: `plugin encoding`
 - Mode: Read-only
 - Wire method: `ze-bgp:plugin-encoding`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Choose json or text encoding for plugin events. Controls how events are serialized in this session. JSON is structured and parseable; text is more compact.
 

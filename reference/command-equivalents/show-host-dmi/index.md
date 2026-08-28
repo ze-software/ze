@@ -6,8 +6,14 @@
 - Registry path: `show host dmi`
 - Mode: Read-only
 - Wire method: `ze-show:host-dmi`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show the box's identity from SMBIOS/DMI. Returns system vendor, board name, BIOS version, and chassis type. Useful for inventory or confirming which hardware model you are on.
 

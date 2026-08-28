@@ -6,8 +6,14 @@
 - Registry path: `show ospf`
 - Mode: Read-only
 - Wire method: `ze-show:ospf`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 OSPFv2 process summary: router-id, areas, ABR/ASBR status, and stub-router (max-metric) state (RFC 2328).
 

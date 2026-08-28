@@ -6,8 +6,14 @@
 - Registry path: `show geodns`
 - Mode: Read-only
 - Wire method: `ze-show:geodns`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 GeoDNS server status: enabled, bind addresses/port, client-IP source mode, zones, nameserver/host-set/source counts, and the current SOA serial.
 

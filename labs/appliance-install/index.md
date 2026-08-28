@@ -31,6 +31,6 @@ $ make ze-qemu-install-scenarios-test
 
 `Prerequisites`
 
-QEMU and an operator-supplied installer kernel (`ZE_INSTALL_KERNEL=/path/to/vmlinuz`); each script self-skips with a clear message if none is usable.
+QEMU and an operator-supplied installer kernel (`ZE_INSTALL_KERNEL=/path/to/vmlinuz`); each native QEMU action reports a clear skip when none is usable.
 
-- [scripts/evidence/effective-install-*.py evidence scripts](https://github.com/ze-software/ze/tree/main/scripts/evidence)
+- [internal/le/qemu native QEMU evidence](https://github.com/ze-software/ze/tree/main/internal/le/qemu)

@@ -6,8 +6,14 @@
 - Registry path: `request quiesce`
 - Mode: Daemon
 - Wire method: `ze-system:quiesce`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Block until every subsystem has drained pending async work, then reply. A test/operator barrier that replaces a fixed sleep.
 

@@ -6,8 +6,14 @@
 - Registry path: `show rsvp-te fast-reroute`
 - Mode: Read-only
 - Wire method: `ze-show:rsvp-te-fast-reroute`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show RSVP-TE Fast Reroute (RFC 4090) protection state. Returns each configured facility-backup bypass LSP and each protected LSP with its armed bypass, mode, and whether local protection is available and in use.
 

@@ -6,8 +6,14 @@
 - Registry path: `show l2tp statistics`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:statistics`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show aggregate L2TP protocol counters. Tunnels and sessions established, control messages sent/received, retransmits, and errors. Your first stop for L2TP health.
 

@@ -6,8 +6,14 @@
 - Registry path: `show rr status`
 - Mode: Read-only
 - Wire method: `ze-show:rr-status`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show whether the route reflector is active. Returns cluster ID, running state, and summary statistics (reflected routes, client count).
 

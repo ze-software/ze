@@ -6,8 +6,14 @@
 - Registry path: `show capture raw`
 - Mode: Read-only
 - Wire method: `ze-show:capture-raw`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Control raw byte capture for protocol debugging. Actions: start (begin capturing), stop (halt), dump (retrieve). Protocols: l2tp, bgp. Output formats: pcap (for Wireshark), json. Limit with count <N>.
 

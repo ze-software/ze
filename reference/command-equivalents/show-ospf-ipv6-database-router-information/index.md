@@ -6,8 +6,14 @@
 - Registry path: `show ospf ipv6 database router-information`
 - Mode: Read-only
 - Wire method: `ze-show:ospfv3-database-router-information`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show the OSPFv3 Router Information LSAs (RFC 7770, function code 12) decoded into capability bits and TLVs.
 

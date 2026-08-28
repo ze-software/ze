@@ -6,8 +6,14 @@
 - Registry path: `show rsvp-te interface`
 - Mode: Read-only
 - Wire method: `ze-show:rsvp-te-interface`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show RSVP-TE bandwidth allocation per interface. Returns reserved, available, and maximum bandwidth for each TE-enabled interface.
 

@@ -6,8 +6,14 @@
 - Registry path: `show config cat`
 - Mode: Read-only
 - Wire method: `ze-show:config-cat`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: none
 - Pipes, on rows: none
+- Pipes, while streaming: none
+- Pipes, local process only: none
+- Command pipes: none
+- Pipe aliases: none
 
 Print the full text of a stored configuration snapshot. Usage: show config cat <id>. Outputs the config as-is.
 

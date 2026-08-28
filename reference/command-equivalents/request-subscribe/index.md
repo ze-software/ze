@@ -6,8 +6,14 @@
 - Registry path: `request subscribe`
 - Mode: Daemon
 - Wire method: `ze-bgp:subscribe`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Start receiving events of one or more types. Events are delivered asynchronously to your plugin session until you unsubscribe. Use 'show event list' to see available event types.
 

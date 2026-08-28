@@ -6,8 +6,14 @@
 - Registry path: `set debug timeout`
 - Mode: Offline
 - Wire method: `not listed`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: none
 - Pipes, on rows: none
+- Pipes, while streaming: none
+- Pipes, local process only: none
+- Command pipes: none
+- Pipe aliases: none
 
 Set the debug auto-disable timer (e.g. 30m, 1h, 90s; 0 disables).
 

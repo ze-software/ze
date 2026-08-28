@@ -6,8 +6,14 @@
 - Registry path: `show config history`
 - Mode: Read-only
 - Wire method: `ze-show:config-history`
+- Answer shape: tab
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
 - Pipes, on rows: none
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 List available configuration rollback points. Shows revisions with timestamps and commit metadata. Pair with 'show config diff' to review changes before rolling back.
 

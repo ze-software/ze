@@ -6,8 +6,14 @@
 - Registry path: `show vpn ipsec dataplane policy`
 - Mode: Read-only
 - Wire method: `ze-show:vpn-ipsec-dataplane-policy`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show the Security Policy Database the kernel holds. Lists each policy with its selector prefixes and ports, direction, priority, upper-layer protocol, if_id, tunnel endpoints, and the peer that installed it. A policy with no matching SA is the failure this command exists to show. RFC 4301 Section 4.4 keeps the SPD and the SAD separate, and so does this tree.
 

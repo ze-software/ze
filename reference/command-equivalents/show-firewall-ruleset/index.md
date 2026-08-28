@@ -6,8 +6,14 @@
 - Registry path: `show firewall ruleset`
 - Mode: Read-only
 - Wire method: `ze-show:firewall-ruleset`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show the live firewall ruleset with per-term counters. Usage: show firewall ruleset <name>. Joins applied desired state with kernel counters from the nft backend.
 

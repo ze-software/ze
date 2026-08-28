@@ -6,8 +6,14 @@
 - Registry path: `monitor traffic stat`
 - Mode: Read-only
 - Wire method: `ze-monitor:traffic-stat`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Start streaming traffic monitor (per-second snapshots). Without arguments, shows all interfaces. With 'name <interface>', filters to one interface.
 

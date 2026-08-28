@@ -6,8 +6,14 @@
 - Registry path: `show host`
 - Mode: Read-only
 - Wire method: `ze-show:host-all`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Hardware inventory for this box. Sections: cpu, nic, dmi, memory, thermal, storage, kernel, platform. Use a subcommand for one section, or 'show host all' for everything. The bare 'show host' is an alias of 'show host all'.
 

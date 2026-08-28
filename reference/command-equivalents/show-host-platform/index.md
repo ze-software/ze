@@ -6,8 +6,14 @@
 - Registry path: `show host platform`
 - Mode: Read-only
 - Wire method: `ze-show:host-platform`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show platform capabilities and constraints. Reports read-only root, privilege level, systemd presence, gokrazy update socket, reboot-allowed flag, persistent-storage writability, and fd limits. Helps you understand what operations are possible on this particular deployment.
 

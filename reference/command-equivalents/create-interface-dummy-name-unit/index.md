@@ -6,8 +6,14 @@
 - Registry path: `create interface dummy name unit`
 - Mode: Daemon
 - Wire method: `ze-iface:interface-unit-add`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Add a VLAN sub-interface to the dummy. Usage: create interface dummy name <name> unit <vid>.
 

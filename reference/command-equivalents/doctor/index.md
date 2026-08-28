@@ -6,8 +6,14 @@
 - Registry path: `doctor`
 - Mode: Offline
 - Wire method: `not listed`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: none
 - Pipes, on rows: none
+- Pipes, while streaming: none
+- Pipes, local process only: none
+- Command pipes: none
+- Pipe aliases: none
 
 Verify kernel features, file descriptor limits, sockets, and required dependencies. Run this before first start or after platform changes.
 

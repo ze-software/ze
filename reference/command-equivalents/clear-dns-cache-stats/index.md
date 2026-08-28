@@ -6,8 +6,14 @@
 - Registry path: `clear dns cache stats`
 - Mode: Daemon
 - Wire method: `ze-clear:dns-cache-stats`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Reset DNS cache hit, miss, eviction, and expiry counters without removing cached entries.
 

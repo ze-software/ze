@@ -6,8 +6,14 @@
 - Registry path: `show ospf database opaque-as detail`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-database-opaque-as-detail`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Decode each AS-scope opaque LSA body into its typed TLVs (TE / Router-Information / Extended / Segment-Routing) or a generic type/length/hex view (spec-ospf-ext-14, RFC 5250).
 

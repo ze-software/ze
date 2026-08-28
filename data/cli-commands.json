@@ -64,6 +64,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -164,6 +165,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -263,6 +265,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -366,6 +369,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -488,6 +492,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -586,6 +591,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -691,6 +697,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -797,6 +804,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -896,6 +904,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -1002,6 +1011,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -1101,6 +1111,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -1200,6 +1211,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -1299,6 +1311,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -1397,6 +1410,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -1495,6 +1509,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -1593,6 +1608,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -1691,6 +1707,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -1790,6 +1807,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -1889,6 +1907,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -1988,6 +2007,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -2086,6 +2106,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -2191,6 +2212,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -2300,6 +2322,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -2413,6 +2436,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -2522,6 +2546,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -2631,6 +2656,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -2744,6 +2770,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -2853,6 +2880,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -2959,6 +2987,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -3068,6 +3097,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -3167,6 +3197,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -3266,6 +3297,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -3365,6 +3397,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -3464,6 +3497,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -3570,6 +3604,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -3685,6 +3720,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -3795,6 +3831,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -3901,6 +3938,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -4015,6 +4053,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -4124,6 +4163,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -4223,6 +4263,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -4322,6 +4363,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -4367,7 +4409,116 @@
     "description": "Continuous ping with live loss and RTT statistics.\nPings <target> until you stop it. Adjust interval and timeout as\nneeded. Shows running min/avg/max RTT and packet loss.",
     "mode": "read-only",
     "wire-method": "ze-monitor:ping",
-    "task-support": "required"
+    "task-support": "required",
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "always",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "always",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "always",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "always",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "always",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "always",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      },
+      {
+        "name": "resolve",
+        "class": "data",
+        "available": "always",
+        "description": "Reverse DNS for IP addresses"
+      },
+      {
+        "name": "origin",
+        "class": "data",
+        "available": "always",
+        "description": "ASN and network for IP addresses"
+      }
+    ],
+    "answer-shape": "tab",
+    "address-fields": [
+      "target"
+    ]
   },
   {
     "path": "monitor system netlink",
@@ -4428,6 +4579,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -4473,7 +4625,116 @@
     "description": "Live mtr-style traceroute that updates continuously.\nShows each hop with running RTT statistics. Keeps probing so you\ncan watch path changes and latency shifts over time.",
     "mode": "read-only",
     "wire-method": "ze-monitor:traceroute",
-    "task-support": "required"
+    "task-support": "required",
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "always",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "always",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "always",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "always",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "always",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "always",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      },
+      {
+        "name": "resolve",
+        "class": "data",
+        "available": "always",
+        "description": "Reverse DNS for IP addresses"
+      },
+      {
+        "name": "origin",
+        "class": "data",
+        "available": "always",
+        "description": "ASN and network for IP addresses"
+      }
+    ],
+    "answer-shape": "tab",
+    "address-fields": [
+      "addr"
+    ]
   },
   {
     "path": "monitor traffic stat",
@@ -4539,6 +4800,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -4638,6 +4900,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -4743,6 +5006,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -4848,6 +5112,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -4946,6 +5211,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -5044,6 +5310,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -5142,6 +5409,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -5240,6 +5508,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -5338,6 +5607,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -5436,6 +5706,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -5534,6 +5805,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -5632,6 +5904,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -5730,6 +6003,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -5828,6 +6102,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -5932,6 +6207,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -6032,6 +6308,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -6131,6 +6408,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -6236,6 +6514,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -6347,6 +6626,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -6453,6 +6733,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -6559,6 +6840,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -6658,6 +6940,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -6756,6 +7039,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -6854,6 +7138,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -6959,6 +7244,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -7065,6 +7351,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -7164,6 +7451,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -7269,6 +7557,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -7375,6 +7664,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -7486,6 +7776,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -7602,6 +7893,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -7701,6 +7993,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -7807,6 +8100,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -7912,6 +8206,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -8017,6 +8312,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -8122,6 +8418,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -8228,6 +8525,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -8334,6 +8632,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -8440,6 +8739,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -8545,6 +8845,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -8651,6 +8952,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -8750,6 +9052,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -8848,6 +9151,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -8946,6 +9250,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -9044,6 +9349,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -9143,6 +9449,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -9241,6 +9548,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -9339,6 +9647,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -9438,6 +9747,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -9537,6 +9847,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -9636,6 +9947,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -9735,6 +10047,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -9834,6 +10147,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -9932,6 +10246,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -10030,6 +10345,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -10129,6 +10445,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -10228,6 +10545,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -10327,6 +10645,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -10455,6 +10774,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -10553,6 +10873,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -10651,6 +10972,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -10750,6 +11072,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -10848,6 +11171,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -10946,6 +11270,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -11044,6 +11369,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -11142,6 +11468,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -11266,6 +11593,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -11364,6 +11692,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -11472,6 +11801,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -11577,6 +11907,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -11675,6 +12006,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -11773,6 +12105,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -11825,6 +12158,9 @@
       }
     ],
     "answer-shape": "tab",
+    "address-fields": [
+      "address"
+    ],
     "pipe-aliases": [
       {
         "name": "peers",
@@ -11916,6 +12252,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -11967,7 +12304,10 @@
         "description": "ASN and network for IP addresses"
       }
     ],
-    "answer-shape": "tab"
+    "answer-shape": "tab",
+    "address-fields": [
+      "peer"
+    ]
   },
   {
     "path": "show bgp irr",
@@ -12027,6 +12367,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -12142,6 +12483,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       }
     ],
@@ -12213,6 +12555,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -12314,6 +12657,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -12366,6 +12710,9 @@
       }
     ],
     "answer-shape": "tab",
+    "address-fields": [
+      "peer"
+    ],
     "syntax": "show bgp peer <selector> capabilities"
   },
   {
@@ -12433,6 +12780,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -12485,6 +12833,10 @@
       }
     ],
     "answer-shape": "tab",
+    "address-fields": [
+      "local-ip",
+      "next-hop-address"
+    ],
     "syntax": "show bgp peer <selector> detail"
   },
   {
@@ -12552,6 +12904,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -12652,6 +13005,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -12758,6 +13112,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -12810,6 +13165,10 @@
       }
     ],
     "answer-shape": "tab",
+    "address-fields": [
+      "peer",
+      "next-hop"
+    ],
     "syntax": "show bgp peer <selector> rib [scope|filters|terminal]"
   },
   {
@@ -12877,6 +13236,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -12929,6 +13289,9 @@
       }
     ],
     "answer-shape": "tab",
+    "address-fields": [
+      "address"
+    ],
     "syntax": "show bgp peer <selector> statistics"
   },
   {
@@ -13052,6 +13415,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -13104,6 +13468,10 @@
       }
     ],
     "answer-shape": "tab",
+    "address-fields": [
+      "peer",
+      "next-hop"
+    ],
     "subcommands": [
       "best",
       "rpf",
@@ -13226,6 +13594,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -13278,6 +13647,10 @@
       }
     ],
     "answer-shape": "tab",
+    "address-fields": [
+      "best-peer",
+      "next-hop"
+    ],
     "subcommands": [
       "status"
     ]
@@ -13340,6 +13713,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       }
     ],
@@ -13403,10 +13777,15 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       }
     ],
-    "answer-shape": "doc"
+    "answer-shape": "doc",
+    "address-fields": [
+      "source",
+      "next-hop"
+    ]
   },
   {
     "path": "show bgp rib status",
@@ -13466,6 +13845,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       }
     ],
@@ -13529,6 +13909,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -13627,6 +14008,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -13725,6 +14107,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -13823,6 +14206,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -13921,6 +14305,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -14041,6 +14426,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -14173,6 +14559,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -14302,6 +14689,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -14400,6 +14788,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -14498,6 +14887,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -14596,6 +14986,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -14707,6 +15098,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       }
     ],
@@ -14781,6 +15173,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -14880,6 +15273,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -14985,6 +15379,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -15090,6 +15485,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -15189,6 +15585,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -15288,6 +15685,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -15386,6 +15784,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -15484,6 +15883,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -15582,6 +15982,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -15680,6 +16081,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -15783,6 +16185,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -15888,6 +16291,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -15986,6 +16390,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -16104,6 +16509,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -16202,6 +16608,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -16300,6 +16707,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -16400,6 +16808,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -16499,6 +16908,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -16598,6 +17008,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -16696,6 +17107,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -16794,6 +17206,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -16892,6 +17305,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -16990,6 +17404,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -17091,6 +17506,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -17189,6 +17605,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -17297,6 +17714,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -17399,6 +17817,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -17504,6 +17923,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -17608,6 +18028,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -17706,6 +18127,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -17804,6 +18226,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -17902,6 +18325,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -18000,6 +18424,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -18109,6 +18534,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -18207,6 +18633,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -18305,6 +18732,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -18403,6 +18831,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -18501,6 +18930,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -18599,6 +19029,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -18697,6 +19128,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -18795,6 +19227,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -18893,6 +19326,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -18938,6 +19372,99 @@
     "description": "Show network interfaces on this box.\nWithout arguments, returns all interfaces with full detail.\nSubcommands: brief, type <t>, errors, rate [<name>], name <name> detail,\nname <name> counters.",
     "mode": "read-only",
     "wire-method": "ze-show:interface",
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ],
     "subcommands": [
       "brief",
       "errors",
@@ -19005,6 +19532,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -19103,6 +19631,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -19208,6 +19737,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -19314,6 +19844,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -19413,6 +19944,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -19511,6 +20043,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -19609,6 +20142,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -19708,6 +20242,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -19809,6 +20344,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -19907,6 +20443,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -20005,6 +20542,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -20103,6 +20641,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -20201,6 +20740,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -20302,6 +20842,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -20400,6 +20941,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -20498,6 +21040,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -20610,6 +21153,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -20708,6 +21252,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -20806,6 +21351,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -20904,6 +21450,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -21002,6 +21549,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -21100,6 +21648,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -21198,6 +21747,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -21296,6 +21846,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -21401,6 +21952,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -21499,6 +22051,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -21597,6 +22150,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -21695,6 +22249,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -21793,6 +22348,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -21898,6 +22454,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -21996,6 +22553,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -22094,6 +22652,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -22192,6 +22751,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -22290,6 +22850,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -22409,6 +22970,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -22507,6 +23069,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -22605,6 +23168,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -22704,6 +23268,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -22802,6 +23367,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -22906,6 +23472,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -23016,6 +23583,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -23114,6 +23682,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -23227,6 +23796,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -23325,6 +23895,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -23435,6 +24006,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -23533,6 +24105,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -23631,6 +24204,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -23729,6 +24303,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -23827,6 +24402,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -23928,6 +24504,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -24026,6 +24603,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -24127,6 +24705,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -24225,6 +24804,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -24326,6 +24906,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -24424,6 +25005,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -24522,6 +25104,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -24620,6 +25203,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -24718,6 +25302,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -24816,6 +25401,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -24914,6 +25500,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -25015,6 +25602,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -25113,6 +25701,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -25220,6 +25809,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -25326,6 +25916,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -25424,6 +26015,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -25522,6 +26114,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -25620,6 +26213,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -25718,6 +26312,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -25816,6 +26411,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -25914,6 +26510,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -26012,6 +26609,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -26110,6 +26708,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -26208,6 +26807,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -26306,6 +26906,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -26407,6 +27008,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -26505,6 +27107,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -26606,6 +27209,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -26704,6 +27308,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -26802,6 +27407,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -26903,6 +27509,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -27001,6 +27608,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -27099,6 +27707,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -27200,6 +27809,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -27298,6 +27908,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -27399,6 +28010,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -27497,6 +28109,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -27595,6 +28208,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -27696,6 +28310,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -27794,6 +28409,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -27892,6 +28508,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -27953,6 +28570,99 @@
       {
         "name": "timeout",
         "type": "string"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
       }
     ]
   },
@@ -28021,6 +28731,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -28120,6 +28831,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -28218,6 +28930,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -28317,6 +29030,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -28415,6 +29129,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -28513,6 +29228,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -28612,6 +29328,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -28716,6 +29433,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -28821,6 +29539,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -28919,6 +29638,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -29017,6 +29737,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -29133,6 +29854,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -29231,6 +29953,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -29339,6 +30062,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -29440,6 +30164,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -29539,6 +30264,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -29637,6 +30363,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -29735,6 +30462,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -29833,6 +30561,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -29931,6 +30660,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -30029,6 +30759,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -30127,6 +30858,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -30225,6 +30957,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -30324,6 +31057,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -30423,6 +31157,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -30522,6 +31257,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -30621,6 +31357,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       }
     ],
@@ -30684,6 +31421,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -30782,6 +31520,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -30880,6 +31619,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -30978,6 +31718,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -31086,6 +31827,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -31187,6 +31929,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -31285,6 +32028,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -31383,6 +32127,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -31491,6 +32236,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -31600,6 +32346,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -31718,6 +32465,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -31816,6 +32564,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -31914,6 +32663,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -32015,6 +32765,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -32113,6 +32864,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -32227,6 +32979,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -32343,6 +33096,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -32441,6 +33195,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -32539,6 +33294,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -32640,6 +33396,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -32758,6 +33515,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -32820,6 +33578,99 @@
         "name": "timeout",
         "type": "string"
       }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
     ]
   },
   {
@@ -32880,6 +33731,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -32984,6 +33836,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -33088,6 +33941,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -33192,6 +34046,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -33290,6 +34145,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -33334,7 +34190,100 @@
     "path": "show version",
     "description": "Show the running Ze version and build date.\nYou can verify which release is deployed on this box.",
     "mode": "read-only",
-    "wire-method": "ze-show:version"
+    "wire-method": "ze-show:version",
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
   },
   {
     "path": "show vpn ipsec dataplane drift",
@@ -33394,6 +34343,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -33492,6 +34442,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -33596,6 +34547,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -33701,6 +34653,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -33800,6 +34753,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -33898,6 +34852,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -33996,6 +34951,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -34094,6 +35050,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -34192,6 +35149,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -34290,6 +35248,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -34388,6 +35347,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -34496,6 +35456,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -34594,6 +35555,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -34692,6 +35654,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -34790,6 +35753,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -34895,6 +35859,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -35004,6 +35969,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -35102,6 +36068,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -35200,6 +36167,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -35298,6 +36266,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -35396,6 +36365,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -35494,6 +36464,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -35592,6 +36563,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -35690,6 +36662,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -35788,6 +36761,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -35893,6 +36867,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -35999,6 +36974,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -36105,6 +37081,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -36204,6 +37181,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -36309,6 +37287,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -36415,6 +37394,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -36519,6 +37499,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -36617,6 +37598,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -36715,6 +37697,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -36813,6 +37796,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -36911,6 +37895,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {
@@ -37014,6 +37999,7 @@
         "name": "save",
         "class": "global",
         "available": "always",
+        "local-only": true,
         "description": "Write the answer to a file"
       },
       {

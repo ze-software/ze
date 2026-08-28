@@ -6,8 +6,14 @@
 - Registry path: `show dns cache stats`
 - Mode: Read-only
 - Wire method: `ze-show:dns-cache-stats`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show DNS cache hit, miss, eviction, expiry, and hit-rate counters without changing cache contents.
 

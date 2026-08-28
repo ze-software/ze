@@ -1,23 +1,23 @@
 {
   "_sources": {
-    "interop.scenarios": "../main/test/interop/scenarios/",
-    "interop.targets": "../main/test/interop/Dockerfile.*",
-    "repo.annotations": "git ls-files *.go",
-    "repo.go_packages": "go list ./...",
+    "interop.scenarios": "../main/website/data/repo-facts.json",
+    "interop.targets": "../main/website/data/repo-facts.json",
+    "repo.annotations": "../main/website/data/repo-facts.json",
+    "repo.go_packages": "../main/website/data/repo-facts.json",
     "rfc": "../main/ai/RFC-REQUIREMENTS.md",
     "rfc.enrolled": "../main/rfc/enrolled.txt",
     "tests": "../main/test/health/latest.json"
   },
   "blog_articles": 7,
   "changes": 37,
-  "cli_commands": 395,
+  "cli_commands": 402,
   "config_sections": 36,
   "dependencies": 42,
   "features": {
     "core_experimental": 52,
     "planned": 4
   },
-  "generated_at": "2026-08-25",
+  "generated_at": "2026-08-27",
   "github_stars": 50,
   "interop": {
     "scenario_dirs_raw": 130,
@@ -26,14 +26,14 @@
     "target_display": "9",
     "targets": 9
   },
-  "published_at": "2026-08-25T21:20:42+00:00",
+  "published_at": "2026-08-27T15:00:17+00:00",
   "repo": {
-    "design_comments": 3674,
-    "design_comments_display": "3,600+",
-    "detail_comments": 3203,
+    "design_comments": 3852,
+    "design_comments_display": "3,800+",
+    "detail_comments": 3281,
     "detail_comments_display": "3,200+",
-    "go_packages": 648,
-    "go_packages_display": "640+"
+    "go_packages": 687,
+    "go_packages_display": "680+"
   },
   "rfc": {
     "enrolled": 171,

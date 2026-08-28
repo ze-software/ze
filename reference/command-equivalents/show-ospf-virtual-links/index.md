@@ -6,8 +6,14 @@
 - Registry path: `show ospf virtual-links`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-virtual-links`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show OSPF virtual links (RFC 2328 section 15). Lists each configured virtual link with its transit area, remote router-id, adjacency state, computed cost, and transit next hop.
 

@@ -6,8 +6,14 @@
 - Registry path: `show vrrp`
 - Mode: Read-only
 - Wire method: `ze-show:vrrp`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show every VRRP virtual router: its group name, VRID, address family, state (initialize, backup, master), configured and effective priority, virtual addresses, and the macvlan device that carries the virtual MAC.
 

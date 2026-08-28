@@ -59,6 +59,8 @@
 <div><dt>Wire method</dt><dd><code>ze-show:system-memory-map</code></dd></div>
 <div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
 <div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
+<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
+<div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
 <h3>Description</h3><p>Show how much memory the daemon is using, from the OS&#x27;s view.<br>Returns VmRSS, VmSize, VmSwap, and thread count from /proc/self/status<br>(Linux only). This is what the operating system reports the process is<br>using. For the Go runtime allocator view (heap, GC), use<br>&#x27;show runtime memory&#x27;.</p>
 <h3>Arguments</h3>
@@ -132,7 +134,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 27 August 2026 02:57 UTC</span>
                 </div>
             </div>
         </footer>

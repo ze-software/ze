@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" viewBox="0 0 1200 675">
+  <title id="title">Borrow briefly. Own across boundaries.</title>
+  <desc id="desc">A lifetime diagram follows one BGP UPDATE from pooled receive storage through borrowed read-only views. Copy boundaries create peer-owned output and long-lived canonical attributes, while labels show when each owner returns or releases storage.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#17141f"/>
+      <stop offset="0.5" stop-color="#172331"/>
+      <stop offset="1" stop-color="#162b28"/>
+    </linearGradient>
+    <linearGradient id="rail" x1="0" x2="1">
+      <stop offset="0" stop-color="#b990ff"/>
+      <stop offset="0.52" stop-color="#5bc4f0"/>
+      <stop offset="1" stop-color="#42d8bd"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-25%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="19" flood-color="#0b0710" flood-opacity="0.46"/>
+    </filter>
+    <marker id="arrow-sky" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#5bc4f0"/>
+    </marker>
+    <marker id="arrow-teal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#42d8bd"/>
+    </marker>
+    <style>
+      text { font-family: Lato, "Avenir Next", sans-serif; fill: #f7f3fb; }
+      .headline { font-family: Poppins, Avenir, sans-serif; font-size: 42px; font-weight: 800; letter-spacing: -1.2px; }
+      .eyebrow { font-family: Poppins, Avenir, sans-serif; font-size: 14px; font-weight: 800; letter-spacing: 2px; fill: #d7cadd; }
+      .zone-label { font-family: Poppins, Avenir, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 1.4px; }
+      .zone-title { font-family: Poppins, Avenir, sans-serif; font-size: 22px; font-weight: 800; }
+      .zone-copy { font-size: 15px; font-weight: 700; fill: #d7cadd; }
+      .chip { font-family: Lato, "Avenir Next", sans-serif; font-size: 13px; font-weight: 800; }
+      .boundary { font-family: Poppins, Avenir, sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 1.2px; fill: #ffda63; }
+      .release-label { font-family: Poppins, Avenir, sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 1.1px; }
+      .release-copy { font-size: 14px; font-weight: 700; fill: #d7cadd; }
+      .flow-sky { fill: none; stroke: #5bc4f0; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-sky); }
+      .flow-borrow { fill: none; stroke: #5bc4f0; stroke-width: 4; stroke-dasharray: 8 7; stroke-linecap: round; marker-end: url(#arrow-sky); }
+      .flow-teal { fill: none; stroke: #42d8bd; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-teal); }
+    </style>
+  </defs>
+
+  <rect width="1200" height="675" rx="42" fill="url(#bg)"/>
+  <circle cx="1080" cy="102" r="154" fill="#397394" opacity="0.34"/>
+  <circle cx="114" cy="606" r="176" fill="#3b2a50" opacity="0.32"/>
+
+  <g filter="url(#shadow)">
+    <rect x="54" y="52" width="1092" height="570" rx="36" fill="#1d1b29" opacity="0.94"/>
+    <rect x="54" y="52" width="1092" height="12" rx="6" fill="url(#rail)"/>
+  </g>
+
+  <text x="88" y="104" class="eyebrow">ONE UPDATE · EXPLICIT LIFETIMES</text>
+  <text x="88" y="158" class="headline">Borrow briefly. Own across boundaries.</text>
+
+  <g transform="translate(72 214)">
+    <rect width="245" height="222" rx="26" fill="#2b2338" stroke="#7654a0" stroke-width="3"/>
+    <text x="24" y="34" class="zone-label" fill="#b990ff">1 · OWNED INPUT</text>
+    <text x="24" y="70" class="zone-title">Pooled receive</text>
+    <text x="24" y="94" class="zone-copy">4 KiB / 64 KiB storage</text>
+    <g transform="translate(24 116)">
+      <rect x="0" y="12" width="197" height="52" rx="13" fill="#1d1b29" stroke="#b990ff" stroke-width="3"/>
+      <rect x="12" y="0" width="173" height="52" rx="13" fill="#1d1b29" stroke="#7654a0" stroke-width="3"/>
+      <rect x="24" y="-12" width="149" height="52" rx="13" fill="#b990ff"/>
+      <text x="98.5" y="21" text-anchor="middle" class="chip" fill="#1d1b29">BGP UPDATE</text>
+    </g>
+    <text x="24" y="204" class="zone-copy">immutable wire bytes</text>
+  </g>
+
+  <path d="M317 325H382" class="flow-borrow"/>
+  <rect x="323" y="291" width="61" height="24" rx="12" fill="#1b2835"/>
+  <text x="353.5" y="308" text-anchor="middle" class="chip" fill="#5bc4f0">BORROW</text>
+
+  <g transform="translate(390 236)">
+    <rect width="212" height="180" rx="26" fill="#1b2835" stroke="#5bc4f0" stroke-width="3" stroke-dasharray="10 7"/>
+    <text x="22" y="34" class="zone-label" fill="#5bc4f0">2 · BORROWED</text>
+    <text x="22" y="72" class="zone-title">Read-only views</text>
+    <rect x="22" y="96" width="176" height="38" rx="19" fill="#1d1b29" stroke="#397394" stroke-width="2"/>
+    <path d="M44 115H176" stroke="#5bc4f0" stroke-width="4" stroke-linecap="round" stroke-dasharray="12 8"/>
+    <circle cx="44" cy="115" r="7" fill="#5bc4f0"/>
+    <text x="22" y="160" class="zone-copy">valid while owner lives</text>
+  </g>
+
+  <path d="M602 325H625" class="flow-sky"/>
+  <text x="652" y="203" text-anchor="middle" class="boundary">COPY BOUNDARY</text>
+  <path d="M652 214V446" stroke="#ffda63" stroke-width="3" stroke-dasharray="7 7"/>
+  <path d="M638 325L652 311L666 325L652 339Z" fill="#332a16" stroke="#ffda63" stroke-width="3"/>
+  <text x="652" y="329" text-anchor="middle" class="chip" fill="#ffda63">+</text>
+
+  <path d="M666 325H684V268H698" class="flow-teal"/>
+  <path d="M666 325H684V393H698" class="flow-teal"/>
+
+  <g transform="translate(706 208)">
+    <rect width="385" height="112" rx="24" fill="#19322d" stroke="#42d8bd" stroke-width="3"/>
+    <path d="M24 22H46V42H24Z" fill="#42d8bd"/>
+    <path d="M29 17H51V37" fill="none" stroke="#42d8bd" stroke-width="3"/>
+    <text x="64" y="34" class="zone-label" fill="#42d8bd">OWNED DESTINATION</text>
+    <text x="24" y="70" class="zone-title">Peer-owned output</text>
+    <text x="24" y="96" class="zone-copy">copy-on-modify · local send buffer</text>
+  </g>
+
+  <g transform="translate(706 345)">
+    <rect width="385" height="112" rx="24" fill="#19322d" stroke="#42d8bd" stroke-width="3"/>
+    <circle cx="34" cy="31" r="14" fill="none" stroke="#42d8bd" stroke-width="3"/>
+    <circle cx="34" cy="31" r="5" fill="#42d8bd"/>
+    <text x="64" y="34" class="zone-label" fill="#42d8bd">OWNED LONG-TERM</text>
+    <text x="24" y="70" class="zone-title">Canonical attributes</text>
+    <text x="24" y="96" class="zone-copy">pool-owned bytes · compact route handles</text>
+  </g>
+
+  <g transform="translate(88 481)">
+    <rect width="1003" height="100" rx="24" fill="#241c2a" stroke="#403446" stroke-width="2"/>
+    <text x="24" y="28" class="eyebrow">RETURN / RELEASE</text>
+    <path d="M309 18V82M646 18V82" stroke="#403446" stroke-width="2"/>
+
+    <path d="M25 61H45M39 53L47 61L39 69" fill="none" stroke="#b990ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="58" y="57" class="release-label" fill="#b990ff">RECEIVE POOL</text>
+    <text x="58" y="79" class="release-copy">after borrowed readers release</text>
+
+    <path d="M337 61H357M351 53L359 61L351 69" fill="none" stroke="#42d8bd" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="370" y="57" class="release-label" fill="#42d8bd">PEER BUFFER</text>
+    <text x="370" y="79" class="release-copy">after TCP write completes</text>
+
+    <path d="M674 61H694M688 53L696 61L688 69" fill="none" stroke="#42d8bd" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="707" y="57" class="release-label" fill="#42d8bd">ATTRIBUTE SLOT</text>
+    <text x="707" y="79" class="release-copy">after the final route handle</text>
+  </g>
+</svg>

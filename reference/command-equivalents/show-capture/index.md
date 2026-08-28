@@ -6,8 +6,14 @@
 - Registry path: `show capture`
 - Mode: Read-only
 - Wire method: `ze-show:capture`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show captured control-plane messages. Returns protocol messages you previously enabled capture for. Without a protocol keyword, shows all protocols. Filters: tunnel-id (L2TP), peer (remote address), count (limit entries). Use this to debug session establishment issues.
 

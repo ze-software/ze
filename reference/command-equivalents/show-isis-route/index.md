@@ -6,8 +6,14 @@
 - Registry path: `show isis route`
 - Mode: Read-only
 - Wire method: `ze-show:isis-route`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show IS-IS-computed routes. Lists each prefix the SPF installed with its metric, level, up/down bit, and next-hops (address and outgoing interface).
 

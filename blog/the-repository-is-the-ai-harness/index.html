@@ -44,14 +44,14 @@
         </div>
 
         <main id="top" class="site-main-wide" tabindex="-1">
-            <section class="blog-article-shell" aria-labelledby="post-title">
+            <section class="blog-article-shell has-visual" aria-labelledby="post-title">
                 <div class="journey-hero blog-article-hero reveal">
                     <span class="journey-eyebrow">Article</span>
                     <h1 id="post-title">The repository is half the AI harness</h1>
                     <p>The harness gives an agent tools. The repository provides project-specific meaning and checks that reject work which does not belong.</p>
                 </div>
                 <div class="blog-article-meta"><time datetime="2026-08-09">2026-08-09</time><span>by Thomas Mangin</span></div>
-
+<figure class="blog-theme-image has-dark blog-article-visual reveal" role="img" aria-label="General harness abilities and repository-specific meaning converge on an agent change; checks return failures to the rule and example that guide the next revision."><img class="blog-theme-image-light" src="../../assets/blog/the-repository-is-the-ai-harness.svg" alt="" loading="eager" decoding="async" /><img class="blog-theme-image-dark" src="../../assets/blog/the-repository-is-the-ai-harness-dark.svg" alt="" loading="eager" decoding="async" /></figure>
                 <p class="post-back"><a href="../">&larr; All articles</a></p>
             </section>
             <nav class="blog-article-toc reveal" aria-label="Article sections">
@@ -68,16 +68,18 @@
                 </ol>
             </nav>
             <section class="md-content blog-article-content reveal" data-table-columns="off" data-code-copy="off">
-<p>Ze is a network operating system spread over <span data-ze-stat="repo.go_packages_display">640+</span> Go packages. A model can open any one of them in under a second and still have no idea which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. Nothing in the repository tells it.</p>
+<p>Ze is a network operating system spread over <span data-ze-stat="repo.go_packages_display">680+</span> Go packages. A model can open any one of them in under a second and still have no idea which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. Nothing in the repository tells it.</p>
 <p>The harness supplies the general abilities: read a file, search the tree, edit code, run a program, keep track of a task and report a failure. The project has to supply the meaning. A developer who misreads a convention usually notices, and a reviewer notices for them when they do not. An agent produces something plausible and moves on.</p>
 <p>So an AI-ready repository has to teach the agent how the project works and catch it when it gets that wrong. This article describes how Ze is trying to do both. Why I think every serious project ends up building something similar is a separate argument, in <a href="../ai-coding-has-not-had-its-rails-moment/">AI coding has not had its Rails moment</a>.</p>
 <p>I ended <a href="../ai-slop-is-the-wrong-test/">AI slop is the wrong test</a> by saying that generated code has to be constrained, reviewed, tested and measured. <a href="../the-proof-is-the-expensive-part/">The proof is the expensive part</a> explains how Ze ties an RFC claim to requirements, tests, known gaps and commit evidence. This article covers what comes before all of that: helping the agent find the right information before it writes the wrong code.</p>
 <p><em>This article was co-authored with Claude. The architecture, design decisions and conclusions come from my work on Ze. Claude helped organise the material and draft the text.</em></p>
 <h2 id="what-the-repository-has-to-carry">What the repository has to carry</h2>
+<p class="blog-section-reveal">Repository links turn scattered design knowledge into context an agent can discover and verify.</p>
+
 <p>Ze carries that meaning in several layers.</p>
 <p><code>ai/INDEX.md</code> is a task-oriented entrance. It answers questions such as where to start when adding a plugin, changing configuration, implementing an RFC or adding a command, so the agent does not have to search hundreds of packages to find the first document.</p>
-<p><code>ai/PACKAGE-MAP.md</code> gives one short description for each of those <span data-ze-stat="repo.go_packages_display">640+</span> packages, and that saves a great deal of blind exploration.</p>
-<p>Production Go files carry a <code>// Design:</code> line near their top, so opening the implementation reveals the document explaining why it exists. Closely connected files also point to each other with <code>// Detail:</code>, <code>// Overview:</code> and <code>// Related:</code> comments. There are <span data-ze-stat="repo.design_comments_display">3,600+</span> of the first kind and <span data-ze-stat="repo.detail_comments_display">3,200+</span> of the second.</p>
+<p><code>ai/PACKAGE-MAP.md</code> gives one short description for each of those <span data-ze-stat="repo.go_packages_display">680+</span> packages, and that saves a great deal of blind exploration.</p>
+<p>Production Go files carry a <code>// Design:</code> line near their top, so opening the implementation reveals the document explaining why it exists. Closely connected files also point to each other with <code>// Detail:</code>, <code>// Overview:</code> and <code>// Related:</code> comments. There are <span data-ze-stat="repo.design_comments_display">3,800+</span> of the first kind and <span data-ze-stat="repo.detail_comments_display">3,200+</span> of the second.</p>
 <p>The documents point back into the source through <code>&lt;!-- source: ... --&gt;</code> markers. Small programs generate the two reverse indexes, <code>ai/CODE-TO-DOCS.md</code> and <code>ai/DOCS-TO-CODE.md</code>:</p>
 <pre><code class="language-text">code file       -&gt; documents which explain it
 design document -&gt; source files which implement it
@@ -87,6 +89,8 @@ design document -&gt; source files which implement it
 <p>Source files are kept around one concern. Ze uses 1,000 lines as the point at which a production file must be examined for a second concern, which protects the agent's context: changing one thing should not mean paying for several unrelated things on every later step. A coherent file is allowed to stay coherent even when it is large, because mechanical splitting usually makes navigation worse.</p>
 <p>Humans benefit from all of this too. We have longer-lived memory than an AI session, though we still forget, change teams and misunderstand old decisions. Structure reduces the amount everybody has to remember.</p>
 <h2 id="a-rule-needs-teeth">A rule needs teeth</h2>
+<p class="blog-section-reveal">A written rule becomes useful when checks reject violations and explain the correction.</p>
+
 <p>Consider command dispatch. A switch is simple and efficient when every possible command is known:</p>
 <pre><code class="language-go">switch name {
 case &quot;show&quot;:
@@ -114,6 +118,8 @@ Register(&quot;configure&quot;, runConfigure)
 <p>Some evidence cannot be had that cheaply. A protocol error may need another routing daemon running beside Ze, so it naturally comes later and costs more. Ze's verification command currently runs twenty-five stages in roughly that order. Cheap structure, documentation and generated-file checks come first, then unit, race, allocation, functional and ExaBGP compatibility tests. Release evidence extends further into fuzzing, interoperability, Linux virtual machines, deployment tests, chaos and performance.</p>
 <p>Those twenty-five stages are scar tissue. Almost every one exists because something plausible once passed through a weaker process.</p>
 <h2 id="testing-has-two-directions">Testing has two directions</h2>
+<p class="blog-section-reveal">Test depth must cover system reach and the conditions most likely to expose failure.</p>
+
 <p>Unit testing is one form of testing. It answers a small question, and it can give a dangerously reassuring answer when the real requirement is larger.</p>
 <p>The functional direction asks how far through the system a behaviour has been proved. At the shallowest level a small piece of code returns the expected result. Deeper, the connected parts work together as a subsystem. Deeper still, a user achieves the result through the real program. At the far end, the program works with software written by somebody else.</p>
 <p>A door is the easy analogy. At function level the handle turns and operates its latch. At subsystem level the handle is fitted to a door, and the door still opens and closes. At application level the door has to secure the building, because a door which works perfectly is still useless if it has been fitted next to a large hole in the wall. At interoperability level the door has to work with a frame and a lock supplied by somebody else.</p>
@@ -123,6 +129,8 @@ Register(&quot;configure&quot;, runConfigure)
 <p>The two directions cross each other. A parser can be tested for correct output and then fuzzed with malformed input. A subsystem can be checked for its normal result and then run under the race detector.</p>
 <p>All of that is ordinary engineering judgement, and judgement is the part an agent is worst at. It has to place a change on both axes before writing a line, and everything about its situation pushes the choice downwards. A unit test is faster to write, faster to run and far easier to turn green. So Ze takes the choice away from it, and testing goes through the same chain as the registration rule above.</p>
 <h2 id="which-test-a-change-owes">Which test a change owes</h2>
+<p class="blog-section-reveal">Repository rules should assign each change the test depth its risk requires.</p>
+
 <p><code>ai/rules/testing.md</code> is one of the rule files the task index routes to, and it is marked blocking, which puts it in front of the agent before the implementation exists rather than during review. Most of it is a lookup. The kind of change decides the test the change owes and the directory that test lives in.</p>
 <table>
 <thead>
@@ -169,6 +177,8 @@ Register(&quot;configure&quot;, runConfigure)
 <p>The test comes first and has to fail before the implementation is written. Each one carries <code>VALIDATES:</code> and <code>PREVENTS:</code> comments, so a later reader learns what the test proves and which regression it was written against.</p>
 <p>The writing happens in an incubator. <code>test/draft/</code> is gitignored and skipped by every repository-wide gate, so a half-finished scenario cannot turn somebody else's verification run red while its author is still iterating on it. A draft ends in one of two moves, promotion into the live suite or deletion, and stopping anywhere else is refused. A scenario sitting in the incubator tells the next session nothing about whether it is abandoned scaffolding or work in progress.</p>
 <h2 id="a-test-can-gate-nothing-and-still-be-green">A test can gate nothing and still be green</h2>
+<p class="blog-section-reveal">A green test is evidence only when the intended defect can make it fail.</p>
+
 <p>A test which exists can still guard nothing. A scenario passes happily when the result it observes arrives through some path other than the one under test. Three of Ze's redistribution tests stayed green with the late-join replay they existed to prove disabled: the route reached the peer another way, and nothing had ever asked them to prove otherwise.</p>
 <p>So a new behavioural test is broken on purpose before it is trusted. Disable the function the test exists to prove, rebuild the real program, confirm the scenario fails, restore the function and confirm it passes again. Claude 5 started doing that on its own, and nobody had asked for it.</p>
 <p>It catches tests which observe an unchanged path, along with tests which assert something that was already true before the feature existed, and it is now written into the rule as mandatory for any test meant to guard a specific behaviour. Automation does not reach that far: gomu rewrites production Go code and checks whether the unit tests notice, and nothing in the pipeline runs the <code>.ci</code> and <code>.et</code> scenarios under mutation.</p>
@@ -178,6 +188,8 @@ Register(&quot;configure&quot;, runConfigure)
 <p>A detector was tried and rejected. Every table-driven test builds local fixtures, so it fired on hundreds of correct tests, and a check that noisy gets switched off. What replaced it is a habit an agent can apply while reading: name the function under test, then confirm the test body calls it.</p>
 <p>Test volume alone creates false confidence. Ze's test-health page records volume, and it also reports the tests which assert nothing, the enrolled RFCs with no proven requirement, the mutation kill rate package by package, and how much of the suite expects a specific error rather than any error at all. The useful question is whether a plausible defect would make the evidence fail.</p>
 <h2 id="protect-the-proof-from-its-author">Protect the proof from its author</h2>
+<p class="blog-section-reveal">Evidence stays credible when weakening it requires visible and independent approval.</p>
+
 <p>An AI which sees a failing test will sometimes change the test to match its implementation. The result is green, internally consistent and wrong. Humans do this too, usually more slowly and with better excuses.</p>
 <p>A single edit does the damage, and every later stage then agrees with it, which is why this check sits at the earliest point there is. An edit hook reads every write to a test file and refuses the recognisable moves: adding a skip, dropping assertions, downgrading a fatal assertion to a warning, deleting table rows, removing expectations from a scenario. When a relaxation is genuine, the reason goes on the line and the edit proceeds:</p>
 <pre><code class="language-text"># test-relax: &lt;why this test/assertion no longer applies&gt;
@@ -199,6 +211,8 @@ Register(&quot;configure&quot;, runConfigure)
 <p>Approval leaves its own record on the changed test, dated and greppable, so a decision I made in one conversation is still visible to the session that arrives a month later.</p>
 <p>I described the ledger behind those tags in <a href="../the-proof-is-the-expensive-part/">The proof is the expensive part</a>, so I will not repeat it here beyond the principle it rests on: the authoring process has to make every attempt to weaken the evidence visible, whether the author is a model or a person.</p>
 <h2 id="what-this-costs">What this costs</h2>
+<p class="blog-section-reveal">Repository context and deeper checks trade maintainer time for stronger automated evidence.</p>
+
 <p>I would rather not pretend this machinery is free.</p>
 <p>The generated indexes are large. <code>ai/CODE-TO-DOCS.md</code> and <code>ai/DOCS-TO-CODE.md</code> are around a quarter of a megabyte each, and the RFC requirement ledger is over a megabyte. Nobody reads those files, but they are regenerated, checked and committed, and they make diffs noisier.</p>
 <p>The six thousand cross-reference comments have to stay true. Every renamed file, every moved design document and every merged package is a small maintenance debt. The checks stop them rotting silently, which means they turn into failures somebody has to clear.</p>
@@ -206,6 +220,8 @@ Register(&quot;configure&quot;, runConfigure)
 <p>The hooks fire on code which is correct. A pattern which is right ninety-five times out of a hundred still blocks the other five, and arguing with a hook is more annoying than arguing with a person. When a rule turns out to be wrong, it has already been copied into hundreds of files by an agent which was doing exactly what it was told.</p>
 <p>I still think the trade is worth it, because the alternative is reading every diff myself. None of that is automated, and it spends my time instead of machine time. It is a trade though, and a smaller project should pick the parts which pay for themselves rather than copying all of it.</p>
 <h2 id="a-project-can-build-this-incrementally">A project can build this incrementally</h2>
+<p class="blog-section-reveal">Projects can add repository context gradually through conventions that prevent repeated mistakes.</p>
+
 <p>Ze's machinery is large because Ze is large and because we have been learning while building it. Another project can start with the useful core, roughly in this order.</p>
 <ol>
 <li><strong>Make the project folder runnable.</strong> Keep configuration, fixtures and working data in predictable places, and reduce the differences between development, testing and installation.</li>
@@ -230,7 +246,7 @@ Register(&quot;configure&quot;, runConfigure)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 15:04 UTC</span>
+                    <span class="footer-published">Published 27 August 2026 15:11 UTC</span>
                 </div>
             </div>
         </footer>

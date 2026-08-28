@@ -6,8 +6,14 @@
 - Registry path: `show errors`
 - Mode: Read-only
 - Wire method: `ze-show:errors`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show recent errors across all subsystems, newest first. This is the first place to look when something goes wrong. Filter with source <name> to narrow to one subsystem, count <N> to limit output.
 

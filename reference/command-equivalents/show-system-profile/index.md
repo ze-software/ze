@@ -6,8 +6,14 @@
 - Registry path: `show system profile`
 - Mode: Read-only
 - Wire method: `ze-show:system-profile`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Capture a runtime profile for performance analysis. Types: cpu (requires duration, e.g. 30s), heap, goroutine, allocs (instant snapshots). Output is pprof format you can open with 'go tool pprof'. Send the file to support for deep analysis.
 

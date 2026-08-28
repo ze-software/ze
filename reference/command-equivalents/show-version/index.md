@@ -6,8 +6,14 @@
 - Registry path: `show version`
 - Mode: Read-only
 - Wire method: `ze-show:version`
-- Pipes, always: none
-- Pipes, on rows: none
+- Answer shape: not declared
+- Address fields: none
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show the running Ze version and build date. You can verify which release is deployed on this box.
 

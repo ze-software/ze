@@ -6,8 +6,14 @@
 - Registry path: `show subscriber`
 - Mode: Read-only
 - Wire method: `ze-subscriber-api:summary`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show a summary of all subscriber sessions. Counts by access type (PPPoE, L2TP, IPoE) with totals. Quick way to see how many subscribers are online.
 

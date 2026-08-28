@@ -6,8 +6,14 @@
 - Registry path: `update system firmware download`
 - Mode: Daemon
 - Wire method: `ze-update:system-firmware-download`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Download the latest firmware image right now. Bypasses the maintenance window and spread timers. The image is staged but not applied. Use 'update system firmware apply' or 'restart' to activate it.
 

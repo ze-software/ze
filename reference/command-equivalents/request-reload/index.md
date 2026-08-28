@@ -6,8 +6,14 @@
 - Registry path: `request reload`
 - Mode: Daemon
 - Wire method: `ze-system:daemon-reload`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Reload the configuration without restarting.
 

@@ -6,8 +6,14 @@
 - Registry path: `request interface mtu`
 - Mode: Daemon
 - Wire method: `ze-iface:interface-mtu`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Set the MTU on an interface. Usage: request interface <name> mtu <bytes>. Range: 68 to 65535.
 

@@ -6,8 +6,14 @@
 - Registry path: `show system ntp peers`
 - Mode: Read-only
 - Wire method: `ze-show:system-ntp-peers`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show NTP peers with offset, RTT, stratum, and reachability. Tells you whether your clock is synced and how far off each NTP server thinks you are.
 

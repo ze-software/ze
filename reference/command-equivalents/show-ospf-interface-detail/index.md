@@ -6,8 +6,14 @@
 - Registry path: `show ospf interface detail`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-interface-detail`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show full per-interface state (spec-ospf-ext-14): ISM, DR/BDR election detail, all three timers, and the opaque-capable neighbour count.
 

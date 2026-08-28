@@ -6,8 +6,14 @@
 - Registry path: `clear vrrp statistics`
 - Mode: Daemon
 - Wire method: `ze-clear:vrrp-statistics`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Reset every VRRP virtual router's counters to zero. Protocol state is untouched: clearing counters never triggers a failover.
 

@@ -6,8 +6,14 @@
 - Registry path: `show vpn ipsec dataplane drift`
 - Mode: Read-only
 - Wire method: `ze-show:vpn-ipsec-dataplane-drift`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Compare what the IKE engine believes against what the kernel holds. Reports each Child SA the engine counts as installed whose SPI the kernel SAD does not hold. The command exits non-zero when it finds drift, so a script CAN test it. A rekey window holds two SPIs and is not drift.
 

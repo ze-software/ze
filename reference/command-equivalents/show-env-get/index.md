@@ -6,8 +6,14 @@
 - Registry path: `show env get`
 - Mode: Read-only
 - Wire method: `ze-show:env-get`
+- Answer shape: tab
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
 - Pipes, on rows: none
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show one environment variable in detail. Returns the variable name, current value, default, and what it controls. Usage: show env get <name>.
 

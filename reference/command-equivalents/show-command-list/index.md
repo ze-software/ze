@@ -6,8 +6,14 @@
 - Registry path: `show command list`
 - Mode: Read-only
 - Wire method: `ze-bgp:command-list`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 List every command the daemon knows about. Returns dispatch key and description for each. Useful for scripting or discovering commands not shown in the top-level help.
 

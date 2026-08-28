@@ -6,8 +6,14 @@
 - Registry path: `monitor ping`
 - Mode: Read-only
 - Wire method: `ze-monitor:ping`
-- Pipes, always: none
+- Answer shape: tab
+- Address fields: target
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
 - Pipes, on rows: none
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Continuous ping with live loss and RTT statistics. Pings <target> until you stop it. Adjust interval and timeout as needed. Shows running min/avg/max RTT and packet loss.
 

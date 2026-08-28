@@ -6,8 +6,14 @@
 - Registry path: `show ospf database`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-database`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show the OSPF link-state database. Lists each LSA with its LS Type, Link State ID, Advertising Router, sequence number, age, and checksum.
 

@@ -6,8 +6,14 @@
 - Registry path: `show ospf ipv6 spf detail`
 - Mode: Read-only
 - Wire method: `ze-show:ospfv3-spf-detail`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Explain why each OSPFv3 route won (spec-ospf-ext-14), AF/Instance-ID tagged; read-only.
 

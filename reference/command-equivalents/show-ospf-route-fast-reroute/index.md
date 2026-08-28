@@ -6,8 +6,14 @@
 - Registry path: `show ospf route fast-reroute`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-route-fast-reroute`
+- Answer shape: not declared
+- Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
+- Command pipes: none
+- Pipe aliases: none
 
 Show OSPF fast-reroute (LFA / TI-LFA) backups (RFC 5286). Lists each prefix's primary next-hops with their pre-computed loop-free backup, protection class (node/link/downstream), and TI-LFA repair label stack. Unprotected primaries are shown as unprotected.
 
