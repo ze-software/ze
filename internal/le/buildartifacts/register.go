@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
 		Description: "build the host appliance driver and the amd64 or arm64 installer initrd",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

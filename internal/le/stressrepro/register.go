@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupSuite, Answer, registry.Meta{
 		Description: "reproduce load-dependent functional-test failures under bounded CPU, GC, and process pressure",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

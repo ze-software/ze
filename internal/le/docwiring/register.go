@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(name, Answer, registry.Meta{
+	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
 		Description: "the changed-file wiring, documentation, command and inventory gate",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

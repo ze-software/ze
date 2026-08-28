@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
 		Description: "no plugin reaches engine state through a plain in-process call, so moving that plugin to an external subprocess cannot silently disable it",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

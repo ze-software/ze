@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	leroot.Register(Area, Answer, registry.Meta{
+	leroot.Register(Area, leroot.GroupSuite, Answer, registry.Meta{
 		Description: "the five race-instrumented component-group Go test suites, and the installer initrd behind its own tag",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

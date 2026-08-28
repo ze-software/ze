@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
 		Description: "run golangci-lint over every Go build flavor and prove tracked-file coverage",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

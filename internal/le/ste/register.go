@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
 		Description: "the repository's writing, against ASD-STE100 Simplified Technical English: " +
 			"review every surface, and gate each changed file against its own HEAD version",
 		Mode: "offline",

@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
 		Description: "install and verify every tool a Ze dev or test workflow needs",
 		// The machine is what it reads and writes, so nothing here talks to a
 		// running daemon.

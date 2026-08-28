@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
 		Description: "native hook dispatcher golden and behavioral fixture selftests",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

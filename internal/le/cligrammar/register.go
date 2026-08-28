@@ -15,7 +15,7 @@ import (
 const name = "cli-grammar"
 
 func init() {
-	leroot.Register(name, Answer, registry.Meta{
+	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
 		Description: "every built-in command, every registered root and every demo call site still obeys the CLI grammar: keyword before value, no flag in the command model, no dead launch form",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupSuite, Answer, registry.Meta{
 		Description: "Go fuzzing: every `func Fuzz` under internal/, discovered at run time",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

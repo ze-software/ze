@@ -18,7 +18,7 @@ import (
 )
 
 func init() {
-	leroot.Register(name, Answer, registry.Meta{
+	leroot.Register(name, leroot.GroupWorkflow, Answer, registry.Meta{
 		Description: "admit a heavy job before it runs, so the sessions sharing this machine do not oversubscribe it",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

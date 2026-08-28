@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
 		Description: "the vendored web assets: check every consumer copy against third_party/web/, sync them, or ask npm what is newer",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
 		Description: "build, check, and render the public website and presentation artifacts without an interpreter",
 		Mode:        "offline", Section: registry.SectionTest, SubsFunc: Subs,
 	})

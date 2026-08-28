@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
 		Description: "the project's testing state as one generated page: what is measured, " +
 			"what is ratcheted, and which structural facts are gated",
 		Mode: "offline",

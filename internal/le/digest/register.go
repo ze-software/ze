@@ -19,7 +19,7 @@ import (
 const name = "digest"
 
 func init() {
-	leroot.Register(name, Answer, registry.Meta{
+	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
 		Description: "every file:line anchor in ai/digests/*.md resolves to a real file and an in-range line",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

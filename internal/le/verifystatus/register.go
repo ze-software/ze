@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	leroot.Register(name, Answer, registry.Meta{
+	leroot.Register(name, leroot.GroupWorkflow, Answer, registry.Meta{
 		Description: "read and write the verification certificate for the current checkout",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

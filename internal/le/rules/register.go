@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
 		Description: "the rule corpus in ai/rules/: lint and render it, map hook enforcement, " +
 			"and report matched rules unread in a session transcript",
 		Mode: "offline",

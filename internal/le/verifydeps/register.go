@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	leroot.Register(Area, Answer, registry.Meta{
+	leroot.Register(Area, leroot.GroupGate, Answer, registry.Meta{
 		Description: "the Go-tool and dependency stages used only by native pre-commit verification",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

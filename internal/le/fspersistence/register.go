@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
 		Description: "daemon runtime state is persisted through the managed zefs store, never as a loose file a reimage would drop",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

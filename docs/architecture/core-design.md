@@ -40,11 +40,28 @@ that function directly, and repository workflows invoke
 `./le <area> <action>`. A package must return structured answers through the
 shared renderer rather than add a private JSON mode.
 
+Registration states which of five groups the area belongs to, and help prints
+one section for each group in that order. The group is a parameter of
+`leroot.Register`, so a new area cannot compile without one.
+
+| Group | What the area does |
+|-------|--------------------|
+| `leroot.GroupWorkflow` | A person types it to move their own work along |
+| `leroot.GroupGate` | It judges the tree and answers a verdict |
+| `leroot.GroupGenerate` | It owns a committed artifact and can rewrite it |
+| `leroot.GroupSuite` | It runs tests, proofs, or benchmarks by name |
+| `leroot.GroupReport` | It reads the tree and answers what it found, and gates nothing |
+
+An area a pre-commit stage invokes is a gate, a generator, or a suite. It is
+never workflow or report, and `TestGateStagesAreNotWorkflowOrReport` refuses
+that combination.
+
 The retired auxiliary tooling tree has no current role. Data fixtures live
 under the `testdata/` directory of the Go package that owns them.
 
-<!-- source: internal/le/leroot/dispatch.go -- Commands, Dispatch -->
+<!-- source: internal/le/leroot/dispatch.go -- Commands, Dispatch, usageSections -->
 <!-- source: internal/le/leroot/leroot.go -- Register -->
+<!-- source: internal/le/leroot/group.go -- Group, GroupTitle -->
 <!-- source: cmd/ze/ze_le_register.go -->
 
 ---

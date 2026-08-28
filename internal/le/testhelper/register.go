@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	leroot.Register(Area, Answer, registry.Meta{
+	leroot.Register(Area, leroot.GroupSuite, Answer, registry.Meta{
 		Description: "long-running native protocol test fixture producers",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

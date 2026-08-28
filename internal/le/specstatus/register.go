@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register("spec-status", Answer, registry.Meta{
+	leroot.Register("spec-status", leroot.GroupReport, Answer, registry.Meta{
 		Description: "the spec inventory: status, bucket and stale-skeleton flag for every plan/spec-*.md",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

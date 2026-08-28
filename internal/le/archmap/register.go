@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
 		Description: "the generated architecture lists in ai/INSTRUCTIONS.md: check them against the tree, or rewrite them",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

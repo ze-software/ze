@@ -220,8 +220,10 @@ repository tooling lives under `internal/le`, `internal/test`, or
    `Answer(args []string) (any, int)` command boundary.
 2. Declare every action once in that package's action table. Action words are
    keywords and precede any value.
-3. Register the area with `leroot.Register`; return structured answers so the
-   shared pipe renderers remain available.
+3. Register the area with `leroot.Register`, naming the group help files it
+   under (`leroot.GroupWorkflow`, `GroupGate`, `GroupGenerate`, `GroupSuite`,
+   or `GroupReport`); return structured answers so the shared pipe renderers
+   remain available.
 4. Blank-import the package exactly once from `internal/le/register.go`. Do not
    import it from normal `cmd/ze` composition.
 5. Add its operator and producer row here. Remove the retired implementation

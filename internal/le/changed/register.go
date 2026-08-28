@@ -18,7 +18,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupReport, Answer, registry.Meta{
 		Description: "what this checkout changed: the test groups it touches, and the packages a scoped verify must cover",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

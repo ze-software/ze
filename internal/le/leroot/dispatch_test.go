@@ -57,7 +57,7 @@ func TestRegisterShapeDistinguishesFullToolPaths(t *testing.T) {
 func TestDispatchReachesRegisteredLocalDataAndPreservesNonzeroPayload(t *testing.T) {
 	const name = "dispatch-local-data-probe"
 	var got []string
-	Register(name, func(args []string) (any, int) {
+	Register(name, GroupReport, func(args []string) (any, int) {
 		got = args
 		return map[string]any{"probe": "ran", "code": 3}, 3
 	}, registry.Meta{Description: "a test probe", Mode: "offline", Section: registry.SectionTest})
@@ -82,7 +82,7 @@ func TestDispatchReachesRegisteredLocalDataAndPreservesNonzeroPayload(t *testing
 
 func TestDispatchUsesSharedPipeRenderers(t *testing.T) {
 	const name = "pipe-local-data-probe"
-	Register(name, func([]string) (any, int) {
+	Register(name, GroupReport, func([]string) (any, int) {
 		return map[string]any{
 			"actions":        2,
 			"native-actions": []string{"tier/check", "repository/check"},
@@ -114,7 +114,7 @@ func TestDispatchUsesSharedPipeRenderers(t *testing.T) {
 
 func TestDispatchRefusesTwoFormatOperators(t *testing.T) {
 	const name = "pipe-refusal-local-data-probe"
-	Register(name, func([]string) (any, int) {
+	Register(name, GroupReport, func([]string) (any, int) {
 		return map[string]string{"probe": "ran"}, 0
 	}, registry.Meta{Description: "a test probe", Mode: "offline", Section: registry.SectionTest})
 	RegisterShape(name, command.ShapeDoc)

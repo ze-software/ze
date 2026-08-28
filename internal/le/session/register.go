@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
 		Description: "manage this development session's isolated state",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

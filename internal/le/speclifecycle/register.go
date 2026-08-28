@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	leroot.Register(commandName, Answer, registry.Meta{
+	leroot.Register(commandName, leroot.GroupWorkflow, Answer, registry.Meta{
 		Description: "spec ownership, per-spec state paths, transcript model facts, and independent review artifacts",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

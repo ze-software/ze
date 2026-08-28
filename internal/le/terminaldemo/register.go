@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
 		Description: "build, validate, verify, and render the published terminal demonstrations",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

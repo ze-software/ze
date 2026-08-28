@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupSuite, Answer, registry.Meta{
 		Description: "release-candidate evidence: run the verify gate over a clean clone of this checkout, inside a container",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

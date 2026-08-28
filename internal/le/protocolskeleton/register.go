@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupReport, Answer, registry.Meta{
 		Description: "which protocol implementations are still a skeleton rather than a daemon, classified against ai/rules/protocol.md",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

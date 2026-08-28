@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(name, Answer, registry.Meta{
+	leroot.Register(name, leroot.GroupReport, Answer, registry.Meta{
 		Description: "how wide the uncommitted tree is, grouped by area. Advisory unless max-areas names a ceiling",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
 		Description: "render and validate the netlab daemon integration",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

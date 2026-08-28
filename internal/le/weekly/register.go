@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register("weekly", Answer, registry.Meta{
+	leroot.Register("weekly", leroot.GroupWorkflow, Answer, registry.Meta{
 		Description: "publish the weekly update to Discord; the bare command shows what would be sent",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

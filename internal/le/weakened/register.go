@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
 		Description: "detect committed and proposed test weakenings and enforce their ledgers",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

@@ -16,7 +16,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
 		Description: "bring a linked git worktree up to date with main, stashing and restoring its uncommitted work",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

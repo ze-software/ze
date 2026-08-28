@@ -8,9 +8,9 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
 		Description: "the generated command-catalog Markdown: check it against live registries, or rewrite it",
-		Mode:        "offline",
+		Mode:        modeOffline,
 		Section:     registry.SectionTest,
 		SubsFunc:    Subs,
 	})

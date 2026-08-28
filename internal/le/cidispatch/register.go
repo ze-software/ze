@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
 		Description: "every command string this repository sends to its own daemon still routes, so a renamed command tree cannot leave a test passing against a key that is gone",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

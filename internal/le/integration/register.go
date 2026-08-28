@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	leroot.Register(Area, Answer, registry.Meta{
+	leroot.Register(Area, leroot.GroupSuite, Answer, registry.Meta{
 		Description: "integration, interop, stress, and live proofs that need Docker, root, a namespace, or internet access",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

@@ -104,6 +104,45 @@ func TestAPageWithNoCommandsSectionAnswersNothing(t *testing.T) {
 	}
 }
 
+// groupedHelpPage is the page le prints once its commands are grouped. A
+// tracked run gets the page of the commit it judges, so both shapes are read
+// by the same parser.
+const groupedHelpPage = `le - the Ze repository and development entry point
+
+Usage:
+  le <command> [options] [| json | yaml | table]
+
+Workflow (you type these while working):
+  commit   prepare explicit commits
+  session  manage this development session's state
+
+Gates (judge the tree, answer a verdict):
+  tier     module-tier placement
+  tracked  does le still work from what git holds
+
+Reports (read the tree, gate nothing):
+  inventory  what ze is made of
+`
+
+func TestEverySectionOfAGroupedPageListsCommands(t *testing.T) {
+	got := commandNames(groupedHelpPage)
+	want := []string{"commit", "session", "tier", "tracked", "inventory"}
+	if !slices.Equal(got, want) {
+		t.Errorf("CommandNames = %v, want %v", got, want)
+	}
+}
+
+// TestTheUsageLineIsNotACommandOnAGroupedPage is the same trap as on the flat
+// page. A blank line no longer ends the reading, so the usage block is skipped
+// by its heading alone.
+func TestTheUsageLineIsNotACommandOnAGroupedPage(t *testing.T) {
+	for _, name := range commandNames(groupedHelpPage) {
+		if strings.HasPrefix(name, "le") {
+			t.Errorf("the usage line was read as a command: %q", name)
+		}
+	}
+}
+
 // --- The comparison ---------------------------------------------------------
 
 func TestAgreementIsClean(t *testing.T) {

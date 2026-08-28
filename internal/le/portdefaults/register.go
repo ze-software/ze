@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
 		Description: "the Go listener-default table and the YANG refine port defaults still agree, service by service",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

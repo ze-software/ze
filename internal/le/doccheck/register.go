@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
 		Description: "native documentation links, aggregate verification, and templ output checks",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

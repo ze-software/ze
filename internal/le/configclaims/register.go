@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(name, Answer, registry.Meta{
+	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
 		Description: "every config subtree an operator can write is delivered to a plugin, a hub handler, or a recorded exception",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

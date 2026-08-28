@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
 		Description: "does le still work when built from what git holds, rather than from the working tree",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

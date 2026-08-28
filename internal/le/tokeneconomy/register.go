@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupReport, Answer, registry.Meta{
 		Description: "where this repository's sessions spend their tokens: API calls, the context carried at each one, the size histogram and a capped-context counterfactual, read from the machine-local transcript store",
 		// Offline, and the word is exact for an unusual reason: the tool reads
 		// no network AND no checkout. Its corpus is ~/.claude/projects, which

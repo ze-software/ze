@@ -7,8 +7,12 @@ import (
 	"github.com/ze-software/ze/internal/le/leroot"
 )
 
+// The prepared-commit payload renders itself. Text has a pointer receiver, so
+// the action MUST answer &Prepared; a value would render as a bare JSON dump.
+var _ leroot.Prose = (*Prepared)(nil)
+
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
 		Description: "prepare explicit commits without touching the shared staging index",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

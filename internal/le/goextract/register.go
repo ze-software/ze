@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register("go-extract", Answer, registry.Meta{
+	leroot.Register("go-extract", leroot.GroupWorkflow, Answer, registry.Meta{
 		Description: "move named declarations from one Go file to another, comments and formatting intact",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	leroot.Register(name, Answer, registry.Meta{
+	leroot.Register(name, leroot.GroupWorkflow, Answer, registry.Meta{
 		Description: "run a verify-class command through the shared heavy-job admission",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

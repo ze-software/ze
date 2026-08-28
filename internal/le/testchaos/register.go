@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(Area, Answer, registry.Meta{
+	leroot.Register(Area, leroot.GroupSuite, Answer, registry.Meta{
 		Description: "chaos simulator tests, reduced-tag CLI tests, and lint",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

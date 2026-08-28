@@ -10,7 +10,7 @@ import (
 
 func init() {
 	setActionRunner(verifydispatch.RunAction)
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
 		Description: "the full native verification population against a fixed commit in a detached worktree",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupSuite, Answer, registry.Meta{
 		Description: "ze against a real peer daemon in a container: the protocol proofs that need another implementation to mean anything",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

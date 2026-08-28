@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
 		Description: "htmx 4 upgrade findings: check the explained list against every htmx-bearing package, or report every scanner issue",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

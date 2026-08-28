@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	leroot.Register(name, Answer, registry.Meta{
+	leroot.Register(name, leroot.GroupWorkflow, Answer, registry.Meta{
 		Description: "append one stage failure block to the verification failure index",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

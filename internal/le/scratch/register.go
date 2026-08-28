@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
 		Description: "keep disposable scratch and durable caches outside the checkout without overwriting existing work",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

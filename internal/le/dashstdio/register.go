@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
 		Description: "every command that takes a filename routes it through the helper that resolves \"-\", so an operator can always pipe into and out of one",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

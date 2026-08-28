@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
 		Description: "the build-tag lists derived from feature-gates.txt: check the four files that carry one, or rewrite them",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

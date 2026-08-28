@@ -63,10 +63,10 @@ const registerCall = "leroot.Register("
 // would otherwise stall a post-commit check with no limit at all.
 const DefaultDeadline = 10 * time.Minute
 
-// commandsHeading is the section of le's help page that lists its own root
-// commands. dispatch.go prints only the commands le OWNS under it, so the
+// usageHeading is the one section of le's help page that lists no command.
+// dispatch.go prints only the commands le OWNS under the others, so the
 // binary's answer needs no filtering here.
-const commandsHeading = "Commands:"
+const usageHeading = "Usage:"
 
 // Broken is one finding: a package, and what is wrong with it.
 type Broken struct {
@@ -191,29 +191,46 @@ func packageRegisters(dir string) (bool, error) {
 // commandNames returns the root commands in the order in which the help page
 // lists them.
 //
-// The parser reads the page from the "Commands:" heading to the first blank line
-// after it. The usage line above has the same indentation, but it has a separate
-// heading. Therefore, the parser does not identify that line as a command.
+// The page prints one section for each command group, and every section except
+// the usage block lists commands. So the parser reads them all and skips that
+// one. The usage line has the same indentation as a command line, and its own
+// heading is what separates the two.
+//
+// Reading the sections, rather than one heading by name, is what lets a tracked
+// run judge a commit whose page groups its commands differently. That page is
+// the only one this parser ever gets: it comes from the binary built from the
+// commit, not from this source tree.
 func commandNames(page string) []string {
 	var names []string
 	inside := false
 
 	for line := range strings.SplitSeq(page, "\n") {
-		if strings.TrimSpace(line) == commandsHeading {
-			inside = true
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if isSectionHeading(line, trimmed) {
+			inside = trimmed != usageHeading
 			continue
 		}
 		if !inside {
 			continue
-		}
-		if strings.TrimSpace(line) == "" {
-			break
 		}
 		if fields := strings.Fields(line); len(fields) > 0 {
 			names = append(names, fields[0])
 		}
 	}
 	return names
+}
+
+// isSectionHeading reports whether a page line opens a section. A heading
+// starts at column zero and ends in a colon, and every line it lists is
+// indented under it.
+func isSectionHeading(line, trimmed string) bool {
+	if len(line) != len(trimmed) {
+		return false
+	}
+	return strings.HasSuffix(trimmed, ":")
 }
 
 // Compare returns all disagreements between three lists. The lists contain

@@ -34,7 +34,7 @@ var probe struct {
 
 func registerProbe() {
 	probe.registered.Do(func() {
-		leroot.Register(probeRoot, func(args []string) (any, int) {
+		leroot.Register(probeRoot, leroot.GroupReport, func(args []string) (any, int) {
 			root, err := lepath.Root()
 			if err != nil {
 				return probeText(err.Error()), 2

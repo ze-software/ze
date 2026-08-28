@@ -1,5 +1,6 @@
 // Design: docs/architecture/core-design.md -- le's registration adapter
 // Detail: dispatch.go -- the loop that runs the commands registered here
+// Detail: group.go -- the five groups a registration names, and their order
 //
 // Package leroot is how an le tool joins the shared command engine. It declares
 // no registry, grammar, or operator of its own. Each tool registers structured
@@ -60,8 +61,8 @@ func Owned() []string {
 	commands := registry.ListLocal()
 	owned := make([]string, 0, len(commands))
 	for _, entry := range commands {
-		if strings.HasPrefix(entry.Path, pathPrefix) {
-			owned = append(owned, strings.TrimPrefix(entry.Path, pathPrefix))
+		if name, ok := strings.CutPrefix(entry.Path, pathPrefix); ok {
+			owned = append(owned, name)
 		}
 	}
 	return owned
@@ -74,16 +75,24 @@ func Owns(name string) bool {
 
 // Register wires one tool into the shared registry at `le <name>`.
 //
+// group says what the tool is for, and help renders the commands under it
+// (group.go). It is a parameter rather than a field of Meta, so a new tool
+// that names no group does not compile.
+//
 // Meta MUST carry a Description, a Mode, and a Section. A registration missing
 // one is a programming error at init, so it panics instead of publishing blank
 // help.
-func Register(name string, answer Answer, meta registry.Meta) {
+func Register(name string, group Group, answer Answer, meta registry.Meta) {
 	if answer == nil {
 		panic("BUG: leroot.Register: nil answer; see the init frame above for the tool")
+	}
+	if !KnownGroup(group) {
+		panic("BUG: leroot.Register: unknown group; see group.go for the five le renders")
 	}
 	if meta.Description == "" || meta.Mode == "" || meta.Section == "" {
 		panic("BUG: leroot.Register: Meta needs Description, Mode and Section")
 	}
+	setGroup(name, group)
 	registry.MustRegisterLocalData(
 		CommandPath(name),
 		registry.LocalDataHandler(answer),

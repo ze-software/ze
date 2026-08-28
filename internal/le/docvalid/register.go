@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
 		Description: "the documentation gates: the YANG command contract, the doc drift check, and the generated operator table",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

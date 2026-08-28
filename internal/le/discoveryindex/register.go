@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
 		Description: "the generated package map in ai/PACKAGE-MAP.md: check it against the tree, or rewrite it",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

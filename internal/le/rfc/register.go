@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
 		Description: "RFC conformance: bind every MUST-level requirement of an enrolled RFC " +
 			"to the tests that enforce it, and bound what the summaries missed",
 		Mode: "offline",

@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register("command-list", Answer, registry.Meta{
+	leroot.Register("command-list", leroot.GroupReport, Answer, registry.Meta{
 		Description: "every registered command, by verb, read from the live handlers and schemas",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

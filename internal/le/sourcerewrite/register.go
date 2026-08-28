@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
 		Description: "deterministic repository rewrites: rules, BGP expectations, replacements, and activity HTML",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

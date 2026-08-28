@@ -43,26 +43,55 @@ func Commands() []registry.RootCommand {
 	return mine
 }
 
-// Usage lists every registered le tool with the registry's groups. program
+// Usage lists every registered le tool under the group it declared. program
 // supplies the page name: "le" for the binary and "ze le" for a ze_le build.
 // Thus, every line that a reader copies is valid for the active program.
+//
+// Eighty-six commands in one alphabetical list read as one thing. They are
+// five. The groups say which, in the order a person meets them (group.go).
 func Usage(program string) {
-	roots := Commands()
-	entries := make([]helpfmt.HelpEntry, 0, len(roots))
-	for _, rc := range roots {
-		entries = append(entries, helpfmt.HelpEntry{Name: rc.Name, Desc: rc.Meta.Description})
-	}
-
 	var tb textbuf.Buffer
 	page := helpfmt.Page{
-		Command: program,
-		Summary: "the Ze repository and development entry point",
-		Usage:   []string{tb.Str(program).Str(" <command> [options] [| json | yaml | table]").String()},
-		Sections: []helpfmt.HelpSection{
-			{Title: "Commands", Entries: entries},
-		},
+		Command:  program,
+		Summary:  "the Ze repository and development entry point",
+		Usage:    []string{tb.Str(program).Str(" <command> [options] [| json | yaml | table]").String()},
+		Sections: usageSections(Commands()),
 	}
 	page.WriteErr()
+}
+
+// usageSections splits the commands into one help section for each group, in
+// render order.
+//
+// A command whose group is unknown still prints. It goes in a final section of
+// its own. A help page that hides a command is worse than one that files a
+// command badly. Only a registration that bypassed Register can produce such a
+// command.
+func usageSections(roots []registry.RootCommand) []helpfmt.HelpSection {
+	byGroup := make(map[Group][]helpfmt.HelpEntry, len(groupOrder))
+	ungrouped := make([]helpfmt.HelpEntry, 0)
+	for _, rc := range roots {
+		entry := helpfmt.HelpEntry{Name: rc.Name, Desc: rc.Meta.Description}
+		group, ok := GroupOf(rc.Name)
+		if !ok {
+			ungrouped = append(ungrouped, entry)
+			continue
+		}
+		byGroup[group] = append(byGroup[group], entry)
+	}
+
+	sections := make([]helpfmt.HelpSection, 0, len(groupOrder)+1)
+	for _, group := range groupOrder {
+		entries := byGroup[group]
+		if len(entries) == 0 {
+			continue
+		}
+		sections = append(sections, helpfmt.HelpSection{Title: GroupTitle(group), Entries: entries})
+	}
+	if len(ungrouped) != 0 {
+		sections = append(sections, helpfmt.HelpSection{Title: "Ungrouped", Entries: ungrouped})
+	}
+	return sections
 }
 
 // Dispatch resolves argv through the canonical local-data path and answers the

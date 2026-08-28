@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupSuite, Answer, registry.Meta{
 		Description: "suggest a perf run when BGP data-plane code changed since the last one",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;

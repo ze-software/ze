@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	leroot.Register(area, Answer, registry.Meta{
+	leroot.Register(area, leroot.GroupReport, Answer, registry.Meta{
 		Description: "report committed journal classes and validate one edited shard",
 		Mode:        "offline",
 		Section:     registry.SectionTest,

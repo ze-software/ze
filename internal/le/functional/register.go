@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	leroot.Register(Area, Answer, registry.Meta{
+	leroot.Register(Area, leroot.GroupSuite, Answer, registry.Meta{
 		Description: "functional suites, fail-open Docker-exec analysis, and ExaBGP compatibility",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
