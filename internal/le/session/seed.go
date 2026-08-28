@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/lejob"
+	"github.com/ze-software/ze/internal/le/job"
 )
 
 const (
@@ -42,7 +42,7 @@ type seedOps struct {
 	environ []string
 	random  io.Reader
 	sleep   func(time.Duration)
-	run     func([]string, lejob.ProcessIO) (int, error)
+	run     func([]string, job.ProcessIO) (int, error)
 	waits   int
 }
 
@@ -53,7 +53,7 @@ func seedStore(root, binary string, streams streams) (seedReport, int, error) {
 		environ: os.Environ(),
 		random:  rand.Reader,
 		sleep:   time.Sleep,
-		run:     lejob.RunProcess,
+		run:     job.RunProcess,
 		waits:   seedWaitLimit,
 	})
 }
@@ -123,7 +123,7 @@ func seedStoreWithOps(root, binary string, streams streams, ops seedOps) (seedRe
 	}
 	name := filepath.Base(sessionDir)
 	stdin := strings.NewReader(strings.Join([]string{report.User, password, "127.0.0.1", "2222", name, ""}, "\n"))
-	code, startErr := ops.run([]string{binary, "init", "--seed"}, lejob.ProcessIO{
+	code, startErr := ops.run([]string{binary, "init", "--seed"}, job.ProcessIO{
 		Dir: root, Environ: ops.environ, Stdin: stdin, Stdout: streams.Out, Stderr: streams.Err,
 	})
 	report.ChildCode = code
@@ -180,7 +180,7 @@ func configOverride(environ []string) (string, bool) {
 }
 
 func ensurePassword(path string, random io.Reader) (string, error) {
-	content, err := os.ReadFile(path)
+	content, err := os.ReadFile(path) //nolint:gosec // the path is a session state file under the checkout root
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", fmt.Errorf("cannot read %s: %w", filepath.ToSlash(path), err)
 	}
@@ -197,7 +197,7 @@ func ensurePassword(path string, random io.Reader) (string, error) {
 	if err := os.Chmod(path, 0o600); err != nil {
 		return "", fmt.Errorf("cannot restrict %s: %w", filepath.ToSlash(path), err)
 	}
-	password := strings.SplitN(string(content), "\n", 2)[0]
+	password, _, _ := strings.Cut(string(content), "\n")
 	if password == "" {
 		return "", fmt.Errorf("%s holds no password", filepath.ToSlash(path))
 	}

@@ -230,7 +230,7 @@ bad suite token. No daemon code, no wire behavior, no test corpus change.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/specsession/review.go`
 - [ ] **Commit A:** code + tests + spec
 - [ ] **Commit B:** `git rm plan/<spec>` only
 

@@ -64,7 +64,7 @@ as a property of the whole corpus when it holds for part of it.
 
 - Is a producer search over composed format strings cheap enough to be a gate, or does tolerating `%s` make the false-positive rate carry the check into the noise the day it lands?
 - Should the same check read the POSITIVE assertions? An `expect=` whose literal no producer emits fails loudly, so it needs no gate. But an `expect=` that a producer emits unconditionally is the same defect wearing the other sign, and nothing finds that either.
-- Does this belong beside `internal/le/weakened/audit.go`, which already reasons about assertion counts per file, or as its own stage?
+- Does this belong beside `internal/le/testweakened/audit.go`, which already reasons about assertion counts per file, or as its own stage?
 
 ## Why this does not block the first release
 

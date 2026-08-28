@@ -15,7 +15,7 @@ import (
 	"sort"
 
 	"github.com/ze-software/ze/internal/le/featuretags"
-	"github.com/ze-software/ze/internal/le/lintgate"
+	"github.com/ze-software/ze/internal/le/verifylint"
 )
 
 // projectTag matches the build tags this repository owns. Non-project tags
@@ -37,7 +37,7 @@ func tagUniverse(root string) (map[string]bool, error) {
 		return nil, err
 	}
 	universe := make(map[string]bool)
-	for _, tag := range lintgate.ReachableProjectTags(features) {
+	for _, tag := range verifylint.ReachableProjectTags(features) {
 		if projectTag.MatchString(tag) {
 			universe[tag] = true
 		}

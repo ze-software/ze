@@ -9,7 +9,7 @@
 // exports all three, because GNU make puts a command-line variable into the
 // recipe environment. So the documented invocation keeps working unchanged, and
 // the CLI grammar keeps its rule that a keyword comes before a value
-// (ai/rules/cli.md). internal/le/trackedbuild took the same route for REV.
+// (ai/rules/cli.md). internal/le/repositorytrackedbuild took the same route for REV.
 
 package fuzz
 

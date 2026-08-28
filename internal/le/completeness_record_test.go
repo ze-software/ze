@@ -312,7 +312,7 @@ var portedProducers = []portedProducer{
 
 	// Tool probes. Each target listed the tools one class of heavy evidence
 	// needs, and exited non-zero on a missing one.
-	{Target: "ze-deployment-preflight", Area: "setup", Verb: "check", Note: "the tool population is internal/le/devsetup/tools.go, which probes docker, qemu and xl2tpd"},
+	{Target: "ze-deployment-preflight", Area: "setup", Verb: "check", Note: "the tool population is internal/le/setup/tools.go, which probes docker, qemu and xl2tpd"},
 	{Target: "ze-evidence-release-preflight", Area: "setup", Verb: "check", Note: "the same probe answers for the docker and qemu the release categories need"},
 }
 
@@ -337,7 +337,7 @@ var retiredProducers = []retiredProducer{
 	},
 	{
 		Target: "all",
-		Reason: "Make itself: the default goal, sequencing ze-lint, ze-unit-test and build. Each member is judged on its own row, and the native verification population is `le verify current` (internal/le/verify)",
+		Reason: "Make itself: the default goal, sequencing ze-lint, ze-unit-test and build. Each member is judged on its own row, and the native verification population is `le verify current` (internal/le/verifyengine)",
 	},
 	{
 		Target: "build",

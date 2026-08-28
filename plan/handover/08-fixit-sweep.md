@@ -98,7 +98,7 @@ is judged against. Read it before assuming a red is yours.
 - `internal/plugins/iface/vpp/{ifacevpp.go,mirror.go}` — `CreateDummy`, `recordMirror`
 - `internal/component/resolve/irr/{client.go,store/store.go}` — `RefreshPrefixes`
 - `internal/core/dnsserver/{handler.go,metrics.go}` — `send`, the write-failure counter
-- the retired `scripts/dev/review_gate.py` (current producer: `internal/le/speclifecycle/review.go`) — `cmd_record`, the three refusals
+- the retired `scripts/dev/review_gate.py` (current producer: `internal/le/specsession/review.go`) — `cmd_record`, the three refusals
 
 ## The pattern this session found, which matters more than any single fix
 

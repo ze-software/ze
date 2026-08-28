@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/verify"
+	"github.com/ze-software/ze/internal/le/verifyengine"
 )
 
 const name = "verify-summary"
@@ -19,21 +19,26 @@ func Answer(args []string) (any, int) {
 		}}}, 0
 	}
 	if len(args) != 7 {
-		return refuse("usage: le verify-summary append failures <failures-log> stage <stage> log <stage-log>"), 2
+		refuse("usage: le verify-summary append failures <failures-log> stage <stage> log <stage-log>")
+		return nil, 2
 	}
 	if args[0] != "append" {
-		return refuse("unknown action " + args[0]), 2
+		refuse("unknown action " + args[0])
+		return nil, 2
 	}
 	if args[1] != "failures" {
-		return refuse("expected failures before the failure-index path"), 2
+		refuse("expected failures before the failure-index path")
+		return nil, 2
 	}
 	if args[3] != "stage" {
-		return refuse("expected stage before the stage name"), 2
+		refuse("expected stage before the stage name")
+		return nil, 2
 	}
 	if args[5] != "log" {
-		return refuse("expected log before the stage-log path"), 2
+		refuse("expected log before the stage-log path")
+		return nil, 2
 	}
-	summary, err := verify.AppendSummary(args[2], args[4], args[6])
+	summary, err := verifyengine.AppendSummary(args[2], args[4], args[6])
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -52,7 +57,6 @@ type Actions struct {
 	Actions []Action `json:"actions"`
 }
 
-func refuse(message string) any {
+func refuse(message string) {
 	leaction.ReportError(errors.New("verify-summary: " + message))
-	return nil
 }

@@ -2,7 +2,7 @@
 
 Use this page when `./le verify current mode full` fails, when a test needs to be rerun narrowly, or when debug logging should be enabled without turning the whole run into noise.
 
-<!-- source: ../main/internal/le/verify/run.go -- verify entry point -->
+<!-- source: ../main/internal/le/verifyengine/run.go -- verify entry point -->
 <!-- source: ../main/internal/le/verifylock/register.go -- verify lock -->
 <!-- source: ../main/internal/test/runner/failure_group.go -- failure grouping -->
 <!-- source: ../main/internal/test/trace/trace.go -- per-step trace output -->

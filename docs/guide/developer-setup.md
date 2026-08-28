@@ -1,7 +1,7 @@
 # Developer Setup
 
-<!-- source: internal/le/devsetup/actions.go -- Answer -->
-<!-- source: internal/le/devsetup/actions.go -- Answer -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
 
 Set up a Ze development environment with all build, lint, and test dependencies.
 
@@ -17,7 +17,7 @@ missing tools, vendors Go dependencies, and reports what it did.
 
 `le` is the native development-tool personality built from `cmd/ze`. The root
 launcher executes the cached `bin/le` binary and builds it only when absent.
-Setup behavior lives in `internal/le/devsetup.Answer`.
+Setup behavior lives in `internal/le/setup.Answer`.
 
 ## Check Mode
 
@@ -76,7 +76,7 @@ Regenerate the checked-in protobuf Go files after you change
 
 The action builds both protoc plugins from the vendored module versions, runs
 `protoc`, and applies explicit `json_name` options to Go struct tags.
-<!-- source: internal/le/devsetup/proto_generate.go -- ProtoGenerator.Run -->
+<!-- source: internal/le/setup/proto_generate.go -- ProtoGenerator.Run -->
 
 Run the installed checker through the repository gate:
 
@@ -125,7 +125,7 @@ The target and its checked feature population are documented in
   a container (colima/docker). The setup action skips grub on macOS.
 
 <!-- source: internal/appliance/homebrew.go -- brewPrefixes, brewKegDirs -->
-<!-- source: internal/le/devsetup/actions.go -- Answer -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
 
 
 ### Linux
@@ -146,8 +146,8 @@ prompt cannot stop the run.
 | `sudo` wants a password, a terminal is attached | Asks once with `sudo -v`, then runs `sudo -n <command>` |
 | `sudo` wants a password, no terminal (CI, an agent session) | Prints the command, installs nothing, exits nonzero |
 
-<!-- source: internal/le/devsetup/actions.go -- Answer -->
-<!-- source: internal/le/devsetup/actions.go -- Answer -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
 
 
 **GRUB follows your host architecture.** Debian packages one module set per
@@ -158,7 +158,7 @@ target from the architecture of the image it packs, so building an ISO for the
 OTHER architecture needs that architecture's set too, through
 `dpkg --add-architecture`.
 
-<!-- source: internal/le/devsetup/actions.go -- Answer -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/appliance/cmd_iso.go -- isoGRUBTarget -->
 
 
@@ -190,7 +190,7 @@ checks this as `kvm-access` and, in install mode, runs:
 sudo usermod -aG kvm $USER
 ```
 
-<!-- source: internal/le/devsetup/actions.go -- Answer -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
 
 Group membership is fixed at login, so an existing shell keeps the old groups
 even after the command succeeds. Log out and back in, or run one command with
@@ -224,7 +224,7 @@ sudo ifconfig lo0 inet6 fd00::2/128 alias      # macOS
 sudo ip -6 addr add fd00::2/128 dev lo         # Linux
 ```
 
-<!-- source: internal/le/devsetup/actions.go -- Answer -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
 
 Presence is decided by binding a socket to the address, which is the same
 question a fixture asks and a stronger one than reading the interface list: an

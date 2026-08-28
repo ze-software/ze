@@ -29,7 +29,7 @@ import (
 )
 
 // CannotStart is the code a command that never ran answers. It is the shell's
-// own number for it, and internal/le/devsetup/proc.go answers the same, so a caller
+// own number for it, and internal/le/setup/proc.go answers the same, so a caller
 // that reads gate codes apart keeps reading them apart.
 const CannotStart = 127
 
@@ -95,8 +95,8 @@ func Stream(argv []string, dir string, environ []string) int {
 // negative number matches none. ExitCode uses the shell convention of 128 plus
 // the signal.
 //
-// ExitCode is exported because internal/le/lejob starts its own child.
-// internal/le/lejob tees that child's output to a job log. Both child execution
+// ExitCode is exported because internal/le/job starts its own child.
+// internal/le/job tees that child's output to a job log. Both child execution
 // paths must map a finished wait to the same status.
 //
 // For an error that is not an exit, ExitCode returns 1. No child status exists

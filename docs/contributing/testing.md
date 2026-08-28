@@ -33,7 +33,7 @@ Use the narrowest test that covers your change. Escalate only when needed.
 
 `./le verify current mode full` is the pre-commit gate. The narrower commands
 are development tools. `./le job run` admits an individual heavy command
-through `internal/le/lejob`, so concurrent sessions do not oversubscribe the
+through `internal/le/job`, so concurrent sessions do not oversubscribe the
 machine.
 
 ### Component groups for step 3
@@ -205,7 +205,7 @@ Common case (one group changed): ~2 min total instead of 6+.
 
 ### The builds the linter reads
 
-<!-- source: internal/le/lintgate/actions.go -- Answer -->
+<!-- source: internal/le/verifylint/actions.go -- Answer -->
 
 golangci-lint analyzes ONE build for each run: one GOOS, one GOARCH, one tag
 set. `./le verify-lint run` therefore runs more than one.
@@ -214,7 +214,7 @@ set. `./le verify-lint run` therefore runs more than one.
 |------|-------|--------------------|
 | 1 | the host GOOS, `.golangci.yml` tags | the shipped daemon |
 | 2 | `GOOS=linux`, plus `integration` | every kernel-facing `//go:build integration` test |
-| 3..N | one for each row of `FLAVORS` (`internal/le/lintgate.Answer`) | `ze_installer`, `ze_distro`, `ze_appliance`, `ze_setup`, `tinygo`, and the capability tags (`debug`, `race`, `live`, ...). Also the GOOS and GOARCH targets no other pass compiles: `darwin`, `freebsd`, `openbsd`, `dragonfly`, `wasip1`, `linux/arm64` and `linux/riscv64`. Also the `compile-out` build, which drops every feature gate and keeps `ze_core` alone |
+| 3..N | one for each row of `FLAVORS` (`internal/le/verifylint.Answer`) | `ze_installer`, `ze_distro`, `ze_appliance`, `ze_setup`, `tinygo`, and the capability tags (`debug`, `race`, `live`, ...). Also the GOOS and GOARCH targets no other pass compiles: `darwin`, `freebsd`, `openbsd`, `dragonfly`, `wasip1`, `linux/arm64` and `linux/riscv64`. Also the `compile-out` build, which drops every feature gate and keeps `ze_core` alone |
 
 Each flavor pass lints only the packages holding a file the two passes above do
 not load. That package set is DERIVED from the tree with `go list` on every run.
@@ -244,7 +244,7 @@ build constraint. Without it, the bare-core build reports the helper as
 
 ### Feature-tag structural type check
 
-<!-- source: internal/le/staticcheckmatrix/actions.go -- Answer -->
+<!-- source: internal/le/staticcheckfeaturematrix/actions.go -- Answer -->
 
 `./le staticcheck-feature-matrix check` type-checks the working tree in N+2
 configurations derived from the N unique features in `feature-gates.txt`: one
@@ -273,7 +273,7 @@ build flavors.
 ### The one stage that does not read your working tree
 
 Every stage above compiles and runs the files on your disk, uncommitted ones
-included. `./le repository-tracked-build check` (`internal/le/trackedbuild.Answer`) is the
+included. `./le repository-tracked-build check` (`internal/le/repositorytrackedbuild.Answer`) is the
 exception: it extracts the commit with `git archive` and compiles the extracted
 tree, so it sees only what git holds.
 
@@ -286,7 +286,7 @@ clones. Run it after the commit script when the commit carried Go:
 REV=7abe8a07e ./le repository-tracked-build check
 ```
 
-The action builds every flavor in `internal/le/trackedbuild/matrix.go` over
+The action builds every flavor in `internal/le/repositorytrackedbuild/matrix.go` over
 `./...`. Each row pins its tags, operating system where required, and a
 tag-gated anchor file that proves the flavor selected code. Naming the package
 alone is insufficient because `go build ./...` can skip every constrained file

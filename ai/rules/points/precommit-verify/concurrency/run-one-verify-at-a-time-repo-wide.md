@@ -7,7 +7,7 @@ One `./le verify worktree` (or `./le test-chaos`) at a time repo-wide:
 parallel runs share build cache, ports, and test binaries. Every heavy native
 action is admitted by `./le job run`, which runs a job now, queues it behind the
 jobs already in flight, or attaches it to an equivalent run. A second verify
-therefore blocks automatically. `internal/le/lejob` owns `ZE_RUN_SLOTS`; the native
+therefore blocks automatically. `internal/le/job` owns `ZE_RUN_SLOTS`; the native
 `internal/le/gotoolchain` policy derives the per-process `GOMAXPROCS` ceiling.
 
 Admission state is one file per running job,

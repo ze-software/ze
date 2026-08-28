@@ -75,8 +75,8 @@ misleading message. Each is a general trap.
   verbatim.
 
 <!-- source: internal/le/qemu/actions.go -- Answer -->
-<!-- source: internal/le/devsetup/actions.go -- Answer -->
-<!-- source: internal/le/devsetup/actions.go -- Answer -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
 
 `./le setup` reports `kvm-access` as `present`, `pending`, `missing`, or
 `n/a`. `pending` means the user is in the `kvm` group but the running session

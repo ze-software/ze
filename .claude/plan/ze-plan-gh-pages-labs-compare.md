@@ -219,7 +219,7 @@ not the gokrazy appliance image, so they tag `Daemon`.
 ## General-purpose document and site renderer (current cutover)
 
 The earlier design used `presentations/tools/bundle-html.py` and proposed
-`tools/render-doc.py`. Both Python producers are retired. `internal/le/sitebuild`
+`tools/render-doc.py`. Both Python producers are retired. `internal/le/site`
 now owns site staging, native page rendering, presentation activity, and
 standalone talk bundles.
 

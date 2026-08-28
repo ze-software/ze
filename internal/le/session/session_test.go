@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/lejob"
+	"github.com/ze-software/ze/internal/le/job"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
@@ -115,7 +115,7 @@ func TestSeedStorePersistsCredentialsAndExactInitInput(t *testing.T) {
 		random:  bytes.NewReader(bytes.Repeat([]byte{0xab}, 24)),
 		sleep:   func(time.Duration) {},
 		waits:   1,
-		run: func(argv []string, processIO lejob.ProcessIO) (int, error) {
+		run: func(argv []string, processIO job.ProcessIO) (int, error) {
 			gotArgv = append([]string(nil), argv...)
 			content, err := io.ReadAll(processIO.Stdin)
 			if err != nil {
@@ -144,7 +144,7 @@ func TestSeedStorePersistsCredentialsAndExactInitInput(t *testing.T) {
 		environ: []string{"ze.config.dir=/must-not-matter-after-seeding"},
 		random:  bytes.NewReader(nil),
 		sleep:   func(time.Duration) {},
-		run: func([]string, lejob.ProcessIO) (int, error) {
+		run: func([]string, job.ProcessIO) (int, error) {
 			t.Fatal("existing store ran the seeder")
 			return 1, nil
 		},
@@ -175,7 +175,7 @@ func TestConcurrentSeedStoreRunsOneSeederAndBothObserveTheDatabase(t *testing.T)
 	release := make(chan struct{})
 	var waitOnce sync.Once
 	var calls atomic.Int32
-	run := func(_ []string, _ lejob.ProcessIO) (int, error) {
+	run := func(_ []string, _ job.ProcessIO) (int, error) {
 		if calls.Add(1) == 1 {
 			close(started)
 		}

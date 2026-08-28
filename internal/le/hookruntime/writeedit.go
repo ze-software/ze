@@ -11,12 +11,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/weakened"
+	"github.com/ze-software/ze/internal/le/testweakened"
 )
 
 var (
 	lineCitation = regexp.MustCompile(`(^|[^A-Za-z0-9_])([A-Za-z0-9_./-]+\.(?:go|sh|md|mk|yang|ci|et|json|txt|c|h|cc|cpp|rs|java|ts|js)):[0-9]+(?:-[0-9]+)?`)
-	lineAnchor   = regexp.MustCompile(`https?://\S*?#L[0-9]+(?:[-L][0-9]+)?`)
+	lineAnchor   = regexp.MustCompile(`https?://\S*?(#L\d+(?:[-L]\d+)?)`)
 	upperRFC     = regexp.MustCompile(`\b(?:MUST NOT|SHALL NOT|SHOULD NOT|NOT RECOMMENDED|MUST|SHALL|REQUIRED|SHOULD|RECOMMENDED|MAY|OPTIONAL)\b`)
 	lowerModal   = regexp.MustCompile(`(^|[^A-Za-z0-9_-])(must|shall|should|may)([^A-Za-z0-9_-]|$)`)
 )
@@ -45,12 +45,13 @@ func relativePath(ctx context) string {
 
 // ze point: writing/detail-budget/write-only-what-changes-the-next-action
 // ze point: evidence/no-fabrication/cite-a-line-number-only-when-a-generator-maintains-it
+// writeLineCitation refuses a line-number citation in repository prose.
 func writeLineCitation(ctx context) *verdict {
 	if !strings.HasSuffix(ctx.path, ".md") {
 		return nil
 	}
 	relative := relativePath(ctx)
-	if !(strings.HasPrefix(relative, "ai/") || strings.HasPrefix(relative, "docs/") || strings.HasPrefix(relative, "plan/") || strings.HasPrefix(relative, ".claude/")) {
+	if !anyPrefix(relative, "ai/", "docs/", "plan/", ".claude/") {
 		return nil
 	}
 	head := strings.Join(strings.Split(ctx.content, "\n")[:min(10, len(strings.Split(ctx.content, "\n")))], "\n")
@@ -72,8 +73,8 @@ func writeLineCitation(ctx context) *verdict {
 				bad = append(bad, fmt.Sprintf("  +%d: %s", index+1, strings.TrimSpace(match[0])))
 			}
 		}
-		for _, match := range lineAnchor.FindAllString(line, -1) {
-			bad = append(bad, fmt.Sprintf("  +%d: %s", index+1, match[strings.Index(match, "#L"):]))
+		for _, match := range lineAnchor.FindAllStringSubmatch(line, -1) {
+			bad = append(bad, fmt.Sprintf("  +%d: %s", index+1, match[1]))
 		}
 	}
 	if len(bad) == 0 {
@@ -86,8 +87,9 @@ func writeLineCitation(ctx context) *verdict {
 // ze point: repo-maintenance/canonical-sources-and-sync-direction/edit-the-canonical-source-not-the-generated-file
 // ze point: repo-maintenance/canonical-sources-and-sync-direction/sync-generated-files-from-their-canonical-source
 // ze point: repo-maintenance/canonical-sources-and-sync-direction/keep-shared-rules-in-ai-rules-and-render-them
+// writeGenerated refuses an edit to a generated file, and names its source.
 func writeGenerated(ctx context) *verdict {
-	if !oneOf(ctx.tool, "Write", "Edit") {
+	if !oneOf(ctx.tool, toolWrite, "Edit") {
 		return nil
 	}
 	relative := relativePath(ctx)
@@ -106,8 +108,9 @@ func writeGenerated(ctx context) *verdict {
 
 // ze point: repo-maintenance/canonical-sources-and-sync-direction/keep-shared-rules-in-ai-rules-and-render-them
 // ze point: repo-maintenance/canonical-sources-and-sync-direction/sync-generated-files-from-their-canonical-source
+// writeRenderedRule refuses an edit to a rendered rule, which points/ owns.
 func writeRenderedRule(ctx context) *verdict {
-	if !oneOf(ctx.tool, "Write", "Edit", "MultiEdit") {
+	if !oneOf(ctx.tool, toolWrite, "Edit", "MultiEdit") {
 		return nil
 	}
 	relative := relativePath(ctx)
@@ -123,8 +126,9 @@ func writeRenderedRule(ctx context) *verdict {
 }
 
 // ze point: never-destroy-work/forbidden-without-explicit-permission/ask-before-deleting-or-overwriting-user-work
+// writePointOverwrite refuses a Write that replaces an existing rule point.
 func writePointOverwrite(ctx context) *verdict {
-	replaces := ctx.tool == "Write"
+	replaces := ctx.tool == toolWrite
 	if ctx.tool == "MultiEdit" {
 		edits, _ := ctx.input["edits"].([]any)
 		for _, raw := range edits {
@@ -152,7 +156,7 @@ func writePointOverwrite(ctx context) *verdict {
 func visibleMarkdown(text string) string {
 	var visible strings.Builder
 	fence := false
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
 			fence = !fence
@@ -169,6 +173,7 @@ func visibleMarkdown(text string) string {
 }
 
 // ze point: rule-format/every-directive-states-a-level/every-directive-states-its-rfc-2119-level
+// writePointLanguage refuses a rule directive that states no RFC 2119 level.
 func writePointLanguage(ctx context) *verdict {
 	relative := relativePath(ctx)
 	parts := strings.Split(strings.TrimPrefix(relative, "ai/rules/points/"), "/")
@@ -176,7 +181,7 @@ func writePointLanguage(ctx context) *verdict {
 		return nil
 	}
 	directive := regexp.MustCompile(`(?m)^kind:[ \t]*directive[ \t]*$`).MatchString(ctx.content)
-	if ctx.tool != "Write" {
+	if ctx.tool != toolWrite {
 		body, err := os.ReadFile(absolutePath(ctx))
 		directive = err == nil && regexp.MustCompile(`(?m)^kind:[ \t]*directive[ \t]*$`).Match(body[:min(400, len(body))])
 	}
@@ -193,7 +198,7 @@ func writePointLanguage(ctx context) *verdict {
 		sort.Strings(words)
 		return &verdict{2, red + bold + "❌ BLOCKED: lowercase obligation word in a rule directive" + reset + "\n  " + relative + " states " + strings.Join(words, ", ") + " in lowercase.\n  Use MUST, MUST NOT, SHOULD, SHOULD NOT, or MAY."}
 	}
-	if ctx.tool == "Write" && !upperRFC.MatchString(visible) {
+	if ctx.tool == toolWrite && !upperRFC.MatchString(visible) {
 		return &verdict{2, red + bold + "❌ BLOCKED: rule directive states no RFC 2119 level" + reset + "\n  " + relative + " declares `kind: directive` and states no capitalised keyword."}
 	}
 	return nil
@@ -201,9 +206,10 @@ func writePointLanguage(ctx context) *verdict {
 
 // ze point: evidence/no-fabrication/investigate-source-in-session-before-writing-a-spec
 // ze point: evidence/no-fabrication/read-the-producing-code-before-claiming-behavior
+// writeDesignEvidence refuses a spec or design written before its source was read.
 func writeDesignEvidence(ctx context) *verdict {
 	relative := relativePath(ctx)
-	if !(strings.HasPrefix(relative, "plan/spec-") || strings.HasPrefix(relative, "plan/design-") || strings.HasPrefix(relative, ".claude/plan/")) {
+	if !anyPrefix(relative, "plan/spec-", "plan/design-", ".claude/plan/") {
 		return nil
 	}
 	id := resolvedSessionID(ctx)
@@ -221,8 +227,9 @@ func writeDesignEvidence(ctx context) *verdict {
 }
 
 // ze point: planning/spec-metadata-blocking/update-spec-status-at-each-transition
+// writeSpecStatus refuses a source edit while the claimed spec is not in-progress.
 func writeSpecStatus(ctx context) *verdict {
-	if !strings.HasSuffix(ctx.path, ".go") || !oneOf(ctx.tool, "Write", "Edit", "MultiEdit") {
+	if !strings.HasSuffix(ctx.path, ".go") || !oneOf(ctx.tool, toolWrite, "Edit", "MultiEdit") {
 		return nil
 	}
 	id := resolvedSessionID(ctx)
@@ -230,15 +237,15 @@ func writeSpecStatus(ctx context) *verdict {
 		return nil
 	}
 	marker := filepath.Join(ctx.root, "tmp", "session", ".session-"+id)
-	body, err := os.ReadFile(marker)
+	body, err := os.ReadFile(marker) //nolint:gosec // a session marker under the checkout tmp directory
 	if err != nil {
 		return nil
 	}
 	spec := strings.TrimSpace(string(body))
-	if spec == "" || spec == "unassigned" {
+	if spec == "" || spec == specUnassigned {
 		return nil
 	}
-	specBody, err := os.ReadFile(filepath.Join(ctx.root, "plan", spec))
+	specBody, err := os.ReadFile(filepath.Join(ctx.root, "plan", spec)) //nolint:gosec // the claimed spec lives under the checkout plan directory
 	if err != nil {
 		return nil
 	}
@@ -250,7 +257,7 @@ func writeSpecStatus(ctx context) *verdict {
 }
 
 func goEdit(ctx context) bool {
-	return oneOf(ctx.tool, "Write", "Edit") && strings.HasSuffix(ctx.path, ".go")
+	return oneOf(ctx.tool, toolWrite, "Edit") && strings.HasSuffix(ctx.path, ".go")
 }
 
 // ze point: architecture/design-principles/apply-these-design-principles-to-every-decision
@@ -263,12 +270,22 @@ func goEdit(ctx context) bool {
 // ze point: plugins/registration-based-dispatch/dispatch-subcommands-by-registration-not-switch
 // ze point: goroutine-lifecycle/directives/keep-every-goroutine-a-long-lived-worker
 // ze point: performance/common-mistakes/fix-these-common-allocation-mistakes
+// writeGoPatterns refuses the Go patterns the rules ban, file by file.
 func writeGoPatterns(ctx context) *verdict {
 	if !goEdit(ctx) {
 		return nil
 	}
 	path := filepath.ToSlash(ctx.path)
 	if strings.HasSuffix(path, "_test.go") {
+		return nil
+	}
+	// This file DECLARES the banned patterns, so it holds every one of them as a
+	// literal. Judging it by its own list refuses the edit that repairs the list,
+	// which is how a wrong pattern here becomes permanent. The links checker
+	// excludes its own source for the same reason (sweepExcluded,
+	// internal/le/doccheck/links.go). The exclusion is by suffix, so a checkout at
+	// any path is covered.
+	if strings.HasSuffix(path, "/internal/le/hookruntime/writeedit.go") {
 		return nil
 	}
 	patterns := []editPattern{
@@ -279,7 +296,14 @@ func writeGoPatterns(ctx context) *verdict {
 		{regexp.MustCompile(`(^|[^A-Za-z0-9_])panic[ \t]*\(`), 2, red + "❌ Return error, don't panic()" + reset, nil},
 		{regexp.MustCompile(`(?m)(^|[^A-Za-z0-9_])log\.(Print|Printf|Println|Fatal|Fatalf|Fatalln|Panic|Panicf|Panicln)`), 2, red + "❌ Use slog, not log package" + reset, nil},
 		{regexp.MustCompile(`fmt\.(Sprintf|Fprintf|Printf)\(|strconv\.Format(Uint|Int)\(`), 2, red + bold + "✘ BLOCKED: allocation-heavy string formatting" + reset, nil},
-		{regexp.MustCompile(`(?m)//nolint(?::|\b)`), 2, red + bold + "❌ BLOCKED: nolint without a specific linter and reason" + reset, nil},
+		// Two bad shapes, matched positively because RE2 has no negative lookahead.
+		// First: a BARE nolint, with or without prose after it, which suppresses
+		// every linter. Second: a nolint that names its linters and then states no
+		// reason, either at end of line or with an empty trailing comment.
+		// `//nolint:gosec // <reason>` matches neither and is the form the style
+		// guide requires; the previous pattern refused it along with the rest, so
+		// the only spelling this rule exists to ALLOW was the one it blocked.
+		{regexp.MustCompile(`(?m)//nolint(?:[^:\n]|$)|//nolint:[A-Za-z0-9_,-]*[ \t]*(?://[ \t]*)?$`), 2, red + bold + "❌ BLOCKED: nolint without a specific linter and reason" + reset + "\n  Write //nolint:<linter> // <why the discard is correct>", nil},
 		{regexp.MustCompile(`(?m)^func init\(\)[\s\S]{0,500}(Register|Subscribe|Add[A-Za-z]*Handler|Hook)`), 2, red + bold + "❌ BLOCKED: Implicit behavior in init()" + reset, func(c context) bool { return strings.HasPrefix(filepath.Base(c.path), "register") }},
 		{regexp.MustCompile(`switch\s+args\[0\]`), 2, red + bold + "❌ BLOCKED: switch-based command dispatch in " + path + reset, nil},
 		{regexp.MustCompile(`(?m)^\s*go\s+func\s*\(`), 2, red + bold + "❌ BLOCKED: anonymous goroutine" + reset, nil},
@@ -304,10 +328,11 @@ func writeGoPatterns(ctx context) *verdict {
 // ze point: commands/write-ad-hoc-scratch-under-your-per-session-dir/write-ad-hoc-scratch-under-this-session-s-private-directory
 // ze point: quality/linting/fix-lint-issues-never-disable-a-linter
 // ze point: config/directives/manipulate-config-only-by-the-two-approved-methods
+// writeFilePatterns refuses the file-level patterns the rules ban, by path.
 func writeFilePatterns(ctx context) *verdict {
 	path := filepath.ToSlash(ctx.path)
 	base := filepath.Base(path)
-	if ctx.tool == "Write" {
+	if ctx.tool == toolWrite {
 		if strings.Contains(path, ".claude/plans/") {
 			return &verdict{2, "❌ BLOCKED: Do not use .claude/plans/\n  Write plans to .claude/plan/ze-plan-<name> instead."}
 		}
@@ -335,10 +360,10 @@ func writeFilePatterns(ctx context) *verdict {
 	if strings.HasSuffix(path, ".ci") && strings.Contains(ctx.content, "sys.exit(1)") && !strings.Contains(ctx.content, "runtime_fail") && !regexp.MustCompile(`(?m)^(expect|reject)=stderr`).MatchString(ctx.content) {
 		return &verdict{1, yellow + bold + "WARN: observer-exit antipattern in " + path + reset}
 	}
-	if oneOf(ctx.tool, "Write", "Edit") && (strings.Contains(path, ".golangci") || strings.Contains(path, "golangci.yml") || strings.Contains(path, "golangci.yaml")) && regexp.MustCompile(`exclude-rules:|issues-exclude:|skip-files:|skip-dirs:`).MatchString(ctx.content) {
+	if oneOf(ctx.tool, toolWrite, "Edit") && (strings.Contains(path, ".golangci") || strings.Contains(path, "golangci.yml") || strings.Contains(path, "golangci.yaml")) && regexp.MustCompile(`exclude-rules:|issues-exclude:|skip-files:|skip-dirs:`).MatchString(ctx.content) {
 		return &verdict{2, red + bold + "❌ BLOCKED: Adding linter exclusions" + reset}
 	}
-	if oneOf(ctx.tool, "Write", "Edit") && (strings.Contains(path, "/config/") || strings.HasSuffix(path, ".conf") || strings.Contains(base, "config")) && regexp.MustCompile(`(?i)(config.?version|schema.?version|"version"[ \t]*:|version[ \t]*[=:][ \t]*[0-9])`).MatchString(ctx.content) {
+	if oneOf(ctx.tool, toolWrite, "Edit") && (strings.Contains(path, "/config/") || strings.HasSuffix(path, ".conf") || strings.Contains(base, "config")) && regexp.MustCompile(`(?i)(config.?version|schema.?version|"version"[ \t]*:|version[ \t]*[=:][ \t]*[0-9])`).MatchString(ctx.content) {
 		return &verdict{2, red + bold + "❌ BLOCKED: Version in config" + reset}
 	}
 	return nil
@@ -347,11 +372,12 @@ func writeFilePatterns(ctx context) *verdict {
 // ze point: testing/rfc-tagged-tests-blocking/never-edit-an-rfc-tagged-test-to-match-the-code
 // ze point: testing/directives/write-the-test-first-and-never-weaken-it
 // ze point: testing/fix-code-not-tests/fix-the-code-when-a-test-fails-not-the-test
+// writeWeakening refuses a proposed edit that lowers what a test proves.
 func writeWeakening(ctx context) *verdict {
-	if !oneOf(ctx.tool, "Write", "Edit", "MultiEdit") || strings.Contains(filepath.ToSlash(ctx.path), "test/draft/") {
+	if !oneOf(ctx.tool, toolWrite, "Edit", "MultiEdit") || strings.Contains(filepath.ToSlash(ctx.path), "test/draft/") {
 		return nil
 	}
-	request := weakened.ProposedRequest{Path: ctx.path, Tool: ctx.tool, ToolInput: weakened.ProposedToolInput{
+	request := testweakened.ProposedRequest{Path: ctx.path, Tool: ctx.tool, ToolInput: testweakened.ProposedToolInput{
 		FilePath: ctx.path, Content: stringInput(ctx.input, "content"), OldString: stringInput(ctx.input, "old_string"), NewString: stringInput(ctx.input, "new_string"),
 	}}
 	if value, ok := ctx.input["replace_all"].(bool); ok {
@@ -360,18 +386,18 @@ func writeWeakening(ctx context) *verdict {
 	edits, _ := ctx.input["edits"].([]any)
 	for _, raw := range edits {
 		edit, _ := raw.(map[string]any)
-		request.ToolInput.Edits = append(request.ToolInput.Edits, weakened.ProposedEdit{OldString: stringInput(edit, "old_string"), NewString: stringInput(edit, "new_string")})
+		request.ToolInput.Edits = append(request.ToolInput.Edits, testweakened.ProposedEdit{OldString: stringInput(edit, "old_string"), NewString: stringInput(edit, "new_string")})
 	}
 	encoded, err := json.Marshal(request)
 	if err != nil {
 		return &verdict{2, red + bold + "BLOCKED: native weakening check could not run" + reset}
 	}
-	report, err := weakened.Proposed(ctx.root, bytes.NewReader(encoded))
+	report, err := testweakened.Proposed(ctx.root, bytes.NewReader(encoded))
 	if err != nil {
 		return &verdict{2, red + bold + "BLOCKED: native weakening check could not judge " + ctx.path + reset + "\n  " + err.Error()}
 	}
 	if report.Blocking {
-		return &verdict{2, red + bold + "BLOCKED: proposed test evidence change is not authorised" + reset + "\n" + report.Text()}
+		return &verdict{2, red + bold + "BLOCKED: proposed test evidence change is not authorized" + reset + "\n" + report.Text()}
 	}
 	if report.Notice {
 		return &verdict{1, yellow + bold + "NOTICE: proposed edit lowers a test count" + reset + "\n" + report.Text()}
@@ -380,6 +406,7 @@ func writeWeakening(ctx context) *verdict {
 }
 
 // ze point: testing/ci-sleep-justification/justify-every-sleep-in-a-ci-test
+// writeCISleep refuses a sleep in a .ci test that names no sleep kind.
 func writeCISleep(ctx context) *verdict {
 	path := filepath.ToSlash(ctx.path)
 	if !strings.HasSuffix(path, ".ci") || !strings.Contains(path, "/test/") {

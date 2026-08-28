@@ -10,9 +10,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/testweakened"
+	"github.com/ze-software/ze/internal/le/verify"
 	"github.com/ze-software/ze/internal/le/verifydispatch"
-	"github.com/ze-software/ze/internal/le/verifyworktree"
-	"github.com/ze-software/ze/internal/le/weakened"
 )
 
 const area = "commit"
@@ -22,11 +22,11 @@ var commandVerbs = []struct {
 	Writes bool
 	Why    string
 }{
-	{"session", true, "create or reuse this harness session's eight-hex commit namespace"},
+	{keywordSession, true, "create or reuse this harness session's eight-hex commit namespace"},
 	{"create", true, "validate an explicit file/remove population and generate its message and executable commit script"},
 	{"message", false, "render and validate a commit message without preparing a script"},
 	{"audit", false, "audit a branch range and worktree for unexplained test weakening"},
-	{"review-check", false, "re-check a hash-pinned independent review immediately before staging"},
+	{actionReviewCheck, false, "re-check a hash-pinned independent review immediately before staging"},
 	{"debt-list", false, "list every verification-debt row"},
 	{"debt-status", false, "summarize open and cleared verification debt"},
 	{"debt-clear", true, "run owed native gates against HEAD and clear rows only after exit zero"},
@@ -84,12 +84,12 @@ func Answer(args []string) (any, int) {
 		return nil, 2
 	}
 	switch args[0] {
-	case "session":
-		values, err := parseKeywords(args[1:], map[string]keywordRule{"session": {Value: true}})
+	case keywordSession:
+		values, err := parseKeywords(args[1:], map[string]keywordRule{keywordSession: {Value: true}})
 		if err != nil {
 			return commandError(err, 2)
 		}
-		session, err := SessionID(root, values.one("session"))
+		session, err := SessionID(root, values.one(keywordSession))
 		if err != nil {
 			return commandError(err, 2)
 		}
@@ -99,11 +99,11 @@ func Answer(args []string) (any, int) {
 		if err != nil {
 			return commandError(err, 2)
 		}
-		prepared, err := Create(root, options)
+		prepared, err := Create(root, &options)
 		if err != nil {
 			return commandError(err, 2)
 		}
-		return prepared, 0
+		return &prepared, 0
 	case "message":
 		values, err := parseKeywords(args[1:], map[string]keywordRule{
 			"subject": {Value: true}, "body": {Value: true, Repeat: true},
@@ -121,9 +121,9 @@ func Answer(args []string) (any, int) {
 		if err != nil {
 			return commandError(err, 2)
 		}
-		report := weakened.Audit(weakened.AuditRequest{Root: root, Base: values.one("base")})
+		report := testweakened.Audit(testweakened.AuditRequest{Root: root, Base: values.one("base")})
 		return report, report.ExitCode()
-	case "review-check":
+	case actionReviewCheck:
 		values, err := parseKeywords(args[1:], map[string]keywordRule{
 			"spec": {Value: true}, "file": {Value: true, Repeat: true},
 		})
@@ -161,7 +161,7 @@ func Answer(args []string) (any, int) {
 		}
 		status := debtStatus{Total: len(rows)}
 		for _, row := range rows {
-			if row.Status == "open" {
+			if row.Status == statusOpen {
 				status.Open++
 			} else {
 				status.Cleared++
@@ -240,28 +240,28 @@ func parseKeywords(args []string, rules map[string]keywordRule) (keywordValues, 
 
 func parseCreate(args []string) (Options, error) {
 	rules := map[string]keywordRule{
-		"session": {Value: true}, "tag": {Value: true}, "subject": {Value: true},
+		keywordSession: {Value: true}, "tag": {Value: true}, "subject": {Value: true},
 		"body": {Value: true, Repeat: true}, "file": {Value: true, Repeat: true},
 		"remove": {Value: true, Repeat: true}, "script": {Value: true},
 		"append": {}, "replace": {}, "push": {Value: true}, "no-test": {Value: true},
-		"unverified":        {Value: true},
-		"structural-red-ok": {Value: true}, "missing-full-verify-ok": {Value: true},
-		"stale-index-ok": {Value: true}, "review-override": {Value: true},
-		"broken-head-fix": {Value: true}, "rfc-change-ok": {Value: true}, "dry-run": {},
+		gateUnverified:      {Value: true},
+		gateStructuralRedOK: {Value: true}, gateMissingFullVerifyOK: {Value: true},
+		gateStaleIndexOK: {Value: true}, gateReviewOverride: {Value: true},
+		gateBrokenHeadFix: {Value: true}, gateRFCChangeOK: {Value: true}, "dry-run": {},
 	}
 	values, err := parseKeywords(args, rules)
 	if err != nil {
 		return Options{}, err
 	}
 	return Options{
-		Session: values.one("session"), Tag: values.one("tag"), Subject: values.one("subject"),
+		Session: values.one(keywordSession), Tag: values.one("tag"), Subject: values.one("subject"),
 		Body: values["body"], Files: values["file"], Remove: values["remove"], Script: values.one("script"),
 		Append: values.has("append"), Replace: values.has("replace"), Push: values.one("push"),
-		NoTest: values.one("no-test"), Unverified: values.one("unverified"),
-		StructuralRedOK:     values.one("structural-red-ok"),
-		MissingFullVerifyOK: values.one("missing-full-verify-ok"), StaleIndexOK: values.one("stale-index-ok"),
-		ReviewOverride: values.one("review-override"), BrokenHeadFix: values.one("broken-head-fix"),
-		RFCChangeOK: values.one("rfc-change-ok"), DryRun: values.has("dry-run"),
+		NoTest: values.one("no-test"), Unverified: values.one(gateUnverified),
+		StructuralRedOK:     values.one(gateStructuralRedOK),
+		MissingFullVerifyOK: values.one(gateMissingFullVerifyOK), StaleIndexOK: values.one(gateStaleIndexOK),
+		ReviewOverride: values.one(gateReviewOverride), BrokenHeadFix: values.one(gateBrokenHeadFix),
+		RFCChangeOK: values.one(gateRFCChangeOK), DryRun: values.has("dry-run"),
 	}, nil
 }
 
@@ -295,7 +295,7 @@ func clearDebt(root string) (debtClearResult, int) {
 	sort.Strings(result.Unrunnable)
 	passed := make(map[string]bool)
 	if len(result.Runnable) != 0 {
-		report := verifyworktree.Run(context.Background(), root, verifyworktree.Options{Commit: "HEAD"}, verifydispatch.RunAction)
+		report := verify.Run(context.Background(), root, verify.Options{Commit: "HEAD"}, verifydispatch.RunAction)
 		result.Commit = report.Commit
 		result.Diagnostics = report.Diagnostics
 		if report.Code != 0 {
@@ -326,7 +326,7 @@ func commandError(err error, code int) (any, int) {
 }
 
 // Text preserves the helper's copyable key=value output for a bare create.
-func (p Prepared) Text() string {
+func (p *Prepared) Text() string {
 	var text textbuf.Buffer
 	text.Str("session=").Str(p.Session).Str("\nmessage=").Str(p.Message).
 		Str("\nscript=").Str(p.Script).Str("\nverify=").Str(strings.ToUpper(p.Verify.State)).
@@ -338,7 +338,7 @@ func (p Prepared) Text() string {
 		text.Str("no-test=").Str(p.NoTest).Byte('\n')
 	}
 	if p.Push {
-		text.Str("push=AUTHORISED\n")
+		text.Str("push=AUTHORIZED\n")
 	}
 	if p.DryRun {
 		text.Str("--- message ---\n").Str(p.MessageText).Str("--- script ---\n").Str(p.ScriptText)

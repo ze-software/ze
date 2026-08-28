@@ -4,7 +4,7 @@ package repository
 
 import (
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/aisync"
+	"github.com/ze-software/ze/internal/le/ai"
 	"github.com/ze-software/ze/internal/le/archmap"
 	"github.com/ze-software/ze/internal/le/discoveryindex"
 	"github.com/ze-software/ze/internal/le/docstocode"
@@ -54,51 +54,51 @@ type generationAction struct {
 }
 
 var generationActions = []generationAction{
-	{area: "plugin-imports", verb: "write", answer: pluginimports.Answer},
-	{area: "yang-glue", verb: "write", answer: yangglue.Answer},
-	{area: "feature-tags", verb: "write", answer: featuretags.Answer},
-	{area: "web-assets", verb: "write", answer: webassets.Answer},
+	{area: "plugin-imports", verb: verbWrite, answer: pluginimports.Answer},
+	{area: "yang-glue", verb: verbWrite, answer: yangglue.Answer},
+	{area: "feature-tags", verb: verbWrite, answer: featuretags.Answer},
+	{area: "web-assets", verb: verbWrite, answer: webassets.Answer},
 	{area: "vendor-web", verb: "sync", answer: vendorweb.Answer},
-	{area: "rules", verb: "render-update", answer: rules.Answer},
-	{area: "rules", verb: "condensed-update", answer: rules.Answer},
-	{area: "rules", verb: "index-update", answer: rules.Answer},
-	{area: "rfc", verb: "index-update", answer: rfc.Answer},
-	{area: "arch-map", verb: "update", answer: archmap.Answer},
-	{area: "discovery-index", verb: "update", answer: discoveryindex.Answer},
-	{area: "docs-to-code", verb: "update", answer: docstocode.Answer},
-	{area: "docs-to-code", verb: "index-update", answer: docstocode.Answer},
-	{area: "test-health", verb: "update", answer: testhealth.Answer},
-	{area: "site-facts", verb: "update", answer: sitefacts.Answer},
-	{area: "ai", verb: "skills-sync", answer: aisync.Answer},
+	{area: areaRules, verb: "render-update", answer: rules.Answer},
+	{area: areaRules, verb: "condensed-update", answer: rules.Answer},
+	{area: areaRules, verb: verbIndexUpdate, answer: rules.Answer},
+	{area: "rfc", verb: verbIndexUpdate, answer: rfc.Answer},
+	{area: "arch-map", verb: verbUpdate, answer: archmap.Answer},
+	{area: "discovery-index", verb: verbUpdate, answer: discoveryindex.Answer},
+	{area: areaDocsToCode, verb: verbUpdate, answer: docstocode.Answer},
+	{area: areaDocsToCode, verb: verbIndexUpdate, answer: docstocode.Answer},
+	{area: "test-health", verb: verbUpdate, answer: testhealth.Answer},
+	{area: "site-facts", verb: verbUpdate, answer: sitefacts.Answer},
+	{area: "ai", verb: "skills-sync", answer: ai.Answer},
 }
 
 var generationChecks = []generationAction{
-	{area: "plugin-imports", verb: "check", answer: pluginimports.Answer},
-	{area: "yang-glue", verb: "check", answer: yangglue.Answer},
-	{area: "feature-tags", verb: "check", answer: featuretags.Answer},
-	{area: "web-assets", verb: "check", answer: webassets.Answer},
-	{area: "vendor-web", verb: "check", answer: vendorweb.Answer},
-	{area: "rules", verb: "lint", answer: rules.Answer},
-	{area: "rules", verb: "render-check", answer: rules.Answer},
-	{area: "rules", verb: "points-roundtrip-check", answer: rules.Answer},
-	{area: "rules", verb: "condensed-check", answer: rules.Answer},
-	{area: "rules", verb: "index-check", answer: rules.Answer},
-	{area: "rfc", verb: "check", answer: rfc.Answer},
-	{area: "arch-map", verb: "check", answer: archmap.Answer},
-	{area: "discovery-index", verb: "check", answer: discoveryindex.Answer},
-	{area: "docs-to-code", verb: "check", answer: docstocode.Answer},
-	{area: "docs-to-code", verb: "index-check", answer: docstocode.Answer},
-	{area: "test-health", verb: "check", answer: testhealth.Answer},
-	{area: "site-facts", verb: "check", answer: sitefacts.Answer},
-	{area: "ai", verb: "sync-check", answer: aisync.Answer},
+	{area: "plugin-imports", verb: verbCheck, answer: pluginimports.Answer},
+	{area: "yang-glue", verb: verbCheck, answer: yangglue.Answer},
+	{area: "feature-tags", verb: verbCheck, answer: featuretags.Answer},
+	{area: "web-assets", verb: verbCheck, answer: webassets.Answer},
+	{area: "vendor-web", verb: verbCheck, answer: vendorweb.Answer},
+	{area: areaRules, verb: "lint", answer: rules.Answer},
+	{area: areaRules, verb: "render-check", answer: rules.Answer},
+	{area: areaRules, verb: "points-roundtrip-check", answer: rules.Answer},
+	{area: areaRules, verb: "condensed-check", answer: rules.Answer},
+	{area: areaRules, verb: "index-check", answer: rules.Answer},
+	{area: "rfc", verb: verbCheck, answer: rfc.Answer},
+	{area: "arch-map", verb: verbCheck, answer: archmap.Answer},
+	{area: "discovery-index", verb: verbCheck, answer: discoveryindex.Answer},
+	{area: areaDocsToCode, verb: verbCheck, answer: docstocode.Answer},
+	{area: areaDocsToCode, verb: "index-check", answer: docstocode.Answer},
+	{area: "test-health", verb: verbCheck, answer: testhealth.Answer},
+	{area: "site-facts", verb: verbCheck, answer: sitefacts.Answer},
+	{area: "ai", verb: "sync-check", answer: ai.Answer},
 }
 
 func runGenerate() (any, int) {
-	return runGeneration("write", generationActions)
+	return runGeneration(verbWrite, generationActions)
 }
 
 func runGeneratedCheck() (any, int) {
-	return runGeneration("check", generationChecks)
+	return runGeneration(verbCheck, generationChecks)
 }
 
 func runGeneration(mode string, actions []generationAction) (any, int) {
@@ -113,3 +113,13 @@ func runGeneration(mode string, actions []generationAction) (any, int) {
 	}
 	return report, code
 }
+
+// The generator verbs and the two areas that carry more than one of them.
+const (
+	verbCheck       = "check"
+	verbWrite       = "write"
+	verbUpdate      = "update"
+	verbIndexUpdate = "index-update"
+	areaRules       = "rules"
+	areaDocsToCode  = "docs-to-code"
+)

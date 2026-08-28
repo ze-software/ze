@@ -156,7 +156,7 @@ func bashCode(command string) int {
 }
 
 func rawJob(command string) bool {
-	if strings.Contains(command, "internal/le/lejob/answer.go") {
+	if strings.Contains(command, "internal/le/job/answer.go") {
 		return false
 	}
 	if strings.Contains(command, "ZE_ADMIT_RAW=\"") && !strings.Contains(command, "ZE_ADMIT_RAW=\"\"") {

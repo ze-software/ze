@@ -666,7 +666,7 @@ it binds anything, and `./le setup` adds no such address.
 <!-- source: internal/test/runner/loopback.go -- probe, error text, --bind and config-local scan -->
 <!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux for IPv4 -->
 <!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
-<!-- source: internal/le/devsetup/actions.go -- Answer -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
 
 ## Expectations
 

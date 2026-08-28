@@ -363,7 +363,7 @@ func TestTheFileRecordsTheFactsItCannotDerive(t *testing.T) {
 }
 
 // TestRenderPublishesWhatTheSiteShows holds this package's idea of a published
-// figure to internal/le/sitebuild's. Every string below is a published boundary,
+// figure to internal/le/site's. Every string below is a published boundary,
 // because a check judging by another rule would report a page stale that no
 // reader can see change.
 func TestRenderPublishesWhatTheSiteShows(t *testing.T) {

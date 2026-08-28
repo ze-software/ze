@@ -537,7 +537,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | Package | Responsibility | Registered |
 |---------|----------------|------------|
 | `internal/le` | composes every development tool behind one registered root |  |
-| `internal/le/aisync` | generates the tool-specific copies of Ze's agent instructions from their one canonical source |  |
+| `internal/le/ai` | generates the tool-specific copies of Ze's agent instructions from their one canonical source |  |
 | `internal/le/archmap` | owns the component and plugin inventories inside ai/INSTRUCTIONS.md |  |
 | `internal/le/buildartifacts` | builds the host-side appliance driver and both installer initrd binaries |  |
 | `internal/le/changed` | answers "what did I edit" for two callers |  |
@@ -551,7 +551,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/consistency` | is the `ze-consistency-check` gate: it reads the tree and reports where the code and the documentation disagree with each other |  |
 | `internal/le/dashstdio` | enforces the invariant that a command must NOT read or write a USER-SUPPLIED path with a raw os call: it must route through internal/core/cliio so the "-" token resolves to stdin/stdout |  |
 | `internal/le/deployment` | proves ze against software somebody else wrote |  |
-| `internal/le/devsetup` | install and verify every tool a Ze dev or test workflow needs |  |
+| `internal/le/setup` | install and verify every tool a Ze dev or test workflow needs |  |
 | `internal/le/digest` | validates the `file:line` anchors in ai/digests/*.md against the tree those digests describe |  |
 | `internal/le/discoveryindex` | generates one ai/PACKAGE-MAP.md line for each Go package |  |
 | `internal/le/doccheck` | owns the three documentation actions that the verifier runs directly |  |
@@ -582,12 +582,12 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/inventory` | is the `ze-inventory` gate: what ze is made of, counted |  |
 | `internal/le/journal` | reads plan/journal class files from git HEAD |  |
 | `internal/le/leaction` | defines the action table shared by native le areas |  |
-| `internal/le/lejob` | determines whether each heavy job runs now |  |
+| `internal/le/job` | determines whether each heavy job runs now |  |
 | `internal/le/lepath` | answers one question for every le tool: which checkout am I working in |  |
 | `internal/le/leroot` | is how an le tool joins the shared command engine |  |
-| `internal/le/letracked` | checks whether `le` still works when built from the commit instead of the working tree |  |
-| `internal/le/lintgate` | owns the native full-tree lint stage |  |
-| `internal/le/modulemigration` | preview or apply package-tree moves and repository Go module-path renames |  |
+| `internal/le/tracked` | checks whether `le` still works when built from the commit instead of the working tree |  |
+| `internal/le/verifylint` | owns the native full-tree lint stage |  |
+| `internal/le/module` | preview or apply package-tree moves and repository Go module-path renames |  |
 | `internal/le/mutation` | combine mutation reports and append their per-package scores to committed history |  |
 | `internal/le/netlab` | checks the repository's netlab daemon integration |  |
 | `internal/le/perfbench` | reports BGP dataplane changes since the last performance run |  |
@@ -602,13 +602,13 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/rules` | owns the checks and reports for `ai/rules/` |  |
 | `internal/le/scratch` | keeps tmp and cache outside a checkout without overwriting paths that already hold user work |  |
 | `internal/le/session` | manage this development session's isolated state |  |
-| `internal/le/sitebuild` | build, check, and render the public website and presentation artifacts without an interpreter |  |
+| `internal/le/site` | build, check, and render the public website and presentation artifacts without an interpreter |  |
 | `internal/le/sitefacts` | derives the numbers the website publishes ABOUT this repository, and writes them into one committed file that the site build reads |  |
 | `internal/le/sourcerewrite` | keeps the repository's four source-maintenance workflows together while exposing each workflow as its own native action |  |
 | `internal/le/speccitation` | checks references from active specs to sibling specs |  |
-| `internal/le/speclifecycle` | owns spec claims, state paths, review artifacts, and the transcript facts those contracts use |  |
+| `internal/le/specsession` | owns spec claims, state paths, review artifacts, and the transcript facts those contracts use |  |
 | `internal/le/specstatus` | reads the metadata table at the top of every plan/spec-*.md and answers the inventory `./le spec-status` prints: one record per spec, |  |
-| `internal/le/staticcheckmatrix` | type-checks the working tree once per feature-tag combination Ze can be built in |  |
+| `internal/le/staticcheckfeaturematrix` | type-checks the working tree once per feature-tag combination Ze can be built in |  |
 | `internal/le/ste` | reviews repository prose against ASD-STE100 Simplified Technical English, Issue 9 |  |
 | `internal/le/stressrepro` | reproduce load-dependent functional-test failures under bounded CPU, GC, and process pressure |  |
 | `internal/le/terminaldemo` | builds the binaries that terminal demonstrations drive, verifies published artifacts, and renders those artifacts through the pinned Docker renderer |  |
@@ -620,16 +620,16 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/textrepr` | renders quoted strings and lists for diagnostics |  |
 | `internal/le/tier` | provides the reverse-dependency audit and module-tier placement gate |  |
 | `internal/le/tokeneconomy` | measures token use by this repository's Claude Code sessions |  |
-| `internal/le/trackedbuild` | COMPILES the repository as git holds it, which is the one population no other check in this repository compiles |  |
+| `internal/le/repositorytrackedbuild` | COMPILES the repository as git holds it, which is the one population no other check in this repository compiles |  |
 | `internal/le/vendorweb` | is the two halves of one contract |  |
-| `internal/le/verify` | orchestrates the native actions that make up full verification |  |
+| `internal/le/verifyengine` | orchestrates the native actions that make up full verification |  |
 | `internal/le/verifydeps` | runs the five Go-tool stages whose Make recipes used shell composition |  |
 | `internal/le/verifydispatch` | connects verifyworktree to le's local-data registry |  |
 | `internal/le/verifylock` | run a verify-class command through the shared heavy-job admission |  |
 | `internal/le/verifystatus` | read and write the verification certificate for the current checkout |  |
 | `internal/le/verifysummary` | append one stage failure block to the verification failure index |  |
-| `internal/le/verifyworktree` | materializes a commit in a fresh detached worktree and runs the native pre-commit stages there |  |
-| `internal/le/weakened` | detect committed and proposed test weakenings and enforce their ledgers |  |
+| `internal/le/verify` | materializes a commit in a fresh detached worktree and runs the native pre-commit stages there |  |
+| `internal/le/testweakened` | detect committed and proposed test weakenings and enforce their ledgers |  |
 | `internal/le/webassets` | derives, for each page ze serves, the set of vendored web assets that page must load, so a head block renders the imports that page needs instead of the union every page needs |  |
 | `internal/le/weekly` | turns an approved weekly post into the messages Discord takes |  |
 | `internal/le/wikicatalog` | generates the wiki's command catalog directly from the product registries |  |
@@ -775,7 +775,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/plugins/ntp` | implements a lightweight NTP client plugin for ze | ntp |
 | `internal/plugins/ntp/events` | defines event constants for the "system" event namespace |  |
 | `internal/plugins/ntp/yang` | embeds and registers the NTP plugin's YANG command and configuration schemas |  |
-| `internal/plugins/ospf` | Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP | ospf |
+| `internal/plugins/ospf` | Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP | ospf-config-sanity |
 | `internal/plugins/ospf/cli` | Offline OSPF wire tools |  |
 | `internal/plugins/ospf/iface` | implements the per-interface OSPF runtime, including the interface state machine, Hello exchange, DR election, and neighbor management |  |
 | `internal/plugins/ospf/lsdb` | implements the per-area OSPF link-state database with LSA flooding, origination, and aging |  |
@@ -801,7 +801,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/plugins/resolve-cmd/yang` | embeds and registers the resolve command plugin's YANG schema |  |
 | `internal/plugins/routingtable` | Named routing table registry: maps names to kernel table IDs | routing-table |
 | `internal/plugins/routingtable/yang` | embeds and registers the routing-table plugin's YANG configuration schema |  |
-| `internal/plugins/rsvpte` | implements RSVP-TE (RFC 3209) for explicitly-routed MPLS LSPs with bandwidth reservation | rsvp-te |
+| `internal/plugins/rsvpte` | implements RSVP-TE (RFC 3209) for explicitly-routed MPLS LSPs with bandwidth reservation | rsvp-te-rawsock |
 | `internal/plugins/rsvpte/yang` | embeds and registers the RSVP-TE plugin's YANG schema modules |  |
 | `internal/plugins/signal` | provides the `ze signal` and `ze status` CLI commands |  |
 | `internal/plugins/skills` | Agent skills matched to this Ze version |  |

@@ -4,8 +4,8 @@ This page starts from a blank Ubuntu server and leaves you with an installed `ze
 
 The commands assume Ubuntu 24.04 or newer, `sudo`, and an `amd64` or `arm64` host. Replace `edge-01` and every password before running them on a real box.
 
-<!-- source: internal/le/devsetup/actions.go -- Answer -->
-<!-- source: internal/le/devsetup/actions.go -- Answer -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/le/featuretags/daemontags.go -- DaemonTags -->
 <!-- source: internal/plugins/init/main.go -- ze init input format and database.zefs creation -->
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->

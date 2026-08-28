@@ -272,7 +272,7 @@ cmd := exec.CommandContext(ctx, "sh", "-c", shellCmd)
 and `hostload_darwin.go:16` forks `sysctl -n vm.loadavg`.
 
 Its only importers are `internal/test/runner/hostload.go` and
-the retired `scripts/status/verify_run.go` (current producer: `internal/le/verify/run.go`), both harness, so the practical risk is nil. But
+the retired `scripts/status/verify_run.go` (current producer: `internal/le/verifyengine/run.go`), both harness, so the practical risk is nil. But
 it lives in `internal/core/`, which is unambiguously governed by the rule, and
 it is the only `sh -c` string-concatenation pipeline in `internal/core/`.
 

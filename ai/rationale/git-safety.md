@@ -30,14 +30,14 @@ Running foreground means the tool result IS the completion signal -- no
 polling, no missed notifications, log is ready to read on return. The
 two-pass strategy (cached full pass + `-race` only on changed groups) is
 what keeps the common case short enough for that to be practical. How
-short is not stated here: `_release` (`internal/le/lejob/answer.go`)
+short is not stated here: `_release` (`internal/le/job/answer.go`)
 appends the real elapsed seconds to `tmp/.ze-verify-duration.txt`, and a
 duration typed into a document is a claim, not a measurement.
 
 If a previous run is still going, the admission wrapper blocks the second
 invocation inside the same foreground Bash call until a slot frees. There is
 no lock file: `internal/le/verifylock/register.go` is an alias for
-`internal/le/lejob/answer.go`, which keeps one entry per running job under
+`internal/le/job/answer.go`, which keeps one entry per running job under
 `tmp/.ze-jobs/` and admits `ZE_RUN_SLOTS` of them at a time.
 
 Anti-patterns that look like "smart" backgrounding but break:

@@ -16,7 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/verify"
+	"github.com/ze-software/ze/internal/le/verifyengine"
 )
 
 const probeRoot = "verify-dispatch-probe"
@@ -70,7 +70,7 @@ func TestDispatchCapturesStdoutAndPreservesIdentityCodeArgsAndRoot(t *testing.T)
 	})
 
 	root := t.TempDir()
-	identity := verify.Identity{Name: "ze-probe", Command: probeRoot, Args: []string{"alpha", "beta"}}
+	identity := verifyengine.Identity{Name: "ze-probe", Command: probeRoot, Args: []string{"alpha", "beta"}}
 	result := RunAction(context.Background(), root, identity)
 	if !result.Registered || !result.Completed || result.Code != 37 || result.Failure != nil {
 		t.Fatalf("dispatch result = %#v", result)
@@ -106,7 +106,7 @@ func TestDispatchCapturesStdoutAndPreservesIdentityCodeArgsAndRoot(t *testing.T)
 
 func TestDispatchCapturesStderrFromTheRegisteredHandler(t *testing.T) {
 	registerProbe()
-	identity := verify.Identity{Name: "ze-probe-error", Command: probeRoot, Args: []string{"stderr"}}
+	identity := verifyengine.Identity{Name: "ze-probe-error", Command: probeRoot, Args: []string{"stderr"}}
 	result := RunAction(context.Background(), t.TempDir(), identity)
 	if !result.Registered || !result.Completed || result.Code != 1 {
 		t.Fatalf("dispatch result = %#v", result)
@@ -118,7 +118,7 @@ func TestDispatchCapturesStderrFromTheRegisteredHandler(t *testing.T) {
 
 func TestDispatchRefusesUnownedMissingAndMismatchedRoots(t *testing.T) {
 	root := t.TempDir()
-	identity := verify.Identity{Name: "ze-refusal", Command: "refusal-probe", Args: []string{"exact"}}
+	identity := verifyengine.Identity{Name: "ze-refusal", Command: "refusal-probe", Args: []string{"exact"}}
 	resolve := func() (string, error) { return root, nil }
 	missing := func(string) registry.LocalDataHandler { return nil }
 
@@ -186,20 +186,20 @@ func TestDispatchSerializesRootOverrides(t *testing.T) {
 	lookup := func(string) registry.LocalDataHandler { return handler }
 	owns := func(string) bool { return true }
 
-	var first, second verify.ActionResult
+	var first, second verifyengine.ActionResult
 	var calls sync.WaitGroup
 	calls.Add(2)
 	go func() {
 		defer calls.Done()
 		first = dispatch(context.Background(), firstRoot,
-			verify.Identity{Name: "first", Command: "probe", Args: []string{"first"}},
+			verifyengine.Identity{Name: "first", Command: "probe", Args: []string{"first"}},
 			owns, lookup, lepath.Root)
 	}()
 	<-firstEntered
 	go func() {
 		defer calls.Done()
 		second = dispatch(context.Background(), secondRoot,
-			verify.Identity{Name: "second", Command: "probe", Args: []string{"second"}},
+			verifyengine.Identity{Name: "second", Command: "probe", Args: []string{"second"}},
 			owns, lookup, lepath.Root)
 	}()
 	calls.Wait()

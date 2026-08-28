@@ -397,7 +397,7 @@ it.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/specsession/review.go`
 - [ ] Journal row for anything this teaches
 - [ ] **Commit A:** code + spec + journal row
 - [ ] **Commit B:** `git rm plan/future/spec-fixit-unexport-package-private-symbols.md` only

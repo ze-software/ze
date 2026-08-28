@@ -27,8 +27,8 @@ Claude severity contract: 0 permits, 1 warns, and 2 blocks.
 
 Session identity resolution and dated session paths are canonical in
 `internal/le/lepath/session.go`. Test weakening is judged by
-`internal/le/weakened`, journal rows by `internal/le/journal`, and running review
-models by `internal/le/speclifecycle`. The hook runtime calls those packages
+`internal/le/testweakened`, journal rows by `internal/le/journal`, and running review
+models by `internal/le/specsession`. The hook runtime calls those packages
 in-process rather than launching a second implementation.
 
 Run the focused hook proof with:

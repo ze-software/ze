@@ -4,11 +4,11 @@ Verification is a statement about one commit and the files the run read. The nat
 
 ## Certificate
 
-`internal/le/verify.WriteCertificate` writes `tmp/ze-verify.status` and its manifest atomically after a native verification run. The certificate records the mode, commit, time, result, and the tree hash captured for the run. The manifest records each path at the content the stages read.
+`internal/le/verifyengine.WriteCertificate` writes `tmp/ze-verify.status` and its manifest atomically after a native verification run. The certificate records the mode, commit, time, result, and the tree hash captured for the run. The manifest records each path at the content the stages read.
 
-`./le verify-status check` calls `internal/le/verify.CheckCertificate`. With no paths it compares the whole checkout. Repeated `path <path>` selectors restrict the answer to a prospective commit's files. A changed file, a moved `HEAD`, a missing manifest, or a path that moved while the run was in progress returns STALE.
+`./le verify-status check` calls `internal/le/verifyengine.CheckCertificate`. With no paths it compares the whole checkout. Repeated `path <path>` selectors restrict the answer to a prospective commit's files. A changed file, a moved `HEAD`, a missing manifest, or a path that moved while the run was in progress returns STALE.
 
-<!-- source: internal/le/verify/status.go -- WriteCertificate, CheckCertificate -->
+<!-- source: internal/le/verifyengine/status.go -- WriteCertificate, CheckCertificate -->
 <!-- source: internal/le/verifystatus/answer.go -- Answer -->
 
 ## One change-set selection
@@ -17,20 +17,20 @@ Verification is a statement about one commit and the files the run read. The nat
 
 The verify runner resolves the selection once and publishes its package and feature-tag answers to the run's artifact directory. Every scoped stage reads those files. This keeps the unit pass and the staticcheck matrix on the same snapshot, and it avoids a second reverse-import walk after another session changes the checkout.
 
-`internal/le/staticcheckmatrix.Answer` retains the all-features and core-only rows, plus the feature-omission rows the selected tags can affect. A negated build constraint counts as a use of the tag because that file compiles in the omission row.
+`internal/le/staticcheckfeaturematrix.Answer` retains the all-features and core-only rows, plus the feature-omission rows the selected tags can affect. A negated build constraint counts as a use of the tag because that file compiles in the omission row.
 
 <!-- source: internal/le/changed/actions.go -- Answer -->
-<!-- source: internal/le/staticcheckmatrix/actions.go -- Answer -->
-<!-- source: internal/le/verify/run.go -- Run, RunMode -->
+<!-- source: internal/le/staticcheckfeaturematrix/actions.go -- Answer -->
+<!-- source: internal/le/verifyengine/run.go -- Run, RunMode -->
 
 ## Native stage execution
 
-`internal/le/verify.RunMode` executes the ordered stage population and captures each stage result. A red stage does not hide later reds; cancellation stops before another stage starts. Each in-process gate returns a populated `GateResult`, so an omitted registration cannot look like exit zero.
+`internal/le/verifyengine.RunMode` executes the ordered stage population and captures each stage result. A red stage does not hide later reds; cancellation stops before another stage starts. Each in-process gate returns a populated `GateResult`, so an omitted registration cannot look like exit zero.
 
 Native `./le` actions are the public interface, while Go-to-Go paths call their package functions. Heavy verification enters through `./le job run label <label> command <argv...>` or the `verify-lock` action rather than starting another copy behind the admission registry.
 
-<!-- source: internal/le/verify/run.go -- GateResult, RunMode -->
-<!-- source: internal/le/lejob/answer.go -- Answer -->
+<!-- source: internal/le/verifyengine/run.go -- GateResult, RunMode -->
+<!-- source: internal/le/job/answer.go -- Answer -->
 <!-- source: internal/le/verifylock/register.go -- Answer -->
 
 ## Failure attribution

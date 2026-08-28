@@ -408,7 +408,7 @@ func TestDocDriftRendererErrorsFailClosed(t *testing.T) {
 	if !strings.Contains(out, "could not generate the expected per-command surfaces") {
 		t.Fatalf("doc drift did not report expected-surface generation failure:\n%s", out)
 	}
-	if !strings.Contains(out, "internal/le/sitebuild") {
+	if !strings.Contains(out, "internal/le/site") {
 		t.Fatalf("doc drift did not identify the native site producer:\n%s", out)
 	}
 	if !strings.Contains(out, "fixture renderer failure") {

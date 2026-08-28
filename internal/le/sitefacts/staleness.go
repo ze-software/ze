@@ -12,7 +12,7 @@
 // judged there, which is what `./le verify worktree` does.
 //
 // It judges the PUBLISHED figure, not the exact count. A count reaches a page
-// through the display formatter owned by internal/le/sitebuild, which floors a
+// through the display formatter owned by internal/le/site, which floors a
 // magnitude to one tenth of its visible unit, so 3852 and 3899 are one string.
 // Exact equality is not something the commit flow can deliver either: git
 // ls-files answers from the INDEX, so a regeneration run before `git add`
@@ -42,7 +42,7 @@ import (
 
 // worktreeRoot is where a materialized commit lands, under the checkout's own
 // scratch directory. It sits beside tmp/verify-worktree, which the pre-commit
-// gate uses for the same purpose (internal/le/verifyworktree/actions.go, worktree_path).
+// gate uses for the same purpose (internal/le/verify/actions.go, worktree_path).
 const worktreeRoot = "tmp/site-facts-check"
 
 // worktreeTimeout bounds the checkout of one commit. It writes every tracked

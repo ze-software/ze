@@ -574,7 +574,7 @@ inside a `terminator=` block):
   `test/rfc-changed.md`, and commit that file with the change. The native
   weakening check reads the file and blocks the edit until a row names the test.
 
-<!-- source: internal/le/weakened/proposed.go -- RFC-tagged carrier approval -->
+<!-- source: internal/le/testweakened/proposed.go -- RFC-tagged carrier approval -->
 <!-- source: ai/skills/ze-rfc.md -- requirement id allocation and annotations -->
 
 Full rules: `ai/skills/ze-rfc.md`; audit method: `ai/skills/ze-rfc-audit.md`.

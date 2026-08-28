@@ -47,7 +47,7 @@ func TestConcurrentRunSharesOneAdmittedChildAndItsExit(t *testing.T) {
 	// `./le test-unit`) inherits ZE_RUN_JOB from that wrapper. insideParent
 	// then reports both concurrent calls as nested in the same parent slot,
 	// and neither reaches the claim/attach path this test exercises. See the
-	// same fix in internal/le/lejob/contention_test.go's detach helper.
+	// same fix in internal/le/job/contention_test.go's detach helper.
 	t.Setenv("ZE_RUN_JOB", "")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)

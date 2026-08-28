@@ -11,7 +11,7 @@ Ze's quality work has one rule: when something fails, the output should show wha
 <!-- source: ../main/internal/le/fuzz/actions.go -- fuzz actions -->
 <!-- source: ../main/internal/le/mutation/actions.go -- mutation reporting actions -->
 <!-- source: ../main/internal/le/evidence/actions.go -- release evidence -->
-<!-- source: ../main/internal/le/verify/run.go -- staged verify runner -->
+<!-- source: ../main/internal/le/verifyengine/run.go -- staged verify runner -->
 <!-- source: ../main/internal/le/verifylock/register.go -- shared verify lock -->
 <!-- source: ../main/internal/le/rfc/actions.go -- RFC requirement gate -->
 <!-- source: ../main/internal/le/hookruntime/writeedit.go -- RFC-tagged test edit guard -->

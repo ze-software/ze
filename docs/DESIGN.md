@@ -880,9 +880,9 @@ The outer Go process stays host-native. Its exec wrapper starts host-native
 `govulncheck` with `GOOS=linux GOARCH=amd64`, so the scanner loads the
 Linux/amd64 package graph. The action needs network access to the live Go
 vulnerability database.
-<!-- source: internal/le/verify/stages.go -- stagesForMode -->
+<!-- source: internal/le/verifyengine/stages.go -- stagesForMode -->
 <!-- source: internal/le/verifydeps/actions.go -- Actions -->
-<!-- source: internal/le/verify/run.go -- Run, RunMode -->
+<!-- source: internal/le/verifyengine/run.go -- Run, RunMode -->
 
 `./le verify current mode full` is the pre-commit gate. Not `go test`, not any subset. Every commit
 passes the full suite.

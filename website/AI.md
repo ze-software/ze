@@ -58,7 +58,7 @@ website/
     page-links.json                       -- page navigation and external project links
 ```
 
-The native implementation lives in `internal/le/sitebuild`. `./le site build`
+The native implementation lives in `internal/le/site`. `./le site build`
 stages tracked and untracked website inputs into the Pages artifact, refreshes
 the command surfaces and asset bundles, and removes every source-only path.
 `./le site check` checks the deployment boundary. The same package bundles
@@ -87,22 +87,22 @@ artifact boundary and can seed it from the current complete Pages checkout.
   `data/nav.json` owns top navigation, and the other files in `data/` own their
   matching catalogues and generated pages. Markdown sources live in `website/`
   and `../docs/`.
-- **Paths and deployment.** `internal/le/sitebuild.ResolvePaths` derives the
+- **Paths and deployment.** `internal/le/site.ResolvePaths` derives the
   checkout, source and artifact roots. `IsSourceOnly` is the common deployment
   boundary used by the builder and checker.
 - **Command surfaces.** `internal/le/docvalid.RenderCommandSurfaces` writes the
   CLI HTML, Markdown, command-equivalent detail pages and `llms.txt` metadata
   directly from the live JSON catalogue. The same typed contract is validated
   by the documentation drift gate.
-- **Presentation tools.** `internal/le/sitebuild.BundlePresentation` embeds
+- **Presentation tools.** `internal/le/site.BundlePresentation` embeds
   images, fonts, stylesheets, slide sources and screenshots in one HTML file.
   `RenderActivity` derives the activity table from Git history.
 - **CSS source layers.** `assets/site.css` is generated from
-  `assets/css/site.css` by `internal/le/sitebuild.RenderCSS`. The source
+  `assets/css/site.css` by `internal/le/site.RenderCSS`. The source
   manifest imports `10-base.css` and the smaller token, component and
   responsive files. New CSS belongs in the smallest matching source file.
 - **JS behaviour model.** The editable script is `assets/js/site.js`;
-  `internal/le/sitebuild.RenderJS` writes the published `assets/site.js`. It
+  `internal/le/site.RenderJS` writes the published `assets/site.js`. It
   loads `assets/header.html` into each page and provides navigation and search
   interactions. Page content remains useful without JavaScript.
 - **Source-evidence links.** `initSourceLinks` turns a `<code>` span that looks
@@ -122,7 +122,7 @@ artifact boundary and can seed it from the current complete Pages checkout.
 - **Prose number tokens.** Website-owned Markdown may embed `{{ze:<name>}}`
   tokens whose values come from `data/site-facts.json`. HTML output carries a
   `data-ze-stat` marker, while Markdown mirrors receive plain text.
-- **Verification commands.** `go test ./internal/le/sitebuild` exercises the
+- **Verification commands.** `go test ./internal/le/site` exercises the
   build boundary, source digest, asset expansion and deck bundling.
   `go test ./internal/le/docvalid -run CommandSurface` exercises native command
   rendering and drift detection.

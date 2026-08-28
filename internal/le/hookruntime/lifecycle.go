@@ -2,6 +2,7 @@
 package hookruntime
 
 import (
+	stdcontext "context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,20 +10,24 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/aisync"
+	"github.com/ze-software/ze/internal/le/ai"
 	"github.com/ze-software/ze/internal/le/commit"
 	"github.com/ze-software/ze/internal/le/docstocode"
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/rules"
 	"github.com/ze-software/ze/internal/le/session"
 	"github.com/ze-software/ze/internal/le/speccitation"
-	"github.com/ze-software/ze/internal/le/speclifecycle"
+	"github.com/ze-software/ze/internal/le/specsession"
 	"github.com/ze-software/ze/internal/le/specstatus"
 )
+
+// gitTimeout bounds one git call a lifecycle hook makes. Each reads the index
+// or a ref, which is milliseconds, so a run past this is a wedged repository
+// rather than a slow one. Both callers already treat a git error as no answer.
+const gitTimeout = 60 * time.Second
 
 func runLifecycleHook(kind string, ctx context, out, errOut io.Writer) int {
 	switch kind {
@@ -71,12 +76,19 @@ func writeSessionMarker(ctx context, prefix, body string) int {
 	if body == "" {
 		body = time.Now().Format(time.RFC3339)
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o777); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return 0
 	}
-	_ = os.WriteFile(path, []byte(body+"\n"), 0o666)
+	_ = os.WriteFile(path, []byte(body+"\n"), 0o600)
 	return 0
 }
+
+// lspBlockedMessage is the refusal the LSP gate prints. It is a constant so the
+// call that writes it fits on one line with its errcheck exemption.
+const lspBlockedMessage = "❌ Blocked: LSP tool must be loaded before any other tool call.\n\n" +
+	"   First tool call of every session MUST be:\n       ToolSearch query=\"select:LSP\"\n\n" +
+	"   See .claude/rules/session-start.md, \"LSP Load (step 1) -- no-exceptions clause\".\n" +
+	"   No task-type exception (shell-only, docs-only, trivial, etc.) applies.\n"
 
 func hookUntilLSP(ctx context, errOut io.Writer) int {
 	id := resolvedSessionID(ctx)
@@ -86,18 +98,15 @@ func hookUntilLSP(ctx context, errOut io.Writer) int {
 	marker := filepath.Join(ctx.root, "tmp", "session", ".lsp-loaded-"+id)
 	if ctx.tool == "ToolSearch" {
 		if strings.Contains(strings.ToLower(stringInput(ctx.input, "query")), "lsp") {
-			_ = os.MkdirAll(filepath.Dir(marker), 0o777)
-			_ = os.WriteFile(marker, []byte(time.Now().Format(time.RFC3339)+"\n"), 0o666)
+			_ = os.MkdirAll(filepath.Dir(marker), 0o750)
+			_ = os.WriteFile(marker, []byte(time.Now().Format(time.RFC3339)+"\n"), 0o600)
 		}
 		return 0
 	}
 	if _, err := os.Stat(marker); err == nil {
 		return 0
 	}
-	fmt.Fprint(errOut, "❌ Blocked: LSP tool must be loaded before any other tool call.\n\n"+
-		"   First tool call of every session MUST be:\n       ToolSearch query=\"select:LSP\"\n\n"+
-		"   See .claude/rules/session-start.md, \"LSP Load (step 1) -- no-exceptions clause\".\n"+
-		"   No task-type exception (shell-only, docs-only, trivial, etc.) applies.\n") //nolint:errcheck // hook protocol
+	fmt.Fprint(errOut, lspBlockedMessage) //nolint:errcheck // hook protocol
 	return 2
 }
 
@@ -105,7 +114,7 @@ func hookSessionStart(ctx context, out io.Writer) int {
 	if id, present := payloadSessionID(ctx.payload); present && id != "" {
 		_ = os.Setenv("CLAUDE_CODE_SESSION_ID", id)
 		if environmentFile := os.Getenv("CLAUDE_ENV_FILE"); environmentFile != "" {
-			file, err := os.OpenFile(environmentFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o666)
+			file, err := os.OpenFile(environmentFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) //nolint:gosec // the path is CLAUDE_ENV_FILE, which the harness owns
 			if err == nil {
 				fmt.Fprintf(file, "export CLAUDE_CODE_SESSION_ID=%s\n", id) //nolint:errcheck // environment contract
 				_ = file.Close()
@@ -114,12 +123,14 @@ func hookSessionStart(ctx context, out io.Writer) int {
 	}
 	id := resolvedSessionID(ctx)
 	claim := readFirstLine(filepath.Join(ctx.root, "tmp", "session", ".session-"+id))
-	if claim == "unassigned" {
+	if claim == specUnassigned {
 		claim = ""
 	}
-	command := exec.Command("git", "status", "--porcelain")
+	gitStatus, cancelStatus := stdcontext.WithTimeout(stdcontext.Background(), gitTimeout)
+	command := exec.CommandContext(gitStatus, "git", "status", "--porcelain")
 	command.Dir = ctx.root
 	status, _ := command.Output()
+	cancelStatus()
 	if strings.TrimSpace(string(status)) == "" {
 		fmt.Fprintln(out, "Clean tree") //nolint:errcheck // hook protocol
 	} else {
@@ -150,7 +161,7 @@ func hookSessionStart(ctx context, out io.Writer) int {
 			count := 0
 			needle := "| Status | " + specStatus
 			for _, spec := range specs {
-				body, _ := os.ReadFile(spec)
+				body, _ := os.ReadFile(spec) //nolint:gosec // a plan/spec-*.md path this hook globbed in the checkout
 				if strings.Contains(string(body), needle) {
 					count++
 				}
@@ -167,7 +178,7 @@ func hookSessionStart(ctx context, out io.Writer) int {
 		found := stateFile(ctx)
 		if _, err := os.Stat(found); err != nil {
 			stem := strings.TrimSuffix(strings.TrimPrefix(claim, "spec-"), ".md")
-			found, _ = speclifecycle.LatestStateForSpec(ctx.root, stem)
+			found, _ = specsession.LatestStateForSpec(ctx.root, stem)
 			if found != "" && !filepath.IsAbs(found) {
 				found = filepath.Join(ctx.root, found)
 			}
@@ -200,7 +211,7 @@ func hookSessionStart(ctx context, out io.Writer) int {
 			fmt.Fprintln(out, "Built ai/CODE-TO-DOCS.md (derived, not tracked)") //nolint:errcheck // hook protocol
 		}
 	}
-	if report, err := (aisync.Mirror{Root: ctx.root}).Check(); err != nil || len(report.Stale) != 0 {
+	if report, err := (ai.Mirror{Root: ctx.root}).Check(); err != nil || len(report.Stale) != 0 {
 		fmt.Fprintln(out, "Warning: generated agent files are stale (CLAUDE.md / AGENTS.md / skills mirrors)") //nolint:errcheck // hook protocol
 		fmt.Fprintln(out, "   -> run: ./le ai skills-sync")                                                    //nolint:errcheck // hook protocol
 	}
@@ -216,7 +227,7 @@ func hookSessionStart(ctx context, out io.Writer) int {
 }
 
 func readFirstLine(path string) string {
-	body, err := os.ReadFile(path)
+	body, err := os.ReadFile(path) //nolint:gosec // every caller passes a path built from the checkout root
 	if err != nil {
 		return ""
 	}
@@ -230,7 +241,10 @@ func hookCompactionReminder(ctx context, errOut io.Writer) int {
 		message = ctx.payload.LastMessage
 	}
 	lower := strings.ToLower(message)
-	if !strings.Contains(lower, "continued from a previous conversation") || !(strings.Contains(lower, "ran out of context") || strings.Contains(lower, "context compaction")) {
+	if !strings.Contains(lower, "continued from a previous conversation") {
+		return 0
+	}
+	if !anyContains(lower, "ran out of context", "context compaction") {
 		return 0
 	}
 	_ = writeSessionMarker(ctx, ".compaction-detected-", time.Now().Format(time.RFC3339))
@@ -245,7 +259,7 @@ func stateFile(ctx context) string {
 	}
 	claim := readFirstLine(filepath.Join(ctx.root, "tmp", "session", ".session-"+paths.ID))
 	name := "session-state-" + paths.ID + ".md"
-	if claim != "" && claim != "unassigned" {
+	if claim != "" && claim != specUnassigned {
 		stem := strings.TrimSuffix(strings.TrimPrefix(claim, "spec-"), ".md")
 		name = "session-state-" + stem + "-" + paths.ID + ".md"
 	}
@@ -257,10 +271,10 @@ func hookPreCompact(ctx context, errOut io.Writer) int {
 	if path == "" {
 		return 0
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o777); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return 0
 	}
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o666)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) //nolint:gosec // the session state path is built from the checkout root
 	if err != nil {
 		return 0
 	}
@@ -275,7 +289,7 @@ func stripStopMarkup(text string) string {
 	fence := false
 	fenceLength := 0
 	pending := make([]string, 0)
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		trimmed := strings.TrimLeft(line, " \t")
 		ticks := 0
 		for ticks < len(trimmed) && trimmed[ticks] == '`' {
@@ -320,13 +334,13 @@ func hookStop(ctx context, errOut io.Writer) int {
 	id := resolvedSessionID(ctx)
 	claimPath := filepath.Join(ctx.root, "tmp", "session", ".session-"+id)
 	claim := readFirstLine(claimPath)
-	if claim != "" && claim != "unassigned" {
+	if claim != "" && claim != specUnassigned {
 		if report, _, closureErr := specstatus.CheckClosure(ctx.root, filepath.Join("plan", claim)); closureErr == nil && report.Blocked() {
 			fmt.Fprintln(errOut, "BLOCKED: spec implemented but not closed.") //nolint:errcheck // hook protocol
 			fmt.Fprint(errOut, report.Text())                                 //nolint:errcheck // hook protocol
 			return 2
 		}
-		specBody, err := os.ReadFile(filepath.Join(ctx.root, "plan", claim))
+		specBody, err := os.ReadFile(filepath.Join(ctx.root, "plan", claim)) //nolint:gosec // the claimed spec lives under the checkout plan directory
 		if err == nil && regexp.MustCompile(`(?m)^\|[ \t]*Status[ \t]*\|.*in-progress`).Match(specBody) {
 			openWork = true
 			reasons = append(reasons, "Spec '"+claim+"' still in-progress")
@@ -402,8 +416,8 @@ func hookDeferrals(ctx context, errOut io.Writer) int {
 	entries, _ := filepath.Glob(filepath.Join(ctx.root, "plan", "deferrals", "*.md"))
 	open := make([]string, 0)
 	for _, entry := range entries {
-		body, _ := os.ReadFile(entry)
-		for _, line := range strings.Split(string(body), "\n") {
+		body, _ := os.ReadFile(entry) //nolint:gosec // a plan/deferrals/*.md path this hook globbed in the checkout
+		for line := range strings.SplitSeq(string(body), "\n") {
 			cells := strings.Split(line, "|")
 			if len(cells) >= 7 && strings.EqualFold(strings.TrimSpace(cells[5]), "open") {
 				open = append(open, strings.TrimSpace(cells[3]))
@@ -427,18 +441,20 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 		id = resolvedSessionID(ctx)
 	}
 	branch := "unknown"
-	command := exec.Command("git", "branch", "--show-current")
+	gitBranch, cancelBranch := stdcontext.WithTimeout(stdcontext.Background(), gitTimeout)
+	command := exec.CommandContext(gitBranch, "git", "branch", "--show-current")
 	command.Dir = ctx.root
 	if body, err := command.Output(); err == nil && strings.TrimSpace(string(body)) != "" {
 		branch = strings.TrimSpace(string(body))
 	}
+	cancelBranch()
 	var text strings.Builder
 	fmt.Fprintf(&text, "Ze is a Network OS in Go (BGP, CLI, web, plugins). Key constraints:\n- Zero-copy, buffer-first encoding: WriteTo(buf, off) int -- no make/append in encoding\n- Registration pattern: init() in register.go, never direct imports between components\n- YANG required for all RPCs -- no command module category\n- Lazy over eager: pass raw bytes, offset iterators, no intermediate structs\n- JSON keys: kebab-case\n- Goroutines: long-lived workers on channels, never per-event\n- Rules: ai/rules/\n- Branch: %s\n", branch)
 	if id != "" {
 		paths, err := lepath.SessionForID(ctx.root, id)
 		if err == nil {
 			claim := readFirstLine(filepath.Join(ctx.root, "tmp", "session", ".session-"+id))
-			if claim != "" && claim != "unassigned" {
+			if claim != "" && claim != specUnassigned {
 				fmt.Fprintf(&text, "\nSpec claimed by the session that spawned you: plan/%s\nRead it before acting. Its acceptance criteria are what your work is judged against.\n", claim)
 			}
 			fmt.Fprintf(&text, "\nParent session ID: %s\nParent session scratch: %s\nSet CLAUDE_CODE_SESSION_ID=%s for every Bash tool call. The Bash PreToolUse hook adds this prefix to the command.\n", id, paths.Scratch, id)
@@ -474,7 +490,7 @@ func hookValidateSpec(ctx context, errOut io.Writer) int {
 		fmt.Fprintln(errOut, "❌ validate-spec: no tool name in the hook payload -- NOTHING WAS CHECKED.\n  This is a PostToolUse hook: it reads a JSON payload on stdin and takes no arguments.") //nolint:errcheck // hook protocol
 		return 2
 	}
-	if !oneOf(ctx.tool, "Write", "Edit") {
+	if !oneOf(ctx.tool, toolWrite, "Edit") {
 		return 0
 	}
 	path := filepath.ToSlash(ctx.path)
@@ -532,7 +548,7 @@ func validateSpecText(root, text string) ([]string, []string) {
 		if !oneOf(status, "skeleton", "design", "ready", "in-progress", "verification", "blocked", "deferred", "done") {
 			errors = append(errors, "Invalid Status '"+status+"'. Must be: skeleton, design, ready, in-progress, verification, blocked, deferred, done")
 		}
-		if !regexp.MustCompile(`(?m)^\| Updated \| *[0-9]{4}-[0-9]{2}-[0-9]{2}`).MatchString(text) {
+		if !regexp.MustCompile(`(?m)^\| Updated \| *\d{4}-\d{2}-\d{2}`).MatchString(text) {
 			warnings = append(warnings, "Metadata: Updated field should have a date (YYYY-MM-DD)")
 		}
 	}
@@ -546,9 +562,16 @@ func validateSpecText(root, text string) ([]string, []string) {
 			warnings = append(warnings, "Missing section: "+section)
 		}
 	}
+	// The extension set is what Ze's sources ACTUALLY are, not what they were.
+	// The original list was go|sh|rs|ts|js|mk, from before the repository's own
+	// tooling moved into Go, and it never carried the kinds a protocol router is
+	// mostly made of: a YANG module, a .ci fixture, a templ template, a vendored
+	// C file. A spec that read those could not satisfy the check whatever it
+	// listed, so the section it names was refused for holding the wrong KIND of
+	// source rather than for holding none, which is what the message says.
 	current := markdownSection(text, "## Current Behavior")
-	if current != "" && !regexp.MustCompile("(?m)^\\s*-\\s*\\[[ x]\\]\\s*`[^`]+\\.(go|sh|rs|ts|js|mk)(:[0-9]+)?`").MatchString(current) {
-		errors = append(errors, "Current Behavior section must list source files read")
+	if current != "" && !regexp.MustCompile("(?m)^\\s*-\\s*\\[[ x]\\]\\s*`[^`]+\\.(go|sh|rs|ts|js|mk|py|yang|ci|et|wb|templ|c|h|json|yml|yaml|md|txt|proto)(:[0-9]+)?`").MatchString(current) {
+		errors = append(errors, "Current Behavior section must list the source files read, each as a `- [ ] `backticked/path.ext`` bullet")
 	}
 	data := markdownSection(text, "## Data Flow")
 	for _, subsection := range []string{"### Entry Point", "### Transformation Path", "### Boundaries Crossed", "### Integration Points"} {
@@ -589,11 +612,10 @@ func validateSpecText(root, text string) ([]string, []string) {
 }
 
 func markdownSection(text, heading string) string {
-	start := strings.Index(text, heading)
-	if start < 0 {
+	_, rest, found := strings.Cut(text, heading)
+	if !found {
 		return ""
 	}
-	rest := text[start+len(heading):]
 	level := strings.Count(strings.Fields(heading)[0], "#")
 	lines := strings.Split(rest, "\n")
 	end := len(lines)
@@ -605,10 +627,4 @@ func markdownSection(text, heading string) string {
 		}
 	}
 	return strings.Join(lines[:end], "\n")
-}
-
-func hookRuleCoverageFiles(root string) []string {
-	files, _ := filepath.Glob(filepath.Join(root, "ai", "rules", "*.md"))
-	sort.Strings(files)
-	return files
 }

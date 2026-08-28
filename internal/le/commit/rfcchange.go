@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/rfc"
-	"github.com/ze-software/ze/internal/le/weakened"
+	"github.com/ze-software/ze/internal/le/testweakened"
 )
 
 const rfcChangedPath = "test/rfc-changed.md"
@@ -29,8 +29,8 @@ type RFCChange struct {
 	Tags    []string `json:"tags"`
 }
 
-func rfcChangeProblems(root string, prospective weakened.Prospective, carriesLedger bool) ([]RFCChange, []string) {
-	pairsByOld := make(map[string]weakened.RenamePair)
+func rfcChangeProblems(root string, prospective testweakened.Prospective, carriesLedger bool) ([]RFCChange, []string) {
+	pairsByOld := make(map[string]testweakened.RenamePair)
 	pairedNew := make(map[string]bool)
 	for _, pair := range prospective.RenamePairs {
 		pairsByOld[pair.OldPath] = pair
@@ -62,7 +62,7 @@ func rfcChangeProblems(root string, prospective weakened.Prospective, carriesLed
 		}
 		newText := ""
 		if newPath != "" {
-			content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(newPath)))
+			content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(newPath))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 			if err != nil && !errors.Is(err, os.ErrNotExist) {
 				return nil, []string{"RFC-tagged change gate could not read " + newPath + ": " + err.Error()}
 			}
@@ -76,11 +76,11 @@ func rfcChangeProblems(root string, prospective weakened.Prospective, carriesLed
 	if !carriesLedger {
 		return changes, []string{fmt.Sprintf("this commit changes %d RFC-tagged test(s) and does not carry %s", len(changes), rfcChangedPath)}
 	}
-	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rfcChangedPath)))
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rfcChangedPath))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 	if err != nil {
 		return changes, []string{"cannot read " + rfcChangedPath + ": " + err.Error()}
 	}
-	rows, problems := weakened.ParseLedger(string(content), rfcChangedPath)
+	rows, problems := testweakened.ParseLedger(string(content), rfcChangedPath)
 	if len(problems) != 0 {
 		return changes, problems
 	}
@@ -88,7 +88,7 @@ func rfcChangeProblems(root string, prospective weakened.Prospective, carriesLed
 	for _, row := range rows {
 		hits := 0
 		for index, change := range changes {
-			if weakened.RowMatches(row.Name, change.Package, change.Name) {
+			if testweakened.RowMatches(row.Name, change.Package, change.Name) {
 				claimed[index] = true
 				hits++
 			}

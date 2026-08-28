@@ -41,7 +41,7 @@ for why I first reported this as impossible.
 ```
 
 The owner asked about the command catalog last. The retired Python renderer was
-replaced by the compiled Go renderer in `internal/le/sitebuild`; `./le site
+replaced by the compiled Go renderer in `internal/le/site`; `./le site
 build` publishes the catalog with the rest of the site. Confirm each command
 shows its modifiers with `always`, `with-rows`, and `when-streaming`
 distinguished.

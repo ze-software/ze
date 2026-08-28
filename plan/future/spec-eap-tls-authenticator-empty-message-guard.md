@@ -345,7 +345,7 @@ acknowledgement for the M-flagged case, so the next reader sees which case the R
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/specsession/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm` the spec

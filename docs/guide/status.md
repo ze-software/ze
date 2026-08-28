@@ -90,7 +90,7 @@ Unit tests run with the race detector enabled (`-race`). Functional, browser, an
 <!-- source: internal/le/testunit/actions.go -- Actions -->
 <!-- source: internal/le/functional/actions.go -- Actions -->
 <!-- source: internal/le/fuzz/actions.go -- Actions -->
-<!-- source: internal/le/lintgate/actions.go -- Actions -->
+<!-- source: internal/le/verifylint/actions.go -- Actions -->
 
 ## What Does NOT Work Yet
 

@@ -22,7 +22,7 @@ optional dependencies, and YANG modules.
 The native site builder reads the plugin registrations and YANG modules, writes
 `../gh-pages/data/plugin-registry.json`, and renders the catalog plus one local
 detail page per plugin. Do not add a parallel hand-written plugin list.
-<!-- source: internal/le/sitebuild/build.go -- Build -->
+<!-- source: internal/le/site/build.go -- Build -->
 
 When adding or changing a plugin, update the registration metadata in the
 plugin's `register.go`. If the website needs another fact, add a structured

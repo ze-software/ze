@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- registered in-process verification dispatch
 //
 // Package verifydispatch connects verifyworktree to le's local-data registry.
-// It owns no command table: verify.Identity names the tool and exact arguments.
+// It owns no command table: verifyengine.Identity names the tool and exact arguments.
 package verifydispatch
 
 import (
@@ -17,13 +17,13 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/verify"
+	"github.com/ze-software/ze/internal/le/verifyengine"
 )
 
 var rootOverrideMu sync.Mutex
 
 // RunAction runs one registered le action inside the requested checkout root.
-func RunAction(ctx context.Context, root string, identity verify.Identity) verify.ActionResult {
+func RunAction(ctx context.Context, root string, identity verifyengine.Identity) verifyengine.ActionResult {
 	return dispatch(ctx, root, identity, leroot.Owns, lookupTool, lepath.Root)
 }
 
@@ -39,16 +39,16 @@ func lookupTool(name string) registry.LocalDataHandler {
 func dispatch(
 	ctx context.Context,
 	root string,
-	identity verify.Identity,
+	identity verifyengine.Identity,
 	owns func(string) bool,
 	lookup func(string) registry.LocalDataHandler,
 	resolveRoot func() (string, error),
-) (result verify.ActionResult) {
+) (result verifyengine.ActionResult) {
 	identity.Args = slices.Clone(identity.Args)
 	var text textbuf.Buffer
 	result.Identity = identity
 	if err := ctx.Err(); err != nil {
-		return refused(result, "interrupted", verify.Interrupted, err.Error())
+		return refused(result, "interrupted", verifyengine.Interrupted, err.Error())
 	}
 	if strings.TrimSpace(root) == "" {
 		return refused(result, "root-missing", 2, "action runner received no checkout root")
@@ -68,7 +68,7 @@ func dispatch(
 	rootOverrideMu.Lock()
 	defer rootOverrideMu.Unlock()
 	if err := ctx.Err(); err != nil {
-		return refused(result, "interrupted", verify.Interrupted, err.Error())
+		return refused(result, "interrupted", verifyengine.Interrupted, err.Error())
 	}
 
 	previousRoot := env.Get(lepath.RootKey)
@@ -119,10 +119,10 @@ func dispatch(
 	return result
 }
 
-func refused(result verify.ActionResult, kind string, code int, message string) verify.ActionResult {
+func refused(result verifyengine.ActionResult, kind string, code int, message string) verifyengine.ActionResult {
 	result.Code = code
 	result.Completed = false
-	result.Failure = &verify.Failure{Kind: kind, Stage: result.Identity.Name, Message: message}
+	result.Failure = &verifyengine.Failure{Kind: kind, Stage: result.Identity.Name, Message: message}
 	return result
 }
 

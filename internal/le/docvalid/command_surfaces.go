@@ -20,6 +20,7 @@ import (
 	osexec "os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -33,22 +34,53 @@ import (
 	"github.com/ze-software/ze/internal/le/wikicatalog"
 )
 
-func commandSurfaceModuleRoot() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", fmt.Errorf("go.mod not found")
-		}
-		dir = parent
-	}
-}
+// The four availability keys the live command catalog publishes for a pipe
+// operator, and the label each rendered surface gives them. The primary CLI
+// page and the per-command equivalent page word the same key differently, so
+// each surface has its own label.
+const (
+	availabilityAlways        = "always"
+	availabilityWithRows      = "with-rows"
+	availabilityWhenStreaming = "when-streaming"
+	availabilityLocalOnly     = "local-only"
+
+	alwaysLabel         = "Always"
+	withRowsLabel       = "With rows"
+	whileStreamingLabel = "While streaming"
+	localOnlyLabel      = "Local process only"
+
+	pipesAlwaysLabel         = "Pipes, always"
+	pipesOnRowsLabel         = "Pipes, on rows"
+	pipesWhileStreamingLabel = "Pipes, while streaming"
+	pipesLocalOnlyLabel      = "Pipes, local process only"
+)
+
+// The HTML element names the published command surfaces are read for.
+const (
+	articleElement = "article"
+	codeElement    = "code"
+	spanElement    = "span"
+	strongElement  = "strong"
+)
+
+// The named dimensions a per-command contract comparison reports.
+const (
+	pathField        = "path"
+	descriptionField = "description"
+
+	// malformedIdentity stands in for a command identity the surface holds in
+	// a shape the reader could not parse, so a report never names an empty
+	// command.
+	malformedIdentity = "<malformed>"
+)
+
+// The published surfaces and sibling producers this gate reads by name.
+const (
+	llmsSurfaceName             = "llms.txt"
+	wikiCatalogProducer         = "internal/le/wikicatalog/catalog.go"
+	wikiCatalogRenderer         = "internal/le/wikicatalog/render.go"
+	wikiCatalogNormalizeFailure = "could not normalize the shipping wiki command catalog producer"
+)
 
 type publishedCommandArg struct {
 	Name      string   `json:"name"`
@@ -185,7 +217,7 @@ func (c *checker) checkPublishedCommandSurfaces(commandCatalogPath string) []Iss
 	)
 	if err != nil {
 		return append(issues, Issue{
-			File:    "internal/le/sitebuild",
+			File:    "internal/le/site",
 			Message: "could not generate the expected per-command surfaces",
 			Detail:  err.Error(),
 		})
@@ -217,7 +249,7 @@ func renderExpectedCommandSurfaces(
 		return "", err
 	}
 	tmpParent := filepath.Join(root, "tmp")
-	if err := os.MkdirAll(tmpParent, 0o755); err != nil {
+	if err := os.MkdirAll(tmpParent, 0o750); err != nil {
 		return "", fmt.Errorf("create command render temporary parent %s: %w", tmpParent, err)
 	}
 	outputRoot, err := os.MkdirTemp(tmpParent, "docvalid-command-surfaces-")
@@ -256,7 +288,7 @@ func publishedWebsiteRootExists(path string, fixture bool) (bool, error) {
 	if !fixture {
 		return true, nil
 	}
-	for _, relative := range []string{"data", "reference", "llms.txt"} {
+	for _, relative := range []string{"data", "reference", llmsSurfaceName} {
 		candidate := filepath.Join(path, relative)
 		exists, err := optionalCommandSurfacePath(candidate)
 		if err != nil {
@@ -322,6 +354,8 @@ func loadLiveCommandCatalog(root, commandCatalogPath string) ([]byte, []publishe
 	ctx, cancel := context.WithTimeout(context.Background(), commandCatalogGenerationTimeout)
 	defer cancel()
 	args := []string{"run", "-tags", strings.Join(tags, ","), "./cmd/ze", "help", "command", "--json"}
+	// #nosec G204 -- the argv is fixed apart from the build tags, which are read
+	// from the checkout's own feature-gates.txt.
 	cmd := osexec.CommandContext(ctx, "go", args...)
 	cmd.Dir = root
 	var stderr bytes.Buffer
@@ -336,7 +370,7 @@ func loadLiveCommandCatalog(root, commandCatalogPath string) ([]byte, []publishe
 }
 
 func shippedCommandCatalogTags(root string) ([]string, error) {
-	data, err := os.ReadFile(filepath.Join(root, "feature-gates.txt"))
+	data, err := os.ReadFile(filepath.Join(root, "feature-gates.txt")) // #nosec G304 -- the feature manifest under the checkout root
 	if err != nil {
 		return nil, fmt.Errorf("read feature-gates.txt for command generation: %w", err)
 	}
@@ -376,8 +410,9 @@ func parseCommandCatalog(source string, data []byte) ([]publishedCommand, error)
 		return nil, fmt.Errorf("parse %s: command array is empty", source)
 	}
 	seen := make(map[string]bool, len(commands))
-	for _, entry := range commands {
-		if err := validatePublishedCommand(source, entry, seen); err != nil {
+	for index := range commands {
+		entry := &commands[index]
+		if err := validatePublishedCommand(source, *entry, seen); err != nil {
 			return nil, err
 		}
 		seen[entry.Path] = true
@@ -457,7 +492,7 @@ func validatePublishedCommand(source string, entry publishedCommand, seen map[st
 			return fmt.Errorf("parse %s: command %q operator %q has no description", source, entry.Path, op.Name)
 		}
 		switch op.Available {
-		case "always", "with-rows", "when-streaming":
+		case availabilityAlways, availabilityWithRows, availabilityWhenStreaming:
 		default:
 			return fmt.Errorf("parse %s: command %q operator %q has unknown availability %q",
 				source, entry.Path, op.Name, op.Available)
@@ -562,16 +597,16 @@ func compareWikiCatalogProducer(
 	producedRaw, err := json.Marshal(entries)
 	if err != nil {
 		return []Issue{{
-			File:    "internal/le/wikicatalog/catalog.go",
-			Message: "could not normalize the shipping wiki command catalog producer",
+			File:    wikiCatalogProducer,
+			Message: wikiCatalogNormalizeFailure,
 			Detail:  err.Error(),
 		}}
 	}
 	produced, err := parseCommandCatalog("wikicatalog.Collect", producedRaw)
 	if err != nil {
 		return []Issue{{
-			File:    "internal/le/wikicatalog/catalog.go",
-			Message: "could not normalize the shipping wiki command catalog producer",
+			File:    wikiCatalogProducer,
+			Message: wikiCatalogNormalizeFailure,
 			Detail:  err.Error(),
 		}}
 	}
@@ -586,8 +621,8 @@ func compareWikiCatalogProducer(
 	producedNormalized, err := json.Marshal(produced)
 	if err != nil {
 		return []Issue{{
-			File:    "internal/le/wikicatalog/catalog.go",
-			Message: "could not normalize the shipping wiki command catalog producer",
+			File:    wikiCatalogProducer,
+			Message: wikiCatalogNormalizeFailure,
 			Detail:  err.Error(),
 		}}
 	}
@@ -604,7 +639,7 @@ func compareWikiCatalogProducer(
 		}
 	}
 	return []Issue{{
-		File:    "internal/le/wikicatalog/catalog.go",
+		File:    wikiCatalogProducer,
 		Message: "the shipping wiki catalog producer and the live command catalog disagree",
 		Detail:  detail,
 	}}
@@ -640,12 +675,13 @@ func validateGeneratedWikiCommandSurface(
 	generated []byte,
 	live []publishedCommand,
 ) []Issue {
-	const surface = "internal/le/wikicatalog/render.go"
+	const surface = wikiCatalogRenderer
 	content := string(generated)
 	var issues []Issue
 	var rendered textbuf.Buffer
 	expectedPaths := make([]string, 0, len(live))
-	for _, command := range live {
+	for index := range live {
+		command := &live[index]
 		expectedPaths = append(expectedPaths, command.Path)
 	}
 	issues = append(issues, validateWikiCatalogStructure(
@@ -659,7 +695,8 @@ func validateGeneratedWikiCommandSurface(
 		surface, "<wiki catalog>", "command detail", expectedPaths,
 		wikiCommandDetailPaths(content),
 	)...)
-	for _, command := range live {
+	for index := range live {
+		command := &live[index]
 		description := normalizeWikiDescription(command.Description)
 		summary, _, _ := strings.Cut(description, "\n")
 		wantRow := rendered.Reset().Str("| ").
@@ -708,7 +745,7 @@ func validateGeneratedWikiCommandSurface(
 				Str(markdownCodeLiteral(command.AnswerShape)).String()
 		}
 		issues = append(issues, compareWikiOptionalLine(
-			surface, command.Path, detail, "Answer shape: ",
+			command.Path, detail, "Answer shape: ",
 			"answer shape", wantShape,
 		)...)
 		wantAddressFields := ""
@@ -717,7 +754,7 @@ func validateGeneratedWikiCommandSurface(
 				Str(wikiCodeList(command.AddressFields)).String()
 		}
 		issues = append(issues, compareWikiOptionalLine(
-			surface, command.Path, detail, "Address fields: ",
+			command.Path, detail, "Address fields: ",
 			"address fields", wantAddressFields,
 		)...)
 		wantBackend := ""
@@ -726,7 +763,7 @@ func validateGeneratedWikiCommandSurface(
 				Str(wikiCodeList(command.Backend)).String()
 		}
 		issues = append(issues, compareWikiOptionalLine(
-			surface, command.Path, detail, "**Requires backend:** ",
+			command.Path, detail, "**Requires backend:** ",
 			"backend requirements", wantBackend,
 		)...)
 		wantTaskSupport := ""
@@ -735,7 +772,7 @@ func validateGeneratedWikiCommandSurface(
 				Str(markdownLiteralProse(command.TaskSupport)).String()
 		}
 		issues = append(issues, compareWikiOptionalLine(
-			surface, command.Path, detail, "**Task support:** ",
+			command.Path, detail, "**Task support:** ",
 			"task support", wantTaskSupport,
 		)...)
 		expectedArgs := make([]string, 0, len(command.Args))
@@ -765,7 +802,7 @@ func validateGeneratedWikiCommandSurface(
 		for _, availability := range commandOperatorAvailabilities {
 			issues = append(issues, compareCommandOperatorGroups(
 				surface, command.Path, availability,
-				commandOperatorNames(command, availability),
+				commandOperatorNames(*command, availability),
 				pipeScan.groups[availability],
 			)...)
 		}
@@ -799,7 +836,7 @@ func validateGeneratedWikiCommandSurface(
 				Str(wikiCodeList(command.Subcommands)).String()
 		}
 		issues = append(issues, compareWikiOptionalLine(
-			surface, command.Path, detail, "**Subcommands:** ",
+			command.Path, detail, "**Subcommands:** ",
 			"subcommands", wantSubcommands,
 		)...)
 	}
@@ -873,13 +910,14 @@ func validateWikiCatalogStructure(
 
 func wikiExpectedVerbGroups(live []publishedCommand) []wikiVerbGroup {
 	commands := make(map[string][]publishedCommand)
-	for _, command := range live {
+	for index := range live {
+		command := &live[index]
 		words := strings.Fields(command.Path)
 		verb := command.Path
 		if len(words) != 0 {
 			verb = words[0]
 		}
-		commands[verb] = append(commands[verb], command)
+		commands[verb] = append(commands[verb], *command)
 	}
 	verbs := make([]string, 0, len(commands))
 	for verb := range commands {
@@ -914,8 +952,8 @@ func wikiExpectedVerbGroups(live []publishedCommand) []wikiVerbGroup {
 		groups = append(groups, wikiVerbGroup{
 			verb: verb, anchor: nextAnchor(verb), count: len(commands[verb]),
 		})
-		for _, command := range commands[verb] {
-			nextAnchor(command.Path)
+		for index := range commands[verb] {
+			nextAnchor(commands[verb][index].Path)
 		}
 	}
 	return groups
@@ -1093,7 +1131,7 @@ func joinMarkdownCodeSpanContinuations(lines []markdownLine) []markdownLine {
 		for !closed && index+1 < len(lines) && lines[index+1].active {
 			index++
 			continuation := lines[index].text
-			for removed := 0; removed < indent && len(continuation) != 0 &&
+			for removed := 0; removed < indent && continuation != "" &&
 				(continuation[0] == ' ' || continuation[0] == '\t'); removed++ {
 				continuation = continuation[1:]
 			}
@@ -1730,8 +1768,12 @@ func wikiLineEquals(content, want string) bool {
 	return false
 }
 
+// compareWikiOptionalLine reports the wiki detail lines that start with prefix
+// when they disagree with expected. An absent line agrees with an empty
+// expectation. The wiki renderer is the only producer of these lines, so the
+// issue is always filed against it.
 func compareWikiOptionalLine(
-	path, command, content, prefix, field, expected string,
+	command, content, prefix, field, expected string,
 ) []Issue {
 	var actual []string
 	for _, line := range scanMarkdownLines(content) {
@@ -1744,7 +1786,7 @@ func compareWikiOptionalLine(
 		return nil
 	}
 	return []Issue{generatedCommandSurfaceValueIssue(
-		path, command, "wiki "+field, expected, strings.Join(actual, " | "),
+		wikiCatalogRenderer, command, "wiki "+field, expected, strings.Join(actual, " | "),
 	)}
 }
 
@@ -1815,22 +1857,23 @@ func scanWikiPipeGroups(content string) wikiPipeGroupScan {
 
 func wikiPipeGroupLabel(line string) (string, bool) {
 	separator, valid := markdownInlineDelimiter(line, ": ")
-	rawLabel := ""
-	if valid && separator >= 0 {
+	var rawLabel string
+	switch {
+	case valid && separator >= 0:
 		rawLabel = line[:separator]
-	} else if strings.HasPrefix(line, "**") {
+	case strings.HasPrefix(line, "**"):
 		end := strings.Index(line[2:], "**")
 		if end < 0 {
 			return "", false
 		}
 		rawLabel = line[:2+end+2]
-	} else if !valid {
+	case !valid:
 		separator = strings.Index(line, ": ")
 		if separator < 0 {
 			return "", false
 		}
 		rawLabel = line[:separator]
-	} else {
+	default:
 		return "", false
 	}
 	label := strings.Join(strings.Fields(strings.TrimSuffix(
@@ -1984,14 +2027,14 @@ func malformedWikiOperatorLabelCandidate(rawLabel string) bool {
 
 func wikiOperatorAvailability(label string) string {
 	switch label {
-	case "Always":
-		return "always"
+	case alwaysLabel:
+		return availabilityAlways
 	case "When the answer has rows":
-		return "with-rows"
+		return availabilityWithRows
 	case "While the command keeps answering":
-		return "when-streaming"
-	case "Local process only":
-		return "local-only"
+		return availabilityWhenStreaming
+	case localOnlyLabel:
+		return availabilityLocalOnly
 	default:
 		return ""
 	}
@@ -2073,7 +2116,7 @@ func validateGeneratedCommandSurfaces(
 ) []Issue {
 	primaryHTMLPath := filepath.Join(expectedRoot, "reference", "cli", "index.html")
 	primaryMarkdownPath := filepath.Join(expectedRoot, "reference", "cli", "index.md")
-	llmsPath := filepath.Join(expectedRoot, "llms.txt")
+	llmsPath := filepath.Join(expectedRoot, llmsSurfaceName)
 	equivalentHTMLPath := filepath.Join(
 		expectedRoot, "reference", "command-equivalents", "index.html",
 	)
@@ -2136,7 +2179,8 @@ func validateGeneratedCommandSurfaces(
 		live,
 		equivalentMarkdownCommandIdentities(string(equivalentMarkdown)),
 	)...)
-	for _, command := range live {
+	for index := range live {
+		command := &live[index]
 		slug := commandSurfaceSlug(command.Path)
 		primaryRow, rowCount, rowClosed := commandSurfaceHTMLRow(
 			primaryHTMLDocument, command.Path,
@@ -2157,27 +2201,28 @@ func validateGeneratedCommandSurfaces(
 				commandSurfacePath(root, primaryHTMLPath),
 				primaryRow,
 				primaryHTMLDocument,
-				command,
+				*command,
 			)...)
 		}
 
 		primaryMarkdownRow, markdownRowCount, markdownRowMalformed :=
 			commandSurfaceMarkdownRow(string(primaryMarkdown), command.Path)
-		if markdownRowCount != 1 {
+		switch {
+		case markdownRowCount != 1:
 			issues = append(issues, commandContainerCountIssue(
 				commandSurfacePath(root, primaryMarkdownPath), command.Path,
 				"primary CLI Markdown command row", markdownRowCount,
 			))
-		} else if markdownRowMalformed {
+		case markdownRowMalformed:
 			issues = append(issues, malformedCommandContainerIssue(
 				commandSurfacePath(root, primaryMarkdownPath), command.Path,
 				"primary CLI Markdown command row",
 			))
-		} else {
+		default:
 			issues = append(issues, validatePrimaryMarkdownContract(
 				commandSurfacePath(root, primaryMarkdownPath),
 				primaryMarkdownRow,
-				command,
+				*command,
 			)...)
 		}
 
@@ -2196,7 +2241,7 @@ func validateGeneratedCommandSurfaces(
 			issues = append(issues, validateEquivalentCommandContract(
 				commandSurfacePath(root, detailHTMLPath),
 				parseRenderedHTML(string(detailHTML)),
-				command,
+				*command,
 			)...)
 		}
 		detailMarkdown, detailMarkdownErr := os.ReadFile(detailMarkdownPath) //nolint:gosec // isolated renderer output
@@ -2208,7 +2253,7 @@ func validateGeneratedCommandSurfaces(
 			issues = append(issues, validateEquivalentMarkdownContract(
 				commandSurfacePath(root, detailMarkdownPath),
 				string(detailMarkdown),
-				command,
+				*command,
 			)...)
 		}
 
@@ -2229,7 +2274,7 @@ func validateGeneratedCommandSurfaces(
 			issues = append(issues,
 				validateLLMSCommandContract(
 					commandSurfacePath(root, llmsPath),
-					identity, meta, description, command,
+					identity, meta, description, *command,
 				)...)
 		}
 	}
@@ -2294,7 +2339,7 @@ func primaryHTMLRowIdentity(row *xhtml.Node) (string, bool, bool) {
 	}
 	var codes []*xhtml.Node
 	htmlWalk(cells[0], func(node *xhtml.Node) {
-		if node.Data == "code" {
+		if node.Data == codeElement {
 			codes = append(codes, node)
 		}
 	})
@@ -2370,7 +2415,7 @@ func equivalentHTMLCommandIdentities(
 			var codes []*xhtml.Node
 			if len(cells) != 0 {
 				htmlWalk(cells[0], func(node *xhtml.Node) {
-					if node.Data == "code" {
+					if node.Data == codeElement {
 						codes = append(codes, node)
 					}
 				})
@@ -2527,7 +2572,8 @@ func validateEquivalentIndexIdentities(
 	identities []renderedCommandIndexIdentity,
 ) []Issue {
 	expected := make(map[renderedCommandIndexIdentity]bool, len(live))
-	for _, command := range live {
+	for index := range live {
+		command := &live[index]
 		expected[renderedCommandIndexIdentity{
 			path: command.Path,
 			slug: commandSurfaceSlug(command.Path),
@@ -2543,7 +2589,7 @@ func validateEquivalentIndexIdentities(
 		if identity.valid && expected[key] {
 			continue
 		}
-		rendered := "<malformed>"
+		rendered := malformedIdentity
 		if identity.path != "" || identity.slug != "" {
 			rendered = fmt.Sprintf("%s -> %s/", identity.path, identity.slug)
 		}
@@ -2551,7 +2597,8 @@ func validateEquivalentIndexIdentities(
 			path, rendered, kind+" identity absent from the live command catalog",
 		))
 	}
-	for _, command := range live {
+	for index := range live {
+		command := &live[index]
 		key := renderedCommandIndexIdentity{
 			path: command.Path,
 			slug: commandSurfaceSlug(command.Path),
@@ -2600,7 +2647,8 @@ func validatePrimaryHTMLIdentities(
 	identities []renderedPrimaryHTMLIdentity,
 ) []Issue {
 	expected := make(map[string]bool, len(live))
-	for _, command := range live {
+	for index := range live {
+		command := &live[index]
 		expected[command.Path] = true
 	}
 	observed := make(map[string]int, len(identities))
@@ -2611,7 +2659,7 @@ func validatePrimaryHTMLIdentities(
 		}
 		rendered := identity.path
 		if rendered == "" {
-			rendered = "<malformed>"
+			rendered = malformedIdentity
 		}
 		if !identity.valid {
 			issues = append(issues, malformedPrimaryHTMLIdentityIssue(
@@ -2624,7 +2672,8 @@ func validatePrimaryHTMLIdentities(
 			))
 		}
 	}
-	for _, command := range live {
+	for index := range live {
+		command := &live[index]
 		if observed[command.Path] != 1 {
 			issues = append(issues, commandContainerCountIssue(
 				path, command.Path, kind+" identity", observed[command.Path],
@@ -2649,7 +2698,8 @@ func validateAggregateCommandIdentities(
 	identities []string,
 ) []Issue {
 	expected := make(map[string]bool, len(live))
-	for _, command := range live {
+	for index := range live {
+		command := &live[index]
 		expected[command.Path] = true
 	}
 	observed := make(map[string]int, len(identities))
@@ -2660,13 +2710,14 @@ func validateAggregateCommandIdentities(
 			continue
 		}
 		if identity == "" {
-			identity = "<malformed>"
+			identity = malformedIdentity
 		}
 		issues = append(issues, generatedCommandExtraIssue(
 			path, identity, kind+" absent from the live command catalog",
 		))
 	}
-	for _, command := range live {
+	for index := range live {
+		command := &live[index]
 		if observed[command.Path] != 1 {
 			issues = append(issues, commandContainerCountIssue(
 				path, command.Path, kind+" identity", observed[command.Path],
@@ -2731,7 +2782,7 @@ func namedCommandDimension(kind, name string) string {
 func commandOperatorNames(command publishedCommand, availability string) []string {
 	names := make([]string, 0, len(command.Operators))
 	for _, operator := range command.Operators {
-		if availability == "local-only" {
+		if availability == availabilityLocalOnly {
 			if operator.LocalOnly {
 				names = append(names, operator.Name)
 			}
@@ -2793,7 +2844,7 @@ func compareCommandOperatorGroup(
 	missing, extra := commandNameDifferences(expected, actual)
 	for _, name := range missing {
 		dimension := availabilityCommandDimension(availability, name)
-		if availability == "local-only" {
+		if availability == availabilityLocalOnly {
 			dimension = namedCommandDimension(
 				"local-only surface qualifier for operator", name,
 			)
@@ -2864,9 +2915,9 @@ func compareCommandNamedGroup(
 	path, command, kind string,
 	expected, actual []string,
 ) []Issue {
-	var issues []Issue
-	var rendered textbuf.Buffer
 	missing, extra := commandNameDifferences(expected, actual)
+	issues := make([]Issue, 0, len(missing)+len(extra))
+	var rendered textbuf.Buffer
 	for _, name := range missing {
 		issues = append(issues, generatedCommandContractIssue(
 			path, command, namedCommandDimension(kind, name),
@@ -2999,7 +3050,8 @@ func validatePrimaryOperatorCatalog(
 	live []publishedCommand,
 ) []Issue {
 	expected := make(map[string]renderedOperatorMetadata)
-	for _, command := range live {
+	for index := range live {
+		command := &live[index]
 		for _, operator := range command.Operators {
 			meta, exists := expected[operator.Name]
 			if !exists {
@@ -3007,11 +3059,11 @@ func validatePrimaryOperatorCatalog(
 				meta.description = operator.Description
 			}
 			availability := commandAvailabilityLabel(operator.Available)
-			if !containsString(meta.available, availability) {
+			if !slices.Contains(meta.available, availability) {
 				meta.available = append(meta.available, availability)
 			}
-			if operator.LocalOnly && !containsString(meta.available, "Local process only") {
-				meta.available = append(meta.available, "Local process only")
+			if operator.LocalOnly && !slices.Contains(meta.available, localOnlyLabel) {
+				meta.available = append(meta.available, localOnlyLabel)
 			}
 			expected[operator.Name] = meta
 		}
@@ -3048,7 +3100,7 @@ func validatePrimaryOperatorCatalog(
 	}
 	actualNames = append(actualNames, duplicate...)
 	for range malformed {
-		actualNames = append(actualNames, "<malformed>")
+		actualNames = append(actualNames, malformedIdentity)
 	}
 	if !guideValid {
 		actualNames = append(actualNames, "<malformed operator guide>")
@@ -3128,15 +3180,6 @@ func generatedCommandSurfaceValueIssue(
 	}
 }
 
-func containsString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
-}
-
 func splitNonEmpty(value, separator string) []string {
 	if value == "" {
 		return nil
@@ -3207,7 +3250,7 @@ func parseRenderedHTML(content string) renderedHTMLDocument {
 				if strings.HasPrefix(id, "cmd-") {
 					document.rows[id] = append(document.rows[id], container)
 				}
-			case "article":
+			case articleElement:
 				document.zeArticles = append(document.zeArticles, container)
 			}
 		}
@@ -3243,11 +3286,11 @@ func parseRenderedHTML(content string) renderedHTMLDocument {
 				captures = append(captures, renderedHTMLCapture{
 					kind: "tr", closable: closable, root: node,
 				})
-			case "article":
+			case articleElement:
 				classValid, candidate := zeArticleClass(tokenAttribute(token, "class"))
 				if candidate {
 					captures = append(captures, renderedHTMLCapture{
-						kind:       "article",
+						kind:       articleElement,
 						classValid: classValid,
 						closable:   closable,
 						root:       node,
@@ -3269,8 +3312,8 @@ func parseRenderedHTML(content string) renderedHTMLDocument {
 			appendNode(&xhtml.Node{Type: xhtml.CommentNode, Data: token.Data})
 		case xhtml.EndTagToken:
 			match := -1
-			for index := len(openElements) - 1; index >= 0; index-- {
-				if openElements[index].name == token.Data {
+			for index, open := range slices.Backward(openElements) {
+				if open.name == token.Data {
 					match = index
 					break
 				}
@@ -3352,7 +3395,7 @@ func zeArticleClass(class string) (bool, bool) {
 	hasCard := false
 	hasZe := false
 	malformedZe := false
-	for _, name := range strings.Fields(class) {
+	for name := range strings.FieldsSeq(class) {
 		hasCard = hasCard || name == "cmd-detail-card"
 		hasZe = hasZe || name == zeClass
 		malformedZe = malformedZe || name != "cmd-detail-card" && name != zeClass &&
@@ -3411,9 +3454,9 @@ func validatePrimaryCommandContract(
 			expected string
 			actual   string
 		}{
-			{name: "path", expected: command.Path, actual: visible[0]},
+			{name: pathField, expected: command.Path, actual: visible[0]},
 			{name: "mode", expected: normalizedCommandMode(command.Mode), actual: normalizedCommandMode(visible[1])},
-			{name: "description", expected: command.Description, actual: visible[2]},
+			{name: descriptionField, expected: command.Description, actual: visible[2]},
 		} {
 			expected := normalizeRenderedHTMLText(field.expected)
 			if field.actual != expected {
@@ -3430,14 +3473,14 @@ func validatePrimaryCommandContract(
 		command.Path,
 		"answer shape",
 		normalizeRenderedHTMLText(command.AnswerShape),
-		htmlLabeledValues(document, row, "span", "Answer shape", "code"),
+		htmlLabeledValues(document, row, spanElement, "Answer shape", codeElement),
 	)...)
 	issues = append(issues, compareHTMLLabeledValue(
 		path,
 		command.Path,
 		"address fields",
 		normalizeRenderedHTMLText(strings.Join(command.AddressFields, " · ")),
-		htmlLabeledValues(document, row, "span", "Address fields", "code"),
+		htmlLabeledValues(document, row, spanElement, "Address fields", codeElement),
 	)...)
 	issues = append(issues, validatePrimaryHTMLOperatorGroupLabels(
 		path, command.Path, row,
@@ -3524,7 +3567,7 @@ func primaryHTMLCommandValues(
 	}
 	var codes []*xhtml.Node
 	htmlWalk(cells[0], func(node *xhtml.Node) {
-		if node.Data == "code" {
+		if node.Data == codeElement {
 			codes = append(codes, node)
 		}
 	})
@@ -3578,7 +3621,7 @@ func markdownTableCodeCell(line string) (string, bool, bool) {
 }
 func markdownTableCells(line string) ([]string, bool) {
 	trimmed := strings.TrimLeft(line, " ")
-	if len(line)-len(trimmed) > 3 || len(trimmed) == 0 || trimmed[0] != '|' {
+	if len(line)-len(trimmed) > 3 || trimmed == "" || trimmed[0] != '|' {
 		return nil, false
 	}
 	var cells []string
@@ -3595,9 +3638,10 @@ func markdownTableCells(line string) ([]string, bool) {
 				end++
 			}
 			width := end - index
-			if codeWidth == 0 {
+			switch codeWidth {
+			case 0:
 				codeWidth = width
-			} else if codeWidth == width {
+			case width:
 				codeWidth = 0
 			}
 			index = end
@@ -3720,9 +3764,9 @@ func validatePrimaryMarkdownContract(
 			expected string
 			actual   string
 		}{
-			{name: "path", expected: strings.Join(strings.Fields(command.Path), " "), actual: visible[0]},
+			{name: pathField, expected: strings.Join(strings.Fields(command.Path), " "), actual: visible[0]},
 			{name: "mode", expected: normalizedCommandMode(command.Mode), actual: normalizedCommandMode(visible[1])},
-			{name: "description", expected: markdownInlineVisibleText(markdownLiteralProse(command.Description)), actual: visible[2]},
+			{name: descriptionField, expected: markdownInlineVisibleText(markdownLiteralProse(command.Description)), actual: visible[2]},
 		} {
 			if field.actual != field.expected {
 				issues = append(issues, generatedCommandSurfaceValueIssue(
@@ -3821,20 +3865,20 @@ const (
 )
 
 var commandOperatorAvailabilities = [...]string{
-	"always",
-	"with-rows",
-	"when-streaming",
-	"local-only",
+	availabilityAlways,
+	availabilityWithRows,
+	availabilityWhenStreaming,
+	availabilityLocalOnly,
 }
 
 var commandOperatorLabelFamilyTokens = [...]string{
-	"Always",
-	"With rows",
+	alwaysLabel,
+	withRowsLabel,
 	"When the answer has rows",
-	"While streaming",
+	whileStreamingLabel,
 	"Streaming",
 	"While the command keeps answering",
-	"Local process only",
+	localOnlyLabel,
 	"Local only",
 	"Pipes",
 }
@@ -3848,21 +3892,21 @@ func commandOperatorGroupLabel(
 	case primaryOperatorGroupSurface:
 		return commandAvailabilityLabel(availability)
 	case equivalentHTMLOperatorGroupSurface:
-		if availability == "with-rows" {
+		if availability == availabilityWithRows {
 			return equivalentAvailabilityLabel(availability, declaredShape)
 		}
 	case equivalentMarkdownOperatorGroupSurface:
-		if availability == "with-rows" {
-			return "Pipes, on rows"
+		if availability == availabilityWithRows {
+			return pipesOnRowsLabel
 		}
 	}
 	switch availability {
-	case "always":
-		return "Pipes, always"
-	case "when-streaming":
-		return "Pipes, while streaming"
-	case "local-only":
-		return "Pipes, local process only"
+	case availabilityAlways:
+		return pipesAlwaysLabel
+	case availabilityWhenStreaming:
+		return pipesWhileStreamingLabel
+	case availabilityLocalOnly:
+		return pipesLocalOnlyLabel
 	default:
 		return availability
 	}
@@ -3925,7 +3969,7 @@ func validatePrimaryHTMLOperatorGroupLabels(
 	}
 	var issues []Issue
 	htmlWalk(contractCell, func(node *xhtml.Node) {
-		if node.Data != "span" {
+		if node.Data != spanElement {
 			return
 		}
 		label := normalizeRenderedHTMLText(htmlText(node))
@@ -3966,7 +4010,7 @@ func validatePrimaryMarkdownOperatorGroupLabels(
 	}
 	var issues []Issue
 	for _, segment := range segments {
-		label, _ := markdownLabeledSegmentLabel(segment)
+		label := markdownLabeledSegmentLabel(segment)
 		availability, candidate := classifyCommandOperatorGroupLabel(
 			label, primaryOperatorGroupSurface, false,
 		)
@@ -3978,24 +4022,27 @@ func validatePrimaryMarkdownOperatorGroupLabels(
 	return issues
 }
 
-func markdownLabeledSegmentLabel(segment string) (string, bool) {
+// markdownLabeledSegmentLabel answers the visible label of a `<label>: <value>`
+// segment. A segment that carries no separator is its own label, so the reader
+// still has a name to report.
+func markdownLabeledSegmentLabel(segment string) string {
 	parts, valid := splitMarkdownOutsideCode(segment, ": ")
 	if !valid || len(parts) < 2 {
-		return strings.Join(strings.Fields(markdownInlineVisibleText(segment)), " "), false
+		return strings.Join(strings.Fields(markdownInlineVisibleText(segment)), " ")
 	}
-	return strings.Join(strings.Fields(markdownInlineVisibleText(parts[0])), " "), true
+	return strings.Join(strings.Fields(markdownInlineVisibleText(parts[0])), " ")
 }
 
 func commandAvailabilityLabel(availability string) string {
 	switch availability {
-	case "always":
-		return "Always"
-	case "with-rows":
-		return "With rows"
-	case "when-streaming":
-		return "While streaming"
-	case "local-only":
-		return "Local process only"
+	case availabilityAlways:
+		return alwaysLabel
+	case availabilityWithRows:
+		return withRowsLabel
+	case availabilityWhenStreaming:
+		return whileStreamingLabel
+	case availabilityLocalOnly:
+		return localOnlyLabel
 	default:
 		return availability
 	}
@@ -4013,7 +4060,7 @@ func commandHTMLGroups(
 ) commandHTMLGroupScan {
 	var scan commandHTMLGroupScan
 	htmlWalk(root, func(node *xhtml.Node) {
-		if node.Data != "span" ||
+		if node.Data != spanElement ||
 			normalizeRenderedHTMLText(htmlText(node)) != label {
 			return
 		}
@@ -4030,17 +4077,17 @@ func commandHTMLGroups(
 				}
 				continue
 			case xhtml.ElementNode:
-				if sibling.Data == "span" || sibling.Data == "strong" ||
+				if sibling.Data == spanElement || sibling.Data == strongElement ||
 					htmlCommandContainerRoot(sibling) {
 					break segment
 				}
-				if sibling.Data != "code" || codeCount != 0 {
+				if sibling.Data != codeElement || codeCount != 0 {
 					scan.malformed = true
 				}
 				if !htmlVisibleSubtreeClosed(document, sibling) {
 					scan.malformed = true
 				}
-				if sibling.Data == "code" {
+				if sibling.Data == codeElement {
 					codeCount++
 					values := normalizeRenderedHTMLText(htmlText(sibling))
 					if values != "" {
@@ -4068,7 +4115,7 @@ func htmlPrimaryFilterDetails(
 	groups := 0
 	valid := true
 	htmlWalk(root, func(node *xhtml.Node) {
-		if node.Data != "strong" ||
+		if node.Data != strongElement ||
 			normalizeRenderedHTMLText(htmlText(node)) != label {
 			return
 		}
@@ -4104,7 +4151,7 @@ func htmlPrimaryFilterDetails(
 		}
 		var chipNames []string
 		htmlWalk(chips, func(descendant *xhtml.Node) {
-			if descendant.Data == "code" {
+			if descendant.Data == codeElement {
 				chipNames = append(chipNames,
 					normalizeRenderedHTMLText(htmlText(descendant)))
 			}
@@ -4124,7 +4171,7 @@ func htmlPrimaryFilterDetails(
 			term, definition := entries[index], entries[index+1]
 			code := htmlFirstElement(term)
 			if term.Data != "dt" || definition.Data != "dd" ||
-				code == nil || code.Parent != term || code.Data != "code" ||
+				code == nil || code.Parent != term || code.Data != codeElement ||
 				htmlNextElement(code) != nil ||
 				!htmlVisibleSubtreeClosed(document, term) ||
 				!htmlVisibleSubtreeClosed(document, definition) ||
@@ -4136,7 +4183,7 @@ func htmlPrimaryFilterDetails(
 			inert := false
 			htmlWalk(definition, func(descendant *xhtml.Node) {
 				inert = inert || descendant.Data == "template" ||
-					descendant.Data == "code"
+					descendant.Data == codeElement
 			})
 			if inert {
 				valid = false
@@ -4165,7 +4212,7 @@ func htmlPrimaryAliasDetails(
 	groups := 0
 	valid := true
 	htmlWalk(root, func(node *xhtml.Node) {
-		if node.Data != "strong" ||
+		if node.Data != strongElement ||
 			normalizeRenderedHTMLText(htmlText(node)) != label {
 			return
 		}
@@ -4190,7 +4237,7 @@ func htmlPrimaryAliasDetails(
 			term, definition := entries[index], entries[index+1]
 			code := htmlFirstElement(term)
 			if term.Data != "dt" || definition.Data != "dd" ||
-				code == nil || code.Parent != term || code.Data != "code" ||
+				code == nil || code.Parent != term || code.Data != codeElement ||
 				htmlNextElement(code) != nil ||
 				!htmlVisibleSubtreeClosed(document, term) ||
 				!htmlVisibleSubtreeClosed(document, definition) ||
@@ -4270,7 +4317,7 @@ func compareHTMLLabeledValue(
 ) []Issue {
 	if actual.malformed {
 		return []Issue{generatedCommandSurfaceValueIssue(
-			path, command, dimension, expected, "<malformed>",
+			path, command, dimension, expected, malformedIdentity,
 		)}
 	}
 	if expected == "" {
@@ -4295,56 +4342,6 @@ func compareHTMLLabeledValue(
 	return nil
 }
 
-func htmlDefinitionValues(
-	document renderedHTMLDocument,
-	root *xhtml.Node,
-	label string,
-) renderedHTMLValueScan {
-	var scan renderedHTMLValueScan
-	htmlWalk(root, func(node *xhtml.Node) {
-		if node.Data != "dt" ||
-			normalizeRenderedHTMLText(htmlText(node)) != label {
-			return
-		}
-		definition := htmlNextElement(node)
-		if !htmlVisibleSubtreeClosed(document, node) || definition == nil ||
-			definition.Data != "dd" ||
-			!htmlVisibleSubtreeClosed(document, definition) {
-			scan.malformed = true
-			scan.values = append(scan.values, "")
-			return
-		}
-		scan.values = append(scan.values, htmlInnerString(definition))
-	})
-	return scan
-}
-
-func htmlDefinitionCodeIdentity(
-	document renderedHTMLDocument,
-	root *xhtml.Node,
-	label, expected string,
-) (bool, bool, bool) {
-	matches := false
-	htmlWalk(root, func(node *xhtml.Node) {
-		if node.Data != "dt" ||
-			normalizeRenderedHTMLText(htmlText(node)) != label {
-			return
-		}
-		definition := htmlFollowingDefinition(node)
-		if definition == nil {
-			return
-		}
-		htmlWalk(definition, func(descendant *xhtml.Node) {
-			if descendant.Data == "code" &&
-				normalizeRenderedHTMLText(htmlText(descendant)) == expected {
-				matches = true
-			}
-		})
-	})
-	_, present, valid := htmlDefinitionCodeValue(document, root, label)
-	return matches, present, valid
-}
-
 func htmlDefinitionCodeValue(
 	document renderedHTMLDocument,
 	root *xhtml.Node,
@@ -4363,7 +4360,7 @@ func htmlDefinitionCodeValue(
 		var codes []*xhtml.Node
 		if definition != nil {
 			htmlWalk(definition, func(descendant *xhtml.Node) {
-				if descendant.Data == "code" {
+				if descendant.Data == codeElement {
 					codes = append(codes, descendant)
 				}
 			})
@@ -4411,18 +4408,6 @@ func htmlFollowingDefinition(term *xhtml.Node) *xhtml.Node {
 	return nil
 }
 
-func htmlFirstDescendant(root *xhtml.Node, element string) *xhtml.Node {
-	var found *xhtml.Node
-	if root != nil {
-		htmlWalk(root, func(node *xhtml.Node) {
-			if found == nil && node.Data == element {
-				found = node
-			}
-		})
-	}
-	return found
-}
-
 func equivalentHTMLCommandContent(
 	document renderedHTMLDocument,
 ) (*xhtml.Node, int, bool) {
@@ -4468,7 +4453,7 @@ func htmlCommandContainerRoot(node *xhtml.Node) bool {
 	if node.Data == "tr" && strings.HasPrefix(htmlAttribute(node, "id"), "cmd-") {
 		return true
 	}
-	return node.Data == "article" && htmlHasClass(node, "cmd-detail-card")
+	return node.Data == articleElement && htmlHasClass(node, "cmd-detail-card")
 }
 
 func htmlNestedCommandContainer(node *xhtml.Node) bool {
@@ -4550,44 +4535,7 @@ func htmlFirstElement(node *xhtml.Node) *xhtml.Node {
 }
 
 func htmlHasClass(node *xhtml.Node, class string) bool {
-	for _, name := range strings.Fields(htmlAttribute(node, "class")) {
-		if name == class {
-			return true
-		}
-	}
-	return false
-}
-
-func htmlInnerString(node *xhtml.Node) string {
-	var rendered strings.Builder
-	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		if htmlCommandContainerRoot(child) {
-			continue
-		}
-		if err := xhtml.Render(&rendered, cloneRenderedHTMLNode(child)); err != nil {
-			return ""
-		}
-	}
-	return strings.ReplaceAll(rendered.String(), "<br/>", "<br>")
-}
-
-func cloneRenderedHTMLNode(node *xhtml.Node) *xhtml.Node {
-	if node == nil {
-		return nil
-	}
-	cloned := *node
-	cloned.Parent = nil
-	cloned.PrevSibling = nil
-	cloned.NextSibling = nil
-	cloned.FirstChild = nil
-	cloned.LastChild = nil
-	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		if htmlCommandContainerRoot(child) {
-			continue
-		}
-		htmlAppendChild(&cloned, cloneRenderedHTMLNode(child))
-	}
-	return &cloned
+	return slices.Contains(strings.Fields(htmlAttribute(node, "class")), class)
 }
 
 type renderedCommandFilterDetail struct {
@@ -4632,7 +4580,7 @@ func htmlEquivalentDetailTokens(
 				groups[len(groups)-1] = append(groups[len(groups)-1],
 					renderedHTMLInlineToken{breakLine: true})
 				groups = append(groups, nil)
-			case child.Data == "code":
+			case child.Data == codeElement:
 				groups[len(groups)-1] = append(groups[len(groups)-1],
 					renderedHTMLInlineToken{
 						code:  true,
@@ -4918,7 +4866,7 @@ func validateEquivalentCommandContract(
 		)
 		if !present || !valid {
 			issues = append(issues, generatedCommandExtraIssue(
-				path, "<malformed>",
+				path, malformedIdentity,
 				"command-equivalent Ze HTML article identity absent from the live command catalog",
 			))
 			continue
@@ -5113,30 +5061,20 @@ func normalizedCommandMarkdownDetailValue(value string) string {
 	return markdownInlineVisibleText(markdownLiteralProse(value))
 }
 
-func normalizedMarkdownDetailText(tokens []renderedMarkdownInlineToken) string {
-	var value strings.Builder
-	for _, token := range tokens {
-		if !token.code {
-			value.WriteString(markdownInlineVisibleText(token.value))
-		}
-	}
-	return strings.Join(strings.Fields(value.String()), " ")
-}
-
 func splitMarkdownDetailEntries(value string) ([]string, bool) {
 	var entries []string
 	entryAt := 0
 	for index := 0; index < len(value); {
-		switch {
-		case value[index] == '\\':
+		switch value[index] {
+		case '\\':
 			index += min(2, len(value)-index)
-		case value[index] == '`':
+		case '`':
 			_, suffix, _, closed := markdownCodeSpanPrefix(value[index:])
 			if !closed {
 				return nil, false
 			}
 			index = len(value) - len(suffix)
-		case value[index] == ';':
+		case ';':
 			entries = append(entries, strings.TrimSpace(value[entryAt:index]))
 			index++
 			entryAt = index
@@ -5468,7 +5406,7 @@ func markdownListEntryLabel(line string) (string, bool) {
 		return "", false
 	}
 	item := strings.TrimLeft(trimmed[markerEnd:], " \t")
-	label, _ := markdownLabeledSegmentLabel(item)
+	label := markdownLabeledSegmentLabel(item)
 	return label, label != ""
 }
 
@@ -5486,28 +5424,6 @@ func equivalentMarkdownVisibleGroups(content, label string) [][]string {
 		})
 	}
 	return groups
-}
-
-func compareMarkdownLabeledLines(
-	path, command, dimension, expected string,
-	actual []string,
-) []Issue {
-	switch len(actual) {
-	case 0:
-		return []Issue{generatedCommandContractIssue(path, command, dimension)}
-	case 1:
-		if actual[0] == expected {
-			return nil
-		}
-	default:
-		return []Issue{generatedCommandSurfaceValueIssue(
-			path, command, dimension+" cardinality", "exactly one",
-			fmt.Sprintf("%d labeled lines", len(actual)),
-		)}
-	}
-	return []Issue{generatedCommandSurfaceValueIssue(
-		path, command, dimension, expected, actual[0],
-	)}
 }
 
 func equivalentMarkdownGroups(content, label string) [][]string {
@@ -5536,29 +5452,17 @@ func equivalentMarkdownGroups(content, label string) [][]string {
 	return groups
 }
 
-func commandMarkdownLines(content, label string) []string {
-	var marker textbuf.Buffer
-	prefix := marker.Str("- ").Str(label).Str(": ").String()
-	var lines []string
-	for _, line := range scanMarkdownLines(content) {
-		if line.active && strings.HasPrefix(line.text, prefix) {
-			lines = append(lines, line.text)
-		}
-	}
-	return lines
-}
-
 func equivalentAvailabilityLabel(availability string, declaredShape bool) string {
 	switch availability {
-	case "always":
-		return "Pipes, always"
-	case "with-rows":
+	case availabilityAlways:
+		return pipesAlwaysLabel
+	case availabilityWithRows:
 		if declaredShape {
 			return "Pipes, on its rows"
 		}
 		return "Pipes, when the answer has rows"
-	case "when-streaming":
-		return "Pipes, while streaming"
+	case availabilityWhenStreaming:
+		return pipesWhileStreamingLabel
 	default:
 		return availability
 	}
@@ -5666,8 +5570,7 @@ func parseLLMSAliases(value string) []string {
 	aliases := make([]string, 0, len(entries))
 	for _, entry := range entries {
 		entry = strings.TrimSpace(entry)
-		identity := ""
-		expansion := ""
+		var identity, expansion string
 		if code, suffix, _, closed := markdownCodeSpanPrefix(entry); closed {
 			identity = code
 			if !strings.HasPrefix(suffix, "=") {
@@ -5717,12 +5620,12 @@ func validateLLMSCommandContract(
 		actual   string
 	}{
 		{
-			name:     "path",
+			name:     pathField,
 			expected: strings.Join(strings.Fields(command.Path), " "),
 			actual:   strings.Join(strings.Fields(identity), " "),
 		},
 		{
-			name:     "description",
+			name:     descriptionField,
 			expected: markdownInlineVisibleText(markdownLiteralProse(command.Description)),
 			actual:   markdownInlineVisibleText(description),
 		},
@@ -5758,7 +5661,7 @@ func validateLLMSCommandContract(
 		}),
 	)...)
 	for _, availability := range []string{
-		"always", "with-rows", "when-streaming", "local-only",
+		availabilityAlways, availabilityWithRows, availabilityWhenStreaming, availabilityLocalOnly,
 	} {
 		issues = append(issues, compareCommandOperatorGroups(
 			path, command.Path, availability,
@@ -5843,9 +5746,7 @@ func validateCommandMetaSegments(
 		}
 		for _, group := range pipeGroups {
 			label, _, ok := strings.Cut(group, ": ")
-			if !ok || !containsString(
-				[]string{"always", "with-rows", "when-streaming", "local-only"}, label,
-			) {
+			if !ok || !slices.Contains(commandOperatorAvailabilities[:], label) {
 				issues = append(issues, generatedCommandExtraIssue(
 					path, command.Path,
 					namedCommandDimension("malformed pipe metadata group", group),
@@ -5863,7 +5764,7 @@ func validateCommandMetaSegments(
 	}
 	hasPipes := false
 	for _, availability := range []string{
-		"always", "with-rows", "when-streaming", "local-only",
+		availabilityAlways, availabilityWithRows, availabilityWhenStreaming, availabilityLocalOnly,
 	} {
 		hasPipes = hasPipes || len(commandOperatorNames(command, availability)) != 0
 	}
@@ -5912,8 +5813,8 @@ func commandMetaGroups(
 	prefix := marker.Str(label).Byte(' ').String()
 	var groups [][]string
 	for _, segment := range segments {
-		if strings.HasPrefix(segment, prefix) {
-			groups = append(groups, parse(strings.TrimPrefix(segment, prefix)))
+		if values, found := strings.CutPrefix(segment, prefix); found {
+			groups = append(groups, parse(values))
 		}
 	}
 	return groups
@@ -5928,7 +5829,7 @@ func compareRenderedCommandSurfaces(
 	live []publishedCommand,
 ) []Issue {
 	expected := map[string]bool{
-		"llms.txt":                 true,
+		llmsSurfaceName:            true,
 		"reference/cli/index.html": true,
 		"reference/cli/index.md":   true,
 	}

@@ -12,7 +12,7 @@
 // same commit as whatever moved the count.
 //
 // The precedent is the native test-health producer, which writes
-// test/health/latest.json. internal/le/sitebuild reads that committed inventory
+// test/health/latest.json. internal/le/site reads that committed inventory
 // instead of recounting it, and this package gives the rest of the published
 // repository facts the same shape.
 //
@@ -113,7 +113,7 @@ const frrTarget = 1
 
 // categoryBuiltBinary marks a published fact about this repository that this
 // tool cannot commit, because deriving it runs the built ze rather than reading
-// what git holds. internal/le/sitebuild owns that live derivation.
+// what git holds. internal/le/site owns that live derivation.
 const categoryBuiltBinary = "built-binary"
 
 // fact is one published number about this repository: what it is a claim about,
@@ -140,7 +140,7 @@ type live struct {
 // from the network -- can be recorded beside them rather than among them.
 //
 // A name here is the fact's path in the site's own published site-facts.json,
-// so nothing is renamed on the way through. internal/le/sitebuild reads
+// so nothing is renamed on the way through. internal/le/site reads
 // `repo.design_comments` and renders it from the token specification with the
 // same name.
 type facts struct {
@@ -249,7 +249,7 @@ func derive(root string) (facts, error) {
 // liveFacts is every published fact ABOUT this repository that the site derives
 // while it builds, and that this tool does not derive at all.
 //
-// Both run the built ze: internal/le/sitebuild asks it for the command surface
+// Both run the built ze: internal/le/site asks it for the command surface
 // and configuration tree. That makes each one a claim about a binary rather
 // than about a commit, so it cannot be regenerated from a tree and cannot be
 // gated for staleness the way the facts above can.

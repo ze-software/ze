@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/discoveryindex"
-	"github.com/ze-software/ze/internal/le/verify"
-	"github.com/ze-software/ze/internal/le/weakened"
+	"github.com/ze-software/ze/internal/le/testweakened"
+	"github.com/ze-software/ze/internal/le/verifyengine"
 )
 
 // Options is the callable commit-preparation contract. Paths and removals are
@@ -40,26 +41,26 @@ type Options struct {
 
 // Prepared is the structured result printed by `le commit create`.
 type Prepared struct {
-	Session     string             `json:"session"`
-	Message     string             `json:"message"`
-	Script      string             `json:"script"`
-	Verify      VerificationState  `json:"verify"`
-	Review      *ReviewResult      `json:"review,omitempty"`
-	Debt        []Debt             `json:"debt,omitempty"`
-	NoTest      string             `json:"no-test,omitempty"`
-	Push        bool               `json:"push"`
-	DryRun      bool               `json:"dry-run"`
-	MessageText string             `json:"message-text,omitempty"`
-	ScriptText  string             `json:"script-text,omitempty"`
-	Added       []string           `json:"added"`
-	Removed     []string           `json:"removed"`
-	Weakened    []weakened.Finding `json:"weakened,omitempty"`
-	RFCChanges  []RFCChange        `json:"rfc-changes,omitempty"`
+	Session     string                 `json:"session"`
+	Message     string                 `json:"message"`
+	Script      string                 `json:"script"`
+	Verify      VerificationState      `json:"verify"`
+	Review      *ReviewResult          `json:"review,omitempty"`
+	Debt        []Debt                 `json:"debt,omitempty"`
+	NoTest      string                 `json:"no-test,omitempty"`
+	Push        bool                   `json:"push"`
+	DryRun      bool                   `json:"dry-run"`
+	MessageText string                 `json:"message-text,omitempty"`
+	ScriptText  string                 `json:"script-text,omitempty"`
+	Added       []string               `json:"added"`
+	Removed     []string               `json:"removed"`
+	Weakened    []testweakened.Finding `json:"weakened,omitempty"`
+	RFCChanges  []RFCChange            `json:"rfc-changes,omitempty"`
 }
 
 // Create validates every gate over the prospective commit, writes the message
 // and executable script, and never touches the shared Git index.
-func Create(root string, options Options) (Prepared, error) {
+func Create(root string, options *Options) (Prepared, error) {
 	var result Prepared
 	if options.Append && options.Replace {
 		return result, errors.New("append and replace are mutually exclusive")
@@ -85,12 +86,12 @@ func Create(root string, options Options) (Prepared, error) {
 	}
 	result.NoTest = strings.TrimSpace(options.NoTest)
 
-	prospective, problems := weakened.ProspectiveCommit(root, paths, removed)
+	prospective, problems := testweakened.ProspectiveCommit(root, paths, removed)
 	if len(problems) != 0 {
 		return result, errors.New(strings.Join(problems, "\n"))
 	}
-	carriesLedger := slicesContains(paths, weakened.ContractPath)
-	weakening := weakened.CheckCommit(weakened.Request{
+	carriesLedger := slices.Contains(paths, testweakened.ContractPath)
+	weakening := testweakened.CheckCommit(testweakened.Request{
 		Root: root, Paths: paths, Removed: removed, RenamePairs: prospective.RenamePairs,
 	}, carriesLedger)
 	result.Weakened = weakening.Findings
@@ -98,7 +99,7 @@ func Create(root string, options Options) (Prepared, error) {
 		return result, errors.New(strings.Join(weakening.Problems, "\n\n"))
 	}
 	rfcChanges, rfcProblems := rfcChangeProblems(
-		root, prospective, slicesContains(paths, rfcChangedPath),
+		root, prospective, slices.Contains(paths, rfcChangedPath),
 	)
 	result.RFCChanges = rfcChanges
 	if len(rfcProblems) != 0 && strings.TrimSpace(options.RFCChangeOK) == "" {
@@ -124,13 +125,13 @@ func Create(root string, options Options) (Prepared, error) {
 	all := append(append([]string{}, paths...), removed...)
 	result.Verify = verificationState(root, all)
 	observed := make(map[string]string)
-	if result.Verify.State != "fresh" {
-		observed["unverified"] = "verify-status is not FRESH-green: " + result.Verify.Detail
+	if result.Verify.State != verifyFresh {
+		observed[gateUnverified] = "verify-status is not FRESH-green: " + result.Verify.Detail
 	}
-	if carriesGo(all) && result.Verify.Mode != verify.Mode {
-		observed["missing-full-verify-ok"] = "no full native verification covers this commit's Go"
+	if carriesGo(all) && result.Verify.Mode != verifyengine.Mode {
+		observed[gateMissingFullVerifyOK] = "no full native verification covers this commit's Go"
 	}
-	if result.Verify.State != "fresh" {
+	if result.Verify.State != verifyFresh {
 		reds := structuralGateReds(root, all)
 		charged := append([]string(nil), reds.Charged...)
 		if len(charged) == 1 && charged[0] == trackedBuildStage &&
@@ -169,13 +170,13 @@ func Create(root string, options Options) (Prepared, error) {
 	}
 
 	overrides := map[string]string{
-		"unverified":             options.Unverified,
-		"structural-red-ok":      options.StructuralRedOK,
-		"missing-full-verify-ok": options.MissingFullVerifyOK,
-		"stale-index-ok":         options.StaleIndexOK,
-		"review-override":        options.ReviewOverride,
-		"broken-head-fix":        options.BrokenHeadFix,
-		"rfc-change-ok":          options.RFCChangeOK,
+		gateUnverified:          options.Unverified,
+		gateStructuralRedOK:     options.StructuralRedOK,
+		gateMissingFullVerifyOK: options.MissingFullVerifyOK,
+		gateStaleIndexOK:        options.StaleIndexOK,
+		gateReviewOverride:      options.ReviewOverride,
+		gateBrokenHeadFix:       options.BrokenHeadFix,
+		gateRFCChangeOK:         options.RFCChangeOK,
 	}
 	owed := owedDebt(session, options.Subject, overrides, observed)
 	if len(owed) != 0 && !options.DryRun {
@@ -183,7 +184,7 @@ func Create(root string, options Options) (Prepared, error) {
 		if err != nil {
 			return result, err
 		}
-		if !slicesContains(paths, debtFile) {
+		if !slices.Contains(paths, debtFile) {
 			paths = append(paths, debtFile)
 			result.Verify = verificationState(root, append(paths, removed...))
 		}
@@ -250,10 +251,10 @@ func Create(root string, options Options) (Prepared, error) {
 	}
 	keepReservation = true
 	fullScript := filepath.Join(root, filepath.FromSlash(scriptPath))
-	if err := os.WriteFile(fullScript, []byte(scriptText), 0o750); err != nil {
+	if err := os.WriteFile(fullScript, []byte(scriptText), 0o750); err != nil { //nolint:gosec // the prepared commit script is executed, so it needs the owner execute bit
 		return result, err
 	}
-	if err := os.Chmod(fullScript, 0o750); err != nil {
+	if err := os.Chmod(fullScript, 0o750); err != nil { //nolint:gosec // the prepared commit script is executed, so it needs the owner execute bit
 		return result, err
 	}
 	return result, nil
@@ -282,7 +283,7 @@ func owedDebt(session, subject string, overrides, observed map[string]string) []
 			reason = strings.TrimSpace(observed[gate.Key])
 		}
 		if reason != "" {
-			owed = append(owed, Debt{Session: session, Subject: subject, Gate: gate.Name, Reason: reason, Status: "open"})
+			owed = append(owed, Debt{Session: session, Subject: subject, Gate: gate.Name, Reason: reason, Status: statusOpen})
 		}
 	}
 	return owed
@@ -291,13 +292,13 @@ func owedDebt(session, subject string, overrides, observed map[string]string) []
 func checkDiscoveryIndex(root string, paths []string) error {
 	required := false
 	for _, path := range paths {
-		content, _ := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+		content, _ := os.ReadFile(filepath.Join(root, filepath.FromSlash(path))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 		if discoveryindex.IsSource(path, string(content)) {
 			required = true
 			break
 		}
 	}
-	if required && !slicesContains(paths, discoveryindex.OutputRel) {
+	if required && !slices.Contains(paths, discoveryindex.OutputRel) {
 		return fmt.Errorf("commit changes an index-feeding source and omits %s", discoveryindex.OutputRel)
 	}
 	report, err := discoveryindex.Check(root)
@@ -310,15 +311,6 @@ func checkDiscoveryIndex(root string, paths []string) error {
 	return nil
 }
 
-func slicesContains(values []string, wanted string) bool {
-	for _, value := range values {
-		if value == wanted {
-			return true
-		}
-	}
-	return false
-}
-
 func testCoverageProblems(root string, paths []string) []string {
 	owing := make([]string, 0)
 	hasTest := false
@@ -329,7 +321,7 @@ func testCoverageProblems(root string, paths []string) []string {
 		if !testCoverageRequired(path) {
 			continue
 		}
-		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 		if err != nil {
 			continue
 		}
@@ -371,13 +363,13 @@ func isCommitTestPath(path string) bool {
 		(strings.HasPrefix(path, "test/") || strings.Contains(path, "/test/"))
 }
 
-func targetScript(root, session, tag string, options Options) (string, string, error) {
+func targetScript(root, session, tag string, options *Options) (string, string, error) {
 	if options.Script != "" {
 		relative, err := normalizePath(root, options.Script)
 		if err != nil {
 			return "", "", err
 		}
-		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 		if err != nil {
 			return "", "", fmt.Errorf("script does not exist: %s", relative)
 		}
@@ -397,7 +389,7 @@ func targetScript(root, session, tag string, options Options) (string, string, e
 		}
 		candidates := matches[:0]
 		for _, match := range matches {
-			content, readErr := os.ReadFile(match)
+			content, readErr := os.ReadFile(match) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 			if readErr == nil && strings.Contains(string(content), "git commit -F ") {
 				candidates = append(candidates, match)
 			}

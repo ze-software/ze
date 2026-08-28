@@ -23,10 +23,10 @@ What landed in sessions 1 and 2:
 
 | Done | Where |
 |------|-------|
-| D-1 `.ci` line counter replaced by a count of what can fail a run (`expect=`/`reject=`/`cmd=`/`assert`/`fail(`/barriers), comment-stripped and statement-anchored | The retired edit-hook detector, now implemented in `internal/le/weakened` |
-| D-2 the hatch opens only on a justification this edit writes, keyed on the normalized sentence | `internal/le/weakened` |
-| D-3 an assertion that cannot fail is refused | `internal/le/weakened` |
-| D-4 added tokens found by multiset difference, not a positional slice | `run_audit` (`internal/le/weakened/audit.go`) |
+| D-1 `.ci` line counter replaced by a count of what can fail a run (`expect=`/`reject=`/`cmd=`/`assert`/`fail(`/barriers), comment-stripped and statement-anchored | The retired edit-hook detector, now implemented in `internal/le/testweakened` |
+| D-2 the hatch opens only on a justification this edit writes, keyed on the normalized sentence | `internal/le/testweakened` |
+| D-3 an assertion that cannot fail is refused | `internal/le/testweakened` |
+| D-4 added tokens found by multiset difference, not a positional slice | `run_audit` (`internal/le/testweakened/audit.go`) |
 | D-5 the whole multi-line justification is captured and wrapped | `relax_reasons`, `report` (same file) |
 | The stock was counted and held down | The retired `make ze-relax-census` census and its ceiling file were replaced on 2026-08-16 by the per-commit `./le test-weakened check` ledger |
 | The three refuted l2tp justifications removed | `test/plugin/redistribute-l2tp-{announce,withdraw,multi-peer-nexthop}.ci` |
@@ -72,7 +72,7 @@ now closed.
 receipts for a gate that fired on the wrong thing.**
 
 The token existed to buy a pass from the retired edit-hook detector. The current
-detector is compiled Go under `internal/le/weakened`. The old detector counted
+detector is compiled Go under `internal/le/testweakened`. The old detector counted
 lines and assertion calls without reading meaning, so replacing three blind
 waits with one deterministic barrier could be refused as a weakening. The
 author then wrote a token to explain that the test became stronger.
@@ -98,13 +98,13 @@ Verified by reading the producers, not the callers.
 
 | Surface | Symbol | Behavior |
 |---------|--------|----------|
-| Edit-time gate | Retired hook detector, replaced by `internal/le/weakened` | A token anywhere in the edit's replacement text skipped the weakening check. The replacement reads a per-commit row naming the weakened test. |
-| Diff-time audit | `run_audit` (`internal/le/weakened/audit.go`) | Reports a `[RELAXED]` finding for tokens **added** since the base, and only those |
+| Edit-time gate | Retired hook detector, replaced by `internal/le/testweakened` | A token anywhere in the edit's replacement text skipped the weakening check. The replacement reads a per-commit row naming the weakened test. |
+| Diff-time audit | `run_audit` (`internal/le/testweakened/audit.go`) | Reports a `[RELAXED]` finding for tokens **added** since the base, and only those |
 | RFC-tagged tests | `_rfc_tagged_change_err`, called before the relax hatch | The token buys nothing. This ordering is correct and it holds, before and after the fix |
 
 **At audit time no retired build target, CI stage, or ratchet read the token
 stock.** The current replacement is `./le test-weakened check`, implemented in
-`internal/le/weakened`. The old audit script ran only from `/ze-review` and
+`internal/le/testweakened`. The old audit script ran only from `/ze-review` and
 `/ze-review-deep`, and it saw only new tokens. The 755 existing tokens were
 invisible to every gate.
 
@@ -389,7 +389,7 @@ grep -rn "test-relax:" --include="*_test.go" --include="*.ci" --include="*.et" .
 
 Detector behavior was probed through the then-current hook functions. Those
 functions have since been replaced by the compiled detector in
-`internal/le/weakened`; the audit results below record the retired behavior.
+`internal/le/testweakened`; the audit results below record the retired behavior.
 
 The triage buckets in "Triage of the 755" came from a keyword classifier run over
 the reason texts, which was NOT in the tree: those figures (368, 48.7%, ~430, ~120)
@@ -435,7 +435,7 @@ past row beside the change it accepted.
 | no commit-time check | `weakened_problems` (`internal/le/commit/actions.go`) recomputes the weakenings of the paths the commit names, and refuses a commit that does not carry `test/weakened.md` |
 | `make ze-relax-census` | `./le test-weakened check` |
 
-`internal/le/weakened/actions.go` is the one implementation both gates call.
+`internal/le/testweakened/actions.go` is the one implementation both gates call.
 `docs/architecture/testing/test-health.md` describes the live mechanism.
 
 **The root cause this audit found was STORAGE, not detection.** A justification
@@ -447,5 +447,5 @@ lines of prose accumulate across 413 test files.
 Session 3, the sweep, never ran. 28 legacy tokens are left in 18 test files.
 Neither gate reads them: `c_test_weakening` opens on a row, and
 `weakened_problems` asks a row for every weakening it finds. One reader is left,
-`relax_reasons` in `internal/le/weakened/audit.go`, which still quotes a
+`relax_reasons` in `internal/le/testweakened/audit.go`, which still quotes a
 token at review time and does not yet read `test/weakened.md`.

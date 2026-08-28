@@ -94,7 +94,7 @@ not cover. Left alone; a separate measurement would be needed to touch it.
 
 **Key insights:**
 - `ParallelTimeoutHeadroom = 3` already absorbs contention for the runner's per-test budget, when concurrency > 1. The MCP deadline is the shape it cannot reach, because it lives inside the test binary.
-- Nothing in `internal/test/` reads `GO_TEST_PROCS` or `ZE_RUN_SLOTS`: grep returns zero. A suite sizes for the whole box while `internal/le/lejob/lejob.go` admitted the job on a quarter-box budget. This spec does not close that; it is recorded as a limitation.
+- Nothing in `internal/test/` reads `GO_TEST_PROCS` or `ZE_RUN_SLOTS`: grep returns zero. A suite sizes for the whole box while `internal/le/job/job.go` admitted the job on a quarter-box budget. This spec does not close that; it is recorded as a limitation.
 - 90 tests report SKIP on this host (`ospf` alone 29 of 82), which is why `ospf` finishes 74 tests in 45s against a 2653s sum of medians recorded elsewhere. A suite measured only here is not measured everywhere.
 
 ## Current Behavior (MANDATORY)
@@ -359,7 +359,7 @@ not cover. Left alone; a separate measurement would be needed to touch it.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/specsession/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

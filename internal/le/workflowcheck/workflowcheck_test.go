@@ -21,9 +21,9 @@ import (
 	_ "github.com/ze-software/ze/internal/le/integration"
 	"github.com/ze-software/ze/internal/le/leaction"
 	_ "github.com/ze-software/ze/internal/le/qemu"
-	"github.com/ze-software/ze/internal/le/verify"
+	_ "github.com/ze-software/ze/internal/le/verify"
 	_ "github.com/ze-software/ze/internal/le/verifydeps"
-	_ "github.com/ze-software/ze/internal/le/verifyworktree"
+	"github.com/ze-software/ze/internal/le/verifyengine"
 )
 
 const workflowsDir = ".github/workflows"
@@ -296,7 +296,7 @@ func shardIndices(t *testing.T, source string) []int {
 		t.Fatal("verify.yml must declare one numeric shard matrix")
 	}
 	var indices []int
-	for _, raw := range strings.Split(match[1], ",") {
+	for raw := range strings.SplitSeq(match[1], ",") {
 		value, err := strconv.Atoi(strings.TrimSpace(raw))
 		if err != nil {
 			t.Fatal(err)
@@ -317,7 +317,7 @@ func TestVerifyShardsCoverEveryNativeStage(t *testing.T) {
 	if !strings.Contains(source, "NR % n == i % n") {
 		t.Fatal("verify.yml must retain the round-robin selection rule")
 	}
-	stages := verify.StagesForMode(verify.Mode)
+	stages := verifyengine.StagesForMode(verifyengine.Mode)
 	if len(stages) == 0 {
 		t.Fatal("native full verifier lists no stage")
 	}
@@ -463,7 +463,7 @@ func TestCapabilityGatedTestsHaveANativeVMHome(t *testing.T) {
 			return nil
 		}
 		found++
-		for _, line := range strings.Split(fixture, "\n") {
+		for line := range strings.SplitSeq(fixture, "\n") {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "skip-env:") && strings.Contains(trimmed, "var=ZE_QEMU") {
 				t.Errorf("%s opts out of its native VM home with %q", path, trimmed)

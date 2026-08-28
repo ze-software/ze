@@ -108,7 +108,7 @@ unblocked.
 
 1. Verify the other sessions' reds cleared; clean `./le verify current mode full`.
 2. Independent `/ze-review` over the four commits' diff. Loop to zero. Record
-   with the retired `scripts/dev/review_gate.py` (current producer: `internal/le/speclifecycle/review.go`).
+   with the retired `scripts/dev/review_gate.py` (current producer: `internal/le/specsession/review.go`).
 3. Fill the spec's Implementation Audit and Pre-Commit Verification tables,
    resolve A-1..A-6, reconcile the Deliverables contradiction.
 4. Learned summary, then the two closure commits.

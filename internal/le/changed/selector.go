@@ -87,7 +87,7 @@ const (
 	featureManifestPath = "feature-gates.txt"
 
 	docValidationPackage = "internal/le/docvalid"
-	verifyRunnerPackage  = "internal/le/verify"
+	verifyRunnerPackage  = "internal/le/verifyengine"
 	checksPackage        = "internal/le"
 	hookRuntimePackage   = "internal/le/hookruntime"
 	rfcPackage           = "internal/le/rfc"
@@ -179,12 +179,12 @@ var treeWalkingPackages = []string{checksPackage}
 // read it.
 var nonGoPathRules = []pathRule{
 	{prefix: ".claude/settings", suffix: ".json", dirs: []string{hookRuntimePackage}},
-	{prefix: "test/", suffix: ".ci", dirs: []string{ciRunnerPackage, docValidationPackage, checksPackage}},
-	{prefix: "test/", suffix: ".et", dirs: []string{editorRunnerPackage}},
-	{prefix: "test/", suffix: ".wb", dirs: []string{"internal/component/web/testing"}},
-	{prefix: "ai/", suffix: ".md", dirs: []string{rulesPackage, docCheckPackage}},
-	{prefix: "plan/", suffix: ".md", dirs: []string{specPackage, docCheckPackage}},
-	{prefix: "docs/", suffix: ".md", dirs: []string{docValidationPackage, docCheckPackage}},
+	{prefix: testTreePrefix, suffix: ".ci", dirs: []string{ciRunnerPackage, docValidationPackage, checksPackage}},
+	{prefix: testTreePrefix, suffix: ".et", dirs: []string{editorRunnerPackage}},
+	{prefix: testTreePrefix, suffix: ".wb", dirs: []string{"internal/component/web/testing"}},
+	{prefix: "ai/", suffix: markdownSuffix, dirs: []string{rulesPackage, docCheckPackage}},
+	{prefix: "plan/", suffix: markdownSuffix, dirs: []string{specPackage, docCheckPackage}},
+	{prefix: "docs/", suffix: markdownSuffix, dirs: []string{docValidationPackage, docCheckPackage}},
 	{prefix: ".github/", suffix: ".yml", dirs: []string{workflowPackage}},
 	{prefix: rfcCorpusPrefix, dirs: []string{rfcPackage}},
 }
@@ -371,7 +371,7 @@ func knownPrintMode(mode printMode) bool {
 // feature consumer reads this one manifest, so no consumer can hold a stale
 // copy of it.
 func loadFeatureGates(root string) ([]featureGate, error) {
-	file, err := os.Open(filepath.Join(root, featureManifestPath))
+	file, err := os.Open(filepath.Join(root, featureManifestPath)) //nolint:gosec // the feature manifest is a tracked path under the repository root
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", featureManifestPath, err)
 	}
@@ -457,12 +457,12 @@ func changedPaths(root, pathsFrom string) ([]string, error) {
 	if pathsFrom == "" {
 		return gitChangedPaths(root)
 	}
-	body, err := os.ReadFile(pathsFrom)
+	body, err := os.ReadFile(pathsFrom) //nolint:gosec // pathsFrom is the operator-named path list this action takes as its input
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", pathsFrom, err)
 	}
 	var paths []string
-	for _, line := range strings.Split(string(body), "\n") {
+	for line := range strings.SplitSeq(string(body), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
@@ -481,11 +481,12 @@ func changedPaths(root, pathsFrom string) ([]string, error) {
 // fail-open branch could never run outside a test (ai/rules/evidence.md -- a
 // guard on a path the traffic does not take does not exist).
 func gitChangedPaths(root string) ([]string, error) {
-	queries := [][]string{
-		{"diff", "--name-only", "-z"},
-		{"diff", "--cached", "--name-only", "-z"},
-		{"ls-files", "--others", "--exclude-standard", "-z"},
-	}
+	queries := make([][]string, 0, 4)
+	queries = append(queries,
+		[]string{gitDiff, gitNameOnly, "-z"},
+		[]string{gitDiff, "--cached", gitNameOnly, "-z"},
+		[]string{"ls-files", "--others", "--exclude-standard", "-z"},
+	)
 	baseline, err := greenBaseline(root)
 	if err != nil {
 		return nil, err
@@ -493,7 +494,7 @@ func gitChangedPaths(root string) ([]string, error) {
 	// A commit that has left the working-tree diff is invisible to the three
 	// queries above, so a scoped verify on a clean tree would test nothing in the
 	// package that commit changed.
-	queries = append(queries, []string{"diff", "--name-only", "-z", baseline, "HEAD"})
+	queries = append(queries, []string{gitDiff, gitNameOnly, "-z", baseline, "HEAD"})
 
 	seen := map[string]bool{}
 	var paths []string
@@ -502,7 +503,7 @@ func gitChangedPaths(root string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		for _, entry := range strings.Split(out, "\x00") {
+		for entry := range strings.SplitSeq(out, "\x00") {
 			if entry == "" {
 				continue
 			}
@@ -543,12 +544,12 @@ func greenBaseline(root string) (string, error) {
 	if !filepath.IsAbs(statusPath) {
 		statusPath = filepath.Join(root, statusPath)
 	}
-	body, err := os.ReadFile(statusPath)
+	body, err := os.ReadFile(statusPath) //nolint:gosec // statusPath is the tracked verify-status file, or the operator override this action accepts
 	if err != nil {
 		return "", fmt.Errorf("%w: %s cannot be read (%w)", errNoGreenBaseline, statusPath, err)
 	}
 	exit, sha := "", ""
-	for _, line := range strings.Split(string(body), "\n") {
+	for line := range strings.SplitSeq(string(body), "\n") {
 		switch {
 		case strings.HasPrefix(line, "exit="):
 			exit = strings.TrimSpace(strings.TrimPrefix(line, "exit="))
@@ -579,7 +580,7 @@ func runGit(root string, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), gitDeadline)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd := exec.CommandContext(ctx, "git", args...) //nolint:gosec // args are the fixed git queries this file builds, never operator text
 	cmd.Dir = root
 	out, err := cmd.Output()
 	if err != nil {
@@ -756,13 +757,12 @@ func loadPackageGraph(root string, featureTags []string) (*packageGraph, error) 
 	ctx, cancel := context.WithTimeout(context.Background(), goListDeadline)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "go", "list", "-e", "-tags", strings.Join(tags, ","), "-f", format, "./...")
+	cmd := exec.CommandContext(ctx, "go", "list", "-e", "-tags", strings.Join(tags, ","), "-f", format, "./...") //nolint:gosec // the only variable is the build-tag list read from the tracked feature manifest
 	cmd.Dir = root
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	out, err := cmd.Output()
 	if err != nil {
-		var exit *exec.ExitError
-		if errors.As(err, &exit) {
+		if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 			return nil, fmt.Errorf("go list: %w: %s", err, strings.TrimSpace(string(exit.Stderr)))
 		}
 		return nil, fmt.Errorf("go list: %w", err)
@@ -780,7 +780,7 @@ func parsePackageGraph(root, listing string) (*packageGraph, error) {
 		importers: map[string][]string{},
 	}
 	imports := map[string][]string{}
-	for _, line := range strings.Split(listing, "\n") {
+	for line := range strings.SplitSeq(listing, "\n") {
 		if line == "" {
 			continue
 		}
@@ -908,7 +908,7 @@ func reverseWalk(graph *packageGraph, seeds []string, depth int) map[string]bool
 		visited[seed] = true
 		frontier = append(frontier, seed)
 	}
-	for level := 0; level < depth; level++ {
+	for range depth {
 		var next []string
 		for _, importPath := range frontier {
 			for _, importer := range graph.importers[importPath] {
@@ -1041,7 +1041,7 @@ func reachedTags(root string, paths, seeds []string, gates []featureGate, everyT
 // compiles in a build that dropped either one, and naming both is what keeps
 // those builds in the matrix.
 func negatedTags(root, changed string) ([]string, error) {
-	file, err := os.Open(filepath.Join(root, filepath.FromSlash(changed)))
+	file, err := os.Open(filepath.Join(root, filepath.FromSlash(changed))) //nolint:gosec // changed names a file inside the tracked checkout under root
 	if err != nil {
 		return nil, fmt.Errorf("the build constraint of %s could not be read (%w)", changed, err)
 	}
@@ -1144,3 +1144,15 @@ func emitReport(opts selectorOptions, answer changeSet, widen error) (ScopeRepor
 	}
 	return report, 0
 }
+
+// The repeated git argument and path fragments this selector matches on.
+const (
+	gitNameOnly    = "--name-only"
+	markdownSuffix = ".md"
+	testTreePrefix = "test/"
+)
+
+// gitDiff is the git verb every changed-path query starts with.
+const (
+	gitDiff = "diff"
+)

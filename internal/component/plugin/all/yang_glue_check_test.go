@@ -14,7 +14,7 @@ import (
 //
 // This is the feeder that makes `ze-yang-glue-check` reachable. The Makefile
 // target existed but had no caller: not in `generate`'s check twin, not in
-// stagesForMode (internal/le/verify/run.go), not in .github/workflows. A `.yang`
+// stagesForMode (internal/le/verifyengine/run.go), not in .github/workflows. A `.yang`
 // file added or edited without `make generate` therefore left a stale
 // yang/*/register.go, and the module was silently never wired -- the failure
 // mode is invisible, because nothing errors, the schema simply is not there.

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/verify"
+	"github.com/ze-software/ze/internal/le/verifyengine"
 )
 
 // VerificationState records what the latest native verify status proves for
@@ -53,7 +53,7 @@ type failureGroup struct {
 }
 
 func structuralGateReds(root string, paths []string) structuralReds {
-	content, err := os.ReadFile(filepath.Join(root, "tmp", "ze-verify-failures.json"))
+	content, err := os.ReadFile(filepath.Join(root, "tmp", "ze-verify-failures.json")) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 	if err != nil {
 		return structuralReds{}
 	}
@@ -164,7 +164,7 @@ func relatedInCommit(related string, paths []string) bool {
 }
 
 func verificationState(root string, paths []string) VerificationState {
-	freshness := verify.CheckCertificate(root, paths)
+	freshness := verifyengine.CheckCertificate(root, paths)
 	state := VerificationState{
 		State:     "stale",
 		Detail:    freshness.Reason,
@@ -173,7 +173,7 @@ func verificationState(root string, paths []string) VerificationState {
 		Commit:    freshness.GitSHA,
 	}
 	if freshness.Fresh {
-		state.State = "fresh"
+		state.State = verifyFresh
 	}
 	return state
 }

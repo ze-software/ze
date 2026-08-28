@@ -157,9 +157,9 @@ func TestNativeWeakeningProducerBindings(t *testing.T) {
 		sourcePaths[path] = struct{}{}
 	}
 	for _, boundary := range fixtureProducerBoundaries {
-		if boundary.actionOwner != "internal/le/weakened/actions.go" ||
+		if boundary.actionOwner != "internal/le/testweakened/actions.go" ||
 			boundary.actionEvidence != `Verb:   "proposed"` ||
-			boundary.nativeOwner != "internal/le/weakened/proposed.go" ||
+			boundary.nativeOwner != "internal/le/testweakened/proposed.go" ||
 			boundary.nativeEvidence == "" {
 			t.Errorf("%s native boundary = %+v", boundary.category, boundary)
 		}
@@ -245,9 +245,7 @@ func TestFixtureCatalogExactPopulationAndContent(t *testing.T) {
 }
 
 func TestFixtureCatalogMutationsFailClosed(t *testing.T) {
-	check := func(categories []fixtureCategory, sites []fixtureSite, fixtures []fixtureSpec) Result {
-		return checkFixturePopulation(categories, sites, fixtures)
-	}
+	check := checkFixturePopulation
 	t.Run("missing category", func(t *testing.T) {
 		categories := append([]fixtureCategory(nil), fixtureCategories[1:]...)
 		if result := check(categories, fixtureSites[:], fixtureCatalog); result.Passed {
@@ -430,7 +428,7 @@ func TestEveryConfiguredHookUsesRegisteredNativeAction(t *testing.T) {
 	}
 	configured := 0
 	const prefix = `"command": "$CLAUDE_PROJECT_DIR/le hook-check `
-	for _, line := range strings.Split(string(body), "\n") {
+	for line := range strings.SplitSeq(string(body), "\n") {
 		line = strings.TrimSpace(line)
 		if !strings.HasPrefix(line, `"command":`) {
 			continue

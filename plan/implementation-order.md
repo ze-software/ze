@@ -3,7 +3,7 @@
 Authored 2026-07-10 (followup-wave impact review session; user-requested queue).
 This is the execution queue for `plan/`. To work from it, ask: "implement the next
 item in plan/implementation-order.md" (optionally naming a track). Sessions still
-claim specs individually via `internal/le/speclifecycle/session.go claim`.
+claim specs individually via `internal/le/specsession/session.go claim`.
 
 Maintenance: when a spec closes, strike its row (append-only style, `~~row~~ closed
 NNN`) and re-check the Blocked ledger. Re-derive from `./le spec-status` if this
@@ -163,7 +163,7 @@ with spec-followup-l2tp-call and spec-finish-l2tp (H8): coordinate before starti
 - New verify gates apply to every spec: ze-platform-vet (host/iface trees compile
   under darwin+freebsd), ./le port-defaults check (YANG port defaults vs Go table),
   ze-iface-resolution-check (no direct kernel name resolution).
-- A NEW gate must be added to `stagesForMode` in `internal/le/verify/run.go`
+- A NEW gate must be added to `stagesForMode` in `internal/le/verifyengine/run.go`
   (both branches); the the native action tables under `internal/le/` `_ze-verify-impl` list is documented dead code
   (`internal/le/` native action tables comment).
 - Anything writing over pkg/plugin/rpc inherits the 30s write-deadline/watchdog.

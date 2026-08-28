@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/speclifecycle"
+	"github.com/ze-software/ze/internal/le/specsession"
 )
 
 type skillTrigger struct {
@@ -21,7 +21,7 @@ var skillTriggers = []skillTrigger{
 	{"/ze-debug", regexp.MustCompile(`(?i)\b(debug|diagnose|root[- ]cause)\b.{0,60}\b(failure|failing|red|test|gate|hang|crash|flake)\b`)},
 	{"/ze-explore", regexp.MustCompile(`(?i)\b(survey|explore|investigate|research|map out|find (out |every |all )?(where|which|how))\b`)},
 	{"/ze-audit", regexp.MustCompile(`(?i)\baudit\b.{0,60}\b(spec|requirement|implementation|coverage)\b`)},
-	{"/ze-implement", regexp.MustCompile(`(?i)\bimplement\b.{0,60}\b(spec|feature|ac-[0-9])\b`)},
+	{"/ze-implement", regexp.MustCompile(`(?i)\bimplement\b.{0,60}\b(spec|feature|ac-\d)\b`)},
 	{"/ze-hunt", regexp.MustCompile(`(?i)\bhunt\b.{0,40}\b(bug|class|pattern)\b`)},
 }
 
@@ -34,6 +34,7 @@ var (
 )
 
 // ze point: planning/work-phases/run-every-review-on-opus-5
+// agentReviewModel refuses a review agent that does not run on Opus 5.
 func agentReviewModel(ctx context) *verdict {
 	prompt := stringInput(ctx.input, "prompt")
 	refusal, note := reviewModelRefusal(ctx, prompt)
@@ -47,6 +48,7 @@ func agentReviewModel(ctx context) *verdict {
 }
 
 // ze point: cli/agent-tooling-contract/use-the-skill-instead-of-a-raw-agent
+// agentSkill refuses a hand-written prompt that a ze-* skill already covers.
 func agentSkill(ctx context) *verdict {
 	prompt := stringInput(ctx.input, "prompt")
 	skill, matched := coveredSkill(ctx.root, prompt)
@@ -63,6 +65,7 @@ func agentSkill(ctx context) *verdict {
 }
 
 // ze point: go-standards/directives/read-the-ze-style-guide-before-go-design-or-review
+// agentStyleGuide warns when a brief will produce Go and names no style guide.
 func agentStyleGuide(ctx context) *verdict {
 	prompt := stringInput(ctx.input, "prompt")
 	if !writesGo.MatchString(prompt) || !briefWork.MatchString(first(prompt, 400)) || styleGuide.MatchString(prompt) {
@@ -143,7 +146,7 @@ func reviewAck(ctx context) bool {
 	if id == "" {
 		return false
 	}
-	body, err := os.ReadFile(filepath.Join(ctx.root, "tmp", "session", ".model-ack-"+id))
+	body, err := os.ReadFile(filepath.Join(ctx.root, "tmp", "session", ".model-ack-"+id)) //nolint:gosec // a session marker under the checkout tmp directory
 	return err == nil && len(strings.TrimSpace(string(body))) >= 10
 }
 
@@ -151,14 +154,14 @@ func reviewModelRefusal(ctx context, prompt string) (string, string) {
 	if !isReviewWork(ctx.root, prompt) || reviewAck(ctx) {
 		return "", ""
 	}
-	model := speclifecycle.RunningModel(ctx.transcript)
+	model := specsession.RunningModel(ctx.transcript)
 	if ctx.transcript == "" {
-		model = speclifecycle.CurrentModel(ctx.root)
+		model = specsession.CurrentModel(ctx.root)
 	}
 	if model == "" {
 		return "", "note: could not determine the running model, so the review-model boundary is UNCHECKED here (ai/rules/planning.md)"
 	}
-	if speclifecycle.IsReviewTier(model) {
+	if specsession.IsReviewTier(model) {
 		return "", ""
 	}
 	return "❌ Blocked: review runs on Opus 5, and this session is on " + model + "\n" +

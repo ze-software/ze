@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- verify-class admission through the shared job registry
-// Related: ../lejob/lejob.go -- the single admission, locking, and process implementation
+// Related: ../job/job.go -- the single admission, locking, and process implementation
 package verifylock
 
 import (
@@ -7,8 +7,8 @@ import (
 	"io"
 	"os"
 
+	"github.com/ze-software/ze/internal/le/job"
 	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lejob"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
@@ -22,16 +22,16 @@ const (
 
 // Run executes one verify-class command through lejob's shared admission.
 // The child's exit or signal status is returned unchanged.
-func Run(root, label string, argv []string, stdout, stderr io.Writer) (lejob.Report, int, error) {
+func Run(root, label string, argv []string, stdout, stderr io.Writer) (job.Report, int, error) {
 	if stdout == nil {
 		stdout = io.Discard
 	}
 	if stderr == nil {
 		stderr = io.Discard
 	}
-	admission, err := lejob.NewIn(root)
+	admission, err := job.NewIn(root)
 	if err != nil {
-		return lejob.Report{}, 2, err
+		return job.Report{}, 2, err
 	}
 	admission.Out = stdout
 	admission.Err = stderr

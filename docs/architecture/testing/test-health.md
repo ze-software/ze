@@ -19,7 +19,7 @@ The feature is two things that share collectors but not enforcement.
 | Enforced by | `./le test-sensitivity check`, stage 10 of `./le verify current mode full` | `./le test-health check`, inside `./le repository generated-check` |
 | Reads | `test/health/sensitivity-baseline.json` + the working tree | the committed report vs the tree |
 | Source | `internal/le/testsensitivity.Answer` | `internal/le/testhealth.Answer` |
-<!-- source: internal/le/verify/run.go -- Run, RunMode -->
+<!-- source: internal/le/verifyengine/run.go -- Run, RunMode -->
 
 The ratchets do NOT depend on the report. `./le test-sensitivity check` reads only
 the baseline and the tree, so a stale or wrong report cannot weaken the
@@ -92,19 +92,19 @@ The ratchet scans the WORKING TREE, so an inert test is caught by the
 A third gate, on a different failure: a test that stopped proving something with
 a written excuse attached.
 
-The compiled weakening detector in `internal/le/weakened` refuses an edit that
+The compiled weakening detector in `internal/le/testweakened` refuses an edit that
 deletes assertions, adds a `t.Skip`, drops an `expect=`, or introduces an
 assertion that cannot fail. Its escape hatch is a row in `test/weakened.md`
 naming the test the edit weakens.
 
 | | |
 |---|---|
-| Refused at edit time by | `internal/le/hookruntime` calling `internal/le/weakened` |
+| Refused at edit time by | `internal/le/hookruntime` calling `internal/le/testweakened` |
 | Refused at commit time by | `weakened_problems` (`internal/le/commit.Answer`) |
 | Reads | `test/weakened.md` + the HEAD content of the paths the commit names |
-| Source | `internal/le/weakened.Answer`, called by both gates |
+| Source | `internal/le/testweakened.Answer`, called by both gates |
 | Parse gate | `./le test-weakened check`, in `./le verify current mode full` both modes |
-<!-- source: internal/le/verify/run.go -- Run, RunMode -->
+<!-- source: internal/le/verifyengine/run.go -- Run, RunMode -->
 
 **The file is replaced per commit, and that shape is the whole design.** Delete
 the rows of the last commit. Write the rows of this one. Git history holds every
@@ -175,7 +175,7 @@ number of runs.
 The native `./le site build` action renders the website health page from
 `test/health/latest.json`, `history.ndjson`, and the generated Markdown. The
 site builder computes no new test-health facts.
-<!-- source: internal/le/sitebuild/build.go -- Build -->
+<!-- source: internal/le/site/build.go -- Build -->
 <!-- source: internal/le/testhealth/actions.go -- Actions -->
 
 ## Full operator reference

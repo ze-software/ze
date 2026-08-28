@@ -297,7 +297,7 @@ Before claiming any Go implementation work is done, run:
 
 **You MUST lint through `./le verify-lint run`, never by calling
 `golangci-lint` directly.** The native action derives the pinned toolchain and
-every build flavor through `internal/le/lintgate`; a bare invocation inherits
+every build flavor through `internal/le/verifylint`; a bare invocation inherits
 host defaults and can report an environment failure as a code finding.
 
 The same rule applies to every tool whose native action configures its
@@ -313,7 +313,7 @@ The native action starts with the host build, then runs `GOOS=linux` with the
 `integration` build tag. The second pass is the only one that reads a
 `//go:build integration` file. On a non-Linux host it is also the only one that
 reads a `//go:build linux` file. The rest come from
-`internal/le/lintgate/matrix.go`, one for each personality tag (`ze_installer`,
+`internal/le/verifylint/matrix.go`, one for each personality tag (`ze_installer`,
 `ze_distro`, `ze_appliance`, `ze_setup`), the capability tags, `tinygo`, and each
 GOOS and GOARCH a tracked file names. Each flavor lints only the packages holding
 a file the first two passes do not load. That package set is derived from the
@@ -371,7 +371,7 @@ routine: `tmp/ze-verify.status` holding no green commit. With nothing proven,
 every scoped target judges the whole tree until a full run passes. The contract
 is `docs/architecture/testing/verify-freshness-scope.md`.
 
-**A scoped run judges fewer Staticcheck matrix rows too.** `scopeFeatureMatrix` (`internal/le/staticcheckmatrix/staticcheckmatrix.go`) keeps the two rows that omit no feature tag, plus one row per tag the change reached: 3 of 38 for a `ze_ssh`-local change. `all_features` and `core_only` judge the combinations Ze ships, and `validateScopedMatrix` refuses any scope that subtracts one of them.
+**A scoped run judges fewer Staticcheck matrix rows too.** `scopeFeatureMatrix` (`internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix.go`) keeps the two rows that omit no feature tag, plus one row per tag the change reached: 3 of 38 for a `ze_ssh`-local change. `all_features` and `core_only` judge the combinations Ze ships, and `validateScopedMatrix` refuses any scope that subtracts one of them.
 
 **`./le staticcheck-feature-matrix check` typed on its own judges every row**, because only a verify run publishes the feature-tag answer that `ZE_VERIFY_SCOPE_TAGS` names. So does an answer that cannot be read, one naming a tag `feature-gates.txt` does not declare, and one naming every tag. An EMPTY answer is a real answer and judges the two shipped rows.
 
