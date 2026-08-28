@@ -261,7 +261,7 @@ const bestPathEnvelopeKey = "best-path"
 func (r *RIBManager) bestPipeline(selector string, args []string) any {
 	pipeSelector, stages, errMsg := parseBestPipelineArgs(args)
 	if errMsg != "" {
-		return map[string]any{"error": errMsg}
+		return map[string]any{jsonKeyError: errMsg}
 	}
 	if pipeSelector != "" {
 		selector = pipeSelector
@@ -302,7 +302,7 @@ func (r *RIBManager) bestPipeline(selector string, args []string) any {
 	}
 
 	// count terminal
-	return map[string]any{"count": meta.Count}
+	return map[string]any{jsonKeyCount: meta.Count}
 }
 
 // bestPathRows is the walk `show bgp rib best` answers with when no terminal
@@ -421,7 +421,7 @@ func parseBestPipelineArgs(args []string) (string, []pipelineStage, string) {
 	sawTerminal := false
 	for i < len(args) {
 		keyword := args[i]
-		if keyword == "peer" {
+		if keyword == rowKeyPeer {
 			if sawTerminal {
 				return "", nil, "filter after terminal: peer"
 			}

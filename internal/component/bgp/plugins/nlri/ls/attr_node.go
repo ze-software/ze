@@ -48,13 +48,13 @@ func (t *lsNodeFlagBits) WriteTo(buf []byte, off int) int {
 func (t *lsNodeFlagBits) ToJSON() map[string]any {
 	return map[string]any{
 		"node-flags": map[string]any{
-			"O":   int((t.Flags >> 7) & 1),
-			"T":   int((t.Flags >> 6) & 1),
-			"E":   int((t.Flags >> 5) & 1),
-			"B":   int((t.Flags >> 4) & 1),
-			"R":   int((t.Flags >> 3) & 1),
-			"V":   int((t.Flags >> 2) & 1),
-			"RSV": int(t.Flags & 0x03),
+			"O":             int((t.Flags >> 7) & 1),
+			"T":             int((t.Flags >> 6) & 1),
+			"E":             int((t.Flags >> 5) & 1),
+			"B":             int((t.Flags >> 4) & 1),
+			"R":             int((t.Flags >> 3) & 1),
+			"V":             int((t.Flags >> 2) & 1),
+			jsonKeyReserved: int(t.Flags & 0x03),
 		},
 	}
 }
@@ -345,10 +345,10 @@ func (t *LsSRCapabilities) WriteTo(buf []byte, off int) int {
 func (t *LsSRCapabilities) ToJSON() map[string]any {
 	return map[string]any{
 		"sr-capabilities": map[string]any{
-			"flags": map[string]any{
-				"I":   int((t.Flags >> 7) & 1), // IPv4 MPLS
-				"V":   int((t.Flags >> 6) & 1), // IPv6 MPLS
-				"RSV": int(t.Flags & 0x3F),
+			jsonKeyFlags: map[string]any{
+				"I":             int((t.Flags >> 7) & 1), // IPv4 MPLS
+				"V":             int((t.Flags >> 6) & 1), // IPv6 MPLS
+				jsonKeyReserved: int(t.Flags & 0x3F),
 			},
 			"ranges": srLabelRangesToJSON(t.Ranges),
 		},

@@ -42,9 +42,9 @@ func (t *LsSRv6EndpointBehavior) WriteTo(buf []byte, off int) int {
 func (t *LsSRv6EndpointBehavior) ToJSON() map[string]any {
 	return map[string]any{
 		"srv6-endpoint-behavior": map[string]any{
-			"behavior":  int(t.EndpointBehavior),
-			"flags":     int(t.Flags),
-			"algorithm": int(t.Algorithm),
+			"behavior":       int(t.EndpointBehavior),
+			jsonKeyFlags:     int(t.Flags),
+			jsonKeyAlgorithm: int(t.Algorithm),
 		},
 	}
 }
@@ -91,8 +91,8 @@ func (t *LsSRv6BGPPeerNodeSID) WriteTo(buf []byte, off int) int {
 func (t *LsSRv6BGPPeerNodeSID) ToJSON() map[string]any {
 	return map[string]any{
 		"srv6-bgp-peer-node-sid": map[string]any{
-			"flags":       int(t.Flags),
-			"weight":      int(t.Weight),
+			jsonKeyFlags:  int(t.Flags),
+			jsonKeyWeight: int(t.Weight),
 			"peer-as":     t.PeerAS,
 			"peer-bgp-id": t.PeerBGPID.String(),
 		},

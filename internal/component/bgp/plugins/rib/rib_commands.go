@@ -275,7 +275,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 		key := attrArgs[i]
 		val := attrArgs[i+1]
 
-		if key == "origin" {
+		if key == kwOrigin {
 			code, ok := injectOriginValues[val]
 			if !ok {
 				return statusError, "", fmt.Errorf("unknown origin: %s (use igp, egp, incomplete)", val)
@@ -283,7 +283,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 			ab.SetOrigin(code)
 			continue
 		}
-		if key == "nhop" || key == "nexthop" {
+		if key == kwNextHop || key == kwNextHopLong {
 			nhAddr, err := netip.ParseAddr(val)
 			if err != nil {
 				return statusError, "", fmt.Errorf("invalid next-hop IP: %s", val)
@@ -308,7 +308,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 			}
 			continue
 		}
-		if key == "aspath" {
+		if key == kwASPath {
 			asns, err := parseASNList(val)
 			if err != nil {
 				return statusError, "", fmt.Errorf("invalid aspath: %w", err)
@@ -316,7 +316,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 			ab.SetASPath(asns)
 			continue
 		}
-		if key == "localpref" {
+		if key == kwLocalPref {
 			n, err := strconv.ParseUint(val, 10, 32)
 			if err != nil {
 				return statusError, "", fmt.Errorf("invalid localpref: %w", err)
@@ -324,7 +324,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 			ab.SetLocalPref(uint32(n))
 			continue
 		}
-		if key == "med" {
+		if key == kwMED {
 			n, err := strconv.ParseUint(val, 10, 32)
 			if err != nil {
 				return statusError, "", fmt.Errorf("invalid med: %w", err)
@@ -370,7 +370,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 
 	r.reconcileBestPath(fam, nlriBytes)
 
-	return statusDone, map[string]any{"injected": prefix, "peer": args[0], "family": familyStr}, nil
+	return statusDone, map[string]any{jsonKeyInjected: prefix, rowKeyPeer: args[0], rowKeyFamily: familyStr}, nil
 }
 
 // validateIPv6NextHop checks whether an IPv6 next-hop is valid for this peer and family.
@@ -446,7 +446,7 @@ func (r *RIBManager) withdrawRoute(_ string, args []string) (string, any, error)
 
 	r.reconcileBestPath(fam, nlriBytes)
 
-	return statusDone, map[string]any{"withdrawn": prefix, "peer": args[0], "family": familyStr, "existed": removed}, nil
+	return statusDone, map[string]any{jsonKeyWithdrawn: prefix, rowKeyPeer: args[0], rowKeyFamily: familyStr, jsonKeyExisted: removed}, nil
 }
 
 // rpfLookup performs a Reverse Path Forwarding lookup: longest-prefix-match
@@ -483,9 +483,9 @@ func (r *RIBManager) rpfLookup(args []string) (string, any, error) {
 	best, pfx, found := loc.LPM(fam, addr)
 	if !found {
 		return statusDone, map[string]any{
-			"source": addrStr,
-			"family": familyStr,
-			"found":  false,
+			"source":     addrStr,
+			rowKeyFamily: familyStr,
+			"found":      false,
 		}, nil
 	}
 
@@ -495,7 +495,7 @@ func (r *RIBManager) rpfLookup(args []string) (string, any, error) {
 	}
 	return statusDone, map[string]any{
 		"source":         addrStr,
-		"family":         familyStr,
+		rowKeyFamily:     familyStr,
 		"found":          true,
 		"matched-prefix": pfx.String(),
 		"next-hop":       nextHop,
@@ -521,6 +521,18 @@ func parseASNList(s string) ([]uint32, error) {
 	}
 	return asns, nil
 }
+
+// Attribute keywords of `request bgp rib inject`. An operator types these, and
+// each one names a BGP path attribute rather than a metric label or a JSON
+// field, even where the three spell the same word.
+const (
+	kwOrigin      = "origin"
+	kwNextHop     = "nhop"
+	kwNextHopLong = "nexthop"
+	kwASPath      = "aspath"
+	kwLocalPref   = "localpref"
+	kwMED         = "med"
+)
 
 // injectOriginValues maps origin text to wire code for rib inject.
 var injectOriginValues = map[string]uint8{

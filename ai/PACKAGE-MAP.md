@@ -551,7 +551,6 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/consistency` | is the `ze-consistency-check` gate: it reads the tree and reports where the code and the documentation disagree with each other |  |
 | `internal/le/dashstdio` | enforces the invariant that a command must NOT read or write a USER-SUPPLIED path with a raw os call: it must route through internal/core/cliio so the "-" token resolves to stdin/stdout |  |
 | `internal/le/deployment` | proves ze against software somebody else wrote |  |
-| `internal/le/setup` | install and verify every tool a Ze dev or test workflow needs |  |
 | `internal/le/digest` | validates the `file:line` anchors in ai/digests/*.md against the tree those digests describe |  |
 | `internal/le/discoveryindex` | generates one ai/PACKAGE-MAP.md line for each Go package |  |
 | `internal/le/doccheck` | owns the three documentation actions that the verifier runs directly |  |
@@ -580,13 +579,11 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/interoplab/l2tp/radiusmock` | TODO |  |
 | `internal/le/interoplab/pppoe` | TODO |  |
 | `internal/le/inventory` | is the `ze-inventory` gate: what ze is made of, counted |  |
+| `internal/le/job` | determines whether each heavy job runs now |  |
 | `internal/le/journal` | reads plan/journal class files from git HEAD |  |
 | `internal/le/leaction` | defines the action table shared by native le areas |  |
-| `internal/le/job` | determines whether each heavy job runs now |  |
 | `internal/le/lepath` | answers one question for every le tool: which checkout am I working in |  |
 | `internal/le/leroot` | is how an le tool joins the shared command engine |  |
-| `internal/le/tracked` | checks whether `le` still works when built from the commit instead of the working tree |  |
-| `internal/le/verifylint` | owns the native full-tree lint stage |  |
 | `internal/le/module` | preview or apply package-tree moves and repository Go module-path renames |  |
 | `internal/le/mutation` | combine mutation reports and append their per-package scores to committed history |  |
 | `internal/le/netlab` | checks the repository's netlab daemon integration |  |
@@ -598,10 +595,12 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/protocolskeleton` | classifies each protocol's subpackages against the standard skeleton: a canonical module, per-peer state named by the protocol's own RFC term, a wire-version directory, a domain module, or a... |  |
 | `internal/le/qemu` | proofs that boot a real appliance image in a virtual machine and ask it what it did |  |
 | `internal/le/repository` | is the post-verify validation gate: five checks, each derived from a documented defect pattern in plan/learned/RECURRING-PATTERNS.md |  |
+| `internal/le/repositorytrackedbuild` | COMPILES the repository as git holds it, which is the one population no other check in this repository compiles |  |
 | `internal/le/rfc` | binds every MUST-level requirement of an enrolled RFC to the tests that enforce it, and carries the ratchets in ai/rules/rfc-compliance.md |  |
 | `internal/le/rules` | owns the checks and reports for `ai/rules/` |  |
 | `internal/le/scratch` | keeps tmp and cache outside a checkout without overwriting paths that already hold user work |  |
 | `internal/le/session` | manage this development session's isolated state |  |
+| `internal/le/setup` | install and verify every tool a Ze dev or test workflow needs |  |
 | `internal/le/site` | build, check, and render the public website and presentation artifacts without an interpreter |  |
 | `internal/le/sitefacts` | derives the numbers the website publishes ABOUT this repository, and writes them into one committed file that the site build reads |  |
 | `internal/le/sourcerewrite` | keeps the repository's four source-maintenance workflows together while exposing each workflow as its own native action |  |
@@ -617,19 +616,20 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/testhelper` | owns long-running stdout producers used by protocol tests |  |
 | `internal/le/testsensitivity` | finds tests that cannot do their job, which no count of tests can reveal: 1 |  |
 | `internal/le/testunit` | runs the six Go test groups: five race-instrumented component groups, and the installer initrd behind the ze_installer tag |  |
+| `internal/le/testweakened` | detect committed and proposed test weakenings and enforce their ledgers |  |
 | `internal/le/textrepr` | renders quoted strings and lists for diagnostics |  |
 | `internal/le/tier` | provides the reverse-dependency audit and module-tier placement gate |  |
 | `internal/le/tokeneconomy` | measures token use by this repository's Claude Code sessions |  |
-| `internal/le/repositorytrackedbuild` | COMPILES the repository as git holds it, which is the one population no other check in this repository compiles |  |
+| `internal/le/tracked` | checks whether `le` still works when built from the commit instead of the working tree |  |
 | `internal/le/vendorweb` | is the two halves of one contract |  |
-| `internal/le/verifyengine` | orchestrates the native actions that make up full verification |  |
+| `internal/le/verify` | materializes a commit in a fresh detached worktree and runs the native pre-commit stages there |  |
 | `internal/le/verifydeps` | runs the five Go-tool stages whose Make recipes used shell composition |  |
 | `internal/le/verifydispatch` | connects verifyworktree to le's local-data registry |  |
+| `internal/le/verifyengine` | orchestrates the native actions that make up full verification |  |
+| `internal/le/verifylint` | owns the native full-tree lint stage |  |
 | `internal/le/verifylock` | run a verify-class command through the shared heavy-job admission |  |
 | `internal/le/verifystatus` | read and write the verification certificate for the current checkout |  |
 | `internal/le/verifysummary` | append one stage failure block to the verification failure index |  |
-| `internal/le/verify` | materializes a commit in a fresh detached worktree and runs the native pre-commit stages there |  |
-| `internal/le/testweakened` | detect committed and proposed test weakenings and enforce their ledgers |  |
 | `internal/le/webassets` | derives, for each page ze serves, the set of vendored web assets that page must load, so a head block renders the imports that page needs instead of the union every page needs |  |
 | `internal/le/weekly` | turns an approved weekly post into the messages Discord takes |  |
 | `internal/le/wikicatalog` | generates the wiki's command catalog directly from the product registries |  |
@@ -747,7 +747,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/plugins/imageserver` | Image server: HTTP provisioning for disk images and boot files | imageserver |
 | `internal/plugins/imageserver/yang` | embeds and registers the image server configuration YANG schema module |  |
 | `internal/plugins/init` | provides the `ze init` command that bootstraps the zefs database with SSH credentials before any other ze command can work |  |
-| `internal/plugins/isis` | implements native IS-IS (ISO/IEC 10589, RFC 1195 / 5305 / 5301), a link-state interior gateway protocol that runs directly over Layer 2 | isis |
+| `internal/plugins/isis` | implements native IS-IS (ISO/IEC 10589, RFC 1195 / 5305 / 5301), a link-state interior gateway protocol that runs directly over Layer 2 | isis-config-sanity |
 | `internal/plugins/isis/adjacency` | implements the IS-IS adjacency finite state machine and per-circuit neighbor table |  |
 | `internal/plugins/isis/circuit` | implements the per-interface IS-IS circuit runtime that drives Hello exchange and the adjacency table |  |
 | `internal/plugins/isis/cli` | provides the offline IS-IS tooling that ships with the internal/plugins/isis codec |  |
@@ -762,7 +762,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/plugins/kernel` | externally-installed kernel routes (DHCP, PPP, manual) | kernel |
 | `internal/plugins/kernel/events` | registers the kernel redistribution protocol and its route-change events |  |
 | `internal/plugins/kernel/yang` | embeds and registers the kernel plugin's YANG configuration schema |  |
-| `internal/plugins/ldp` | implements the Label Distribution Protocol (RFC 5036) | ldp |
+| `internal/plugins/ldp` | implements the Label Distribution Protocol (RFC 5036) | ldp-port |
 | `internal/plugins/ldp/yang` | embeds and registers the LDP plugin's YANG command and configuration schemas |  |
 | `internal/plugins/local` | implements the ze install and uninstall local-mode commands that copy the binary and scaffold its config directory |  |
 | `internal/plugins/log/cmd` | implements the log plugin's command handlers for listing, setting, and reading runtime log levels |  |

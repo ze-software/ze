@@ -98,6 +98,7 @@ const (
 
 	// Text format field tokens used in text event parsing.
 	tokenRemote   = "remote"
+	tokenAddress  = "address"
 	tokenAS       = "as"
 	tokenCap      = "cap"
 	tokenRouterID = "router-id"
@@ -248,8 +249,8 @@ func commandDecls() []sdk.CommandDecl {
 			// number in an object of its own, which is the spelling this answer
 			// has always used.
 			Shape:         "tab",
-			Columns:       []string{"address", "remote", "up"},
-			AddressFields: []string{"address"},
+			Columns:       []string{tokenAddress, tokenRemote, "up"},
+			AddressFields: []string{tokenAddress},
 		},
 	}
 }

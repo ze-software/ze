@@ -170,7 +170,7 @@ func registerInjectCommands() {
 					return statusError, "", errWithdrawProtocolRequiresProtocolPeerKey
 				}
 				r.withdrawAllForPeer(args[0], args[1])
-				return statusDone, map[string]any{"withdrawn": true}, nil
+				return statusDone, map[string]any{jsonKeyWithdrawn: true}, nil
 			}},
 		{"request bgp rib withdraw-router", "Withdraw all routes for a router under a protocol",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
@@ -178,7 +178,7 @@ func registerInjectCommands() {
 					return statusError, "", errWithdrawRouterRequiresProtocolRouterPrefix
 				}
 				r.withdrawAllForRouter(args[0], args[1])
-				return statusDone, map[string]any{"withdrawn": true}, nil
+				return statusDone, map[string]any{jsonKeyWithdrawn: true}, nil
 			}},
 	}
 	for _, c := range cmds {
@@ -217,7 +217,7 @@ func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []stri
 
 	_, pipeSelector, stages, errMsg := parsePipelineArgs(args)
 	if errMsg != "" {
-		return map[string]any{"error": errMsg}
+		return map[string]any{jsonKeyError: errMsg}
 	}
 	if pipeSelector != "" {
 		selector = pipeSelector
@@ -252,7 +252,7 @@ func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []stri
 	if meta.JSON != "" {
 		return json.RawMessage(meta.JSON)
 	}
-	return map[string]any{"count": meta.Count}
+	return map[string]any{jsonKeyCount: meta.Count}
 }
 
 // withdrawAllForPeer removes all routes for a peer under a given protocol.

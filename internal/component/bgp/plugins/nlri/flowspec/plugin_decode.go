@@ -23,7 +23,7 @@ var errNoValidComponentsInJson = errors.New("no valid components in JSON")
 // isValidFlowSpecFamily checks if family is a FlowSpec family.
 func isValidFlowSpecFamily(family string) bool {
 	switch family {
-	case "ipv4/flow", "ipv6/flow", "ipv4/flow-vpn", "ipv6/flow-vpn":
+	case familyIPv4Flow, familyIPv6Flow, familyIPv4FlowVPN, familyIPv6FlowVPN:
 		return true
 	default: // not a FlowSpec family
 		return false
@@ -77,7 +77,7 @@ func flowSpecToJSON(fs *FlowSpec, family string, rd *RouteDistinguisher) map[str
 
 	// Add RD for VPN families
 	if rd != nil {
-		result["rd"] = rd.String()
+		result[kwRD] = rd.String()
 	}
 
 	// Determine IPv4 vs IPv6 from family string
@@ -107,57 +107,57 @@ func componentToJSON(comp FlowComponent, isIPv6 bool) (string, [][]string) {
 
 	switch compType {
 	case FlowDestPrefix:
-		key := "destination"
+		key := kwDestination
 		if isIPv6 {
-			key = "destination-ipv6"
+			key = kwDestinationIPv6
 		}
 		prefix := formatPrefixWithOffset(comp)
 		return key, [][]string{{prefix}}
 
 	case FlowSourcePrefix:
-		key := "source"
+		key := kwSource
 		if isIPv6 {
-			key = "source-ipv6"
+			key = kwSourceIPv6
 		}
 		prefix := formatPrefixWithOffset(comp)
 		return key, [][]string{{prefix}}
 
 	case FlowIPProtocol:
-		key := "protocol"
+		key := kwProtocol
 		if isIPv6 {
-			key = "next-header"
+			key = kwNextHeader
 		}
 		return key, formatNumericMatches(comp, compType)
 
 	case FlowPort:
-		return "port", formatNumericMatches(comp, compType)
+		return kwPort, formatNumericMatches(comp, compType)
 
 	case FlowDestPort:
-		return "destination-port", formatNumericMatches(comp, compType)
+		return kwDestPort, formatNumericMatches(comp, compType)
 
 	case FlowSourcePort:
-		return "source-port", formatNumericMatches(comp, compType)
+		return kwSourcePort, formatNumericMatches(comp, compType)
 
 	case FlowICMPType:
-		return "icmp-type", formatNumericMatches(comp, compType)
+		return kwICMPType, formatNumericMatches(comp, compType)
 
 	case FlowICMPCode:
-		return "icmp-code", formatNumericMatches(comp, compType)
+		return kwICMPCode, formatNumericMatches(comp, compType)
 
 	case FlowTCPFlags:
-		return "tcp-flags", formatBitmaskMatches(comp, tcpFlagValueToNames)
+		return kwTCPFlags, formatBitmaskMatches(comp, tcpFlagValueToNames)
 
 	case FlowPacketLength:
-		return "packet-length", formatNumericMatches(comp, compType)
+		return kwPacketLength, formatNumericMatches(comp, compType)
 
 	case FlowDSCP:
-		return "dscp", formatNumericMatches(comp, compType)
+		return kwDSCP, formatNumericMatches(comp, compType)
 
 	case FlowFragment:
-		return "fragment", formatBitmaskMatches(comp, fragmentFlagValueToNames)
+		return kwFragment, formatBitmaskMatches(comp, fragmentFlagValueToNames)
 
 	case FlowFlowLabel:
-		return "flow-label", formatNumericMatches(comp, compType)
+		return kwFlowLabel, formatNumericMatches(comp, compType)
 
 	default: // unknown component type — format as type-N
 		var b textbuf.Buffer
@@ -181,16 +181,17 @@ func formatPrefixWithOffset(comp FlowComponent) string {
 	return b.Reset().Str(prefix).Byte('/').Uint8(offset).String()
 }
 
-// protocolNumberToName maps protocol numbers to names for output.
-var protocolNumberToName = map[uint8]string{
-	1:   "icmp",
-	2:   "igmp",
-	6:   "tcp",
-	17:  "udp",
-	47:  "gre",
-	58:  "icmpv6",
-	89:  "ospf",
-	132: "sctp",
+// protocolNumberToName maps protocol numbers to names for output. It is
+// derived from protocolNameToNumber so the two directions cannot disagree: a
+// name this package accepts is a name it prints back.
+var protocolNumberToName = reverseProtocolNames()
+
+func reverseProtocolNames() map[uint8]string {
+	names := make(map[uint8]string, len(protocolNameToNumber))
+	for name, number := range protocolNameToNumber {
+		names[number] = name
+	}
+	return names
 }
 
 // formatNumericMatches formats numeric component matches for ze-bgp JSON.
@@ -357,10 +358,10 @@ func formatFlowSpecText(result map[string]any) string {
 
 	// Order components logically: destination, source, protocol, ports, etc.
 	componentOrder := []string{
-		"destination", "source", "protocol",
-		"port", "destination-port", "source-port",
-		"icmp-type", "icmp-code", "tcp-flags", "packet-length", "dscp",
-		"fragment", "flow-label", "rd",
+		kwDestination, kwSource, kwProtocol,
+		kwPort, kwDestPort, kwSourcePort,
+		kwICMPType, kwICMPCode, kwTCPFlags, kwPacketLength, kwDSCP,
+		kwFragment, kwFlowLabel, kwRD,
 	}
 
 	for _, key := range componentOrder {
@@ -459,11 +460,11 @@ func jsonToTextComponents(m map[string]any) ([]string, error) {
 	// Keys match text keywords (destination-ipv6, next-header, etc.)
 	// RD must come first for VPN families (parsed before components)
 	componentOrder := []string{
-		"rd", // Route Distinguisher - must be first for VPN families
-		"destination", "destination-ipv6", "source", "source-ipv6",
-		"protocol", "next-header", "port", "destination-port", "source-port",
-		"icmp-type", "icmp-code", "tcp-flags", "packet-length", "dscp",
-		"fragment", "flow-label",
+		kwRD, // Route Distinguisher - must be first for VPN families
+		kwDestination, kwDestinationIPv6, kwSource, kwSourceIPv6,
+		kwProtocol, kwNextHeader, kwPort, kwDestPort, kwSourcePort,
+		kwICMPType, kwICMPCode, kwTCPFlags, kwPacketLength, kwDSCP,
+		kwFragment, kwFlowLabel,
 	}
 
 	for _, key := range componentOrder {
@@ -473,9 +474,9 @@ func jsonToTextComponents(m map[string]any) ([]string, error) {
 		}
 
 		// Handle RD specially - it's a simple string, not an array
-		if key == "rd" {
+		if key == kwRD {
 			if rdStr, ok := val.(string); ok {
-				args = append(args, "rd", rdStr)
+				args = append(args, kwRD, rdStr)
 			}
 			continue
 		}
@@ -555,7 +556,7 @@ func jsonToTextComponents(m map[string]any) ([]string, error) {
 // E.g., "=tcp" -> "tcp" (strip operator for protocol/next-header).
 func normalizeJSONValue(key, val string) string {
 	// Strip /0 offset suffix from prefixes (destination, source)
-	if strings.HasPrefix(key, "destination") || strings.HasPrefix(key, "source") {
+	if strings.HasPrefix(key, kwDestination) || strings.HasPrefix(key, kwSource) {
 		if strings.HasSuffix(val, "/0") {
 			// "10.0.0.0/24/0" -> "10.0.0.0/24"
 			parts := strings.Split(val, "/")
@@ -567,7 +568,7 @@ func normalizeJSONValue(key, val string) string {
 	}
 
 	// Strip operator prefix for protocol/next-header (text parser expects plain value)
-	if key == kwProtocol || key == "next-header" {
+	if key == kwProtocol || key == kwNextHeader {
 		// "=tcp" -> "tcp", "=6" -> "6"
 		val = strings.TrimPrefix(val, "=")
 		val = strings.TrimPrefix(val, "<")

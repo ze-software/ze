@@ -1065,7 +1065,7 @@ func (h *histogramTerminal) drain() {
 	}
 
 	h.meta.Count = count
-	data, _ := json.Marshal(map[string]any{"histogram": histogram, "count": count})
+	data, _ := json.Marshal(map[string]any{"histogram": histogram, jsonKeyCount: count})
 	h.meta.JSON = string(data)
 }
 
@@ -1141,6 +1141,8 @@ func (jt *jsonTerminal) drain() {
 const (
 	rowKeyPeer      = "peer"
 	rowKeyDirection = "direction"
+	rowKeyFamily    = "family"
+	rowKeyPrefix    = "prefix"
 )
 
 func (jt *jsonTerminal) Meta() PipelineMeta {
@@ -1153,8 +1155,8 @@ func (jt *jsonTerminal) Meta() PipelineMeta {
 // serializeRouteItem converts a RouteItem to a JSON-serializable map.
 func serializeRouteItem(item RouteItem) map[string]any {
 	routeMap := map[string]any{
-		"family": item.Family,
-		"prefix": item.Prefix,
+		rowKeyFamily: item.Family,
+		rowKeyPrefix: item.Prefix,
 	}
 
 	if item.HasInEntry {
@@ -1181,8 +1183,26 @@ const (
 	scopeSentReceived = "sent-received"
 )
 
-// filterPath is the pipeline keyword for AS-path filtering.
-const filterPath = "path"
+// Pipeline stage keywords: the vocabulary an operator types after a pipe.
+// apply(), filterKeywords and terminalKeywords each transcribe this set, and
+// parseBestPipelineArgs (rib_pipeline_best.go) reads the same two maps, so the
+// spelling lives here once and the tables cannot drift apart. A keyword that
+// names a route field uses that field's row key above, because the filter
+// selects on the field the output is keyed by.
+const (
+	// filterPath is the pipeline keyword for AS-path filtering.
+	filterPath      = "path"
+	filterASPath    = "aspath"
+	filterCommunity = "community"
+	filterMatch     = "match"
+	filterFirst     = "first"
+	filterLast      = "last"
+
+	terminalCount     = "count"
+	terminalJSON      = "json"
+	terminalHistogram = "histogram"
+	terminalGraph     = "graph"
+)
 
 // showPipeline builds and executes a pipeline from command args.
 // Called by handleCommand for "show bgp rib" with optional scope + filter stages.
@@ -1199,7 +1219,7 @@ const filterPath = "path"
 func (r *RIBManager) showPipeline(selector string, args []string) any {
 	scope, pipeSelector, stages, errMsg := parsePipelineArgs(args)
 	if errMsg != "" {
-		return map[string]any{"error": errMsg}
+		return map[string]any{jsonKeyError: errMsg}
 	}
 	if pipeSelector != "" {
 		selector = pipeSelector
@@ -1234,7 +1254,7 @@ func (r *RIBManager) showPipeline(selector string, args []string) any {
 	}
 
 	// count terminal
-	return map[string]any{"count": meta.Count}
+	return map[string]any{jsonKeyCount: meta.Count}
 }
 
 // showRowsEnvelopeKey names the list `show bgp rib` answers with. One envelope,
@@ -1321,27 +1341,27 @@ type pipelineStage struct {
 
 func (s pipelineStage) apply(upstream pipelineIterator) pipelineIterator {
 	switch s.kind {
-	case filterPath, "aspath":
+	case filterPath, filterASPath:
 		return newPathFilter(upstream, s.arg)
-	case "prefix":
+	case rowKeyPrefix:
 		return newPrefixFilter(upstream, s.arg)
-	case "community":
+	case filterCommunity:
 		return newCommunityFilter(upstream, s.arg)
-	case "family":
+	case rowKeyFamily:
 		return newFamilyFilter(upstream, s.arg)
-	case "match":
+	case filterMatch:
 		return newMatchFilter(upstream, s.arg)
-	case "first":
+	case filterFirst:
 		return newFirstFilter(upstream, s.arg)
-	case "last":
+	case filterLast:
 		return newLastFilter(upstream, s.arg)
-	case "count":
+	case terminalCount:
 		return newCountTerminal(upstream)
-	case "json":
+	case terminalJSON:
 		return newJSONTerminal(upstream)
-	case "histogram":
+	case terminalHistogram:
 		return newHistogramTerminal(upstream)
-	case "graph":
+	case terminalGraph:
 		return newGraphTerminal(upstream)
 	}
 	// parsePipelineArgs validates all keywords before reaching here,
@@ -1351,22 +1371,22 @@ func (s pipelineStage) apply(upstream pipelineIterator) pipelineIterator {
 
 // filterKeywords are pipeline stage keywords that require a value argument.
 var filterKeywords = map[string]bool{
-	filterPath:  true,
-	"aspath":    true,
-	"prefix":    true,
-	"community": true,
-	"family":    true,
-	"match":     true,
-	"first":     true,
-	"last":      true,
+	filterPath:      true,
+	filterASPath:    true,
+	rowKeyPrefix:    true,
+	filterCommunity: true,
+	rowKeyFamily:    true,
+	filterMatch:     true,
+	filterFirst:     true,
+	filterLast:      true,
 }
 
 // terminalKeywords are pipeline terminal keywords that take no value.
 var terminalKeywords = map[string]bool{
-	"count":     true,
-	"json":      true,
-	"histogram": true,
-	"graph":     true,
+	terminalCount:     true,
+	terminalJSON:      true,
+	terminalHistogram: true,
+	terminalGraph:     true,
 }
 
 // scopeKeywords are positional scope keywords (must appear first).
@@ -1415,7 +1435,7 @@ func parsePipelineArgs(args []string) (string, string, []pipelineStage, string) 
 			i++
 			continue
 		}
-		if keyword == "peer" {
+		if keyword == rowKeyPeer {
 			if sawTerminal {
 				return "", "", nil, "filter after terminal: peer"
 			}
@@ -1450,7 +1470,7 @@ func parsePipelineArgs(args []string) (string, string, []pipelineStage, string) 
 			// check is bypassed when these are folded into the command for the
 			// server-side fast path, so validate here too: reject non-numeric
 			// and <= 0 rather than silently clamping (and never preallocate N).
-			if keyword == "first" || keyword == "last" {
+			if keyword == filterFirst || keyword == filterLast {
 				if n, err := strconv.Atoi(args[i]); err != nil || n <= 0 {
 					var tb textbuf.Buffer
 					return "", "", nil, tb.Str(keyword).Str(" requires a positive number").String()

@@ -45,11 +45,11 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 	var routeType byte
 	switch req.Content[0] {
 	case "source-ad":
-		routeType = 5
+		routeType = byte(MVPNSourceActive)
 	case "shared-join":
-		routeType = 6
+		routeType = byte(MVPNSharedTreeJoin)
 	case "source-join":
-		routeType = 7
+		routeType = byte(MVPNSourceTreeJoin)
 	default:
 		return registry.PluginRoute{}, fmt.Errorf("unknown MVPN route type %q", req.Content[0])
 	}

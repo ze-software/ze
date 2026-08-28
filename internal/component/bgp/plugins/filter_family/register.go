@@ -9,8 +9,8 @@ func init() {
 	_ = registry.Register(registry.Registration{
 		Name:         "bgp-filter-family",
 		Description:  "Named address-family policy filter: remove a family's NLRI or tear down the session",
-		ConfigRoots:  []string{"bgp"},
-		Dependencies: []string{"bgp"},
+		ConfigRoots:  []string{configRootBGP},
+		Dependencies: []string{configRootBGP},
 		YANG:         ffyang.ZeFilterFamilyYANG,
 		FilterTypes:  []string{"family-filter"},
 		RunEngine:    runFilterFamily,

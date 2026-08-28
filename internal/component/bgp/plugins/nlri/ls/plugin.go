@@ -67,8 +67,8 @@ func runBGPLSPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: "bgp-ls/bgp-ls", Mode: "decode", AFI: 16388, SAFI: 71},
-			{Name: "bgp-ls/bgp-ls-vpn", Mode: "decode", AFI: 16388, SAFI: 72},
+			{Name: familyBGPLS, Mode: familyModeDecode, AFI: 16388, SAFI: 71},
+			{Name: familyBGPLSVPN, Mode: familyModeDecode, AFI: 16388, SAFI: 72},
 		},
 	})
 	if err != nil {
@@ -78,6 +78,29 @@ func runBGPLSPlugin(conn net.Conn) int {
 
 	return 0
 }
+
+// Address family names this plugin registers and decodes. The plugin registry,
+// the CLI and the reactor all match a family by exact string. TestBGPLSFamily
+// holds them against BGPLSFamily.String() and BGPLSVPNFamily.String().
+const (
+	familyBGPLS    = "bgp-ls/bgp-ls"     // AFI 16388, SAFI 71
+	familyBGPLSVPN = "bgp-ls/bgp-ls-vpn" // AFI 16388, SAFI 72
+
+	// familyModeDecode declares a family this plugin decodes but never encodes.
+	// The plugin server reads it as sdk.FamilyDecl.Mode.
+	familyModeDecode = "decode"
+)
+
+// JSON keys of the decoded NLRI objects this plugin emits.
+const (
+	// jsonKeyParsed reports whether the NLRI could be decoded, and jsonKeyRaw
+	// carries the undecoded wire bytes that go with a false.
+	jsonKeyParsed = "parsed"
+	jsonKeyRaw    = "raw"
+
+	// jsonKeyRouterID is the IGP Router-ID of a node descriptor (TLV 515).
+	jsonKeyRouterID = "router-id"
+)
 
 // Protocol constants.
 const (
@@ -251,7 +274,7 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 
 // isValidBGPLSFamily checks if family is a BGP-LS family.
 func isValidBGPLSFamily(family string) bool {
-	return family == "bgp-ls/bgp-ls" || family == "bgp-ls/bgp-ls-vpn"
+	return family == familyBGPLS || family == familyBGPLSVPN
 }
 
 // decodeBGPLSNLRI decodes BGP-LS NLRI wire bytes to array of JSON maps.
@@ -262,8 +285,8 @@ func decodeBGPLSNLRI(data []byte) []map[string]any {
 	// Handle empty/truncated data
 	if len(data) < 4 {
 		results = append(results, map[string]any{
-			"parsed": false,
-			"raw":    strings.ToUpper(textbuf.StringHex(data)),
+			jsonKeyParsed: false,
+			jsonKeyRaw:    strings.ToUpper(textbuf.StringHex(data)),
 		})
 		return results
 	}
@@ -278,8 +301,8 @@ func decodeBGPLSNLRI(data []byte) []map[string]any {
 				// overruns), so the next boundary cannot be found. Everything left is one
 				// opaque blob, and the loop has to stop.
 				results = append(results, map[string]any{
-					"parsed": false,
-					"raw":    strings.ToUpper(textbuf.StringHex(remaining)),
+					jsonKeyParsed: false,
+					jsonKeyRaw:    strings.ToUpper(textbuf.StringHex(remaining)),
 				})
 				break
 			}
@@ -292,8 +315,8 @@ func decodeBGPLSNLRI(data []byte) []map[string]any {
 			// early in a densely packed UPDATE erased the structured view of every NLRI
 			// after it, for known types too.
 			results = append(results, map[string]any{
-				"parsed": false,
-				"raw":    strings.ToUpper(textbuf.StringHex(remaining[:len(remaining)-len(rest)])),
+				jsonKeyParsed: false,
+				jsonKeyRaw:    strings.ToUpper(textbuf.StringHex(remaining[:len(remaining)-len(rest)])),
 			})
 			remaining = rest
 			continue
@@ -570,18 +593,18 @@ func parseNodeDescriptorSubTLVs(data []byte) []any {
 			case 8:
 				// OSPF pseudonode: Router-ID + DR interface
 				descs = append(descs, map[string]any{
-					"router-id":            textbuf.StringAddr(netip.AddrFrom4([4]byte(value[:4]))),
+					jsonKeyRouterID:        textbuf.StringAddr(netip.AddrFrom4([4]byte(value[:4]))),
 					"designated-router-id": textbuf.StringAddr(netip.AddrFrom4([4]byte(value[4:8]))),
 				})
 			case 7:
 				// IS-IS pseudonode: System-ID + PSN
 				descs = append(descs, map[string]any{
-					"router-id": routerID,
-					"psn":       textbuf.StringUint8(value[6]),
+					jsonKeyRouterID: routerID,
+					"psn":           textbuf.StringUint8(value[6]),
 				})
 			// RFC 7752: 4-byte (OSPF) and 6-byte (IS-IS) are standard lengths.
 			case 4, 6:
-				descs = append(descs, map[string]any{"router-id": routerID})
+				descs = append(descs, map[string]any{jsonKeyRouterID: routerID})
 			}
 			// Unknown Router-ID lengths are silently skipped per RFC 7752 forward-compatibility.
 		}

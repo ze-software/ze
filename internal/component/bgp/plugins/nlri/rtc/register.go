@@ -19,7 +19,7 @@ func init() {
 		RFCs:         []string{"4684"},
 		SupportsNLRI: true,
 		Features:     "nlri",
-		Families:     []string{"ipv4/rtc"},
+		Families:     []string{familyIPv4RTC},
 		RunEngine:    runRTCPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecode(input, output)
@@ -35,7 +35,7 @@ func init() {
 			SetLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		cfg.RunCLIWithCtx = func(hex string, text bool, out, errOut io.Writer, _ *flag.FlagSet) int {
-			return RunCLIDecode(hex, "ipv4/rtc", text, out, errOut)
+			return RunCLIDecode(hex, familyIPv4RTC, text, out, errOut)
 		}
 		cfg.RunDecode = RunDecode
 		return cli.RunPlugin(cfg, args)

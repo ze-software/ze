@@ -62,7 +62,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 	spec := bgptypes.MUPRouteSpec{IsIPv6: isIPv6}
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "route-type":
+		case kwRouteType:
 			i++
 			if i >= len(args) {
 				return "", errRouteTypeRequiresValue

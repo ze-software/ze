@@ -57,6 +57,40 @@ const (
 	statusError = "error"
 )
 
+// Prometheus label NAMES for the RIB metrics. A label name is part of a
+// metric's identity, so a misspelling creates a second time series instead of
+// an error. They are not the JSON field names of the same concepts
+// (rowKeyPeer, rowKeyFamily in rib_pipeline.go): one is read by PromQL, the
+// other by a consumer of a command's output.
+const (
+	metricLabelPeer   = "peer"
+	metricLabelFamily = "family"
+	metricLabelPool   = "pool"
+)
+
+// Envelope fields of the JSON payloads the rib commands return. A route
+// property is a row key instead (rib_pipeline.go).
+const (
+	// jsonKeyError is the field a failed command reports its message in. It is
+	// a KEY, where statusError above is a status VALUE.
+	jsonKeyError = "error"
+
+	jsonKeyCount     = "count"
+	jsonKeyInjected  = "injected"
+	jsonKeyWithdrawn = "withdrawn"
+	jsonKeyExisted   = "existed"
+)
+
+const (
+	// configRootBGP is the config subtree this plugin is delivered, and the
+	// dependency it declares. A misspelling leaves the plugin configured with
+	// nothing rather than refused.
+	configRootBGP = "bgp"
+	// protocolNameBGP is the protocol a redistribute route carries. It is the
+	// name an operator writes, not the config root, even where they agree.
+	protocolNameBGP = "bgp"
+)
+
 // loggerPtr is the package-level logger, disabled by default.
 // Use SetLogger() to enable logging from CLI --log-level flag.
 // Stored as atomic.Pointer to avoid data races when tests start
@@ -137,15 +171,15 @@ func SetMetricsRegistry(reg metrics.Registry) {
 	m := &ribMetrics{
 		routesIn:     reg.Gauge("ze_rib_routes_in_total", "Total Adj-RIB-In route count."),
 		routesOut:    reg.Gauge("ze_rib_routes_out_total", "Total Adj-RIB-Out route count."),
-		routesInVec:  reg.GaugeVec("ze_rib_routes_in", "Adj-RIB-In route count per peer.", []string{"peer"}),
-		routesOutVec: reg.GaugeVec("ze_rib_routes_out", "Adj-RIB-Out route count per peer.", []string{"peer"}),
+		routesInVec:  reg.GaugeVec("ze_rib_routes_in", "Adj-RIB-In route count per peer.", []string{metricLabelPeer}),
+		routesOutVec: reg.GaugeVec("ze_rib_routes_out", "Adj-RIB-Out route count per peer.", []string{metricLabelPeer}),
 
-		routeInserts:     reg.CounterVec("ze_rib_route_inserts_total", "Routes inserted into Adj-RIB-In.", []string{"peer", "family"}),
-		routeWithdrawals: reg.CounterVec("ze_rib_route_withdrawals_total", "Routes withdrawn from Adj-RIB-In.", []string{"peer", "family"}),
+		routeInserts:     reg.CounterVec("ze_rib_route_inserts_total", "Routes inserted into Adj-RIB-In.", []string{metricLabelPeer, metricLabelFamily}),
+		routeWithdrawals: reg.CounterVec("ze_rib_route_withdrawals_total", "Routes withdrawn from Adj-RIB-In.", []string{metricLabelPeer, metricLabelFamily}),
 
-		poolInternTotal: reg.GaugeVec("ze_attr_pool_intern_total", "Total Intern() calls per pool.", []string{"pool"}),
-		poolDedupHits:   reg.GaugeVec("ze_attr_pool_dedup_hits_total", "Intern() dedup hits per pool.", []string{"pool"}),
-		poolSlotsUsed:   reg.GaugeVec("ze_attr_pool_slots_used", "Active slots per pool.", []string{"pool"}),
+		poolInternTotal: reg.GaugeVec("ze_attr_pool_intern_total", "Total Intern() calls per pool.", []string{metricLabelPool}),
+		poolDedupHits:   reg.GaugeVec("ze_attr_pool_dedup_hits_total", "Intern() dedup hits per pool.", []string{metricLabelPool}),
+		poolSlotsUsed:   reg.GaugeVec("ze_attr_pool_slots_used", "Active slots per pool.", []string{metricLabelPool}),
 
 		bestpathInternerSize: reg.GaugeVec("ze_rib_bestpath_interner_size",
 			"Best-path interner reverse-table entry count (cap 65536 per table).",
@@ -153,7 +187,7 @@ func SetMetricsRegistry(reg metrics.Registry) {
 
 		bestprevShardDepth: reg.GaugeVec("ze_rib_bestprev_shard_depth",
 			"Number of stored bestPathRecords per (family, shard).",
-			[]string{"family", "shard"}),
+			[]string{metricLabelFamily, "shard"}),
 	}
 	metricsPtr.Store(m)
 }
@@ -516,7 +550,7 @@ func (r *RIBManager) updateMetrics() {
 // bgpProtocolID is the canonical ProtocolID for BGP under the shared
 // redistevents registry. Registered at package init so every RIBManager
 // shares the same numeric identity when it publishes into Loc-RIB.
-var bgpProtocolID = redistevents.RegisterProtocol("bgp")
+var bgpProtocolID = redistevents.RegisterProtocol(protocolNameBGP)
 
 var bmpProtocolID = redistevents.RegisterProtocol("bmp")
 
@@ -642,7 +676,7 @@ func runRIBPlugin(conn net.Conn) int {
 	// default in place.
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			maxP, relax := extractMultipathConfig(section.Data)
@@ -712,7 +746,7 @@ func runRIBPlugin(conn net.Conn) int {
 	err := p.Run(ctx, sdk.Registration{
 		// WantsConfig: receive the bgp subtree in Stage 2 so OnConfigure can
 		// read multipath config (maximum-paths, relax-as-path).
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 		Commands: []sdk.CommandDecl{
 			// Unified show with pipeline (scope + filters + terminals)
 			{Name: "show bgp rib status"},

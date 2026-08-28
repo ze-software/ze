@@ -16,6 +16,14 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// The JSON record keys a decoded capability answers with. A misspelling here
+// drops the field from the record rather than failing, so the reader sees a
+// capability with no name.
+const (
+	jsonKeyName  = "name"
+	jsonKeyValue = "value"
+)
+
 var capNames = map[uint8]string{
 	1:  "multiprotocol",
 	5:  "extended-nexthop",
@@ -83,7 +91,7 @@ func decodeCapability(code uint8, hexData string) map[string]any {
 
 	data, err := hex.DecodeString(hexData)
 	if err != nil {
-		return map[string]any{"name": name}
+		return map[string]any{jsonKeyName: name}
 	}
 
 	switch code {
@@ -92,7 +100,7 @@ func decodeCapability(code uint8, hexData string) map[string]any {
 	case 5:
 		return decodeExtendedNextHop(name, data)
 	case 6:
-		return map[string]any{"name": name}
+		return map[string]any{jsonKeyName: name}
 	case 65:
 		return decodeASN4(name, data)
 	case 69:
@@ -100,36 +108,36 @@ func decodeCapability(code uint8, hexData string) map[string]any {
 	case 76:
 		return decodePathsLimit(name, data)
 	}
-	return map[string]any{"name": name}
+	return map[string]any{jsonKeyName: name}
 }
 
 func decodeMultiprotocol(name string, data []byte) map[string]any {
 	if len(data) < 4 {
-		return map[string]any{"name": name}
+		return map[string]any{jsonKeyName: name}
 	}
 	afi := capability.AFI(binary.BigEndian.Uint16(data[0:2]))
 	safi := capability.SAFI(data[3])
 	var tb textbuf.Buffer
 	return map[string]any{
-		"name":  name,
-		"value": tb.Str(afi.String()).Byte('/').Str(safi.String()).String(),
+		jsonKeyName:  name,
+		jsonKeyValue: tb.Str(afi.String()).Byte('/').Str(safi.String()).String(),
 	}
 }
 
 func decodeASN4(name string, data []byte) map[string]any {
 	if len(data) < 4 {
-		return map[string]any{"name": name}
+		return map[string]any{jsonKeyName: name}
 	}
 	asn := binary.BigEndian.Uint32(data)
 	return map[string]any{
-		"name":  name,
-		"value": textbuf.StringUint(uint64(asn)),
+		jsonKeyName:  name,
+		jsonKeyValue: textbuf.StringUint(uint64(asn)),
 	}
 }
 
 func decodeAddPath(name string, data []byte) map[string]any {
 	if len(data)%4 != 0 {
-		return map[string]any{"name": name}
+		return map[string]any{jsonKeyName: name}
 	}
 	var tb textbuf.Buffer
 	families := make([]string, len(data)/4)
@@ -139,12 +147,12 @@ func decodeAddPath(name string, data []byte) map[string]any {
 		safi := capability.SAFI(data[off+2])
 		families[i] = tb.Reset().Str(afi.String()).Byte('/').Str(safi.String()).String()
 	}
-	return map[string]any{"name": name, "value": families}
+	return map[string]any{jsonKeyName: name, jsonKeyValue: families}
 }
 
 func decodePathsLimit(name string, data []byte) map[string]any {
 	if len(data)%5 != 0 {
-		return map[string]any{"name": name}
+		return map[string]any{jsonKeyName: name}
 	}
 	var tb textbuf.Buffer
 	entries := make([]string, 0, len(data)/5)
@@ -154,12 +162,12 @@ func decodePathsLimit(name string, data []byte) map[string]any {
 		limit := binary.BigEndian.Uint16(data[i+3:])
 		entries = append(entries, tb.Reset().Str(afi.String()).Byte('/').Str(safi.String()).Byte(' ').Uint16(limit).String())
 	}
-	return map[string]any{"name": name, "value": entries}
+	return map[string]any{jsonKeyName: name, jsonKeyValue: entries}
 }
 
 func decodeExtendedNextHop(name string, data []byte) map[string]any {
 	if len(data)%6 != 0 {
-		return map[string]any{"name": name}
+		return map[string]any{jsonKeyName: name}
 	}
 	var tb textbuf.Buffer
 	families := make([]string, len(data)/6)
@@ -170,7 +178,7 @@ func decodeExtendedNextHop(name string, data []byte) map[string]any {
 		nhAFI := capability.AFI(binary.BigEndian.Uint16(data[off+4:]))
 		families[i] = tb.Reset().Str(nlriAFI.String()).Byte('/').Str(nlriSAFI.String()).Str("->").Str(nhAFI.String()).String()
 	}
-	return map[string]any{"name": name, "value": families}
+	return map[string]any{jsonKeyName: name, jsonKeyValue: families}
 }
 
 func writeResponse(w io.Writer, s string) {

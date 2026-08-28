@@ -35,6 +35,8 @@ var errFilterCommunityMatchInvalidBgpConfig = errors.New("filter-community-match
 
 var logger = slogutil.LazyLogger("bgp.filter.community.match")
 
+const configRootBGP = "bgp"
+
 // listsByName is the runtime-loaded set of community-match definitions.
 // Updated atomically on every OnConfigure delivery.
 var listsByName atomic.Pointer[map[string]*communityList]
@@ -46,7 +48,7 @@ func runFilterCommunityMatch(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
@@ -70,7 +72,7 @@ func runFilterCommunityMatch(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 	}); err != nil {
 		logger().Error("filter-community-match plugin failed", "error", err)
 		return 1

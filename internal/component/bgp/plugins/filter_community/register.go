@@ -59,8 +59,8 @@ func init() {
 	_ = registry.Register(registry.Registration{
 		Name:         "bgp-filter-community",
 		Description:  "Community tag/strip filter (standard, large, extended)",
-		ConfigRoots:  []string{"bgp"},
-		Dependencies: []string{"bgp"},
+		ConfigRoots:  []string{configRootBGP},
+		Dependencies: []string{configRootBGP},
 		YANG:         fcyang.ZeFilterCommunityYANG,
 		RunEngine:    runFilterCommunity,
 		CLIHandler:   func(_ []string) int { return 0 },

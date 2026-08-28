@@ -29,7 +29,7 @@ func init() {
 		Description: "Route Information Base storage",
 		RFCs:        []string{"4271"},
 		Features:    "yang",
-		ConfigRoots: []string{"bgp"},
+		ConfigRoots: []string{configRootBGP},
 		YANG:        ribyang.ZeRibYANG,
 		RunEngine:   runRIBPlugin,
 		ConfigureEngineLogger: func(loggerName string) {

@@ -40,6 +40,8 @@ var errFilterFamilyInvalidBgpConfigJSON = errors.New("filter-family: invalid bgp
 
 var logger = slogutil.LazyLogger("bgp.filter.family")
 
+const configRootBGP = "bgp"
+
 // instancesByName is the runtime-loaded set of family-filter instances, keyed by
 // the YANG list name. Updated atomically on every OnConfigure delivery so the hot
 // path reads without a lock.
@@ -53,7 +55,7 @@ func runFilterFamily(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
@@ -74,7 +76,7 @@ func runFilterFamily(conn net.Conn) int {
 	// before it is applied, so a bad config is rejected at validate/reload time.
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
@@ -95,7 +97,7 @@ func runFilterFamily(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 		Filters: []sdk.FilterDecl{{
 			Name:      "*",
 			Direction: sdk.FilterBoth,

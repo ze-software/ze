@@ -25,6 +25,8 @@ import (
 // RFC 9234 Section 4.1: BGP Role Capability (Code 9, Length 1).
 const roleCapCode = 9
 
+const configRootBGP = "bgp"
+
 // loggerPtr is the package-level logger, disabled by default.
 var loggerPtr atomic.Pointer[slog.Logger]
 
@@ -310,7 +312,7 @@ func RunRolePlugin(conn net.Conn) int {
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		var caps []sdk.CapabilityDecl
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			peerConfigs, nameToIP = extractPeerRoleConfigs(section.Data)
@@ -334,7 +336,7 @@ func RunRolePlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 	})
 	if err != nil {
 		logger().Error("role plugin failed", "error", err)

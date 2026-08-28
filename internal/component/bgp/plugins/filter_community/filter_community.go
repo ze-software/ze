@@ -33,6 +33,8 @@ var errFilterCommunityInvalidBgpConfigJson = errors.New("filter-community: inval
 
 var logger = slogutil.LazyLogger("bgp.filter.community")
 
+const configRootBGP = "bgp"
+
 // state holds the plugin's runtime state, populated via OnConfigure
 // callback. Protected by mu for concurrent access from filter closures.
 var (
@@ -52,7 +54,7 @@ func runFilterCommunity(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
@@ -69,7 +71,7 @@ func runFilterCommunity(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 	}); err != nil {
 		logger().Error("filter-community plugin failed", "error", err)
 		return 1

@@ -86,6 +86,26 @@ var (
 	errEmptyString         = errors.New("empty string")
 )
 
+// messageCounters renders one direction of the per-message-type counters that
+// `show bgp peer detail` answers under "messages".
+//
+// Both directions go through it, so the received half and the sent half cannot
+// name a message type differently: they were two hand-written tables of the
+// same seven keys, and a typo in either was a key an operator reads on one
+// side and never on the other. "total" stays uint32 arithmetic, which is what
+// the two tables computed.
+func messageCounters(opens, updates, notifications, keepalives, refresh, eor uint32) map[string]any {
+	return map[string]any{
+		"opens":         opens,
+		"updates":       updates,
+		"notifications": notifications,
+		"keepalives":    keepalives,
+		"route-refresh": refresh,
+		"eor":           eor,
+		"total":         opens + updates + notifications + keepalives + refresh + eor,
+	}
+}
+
 func notifDirection(recv bool) string {
 	if recv {
 		return "received"
@@ -129,24 +149,24 @@ func registerColumns() {
 	// an "uptime" key: the peer rows, and the record that holds them.
 	command.RegisterColumns([]string{cmdBgp},
 		command.ColumnOrder{
-			"address", "name", "description", "remote-as", "peer-type",
-			"state", "uptime", "state-changed", "last-error",
+			fieldAddress, fieldName, "description", fieldRemoteAS, fieldPeerType,
+			fieldState, fieldUptime, "state-changed", "last-error",
 			"routes-received", "routes-accepted", "routes-sent",
-			"updates-received", "updates-sent",
-			"keepalives-received", "keepalives-sent",
-			"eor-received", "eor-sent",
-			"connections-dropped",
+			fieldUpdatesReceived, fieldUpdatesSent,
+			fieldKeepalivesReceived, fieldKeepalivesSent,
+			fieldEORReceived, fieldEORSent,
+			fieldConnectionsDropped,
 		},
 		command.ColumnOrder{
-			"router-id", "local-as", "uptime",
+			fieldRouterID, fieldLocalAS, fieldUptime,
 			"peers-configured", "peers-established",
-			"family", "peers-in-family", "peers",
+			"family", "peers-in-family", fieldPeers,
 		},
 	)
 	// `show bgp peer list` indexes its rows by address, so the address is
 	// already the first column and the order carries the fields that follow it.
 	command.RegisterColumns([]string{cmdBgpPeerList},
-		command.ColumnOrder{"name", "group", "remote-as", "state", "uptime"},
+		command.ColumnOrder{fieldName, fieldGroup, fieldRemoteAS, fieldState, fieldUptime},
 	)
 	// `show bgp peer detail` indexes its rows by address as the list does, so
 	// its order carries the fields that follow it, in the four-part sequence
@@ -156,8 +176,8 @@ func registerColumns() {
 	// alphabetically and reading them in that sequence loses nothing.
 	command.RegisterColumns([]string{cmdBgpPeerDetail},
 		command.ColumnOrder{
-			"name", "group", "remote-as", "local-as", "peer-type", "router-id",
-			"state", "uptime", "last-notification",
+			fieldName, fieldGroup, fieldRemoteAS, fieldLocalAS, fieldPeerType, fieldRouterID,
+			fieldState, fieldUptime, "last-notification",
 			"local-ip", "next-hop", "next-hop-address", "timer", "capabilities",
 		},
 	)
@@ -214,7 +234,7 @@ func registerShapes() {
 	// `show bgp rib` (registerPipeFilters in
 	// internal/component/bgp/plugins/cmd/rib/rib.go), and registerHealthShape
 	// in health.go names "peer" for `show bgp health`.
-	command.RegisterAddressFields([]string{cmdBgp}, "address")
+	command.RegisterAddressFields([]string{cmdBgp}, fieldAddress)
 	command.RegisterAddressFields([]string{cmdBgpPeerList})
 
 	// `show bgp peer detail` carries two fields that hold an address: the
@@ -287,7 +307,7 @@ func filterPeersByArgs(ctx *pluginserver.CommandContext, args []string) ([]plugi
 
 func filterPeersBySelectorValue(ctx *pluginserver.CommandContext, selectorStr string) ([]plugin.PeerInfo, *plugin.Response, error) {
 	if ctx.Reactor() == nil {
-		return nil, &plugin.Response{Status: plugin.StatusError, Error: "reactor not available"}, errReactorNotAvailable
+		return nil, &plugin.Response{Status: plugin.StatusError, Error: errReactorNotAvailable.Error()}, errReactorNotAvailable
 	}
 	allPeers := ctx.Reactor().Peers()
 
@@ -386,15 +406,15 @@ func handleBgpPeerList(ctx *pluginserver.CommandContext, args []string) (*plugin
 	for i := range peers {
 		p := &peers[i]
 		row := map[string]any{
-			"remote-as": p.PeerAS,
-			"state":     p.State.String(),
-			"uptime":    p.Uptime.Truncate(time.Second).String(),
+			fieldRemoteAS: p.PeerAS,
+			fieldState:    p.State.String(),
+			fieldUptime:   p.Uptime.Truncate(time.Second).String(),
 		}
 		if p.Name != "" {
-			row["name"] = p.Name
+			row[fieldName] = p.Name
 		}
 		if p.GroupName != "" {
-			row["group"] = p.GroupName
+			row[fieldGroup] = p.GroupName
 		}
 		result[p.Address.String()] = row
 	}
@@ -402,7 +422,7 @@ func handleBgpPeerList(ctx *pluginserver.CommandContext, args []string) (*plugin
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"peers": result,
+			fieldPeers: result,
 		},
 	}, nil
 }
@@ -429,53 +449,37 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, args []string) (*plug
 			"connect-retry":     int(p.ConnectRetry.Seconds()),
 		}
 		row := map[string]any{
-			"remote-as":           p.PeerAS,
-			"local-as":            p.LocalAS,
-			"router-id":           routerID,
-			"peer-type":           p.PeerType,
-			"timer":               timer,
-			"connect":             p.Connect,
-			"accept":              p.Accept,
-			"state":               p.State.String(),
-			"uptime":              p.Uptime.Truncate(time.Second).String(),
-			"updates-received":    p.UpdatesReceived,
-			"updates-sent":        p.UpdatesSent,
-			"keepalives-received": p.KeepalivesReceived,
-			"keepalives-sent":     p.KeepalivesSent,
-			"eor-received":        p.EORReceived,
-			"eor-sent":            p.EORSent,
+			fieldRemoteAS:           p.PeerAS,
+			fieldLocalAS:            p.LocalAS,
+			fieldRouterID:           routerID,
+			fieldPeerType:           p.PeerType,
+			"timer":                 timer,
+			"connect":               p.Connect,
+			"accept":                p.Accept,
+			fieldState:              p.State.String(),
+			fieldUptime:             p.Uptime.Truncate(time.Second).String(),
+			fieldUpdatesReceived:    p.UpdatesReceived,
+			fieldUpdatesSent:        p.UpdatesSent,
+			fieldKeepalivesReceived: p.KeepalivesReceived,
+			fieldKeepalivesSent:     p.KeepalivesSent,
+			fieldEORReceived:        p.EORReceived,
+			fieldEORSent:            p.EORSent,
 			"messages": map[string]any{
-				"received": map[string]any{
-					"opens":         p.OpensReceived,
-					"updates":       p.UpdatesReceived,
-					"notifications": p.NotificationsReceived,
-					"keepalives":    p.KeepalivesReceived,
-					"route-refresh": p.RefreshReceived,
-					"eor":           p.EORReceived,
-					"total":         p.OpensReceived + p.UpdatesReceived + p.NotificationsReceived + p.KeepalivesReceived + p.RefreshReceived + p.EORReceived,
-				},
-				"sent": map[string]any{
-					"opens":         p.OpensSent,
-					"updates":       p.UpdatesSent,
-					"notifications": p.NotificationsSent,
-					"keepalives":    p.KeepalivesSent,
-					"route-refresh": p.RefreshSent,
-					"eor":           p.EORSent,
-					"total":         p.OpensSent + p.UpdatesSent + p.NotificationsSent + p.KeepalivesSent + p.RefreshSent + p.EORSent,
-				},
+				"received": messageCounters(p.OpensReceived, p.UpdatesReceived, p.NotificationsReceived, p.KeepalivesReceived, p.RefreshReceived, p.EORReceived),
+				"sent":     messageCounters(p.OpensSent, p.UpdatesSent, p.NotificationsSent, p.KeepalivesSent, p.RefreshSent, p.EORSent),
 			},
 			"connections-established": p.ConnectionsEstablished,
-			"connections-dropped":     p.ConnectionsDropped,
+			fieldConnectionsDropped:   p.ConnectionsDropped,
 			"flap-count":              p.FlapCount,
 			// RFC 4271 §8.1.1 mandatory session attribute 2: "the number of
 			// times a BGP peer has tried to establish a peer session".
 			"connect-retry-counter": p.ConnectRetryCounter,
 		}
 		if p.Name != "" {
-			row["name"] = p.Name
+			row[fieldName] = p.Name
 		}
 		if p.GroupName != "" {
-			row["group"] = p.GroupName
+			row[fieldGroup] = p.GroupName
 		}
 		if p.LocalAddress.IsValid() {
 			row["local-ip"] = p.LocalAddress.String()
@@ -537,7 +541,7 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, args []string) (*plug
 			row["export-policy"] = p.ExportFilters
 		}
 		caps := map[string]any{
-			"negotiation-complete":   p.NegotiationComplete,
+			fieldNegotiationComplete: p.NegotiationComplete,
 			"asn4":                   p.NegotiatedASN4,
 			"extended-message":       p.NegotiatedExtMsg,
 			"route-refresh":          p.NegotiatedRouteRefresh,
@@ -573,7 +577,7 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, args []string) (*plug
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"peers": result,
+			fieldPeers: result,
 		},
 	}, nil
 }
@@ -638,7 +642,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 	}
 
 	resp := map[string]any{
-		"peer":    addr.String(),
+		fieldPeer: addr.String(),
 		"subcode": subcode,
 	}
 	if shutdownMsg != "" && (subcode == message.NotifyCeaseAdminShutdown || subcode == message.NotifyCeaseAdminReset) {
@@ -690,7 +694,7 @@ func handleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"peer":    addr.String(),
+			fieldPeer: addr.String(),
 			"message": "peer removed",
 		},
 	}, nil
@@ -736,8 +740,8 @@ func peerFlowControl(ctx *pluginserver.CommandContext, action string, fn func(pl
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"peer":   addr.String(),
-			"action": action,
+			fieldPeer:   addr.String(),
+			fieldAction: action,
 		},
 	}, nil
 }
@@ -766,8 +770,8 @@ func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ []string) (*plugin.R
 		return &plugin.Response{
 			Status: plugin.StatusDone,
 			Data: plugin.Map{
-				"action": "flush",
-				"peer":   "*",
+				fieldAction: "flush",
+				fieldPeer:   "*",
 			},
 		}, nil
 	}
@@ -801,8 +805,8 @@ func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ []string) (*plugin.R
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"action": "flush",
-			"peer":   peerAddr,
+			fieldAction: "flush",
+			fieldPeer:   peerAddr,
 		},
 	}, nil
 }
@@ -868,7 +872,7 @@ func handlePeerHistory(ctx *pluginserver.CommandContext, args []string) (*plugin
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"peer":        addr,
+			fieldPeer:     addr,
 			"transitions": out,
 			"count":       len(out),
 		},

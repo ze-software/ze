@@ -33,16 +33,28 @@ func newClient(base, apiKey, nodeUUID string) *client {
 	}
 }
 
+// The incident payload field names the FlowTriq API reads. The server ignores a
+// field it does not recognize, so a misspelling here is silent: the incident is
+// accepted with the value missing.
+const (
+	fieldPeakPPS         = "peak_pps"
+	fieldPeakBPS         = "peak_bps"
+	fieldAttackFamily    = "attack_family"
+	fieldConfidence      = "confidence"
+	fieldTopSourceIPs    = "top_src_ips"
+	fieldDurationSeconds = "duration_seconds"
+)
+
 func (c *client) openIncident(e *ddosevent.AttackDetected) (string, error) {
 	sources := make([]map[string]string, 0, len(e.TopSources))
 	for _, src := range e.TopSources {
 		sources = append(sources, map[string]string{"ip": src.String()})
 	}
 	body := map[string]any{
-		"peak_pps":      e.PeakRxPps,
-		"peak_bps":      e.PeakRxBps,
-		"attack_family": string(e.Family),
-		"top_src_ips":   sources,
+		fieldPeakPPS:      e.PeakRxPps,
+		fieldPeakBPS:      e.PeakRxBps,
+		fieldAttackFamily: string(e.Family),
+		fieldTopSourceIPs: sources,
 	}
 
 	var resp struct {
@@ -58,10 +70,10 @@ func (c *client) updateIncident(uuid string, pps, bps float64, family ddosevent.
 	var tb textbuf.Buffer
 	path := tb.Str("/agent/incidents/").Str(uuid).String()
 	body := map[string]any{
-		"peak_pps":      pps,
-		"peak_bps":      bps,
-		"attack_family": string(family),
-		"confidence":    confidence,
+		fieldPeakPPS:      pps,
+		fieldPeakBPS:      bps,
+		fieldAttackFamily: string(family),
+		fieldConfidence:   confidence,
 	}
 	return c.post(path, body, nil)
 }
@@ -70,10 +82,10 @@ func (c *client) resolveIncident(uuid string, duration, peakPPS, peakBPS float64
 	var tb textbuf.Buffer
 	path := tb.Str("/agent/incidents/").Str(uuid).Str("/resolve").String()
 	body := map[string]any{
-		"duration_seconds": duration,
-		"peak_pps":         peakPPS,
-		"peak_bps":         peakBPS,
-		"confidence":       confidence,
+		fieldDurationSeconds: duration,
+		fieldPeakPPS:         peakPPS,
+		fieldPeakBPS:         peakBPS,
+		fieldConfidence:      confidence,
 	}
 	return c.post(path, body, nil)
 }

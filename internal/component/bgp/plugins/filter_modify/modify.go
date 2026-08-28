@@ -60,20 +60,20 @@ type commOp struct {
 func buildDelta(setBlock map[string]any) string {
 	var parts []string
 
-	if v, ok := readOptionalUint32(setBlock["local-preference"]); ok {
-		parts = append(parts, textbuf.StrInt("local-preference ", int64(v)))
+	if v, ok := readOptionalUint32(setBlock[localPreferenceAttr]); ok {
+		parts = append(parts, textbuf.StrInt(localPreferenceAttr+" ", int64(v)))
 	}
-	if v, ok := readOptionalUint32(setBlock["med"]); ok {
-		parts = append(parts, textbuf.StrInt("med ", int64(v)))
+	if v, ok := readOptionalUint32(setBlock[medAttr]); ok {
+		parts = append(parts, textbuf.StrInt(medAttr+" ", int64(v)))
 	}
-	if s, ok := setBlock["origin"].(string); ok && s != "" {
-		parts = append(parts, "origin "+s)
+	if s, ok := setBlock[originAttr].(string); ok && s != "" {
+		parts = append(parts, originAttr+" "+s)
 	}
-	if s, ok := setBlock["next-hop"].(string); ok && s != "" {
-		parts = append(parts, "next-hop "+s)
+	if s, ok := setBlock[nextHopAttr].(string); ok && s != "" {
+		parts = append(parts, nextHopAttr+" "+s)
 	}
-	if v, ok := readOptionalUint32(setBlock["as-path-prepend"]); ok && v >= 1 && v <= 32 {
-		parts = append(parts, textbuf.StrInt("as-path-prepend ", int64(v)))
+	if v, ok := readOptionalUint32(setBlock[asPathPrependAttr]); ok && v >= 1 && v <= 32 {
+		parts = append(parts, textbuf.StrInt(asPathPrependAttr+" ", int64(v)))
 	}
 
 	return textbuf.Join(parts, " ")

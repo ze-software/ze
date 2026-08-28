@@ -28,6 +28,8 @@ import (
 )
 
 // loggerPtr is the package-level logger, disabled by default.
+const configRootBGP = "bgp"
+
 var loggerPtr atomic.Pointer[slog.Logger]
 
 func init() {
@@ -77,7 +79,7 @@ func RunRouteRefreshPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 	})
 	if err != nil {
 		logger().Error("route-refresh plugin failed", "error", err)

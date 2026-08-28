@@ -32,9 +32,9 @@ var errMUPMissingRouteType = errors.New("mup nlri requires a route type (mup-isd
 // Prefix-SID) from the pre-parsed attribute block. ORIGIN/AS_PATH/LOCAL_PREF/
 // MP_REACH are owned by BuildPlugin.
 func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, error) {
-	family := "ipv4/mup"
+	family := familyIPv4MUP
 	if req.IsIPv6 {
-		family = "ipv6/mup"
+		family = familyIPv6MUP
 	}
 
 	args, err := mupArgsFromContent(req.Content)
@@ -91,7 +91,7 @@ func mupArgsFromContent(content []string) ([]string, error) {
 	}
 
 	routeType := content[0]
-	args := []string{"route-type", routeType}
+	args := []string{kwRouteType, routeType}
 
 	// The token after the route type is the prefix (ISD/T1ST) or address (DSD/T2ST).
 	if len(content) > 1 {

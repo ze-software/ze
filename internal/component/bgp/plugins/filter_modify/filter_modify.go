@@ -44,9 +44,37 @@ const (
 	medRemoveDirective = "med-remove"
 )
 
+// The attribute names of the modify vocabulary. Each one is a YANG leaf under
+// the `set` block, and the three numeric ones are also the attribute names the
+// `increment`, `decrement` and `del` blocks accept. Spell each name once here:
+// a misspelled map index reads as an absent leaf, so the modification is
+// silently dropped rather than refused.
+const (
+	localPreferenceAttr = "local-preference"
+	medAttr             = "med"
+	aigpAttr            = "aigp"
+	originAttr          = "origin"
+	nextHopAttr         = "next-hop"
+	asPathPrependAttr   = "as-path-prepend"
+)
+
+// The community delta directives. Each token is both the YANG leaf under the
+// `set` block and the directive the engine parses out of the delta string, so
+// the two spellings cannot drift apart.
+const (
+	communityAddDirective            = "community-add"
+	communityRemoveDirective         = "community-remove"
+	largeCommunityAddDirective       = "large-community-add"
+	largeCommunityRemoveDirective    = "large-community-remove"
+	extendedCommunityAddDirective    = "extended-community-add"
+	extendedCommunityRemoveDirective = "extended-community-remove"
+)
+
 var errFilterModifyInvalidBgpConfigJson = errors.New("filter-modify: invalid bgp config JSON")
 
 var logger = slogutil.LazyLogger("bgp.filter.modify")
+
+const configRootBGP = "bgp"
 
 // defsByName is the runtime-loaded set of modify definitions.
 // Updated atomically on every OnConfigure delivery.
@@ -59,7 +87,7 @@ func runFilterModify(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
@@ -83,7 +111,7 @@ func runFilterModify(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 	}); err != nil {
 		logger().Error("filter-modify plugin failed", "error", err)
 		return 1

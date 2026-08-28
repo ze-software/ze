@@ -30,23 +30,23 @@ const (
 )
 
 var setBlockAllowedKeys = map[string]bool{
-	"local-preference":          true,
-	"med":                       true,
-	"origin":                    true,
-	"next-hop":                  true,
-	"as-path-prepend":           true,
-	"community-add":             true,
-	"community-remove":          true,
-	"large-community-add":       true,
-	"large-community-remove":    true,
-	"extended-community-add":    true,
-	"extended-community-remove": true,
+	localPreferenceAttr:              true,
+	medAttr:                          true,
+	originAttr:                       true,
+	nextHopAttr:                      true,
+	asPathPrependAttr:                true,
+	communityAddDirective:            true,
+	communityRemoveDirective:         true,
+	largeCommunityAddDirective:       true,
+	largeCommunityRemoveDirective:    true,
+	extendedCommunityAddDirective:    true,
+	extendedCommunityRemoveDirective: true,
 }
 
 var incDecAttrs = map[string]bool{
-	"local-preference": true,
-	"med":              true,
-	"aigp":             true,
+	localPreferenceAttr: true,
+	medAttr:             true,
+	aigpAttr:            true,
 }
 
 func parseModifyDefs(bgpCfg map[string]any) (map[string]*modifyDef, error) {
@@ -102,11 +102,11 @@ func parseModifyDefs(bgpCfg map[string]any) (map[string]*modifyDef, error) {
 
 		if delBlock, ok := defMap["del"].(map[string]any); ok {
 			for key := range delBlock {
-				if key != "med" {
+				if key != medAttr {
 					return nil, fmt.Errorf("modify %q: del: unknown key %q", name, key)
 				}
 			}
-			def.medRemove = readBool(delBlock["med"])
+			def.medRemove = readBool(delBlock[medAttr])
 		}
 
 		if incBlock, ok := defMap["increment"].(map[string]any); ok {
@@ -218,12 +218,12 @@ func parseCommOps(setBlock map[string]any, def *modifyDef) error {
 	}
 
 	defs := []commDef{
-		{"community-add", "community-add", validateStdCommunity},
-		{"community-remove", "community-remove", validateStdCommunity},
-		{"large-community-add", "large-community-add", validateLargeCommunity},
-		{"large-community-remove", "large-community-remove", validateLargeCommunity},
-		{"extended-community-add", "extended-community-add", validateExtCommunity},
-		{"extended-community-remove", "extended-community-remove", validateExtCommunity},
+		{communityAddDirective, communityAddDirective, validateStdCommunity},
+		{communityRemoveDirective, communityRemoveDirective, validateStdCommunity},
+		{largeCommunityAddDirective, largeCommunityAddDirective, validateLargeCommunity},
+		{largeCommunityRemoveDirective, largeCommunityRemoveDirective, validateLargeCommunity},
+		{extendedCommunityAddDirective, extendedCommunityAddDirective, validateExtCommunity},
+		{extendedCommunityRemoveDirective, extendedCommunityRemoveDirective, validateExtCommunity},
 	}
 
 	for _, cd := range defs {
@@ -293,12 +293,12 @@ func validateNoConflict(def *modifyDef) error {
 	// the same attribute. Refuse the pair rather than let their processing order
 	// decide what reaches the wire.
 	if def.medRemove {
-		if containsAttrName(def.delta, "med") {
+		if containsAttrName(def.delta, medAttr) {
 			return fmt.Errorf("del med conflicts with set med (mutually exclusive)")
 		}
 		for _, ops := range [][]incdec{def.increments, def.decrements} {
 			for _, op := range ops {
-				if op.attr == "med" {
+				if op.attr == medAttr {
 					return fmt.Errorf("del med conflicts with increment/decrement med (mutually exclusive)")
 				}
 			}
@@ -307,7 +307,7 @@ func validateNoConflict(def *modifyDef) error {
 
 	setAttrs := map[string]bool{}
 	if def.delta != "" {
-		for _, attr := range []string{"local-preference", "med", "aigp"} {
+		for _, attr := range []string{localPreferenceAttr, medAttr, aigpAttr} {
 			if extractUint32Attr(def.delta, attr) > 0 || containsAttrName(def.delta, attr) {
 				setAttrs[attr] = true
 			}

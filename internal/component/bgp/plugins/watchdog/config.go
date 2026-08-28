@@ -34,7 +34,7 @@ func parseConfig(jsonData string) (map[string]*poolSet, error) {
 	}
 
 	// Navigate the "bgp" wrapper — ExtractConfigSubtree wraps data as {"bgp": {...}}
-	bgpTree, ok := getMap(tree, "bgp")
+	bgpTree, ok := getMap(tree, configRootBGP)
 	if !ok {
 		return make(map[string]*poolSet), nil
 	}

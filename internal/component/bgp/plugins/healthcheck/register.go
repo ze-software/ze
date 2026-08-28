@@ -17,8 +17,8 @@ func pluginSetup() {
 	reg := registry.Registration{
 		Name:         "bgp-healthcheck",
 		Description:  "Service healthcheck plugin with watchdog route control",
-		ConfigRoots:  []string{"bgp"},
-		Dependencies: []string{"bgp", "bgp-watchdog"},
+		ConfigRoots:  []string{configRootBGP},
+		Dependencies: []string{configRootBGP, "bgp-watchdog"},
 		Features:     "yang",
 		YANG:         yang.ZeHealthcheckConfYANG,
 		RunEngine:    runHealthcheckPlugin,

@@ -28,6 +28,13 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+const configRootBGP = "bgp"
+
+// watchdogMetricMED is the metric name the watchdog announce command takes.
+// It is a CLI argument, so a misspelling reaches the watchdog as an unknown
+// metric rather than as an error here.
+const watchdogMetricMED = "med"
+
 var errMissingProbeName = errors.New("missing probe name")
 
 const (
@@ -90,7 +97,7 @@ func runHealthcheckPlugin(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			probes, err := parseConfig(section.Data)
@@ -125,7 +132,7 @@ func runHealthcheckPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 		Commands:    commandDecls(),
 	})
 	if err != nil {
@@ -368,18 +375,18 @@ func (m *probeManager) runProbe(ctx context.Context, rp *runningProbe) {
 func (m *probeManager) dispatchStateAction(ctx context.Context, cfg ProbeConfig, state State) {
 	switch state {
 	case StateUp:
-		m.dispatchCommand(ctx, cfg.Name, "request bgp watchdog announce", []string{cfg.Group, "med", textbuf.StringInt(int64(cfg.UpMetric))})
+		m.dispatchCommand(ctx, cfg.Name, "request bgp watchdog announce", []string{cfg.Group, watchdogMetricMED, textbuf.StringInt(int64(cfg.UpMetric))})
 	case StateDown:
 		if cfg.WithdrawOnDown {
 			m.dispatchCommand(ctx, cfg.Name, "request bgp watchdog withdraw", []string{cfg.Group})
 		} else {
-			m.dispatchCommand(ctx, cfg.Name, "request bgp watchdog announce", []string{cfg.Group, "med", textbuf.StringInt(int64(cfg.DownMetric))})
+			m.dispatchCommand(ctx, cfg.Name, "request bgp watchdog announce", []string{cfg.Group, watchdogMetricMED, textbuf.StringInt(int64(cfg.DownMetric))})
 		}
 	case StateDisabled:
 		if cfg.WithdrawOnDown {
 			m.dispatchCommand(ctx, cfg.Name, "request bgp watchdog withdraw", []string{cfg.Group})
 		} else {
-			m.dispatchCommand(ctx, cfg.Name, "request bgp watchdog announce", []string{cfg.Group, "med", textbuf.StringInt(int64(cfg.DisabledMetric))})
+			m.dispatchCommand(ctx, cfg.Name, "request bgp watchdog announce", []string{cfg.Group, watchdogMetricMED, textbuf.StringInt(int64(cfg.DisabledMetric))})
 		}
 	case StateExit:
 		m.dispatchCommand(ctx, cfg.Name, "request bgp watchdog withdraw", []string{cfg.Group})

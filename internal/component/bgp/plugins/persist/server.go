@@ -62,6 +62,14 @@ func SetMetricsRegistry(reg metrics.Registry) {
 }
 
 // updateRouteTimeout is the context deadline for updateRoute RPC calls.
+// The route operation tokens the engine sends on the adj-RIB-out feed. An
+// unrecognized action falls through the switch in silence, so the stored
+// RIB drifts from what was really advertised.
+const (
+	actionAdd = "add"
+	actionDel = "del"
+)
+
 const updateRouteTimeout = 30 * time.Second
 
 // Event type and state constants.
@@ -225,7 +233,7 @@ func (ps *PersistServer) handleSentUpdate(peerAddr string, msgID uint64, text st
 				}
 
 				switch op.Action {
-				case "add":
+				case actionAdd:
 					if ps.ribOut[peerAddr][fam] == nil {
 						ps.ribOut[peerAddr][fam] = make(map[string]*StoredRoute)
 					}
@@ -240,7 +248,7 @@ func (ps *PersistServer) handleSentUpdate(peerAddr string, msgID uint64, text st
 					}
 					ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(msgID).Str(" retain").String())
 
-				case "del":
+				case actionDel:
 					familyRoutes := ps.ribOut[peerAddr][fam]
 					if familyRoutes == nil {
 						continue
@@ -308,7 +316,7 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 		addPath := ctx != nil && ctx.AddPath(family.IPv4Unicast)
 		nlris := persistWireNLRIs(wdData, addPath, false)
 		if len(nlris) > 0 {
-			ops[family.IPv4Unicast] = append(ops[family.IPv4Unicast], persistFamilyOp{Action: "del", NLRIs: nlris})
+			ops[family.IPv4Unicast] = append(ops[family.IPv4Unicast], persistFamilyOp{Action: actionDel, NLRIs: nlris})
 		}
 	}
 
@@ -321,7 +329,7 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 			addPath := ctx != nil && ctx.AddPath(fam)
 			nlris := persistWireNLRIs(wdBytes, addPath, fam.AFI == family.AFIIPv6)
 			if len(nlris) > 0 {
-				ops[fam] = append(ops[fam], persistFamilyOp{Action: "del", NLRIs: nlris})
+				ops[fam] = append(ops[fam], persistFamilyOp{Action: actionDel, NLRIs: nlris})
 			}
 		}
 	}
@@ -332,7 +340,7 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 		addPath := ctx != nil && ctx.AddPath(family.IPv4Unicast)
 		nlris := persistWireNLRIs(nlriData, addPath, false)
 		if len(nlris) > 0 {
-			ops[family.IPv4Unicast] = append(ops[family.IPv4Unicast], persistFamilyOp{Action: "add", NLRIs: nlris})
+			ops[family.IPv4Unicast] = append(ops[family.IPv4Unicast], persistFamilyOp{Action: actionAdd, NLRIs: nlris})
 		}
 	}
 
@@ -345,7 +353,7 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 			addPath := ctx != nil && ctx.AddPath(fam)
 			nlris := persistWireNLRIs(nlriBytes, addPath, fam.AFI == family.AFIIPv6)
 			if len(nlris) > 0 {
-				ops[fam] = append(ops[fam], persistFamilyOp{Action: "add", NLRIs: nlris})
+				ops[fam] = append(ops[fam], persistFamilyOp{Action: actionAdd, NLRIs: nlris})
 			}
 		}
 	}

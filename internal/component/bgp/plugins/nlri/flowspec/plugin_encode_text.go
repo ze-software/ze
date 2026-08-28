@@ -50,7 +50,24 @@ const (
 	kwRD              = "rd"               // Route Distinguisher (VPN)
 )
 
-// protocolNameToNumber maps protocol names to numbers.
+// The address families this plugin registers and decodes. The name is what the
+// engine matches a codec on, so a misspelling leaves the family unhandled
+// rather than refused.
+const (
+	familyIPv4Flow    = "ipv4/flow"     // AFI 1, SAFI 133
+	familyIPv6Flow    = "ipv6/flow"     // AFI 2, SAFI 133
+	familyIPv4FlowVPN = "ipv4/flow-vpn" // AFI 1, SAFI 134
+	familyIPv6FlowVPN = "ipv6/flow-vpn" // AFI 2, SAFI 134
+
+	// familyModeBoth declares a family this plugin both sends and receives.
+	familyModeBoth = "both"
+)
+
+// protocolNameToNumber maps protocol names to numbers. It is the ONLY protocol
+// vocabulary in this package: the config parser, the text encoder and the
+// decoder all read it, and protocolNumberToName is derived from it. Three
+// copies of this table used to exist and they had already diverged, so a name
+// one path accepted another path did not.
 // IANA Protocol Numbers: https://www.iana.org/assignments/protocol-numbers
 var protocolNameToNumber = map[string]uint8{
 	"icmp":   1,
@@ -58,23 +75,29 @@ var protocolNameToNumber = map[string]uint8{
 	"tcp":    6,
 	"udp":    17,
 	"gre":    47,
+	"esp":    50,
+	"ah":     51,
 	"icmpv6": 58,
 	"ospf":   89,
 	"sctp":   132,
 }
 
-// tcpFlagNameToValue maps TCP flag names to values.
+// tcpFlagNameToValue maps TCP flag names to values. It is the ONLY TCP flag
+// vocabulary in this package: the config parser reads it too, so a name one
+// path accepts is a name every path accepts.
 // RFC 8955 Section 4.2.2.9.
 var tcpFlagNameToValue = map[string]uint8{
-	"fin":  0x01,
-	"syn":  0x02,
-	"rst":  0x04,
-	"psh":  0x08,
-	"push": 0x08, // alias for psh
-	"ack":  0x10,
-	"urg":  0x20,
-	"ece":  0x40,
-	"cwr":  0x80,
+	"fin":    0x01,
+	"syn":    0x02,
+	"rst":    0x04,
+	"reset":  0x04, // alias for rst
+	"psh":    0x08,
+	"push":   0x08, // alias for psh
+	"ack":    0x10,
+	"urg":    0x20,
+	"urgent": 0x20, // alias for urg
+	"ece":    0x40,
+	"cwr":    0x80,
 }
 
 // fragmentFlagNameToValue maps fragment flag names to values.

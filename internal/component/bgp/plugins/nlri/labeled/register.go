@@ -23,7 +23,7 @@ func init() {
 		RFCs:                  []string{"8277"},
 		Features:              "nlri",
 		SupportsNLRI:          true,
-		Families:              []string{"ipv4/mpls-label", "ipv6/mpls-label"},
+		Families:              []string{familyIPv4Labeled, familyIPv6Labeled},
 		RunEngine:             runLabeledPlugin,
 		InProcessNLRIDecoder:  DecodeNLRIHex,
 		InProcessNLRIEncoder:  EncodeNLRIHex,
@@ -42,7 +42,7 @@ func init() {
 			SetLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		cfg.ExtraFlags = func(fs *flag.FlagSet) {
-			family = fs.String("family", "ipv4/mpls-label", "Address family (ipv4/mpls-label, ipv6/mpls-label)")
+			family = fs.String("family", familyIPv4Labeled, "Address family (ipv4/mpls-label, ipv6/mpls-label)")
 		}
 		cfg.RunCLIWithCtx = func(hex string, text bool, out, errOut io.Writer, fs *flag.FlagSet) int {
 			return RunCLIDecode(hex, *family, text, out, errOut)

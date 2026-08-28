@@ -90,31 +90,31 @@ const (
 func (t FlowComponentType) String() string {
 	switch t {
 	case FlowDestPrefix:
-		return "destination"
+		return kwDestination
 	case FlowSourcePrefix:
-		return "source"
+		return kwSource
 	case FlowIPProtocol:
-		return "protocol"
+		return kwProtocol
 	case FlowPort:
-		return "port"
+		return kwPort
 	case FlowDestPort:
-		return "destination-port"
+		return kwDestPort
 	case FlowSourcePort:
-		return "source-port"
+		return kwSourcePort
 	case FlowICMPType:
-		return "icmp-type"
+		return kwICMPType
 	case FlowICMPCode:
-		return "icmp-code"
+		return kwICMPCode
 	case FlowTCPFlags:
-		return "tcp-flags"
+		return kwTCPFlags
 	case FlowPacketLength:
-		return "packet-length"
+		return kwPacketLength
 	case FlowDSCP:
-		return "dscp"
+		return kwDSCP
 	case FlowFragment:
-		return "fragment"
+		return kwFragment
 	case FlowFlowLabel:
-		return "flow-label"
+		return kwFlowLabel
 	default:
 		var b textbuf.Buffer
 		return b.Reset().Str("type(").Uint8(uint8(t)).Str(")").String()

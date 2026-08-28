@@ -388,7 +388,7 @@ func parseTextState(text string) *Event {
 			break
 		}
 		switch tok {
-		case "remote":
+		case tokenRemote:
 			// remote as <n>
 			if as, ok := s.Next(); ok && as == "as" {
 				if v, ok := s.Next(); ok {

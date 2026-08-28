@@ -449,16 +449,16 @@ func (t *lsAdjacencySID) WriteTo(buf []byte, off int) int {
 func (t *lsAdjacencySID) ToJSON() map[string]any {
 	return map[string]any{
 		"adj-sids": []map[string]any{{
-			"flags": map[string]any{
-				"F":   int((t.Flags >> 7) & 1),
-				"B":   int((t.Flags >> 6) & 1),
-				"V":   int((t.Flags >> 5) & 1),
-				"L":   int((t.Flags >> 4) & 1),
-				"S":   int((t.Flags >> 3) & 1),
-				"P":   int((t.Flags >> 2) & 1),
-				"RSV": int(t.Flags & 0x03),
+			jsonKeyFlags: map[string]any{
+				"F":             int((t.Flags >> 7) & 1),
+				"B":             int((t.Flags >> 6) & 1),
+				"V":             int((t.Flags >> 5) & 1),
+				"L":             int((t.Flags >> 4) & 1),
+				"S":             int((t.Flags >> 3) & 1),
+				"P":             int((t.Flags >> 2) & 1),
+				jsonKeyReserved: int(t.Flags & 0x03),
 			},
-			"weight":         int(t.Weight),
+			jsonKeyWeight:    int(t.Weight),
 			"sids":           []int{int(t.SID)},
 			"undecoded-sids": []string{},
 		}},
@@ -544,9 +544,9 @@ func (t *lsPeerSID) ToJSON() map[string]any {
 	key := peerSIDKeys[t.TLVCode]
 	return map[string]any{
 		key: map[string]any{
-			"flags":  int(t.Flags),
-			"weight": int(t.Weight),
-			"sid":    t.SID,
+			jsonKeyFlags:  int(t.Flags),
+			jsonKeyWeight: int(t.Weight),
+			jsonKeySID:    t.SID,
 		},
 	}
 }
@@ -646,16 +646,16 @@ func (t *LsSRv6EndXSID) WriteTo(buf []byte, off int) int {
 func (t *LsSRv6EndXSID) ToJSON() map[string]any {
 	addr := netip.AddrFrom16(t.SID)
 	entry := map[string]any{
-		"behavior":  int(t.EndpointBehavior),
-		"algorithm": int(t.Algorithm),
-		"weight":    int(t.Weight),
-		"flags": map[string]any{
-			"B":   int((t.Flags >> 7) & 1),
-			"S":   int((t.Flags >> 6) & 1),
-			"P":   int((t.Flags >> 5) & 1),
-			"RSV": int(t.Flags & 0x1F),
+		"behavior":       int(t.EndpointBehavior),
+		jsonKeyAlgorithm: int(t.Algorithm),
+		jsonKeyWeight:    int(t.Weight),
+		jsonKeyFlags: map[string]any{
+			"B":             int((t.Flags >> 7) & 1),
+			"S":             int((t.Flags >> 6) & 1),
+			"P":             int((t.Flags >> 5) & 1),
+			jsonKeyReserved: int(t.Flags & 0x1F),
 		},
-		"sid": addr.String(),
+		jsonKeySID: addr.String(),
 	}
 	if len(t.NeighborID) > 0 {
 		entry["neighbor-id"] = formatHex(t.NeighborID)[2:] // without 0x prefix

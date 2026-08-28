@@ -9,6 +9,16 @@ import (
 	"github.com/ze-software/ze/internal/component/config/redistribute"
 )
 
+// The redistribute source names this package registers. A source name is what
+// an operator writes in `redistribute <source>`, so it is not the consumer name
+// (bgpConsumerName) and not the protocol name (protocolName), even where the
+// three spell the same word.
+const (
+	sourceNameBGP  = "bgp"
+	sourceNameIBGP = "ibgp"
+	sourceNameEBGP = "ebgp"
+)
+
 var bgpSourcesOnce sync.Once
 
 func init() {
@@ -20,18 +30,18 @@ func init() {
 func RegisterBGPSources() {
 	bgpSourcesOnce.Do(func() {
 		mustRegister(redistribute.RouteSource{
-			Name:        "bgp",
-			Protocol:    "bgp",
+			Name:        sourceNameBGP,
+			Protocol:    protocolName,
 			Description: "all BGP learned routes",
 		})
 		mustRegister(redistribute.RouteSource{
-			Name:        "ibgp",
-			Protocol:    "bgp",
+			Name:        sourceNameIBGP,
+			Protocol:    protocolName,
 			Description: "iBGP learned routes",
 		})
 		mustRegister(redistribute.RouteSource{
-			Name:        "ebgp",
-			Protocol:    "bgp",
+			Name:        sourceNameEBGP,
+			Protocol:    protocolName,
 			Description: "eBGP learned routes",
 		})
 	})

@@ -30,6 +30,8 @@ type watchdogMetrics struct {
 }
 
 // watchdogMetricsPtr stores watchdog metrics, set by SetMetricsRegistry.
+const configRootBGP = "bgp"
+
 var watchdogMetricsPtr atomic.Pointer[watchdogMetrics]
 
 // SetMetricsRegistry creates watchdog metrics from the given registry.
@@ -95,7 +97,7 @@ func runWatchdogPlugin(conn net.Conn) int {
 	// Stage 2: receive config, extract per-peer watchdog route definitions
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			peerPools, err := parseConfig(section.Data)
@@ -154,7 +156,7 @@ func runWatchdogPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 		Commands: []sdk.CommandDecl{
 			{Name: commandRequestWatchdogAnnounce, Description: "Announce routes in watchdog group"},
 			{Name: commandRequestWatchdogWithdraw, Description: "Withdraw routes in watchdog group"},

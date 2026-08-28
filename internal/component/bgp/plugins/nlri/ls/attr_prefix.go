@@ -45,11 +45,11 @@ func (t *LsIGPFlags) WriteTo(buf []byte, off int) int {
 func (t *LsIGPFlags) ToJSON() map[string]any {
 	return map[string]any{
 		"igp-flags": map[string]any{
-			"D":   int((t.Flags >> 7) & 1),
-			"N":   int((t.Flags >> 6) & 1),
-			"L":   int((t.Flags >> 5) & 1),
-			"P":   int((t.Flags >> 4) & 1),
-			"RSV": int(t.Flags & 0x0F),
+			"D":             int((t.Flags >> 7) & 1),
+			"N":             int((t.Flags >> 6) & 1),
+			"L":             int((t.Flags >> 5) & 1),
+			"P":             int((t.Flags >> 4) & 1),
+			jsonKeyReserved: int(t.Flags & 0x0F),
 		},
 	}
 }
@@ -167,9 +167,9 @@ func (t *lsPrefixSID) WriteTo(buf []byte, off int) int {
 func (t *lsPrefixSID) ToJSON() map[string]any {
 	return map[string]any{
 		"prefix-sid": map[string]any{
-			"flags":     int(t.Flags),
-			"algorithm": int(t.Algorithm),
-			"sid":       t.SID,
+			jsonKeyFlags:     int(t.Flags),
+			jsonKeyAlgorithm: int(t.Algorithm),
+			jsonKeySID:       t.SID,
 		},
 	}
 }
@@ -268,10 +268,10 @@ func (t *lsSRPrefixFlags) WriteTo(buf []byte, off int) int {
 func (t *lsSRPrefixFlags) ToJSON() map[string]any {
 	return map[string]any{
 		"sr-prefix-flags": map[string]any{
-			"X":   int((t.Flags >> 7) & 1),
-			"R":   int((t.Flags >> 6) & 1),
-			"N":   int((t.Flags >> 5) & 1),
-			"RSV": int(t.Flags & 0x1F),
+			"X":             int((t.Flags >> 7) & 1),
+			"R":             int((t.Flags >> 6) & 1),
+			"N":             int((t.Flags >> 5) & 1),
+			jsonKeyReserved: int(t.Flags & 0x1F),
 		},
 	}
 }
@@ -302,12 +302,12 @@ func (t *lsSourceRouterID) ToJSON() map[string]any {
 	switch len(t.ID) {
 	case 4:
 		addr := netip.AddrFrom4([4]byte(t.ID[:4]))
-		return map[string]any{"source-router-id": addr.String()}
+		return map[string]any{jsonKeySourceRouterID: addr.String()}
 	case 16:
 		addr := netip.AddrFrom16([16]byte(t.ID[:16]))
-		return map[string]any{"source-router-id": addr.String()}
+		return map[string]any{jsonKeySourceRouterID: addr.String()}
 	}
-	return map[string]any{"source-router-id": "0x" + strings.ToUpper(textbuf.StringHex(t.ID))}
+	return map[string]any{jsonKeySourceRouterID: "0x" + strings.ToUpper(textbuf.StringHex(t.ID))}
 }
 
 func decodeSourceRouterID(data []byte) (lsAttrTLV, error) {

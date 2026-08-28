@@ -313,5 +313,5 @@ func (v *VPN) WriteTo(buf []byte, off int) int {
 
 // vPNFamilies returns the address families this plugin can decode.
 func vPNFamilies() []string {
-	return []string{"ipv4/mpls-vpn", "ipv6/mpls-vpn"}
+	return []string{familyIPv4VPN, familyIPv6VPN}
 }

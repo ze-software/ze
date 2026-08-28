@@ -23,7 +23,7 @@ func init() {
 		RFCs:         []string{"7752", "9085", "9514"},
 		SupportsNLRI: true,
 		Features:     "nlri",
-		Families:     []string{"bgp-ls/bgp-ls", "bgp-ls/bgp-ls-vpn"},
+		Families:     []string{familyBGPLS, familyBGPLSVPN},
 		RunEngine:    runBGPLSPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setBGPLSLogger(slogutil.Logger(loggerName))
@@ -40,7 +40,7 @@ func init() {
 			setBGPLSLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		cfg.ExtraFlags = func(fs *flag.FlagSet) {
-			family = fs.String("family", "bgp-ls/bgp-ls", "Address family (bgp-ls/bgp-ls, bgp-ls/bgp-ls-vpn)")
+			family = fs.String("family", familyBGPLS, "Address family (bgp-ls/bgp-ls, bgp-ls/bgp-ls-vpn)")
 		}
 		cfg.RunCLIWithCtx = func(hex string, text bool, out, errOut io.Writer, fs *flag.FlagSet) int {
 			return runBGPLSCLIDecode(hex, *family, text, out, errOut)

@@ -11,6 +11,17 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
+// fieldEnabled is the payload key that says whether ddos observation is
+// running. Both show handlers return it, so a false reading always means the
+// same thing to the operator.
+const fieldEnabled = "enabled"
+
+// fieldIncidents is the payload key that carries the incident ring, and the
+// same key that carries the ring's SIZE in the status answer. Both show
+// handlers write it on both their branches, so naming it once is what keeps a
+// nil store answering under the key a live store answers under.
+const fieldIncidents = "incidents"
+
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
@@ -31,15 +42,15 @@ func handleShowDdos(_ *pluginserver.CommandContext, _ []string) (*plugin.Respons
 	if s == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Map{"enabled": false, "active-attacks": 0, "incidents": 0},
+			Data:   plugin.Map{fieldEnabled: false, "active-attacks": 0, fieldIncidents: 0},
 		}, nil
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"enabled":        true,
+			fieldEnabled:     true,
 			"active-attacks": s.activeCount(),
-			"incidents":      s.count(),
+			fieldIncidents:   s.count(),
 		},
 	}, nil
 }
@@ -52,11 +63,11 @@ func handleShowDdosIncidents(_ *pluginserver.CommandContext, _ []string) (*plugi
 	if s == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Map{"enabled": false, "incidents": []incident{}},
+			Data:   plugin.Map{fieldEnabled: false, fieldIncidents: []incident{}},
 		}, nil
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"enabled": true, "incidents": s.list()},
+		Data:   plugin.Map{fieldEnabled: true, fieldIncidents: s.list()},
 	}, nil
 }

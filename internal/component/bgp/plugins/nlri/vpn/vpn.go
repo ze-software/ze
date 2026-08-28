@@ -60,8 +60,8 @@ func runVPNPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: "ipv4/mpls-vpn", Mode: "decode", AFI: 1, SAFI: 128},
-			{Name: "ipv6/mpls-vpn", Mode: "decode", AFI: 2, SAFI: 128},
+			{Name: familyIPv4VPN, Mode: familyModeDecode, AFI: 1, SAFI: 128},
+			{Name: familyIPv6VPN, Mode: familyModeDecode, AFI: 2, SAFI: 128},
 		},
 	})
 	if err != nil {
@@ -176,6 +176,17 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 
 	return textbuf.StringHexUpper(nlriBytes), nil
 }
+
+// Address family names this plugin registers and decodes. The plugin registry,
+// the CLI and the reactor all match a family by exact string.
+const (
+	familyIPv4VPN = "ipv4/mpls-vpn" // AFI 1, SAFI 128
+	familyIPv6VPN = "ipv6/mpls-vpn" // AFI 2, SAFI 128
+
+	// familyModeDecode declares a family this plugin decodes but never encodes.
+	// The plugin server reads it as sdk.FamilyDecl.Mode.
+	familyModeDecode = "decode"
+)
 
 // Protocol constants.
 const (
@@ -361,7 +372,7 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 
 // isValidVPNFamily checks if family is a VPN family.
 func isValidVPNFamily(family string) bool {
-	return family == "ipv4/mpls-vpn" || family == "ipv6/mpls-vpn"
+	return family == familyIPv4VPN || family == familyIPv6VPN
 }
 
 // decodeVPNNLRI decodes VPN NLRI wire bytes to array of JSON maps.

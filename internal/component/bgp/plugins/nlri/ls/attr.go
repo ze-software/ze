@@ -13,6 +13,23 @@ import (
 	"errors"
 )
 
+// JSON keys shared by the ToJSON methods of the attribute TLVs in
+// attr_node.go, attr_link.go, attr_prefix.go and attr_srv6.go. A consumer of
+// the decoded BGP-LS attribute matches these by exact string.
+const (
+	jsonKeyFlags     = "flags"
+	jsonKeyWeight    = "weight"
+	jsonKeySID       = "sid"
+	jsonKeyAlgorithm = "algorithm"
+
+	// jsonKeyReserved carries the reserved bits of a flags octet, so a
+	// consumer sees what the wire held even for bits ze does not name.
+	jsonKeyReserved = "RSV"
+
+	// jsonKeySourceRouterID is the Source Router Identifier TLV (1171).
+	jsonKeySourceRouterID = "source-router-id"
+)
+
 // lsAttrTLV is the interface for BGP-LS attribute TLV types.
 // RFC 7752 Section 3.3 defines the attribute TLV format:
 //

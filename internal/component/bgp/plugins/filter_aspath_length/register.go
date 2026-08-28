@@ -9,8 +9,8 @@ func init() {
 	_ = registry.Register(registry.Registration{
 		Name:         "bgp-filter-aspath-length",
 		Description:  "Named AS-path length filter (accept/reject based on hop count)",
-		ConfigRoots:  []string{"bgp"},
-		Dependencies: []string{"bgp"},
+		ConfigRoots:  []string{configRootBGP},
+		Dependencies: []string{configRootBGP},
 		YANG:         falyang.ZeFilterAsPathLengthYANG,
 		FilterTypes:  []string{"as-path-length"},
 		RunEngine:    RunFilterAsPathLength,

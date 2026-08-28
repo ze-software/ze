@@ -20,6 +20,17 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+const (
+	// familyIPv4RTC is the address family name this plugin registers and
+	// decodes. The plugin registry, the CLI and the reactor all match a family
+	// by exact string.
+	familyIPv4RTC = "ipv4/rtc" // AFI 1, SAFI 132
+
+	// familyModeDecode declares a family this plugin decodes but never encodes.
+	// The plugin server reads it as sdk.FamilyDecl.Mode.
+	familyModeDecode = "decode"
+)
+
 var logger = slogutil.DiscardLogger()
 
 // SetLogger sets the package-level logger.
@@ -40,7 +51,7 @@ func runRTCPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: "ipv4/rtc", Mode: "decode", AFI: 1, SAFI: 132},
+			{Name: familyIPv4RTC, Mode: familyModeDecode, AFI: 1, SAFI: 132},
 		},
 	})
 	if err != nil {
@@ -54,7 +65,7 @@ func runRTCPlugin(conn net.Conn) int {
 // DecodeNLRIHex decodes RTC NLRI from hex bytes, returning a data structure.
 // This is the in-process fast path registered in the plugin registry.
 func DecodeNLRIHex(family, hexStr string) (any, error) {
-	if family != "ipv4/rtc" {
+	if family != familyIPv4RTC {
 		return nil, fmt.Errorf("unsupported family: %s", family)
 	}
 
@@ -83,7 +94,7 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 		_ = e
 	}
 
-	if family != "ipv4/rtc" {
+	if family != familyIPv4RTC {
 		writeErr("error: invalid family: %s (expected ipv4/rtc)\n", family)
 		return 1
 	}

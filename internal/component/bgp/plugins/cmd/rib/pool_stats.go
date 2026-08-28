@@ -65,7 +65,7 @@ func handlePoolStats(_ *pluginserver.CommandContext, _ []string) (*plugin.Respon
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
 			"pools":            rows,
-			"count":            len(rows),
+			fieldCount:         len(rows),
 			"total-live-slots": totalLive,
 			"total-dead-slots": totalDead,
 			"total-live-bytes": totalLiveBytes,

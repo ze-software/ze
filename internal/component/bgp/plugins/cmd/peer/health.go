@@ -44,17 +44,17 @@ func registerHealthShape() {
 	// name with the row, so they order alphabetically and no second declaration
 	// is owed (tableStyle.declaredKeys, internal/component/command/pipe_table.go).
 	command.RegisterColumns([]string{cmdBgpHealth},
-		command.ColumnOrder{"peer", "state", "as", "uptime"},
+		command.ColumnOrder{fieldPeer, fieldState, "as", fieldUptime},
 	)
 
 	// "peer" holds the peer address as a bare string, which is the one form
 	// `| resolve` and `| origin` decorate.
-	command.RegisterAddressFields([]string{cmdBgpHealth}, "peer")
+	command.RegisterAddressFields([]string{cmdBgpHealth}, fieldPeer)
 }
 
 func handleShowBGPHealth(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	if ctx == nil || ctx.Reactor() == nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: "reactor not available"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: errReactorNotAvailable.Error()}, nil
 	}
 	peers := ctx.Reactor().Peers()
 	rows := make([]map[string]any, 0, len(peers))
@@ -66,15 +66,15 @@ func handleShowBGPHealth(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 			notEstablished++
 		}
 		row := map[string]any{
-			"peer":   p.Address.String(),
-			"state":  state,
-			"as":     p.PeerAS,
-			"uptime": p.Uptime.Truncate(time.Second).String(),
+			fieldPeer:   p.Address.String(),
+			fieldState:  state,
+			"as":        p.PeerAS,
+			fieldUptime: p.Uptime.Truncate(time.Second).String(),
 		}
 		rows = append(rows, row)
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"peers": rows, "count": len(rows), "not-established": notEstablished},
+		Data:   plugin.Map{fieldPeers: rows, "count": len(rows), "not-established": notEstablished},
 	}, nil
 }

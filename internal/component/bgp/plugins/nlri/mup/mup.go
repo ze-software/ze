@@ -20,6 +20,27 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+// Address family names this plugin registers and decodes. The plugin registry,
+// the CLI and the reactor all match a family by exact string.
+const (
+	familyIPv4MUP = "ipv4/mup" // AFI 1, SAFI 85
+	familyIPv6MUP = "ipv6/mup" // AFI 2, SAFI 85
+
+	// familyModeDecode declares a family this plugin decodes but never encodes.
+	// The plugin server reads it as sdk.FamilyDecl.Mode.
+	familyModeDecode = "decode"
+
+	// cmdDecode is the text-protocol verb this plugin answers on stdin.
+	cmdDecode = "decode"
+
+	// kwRouteType is the keyword that introduces the route type in the
+	// CLI-style argument list config.go builds and encode.go parses.
+	kwRouteType = "route-type"
+
+	// jsonKeyRouteType is the route type field of the decoded JSON object.
+	jsonKeyRouteType = "route-type"
+)
+
 var logger = slogutil.DiscardLogger()
 
 // SetLogger sets the package-level logger.
@@ -40,8 +61,8 @@ func runMUPPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: "ipv4/mup", Mode: "decode", AFI: 1, SAFI: 85},
-			{Name: "ipv6/mup", Mode: "decode", AFI: 2, SAFI: 85},
+			{Name: familyIPv4MUP, Mode: familyModeDecode, AFI: 1, SAFI: 85},
+			{Name: familyIPv6MUP, Mode: familyModeDecode, AFI: 2, SAFI: 85},
 		},
 	})
 	if err != nil {
@@ -135,7 +156,7 @@ func RunDecode(input io.Reader, output io.Writer) int {
 		}
 
 		parts := strings.Fields(line)
-		if len(parts) >= 4 && parts[0] == "decode" && parts[1] == "nlri" {
+		if len(parts) >= 4 && parts[0] == cmdDecode && parts[1] == "nlri" {
 			fam := parts[2]
 			hexData := parts[3]
 			data, err := DecodeNLRIHex(fam, hexData)
@@ -161,19 +182,19 @@ func RunDecode(input io.Reader, output io.Writer) int {
 // mupToJSON converts a parsed MUP NLRI to a JSON-friendly map.
 func mupToJSON(m *MUP) map[string]any {
 	return map[string]any{
-		"route-type": int(m.RouteType()),
-		"arch-type":  int(m.ArchType()),
-		"rd":         m.RD().String(),
+		jsonKeyRouteType: int(m.RouteType()),
+		"arch-type":      int(m.ArchType()),
+		"rd":             m.RD().String(),
 	}
 }
 
 // familyToAFI maps family string to AFI constant.
 func familyToAFI(family string) (AFI, error) {
 	lower := strings.ToLower(family)
-	if lower == "ipv4/mup" {
+	if lower == familyIPv4MUP {
 		return AFIIPv4, nil
 	}
-	if lower == "ipv6/mup" {
+	if lower == familyIPv6MUP {
 		return AFIIPv6, nil
 	}
 	return 0, fmt.Errorf("unsupported family: %s", family)

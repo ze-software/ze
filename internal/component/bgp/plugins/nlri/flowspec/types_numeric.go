@@ -152,60 +152,39 @@ func (c *numericComponent) bitmaskString() string {
 	return b.String()
 }
 
+// bitmaskToString names every bit set in flags, lowest bit first, using the
+// canonical name table the decoder also renders with. The order is the bit
+// order, so the output is deterministic. It returns "0" when no bit is set.
+//
+// The eight bits are a fixed set, so the loop is bounded at eight iterations.
+func bitmaskToString(flags uint8, names map[uint8]string) string {
+	set := make([]string, 0, 8)
+	for bit := uint8(0x01); ; bit <<= 1 {
+		if flags&bit != 0 {
+			if name, known := names[bit]; known {
+				set = append(set, name)
+			}
+		}
+		if bit == 0x80 {
+			break
+		}
+	}
+	if len(set) == 0 {
+		return "0"
+	}
+	return textbuf.Join(set, "&")
+}
+
 // tcpFlagsToString converts TCP flags byte to named flags.
 // RFC 8955 Section 4.2.2.9: TCP flags are in order FIN, SYN, RST, PSH, ACK, URG, ECE, CWR.
 func tcpFlagsToString(flags uint8) string {
-	var names []string
-	if flags&0x01 != 0 {
-		names = append(names, "fin")
-	}
-	if flags&0x02 != 0 {
-		names = append(names, "syn")
-	}
-	if flags&0x04 != 0 {
-		names = append(names, "rst")
-	}
-	if flags&0x08 != 0 {
-		names = append(names, "psh")
-	}
-	if flags&0x10 != 0 {
-		names = append(names, "ack")
-	}
-	if flags&0x20 != 0 {
-		names = append(names, "urg")
-	}
-	if flags&0x40 != 0 {
-		names = append(names, "ece")
-	}
-	if flags&0x80 != 0 {
-		names = append(names, "cwr")
-	}
-	if len(names) == 0 {
-		return "0"
-	}
-	return textbuf.Join(names, "&")
+	return bitmaskToString(flags, tcpFlagValueToNames)
 }
 
 // fragmentFlagsToString converts fragment flags to named flags.
 // RFC 8955 Section 4.2.2.12: Fragment bitmask operand.
 func fragmentFlagsToString(flags FlowFragmentFlag) string {
-	var names []string
-	if flags&FlowFragDontFragment != 0 {
-		names = append(names, "dont-fragment")
-	}
-	if flags&FlowFragIsFragment != 0 {
-		names = append(names, "is-fragment")
-	}
-	if flags&FlowFragFirstFragment != 0 {
-		names = append(names, "first-fragment")
-	}
-	if flags&FlowFragLastFragment != 0 {
-		names = append(names, "last-fragment")
-	}
-	if len(names) == 0 {
-		return "0"
-	}
-	return textbuf.Join(names, "&")
+	return bitmaskToString(uint8(flags), fragmentFlagValueToNames)
 }
 
 // Len returns the wire-format length in bytes.

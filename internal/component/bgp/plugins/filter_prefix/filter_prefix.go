@@ -33,6 +33,8 @@ var errFilterPrefixInvalidBgpConfigJson = errors.New("filter-prefix: invalid bgp
 
 var logger = slogutil.LazyLogger("bgp.filter.prefix")
 
+const configRootBGP = "bgp"
+
 // listsByName is the runtime-loaded set of prefix-list definitions, keyed by
 // the YANG list name. Updated atomically on every OnConfigure delivery so
 // the hot path can read without a lock.
@@ -46,7 +48,7 @@ func RunFilterPrefix(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
@@ -70,7 +72,7 @@ func RunFilterPrefix(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 	}); err != nil {
 		logger().Error("filter-prefix plugin failed", "error", err)
 		return 1

@@ -19,7 +19,7 @@ func init() {
 		RFCs:         []string{"8955", "8956"},
 		SupportsNLRI: true,
 		Features:     "nlri",
-		Families:     []string{"ipv4/flow", "ipv6/flow", "ipv4/flow-vpn", "ipv6/flow-vpn"},
+		Families:     []string{familyIPv4Flow, familyIPv6Flow, familyIPv4FlowVPN, familyIPv6FlowVPN},
 		RunEngine:    runFlowSpecPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setFlowSpecLogger(slogutil.Logger(loggerName))
@@ -40,7 +40,7 @@ func init() {
 			setFlowSpecLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		cfg.ExtraFlags = func(fs *flag.FlagSet) {
-			family = fs.String("family", "ipv4/flow", "Address family (ipv4/flow, ipv6/flow, ipv4/flow-vpn, ipv6/flow-vpn)")
+			family = fs.String("family", familyIPv4Flow, "Address family (ipv4/flow, ipv6/flow, ipv4/flow-vpn, ipv6/flow-vpn)")
 		}
 		cfg.RunCLIWithCtx = func(hex string, text bool, out, errOut io.Writer, fs *flag.FlagSet) int {
 			return RunCLIDecode(hex, *family, text, out, errOut)

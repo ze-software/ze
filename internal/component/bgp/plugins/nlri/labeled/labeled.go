@@ -19,6 +19,20 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+// Address family names this plugin registers and decodes. The plugin registry,
+// the CLI and the reactor all match a family by exact string.
+const (
+	familyIPv4Labeled = "ipv4/mpls-label" // AFI 1, SAFI 4
+	familyIPv6Labeled = "ipv6/mpls-label" // AFI 2, SAFI 4
+
+	// familyModeDecode declares a family this plugin decodes but never encodes.
+	// The plugin server reads it as sdk.FamilyDecl.Mode.
+	familyModeDecode = "decode"
+
+	// cmdDecode is the text-protocol verb this plugin answers on stdin.
+	cmdDecode = "decode"
+)
+
 var logger = slogutil.DiscardLogger()
 
 // SetLogger sets the package-level logger.
@@ -39,8 +53,8 @@ func runLabeledPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: "ipv4/mpls-label", Mode: "decode", AFI: 1, SAFI: 4},
-			{Name: "ipv6/mpls-label", Mode: "decode", AFI: 2, SAFI: 4},
+			{Name: familyIPv4Labeled, Mode: familyModeDecode, AFI: 1, SAFI: 4},
+			{Name: familyIPv6Labeled, Mode: familyModeDecode, AFI: 2, SAFI: 4},
 		},
 	})
 	if err != nil {
@@ -125,7 +139,7 @@ func RunDecode(input io.Reader, output io.Writer) int {
 		}
 
 		parts := strings.Fields(line)
-		if len(parts) >= 4 && parts[0] == "decode" && parts[1] == "nlri" {
+		if len(parts) >= 4 && parts[0] == cmdDecode && parts[1] == "nlri" {
 			fam := parts[2]
 			hexData := parts[3]
 

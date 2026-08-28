@@ -58,26 +58,26 @@ func registerPeerRowShapes() {
 	// it. "negotiated" is absent until the negotiation completes, and an order
 	// never hides or invents a key: it sequences the keys the record has.
 	command.RegisterColumns([]string{cmdBgpPeerCapabilities},
-		command.ColumnOrder{"peer", "state", "negotiation-complete", "negotiated"},
+		command.ColumnOrder{fieldPeer, fieldState, fieldNegotiationComplete, "negotiated"},
 	)
 	// Which peer, is it up, then the cumulative counters, then the rates those
 	// counters divide into. The rates come last because pairing each rate with
 	// its counter would put four rate columns between "uptime" and the counts.
 	command.RegisterColumns([]string{cmdBgpPeerStatistics},
 		command.ColumnOrder{
-			"address", "remote-as", "state", "uptime",
-			"updates-received", "updates-sent",
-			"keepalives-received", "keepalives-sent",
-			"eor-received", "eor-sent",
-			"rate-updates-received", "rate-updates-sent",
-			"rate-keepalives-received", "rate-keepalives-sent",
+			fieldAddress, fieldRemoteAS, fieldState, fieldUptime,
+			fieldUpdatesReceived, fieldUpdatesSent,
+			fieldKeepalivesReceived, fieldKeepalivesSent,
+			fieldEORReceived, fieldEORSent,
+			fieldRateUpdatesReceived, fieldRateUpdatesSent,
+			fieldRateKeepalivesReceived, fieldRateKeepalivesSent,
 		},
 	)
 
 	// One field of each row holds the peer address as a bare string, which is
 	// the one form `| resolve` and `| origin` decorate.
-	command.RegisterAddressFields([]string{cmdBgpPeerCapabilities}, "peer")
-	command.RegisterAddressFields([]string{cmdBgpPeerStatistics}, "address")
+	command.RegisterAddressFields([]string{cmdBgpPeerCapabilities}, fieldPeer)
+	command.RegisterAddressFields([]string{cmdBgpPeerStatistics}, fieldAddress)
 }
 
 // lastErrorString renders a peer's last NOTIFICATION for the "last-error"
@@ -271,7 +271,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	if ctx == nil || ctx.Reactor() == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "reactor not available",
+			Error:  errReactorNotAvailable.Error(),
 		}, errReactorNotAvailable
 	}
 
@@ -320,22 +320,22 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 			established++
 		}
 		row := map[string]any{
-			"address":             p.Address.String(),
-			"name":                p.Name,
-			"description":         p.GroupName,
-			"remote-as":           p.PeerAS,
-			"peer-type":           p.PeerType,
-			"state":               p.State.String(),
-			"state-changed":       stateChangedString(p),
-			"last-error":          lastErrorString(p),
-			"uptime":              p.Uptime.Truncate(time.Second).String(),
-			"updates-received":    p.UpdatesReceived,
-			"updates-sent":        p.UpdatesSent,
-			"keepalives-received": p.KeepalivesReceived,
-			"keepalives-sent":     p.KeepalivesSent,
-			"eor-received":        p.EORReceived,
-			"eor-sent":            p.EORSent,
-			"connections-dropped": p.ConnectionsDropped,
+			fieldAddress:            p.Address.String(),
+			fieldName:               p.Name,
+			"description":           p.GroupName,
+			fieldRemoteAS:           p.PeerAS,
+			fieldPeerType:           p.PeerType,
+			fieldState:              p.State.String(),
+			"state-changed":         stateChangedString(p),
+			"last-error":            lastErrorString(p),
+			fieldUptime:             p.Uptime.Truncate(time.Second).String(),
+			fieldUpdatesReceived:    p.UpdatesReceived,
+			fieldUpdatesSent:        p.UpdatesSent,
+			fieldKeepalivesReceived: p.KeepalivesReceived,
+			fieldKeepalivesSent:     p.KeepalivesSent,
+			fieldEORReceived:        p.EORReceived,
+			fieldEORSent:            p.EORSent,
+			fieldConnectionsDropped: p.ConnectionsDropped,
 		}
 		mergeRibRouteCounts(row, p.Address.String(), ribCounts)
 		peerRows = append(peerRows, row)
@@ -355,12 +355,12 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	// health.go). A `| display peers` therefore selects a sibling key rather
 	// than descending into an envelope.
 	summary := plugin.Map{
-		"router-id":         routerID,
-		"local-as":          stats.LocalAS, // global BGP local AS, kept as "local-as" for summary context
-		"uptime":            stats.Uptime.Truncate(time.Second).String(),
+		fieldRouterID:       routerID,
+		fieldLocalAS:        stats.LocalAS, // global BGP local AS, kept as "local-as" for summary context
+		fieldUptime:         stats.Uptime.Truncate(time.Second).String(),
 		"peers-configured":  len(allPeers),
 		"peers-established": established,
-		"peers":             peerRows,
+		fieldPeers:          peerRows,
 	}
 	if familyFilter != "" {
 		summary["family"] = familyFilter
@@ -462,12 +462,12 @@ func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, args []string) 
 		caps := reactor.PeerNegotiatedCapabilities(peer.Address)
 
 		entry := plugin.Map{
-			"peer":  peer.Address.String(),
-			"state": peer.State.String(),
+			fieldPeer:  peer.Address.String(),
+			fieldState: peer.State.String(),
 		}
 
 		if caps != nil {
-			entry["negotiation-complete"] = true
+			entry[fieldNegotiationComplete] = true
 			neg := map[string]any{
 				"families":               caps.Families,
 				"extended-message":       caps.ExtendedMessage,
@@ -479,12 +479,12 @@ func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, args []string) 
 			}
 			entry["negotiated"] = neg
 		} else {
-			entry["negotiation-complete"] = false
+			entry[fieldNegotiationComplete] = false
 		}
 		rows[i] = entry
 	}
 
-	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"peers": rows}}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{fieldPeers: rows}}, nil
 }
 
 // handleBgpPeerStatistics returns per-peer update statistics with rates.
@@ -512,34 +512,34 @@ func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, args []string) (*
 		uptimeSec := p.Uptime.Seconds()
 
 		entry := plugin.Map{
-			"address":             p.Address.String(),
-			"remote-as":           p.PeerAS,
-			"state":               p.State.String(),
-			"uptime":              p.Uptime.Truncate(time.Second).String(),
-			"updates-received":    p.UpdatesReceived,
-			"updates-sent":        p.UpdatesSent,
-			"keepalives-received": p.KeepalivesReceived,
-			"keepalives-sent":     p.KeepalivesSent,
-			"eor-received":        p.EORReceived,
-			"eor-sent":            p.EORSent,
+			fieldAddress:            p.Address.String(),
+			fieldRemoteAS:           p.PeerAS,
+			fieldState:              p.State.String(),
+			fieldUptime:             p.Uptime.Truncate(time.Second).String(),
+			fieldUpdatesReceived:    p.UpdatesReceived,
+			fieldUpdatesSent:        p.UpdatesSent,
+			fieldKeepalivesReceived: p.KeepalivesReceived,
+			fieldKeepalivesSent:     p.KeepalivesSent,
+			fieldEORReceived:        p.EORReceived,
+			fieldEORSent:            p.EORSent,
 		}
 
 		// Compute rates from cumulative counters / uptime.
 		// Zero uptime (not established) → zero rates.
 		if uptimeSec > 0 {
-			entry["rate-updates-received"] = float64(p.UpdatesReceived) / uptimeSec
-			entry["rate-updates-sent"] = float64(p.UpdatesSent) / uptimeSec
-			entry["rate-keepalives-received"] = float64(p.KeepalivesReceived) / uptimeSec
-			entry["rate-keepalives-sent"] = float64(p.KeepalivesSent) / uptimeSec
+			entry[fieldRateUpdatesReceived] = float64(p.UpdatesReceived) / uptimeSec
+			entry[fieldRateUpdatesSent] = float64(p.UpdatesSent) / uptimeSec
+			entry[fieldRateKeepalivesReceived] = float64(p.KeepalivesReceived) / uptimeSec
+			entry[fieldRateKeepalivesSent] = float64(p.KeepalivesSent) / uptimeSec
 		} else {
-			entry["rate-updates-received"] = 0.0
-			entry["rate-updates-sent"] = 0.0
-			entry["rate-keepalives-received"] = 0.0
-			entry["rate-keepalives-sent"] = 0.0
+			entry[fieldRateUpdatesReceived] = 0.0
+			entry[fieldRateUpdatesSent] = 0.0
+			entry[fieldRateKeepalivesReceived] = 0.0
+			entry[fieldRateKeepalivesSent] = 0.0
 		}
 
 		rows[i] = entry
 	}
 
-	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"peers": rows}}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{fieldPeers: rows}}, nil
 }

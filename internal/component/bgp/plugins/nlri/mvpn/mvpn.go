@@ -19,6 +19,23 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+// Address family names this plugin registers and decodes. The plugin registry,
+// the CLI and the reactor all match a family by exact string.
+const (
+	familyIPv4MVPN = "ipv4/mvpn" // AFI 1, SAFI 5
+	familyIPv6MVPN = "ipv6/mvpn" // AFI 2, SAFI 5
+
+	// familyModeDecode declares a family this plugin decodes but never encodes.
+	// The plugin server reads it as sdk.FamilyDecl.Mode.
+	familyModeDecode = "decode"
+
+	// cmdDecode is the text-protocol verb this plugin answers on stdin.
+	cmdDecode = "decode"
+
+	// jsonKeyRouteType is the route type field of the decoded JSON object.
+	jsonKeyRouteType = "route-type"
+)
+
 var logger = slogutil.DiscardLogger()
 
 // SetLogger sets the package-level logger.
@@ -39,8 +56,8 @@ func runMVPNPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: "ipv4/mvpn", Mode: "decode", AFI: 1, SAFI: 5},
-			{Name: "ipv6/mvpn", Mode: "decode", AFI: 2, SAFI: 5},
+			{Name: familyIPv4MVPN, Mode: familyModeDecode, AFI: 1, SAFI: 5},
+			{Name: familyIPv6MVPN, Mode: familyModeDecode, AFI: 2, SAFI: 5},
 		},
 	})
 	if err != nil {
@@ -134,7 +151,7 @@ func RunDecode(input io.Reader, output io.Writer) int {
 		}
 
 		parts := strings.Fields(line)
-		if len(parts) >= 4 && parts[0] == "decode" && parts[1] == "nlri" {
+		if len(parts) >= 4 && parts[0] == cmdDecode && parts[1] == "nlri" {
 			fam := parts[2]
 			hexData := parts[3]
 			data, err := DecodeNLRIHex(fam, hexData)
@@ -160,18 +177,18 @@ func RunDecode(input io.Reader, output io.Writer) int {
 // mvpnToJSON converts a parsed MVPN NLRI to a JSON-friendly map.
 func mvpnToJSON(m *MVPN) map[string]any {
 	return map[string]any{
-		"route-type": int(m.RouteType()),
-		"rd":         m.RD().String(),
+		jsonKeyRouteType: int(m.RouteType()),
+		"rd":             m.RD().String(),
 	}
 }
 
 // familyToAFI maps family string to AFI constant.
 func familyToAFI(family string) (AFI, error) {
 	lower := strings.ToLower(family)
-	if lower == "ipv4/mvpn" {
+	if lower == familyIPv4MVPN {
 		return AFIIPv4, nil
 	}
-	if lower == "ipv6/mvpn" {
+	if lower == familyIPv6MVPN {
 		return AFIIPv6, nil
 	}
 	return 0, fmt.Errorf("unsupported family: %s", family)

@@ -1244,7 +1244,7 @@ func (r *RIBManager) replayBestPaths(req *replay.Request) {
 
 	for famName, changes := range changesByFamily {
 		batch := &bestChangeBatch{
-			Protocol: "bgp",
+			Protocol: protocolNameBGP,
 			Family:   famName,
 			ReplayID: req.ReplayID,
 			Changes:  changes,
@@ -1297,7 +1297,7 @@ func publishBestChanges(changes []bestChangeEntry, fam family.Family) {
 	}
 
 	batch := &bestChangeBatch{
-		Protocol: "bgp",
+		Protocol: protocolNameBGP,
 		Family:   fam,
 		Changes:  changes,
 	}

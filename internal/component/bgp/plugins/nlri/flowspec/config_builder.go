@@ -30,10 +30,10 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 	seen := make(map[string]bool, len(matchCriteria))
 
 	// Add destination prefix (first value only - prefix is singular)
-	if vals, ok := matchCriteria["destination"]; ok {
-		seen["destination"] = true
+	if vals, ok := matchCriteria[kwDestination]; ok {
+		seen[kwDestination] = true
 		if prefix, offset := parseFlowPrefixWithOffset(first(vals)); !prefix.IsValid() {
-			dropped = append(dropped, "destination")
+			dropped = append(dropped, kwDestination)
 		} else if prefix.Addr().Is6() && offset > 0 {
 			fs.AddComponent(newFlowDestPrefixComponentWithOffset(prefix, offset))
 		} else {
@@ -42,10 +42,10 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 	}
 
 	// Add source prefix (first value only - prefix is singular)
-	if vals, ok := matchCriteria["source"]; ok {
-		seen["source"] = true
+	if vals, ok := matchCriteria[kwSource]; ok {
+		seen[kwSource] = true
 		if prefix, offset := parseFlowPrefixWithOffset(first(vals)); !prefix.IsValid() {
-			dropped = append(dropped, "source")
+			dropped = append(dropped, kwSource)
 		} else if prefix.Addr().Is6() && offset > 0 {
 			fs.AddComponent(newFlowSourcePrefixComponentWithOffset(prefix, offset))
 		} else {
@@ -64,20 +64,20 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 			}
 		}
 	}
-	addNumeric("protocol", FlowIPProtocol, parseFlowProtocolMatchesSlice)
-	addNumeric("next-header", FlowIPProtocol, parseFlowProtocolMatchesSlice)
-	addNumeric("port", FlowPort, parseFlowMatchesSlice)
-	addNumeric("destination-port", FlowDestPort, parseFlowMatchesSlice)
-	addNumeric("source-port", FlowSourcePort, parseFlowMatchesSlice)
-	addNumeric("packet-length", FlowPacketLength, parseFlowMatchesSlice)
-	addNumeric("tcp-flags", FlowTCPFlags, parseFlowTCPFlagMatchesSlice)
+	addNumeric(kwProtocol, FlowIPProtocol, parseFlowProtocolMatchesSlice)
+	addNumeric(kwNextHeader, FlowIPProtocol, parseFlowProtocolMatchesSlice)
+	addNumeric(kwPort, FlowPort, parseFlowMatchesSlice)
+	addNumeric(kwDestPort, FlowDestPort, parseFlowMatchesSlice)
+	addNumeric(kwSourcePort, FlowSourcePort, parseFlowMatchesSlice)
+	addNumeric(kwPacketLength, FlowPacketLength, parseFlowMatchesSlice)
+	addNumeric(kwTCPFlags, FlowTCPFlags, parseFlowTCPFlagMatchesSlice)
 
-	if vals, ok := matchCriteria["dscp"]; ok {
-		seen["dscp"] = true
+	if vals, ok := matchCriteria[kwDSCP]; ok {
+		seen[kwDSCP] = true
 		if octets := parseFlowOctetsSlice(vals); len(octets) > 0 {
 			fs.AddComponent(NewFlowDSCPComponent(octets...))
 		} else {
-			dropped = append(dropped, "dscp")
+			dropped = append(dropped, kwDSCP)
 		}
 	}
 	if vals, ok := matchCriteria["traffic-class"]; ok {
@@ -88,36 +88,36 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 			dropped = append(dropped, "traffic-class")
 		}
 	}
-	if vals, ok := matchCriteria["flow-label"]; ok {
-		seen["flow-label"] = true
+	if vals, ok := matchCriteria[kwFlowLabel]; ok {
+		seen[kwFlowLabel] = true
 		if labels := parseFlowLabelsSlice(vals); len(labels) > 0 {
 			fs.AddComponent(NewFlowFlowLabelComponent(labels...))
 		} else {
-			dropped = append(dropped, "flow-label")
+			dropped = append(dropped, kwFlowLabel)
 		}
 	}
-	if vals, ok := matchCriteria["fragment"]; ok {
-		seen["fragment"] = true
+	if vals, ok := matchCriteria[kwFragment]; ok {
+		seen[kwFragment] = true
 		if flags := parseFlowFragmentSlice(vals); len(flags) > 0 {
 			fs.AddComponent(NewFlowFragmentComponent(flags...))
 		} else {
-			dropped = append(dropped, "fragment")
+			dropped = append(dropped, kwFragment)
 		}
 	}
-	if vals, ok := matchCriteria["icmp-type"]; ok {
-		seen["icmp-type"] = true
+	if vals, ok := matchCriteria[kwICMPType]; ok {
+		seen[kwICMPType] = true
 		if types := parseFlowICMPTypesSlice(vals); len(types) > 0 {
 			fs.AddComponent(NewFlowICMPTypeComponent(types...))
 		} else {
-			dropped = append(dropped, "icmp-type")
+			dropped = append(dropped, kwICMPType)
 		}
 	}
-	if vals, ok := matchCriteria["icmp-code"]; ok {
-		seen["icmp-code"] = true
+	if vals, ok := matchCriteria[kwICMPCode]; ok {
+		seen[kwICMPCode] = true
 		if codes := parseFlowICMPCodesSlice(vals); len(codes) > 0 {
 			fs.AddComponent(newFlowICMPCodeComponent(codes...))
 		} else {
-			dropped = append(dropped, "icmp-code")
+			dropped = append(dropped, kwICMPCode)
 		}
 	}
 
@@ -179,10 +179,6 @@ func parseFlowProtocolMatches(s string) []FlowMatch {
 	parts := strings.Fields(s)
 	var result []FlowMatch
 
-	protoMap := map[string]uint8{
-		"icmp": 1, "igmp": 2, "tcp": 6, "udp": 17, "gre": 47, "esp": 50, "ah": 51,
-	}
-
 	for _, p := range parts {
 		var op FlowOperator
 
@@ -199,7 +195,7 @@ func parseFlowProtocolMatches(s string) []FlowMatch {
 		}
 
 		p = strings.ToLower(p)
-		if v, ok := protoMap[p]; ok {
+		if v, ok := protocolNameToNumber[p]; ok {
 			result = append(result, FlowMatch{Op: op, Value: uint64(v)})
 		} else if n, err := strconv.ParseUint(p, 10, 8); err == nil {
 			result = append(result, FlowMatch{Op: op, Value: n})
@@ -387,16 +383,9 @@ func parseFlowFragment(s string) []FlowFragmentFlag {
 	parts := strings.Fields(s)
 	var result []FlowFragmentFlag
 
-	flagMap := map[string]FlowFragmentFlag{
-		"dont-fragment":  FlowFragDontFragment,
-		"is-fragment":    FlowFragIsFragment,
-		"first-fragment": FlowFragFirstFragment,
-		"last-fragment":  FlowFragLastFragment,
-	}
-
 	for _, p := range parts {
-		if f, ok := flagMap[p]; ok {
-			result = append(result, f)
+		if f, ok := fragmentFlagNameToValue[p]; ok {
+			result = append(result, FlowFragmentFlag(f))
 		}
 	}
 	return result
@@ -411,13 +400,6 @@ func parseFlowTCPFlagMatches(s string) []FlowMatch {
 	s = strings.Trim(s, "[]")
 	parts := strings.Fields(s)
 	var result []FlowMatch
-
-	flagMap := map[string]uint8{
-		"fin": 0x01, "syn": 0x02, "rst": 0x04, "reset": 0x04,
-		"psh": 0x08, "push": 0x08,
-		"ack": 0x10, "urg": 0x20, "urgent": 0x20,
-		"ece": 0x40, "cwr": 0x80,
-	}
 
 	for _, p := range parts {
 		// Handle combined flags like "RST&FIN&!=push"
@@ -438,7 +420,7 @@ func parseFlowTCPFlagMatches(s string) []FlowMatch {
 			}
 
 			fp = strings.ToLower(fp)
-			if f, ok := flagMap[fp]; ok {
+			if f, ok := tcpFlagNameToValue[fp]; ok {
 				result = append(result, FlowMatch{Op: op, And: isAnd, Value: uint64(f)})
 			}
 		}

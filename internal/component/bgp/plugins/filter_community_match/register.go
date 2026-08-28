@@ -9,8 +9,8 @@ func init() {
 	_ = registry.Register(registry.Registration{
 		Name:         "bgp-filter-community-match",
 		Description:  "Named community match filter (ordered entries, first match wins, accept/reject)",
-		ConfigRoots:  []string{"bgp"},
-		Dependencies: []string{"bgp"},
+		ConfigRoots:  []string{configRootBGP},
+		Dependencies: []string{configRootBGP},
 		YANG:         cmyang.ZeFilterCommunityMatchYANG,
 		FilterTypes:  []string{"community-match"},
 		RunEngine:    runFilterCommunityMatch,

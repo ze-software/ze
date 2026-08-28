@@ -27,6 +27,8 @@ import (
 // Set via ConfigureLogger from CLI --log-level flag.
 var Logger = slogutil.DiscardLogger()
 
+const configRootBGP = "bgp"
+
 // ConfigureLogger sets the package-level logger.
 // Called by cmd/ze/bgp/plugin_hostname.go with slogutil.PluginLogger().
 func ConfigureLogger(l *slog.Logger) {
@@ -82,7 +84,7 @@ func runHostnamePlugin(conn net.Conn) int {
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		var caps []sdk.CapabilityDecl
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			caps = append(caps, extractHostnameCapabilities(section.Data)...)
@@ -94,7 +96,7 @@ func runHostnamePlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 	})
 	if err != nil {
 		Logger.Error("hostname plugin failed", "error", err)

@@ -19,6 +19,8 @@ var errAsPathLengthInvalidBgpConfigJSON = errors.New("filter-aspath-length: inva
 
 var logger = slogutil.LazyLogger("bgp.filter.aspath-length")
 
+const configRootBGP = "bgp"
+
 var defsByName atomic.Pointer[map[string]*asPathLengthDef]
 
 func RunFilterAsPathLength(conn net.Conn) int {
@@ -27,7 +29,7 @@ func RunFilterAsPathLength(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
@@ -51,7 +53,7 @@ func RunFilterAsPathLength(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 	}); err != nil {
 		logger().Error("filter-aspath-length plugin failed", "error", err)
 		return 1

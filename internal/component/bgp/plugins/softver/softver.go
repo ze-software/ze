@@ -35,6 +35,8 @@ func ConfigureLogger(l *slog.Logger) {
 
 // ZeVersion is the software version string advertised in the capability.
 // Convention: "name/version" (e.g., "ExaBGP/4.2.22", "FRRouting/9.0").
+const configRootBGP = "bgp"
+
 const ZeVersion = "Ze/0.1.0"
 
 // Software-version capability mode values that suppress advertisement.
@@ -68,7 +70,7 @@ func RunSoftverPlugin(conn net.Conn) int {
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		var caps []sdk.CapabilityDecl
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			caps = append(caps, extractSoftverCapabilities(section.Data)...)
@@ -80,7 +82,7 @@ func RunSoftverPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 	})
 	if err != nil {
 		Logger.Error("softver plugin failed", "error", err)

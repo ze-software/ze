@@ -55,7 +55,7 @@ func parseConfig(jsonData string) ([]ProbeConfig, error) {
 		return nil, fmt.Errorf("unmarshal config: %w", err)
 	}
 
-	bgpTree, ok := getMap(tree, "bgp")
+	bgpTree, ok := getMap(tree, configRootBGP)
 	if !ok {
 		return nil, nil
 	}
@@ -109,7 +109,7 @@ func parseConfig(jsonData string) ([]ProbeConfig, error) {
 		if cfg.Group == "" {
 			return nil, fmt.Errorf("probe %q: group is required", name)
 		}
-		if cfg.Group == "med" {
+		if cfg.Group == watchdogMetricMED {
 			return nil, fmt.Errorf("probe %q: 'med' is not allowed as a group name (ambiguous with watchdog med argument)", name)
 		}
 		if strings.ContainsAny(cfg.Group, " \t\n\r") {

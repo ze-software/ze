@@ -38,6 +38,12 @@ const (
 	kwSelf      = "self"
 )
 
+// fieldWithdrawn is the payload key the four withdraw handlers answer with, and
+// it holds the number of tracked announcements the handler removed. Naming it
+// once is what keeps the four answers reading the same to an operator who asks
+// for one of them by name.
+const fieldWithdrawn = "withdrawn"
+
 const maxTagLen = 128
 
 var (
@@ -494,7 +500,7 @@ func handlewithdrawTag(reg *Registry, args []string) (*plugin.Response, error) {
 		}
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Map{"withdrawn": n},
+			Data:   plugin.Map{fieldWithdrawn: n},
 		}, nil
 	}
 
@@ -516,7 +522,7 @@ func handlewithdrawTag(reg *Registry, args []string) (*plugin.Response, error) {
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"withdrawn": n},
+		Data:   plugin.Map{fieldWithdrawn: n},
 	}, nil
 }
 
@@ -553,7 +559,7 @@ func handleWithdrawID(reg *Registry, args []string) (*plugin.Response, error) {
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"withdrawn": 1},
+		Data:   plugin.Map{fieldWithdrawn: 1},
 	}, nil
 }
 
@@ -575,7 +581,7 @@ func handlewithdrawAll(reg *Registry, args []string) (*plugin.Response, error) {
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"withdrawn": n},
+		Data:   plugin.Map{fieldWithdrawn: n},
 	}, nil
 }
 

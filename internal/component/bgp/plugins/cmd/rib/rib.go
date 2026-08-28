@@ -33,6 +33,39 @@ const (
 	cmdBgpPeerRib = "show bgp peer rib"
 )
 
+// The keys of a route row, as the bgp-rib plugin writes them and as the column
+// orders and address-field lists below declare them.
+//
+// `show bgp rib` and `show bgp peer rib` answer the SAME rows and so declare
+// the same eleven columns twice. Naming each key once is what stops the two
+// declarations drifting apart: the renderer pairs a declared name with a row
+// key by exact spelling (commandRegistry.lookup in
+// internal/component/command/column_order.go), so a name that only one of them
+// misspells is a column ordered on one command and not the other, with nothing
+// reporting it.
+//
+// The pipe filter names in registerPipeFilters are a different vocabulary and
+// stay literal: a filter name is what an OPERATOR types, and `| peer` reaching
+// the "peer" field is the bgp-rib pipeline's business, not this file's.
+const (
+	fieldPeer        = "peer"
+	fieldDirection   = "direction"
+	fieldFamily      = "family"
+	fieldPrefix      = "prefix"
+	fieldNextHop     = "next-hop"
+	fieldPathID      = "path-id"
+	fieldASPath      = "as-path"
+	fieldOrigin      = "origin"
+	fieldLocalPref   = "local-pref"
+	fieldMED         = "med"
+	fieldCommunities = "communities"
+
+	// fieldCount is the row count `show bgp rib pool-stats` answers beside its
+	// pool rows (pool_stats.go). It is NOT the `| count` pipe operator, which
+	// registerPipeFilters spells for itself.
+	fieldCount = "count"
+)
+
 func init() {
 	registerPipeFilters()
 
@@ -101,15 +134,15 @@ func registerPipeFilters() {
 	command.RegisterShape([]string{cmdRibShow}, command.ShapeTab)
 	command.RegisterColumns([]string{cmdRibShow},
 		command.ColumnOrder{
-			"peer", "direction", "family", "prefix",
-			"next-hop", "path-id", "as-path", "origin", "local-pref", "med", "communities",
+			fieldPeer, fieldDirection, fieldFamily, fieldPrefix,
+			fieldNextHop, fieldPathID, fieldASPath, fieldOrigin, fieldLocalPref, fieldMED, fieldCommunities,
 		},
 	)
 
 	// The peer address is what `| resolve` and `| origin` act on. Nothing else
 	// in the row is declared an address, so neither operator decorates a field
 	// by coincidence.
-	command.RegisterAddressFields([]string{cmdRibShow}, "peer", "next-hop")
+	command.RegisterAddressFields([]string{cmdRibShow}, fieldPeer, fieldNextHop)
 
 	registerRibAnswerShapes()
 }
@@ -135,11 +168,11 @@ func registerRibAnswerShapes() {
 	command.RegisterShape([]string{cmdBgpPeerRib}, command.ShapeTab)
 	command.RegisterColumns([]string{cmdBgpPeerRib},
 		command.ColumnOrder{
-			"peer", "direction", "family", "prefix",
-			"next-hop", "path-id", "as-path", "origin", "local-pref", "med", "communities",
+			fieldPeer, fieldDirection, fieldFamily, fieldPrefix,
+			fieldNextHop, fieldPathID, fieldASPath, fieldOrigin, fieldLocalPref, fieldMED, fieldCommunities,
 		},
 	)
-	command.RegisterAddressFields([]string{cmdBgpPeerRib}, "peer", "next-hop")
+	command.RegisterAddressFields([]string{cmdBgpPeerRib}, fieldPeer, fieldNextHop)
 
 	// `show bgp rib best` answers one row for each best path, under
 	// "best-path". The row is bestResult
@@ -152,7 +185,7 @@ func registerRibAnswerShapes() {
 	// the winning path carries.
 	command.RegisterShape([]string{cmdRibBest}, command.ShapeTab)
 	command.RegisterColumns([]string{cmdRibBest},
-		command.ColumnOrder{"family", "prefix", "best-peer", "multipath-peers", "attributes"},
+		command.ColumnOrder{fieldFamily, fieldPrefix, "best-peer", "multipath-peers", "attributes"},
 	)
 	// Two values of the row hold a bare IP address: the winning peer, and the
 	// next hop inside "attributes" (enrichRouteMapFromEntry, rib_attr_format.go).
@@ -161,7 +194,7 @@ func registerRibAnswerShapes() {
 	// decorate a map value that passes netip.ParseAddr
 	// (internal/component/command/pipe_resolve.go, pipe_origin.go), a prefix
 	// string does not parse, and an array element is walked past.
-	command.RegisterAddressFields([]string{cmdRibBest}, "best-peer", "next-hop")
+	command.RegisterAddressFields([]string{cmdRibBest}, "best-peer", fieldNextHop)
 
 	// The three scalar commands answer ONE document, so every row operator is
 	// refused by name before the command runs rather than after it.
@@ -192,8 +225,8 @@ func registerRibAnswerShapes() {
 	// a key, so one order serves both branches.
 	command.RegisterColumns([]string{cmdRibRPF},
 		command.ColumnOrder{
-			"source", "family", "found",
-			"matched-prefix", "next-hop", "admin-distance", "metric",
+			"source", fieldFamily, "found",
+			"matched-prefix", fieldNextHop, "admin-distance", "metric",
 		},
 	)
 
@@ -202,7 +235,7 @@ func registerRibAnswerShapes() {
 	// refusal an operator reads then names the real reason, which is that the
 	// answer has no rows, rather than claiming no field holds an address.
 	// "matched-prefix" is a prefix and fails netip.ParseAddr, so it is not one.
-	command.RegisterAddressFields([]string{cmdRibRPF}, "source", "next-hop")
+	command.RegisterAddressFields([]string{cmdRibRPF}, "source", fieldNextHop)
 	// The two status answers hold peer addresses as the KEYS of a map and in no
 	// field, so neither operator has anything to decorate.
 	command.RegisterAddressFields([]string{cmdRibStatus, cmdRibBestStatus})

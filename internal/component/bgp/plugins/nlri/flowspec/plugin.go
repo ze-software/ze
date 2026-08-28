@@ -54,10 +54,10 @@ func runFlowSpecPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: "ipv4/flow", Mode: "both", AFI: 1, SAFI: 133},
-			{Name: "ipv6/flow", Mode: "both", AFI: 2, SAFI: 133},
-			{Name: "ipv4/flow-vpn", Mode: "both", AFI: 1, SAFI: 134},
-			{Name: "ipv6/flow-vpn", Mode: "both", AFI: 2, SAFI: 134},
+			{Name: familyIPv4Flow, Mode: familyModeBoth, AFI: 1, SAFI: 133},
+			{Name: familyIPv6Flow, Mode: familyModeBoth, AFI: 2, SAFI: 133},
+			{Name: familyIPv4FlowVPN, Mode: familyModeBoth, AFI: 1, SAFI: 134},
+			{Name: familyIPv6FlowVPN, Mode: familyModeBoth, AFI: 2, SAFI: 134},
 		},
 	})
 	if err != nil {
@@ -157,9 +157,9 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 // flowSpecFamilies returns the address families this plugin can decode.
 func flowSpecFamilies() []string {
 	return []string{
-		"ipv4/flow",
-		"ipv6/flow",
-		"ipv4/flow-vpn",
-		"ipv6/flow-vpn",
+		familyIPv4Flow,
+		familyIPv6Flow,
+		familyIPv4FlowVPN,
+		familyIPv6FlowVPN,
 	}
 }

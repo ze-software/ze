@@ -677,9 +677,9 @@ func (rs *routeServer) peerStatus() any {
 	for _, address := range addresses {
 		p := rs.peers[address]
 		peers = append(peers, map[string]any{
-			"address": p.Address,
-			"remote":  map[string]any{"as": p.ASN},
-			"up":      p.Up,
+			tokenAddress: p.Address,
+			"remote":     map[string]any{"as": p.ASN},
+			"up":         p.Up,
 		})
 	}
 
