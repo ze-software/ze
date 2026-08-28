@@ -101,7 +101,9 @@ func localJSON(command, evidence string, output io.Writer) (any, error) {
 	if err := json.Unmarshal(result.stdout, &payload); err != nil {
 		return nil, fmt.Errorf("%s did not answer JSON: %w: %s%s", command, err, result.stdout, result.stderr)
 	}
-	fmt.Fprintln(output, Marker(evidence))
+	if _, err := fmt.Fprintln(output, Marker(evidence)); err != nil {
+		return nil, fmt.Errorf("write coverage evidence: %w", err)
+	}
 	return payload, nil
 }
 
@@ -602,6 +604,8 @@ func runScenario(output io.Writer, work string) error {
 	if err := require(info.Mode().Perm() == 0o600, "local save mode=%04o, want 0600", info.Mode().Perm()); err != nil {
 		return err
 	}
-	fmt.Fprintln(output, CompletionMarker)
+	if _, err := fmt.Fprintln(output, CompletionMarker); err != nil {
+		return fmt.Errorf("write coverage completion: %w", err)
+	}
 	return nil
 }

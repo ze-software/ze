@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"io"
@@ -1224,6 +1225,9 @@ func markdownRenderedHeadingIdentity(heading string) string {
 			)
 		case xhtml.TextToken:
 			rendered.WriteString(tokenizer.Token().Data)
+		case xhtml.StartTagToken, xhtml.EndTagToken, xhtml.SelfClosingTagToken,
+			xhtml.CommentToken, xhtml.DoctypeToken:
+			// Only visible text contributes to the rendered heading identity.
 		}
 	}
 }
@@ -1237,6 +1241,9 @@ func markdownInlineVisibleText(value string) string {
 			return markdownInlineVisibleTextNoHTML(text.String())
 		case xhtml.TextToken:
 			text.WriteString(tokenizer.Token().Data)
+		case xhtml.StartTagToken, xhtml.EndTagToken, xhtml.SelfClosingTagToken,
+			xhtml.CommentToken, xhtml.DoctypeToken:
+			// Inline markup is not visible text.
 		}
 	}
 }
@@ -3201,10 +3208,9 @@ func parseRenderedHTML(content string) renderedHTMLDocument {
 	for {
 		tokenType := tokenizer.Next()
 		if tokenType == xhtml.ErrorToken {
-			if err := tokenizer.Err(); err != io.EOF {
+			if err := tokenizer.Err(); !errors.Is(err, io.EOF) {
 				document.err = err
 			}
-			return finish()
 		}
 		raw := tokenizer.Raw()
 		token := tokenizer.Token()
@@ -3261,6 +3267,10 @@ func parseRenderedHTML(content string) renderedHTMLDocument {
 				document.nodeClosed[openElements[index].node] = index == match
 			}
 			openElements = openElements[:match]
+		case xhtml.ErrorToken:
+			return finish()
+		case xhtml.DoctypeToken:
+			// A document type does not contribute command content.
 		}
 	}
 }
@@ -4022,6 +4032,8 @@ func commandHTMLGroups(
 						parsed = append(parsed, strings.Split(values, " · ")...)
 					}
 				}
+			case xhtml.ErrorNode, xhtml.DocumentNode, xhtml.DoctypeNode, xhtml.RawNode:
+				scan.malformed = true
 			}
 		}
 		if !htmlVisibleSubtreeClosed(document, node) || codeCount == 0 {
