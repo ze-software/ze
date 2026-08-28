@@ -36,6 +36,13 @@ The editor starts an ephemeral ze instance in the background for live YANG valid
 | `exit` | Exit editor |
 <!-- source: internal/component/cli/editor_commands.go -- editor commands (set, delete, show, diff, commit, rollback) -->
 
+The `|` after an editor command belongs to the editor's own filter language.
+It is separate from the operational command operators published by
+`ze help command --json`, so names such as `blame`, `compare`, and `history`
+apply here without becoming operational pipe operators.
+<!-- source: internal/component/cli/model_load.go -- dispatchWithPipe, ClassifyShowPipes -->
+<!-- source: internal/component/cli/completer.go -- showPipeFilters, completePipeFilter -->
+
 ### Structural operations appear in the diff
 
 `show | changes` and `show | compare` include the draft's structural operations,

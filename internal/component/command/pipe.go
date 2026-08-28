@@ -29,7 +29,7 @@ import (
 type pipeKind int
 
 const (
-	pipeMatch   pipeKind = iota // | match <pattern> — grep lines
+	pipeMatch   pipeKind = iota // | match <pattern>: keep rows holding the text, or rendered lines after a line format
 	pipeCount                   // | count — count items (returns JSON {"count": N})
 	pipeNoMore                  // | no-more — disable paging (currently no-op)
 	pipeJSON                    // | json [pretty|compact] — format as JSON array

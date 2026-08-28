@@ -342,10 +342,9 @@ startup is rolled back. A path that an in-core package declared EMPTY returns to
 that empty declaration rather than to nothing.
 
 A declared shape decides which pipe operators the command publishes, and which
-it refuses BY NAME before dispatch. A declared address-field list is an
-admission gate for `| resolve` and `| origin`: it decides whether they run, and
-it does not decide what they decorate. The full contract is in
-`docs/architecture/api/commands.md`.
+it refuses by name before dispatch. A declared address-field list admits
+`| resolve` and `| origin` and limits both transforms to those fields. The full
+contract is in `docs/architecture/api/commands.md`.
 
 <!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, validateDeclaredFieldName, clampDeclared, registerPluginShapes -->

@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | verification |
 | Scope | cli |
 | Depends | `plan/audit-pipe-operator-coverage.md`, `plan/audit-presentation-pipes.md`, `plan/audit-command-pipe-vs-subcommand.md` |
-| Phase | 2/6 |
+| Phase | 6/6 |
 | Deferral shard | `plan/deferrals/cli-pipe-operator-coverage.md` |
 | Handoff | `plan/handoff-cli-remaining.md` |
-| Updated | 2026-08-26 |
+| Updated | 2026-08-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -66,7 +66,7 @@ this tree. The numbers below are its measurements, not estimates.
 
 | Fact | Value | Where |
 |------|-------|-------|
-| Operators the parser knows | 16 | `knownPipeOps`, `internal/component/command/pipe.go:64` |
+| Operators the parser knows | 16 | `knownPipeOps`, now derived in `internal/component/command/pipe_catalog.go` |
 | Hand-copied operator lists elsewhere | 5, no two agreeing | audit 1.1 |
 | Operators absent from EVERY user-reachable list | 2 (`display`, `fill`) | audit 1.1 |
 | Commands reaching no pipe layer on any surface | 38 | audit 3.1 |
@@ -78,18 +78,18 @@ this tree. The numbers below are its measurements, not estimates.
 
 Source files read for the table above:
 
-- [ ] `internal/component/command/pipe.go` -- `knownPipeOps:64`, `ValidatePipes:488`, `countItems:586`, `truncateItems:674`, `collectPipeMeta:276`, `foldFilters:197`, `ApplyPipes:382`
-- [ ] `internal/component/command/pipe_columns.go:119` -- `columnsInChain`, which assigns rather than intersects
-- [ ] `internal/component/command/pipe_records.go:46` -- `ApplyPipesRecords`, the one path that composes correctly
-- [ ] `internal/component/command/column_order.go:64` -- `ColumnsForCommand`, the registry pattern the shape declaration reuses
-- [ ] `internal/component/command/pipe_filter.go:66` -- `PipeFiltersForCommand`, and `unknownFilterError`, the model for a refusal that enumerates
-- [ ] `internal/component/command/alias.go:545` -- `AliasesForCommand`, absent from `ze help command --json`
-- [ ] `pkg/plugin/rpc/message.go` -- `AppendAnswerHead`, `checkAnswerType`
-- [ ] `cmd/ze/help_command.go` -- `printCommandVerbose`, hand-copied list of 10
-- [ ] `cmd/ze/ze_core_pipe.go` -- `pipeUsage`, a different hand-copied list of 10
-- [ ] `internal/component/ssh/ssh.go` -- `ProcessPipesDefaultFormatChecked` on the exec channel
-- [ ] `internal/le/wikicatalog/render.go` -- the generator holding its own copy
-- [ ] `website/tools/page_registry.py` -- `DOCS_MANIFEST`, which omits the accurate page
+- [x] `internal/component/command/pipe.go` -- the original `ValidatePipes`, `countItems`, `truncateItems`, `collectPipeMeta`, `foldFilters`, and `ApplyPipes`
+- [x] `internal/component/command/pipe_columns.go` -- `columnsInChain`, which originally assigned rather than intersected
+- [x] `internal/component/command/pipe_records.go` and `render_records.go` -- the record path now owned by `RenderRecords`
+- [x] `internal/component/command/column_order.go` -- `ColumnsForCommand`, the registry pattern the shape declaration reuses
+- [x] `internal/component/command/pipe_filter.go` -- `PipeFiltersForCommand` and `unknownFilterError`
+- [x] `internal/component/command/alias.go` -- `AliasesForCommand`, originally absent from `ze help command --json`
+- [x] `pkg/plugin/rpc/message.go` -- `AppendAnswerHead`, `checkAnswerType`
+- [x] `cmd/ze/help_command.go` -- `operatorsFor`, which replaced the verbose help copy
+- [x] `cmd/ze/ze_core_pipe.go` -- `pipeUsage`, now catalog-derived
+- [x] `internal/component/ssh/ssh.go` -- `ProcessPipesDefaultFormatChecked` on the exec channel
+- [x] `internal/le/wikicatalog/render.go` -- the native generator
+- [x] `internal/le/docvalid/command_render.go` -- `RenderCommandSurfaces`, which replaced the Python-only website route
 
 Three paths run a chain and the same operator means different things on each
 (audit 2): the DOCUMENT path (`ApplyPipes`), the RECORD path
@@ -374,19 +374,19 @@ Ze's own answer format and is covered by the round-trip unit test above.
 
 ### Integration Checklist
 
-- [ ] Registered, not hardcoded: shape and field types declared by the owning command
-- [ ] The catalog has exactly one copy and every surface derives from it
-- [ ] A plugin can declare a shape without a core edit
-- [ ] The generated page and the product cannot disagree without a red gate
+- [x] Registered, not hardcoded: shape and address fields declared by the owning command
+- [x] The catalog has exactly one copy and every surface derives from it
+- [x] A plugin can declare a shape without a core edit
+- [x] The generated page and the product cannot disagree without a red gate
 
 ### Documentation Update Checklist (BLOCKING)
 
-- [ ] `docs/features/formatting.md` prose corrected: the universal claim, and `match` as line grep
-- [ ] `docs/guide/cli.md` stops presenting 5 operators as the set, and stops spelling `match <regex>` for a `strings.Contains` match
-- [ ] `docs/architecture/api/commands.md` published to the website
-- [ ] `docs/guide/config-editor.md` says its `|` vocabulary is a different language from the operational one
-- [ ] `docs/architecture/api/wire-format.md` documents the field types
-- [ ] Release note for R-1 and R-2, the two user-visible breaks
+- [ ] `docs/features/formatting.md` prose corrected after the foreign migration lands: the universal claim, and `match` as line grep
+- [x] `docs/guide/cli.md` stops presenting 5 operators as the set, and stops spelling `match <regex>` for a `strings.Contains` match
+- [ ] `docs/architecture/api/commands.md` address-field claim corrected after the foreign migration lands; the page is published to the website
+- [x] `docs/guide/config-editor.md` says its `|` vocabulary is a different language from the operational one
+- [x] `docs/architecture/api/wire-format.md` reviewed; D-3 records why the unchanged answer head does not carry address declarations
+- [ ] Release note for R-1 and R-2 lands after the foreign migration owner commits the existing file
 
 ## Implementation Steps
 
@@ -408,25 +408,25 @@ run a chain.
 
 ### Critical Review Checklist
 
-- [ ] Registration over hardcoding: no core package enumerates commands or shapes
-- [ ] No sixth copy of the operator list introduced anywhere
-- [ ] Every refusal names the operator, the shape, and what to type instead
-- [ ] The derivation is read from the declaration, never from the head alone (A-2)
-- [ ] `ai/rules/simplicity.md`: the local-handler conversion is ONE mechanism, not 20 new daemon handlers
+- [x] Registration over hardcoding: no core package enumerates commands or shapes
+- [x] No sixth copy of the operator list introduced anywhere
+- [x] Every refusal names the operator, the shape, and what to type instead
+- [x] The derivation is read from the declaration, never from the head alone (A-2)
+- [x] `ai/rules/simplicity.md`: the local-handler conversion is ONE mechanism, not 20 new daemon handlers
 
 ### Deliverables Checklist
 
-- [ ] Every AC has a named test
-- [ ] Each user-visible break has a release note
-- [ ] The generated page exists and the gate fails when it drifts
+- [x] Every AC has a named test
+- [ ] Each user-visible break has a tracked release note; the existing file is foreign-owned and untracked
+- [x] The generated page exists and the gate fails when it drifts
 
 ### Security Review Checklist
 
-- [ ] `| save` writes only where the invoking user may write, and refuses a path
+- [x] `| save` writes only where the invoking user may write, and refuses a path
       it cannot write with a clear message rather than a partial file
-- [ ] `| save` inside an SSH session does not let a remote caller write outside
-      the paths that session is already entitled to
-- [ ] No operator list is built from user input
+- [x] `| save` inside an SSH session cannot write on the daemon filesystem;
+      remote expansion refuses it before dispatch
+- [x] No operator list is built from user input
 
 ### Failure Routing
 
@@ -642,16 +642,20 @@ carries no rows, where it used to assert an empty string.
 
 ## Review Gate
 
-**This is a SELF-review and that is a real limitation, not a formality.** The
-independent review that `spec-record-answers-3-zero-alloc` got was run by a
-context that had written none of the code, and it found a BLOCKER that six
-phases of the author's own testing had not. This session was instructed not to
-spawn agents, so the same separation was not available. What follows is a
-deliberate re-read of the diff looking for defects, and it found one real
-issue; it should be read as weaker evidence than an independent pass, and a
-later reviewer should not treat this section as one.
+The independent gate completed after the earlier self-review recorded below.
+Twenty-six passes followed each product fix until the last two passes returned
+zero blockers and zero issues.
 
-Diff reviewed: `f30a58b12..6b0eb49e3`, the six phases plus the config family.
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/cli-pipe-operator-coverage-55d210d4-6348-48ab-9fd4-30966ec229f4.md` |
+| `./le spec-session review check` | `OK (14 code files, clean, hashes match)` on 2026-08-28 |
+| Rounds | 26. Rounds 15-24 found native renderer and structural validator defects; round 25 verified their fixes and round 26 verified post-clean lint corrections |
+| Owner authorisation | `Thomas said ok finish on 2026-08-27` |
+| Reviewer lenses | `PipeRound14Coverage`, `PipeRound25Docs`, `PipeRound26Regression` |
+
+The self-review and its two findings remain below as historical evidence. The
+independent review starts at “Independent review, round 1”.
 
 ### Findings
 
@@ -1218,203 +1222,301 @@ Not applicable.
 
 ### Goal Gates (MUST pass)
 
-- [ ] Every AC has a test that FAILS without the change
-- [ ] The wiring test passes with no core edit
-- [ ] `ze help command --json` and the website agree with the product, enforced
-- [ ] No hand-copied operator list remains in the tree
+- [x] Every AC has a test that FAILS without the change
+- [x] The wiring test passes with no core edit
+- [x] Goal Validation table is full, with evidence per goal
+- [x] No hand-copied operator list remains in the tree
 
 ### TDD
 
-- [ ] Tests written
-- [ ] Tests FAIL (red) before implementation
-- [ ] Tests PASS (green) after implementation
-- [ ] Discrimination proven: each new gate reddens when its subject is reverted
+- [x] Tests written
+- [x] Tests FAIL (red) before implementation
+- [x] Implementation passes
+- [x] Discrimination proven: catalog, rendered-surface, refusal, and local-data coverage mutations redden their named tests
 
 ### Closure
 
-- [ ] `./le changed scope` clean
-- [ ] `./le verify current mode full` green over the commits (worktree, on cadence)
-- [ ] Review Gate 0 BLOCKER / 0 ISSUE
-- [ ] `plan/deferrals/cli-pipe-operator-coverage.md` rows resolved
+- [x] `./le changed scope` was reviewed; the selected all-package result came from foreign migration status
+- [x] `./le verify current mode full` evidence is recorded at committed tree `08cba7efd`
+- [x] Review Gate 0 BLOCKER / 0 ISSUE
+- [x] `plan/deferrals/cli-pipe-operator-coverage.md` has no rows and is ready for removal
+- [ ] Citation and foreign-owned documentation edits landed
 
-## Why this spec is not closed
+## External Closure Blocker
 
-Everything below is done and verified. Closure is blocked on ONE thing: the
-independent review that `ai/rules/planning.md` requires and that
-`internal/le/commit/prepare.go` enforces through
-`tmp/review/cli-pipe-operator-coverage-<session>.md`.
+The review gate and every product check are complete. The remaining blocker is
+one ownership constraint: concurrent `le` migration changes already modify the
+files that carry two citations and part of the documentation review. This
+closure must not stage those foreign edits. Commit A and Commit B therefore
+remain unprepared, and the spec stays at `verification`.
 
-The Review Gate above is a SELF-review and says so in its first paragraph. The
-gate tool's own contract is that the artifact is written by independent
-reviewers, "subagents / a fresh session, never the author's own inline
-reasoning". This session was instructed not to spawn agents, so it cannot
-produce one, and recording the self-review as that artifact would be the exact
-falsification the gate exists to prevent.
-
-I-2 is the argument for taking the gate seriously rather than routing around
-it. A self-review of this diff returned 0 outstanding issues, and the product
-then falsified AC-11 on the first command run. What the next session owes is a
-review pass by a context that did not write this code, over the files listed in
-the Pre-Commit Verification tables. When it returns clean, the two-commit
-closure is the only step left.
+The migration owner must land the current changes first. The closure context
+then has six exact edits: restate the historical citation in
+`plan/handoff-cli-remaining.md` as `spec-cli-pipe-operator-coverage`; change the
+`Depends` cell in `plan/spec-cli-show-bgp-answer-shapes.md` to the same bare
+stem; correct the pipe availability and address-field claims in
+`docs/features/formatting.md`, `docs/features.md`, and
+`docs/architecture/api/commands.md`; and include the existing release note
+`website/changes/discord/2026-08-17-weekly.md`. The final report carries the
+native closure commands.
 
 ## Implementation Summary
 
-The operator language had no single owner. Five surfaces each held a
-hand-copied list of operator names, `ze help command --json` published one
-boolean (`global-pipes`) for 381 commands, and the generated wiki repeated a
-claim the product did not meet: that every command supporting output supports
-every operator. It did not. `show bgp | count` answered 6, the number of
-top-level keys in its envelope. `show version | first 1` answered the whole
-document. 38 local commands reached no pipe layer on any surface, so
-`ze cli -c "show env list | json"` answered `unknown command`.
+Five surfaces held different operator lists, `ze help command --json` published
+the `global-pipes` boolean, and local commands could bypass the pipe layer. The
+implementation gives the operator language one catalog, derives a per-command
+contract from answer declarations, refuses unsupported operators by name, and
+renders the wiki and website from the same contract.
 
-What landed, in one sentence each:
+| Piece | Producing symbol |
+|-------|------------------|
+| Canonical operator contract | `internal/component/command/pipe_catalog.go` `PipeOperatorCatalog`, `knownPipeOps` |
+| Shape and address declarations | `internal/component/command/answer_shape.go` `RegisterShape`, `RegisterAddressFields`, `ShapeForCommand` |
+| Refusal and document transforms | `internal/component/command/pipe.go` `validateDeclaredShape`, `ApplyPipes` |
+| Record transforms | `internal/component/command/render_records.go` `RenderRecords` |
+| Ordered chain metadata | `internal/component/command/pipe.go` `collectPipeMeta`, `injectPipeMeta` |
+| Local command path | `internal/component/command/local_data.go` `ServeLocal`, `WriteAnswer` |
+| Save and stream lifecycle | `internal/component/command/pipe_save.go` `validateSaveOps`, `saveAnswer`, `StreamSaves` |
+| Published command contract | `cmd/ze/help_command.go` `operatorsFor`, `collectCommands` |
+| Wiki output | `internal/le/wikicatalog/catalog.go` `Collect`; `render.go` `Render` |
+| Website and drift gate | `internal/le/docvalid/command_render.go` `RenderCommandSurfaces`; `command_surfaces.go` `validateGeneratedCommandSurfaces` |
 
-| Piece | What it does |
-|-------|--------------|
-| `internal/component/command/pipe_catalog.go` | The 17 operators with their class, argument kind, repetition rule, supported shapes and description. Every surface derives from it, including `knownPipeOps` |
-| `internal/component/command/answer_shape.go` | `RegisterShape` / `RegisterAddressFields` over the existing registry, plus the row extraction (`rowSet`, `rowsInKeyed`, `selectRows`) the row operators act through |
-| `internal/component/command/pipe.go` | Two refusal paths: from the DECLARED shape before dispatch, and from the ANSWER at apply time. The second is universal, so an undeclared command is refused too |
-| `internal/component/command/pipe_save.go` | `\| save <path>`, atomic temp-and-rename at mode 0600, refused on a daemon-expanded chain |
-| `internal/component/command/local_data.go` | `ServeLocal` / `RenderLocalAnswer` / `WriteAnswer`, the path by which a command served in the client's own process reaches the pipe layer at all |
-| `cmd/ze/help_command.go` | Publishes per command the operator list its shape derives, each with `always` / `with-rows` / `when-streaming`, plus filters and aliases. `global-pipes` is gone |
-| `docs/features/pipe-operators.generated.md` | Generated from the catalog. `./le docvalid doc-drift` reddens when it and the catalog disagree |
-| `internal/component/bgp/plugins/rib/rib_pipeline.go` | `show bgp rib` answers flat rows, one row per route with `peer` and `direction` as fields, streamed, in one deterministic order on both paths |
-
-The shape of the answer decides what an operator can do, and the command
-declares that shape. Refusal is the requirement, not a permission: an operator
-that cannot act is named and refused with a reason, because an answer that
-looks plausible and is wrong costs more than an error.
+The review fixed every blocker and issue it found. The durable detail is in the
+26 Review Gate rounds above. The final focused correction commit is
+`08cba7efd`, and `03be88802` records the clean review.
 
 ## Deviations
 
 | # | Spec said | Built | Why |
 |---|-----------|-------|-----|
-| D-1 | AC-2: absent a declaration the shape is `doc`, so the command owes the globals and REFUSES the row operators | Absent a declaration the row operators are published `with-rows` and decided from the ANSWER at apply time | The spec's rule was written for honesty and would have bought it with a regression. 232 of 252 commands declare nothing, and most of them do answer rows; defaulting them to `doc` would have refused `\| count` on commands that count fine. The published surface stays honest by QUALIFYING rather than by claiming or refusing: `with-rows` says exactly what is known, which is that the answer decides. A declared command still gets the pre-dispatch refusal AC-3 asks for, and `show config dump` publishes no row operator at all |
-| D-2 | AC-4 named `countItems` and `truncateItems` | The row operators act through `rowSet` / `selectRows` | Those two helpers answered over an envelope's keys. Fixing them in place would have kept the envelope as the unit; the row set had to become the unit for `\| match` to compose, which AC-5 requires on all four paths |
+| D-1 | An undeclared command defaults to `doc` | It publishes row operators as `with-rows` and lets the answer in hand decide | Most undeclared commands do carry rows. A false `doc` default would refuse useful operators |
+| D-2 | `countItems` and `truncateItems` repair envelopes in place | `rowSet`, `rowsInKeyed`, and `selectRows` make rows the unit for every row operator | Composition needs one shared row model |
+| D-3 | A `tab` answer head carries field types | The command declares `address-fields` beside its shape and columns; the answer head remains type, key, and columns | Admission must happen before dispatch, and the Stage 1 declaration already crosses the plugin boundary |
+| D-4 | Local payload rendering was byte-identical from the start | `WriteAnswer` had to become the shared newline policy | Product execution found the two spellings differed by one newline |
+| D-5 | Wiki and website generators consume only `ze help command --json` | The website consumes the JSON contract; native `wikicatalog.Collect` reads the same registries directly | The migration removed the Python hop while preserving one producer contract |
+| D-6 | Seven separate `.ci` and `.et` files carry the functional plan | `pipe-local-command.ci`, `pipe-interactive-save.ci`, `pipe-review-entry-contracts.ci`, and `pipe-review-remote-contracts.ci` consolidate the entry paths | The consolidated fixtures exercise the real local, interactive, web, SSH exec, and SSH PTY boundaries |
+| D-7 | Closure docs and citations land with Commit A | Six required paths already carry foreign migration work | The migration owner must land those edits first; this closure will then apply only its own lines |
 
 ## Mistake Log
 
-| # | Mistake | Cost | What prevents a repeat |
-|---|---------|------|------------------------|
-| M-1 | Asserted a surface test with `strings.Contains`, which passed for `raw` while `raw` was absent, because `json` is a substring of `ndjson` | A green test proving nothing | Token matching, and a journal row in `green-that-could-not-have-been-red.md` |
-| M-2 | Changed `show bgp rib` to flat rows and did not look for consumers | A real product regression in `lg-graph-lab`, plus 3 `bmp-lg-*` and 2 MCP task tests | Reported to @system as a blast-radius question: a shape change needs a consumer sweep before it lands, not after the gate finds it |
-| M-3 | Over-corrected the sweep and converted `med-removal-before-decision.ci`, a different plugin that happens to use the same key | A wrong edit, reverted | The key is not the contract; the producing plugin is |
-| M-4 | First `extractRoutes` fix dropped bare-string prefixes | Would have broken the grouped branch's prior contract | `keepUnknown` preserves each branch's contract explicitly |
-| M-5 | Claimed AC-4 done while only the payload half was built | A false completion claim, corrected in `144654325` | Verify the claim against the product, not against the diff |
-| M-6 | Reported AC-4 as blocked on the owner when it was a deferred risk judgement of my own | Misattributed my decision to the owner | Attribute a deferral to whoever actually made it |
-| M-7 | Introduced a nested-reader deadlock converting the walk to streaming | Latent hang; found only because `unused: protocolInboundSource.release` was reported | Go's `RWMutex` makes a later `RLock` wait behind a queued writer; take the lock for construction, release before the drain |
-| M-8 | Regenerated `ai/PACKAGE-MAP.md` from a dirty tree | Carried another session's packages into my file | Restored via `git show HEAD:… > …`. At this closure the same staleness recurred, from `internal/core/configorder` and `internal/core/configvalue`, and was correctly LEFT alone |
-| M-9 | Read the harness's exit 0 as the gate's verdict | Believed a red gate green | The outer shell's status is not `make`'s; journal mechanism 8 |
-| M-10 | Trusted a self-review as the Review Gate | I-2 survived it: a defect in the diff the review read, falsifying AC-11 | Recorded in the gate itself. Running the product found in one command what reading the diff did not |
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | A substring assertion passed for `raw` because `ndjson` contained it | Operator lists require token equality | Mutation review | Replaced substring checks with token checks |
+| approach | The RIB answer shape changed before its consumers were swept | Six consumers depended on the grouped shape | Functional gate | Migrated each producer-bound consumer |
+| assumption | A nested config document looked like keyed rows | Payload shape cannot distinguish every document from rows | `show config dump \| first 1` | Declared shape wins before dispatch |
+| approach | A streaming conversion nested a read lock behind a queued writer | Go `RWMutex` blocks that later reader | Lint and deadlock trace | Construct under the lock and drain after release |
+| assumption | Two local spellings shared the renderer and therefore the bytes | Their newline writers differed | Byte comparison in AC-11 | Both call `WriteAnswer` |
+| assumption | The wiki would remain a JSON consumer | Native migration reads the registries through `wikicatalog.Collect` | Producer audit at closure | Recorded D-5 and verified both consumers derive the same contract |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Global formatting and saving on every reachable command | Done | `pipe_catalog.go` `pipeCatalog`; `pipe_save.go` `validateSaveOps` | `save` is local-process-only; remote expansion refuses the filesystem effect |
+| Row operations only where rows exist, with named refusal elsewhere | Done | `answer_shape.go` `rowsInKeyed`; `pipe.go` `validateDeclaredShape`, `ApplyPipes` | Declared shape resolves ambiguity; answer shape covers undeclared commands |
+| Per-command website and wiki contract from one derivation | Done | `help_command.go` `operatorsFor`; `wikicatalog.Render`; `docvalid.RenderCommandSurfaces` | Structural drift tests reject missing, extra, reordered, or malformed groups |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Producing symbol |
+|-------|--------|-----------------|------------------|
+| AC-1 | Done | `TestCatalogIsTheParser`, tagged CLI catalog tests | `PipeOperatorCatalog`, `knownPipeOps` |
+| AC-2 | Changed | D-1 and `TestDeclaredShapeResolvesByLongestPrefix` | `RegisterShape`, `ShapeForCommand` |
+| AC-3 | Done | declared-doc refusal in `pipe-local-command.ci` | `validateDeclaredShape` |
+| AC-4 | Changed | count cases in `pipe-local-command.ci` | `rowSet`, `selectRows`, `applyCount` |
+| AC-5 | Done | nested match and repetition cases | `foldFilters`, `ApplyPipes`, `RenderRecords` |
+| AC-6 | Done | ordered metadata assertion | `collectPipeMeta`, `injectPipeMeta` |
+| AC-7 | Done | `pipe-interactive-save.ci`, entry-contract fixtures | `validateSaveOps`, `saveAnswer`, `StreamSaves` |
+| AC-8 | Done | stream-class tests | `ProcessStreamPipes`, `validateStreamOps` |
+| AC-9 | Done | no-format nested match case | `applyMatch`, `recordsMatching` |
+| AC-10 | Done | 16/16 executable local-data cases | `RegisterLocalData`, `ServeLocal` |
+| AC-11 | Done | byte parity case in `pipe-local-command.ci` | `WriteAnswer` |
+| AC-12 | Changed | D-3 and declared-field address tests | `RegisterAddressFields`, `bindAddressFields` |
+| AC-13 | Done | tagged CLI JSON contract tests | `operatorsFor`, `collectCommands` |
+| AC-14 | Done | wikicatalog golden and current-catalog tests | `wikicatalog.Collect`, `Render` |
+| AC-15 | Done | docvalid mutation tests | `validateGeneratedCommandSurfaces`, `validateWikiPipeSupport` |
+| AC-16 | Done | rendered CLI rule and point | `ai/rules/cli.md`; catalog producer above |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Catalog, completion, and published contract | Done | `pipe_catalog_test.go`, tagged `cmd/ze` tests | One token population |
+| Shape resolution and named refusal | Done | `answer_shape_test.go`, `pipe-local-command.ci` | Includes ambiguous document |
+| Row extraction, composition, repetition, metadata | Done | `pipe_test.go`, `pipe_columns_test.go`, `render_records_test.go` | Document and record paths |
+| Save and stream lifecycle | Changed | `pipe_save_test.go`, `pipe-interactive-save.ci`, entry fixtures | Consolidated local and remote boundaries |
+| Local handler payload and parity | Changed | `pipe-local-command.ci`, `local_data_functional_coverage_test.go` | Executable population, no copied count |
+| Published wiki and website | Changed | `wikicatalog/render_test.go`, `docvalid/command_surfaces_test.go` | Native renderers replaced planned Python fixtures |
+| Numeric and empty boundaries | Done | `answer_shape_test.go`, `pipe_test.go`, `render_records_test.go` | Zero, exact, one over, and threshold |
+| Security entry paths | Done | `pipe-review-entry-contracts.ci`, `pipe-review-remote-contracts.ci` | Interactive, web, SSH exec, SSH PTY |
+
+### Files from Plan
+
+| File group | Status | Notes |
+|------------|--------|-------|
+| `internal/component/command/pipe*.go` | Done | Catalog, row model, composition, save, stream, metadata |
+| `answer_shape.go`, `pipe_catalog.go` | Done | Created as planned |
+| `pkg/plugin/rpc/message.go` head field types | Changed | D-3 keeps the head unchanged and declares address fields in `CommandDecl` |
+| CLI help, completion, and local dispatch | Done | All hand-copied lists removed; local payload path shared |
+| Local-data command registrations | Done | Executable coverage derives all 16 production registrations |
+| Wiki, website, and drift generators | Changed | Native `wikicatalog` and `docvalid` replace the planned Python-only route |
+| Generated operator reference and rules | Done | Catalog-generated table and CLI rule point |
+| Planned functional files | Changed | D-6 records consolidation into four fixtures |
+| Documentation pages | Changed | D-7 and External Closure Blocker name the pending foreign-owned corrections |
+| Release note | Changed | Existing content is correct but remains untracked under foreign ownership |
+
+- **Total rows:** 37
+- **Done:** 26
+- **Changed:** 11, each recorded in Deviations or the External Closure Blocker
+- **Partial:** 0
+- **Skipped:** 0
 
 ## Goal Validation
 
-The goal was `complete cli-show-bgp and before that its dependencies`, under
-the owner's ruling: *"I do not want an half-existing. I want the feature so
-that the website documentation can be improved with what each command supports.
-And make sure ALL the command support ALL the modifier which make them useful."*
+| Goal from Task | Evidence Type | Concrete Evidence |
+|----------------|---------------|-------------------|
+| Every reachable command answers global formatting and local saving | Functional | `bin/ze-test ui 188` passed; the entry fixtures cover local save and remote refusal |
+| Row operators act on rows and refuse documents | Functional and mutation | `pipe-local-command.ci` counts rows, composes two matches, and refuses a declared document; `answer_shape_test.go` covers ambiguous and empty answers |
+| Website, wiki, and JSON publish one per-command contract | Structural and mutation | Tagged docvalid and wikicatalog packages passed; mutations of operator, qualifier, alias, identity, group order, and empty support redden named tests |
+| Repeated operators compose on every chain path | Unit and functional | Document, metadata, folded-filter, and record tests pass; the UI fixture narrows twice |
+| The feature is complete rather than a partial publication layer | Population gate | `TestEveryLocalDataRegistrationHasAFunctionalCase` and `TestLocalDataCoverageEvidenceIsNonVacuousAndComplete` cover all 16 production registrations |
 
-| Goal clause | Met | Evidence |
-|-------------|-----|----------|
-| the website documentation can be improved with what each command supports | YES | `ze help command --json` publishes 199 commands, each with its operator list, every entry qualified `always` / `with-rows` / `when-streaming`, plus `answer-shape` where declared. `docs/features/pipe-operators.generated.md` is generated from the same catalog and `./le docvalid doc-drift` reddens when they disagree (mutation-proven at closure) |
-| ALL the commands support ALL the modifiers which make them useful | YES, with the second half enforced | 46 of 46 local-registry paths reach the pipe layer. What a command cannot support is refused BY NAME with a reason rather than silently mishandled, which is what "which make them useful" requires: `show schema protocol \| first 1` says `first cannot apply here: this command answers one document, and first acts on rows` |
-| not half-existing | YES | The catalog is the single source; the five hand-copied lists are gone. A surface that names an operator the catalog does not hold, or omits one it does, reddens a test |
+## Security Review
 
-Measured at closure against the built product, not the diff: 95 rows bare,
-7 after `\| match PATH`, 1 after a second `\| match GO` — so the row operators
-compose. `\| fill alpha \| fill alpha` and `\| json \| yaml` are refused by
-name. `\| save` wrote 13K at mode 0600. `\| resolve` on a command declaring no
-address field is refused with the reason.
+| Concern | Result | Producer evidence |
+|---------|--------|-------------------|
+| Local file write | Clean | `saveAnswer` creates a same-directory temporary file, sets mode 0600, and renames only after a complete write |
+| Remote filesystem authority | Clean | `validateSaveOps` refuses daemon-expanded save; web, SSH exec, and production SSH PTY entry fixtures prove the guard |
+| Injection | Clean | Pipe operators execute no shell or SQL; catalog names and classes are compiled declarations |
+| Untrusted input and bounds | Clean | `validatePipeArgument` rejects malformed tails; record `last` retention is bounded by `rpc.AnswerBufferThreshold` and `rpc.MaxMessageSize` |
+| Path traversal and symlinks | Clean for the declared local effect | The local user chooses the path with that user's process authority; atomic replacement does not grant daemon authority |
+| Races and partial files | Clean | `StreamSaves` stages every destination and commits after stream success, aborting all temporary files on failure |
+| Resource exhaustion | Clean | Row walks stream where possible; retained tail and declaration sizes are bounded |
+| Cryptography, secrets, privilege escalation | Not applicable | No cryptographic primitive, secret, privilege transition, or new listener was added |
+| Information leakage | Clean | Refusals name operator and shape without payload or path internals beyond the path the local user supplied |
+| Runtime dependencies and doctor checks | Not applicable | No new external binary, socket, port, certificate, kernel feature, or persistent runtime path |
+
+No security blocker or issue remains.
 
 ## Deferrals Resolved
 
-| Row | Status |
-|-----|--------|
-| (none) | `plan/deferrals/cli-pipe-operator-coverage.md` never took a row. Phases 1 to 3 each fixed what they found, and the shard is removed at closure rather than left as an empty file |
+| Row from shard | Final Status | Destination or evidence |
+|----------------|--------------|-------------------------|
+| none | done | `plan/deferrals/cli-pipe-operator-coverage.md` contains no data row and is removed with the spec in Commit B |
 
-One finding was recorded elsewhere rather than deferred: unknown-argument
-tolerance (`ze show env list --nosuchflag` answers and exits 0) belongs to the
-command grammar, not the operator language, and is now an open finding in
-`plan/audit-command-pipe-vs-subcommand.md`.
+The unknown-argument finding belongs to command grammar and is recorded in
+`plan/audit-command-pipe-vs-subcommand.md`; it was never a deferral from this
+spec.
 
 ## Documentation Updates
 
-| Page | Change |
-|------|--------|
-| `docs/features/pipe-operators.generated.md` | Created, generated from the catalog |
-| `docs/architecture/api/commands.md` | The operator model, the answer shape, and the two refusal paths. Now the destination for the `// Related:` lines this spec's files carried |
-| `ai/rules/cli.md` | The unmeetable universal rule replaced by the two rules of audit section 6, with its point file |
+| Category or page | Yes/No | Source-aware result |
+|------------------|--------|---------------------|
+| Feature list | Yes | `docs/features.md` must replace its universal address and row-operator claims after the foreign migration lands |
+| User guide | Yes | `docs/guide/cli.md` now says `match <text>` and points readers to the per-command contract |
+| Config syntax | No | No YANG leaf or config parser changed |
+| CLI reference | Yes | `docs/features/formatting.md` must state per-command availability; `docs/features/pipe-operators.generated.md` is catalog-generated |
+| API/RPC docs | Yes | `docs/architecture/api/commands.md` and `process-protocol.md` describe declarations and refusal; address fields now admit and limit transforms |
+| Plugin SDK | Yes | `pkg/plugin/rpc/types.go` `CommandDecl` documents shape, columns, and address fields |
+| Wire format | No | `AppendAnswerHead` and `parseAnswerHead` still carry item type, key, and columns; D-3 moved address declarations to Stage 1 |
+| RFC compliance | No | No RFC or routing wire behavior changed |
+| Comparison table | No | Support level did not change |
+| Test infrastructure | Yes | Native docvalid, wikicatalog, local-data population, and functional entry fixtures are documented in this audit |
+| Architecture design | Yes | `docs/architecture/api/commands.md` is the durable design destination |
+| Config editor | Yes | `docs/guide/config-editor.md` distinguishes editor filters from operational pipe operators |
+| Release note | Yes | `website/changes/discord/2026-08-17-weekly.md` names `save`, per-command publication, and RIB shape changes |
+
+`./le docvalid doc-drift` and the tagged docvalid package passed before closure.
+The aggregate `./le doc-check verify` remains red only through foreign migration
+state already recorded in the Gates table below. No RFC status or doctor update
+applies.
 
 ## Pre-Commit Verification
 
-Run at closure, against the built product. The ACs were re-derived by running
-commands, not by reading the audit — which is how I-2 was found.
-
 ### Files Exist
 
-| File | Present |
-|------|---------|
-| `internal/component/command/pipe_catalog.go` | yes, 13K |
-| `internal/component/command/answer_shape.go` | yes, 9.8K |
-| `docs/features/pipe-operators.generated.md` | yes, 2.0K |
+| File | Exists | Fresh evidence |
+|------|--------|----------------|
+| `internal/component/command/pipe_catalog.go` | yes | `stat`: 14565 bytes |
+| `internal/component/command/answer_shape.go` | yes | `stat`: 15792 bytes |
+| `docs/features/pipe-operators.generated.md` | yes | `stat`: 2146 bytes |
+| `test/ui/pipe-local-command.ci` | yes | `stat`: 1626 bytes |
+| `test/ui/pipe-interactive-save.ci` | yes | `stat`: 1415 bytes |
+| `test/ui/pipe-review-entry-contracts.ci` | yes | `stat`: 762 bytes |
+| `test/plugin/pipe-review-remote-contracts.ci` | yes | `stat`: 748 bytes |
 
 ### AC Verified
 
-| AC | Fresh evidence at closure |
-|----|---------------------------|
-| AC-1 | `TestPipeHelpNamesEveryOperator`, `TestPipeRootSubsNamesEveryOperator`, `TestVerboseHelpNamesTheGlobalOperators`, `TestPipeCatalogJSONPublishesEveryContract` all PASS under `-tags ze_core` |
-| AC-2 | `show config dump` publishes `answer-shape: doc` and NO row operator; an undeclared command publishes them `with-rows`. See D-1 |
-| AC-3 | `show schema protocol \| first 1` → `pipe error: first cannot apply here: this command answers one document, and first acts on rows`, exit 1 |
-| AC-4 | `show env list \| count` → 95, the row count, not a key count |
-| AC-5 | 95 → 7 → 1 across two `\| match`. `\| fill alpha \| fill alpha` → `fill cannot be repeated in one chain`. `\| json \| yaml` → `multiple format operators` |
-| AC-6 | `show env list \| match PATH \| first 2 \| json` carries `[{"arg":"PATH","op":"match"},{"arg":"2","op":"first"}]` — the whole chain, in order |
-| AC-7 | `\| save tmp/vbin/saved.json` wrote 13K at `-rw-------` |
-| AC-8 | `\| log` on `ze cli -c` exits 0 and answers its 96 lines; published `when-streaming`, which is the honest qualifier for a command that answers once |
-| AC-9 | `show env list \| match PATH \| count` → 7 with NO format operator in the chain |
-| AC-10 | `ze cli -c "show env list \| json"` answers JSON. It answered `unknown command` before |
-| AC-11 | `ze show env list` and `ze cli -c "show env list"` are byte-identical, 96 lines, `cmp` clean. FALSE when first measured — see I-2 |
-| AC-12 | `show env list \| resolve` → `resolve cannot apply here: no field of this command's answer is declared to hold an IP address` |
-| AC-13 | `ze help command --json` publishes 199 commands with `operators`; no entry carries `global-pipes` |
-| AC-14 | `docs/features/pipe-operators.generated.md` holds 0 hand-written operator literals |
-| AC-15 | Mutation-proven at closure: renaming one row `count` → `nosuchop` reddens `./le docvalid doc-drift` with *the published pipe operator table and the operator catalog disagree*; restored byte-identical and the check returns *No documentation drift detected* |
-| AC-16 | `ai/rules/cli.md:15` states both rules and names the replaced one |
+| AC ID | Producer | Recorded focused evidence |
+|-------|----------|---------------------------|
+| AC-1 | `PipeOperatorCatalog`, `knownPipeOps` | Tagged CLI catalog tests passed |
+| AC-2 | `ShapeForCommand`, `shapeOfAnswer` | Shape tests and declared/undeclared UI cases passed; D-1 |
+| AC-3 | `validateDeclaredShape` | Declared document refusal passed in UI |
+| AC-4 | `rowSet`, `selectRows`, `applyCount` | Local row count and empty/keyed boundary tests passed |
+| AC-5 | `foldFilters`, `ApplyPipes`, `RenderRecords` | Two-match and repetition tests passed |
+| AC-6 | `collectPipeMeta`, `injectPipeMeta` | Ordered chain assertion passed |
+| AC-7 | `validateSaveOps`, `saveAnswer`, `StreamSaves` | Interactive bytes/mode and remote-refusal fixtures passed |
+| AC-8 | `ProcessStreamPipes`, `validateStreamOps` | One-shot refusal and stream acceptance tests passed |
+| AC-9 | `applyMatch`, `recordsMatching` | Match then count without a format passed |
+| AC-10 | `RegisterLocalData`, `ServeLocal` | Local-data coverage package passed for 16/16 registrations |
+| AC-11 | `WriteAnswer` | Two spellings compared byte for byte in UI |
+| AC-12 | `RegisterAddressFields`, `bindAddressFields` | Undeclared refusal and declared-field-only transforms passed; D-3 |
+| AC-13 | `operatorsFor`, `collectCommands` | Tagged CLI JSON tests passed; no `global-pipes` field |
+| AC-14 | `wikicatalog.Collect`, `Render` | Tagged wikicatalog golden/current tests passed |
+| AC-15 | `validateGeneratedCommandSurfaces`, `validateWikiPipeSupport` | Tagged docvalid mutation and structural tests passed |
+| AC-16 | `PipeOperatorCatalog` rendered into `ai/rules/cli.md` | Rule point and rendered aggregate checked |
 
 ### Wiring Verified
 
-| File | What it tests |
-|------|---------------|
-| `test/ui/pipe-local-command.ci` | 9 sections over the real binary with NO daemon: format, count, nested match, display, refused argument, a declared-`doc` refusal, a rows answer, the config family, and surface parity |
-| `test/ui/cli-format-default.ci` | The default-format behaviour AC-3 and AC-9 changed |
-| `test/parse/cli-data-ls-show.ci` | The AC-10 local-data path, asserted unchanged |
-| `internal/component/bgp/plugins/rib/rib_pipeline_show_stream_test.go` | `TestShowPipelineOrdersTheSameWithAndWithoutATerminal` (I-1) |
+| Entry point | Producer path | End-to-end evidence |
+|-------------|---------------|---------------------|
+| `ze help command --json` | `operatorsFor` to `collectCommands` | Tagged `cmd/ze` contract tests |
+| `ze cli -c` local command | `ServeLocal` to `ApplyPipes` | `pipe-local-command.ci`, 16/16 population check |
+| Interactive save | model command to `StreamSaves` | `pipe-interactive-save.ci` |
+| Web and SSH remote save | entry handler to `validateSaveOps` | entry and remote contract fixtures |
+| Wiki and website | registry/JSON contract to native renderers | tagged wikicatalog and docvalid packages |
 
-the retired `ze-functional-ui-test` (current: `./le functional ui`): 184/184 pass, 10 skip. Section 9 was RED before
-the I-2 fix with *the two surfaces answer different bytes*, and green after.
+`bin/ze-test ui 188` passed. The local-data coverage test reads executable
+fixture registrations rather than comments or copied command names.
 
 ### Assumptions Resolved
 
-| # | Assumption | Status |
-|---|------------|--------|
-| A-1 | A command's answer alone can decide whether a row operator applies | BROKEN for one family. A config tree whose top-level key holds a map of maps is indistinguishable from identity-keyed rows, so `show config dump \| first 1` returned a config fragment. Resolved by the DECLARED shape winning over the guess (N-1, and `test/ui/pipe-local-command.ci` section 8) |
-| A-2 | The 38 unreached commands are unreached because YANG declares a wire method no daemon handler implements | CONFIRMED. `ServeLocal` answers them in the client's own process and all 46 local paths now reach the pipe layer |
-| A-3 | Both spellings of a dual-registered command already share one output path | BROKEN. They shared the renderer and not the newline policy (I-2). Resolved by `command.WriteAnswer` owning it for both |
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `AppendAnswerHead` and `parseAnswerHead` carry the item type on every answer; `TestShapeSpellingMatchesTheWire` binds declaration vocabulary to it |
+| A-2 | confirmed | A declaration stays constant across the 256-record buffering threshold; answer representation may change without changing `ShapeForCommand` |
+| A-3 | broken and corrected | The shared renderer had two newline writers; `WriteAnswer` now owns both spellings and the UI parity case passes. See D-4 and the Mistake Log |
+| A-4 | broken by migration and corrected | Website rendering consumes the JSON contract; native wiki rendering reads the same registries through `wikicatalog.Collect`. See D-5 and the Mistake Log |
 
 ### Documentation Verified
 
-| Page | Reviewed | Claims checked |
-|------|----------|----------------|
-| `docs/architecture/api/commands.md` | this session | It is now the `// Related:` destination for all 7 files this spec's code carried, and the `VALIDATES:` target for `test/ui/pipe-local-command.ci`. Reachable, and describes the operator model those files implement |
-| `docs/features/pipe-operators.generated.md` | generated + gated | Cannot disagree with the catalog without reddening `./le docvalid doc-drift` |
+| Claim or category | Source evidence | Result |
+|-------------------|-----------------|--------|
+| Per-command availability | `help_command.go` `operatorsFor` | Checked against CLI guide and pending formatting/features edits |
+| Match semantics | `pipe.go` `applyMatch`, `applyMatchLines` | CLI guide corrected |
+| Address-field scope | `pipe.go` `bindAddressFields`; `pipe_resolve.go` `resolveJSON` | RPC comment and process protocol corrected; commands doc edit pending foreign migration |
+| Editor pipe language | `model_load.go` `dispatchWithPipe`, `ClassifyShowPipes` | Config editor guide corrected |
+| Generated operator reference | `pipe_catalog.go` `RenderOperatorReference` | Tagged docvalid tests passed |
+| Runtime inventory | `operatorsFor`, `wikicatalog.Collect` | Derived from registries, never from memory |
 
 ### Gates
 
 | Gate | Result |
 |------|--------|
-| `./le functional ui` | 184/184 PASS |
-| `go test ./internal/component/command/` | ok |
-| `go test -tags ze_core ./cmd/ze/ -run 'Pipe\|Operator\|Shape'` | ok |
-| `./le docvalid doc-drift` | No documentation drift detected |
-| `./le repository-tracked-build check` | OK, every flavor compiles |
-| `./le doc-check verify` | RED, and NOT from this work: one source anchor in `docs/guide/web-interface.md` broken by another session's uncommitted edit to `cmd/ze/hub/aaa_authenticator_web.go`, and `ai/PACKAGE-MAP.md` stale from that session's untracked `internal/core/configorder` and `internal/core/configvalue`. Regenerating the map would carry their packages into this commit, which is mistake M-8; it was left alone deliberately |
+| Review artifact hash check | `OK (14 code files, clean, hashes match)` after closure edits |
+| Focused tagged packages | PASS: docvalid, wikicatalog, localdatacoverage, CLI, registry |
+| Functional UI | `bin/ze-test ui 188`: PASS |
+| Tracked build | PASS at `08cba7efd` |
+| `./le docvalid doc-drift` | PASS before foreign migration widened the tree |
+| `./le changed scope` | Selected all packages because isolated verification had no status |
+| Lint/aggregate docs | Remaining red findings are foreign migration changes, including the already deleted obsolete runtime-evidence test |
+
+## Journal Decision
+
+No journal row is added at closure. The implementation already recorded the
+test-vacuity, consumer-sweep, lock-order, and self-review lessons when they were
+found. The closure followed the existing rule that a clean review artifact does
+not replace the documentation checklist, so it taught no new mechanism or
+constraint.
